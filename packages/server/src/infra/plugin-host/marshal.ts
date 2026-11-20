@@ -42,7 +42,7 @@
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
 import { cpuWindowPassed } from "./cpu-guard.ts";
-import { CodedHostUnavailableError } from "./process-protocol.ts";
+import { CodedHostUnavailableError, PluginLlmFailureError } from "./process-protocol.ts";
 
 /** A guest value read into the host. `promise`: the value is a promise, refused unread. `thrown`: the realm failed
  *  while serializing it (the CPU interrupt, or its memory limit); the caller owns that exception handle. */
@@ -186,6 +186,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     // A coded refusal says why beside its name, on every path a host error reaches the guest by.
     if (error instanceof CodedHostUnavailableError) {
       defineText(handle, "code", error.code);
+    }
+    // A failed model call says why by its closed kind and a retry flag, never by the upstream text.
+    if (error instanceof PluginLlmFailureError) {
+      defineText(handle, "kind", error.kind);
+      ctx.defineProp(handle, "retryable", { value: error.retryable ? ctx.true : ctx.false, configurable: true, enumerable: false });
     }
     for (const [key, text] of Object.entries(fields)) {
       defineText(handle, key, text);

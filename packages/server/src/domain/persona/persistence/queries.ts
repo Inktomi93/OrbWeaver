@@ -3,13 +3,15 @@
 // ROOM-plane read; and the room's pin through its chat (`chats.anchorPersonaId`, the FK chain). `detailOf`
 // narrows the stored `metadata` blob at the read seam, so a corrupt row degrades to `null`.
 
-import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAssetKind } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAsset } from "@orb/contracts/assets";
 import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "@orb/contracts/persona";
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PersonaCandidate } from "#primitives/serde/persona";
 import { foldPersonaName, personaPlacementOf } from "#primitives/serde/persona";
@@ -20,6 +22,12 @@ import { NEWEST_PERSONA_FIRST } from "./newest-persona.ts";
 const LIMIT_ONE = 1;
 
 type PersonaRow = typeof personas.$inferSelect;
+
+// The read seam for the stored blob: a blob out of shape degrades to null, and so does stored text that is not JSON,
+// which is tested first because the open schema would admit the marker's own `text` key as metadata.
+function readMetadata(stored: PersonaRow["metadata"]): PersonaDetail["metadata"] {
+  return stored instanceof UnreadableJsonText ? null : personaMetadataSchema.nullable().catch(null).parse(stored);
+}
 type AssetRow = typeof assets.$inferSelect;
 
 // Row + the joined avatar asset (null when no avatar is attached). File-local — the verbs chain
@@ -119,7 +127,7 @@ function toPersonaView(row: Pick<PersonaRow, keyof typeof PERSONA_VIEW_COLUMNS>)
     name: row.name,
     description: row.description,
     // The SAME read-seam narrowing `detailOf` applies — a corrupt blob degrades to null, never poisons the view.
-    metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
+    metadata: readMetadata(row.metadata),
   };
 }
 
@@ -136,10 +144,14 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
 
 // Every owned persona id keyed by its dedup-folded name (`foldPersonaName`). The fold runs in JS, not as a
 // `WHERE name = ?`: SQLite's `lower()` is ASCII-only, so a SQL-side fold would disagree with the serde's.
-// Newest wins on a collision (`ORDER BY createdAt DESC`, first write into the map).
+// Newest wins on a collision (`NEWEST_PERSONA_FIRST`, first write into the map).
 async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): Promise<Map<string, PersonaId>> {
   // NEWEST FIRST, and the ordering is the collision rule: `indexByDedupName` keeps the first row it sees.
-  const rows = await db.select({ id: personas.id, name: personas.name }).from(personas).where(eq(personas.ownerId, ownerId)).orderBy(desc(personas.createdAt));
+  const rows = await db
+    .select({ id: personas.id, name: personas.name })
+    .from(personas)
+    .where(eq(personas.ownerId, ownerId))
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return indexByDedupName(rows);
 }
 
@@ -158,13 +170,13 @@ export async function loadOwnedPersonaCandidates(db: Db, ownerId: UserId): Promi
     .from(personas)
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(eq(personas.ownerId, ownerId))
-    .orderBy(desc(personas.createdAt));
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
     title: row.title,
     description: row.description,
-    placement: personaPlacementOf(personaMetadataSchema.nullable().catch(null).parse(row.metadata)),
+    placement: personaPlacementOf(readMetadata(row.metadata)),
     artHash: row.artHash ?? null,
   }));
 }
@@ -198,7 +210,7 @@ export async function listConnectedPersonasWithAvatar(db: Db, ownerId: UserId, c
     .innerJoin(personas, eq(personas.id, characterPersonas.personaId))
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, ownerId)))
-    .orderBy(desc(personas.createdAt));
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return rows;
 }
 
@@ -213,7 +225,8 @@ export async function listConnectedCharactersOf(db: Db, ownerId: UserId, persona
     .from(characterPersonas)
     .innerJoin(characters, eq(characters.id, characterPersonas.characterId))
     .where(and(eq(characterPersonas.personaId, personaId), eq(characters.ownerId, ownerId)))
-    .orderBy(desc(characters.createdAt));
+    // Orders characters, not personas, so it carries its own id tie-break rather than NEWEST_PERSONA_FIRST.
+    .orderBy(desc(characters.createdAt), desc(characters.id));
 }
 
 /** Gate: the character must belong to the caller. A foreign/absent character collapses to
@@ -252,16 +265,18 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     return;
   }
   const rows = await db
-    .select({ id: assets.id, kind: assets.kind })
+    .select({ id: assets.id, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
+  const kinds = await loadAssetKinds(db, assetIds);
   for (const assetId of assetIds) {
     const row = rows.find(({ id }) => id === assetId);
     if (row === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    if (!isPictureAssetKind(row.kind)) {
-      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
+    const held = kinds.get(assetId) ?? [];
+    if (!isPictureAsset({ kinds: held, mime: row.mime })) {
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${held.join(", ")} asset`);
     }
   }
 }
@@ -295,7 +310,7 @@ export function detailOf({ persona: row, avatar }: PersonaWithAvatar): PersonaDe
     starred: row.starred,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
-    metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
+    metadata: readMetadata(row.metadata),
     updatedAt: row.updatedAt,
   };
 }

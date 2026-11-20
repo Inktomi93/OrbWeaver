@@ -5,6 +5,7 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput, EntryMetadata } from "@orb/contracts/world-info";
+import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { WorldBookId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -18,24 +19,28 @@ export { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 const SCHEMA_VERSION = 1;
 
 // keys is always an array (empty, never omitted — the null-collapse to world_entries.keys is the writer's
-// job); metadata is the raw entry blob, passed through untouched.
-const fileEntrySchema = z.object({
-  title: z.string(),
-  description: z.string().nullable(),
-  content: z.string(),
-  keys: z.array(z.string()).transform((keys): readonly string[] => keys),
-  enabled: z.boolean(),
-  priority: z.number(),
-  ignoreBudget: z.boolean(),
-  metadata: z.record(z.string(), z.unknown()).nullable(),
-});
+// job); metadata is narrowed here, so an entry with a refused known field refuses the file.
+const fileEntrySchema = z
+  .object({
+    title: z.string(),
+    description: z.string().nullable(),
+    content: z.string(),
+    keys: z.array(z.string()).transform((keys): readonly string[] => keys),
+    enabled: z.boolean(),
+    priority: z.number(),
+    ignoreBudget: z.boolean(),
+    metadata: narrowedEntryMetadataSchema,
+  })
+  .strip();
 
 // The book's own top-level fields, beside the envelope and the entry array. Not .strict() — an unknown
 // top-level key from a newer writer rides through (forward-tolerant).
-const headerSchema = z.object({
-  name: z.string(),
-  description: z.string().nullable(),
-});
+const headerSchema = z
+  .object({
+    name: z.string(),
+    description: z.string().nullable(),
+  })
+  .strip();
 
 const worldBookSerde = defineJsonRowsSerde<BulkImportLorebookInput, BulkImportLorebookInput["entries"][number], z.infer<typeof headerSchema>>({
   schemaKind: WORLD_INFO_SCHEMA_KIND,
@@ -134,9 +139,11 @@ function stEntryKeyMode(adapted: Record<string, unknown>, metadata: Record<strin
   return { ...metadata, keyMode: "regex" };
 }
 
-function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput {
+// `null` for an entry whose metadata the column refuses: the parse answers that as a malformed file.
+function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput | null {
   const adapted = toCharacterBookEntry(stEntry);
-  return { ...loreEntryColumns(adapted), metadata: stEntryKeyMode(adapted, loreEntryMetadata(adapted)) };
+  const metadata = narrowedEntryMetadataSchema.safeParse(stEntryKeyMode(adapted, loreEntryMetadata(adapted)));
+  return metadata.success ? { ...loreEntryColumns(adapted), metadata: metadata.data } : null;
 }
 
 /** A decoded object is an ST world file when it carries an `entries` object and no envelope. */
@@ -159,7 +166,11 @@ export function parseWorldBookFile(bytes: Uint8Array, fallbackName: string): Por
   if (stEntries.length === 0) {
     return { ok: false, reason: "malformed" };
   }
-  return { ok: true, value: { name: fallbackName, description: null, entries: stEntries.map(toLoreEntry) } };
+  const entries = stEntries.map(toLoreEntry);
+  if (entries.some((entry) => entry === null)) {
+    return { ok: false, reason: "malformed" };
+  }
+  return { ok: true, value: { name: fallbackName, description: null, entries: entries.filter((entry) => entry !== null) } };
 }
 
 // ── The book content identity ────────────────────────────────────────────────────────────────────────
@@ -189,17 +200,11 @@ export interface DedupCandidateBook extends DedupBook {
   readonly id: WorldBookId;
 }
 
-// The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce
-//  the same key, under any names.
-function bookContentKey(book: Pick<DedupBook, "entries">): string {
+/** The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce the same
+ *  key, under any names. */
+export function bookContentKey(book: Pick<DedupBook, "entries">): string {
   const entryKeys = book.entries.map((entry) => stableStringify(loreEntryIdentity(entry))).sort();
   return stableStringify({ entries: entryKeys });
-}
-
-/** A test for "an owned book has this content", with the library's keys built once. */
-export function bookContentHolder(candidates: readonly DedupCandidateBook[]): (incoming: Pick<DedupBook, "entries">) => boolean {
-  const held = new Set(candidates.map(bookContentKey));
-  return (incoming) => held.has(bookContentKey(incoming));
 }
 
 /** The owned library book the incoming book content-matches (its id and the name it carries), or null

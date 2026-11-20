@@ -7,9 +7,11 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
+import { JOIN_CREATE_ACCOUNT_NAME, SIGN_IN_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { JOIN_CHAT_NAME } from "#client/features/chat/lib/members-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
@@ -134,10 +136,10 @@ test.describe("local corpus auth guard", () => {
       const page = await context.newPage();
       await page.goto("/analytics");
       await expect(page).toHaveURL(/\/login$/u, { timeout: WAIT_SETTLE_MS });
-      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
-      await page.getByRole("textbox", { name: "Handle", exact: true }).fill(owner.handle);
-      await page.getByLabel("Password", { exact: true }).fill(owner.password);
-      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
+      await page.getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME, exact: true }).fill(owner.handle);
+      await page.getByLabel(ACCOUNT_PASSWORD_FIELD_NAME, { exact: true }).fill(owner.password);
+      await page.getByRole("button", { name: SIGN_IN_NAME, exact: true }).click();
       await waitForAppReady(page);
       // The alias named a Corpus mode before the redirect; the signed-in app opens on it rather than on Home.
       await expect(page.getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true }).first()).toHaveAttribute("aria-checked", "true");
@@ -155,11 +157,11 @@ test.describe("local corpus auth guard", () => {
         try {
           const page = await context.newPage();
           await page.goto("/login");
-          await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+          await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
           const before = await address(page);
           const guard = await holdAuthMe(page);
           await page.goto(`/?join=${token}`, { waitUntil: "commit" });
-          const join = page.getByRole("button", { name: "Create account and join", exact: true });
+          const join = page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true });
           const pending = page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true });
           // Two slow windows: the landing's own guard read, then the sign-in page's after the redirect. In each the router
           // paints its pending mark, the form stays out, and the crash fallback never shows.
@@ -189,7 +191,7 @@ test.describe("local corpus auth guard", () => {
     try {
       const page = await context.newPage();
       await page.goto("/login?first=1");
-      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
       const guard = await holdAuthMe(page);
       // A second entry for Forward to return to; the router is not told, as with any entry it did not make.
       await page.evaluate(() => history.pushState(null, "", "/login?second=1"));
@@ -207,7 +209,7 @@ test.describe("local corpus auth guard", () => {
       });
       await expect.poll(guard.reads).toBeGreaterThanOrEqual(2);
       guard.releaseAll();
-      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 8 });
+      await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 8 });
       await expect(page.locator(APP_FAILURE)).toHaveCount(0);
       await expect.poll(async () => (await address(page)).href, { timeout: GUARD_READ_BUDGET_MS * 8 }).toBe("/login?second=1");
     } finally {
@@ -238,7 +240,7 @@ test.describe("local corpus auth guard", () => {
     test.skip(!isMobile, "The You sheet is the phone's account door");
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByTestId(testId("accountSurface"))).toContainText(capturedOwner().handle);
     await expect(sheet.getByTestId(testId("accountLogout"))).toBeEnabled();

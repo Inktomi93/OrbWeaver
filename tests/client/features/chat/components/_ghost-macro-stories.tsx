@@ -10,6 +10,7 @@ import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
+const DEFAULT_HOST_WIDTH = 960;
 const ids = createSeededIds(FIXTURE_ID_CURSOR);
 const TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
 const REFUSED_TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
@@ -83,6 +84,7 @@ export function StreamingReplyStory({
   nextText = "",
   nextLabel = "Stream more",
   kind = "text",
+  hostWidth = DEFAULT_HOST_WIDTH,
 }: {
   readonly chatId: ChatId;
   readonly speakerCharacterId: CharacterId;
@@ -93,10 +95,12 @@ export function StreamingReplyStory({
   readonly nextLabel?: string;
   /** Which stream the chunks ride: the answer text or the reasoning trace. */
   readonly kind?: "text" | "reasoning";
+  /** The transcript host's inline size, so a case can mount at a phone's width. */
+  readonly hostWidth?: number;
 }): ReactElement {
   return (
     <CtClientProviders>
-      <Container role="group" aria-label="Room transcript host" style={{ inlineSize: 960, blockSize: 900 }}>
+      <Container role="group" aria-label="Room transcript host" style={{ inlineSize: hostWidth, blockSize: 900 }}>
         <Transcript
           chatId={chatId}
           speakerCharacterId={speakerCharacterId}

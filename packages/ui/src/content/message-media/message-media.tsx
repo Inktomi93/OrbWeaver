@@ -2,6 +2,7 @@ import type { CSSProperties, ReactElement } from "react";
 import { useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
+import { externalMediaLoadName, MEDIA_UNAVAILABLE_TEXT } from "./message-media-names.ts";
 import { messageMediaVariants } from "./variants.ts";
 
 // asset = our own origin (render freely); external = untrusted URL.
@@ -15,6 +16,8 @@ export interface MessageMediaProps extends VariantProps<typeof messageMediaVaria
   readonly dims?: { readonly w: number; readonly h: number };
   /** Whether an EXTERNAL url may load; default false gates it behind a click-to-load placeholder (no network request until opt-in). Ignored for `asset` sources. */
   readonly allowExternal?: boolean;
+  /** Fires when the reader asks the gate to load this external source, so a zoomed copy of the same picture can skip asking again. */
+  readonly onLoadRequested?: () => void;
   readonly className?: string;
   /** Click handler (e.g. open a lightbox) — images/video only. */
   readonly onActivate?: () => void;
@@ -37,14 +40,9 @@ function isDataUri(url: string): boolean {
 }
 
 function hostOf(url: string): string {
-  // MessageMedia renders hostOf(src.url) inside the click-to-load
-  // button ("External media — load from …?"), so a malformed url shows the "external source" label to the
-  // reader. Ends if that button stops rendering the returned string.
-  try {
-    return new URL(url).host;
-  } catch {
-    return "external source";
-  }
+  // MessageMedia renders hostOf(src.url) inside the click-to-load button ("External media — load from …?"), so a
+  // malformed url shows the "external source" label to the reader.
+  return URL.parse(url)?.host ?? "external source";
 }
 
 /**
@@ -62,6 +60,7 @@ export function MessageMedia({
   maxHeight,
   className,
   onActivate,
+  onLoadRequested,
 }: MessageMediaProps): ReactElement {
   const box = messageMediaVariants({ centred, fill, maxHeight, className });
   const isExternal = src.kind === "external";
@@ -72,7 +71,10 @@ export function MessageMedia({
   const loadRequested = loadRequestedFor === mediaIdentity;
   const broken = brokenFor === mediaIdentity;
   const gated = isExternal && !blockedDataUri && !allowExternal && !loadRequested;
-  const requestLoad = (): void => setLoadRequestedFor(mediaIdentity);
+  const requestLoad = (): void => {
+    setLoadRequestedFor(mediaIdentity);
+    onLoadRequested?.();
+  };
   const onMediaError = (): void => setBrokenFor(mediaIdentity);
 
   const aspectStyle: CSSProperties = {
@@ -110,7 +112,7 @@ export function MessageMedia({
   if (gated) {
     return (
       <button type="button" onClick={requestLoad} className={fallbackClass} style={aspectStyle} data-slot="message-media-placeholder">
-        External media: load from {hostOf(src.url)}?
+        {externalMediaLoadName(hostOf(src.url))}
       </button>
     );
   }
@@ -119,7 +121,7 @@ export function MessageMedia({
   if (broken) {
     return (
       <div className={fallbackClass} style={aspectStyle} data-slot="message-media-broken">
-        Media unavailable
+        {MEDIA_UNAVAILABLE_TEXT}
       </div>
     );
   }

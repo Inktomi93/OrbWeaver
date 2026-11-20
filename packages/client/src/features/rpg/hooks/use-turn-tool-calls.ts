@@ -21,7 +21,7 @@
 import type { RpgToolCallDisclosure, RpgTurnToolCallsView } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 
 /** How deep a scrollback the disclosure can answer for, in TURNS (message slots). Matches the server verb's
  *  own default — a deeper history would need both raised, which is the point of them being the same number.
@@ -52,7 +52,7 @@ const NO_RECORD: Pick<RpgTurnToolCallsView, "calls" | "failure"> = { calls: EMPT
 export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): Pick<RpgTurnToolCallsView, "calls" | "failure"> {
   const trpc = useTRPC();
   // Cache-first: every room surface already holds this read, so on a game room the gate costs no round-trip.
-  const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const detail = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const isGame = isRpgEngaged(detail.data?.rpg ?? null);
   const { data } = useGatedQuery(isGame ? chatId : null, (id) => ({
     ...trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),

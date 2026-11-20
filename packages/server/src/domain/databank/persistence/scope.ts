@@ -4,8 +4,10 @@
 // attachment state would be a surprising hole); a `{chatId}` turn resolves the MEMBERSHIP-WIDENED union (D85).
 //
 // D85 (the host-only → membership widening): every PRESENT HUMAN member (kind='human', leftSeq null — the host
-// is one of them; a member who LEFT is dropped) credits their GLOBAL documents to the shared room, unioned with
-// the chat's directly-attached documents AND the docs attached to the chat's PRESENT ROSTER characters (DB8).
+// is one of them; a member who LEFT is dropped, and so is a disabled account, owner-ruled to stand as a departed
+// one) credits their GLOBAL documents to the shared room, unioned with
+// the chat's directly-attached documents the present host owns (D64) AND the docs attached to the chat's PRESENT
+// ROSTER characters (DB8).
 // This mirrors the D16 corpus membership union: widening credits only ATTACHED documents (a global_documents /
 // chat_documents / character_documents junction row) — a member's PRIVATE (unattached/unconsented) documents
 // NEVER leak, because they have no junction row to union. On top of the union sits the HOST's optional
@@ -19,8 +21,8 @@
 // schema — the visibility blob's schema is databank's own contract).
 
 import type { DocumentDestination, DocumentScopeSource } from "@orb/contracts/databank";
-import type { Principal } from "@orb/contracts/identity";
-import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
+import { isHostRole, PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { ResolveActiveDocumentIdsOp } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
@@ -31,6 +33,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { DatabankContext } from "../contract/service.ts";
@@ -191,18 +194,33 @@ export async function insertIngestDocument(
  *  strictly (branded `documentIdSchema`) at the trust boundary by `chatDocumentVisibilitySchema`; here on the
  *  READ path the ids are already-trusted stored values, and an id that isn't in the union is inert — so this
  *  only guards the SHAPE (a non-array / non-object heals to nothing-hidden), never re-validates the TypeID. */
-const storedVisibilitySchema = z.object({ hidden: z.array(z.string()) });
+const storedVisibilitySchema = z.object({ hidden: z.array(z.string()) }).strip();
 
 type DocumentScope = Parameters<ResolveActiveDocumentIdsOp>[0];
 type DocumentScopeQuery = SQLWrapper & PromiseLike<readonly Pick<typeof globalDocuments.$inferSelect, "documentId">[]>;
 
+function presentHumanSeat(chatId: ChatId): SQL | undefined {
+  return and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), isNull(chatParticipants.leftSeq));
+}
+
+/** The room's present human members whose accounts are enabled: the members whose global documents credit it. The
+ *  enabled read is the sessions op, never a `users` join, because that table belongs to sessions and admin. */
+async function enabledMemberIds(db: Db, chatId: ChatId, resolveUserEnabled: ResolveUserEnabled): Promise<UserId[]> {
+  const rows = await db.select({ userId: chatParticipants.userId }).from(chatParticipants).where(presentHumanSeat(chatId));
+  const members = [...new Set(rows.flatMap((row) => (row.userId === null ? [] : [row.userId])))];
+  const enabled = await Promise.all(members.map((userId) => resolveUserEnabled(userId)));
+  return members.filter((_userId, i) => enabled[i] === true);
+}
+
 // The panel and retrieval predicate use the same junction queries, so departed seats lose both credits together.
-function globalScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
+// Presence stays in the statement's own join, so a member who leaves between the enabled read and the scan is
+// still dropped at the scan.
+function globalScopeDocuments(db: Db, chatId: ChatId, crediting: readonly UserId[]): DocumentScopeQuery {
   return db
     .select({ documentId: globalDocuments.documentId })
     .from(globalDocuments)
     .innerJoin(chatParticipants, eq(globalDocuments.ownerId, chatParticipants.userId))
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), isNull(chatParticipants.leftSeq)));
+    .where(and(presentHumanSeat(chatId), inArray(globalDocuments.ownerId, [...crediting])));
 }
 
 function characterScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
@@ -213,8 +231,20 @@ function characterScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
 }
 
+// The roles that hold room authority, read from the one host predicate rather than spelled here.
+const HOST_ROLES = PARTICIPANT_ROLES.filter(isHostRole);
+// Aliased so the owner join never resolves against an outer `documents` the scan reads this predicate inside.
+const chatDocumentOwner = alias(documents, "chat_document_owner");
+
+// D64: a chat-attached document credits the room only while the room's present host owns it, so a document a
+// former host left attached, and can still rename, reaches neither the panel nor the prompt.
 function chatScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
-  return db.select({ documentId: chatDocuments.documentId }).from(chatDocuments).where(eq(chatDocuments.chatId, chatId));
+  return db
+    .select({ documentId: chatDocuments.documentId })
+    .from(chatDocuments)
+    .innerJoin(chatDocumentOwner, eq(chatDocumentOwner.id, chatDocuments.documentId))
+    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatDocuments.chatId), eq(chatParticipants.userId, chatDocumentOwner.ownerId)))
+    .where(and(eq(chatDocuments.chatId, chatId), presentHumanSeat(chatId), inArray(chatParticipants.role, HOST_ROLES)));
 }
 
 /** The host's per-document visibility override for a chat (D85). Reads `chats.metadata.databankVisibility` and
@@ -237,9 +267,10 @@ interface ChatDocumentCredit {
 
 /** Raw D85 credits, deduplicated in global/chat/character order. The panel needs each source to distinguish
  *  a detachable room junction from a visibility override; retrieval uses the same junction query builders. */
-export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promise<ChatDocumentCredit[]> {
+export async function resolveChatDocumentSources(db: Db, chatId: ChatId, resolveUserEnabled: ResolveUserEnabled): Promise<ChatDocumentCredit[]> {
+  const crediting = await enabledMemberIds(db, chatId, resolveUserEnabled);
   const [globalRows, chatRows, characterRows] = await Promise.all([
-    globalScopeDocuments(db, chatId),
+    globalScopeDocuments(db, chatId, crediting),
     chatScopeDocuments(db, chatId),
     characterScopeDocuments(db, chatId),
   ]);
@@ -261,15 +292,15 @@ export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promis
 }
 
 /** Resolve the retrieval predicate at the read boundary; room membership remains inside the SQL scan. */
-export async function resolveActiveDocumentScope(input: DatabaseHandle, scope: DocumentScope): Promise<SQL> {
+export async function resolveActiveDocumentScope(input: DatabaseHandle, scope: DocumentScope, resolveUserEnabled: ResolveUserEnabled): Promise<SQL> {
   const db = databaseForOwner(input);
   if ("ownerId" in scope) {
     return eq(documents.ownerId, scope.ownerId);
   }
-  const hidden = await resolveChatHiddenDocumentIds(db, scope.chatId);
+  const [hidden, crediting] = await Promise.all([resolveChatHiddenDocumentIds(db, scope.chatId), enabledMemberIds(db, scope.chatId, resolveUserEnabled)]);
   return sql`${and(
     or(
-      inArray(documents.id, globalScopeDocuments(db, scope.chatId)),
+      inArray(documents.id, globalScopeDocuments(db, scope.chatId, crediting)),
       inArray(documents.id, chatScopeDocuments(db, scope.chatId)),
       inArray(documents.id, characterScopeDocuments(db, scope.chatId)),
     ),
@@ -282,12 +313,15 @@ export async function resolveActiveDocumentScope(input: DatabaseHandle, scope: D
  *  exclusions. An empty union returns []. This is the retrieval-correct set `search.documents` scans;
  *  the panel read uses {@link resolveChatDocumentSources} + {@link resolveChatHiddenDocumentIds} to also SHOW
  *  hidden documents to the host. */
-export async function resolveActiveDocumentIds(input: DatabaseHandle, scope: DocumentScope): Promise<DocumentId[]> {
+export async function resolveActiveDocumentIds(input: DatabaseHandle, scope: DocumentScope, resolveUserEnabled: ResolveUserEnabled): Promise<DocumentId[]> {
   const db = databaseForOwner(input);
   if ("ownerId" in scope) {
     const rows = await db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, scope.ownerId));
     return rows.map((row) => row.id);
   }
-  const [credits, hidden] = await Promise.all([resolveChatDocumentSources(db, scope.chatId), resolveChatHiddenDocumentIds(db, scope.chatId)]);
+  const [credits, hidden] = await Promise.all([
+    resolveChatDocumentSources(db, scope.chatId, resolveUserEnabled),
+    resolveChatHiddenDocumentIds(db, scope.chatId),
+  ]);
   return credits.map((credit) => credit.documentId).filter((id) => !hidden.includes(id));
 }

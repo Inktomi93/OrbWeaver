@@ -18,8 +18,9 @@
 // NO CLIENT-SIDE COALESCING, deliberately: the same notice fired three times stacks three toasts. The
 // producers dedupe upstream (the chat engine dedupes runner warnings per turn before they ever reach the
 // bus), so the observed duplicate rate is zero and a client-side de-dup window would be an unproven
-// mechanism guarding nothing. If a producer that does NOT dedupe is ever added, that is the moment to
-// build it — here, keyed on the rendered notice, not at the call site.
+// mechanism guarding nothing. A producer whose count grows (the display pass's stopped scripts, which a
+// hostile preset can raise hundreds of times) names its notice with an `id`, and raising it again replaces
+// the one on screen.
 
 export interface NotifyAction {
   /** The button's label — a verb phrase naming where it goes ("Open Connections"). */
@@ -34,6 +35,10 @@ export interface NotifyNotice {
   readonly description?: string;
   /** The single next step this notice offers. */
   readonly action?: NotifyAction;
+  /** Stays until the reader dismisses it. For a notice that holds the only copy of something the reader typed: it must not expire unread. */
+  readonly persistent?: boolean;
+  /** Names the notice: raised again under the same id while it is showing, it replaces that one in place. */
+  readonly id?: string;
 }
 
 /** A bare string is a title-only notice — the shape most call sites want. */

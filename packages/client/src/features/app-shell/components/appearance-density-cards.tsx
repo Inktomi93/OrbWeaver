@@ -20,7 +20,7 @@ import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { DENSITY_ITEMS } from "#lib";
+import { DENSITY_ITEMS } from "../lib/appearance-select-items.ts";
 
 type Density = AppearanceSettings["density"];
 
@@ -33,7 +33,7 @@ function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
     <Stack width="full" height="fill" padding="tight" justify="center" data-density={tier} data-slot="density-preview" gap="row">
       {["The first row", "A second row", "And a third"].map((line) => (
         <ThemePreviewPane key={line} fill="accent" shape="row" padding="none" className="min-inline-0">
-          <Row align="center" className="min-inline-0" padding="field" gap="field">
+          <Row align="center" minWidth="shrinks" padding="field" gap="field">
             <Text as="span" truncate={true} voice="gloss">
               {line}
             </Text>

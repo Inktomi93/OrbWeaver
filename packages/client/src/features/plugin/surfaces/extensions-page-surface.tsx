@@ -19,8 +19,9 @@
 // screen names and acts on exactly the plugin the person picked; the old door to the shared Settings list landed
 // on whichever plugin's "Approve all" happened to be first.
 //
-// Every arm but a page carries the standard content inset: the section declares none, because a page owns its
-// whole region and its shell paints the region's edges.
+// Every arm but a page is a `ContentPane` with the standard content inset. A page keeps the page-scale plugin shell's own
+// frame: its attribution band must stay pinned ABOVE a scrolling plugin body, outside anything the plugin draws, so the
+// page owns its whole region and its shell paints the region's edges.
 
 import type { PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -31,7 +32,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
-import { QueryBoundary } from "#components";
+import { ContentPane, QueryBoundary } from "#components";
 import { QueryErrorState, QueryUnavailableState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import type { PluginPageKey } from "#state";
@@ -53,7 +54,9 @@ import {
   EXTENSIONS_NO_SELECTION_BODY,
   EXTENSIONS_NO_SELECTION_TITLE,
   EXTENSIONS_OPEN_PLUGINS_ACTION,
+  EXTENSIONS_PAGE_LOADING_NAME,
   EXTENSIONS_REVIEW_PLUGINS_ACTION,
+  PLUGIN_PAGE_READ_LABEL,
 } from "../lib/extensions-copy.ts";
 
 /** Open the review of the first waiting plugin — the top row of the LIST's waiting group. */
@@ -76,15 +79,9 @@ function InsetPane({
   readonly ready?: boolean;
 }): ReactElement {
   return (
-    <Stack
-      scroll="y"
-      height="fill"
-      paddingBlock={paddingBlock}
-      paddingInline="section"
-      {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
-    >
+    <ContentPane inset={paddingBlock ?? "none"} {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}>
       <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>
-    </Stack>
+    </ContentPane>
   );
 }
 
@@ -229,14 +226,14 @@ export function ExtensionsPageSurface(): ReactElement {
         fallback={
           <InsetPane>
             <Stack gap="block" role="status">
-              <Text voice="label">Loading plugin page…</Text>
+              <Text voice="label">{EXTENSIONS_PAGE_LOADING_NAME}</Text>
               <SkeletonRows count={3} shape="line" />
             </Stack>
           </InsetPane>
         }
         renderError={(_error, retry): ReactElement => (
           <InsetPane>
-            <QueryErrorState label="this plugin page" onRetry={retry} />
+            <QueryErrorState label={PLUGIN_PAGE_READ_LABEL} onRetry={retry} />
           </InsetPane>
         )}
       >

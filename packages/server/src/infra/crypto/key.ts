@@ -4,7 +4,7 @@ import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { SECRET_FILE_NAMES } from "#foundation/data-layout";
 import type { Env } from "#foundation/env/record";
-import { hasErrnoCode } from "#primitives/errno";
+import { hasErrnoCode, isDirectorySyncUnsupported } from "#primitives/errno";
 import type { BootSecretResolution, BootSecretSource, KeyfileReport } from "./contract.ts";
 
 // The boot secrets: the credentials SecretBox key and the SESSION_SECRET pepper. An explicit env value wins;
@@ -86,6 +86,10 @@ function fsyncDirectory(dir: string, reportKeyfile: KeyfileReport): void {
       closeSync(fd);
     }
   } catch (err) {
+    // A filesystem without directory fsync (every Windows volume) is not a fault to report on each first boot.
+    if (isDirectorySyncUnsupported(err)) {
+      return;
+    }
     reportKeyfile(`could not fsync ${dir} (${errorText(err)}); the key is written, but a crash now could lose its directory entry.`);
   }
 }

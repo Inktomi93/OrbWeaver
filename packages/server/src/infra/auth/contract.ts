@@ -230,6 +230,13 @@ export interface LogoutTokenSubject {
   readonly sid: string | null;
 }
 
+/** A validated `logout_token`: its subject, plus the `jti` and `exp` the replay record keys and bounds on. */
+export interface VerifiedLogoutToken extends LogoutTokenSubject {
+  readonly tokenId: string;
+  /** The token's `exp`, in epoch milliseconds. */
+  readonly expiresAt: number;
+}
+
 export interface BackchannelVerifyArgs {
   readonly logoutToken: string;
   /** The issuer JWKS — an HTTPS URL or JSON literal admitted by the graph's {@link JwksReader}. */
@@ -238,8 +245,13 @@ export interface BackchannelVerifyArgs {
   readonly audience: string;
 }
 
+/**
+ * @remarks `verify` refuses a token whose id `accept` recorded and whose `exp` has not passed (OIDC BCL §2.6).
+ * The route calls `accept` only after the revoke lands, so a failed revoke leaves the token deliverable again.
+ */
 export interface BackchannelLogoutVerifier {
-  readonly verify: (args: BackchannelVerifyArgs) => Promise<LogoutTokenSubject | null>;
+  readonly verify: (args: BackchannelVerifyArgs) => Promise<VerifiedLogoutToken | null>;
+  readonly accept: (token: VerifiedLogoutToken) => void;
 }
 
 /** The local-password hashing seam; constructed at entry/ with the SESSION_SECRET pepper and injected

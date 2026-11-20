@@ -1,7 +1,7 @@
 import type { ScrollMode } from "@orb/kit/scroll-mode";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
@@ -22,6 +22,7 @@ import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowKey, RowPlacement, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
+import { updateScrollbarGutter } from "./scrollbar-gutter.ts";
 import { messageListVariants } from "./variants.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
@@ -45,12 +46,17 @@ const LEADING_ACTION_PIN = [
 
 const reachedEnd = (el: HTMLElement): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_END_THRESHOLD_PX;
 
-const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => ({
-  top: el.scrollTop,
-  rowsOnScreen: (rows?.getBoundingClientRect().top ?? 0) - el.getBoundingClientRect().top,
-  contentPx: el.scrollHeight,
-  portPx: el.clientHeight,
-});
+const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => {
+  const port = el.getBoundingClientRect();
+  const written = rows?.getBoundingClientRect();
+  return {
+    top: el.scrollTop,
+    rowsOnScreen: (written?.top ?? port.top) - port.top,
+    contentPx: el.scrollHeight,
+    portPx: el.clientHeight,
+    writtenPx: written === undefined ? el.scrollHeight : written.bottom - port.top + el.scrollTop,
+  };
+};
 
 export interface MessageListHandle {
   /** Imperatively scrolls to the last item. */
@@ -187,7 +193,7 @@ export function MessageList<T>({
   const readingRowRef = useRef<ReadingRow | null>(null);
   // Where the list last left the axis or last saw it, as of its last write or scroll event. Focus reads this rather than the
   // live value because a browser may have scrolled to the focused control before its focus event fires.
-  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0 });
+  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0, writtenPx: 0 });
   const totalPxRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);
@@ -561,6 +567,61 @@ export function MessageList<T>({
   // The chrome counts: it sits above the rows, so its growth pushes the tail away from a reader who is following it.
   useTailRepin({ contentHeightPx: contentHeightPx + leadingPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
 
+  // A row that grows while the reader follows the tail (a framed reply landing taller than its held state, a reply
+  // streaming in) is re-pinned BEFORE the frame paints. Virtual-core measures rows a frame late
+  // (`useAnimationFrameWithResizeObserver`), and the `contentHeightPx` re-pin above runs after the commit that measure
+  // causes, so a row that grows by a screen would leave the reader that far off the end for a frame or more. A
+  // ResizeObserver callback runs after layout and before paint, and the scroll height already holds the grown row (an
+  // absolute row overflows the list), so one scroll write there keeps the end in view. It writes the position only,
+  // never a size, so it adds no resize loop.
+  const repinGrownRow = useEffectEvent((): void => {
+    const el = scrollRef.current;
+    if (el === null || !tailFollowActive || !stickToBottomRef.current || userOwnsAxis() || movedByOutsider(el)) {
+      return;
+    }
+    const end = el.scrollHeight - el.clientHeight;
+    if (end - el.scrollTop > PROGRAMMATIC_SCROLL_EPSILON_PX) {
+      el.scrollTop = end;
+      noteOwnWrite(el);
+    }
+  });
+  const rowGrowthRef = useRef<ResizeObserver | null>(null);
+  const grownRowsRef = useRef(new Set<Element>());
+  useLayoutEffect(() => {
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      repinGrownRow();
+    });
+    for (const row of grownRowsRef.current) {
+      observer.observe(row);
+    }
+    rowGrowthRef.current = observer;
+    return (): void => {
+      observer.disconnect();
+      rowGrowthRef.current = null;
+    };
+  }, []);
+  // Virtual-core's measure, plus the growth watch. A row that left the list is dropped from the watch on the next call.
+  const measureRow = useCallback(
+    (node: HTMLLIElement | null): void => {
+      virtualizer.measureElement(node);
+      const rows = grownRowsRef.current;
+      for (const row of rows) {
+        if (!row.isConnected) {
+          rows.delete(row);
+          rowGrowthRef.current?.unobserve(row);
+        }
+      }
+      if (node !== null && !rows.has(node)) {
+        rows.add(node);
+        rowGrowthRef.current?.observe(node);
+      }
+    },
+    [virtualizer],
+  );
+
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
   // externally (wheel/touch/keyboard/AT/scrollIntoView) and is trustworthy.
@@ -649,6 +710,15 @@ export function MessageList<T>({
   // the SCROLLPORT rather than on a scroll event. Both of its triggers, and why the scroller keeps a real
   // ResizeObserver while content growth does not, are `./content-growth.ts`'s header.
   useScrollportSync({ contentHeightPx, pinnedIndexRef, scrollRef, setPinSpacerPx, setScrollportHeightPx, virtualizer });
+  // The reserved gutter changes only with the scrollbar's own width, which a zoom changes along with the port's size: read it
+  // on mount and in the commit after the port resizes, never on a scroll or in the observer's delivery (`scrollbar-gutter.ts`).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollportHeightPx is the trigger; the body reads the live box off the ref.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el !== null) {
+      updateScrollbarGutter(el);
+    }
+  }, [scrollportHeightPx]);
 
   // Late-bind the roving hook's placement (declared above the virtualizer, used below it). A walk writes through
   // `scrollToFn`, so the scroll detector reads it as drift: it has to end following here, or the next measurement re-pins the tail.
@@ -709,7 +779,7 @@ export function MessageList<T>({
             key={virtualItem.key}
             // Nothing is measured while printing: the first measure of a row mounted for paper above a scrolled-up reader
             // re-places every row below it. Rows are still placed at their screen offset; paper flows them statically.
-            ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : virtualizer.measureElement}
+            ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : measureRow}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE_INSET)}

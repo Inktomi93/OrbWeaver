@@ -9,6 +9,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -42,7 +43,7 @@ test.describe("a 390px phone", () => {
       await mount<typeof PresetActionGroupsStory>(STORY, { width: PHONE.width, appearance, subject: "editor", presetId: preset.id });
       const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
       await expect(editor.getByRole("heading", { name: preset.name, exact: true })).toBeVisible();
-      await expect(editor.locator('[data-slot="autosave-status"]')).toHaveText("Saved");
+      await expect(editor.locator('[data-slot="autosave-status"]')).toHaveText(AUTOSAVE_SAVED_TEXT);
       const reach = await editor.evaluate(sidewaysReach);
       expect(reach.scrolls, reach.wideners.join("\n")).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     });

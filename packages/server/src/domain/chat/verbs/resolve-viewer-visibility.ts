@@ -41,6 +41,11 @@ export function createResolveViewerVisibility(input: DbAssemblyInput<VisibilityC
     if (membership === null) {
       return null;
     }
-    return mintViewerVisibility({ role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) });
+    return mintViewerVisibility({
+      chatId,
+      role: membership.role,
+      historyFloorSeq: resolveHistoryFloorSeq(membership),
+      readsHidden: viewerReadsHidden(membership),
+    });
   };
 }

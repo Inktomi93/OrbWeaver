@@ -7,6 +7,8 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+import { versionedParseFailureSchema } from "#versioned-config";
+import { importTextSchema } from "../import/preview.ts";
 import type { AppearanceSettings } from "../settings/appearance.ts";
 import type { PortableSchemaKind } from "./envelope.ts";
 
@@ -17,6 +19,7 @@ export {
   IMAGERY_SCHEMA_KIND,
   PERSONA_SCHEMA_KIND,
   REGEX_SCRIPT_SCHEMA_KIND,
+  SPEND_LEDGER_SCHEMA_KIND,
   TAG_LIBRARY_SCHEMA_KIND,
   THEME_SCHEMA_KIND,
   USER_SETTINGS_SCHEMA_KIND,
@@ -35,7 +38,7 @@ export const PORTABLE_KINDS = [
   // are NOT carried by this bundle — a restored script lands in the library, un-attached, except for the
   // GLOBAL scope (which is a property of the script itself and rides in the file).
   "regex",
-  // The databank DOCUMENT library (F1). `extractedText` IS the canon, so one file per document; the derived
+  // The databank DOCUMENT library. `extractedText` IS the canon, so one file per document; the derived
   // vector layer never travels (it is re-runnable — import re-enqueues the ingest). `global` + the character
   // attachments ride (the latter by handle); the chat attachment does not (chat ids are not preserved).
   "databank",
@@ -49,6 +52,9 @@ export const PORTABLE_KINDS = [
   // The CAS blob bundle. Heterogeneous mime, so `ext: ""` + self-describing filenames (`assets/<hash>`).
   "assets",
   "imagery",
+  // The owner's spend ledger: money already paid for calls that leave no canon row of their own. One file per owner;
+  // a restore adds only the entries the box does not already hold, so a re-upload never doubles spend.
+  "spend",
 ] as const;
 
 /** A portable entity kind — the routing key that ties a bundle subdirectory to its owning descriptor. */
@@ -69,6 +75,7 @@ export const PORTABLE_DIRECTORIES = {
   gallery: "gallery/",
   assets: "assets/",
   imagery: "imagery/",
+  spend: "spend/",
 } as const satisfies Readonly<Record<PortableKind, string>>;
 
 /** Fixed dependency order the core imports a full bundle in — personas/world-info/tags land before
@@ -95,7 +102,13 @@ export const PORTABLE_IMPORT_ORDER = [
   "theme",
   "chat",
   "imagery",
+  // spend references nothing, so it lands last.
+  "spend",
 ] as const satisfies readonly PortableKind[];
+
+/** The kinds only a whole-library export carries: the owner's own records, not any one item's, so a partial pick
+ *  never names them and the export door refuses one that does. */
+export const WHOLE_LIBRARY_ONLY_KINDS = ["spend"] as const satisfies readonly PortableKind[];
 
 /** A text download returned by a single-entity export; its contents retain the entity's own codec. */
 export const portableTextFileSchema = z.strictObject({ filename: z.string(), fileText: z.string() });
@@ -112,9 +125,7 @@ export const THEME_LEFTOVER_APPEARANCE_SETTINGS = [
   "avatarShape",
   "avatarAspect",
   "chatStyle",
-  "shadowEffects",
   "blurSurfaces",
-  "blurStrength",
   "showGenerationTimer",
   "showTimestamps",
   "showModelIcon",
@@ -149,12 +160,11 @@ export type ThemeLeftover = z.infer<typeof themeLeftoverSchema>;
  *  file). They describe the file, so a reused theme states the same keys. */
 export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(themeLeftoverSchema).readonly() });
 
-// ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
-// Every orb-NATIVE portable file carries this header. It has consumers (an unconsumed
-// envelope dies because each serde re-spells it structurally — the
-// drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
+// ── the uniform file envelope ────────────────────────────────────────────────────────────────────────
+// Every orb-NATIVE portable file carries this header. An envelope with no consumer is dead weight, because
+// each serde re-spells it structurally and the spellings drift: the ONE
 // consumer is `@orb/server/primitives/serde/lib`, the spine every orb-native JSON serde is defined through, so a
-// family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
+// family cannot re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
 // design and are not defined through the spine.
 
 /** The uniform header on every orb-native portable file. `schemaKind` fences a file from every other
@@ -166,13 +176,13 @@ export interface PortableEnvelope {
 }
 
 // Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
-//  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
+//  can say "written by a newer orbweaver" rather than a single uniform "not a valid X file".
 //
 //  `invalid-encoding` is DISTINCT from `not-json`: the shared decode boundary
-//  (`@orb/server/primitives/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
-//  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
-//  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
-//  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
+//  (`@orb/server/primitives/serde/lib`'s `decodeObject`) would let a non-fatal `TextDecoder` turn malformed
+//  UTF-8 bytes into U+FFFD, and the corrupted string still passes `JSON.parse` — a corrupted artifact
+//  "imports successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a
+//  file that fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
 const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
 
 export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];
@@ -192,6 +202,39 @@ export interface PortableFile {
  *  one malformed file — it returns ok:false with an error string, so one bad entry can't abort the bundle. */
 export type PortableImportOutcome = Readonly<z.output<typeof portableImportOutcomeSchema>>;
 
+/** How an export carried a row it could not read in full: left out of the bundle, or written without its metadata. */
+export const PORTABLE_EXPORT_CARRY = { leftOut: "left-out", withoutMetadata: "without-metadata" } as const;
+
+// One row an export could not carry as stored, named for the person who downloads the bundle.
+const portableExportNoteSchema = z.strictObject({
+  kind: z.enum(PORTABLE_KINDS),
+  /** The row as its owner knows it: a preset, theme, persona or book name, or a book's entry title. */
+  item: z.string(),
+  /** The refusal code the row would raise on a single-item export. */
+  code: z.string(),
+  failure: versionedParseFailureSchema,
+  carried: z.enum(PORTABLE_EXPORT_CARRY),
+});
+
+export type PortableExportNote = z.infer<typeof portableExportNoteSchema>;
+
+/** How a note names the owner's settings, which carry no name of their own. */
+export const PORTABLE_USER_SETTINGS_ITEM = "your settings";
+
+/** Where an export reports a row it could not carry as stored. The library zip writes every note to
+ *  {@link PORTABLE_EXPORT_REPORT_FILE}; a single-item door refuses on the first. */
+export type PortableExportNotes = (note: PortableExportNote) => void;
+
+/** The library zip's report of rows it left out or carried incomplete, at the archive root, written only when the
+ *  export has a note. It is advisory, for the person who downloaded the bundle: no import reads it as data. This
+ *  build's bundle importer passes it by; an older build counts it as an unrouted skip, as it does any root file. */
+export const PORTABLE_EXPORT_REPORT_FILE = "export-report.json";
+
+/** The body of {@link PORTABLE_EXPORT_REPORT_FILE}. */
+export const portableExportReportSchema = z.strictObject({ notes: z.array(portableExportNoteSchema) });
+
+export type PortableExportReport = z.infer<typeof portableExportReportSchema>;
+
 // A server-side descriptor, composed from each domain's export + import verbs and its serde. The
 // delivery core iterates a list of these — the only seam between the entity-agnostic core and per-entity logic.
 export interface PortableEntity {
@@ -202,7 +245,7 @@ export interface PortableEntity {
   readonly ext: string;
   /** Stream the owner's rows as portable files, lazily. Abort is owned by the core's iteration loop, not
    *  the descriptor — AbortSignal cannot live in this isomorphic, DOM/node-free contract. */
-  readonly exportAll: (ownerId: UserId) => AsyncIterable<PortableFile>;
+  readonly exportAll: (ownerId: UserId, note: PortableExportNotes) => AsyncIterable<PortableFile>;
   /** Import ONE file into the owner's library (idempotent). Never throws for a malformed file. */
   readonly importFile: (ownerId: UserId, file: PortableFile) => Promise<PortableImportOutcome>;
 }
@@ -215,6 +258,8 @@ export const portableImportOutcomeSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     created: z.boolean().exactOptional(),
+    /** The name the library row carries, clipped: the row's current name when the file was held, else the written row's. */
+    label: importTextSchema.exactOptional(),
     error: z.never().exactOptional(),
     notes: z.array(z.string()).readonly().exactOptional(),
     memoryChatIds: z.array(typeIdSchema(ID_PREFIX.chat)).readonly().exactOptional(),
@@ -223,6 +268,7 @@ export const portableImportOutcomeSchema = z.discriminatedUnion("ok", [
     ok: z.literal(false),
     error: z.string(),
     created: z.never().exactOptional(),
+    label: z.never().exactOptional(),
     notes: z.never().exactOptional(),
     memoryChatIds: z.never().exactOptional(),
   }),

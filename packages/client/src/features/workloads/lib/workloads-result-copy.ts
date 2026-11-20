@@ -18,6 +18,7 @@
 
 import type { AnalyticsEmptyReason } from "@orb/contracts/discovery";
 import type { WorkloadKind, WorkloadResultByKind } from "@orb/contracts/workloads";
+import { inLibraryClause } from "#lib";
 
 /** What a succeeded row says when no renderer can speak for its result. */
 const RESULT_SUMMARY_FALLBACK = "Finished: this run reported no readable summary.";
@@ -64,9 +65,16 @@ function summarize(parts: readonly (string | null)[]): string | null {
 
 type WorkloadResultRenderer<K extends WorkloadKind> = (result: WorkloadResultByKind[K]) => string | null;
 
-/** index — an embed pass: what it wrote, and what it skipped as already current. */
+/** An index pass leaves a row alone for several reasons (content unchanged, nothing to embed, no embedding connection, a disabled owner), and
+ *  the stored count does not say which, so the line claims none of them. */
+export const INDEX_SKIPPED_LABEL = "skipped";
+
+/** A databank pass skips a document for exactly one reason: its owner's account is disabled. */
+export const INGEST_SKIPPED_LABEL = "skipped (account disabled)";
+
+/** index — an embed pass: what it wrote, and what it skipped. */
 const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
-  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, "already up to date"), tallyIfAny(result.failedAssets?.length, "failed")]);
+  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, INDEX_SKIPPED_LABEL), tallyIfAny(result.failedAssets?.length, "failed")]);
 
 /**
  * Why an analytics pass wrote nothing, in the user's terms — an exhaustive `Record` over the contract's own
@@ -127,9 +135,14 @@ const fsckSummary: WorkloadResultRenderer<"assets-fsck"> = (result) => {
   return count(result.danglingRows, "dangling row") === null ? null : "No faults found.";
 };
 
-/** A bundle import's per-entity tallies. */
+/** A bundle import's per-entity tallies. A held file wrote nothing, so it is neither in `imported` nor in `skipped`. */
 const bundleImportSummary: WorkloadResultRenderer<"import-bundle"> = (result) =>
-  summarize([tally(result.imported, "imported"), tallyIfAny(result.skipped, "skipped"), tallyIfAny(result.failed, "failed")]);
+  summarize([
+    tally(result.imported, "imported"),
+    result.inLibrary > 0 ? inLibraryClause(result.inLibrary) : null,
+    tallyIfAny(result.skipped, "skipped"),
+    tallyIfAny(result.failed, "failed"),
+  ]);
 
 /** The stats rollup rebuild: owners swept, character rollups rewritten. */
 const reconcileStatsSummary: WorkloadResultRenderer<"reconcile-stats"> = (result) =>
@@ -150,6 +163,7 @@ const ingestSummary: WorkloadResultRenderer<"databank-ingest"> = (result) =>
     countIfAny(result.chunksNoop, "chunk unchanged", "chunks unchanged"),
     countIfAny(result.chunksPruned, "chunk pruned", "chunks pruned"),
     tallyIfAny(result.reExtracted, "re-extracted"),
+    tallyIfAny(result.skipped, INGEST_SKIPPED_LABEL),
     countIfAny(Array.isArray(result.failed) ? result.failed.length : null, "document failed", "documents failed"),
   ]);
 

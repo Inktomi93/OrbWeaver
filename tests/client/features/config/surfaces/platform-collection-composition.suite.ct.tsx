@@ -1,4 +1,5 @@
-import { COLLECTION_LARGE_GROUP } from "@orb/client/lib";
+import { COLLECTION_LARGE_GROUP, sectionBackName } from "@orb/client/lib";
+import type { ConfigGroupId } from "@orb/client/state";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -7,19 +8,26 @@ import { actionGroupGeometry, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformT
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle } from "#client/features/config/lib/config-control-names.ts";
-import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import {
+  REGEX_GROUP_LABEL,
+  REGEX_IMPORT_SCRIPT_NAME,
+  REGEX_NEW_SCRIPT_NAME,
+  REGEX_SCRIPT_NAME_FIELD_NAME,
+  REGEX_SELECT_SCRIPTS_NAME,
+} from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
 import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
-const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const;
+const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const satisfies readonly ConfigGroupId[];
 type Subject = (typeof SUBJECTS)[number];
 const STORY = "tests/client/features/config/surfaces/_collection-composition-stories/CollectionCompositionStory";
 // The virtualizer sizes this box to its rows' total height, whatever the scroll box around it measures.
@@ -43,7 +51,14 @@ async function prepare(
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
   if (subject === "regex") {
     await caller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+      input: createRegexScriptSchema.parse({
+        name: LONG_NAME,
+        findRegex: "witness",
+        replaceString: "",
+        targets: ["AI_OUTPUT"],
+        passes: ["save"],
+        enabled: false,
+      }),
     });
   } else if (subject === "worldInfo") {
     await caller.worldInfo.createBook({ input: { name: LONG_NAME } });
@@ -171,7 +186,7 @@ async function expectMemberHeader(content: Locator): Promise<void> {
     contentType: "application/json",
   });
   await expect(title).toBeVisible();
-  await expect(header.getByRole("button", { name: /^Back to /u })).toBeVisible();
+  await expect(header.getByRole("button", { name: nameShape(sectionBackName) })).toBeVisible();
   for (const button of buttons) {
     expect(await button.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   }
@@ -239,9 +254,9 @@ for (const regime of REGIMES) {
       const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
       const field = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       const create = form.locator('button[type="submit"]');
-      const cancel = form.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = form.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(field).toBeFocused();
-      await expect(create).toHaveText("Create");
+      await expect(create).toHaveText(DIALOG_VERBS.create);
       await expect(create).toBeDisabled();
       await field.fill(name);
       await expect(field).toHaveValue(name);
@@ -286,7 +301,7 @@ for (const regime of REGIMES) {
       await filter.fill("Observatory");
       await expect(title).toBeVisible();
       await filter.clear();
-      const bulk = content.getByRole("button", { name: "Select scripts", exact: true });
+      const bulk = content.getByRole("button", { name: REGEX_SELECT_SCRIPTS_NAME, exact: true });
       await bulk.click();
       await expect(bulk).toHaveAttribute("aria-pressed", "true");
       await expect(content.getByRole("checkbox").first()).toBeVisible();
@@ -294,10 +309,10 @@ for (const regime of REGIMES) {
       const before = await caller.regex.countScripts();
       await content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }).click();
       await expect(content.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true })).toBeFocused();
-      await content.getByRole("button", { name: "Cancel", exact: true }).click();
+      await content.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       expect(await caller.regex.countScripts()).toBe(before);
       await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();
-      await expect(page.getByRole("menuitem", { name: "Import a regex script", exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: REGEX_IMPORT_SCRIPT_NAME, exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await page.screenshot({ path: test.info().outputPath("collection-controls.png") });
     });
@@ -378,7 +393,7 @@ async function seedLongLibrary(caller: Caller, subject: (typeof WINDOWED_SUBJECT
     const name = `${LONG_NAME} ${String(index)}`;
     if (subject === "regex") {
       await caller.regex.createScript({
-        input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+        input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
       });
     } else {
       await caller.worldInfo.createBook({ input: { name } });
@@ -392,7 +407,14 @@ async function seedOneScript(caller: Caller): Promise<void> {
     await caller.regex.removeScript({ scriptId: script.id });
   }
   await caller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+    input: createRegexScriptSchema.parse({
+      name: LONG_NAME,
+      findRegex: "witness",
+      replaceString: "",
+      targets: ["AI_OUTPUT"],
+      passes: ["save"],
+      enabled: false,
+    }),
   });
 }
 
@@ -494,7 +516,7 @@ test.describe("two members that share a name", () => {
     for (const enabled of [false, true]) {
       root.clock.advance(1000);
       await caller.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", placement: ["AI_OUTPUT"], enabled }),
+        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled }),
       });
     }
     const unnamed = (await caller.regex.listScripts()).filter((script) => script.name === "");

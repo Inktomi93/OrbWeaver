@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
+import { CHARACTER_SELECT_MULTIPLE_NAME } from "#client/features/character/lib/character-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "#ui/primitives/selection-bar/selection-bar-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -54,7 +55,7 @@ for (const regime of REGIMES) {
       });
       await mount<typeof ShellAmbientStory>(STORY, {});
 
-      await page.getByRole("button", { name: /^Select( multiple)?$/u }).click();
+      await page.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
       const checkboxes = page.getByRole("checkbox");
       await expect(checkboxes.first()).toBeVisible();
       for (let index = 0; index < SELECTED; index += 1) {

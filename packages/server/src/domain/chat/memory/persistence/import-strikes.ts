@@ -1,0 +1,102 @@
+// domain/chat/memory/persistence/import-strikes — the chat-owned write of a restored room's memory strikes, injected
+// into the chat bundle import (import writes no chat table).
+//
+// THE HOST-SEAT CHECK IS THE ONLY GUARD ON THE CLAIMED-ROOM PATH. A re-import matches the room the file first
+// created through the importer's claim on its character, not through the host seat, so an ex-host who handed the
+// room off still reaches this op with that room's id. Only `holdsHostSeat` keeps them from writing strikes into the
+// new host's room. The endpoint check is a second check: the remap resolves endpoints from the target room. A strike
+// whose endpoints are not this room's messages is dropped, never written at a guess; one whose character holds no
+// seat here is written as a shared strike, since the character only records which copy was struck.
+//
+// A strike names a span (`matchStrikes` in `packages/kit/src/recall/index.ts`), so a room holds one strike per span in
+// any bucket. The unique index `chat_memory_strikes_span_unique` owns that: the insert yields to a standing row on the
+// span, whichever of a file's strikes or an earlier import wrote it, so a same-library restore never doubles one.
+//
+// A REPEATED IMPORT RE-ADDS A RESTORED STRIKE, deliberately. Importing the same file again onto a room it already
+// wrote runs every overlay again (the tag overlay's retry semantics: an interrupted import completes on the next
+// run), so a strike the host restored after the first import comes back. A room the app wrote and has not changed
+// since is matched by its current export and runs no overlay.
+
+import type { ImportedMemoryStrike, ImportMemoryStrikesOp } from "@orb/contracts/chat";
+import type { Db } from "@orb/db";
+import { chatMemoryStrikes, chatParticipants, messages } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import type { ImportMemoryStrikesContext } from "#src/domain/chat/contract/import.ts";
+import { IMPORTED_STRIKE_HASH } from "./strikes.ts";
+
+const LIMIT_ONE = 1;
+
+async function holdsHostSeat(db: Db, chatId: ChatId, userId: UserId): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatParticipants.id })
+    .from(chatParticipants)
+    .where(
+      and(
+        eq(chatParticipants.chatId, chatId),
+        eq(chatParticipants.kind, "human"),
+        eq(chatParticipants.role, "host"),
+        eq(chatParticipants.userId, userId),
+        isNull(chatParticipants.leftSeq),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+type PlacedStrike = ImportedMemoryStrike & { readonly seqStart: number; readonly seqEnd: number };
+
+/** The strikes whose endpoints belong to the room, with those endpoints' seqs here, each scoped character kept only
+ *  when it holds a seat here. */
+async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemoryStrike[]): Promise<PlacedStrike[]> {
+  const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];
+  const [held, seated] = await Promise.all([
+    db
+      .select({ id: messages.id, seq: messages.seq })
+      .from(messages)
+      .where(and(eq(messages.chatId, chatId), inArray(messages.id, endpointIds))),
+    db
+      .select({ characterId: chatParticipants.characterId })
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), isNotNull(chatParticipants.characterId))),
+  ]);
+  const seqOf = new Map<MessageId, number>(held.map((row) => [row.id, row.seq]));
+  const seatedIds = new Set<CharacterId | null>(seated.map((row) => row.characterId));
+  return strikes.flatMap((s): PlacedStrike[] => {
+    const seqStart = seqOf.get(s.messageStartId);
+    const seqEnd = seqOf.get(s.messageEndId);
+    if (seqStart === undefined || seqEnd === undefined) {
+      return [];
+    }
+    // A strike whose character holds no seat here keeps its span as a shared strike: the character is only a record.
+    const scopedCharacterId = s.scopedCharacterId === null || seatedIds.has(s.scopedCharacterId) ? s.scopedCharacterId : null;
+    return [{ ...s, scopedCharacterId, seqStart, seqEnd }];
+  });
+}
+
+export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStrikesContext>): ImportMemoryStrikesOp {
+  const ctx: ImportMemoryStrikesContext = { ...input, db: databaseForOwner(input.db) };
+  return async ({ chatId, hostUserId, strikes }) => {
+    if (strikes.length === 0 || !(await holdsHostSeat(ctx.db, chatId, hostUserId))) {
+      return;
+    }
+    const rows = (await placeable(ctx.db, chatId, strikes)).map((s) => ({
+      id: ctx.newMemoryStrikeId(),
+      chatId,
+      scopedCharacterId: s.scopedCharacterId,
+      tier: s.tier,
+      messageStartId: s.messageStartId,
+      messageEndId: s.messageEndId,
+      seqStart: s.seqStart,
+      seqEnd: s.seqEnd,
+      contentHash: IMPORTED_STRIKE_HASH,
+      topicAnchor: s.topicAnchor,
+      createdAt: s.createdAt,
+    }));
+    if (rows.length > 0) {
+      await ctx.db.insert(chatMemoryStrikes).values(rows).onConflictDoNothing();
+    }
+  };
+}

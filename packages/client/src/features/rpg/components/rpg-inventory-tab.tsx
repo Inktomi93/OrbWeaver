@@ -40,7 +40,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { Tip } from "#components";
+import { MutedLine, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff.ts";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -173,7 +173,7 @@ function PackSection({
       </Row>
       {items.length === 0 ? (
         // No dead end: an empty pack still offers the host the first item.
-        <Text>Empty pack: {edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}</Text>
+        <MutedLine>{`Empty pack: ${edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}`}</MutedLine>
       ) : (
         <PackBody view={view} items={items} {...(edit === undefined ? {} : { edit })} />
       )}

@@ -15,14 +15,13 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import type { SelectOption } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { z } from "zod";
-import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
 import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
 import type { RunWorkloadFormValues, WorkloadRunRequestScope } from "../lib/workloads-model.ts";
@@ -35,6 +34,7 @@ import {
   workloadKindItems,
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model.ts";
+import { WORKLOAD_JOB_FIELD_NAME, WORKLOAD_RUN_AFTER_NAME } from "../lib/workloads-names.ts";
 import { parseRunAt } from "../lib/workloads-run-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
 import { WorkloadParamFields } from "./workload-kind-fields.tsx";
@@ -141,13 +141,13 @@ function RunWorkloadFormBody({
         testKey: "runWorkloadSubmit",
         onSubmit: (): void => {
           // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         },
       }}
       testKey="runWorkloadDialog"
       title="Run a job"
     >
-      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label={WORKLOAD_JOB_FIELD_NAME} items={kindItems} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -205,7 +205,7 @@ function RunWorkloadFormBody({
                 <form.AppField name="dependsOn">
                   {(field): ReactElement => (
                     <field.MultiToggleField
-                      label="Run after these complete"
+                      label={WORKLOAD_RUN_AFTER_NAME}
                       description="This run waits until every selected job succeeds. If one fails, this run is skipped."
                       items={dependencyItems}
                     />
@@ -216,11 +216,7 @@ function RunWorkloadFormBody({
           ) : null
         }
       </form.Subscribe>
-      {start.error === null ? null : (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't start the workload. A run of that kind may already be active.
-        </Text>
-      )}
+      {start.error === null ? null : <DialogFailure>Couldn't start the workload. A run of that kind may already be active.</DialogFailure>}
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
     </FormDialogPopup>
   );

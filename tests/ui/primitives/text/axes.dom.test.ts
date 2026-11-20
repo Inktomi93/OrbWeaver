@@ -1,5 +1,6 @@
 // Text and Heading share one recipe: `clamp` caps and reserves nothing, `lines` caps and reserves, `grow` and `floor` are a flex child's share.
 import { expect, test } from "@orb/testkit/node";
+import { CAP } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createElement } from "react";
@@ -32,6 +33,20 @@ test("grow takes the room that is left, and floor is the width the run starts fr
   expect(text({ grow: true, floor: "field" })).toEqual(expect.arrayContaining(["flex-1", "basis-(--width-field-floor)"]));
   expect(tokensOf(createElement(Heading, { level: 2, floor: "title" }, "name"))).toContain("basis-(--width-title-floor)");
   expect(text({})).not.toContain("flex-1");
+});
+
+test("a prose paragraph takes the prose measure, and machine text and a bounded run do not", () => {
+  expect(text({})).toContain(CAP.prose);
+  expect(text({ voice: "gloss" })).toContain(CAP.prose);
+  expect(text({ voice: "reading" })).toContain(CAP.prose);
+  // Machine text wraps at its own box.
+  expect(text({ voice: "code" })).not.toContain(CAP.prose);
+  expect(text({ voice: "datumMono" })).not.toContain(CAP.prose);
+  // A run its caller bounds, an inline run and a centred one keep the caller's measure.
+  expect(text({ grow: true })).not.toContain(CAP.prose);
+  expect(text({ as: "span" })).not.toContain(CAP.prose);
+  expect(text({ textAlign: "center" })).not.toContain(CAP.prose);
+  expect(text({ cap: "code" })).toContain(CAP.code);
 });
 
 test("a halo is a shadow: the wordmark voice keeps its type step and line height beside it", () => {

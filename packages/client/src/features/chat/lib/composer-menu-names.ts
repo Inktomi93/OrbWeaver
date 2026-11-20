@@ -4,6 +4,14 @@
 /** The Input group's rewrite and out-of-character dialog door. */
 export const COMPOSER_CORRECTIONS_NAME = "Corrections…";
 
+/** The utility menu's new swipe of the last reply. */
+export const COMPOSER_REGENERATE_NAME = "Regenerate";
+
+/** The Reply group's post-without-a-reply item, its helper, and its reason while the composer is empty. */
+export const COMPOSER_SIMPLE_SEND_NAME = "Simple send";
+export const SIMPLE_SEND_HELPER = "Post your message without starting a reply";
+export const SIMPLE_SEND_NEEDS_TEXT = "Type a message to post";
+
 /** The Input group's draft eraser. */
 export const COMPOSER_CLEAR_INPUT_NAME = "Clear input";
 

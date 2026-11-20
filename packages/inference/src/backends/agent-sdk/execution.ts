@@ -59,7 +59,7 @@ class OwnedQuery {
   private readonly abort = (): void => this.cancel();
 
   private readonly input: Parameters<AgentSdkExecutionDeps["query"]>[0];
-  private readonly signal: AbortSignal | undefined;
+  private readonly signal: AbortSignal;
   private readonly deps: AgentSdkExecutionDeps;
   private readonly recordFailure: (error: Error) => void;
   private readonly release: () => void;
@@ -80,8 +80,8 @@ class OwnedQuery {
     this.privateStderr = new SdkStderr(this.secrets);
     // Native readline removes CR/LF before these diagnostic records reach the owner.
     this.stdoutRecords = new SdkStderr(this.secrets.flatMap((secret) => [secret, ...secret.split(/\r\n|\r|\n/u).filter((part) => part.length > 0)]));
-    signal?.addEventListener("abort", this.abort, { once: true });
-    if (signal?.aborted === true) {
+    signal.addEventListener("abort", this.abort, { once: true });
+    if (signal.aborted) {
       this.controller.abort();
     }
   }
@@ -195,7 +195,7 @@ class OwnedQuery {
       this.stderr.end();
       this.privateStderr.end();
       this.stdoutRecords.end();
-      this.signal?.removeEventListener("abort", this.abort);
+      this.signal.removeEventListener("abort", this.abort);
       this.release();
     }
   }

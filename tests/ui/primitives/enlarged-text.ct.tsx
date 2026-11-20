@@ -49,7 +49,7 @@ for (const factor of SCALES) {
       const component = await mount<typeof EndRowStory>(`${STORIES}/EndRowStory`, {});
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       const scroller = component.locator('[data-probe="scroller"]');
-      const control = component.getByRole("button", { name: "Add selected", exact: true });
+      const control = component.getByRole("button", { name: "Carry the picked rows over", exact: true });
       await expect
         .poll(async () => {
           const [within, box] = await Promise.all([scroller.boundingBox(), control.boundingBox()]);
@@ -62,7 +62,7 @@ for (const factor of SCALES) {
       await mount<typeof FullDialogStory>(`${STORIES}/FullDialogStory`, {});
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       const footer = page.locator('[data-slot="dialog-footer"]');
-      const control = footer.getByRole("button", { name: "Fetch and add", exact: true });
+      const control = footer.getByRole("button", { name: "Carry it over", exact: true });
       await expect
         .poll(async () => {
           const [within, box] = await Promise.all([footer.boundingBox(), control.boundingBox()]);

@@ -1,6 +1,7 @@
 // In-page probes the app-shell specs drive the mounted shell with. The callbacks run in the browser, so this file
 // compiles in the DOM program that owns the browser support tree.
 
+import type { ChatId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
@@ -144,6 +145,21 @@ export async function seedShellState(page: Page, state: { readonly activeSection
       globalThis.localStorage.setItem(key, blob);
     },
     { key: UNBOUND_SHELL_KEY, blob: JSON.stringify({ state: { panelOverrides: {}, ...state }, version: SHELL_STORE_VERSION }) },
+  );
+}
+
+// The persisted active-chat store's key before any viewer binds the namespace, and its version. No door exports either;
+// a spec that seeds a room through here also asserts that room opens, so a drifted key or version fails there.
+const UNBOUND_ACTIVE_CHAT_KEY = "orb:active-chat";
+const ACTIVE_CHAT_STORE_VERSION = 1;
+
+/** Seed the active-chat store's storage with one room before the app's modules run, the way a returning boot restores the room it left. */
+export async function seedActiveChat(page: Page, chatId: ChatId): Promise<void> {
+  await page.addInitScript(
+    ({ key, blob }) => {
+      globalThis.localStorage.setItem(key, blob);
+    },
+    { key: UNBOUND_ACTIVE_CHAT_KEY, blob: JSON.stringify({ state: { handle: { kind: "committed", id: chatId } }, version: ACTIVE_CHAT_STORE_VERSION }) },
   );
 }
 

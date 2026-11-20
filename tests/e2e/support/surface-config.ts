@@ -1,13 +1,13 @@
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { LIBRARY_PAGE_SIZE_DEFAULT, LIBRARY_PAGE_SIZE_MIN } from "@orb/contracts/settings";
+import { DEFAULT_CHAT_SETTINGS, TEMP_CHAT_TTL_HOURS_MIN } from "@orb/contracts/settings";
 import { controlledPanel, diagnosticTarget } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { LIBRARY_SETTINGS_SUBCATEGORY } from "#client/features/character/lib/library-settings-nav.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import {
   CONFIG_ADVANCED_THEME_TOOLS_NAME,
   CONFIG_BACK_TO_LOOKS_NAME,
@@ -22,7 +22,7 @@ import {
   configSearchEmptyText,
   newThemeName,
 } from "#client/features/config/lib/config-control-names.ts";
-import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, configGroupRegionName } from "#client/features/config/lib/config-copy.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import { PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import {
@@ -33,7 +33,7 @@ import {
   REGEX_RESULT_NAME,
   REGEX_SAMPLE_TEXT_NAME,
   REGEX_SCRIPT_NAME_FIELD_NAME,
-  REGEX_TEXT_AFTER_STREAM_NAME,
+  REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME,
   REGEX_TEXT_GOING_IN_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
@@ -44,7 +44,6 @@ import {
   WORLD_INFO_BOOK_DETAILS_NAME,
   WORLD_INFO_BOOK_NAME_FIELD_NAME,
   WORLD_INFO_DEPTH_SWITCH_NAME,
-  WORLD_INFO_DUPLICATE_BOOK_NOTICE,
   WORLD_INFO_EDIT_DETAILS_NAME,
   WORLD_INFO_ENTRY_CONTENT_NAME,
   WORLD_INFO_ENTRY_DEPTH_NAME,
@@ -57,10 +56,12 @@ import {
   WORLD_INFO_NEW_BOOK_NAME,
   WORLD_INFO_NEW_ENTRY_NAME,
   WORLD_INFO_NO_ENTRIES_TITLE,
+  worldInfoEntryDeleteName,
 } from "#client/features/world-info/lib/world-info-names.ts";
 import { contextPaneLabel, LIST_PANEL_NOUN, panelCloseName, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "#client/lib/in-library-copy.ts";
 import { ADD_CONNECTION_PATH } from "#client/lib/injection-copy.ts";
 import { ROW_DELETE_NAME, ROW_EXPORT_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -159,7 +160,7 @@ async function category(flow: SurfaceFlow, id: ConfigGroupId): Promise<Locator> 
     },
     ready: async (): Promise<void> => {
       const content = flow.page.locator(CONTENT);
-      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : `${label.trim()} settings`);
+      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : configGroupRegionName(label.trim()));
       await expect(content).toBeVisible();
       if (collection) {
         const landing = content.locator(`[data-slot="config-collection-landing"][data-collection="${id}"]`);
@@ -592,7 +593,7 @@ async function regex(flow: SurfaceWalk): Promise<void> {
     await editor.getByRole("textbox", { name: REGEX_SAMPLE_TEXT_NAME, exact: true }).fill("surface surface");
     await expect(editor.getByRole("textbox", { name: REGEX_RESULT_NAME, exact: true })).toHaveValue("walk walk");
     await editor.getByRole("textbox", { name: REGEX_TEXT_GOING_IN_NAME, exact: true }).fill("surface surface");
-    await expect(editor.getByRole("textbox", { name: REGEX_TEXT_AFTER_STREAM_NAME, exact: true })).toBeVisible();
+    await expect(editor.getByRole("textbox", { name: REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/regex-editor-and-real-testers");
     await teacher(flow, "regex-member-scopes");
     note(
@@ -730,7 +731,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await injection.click();
     await expect(editor.getByRole("combobox", { name: WORLD_INFO_ENTRY_PLACEMENT_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/world-info-disposable-entry-placement");
-    await editor.getByRole("button", { name: `Delete ${entryName}`, exact: true }).click();
+    await editor.getByRole("button", { name: worldInfoEntryDeleteName(entryName), exact: true }).click();
     const confirmation = flow.page.getByRole("alertdialog");
     await checkpoint(flow, "world-info-delete-entry-confirmation", confirmation);
     await confirmation.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
@@ -771,39 +772,39 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
   }
 }
 
-async function librarySetting(flow: SurfaceWalk): Promise<void> {
-  const original = (await flow.client.settings.getUserSettings.query()).config.library.pageSize;
-  const next = original === LIBRARY_PAGE_SIZE_MIN ? LIBRARY_PAGE_SIZE_DEFAULT : LIBRARY_PAGE_SIZE_MIN;
-  const setting = LIBRARY_SETTINGS_SUBCATEGORY.settings?.find((candidate) => candidate.id === "rows-per-page");
+async function tempChatTtlSetting(flow: SurfaceWalk): Promise<void> {
+  const original = (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours;
+  const next = original === TEMP_CHAT_TTL_HOURS_MIN ? DEFAULT_CHAT_SETTINGS.tempChatTtlHours : TEMP_CHAT_TTL_HOURS_MIN;
+  const setting = CHAT_MESSAGE_HANDLING_SUBCATEGORY.settings?.find((candidate) => candidate.key === "tempChatTtlHours");
   if (setting === undefined) {
-    throw new Error("The production Library setting no longer exists; update its native journey disposition");
+    throw new Error("The production temporary-chat setting no longer exists; update its native journey disposition");
   }
   try {
-    await category(flow, "appearance");
+    await category(flow, "chat-behavior");
     const list = await map(flow);
     await list
-      .locator('[data-slot="config-group"][data-config-group="appearance"]')
-      .getByRole("button", { name: LIBRARY_SETTINGS_SUBCATEGORY.label, exact: true })
+      .locator('[data-slot="config-group"][data-config-group="chat-behavior"]')
+      .getByRole("button", { name: CHAT_MESSAGE_HANDLING_SUBCATEGORY.navLabel ?? CHAT_MESSAGE_HANDLING_SUBCATEGORY.label, exact: true })
       .click();
     const content = flow.page.locator(CONTENT);
     const field = content.getByRole("textbox", { name: setting.label, exact: true });
     await field.fill(String(next));
     await field.press("Tab");
-    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.library.pageSize).toBe(next);
+    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours).toBe(next);
     await expect(field).toHaveValue(String(next));
-    await checkpoint(flow, "library-setting-changed", content, field);
+    await checkpoint(flow, "chat-setting-changed", content, field);
     await field.fill(String(original));
     await field.press("Tab");
-    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.library.pageSize).toBe(original);
+    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours).toBe(original);
     await expect(field).toHaveValue(String(original));
     note(
       flow,
-      { id: "Rows per page native change/readback/native restore", kind: "action" },
+      { id: "Temporary chat lifetime native change/readback/native restore", kind: "action" },
       "visited",
       "The change and its restore both read back from the server",
     );
   } finally {
-    await flow.client.settings.updateUserSettingsSection.mutate({ section: "library", patch: { pageSize: original } });
+    await flow.client.settings.updateUserSettingsSection.mutate({ section: "chat", patch: { tempChatTtlHours: original } });
   }
 }
 
@@ -903,5 +904,5 @@ export async function walkConfigRecovery(flow: SurfaceFlow): Promise<void> {
 
 /** Change, read back and restore the named user setting in its own native case. */
 export async function walkConfigSettings(flow: SurfaceFlow): Promise<void> {
-  await configCase(flow, "reversible-setting", librarySetting);
+  await configCase(flow, "reversible-setting", tempChatTtlSetting);
 }

@@ -1,11 +1,12 @@
 // The text-embed task on the openai-compat wire — an `EmbeddingModelV4.doEmbed` per POST, with the measured
 // controls the vLLM surface paid for kept as CODE keyed off the resolved capability:
-//   • THE WINDOW GUARD IS CLIENT-SIDE (#165): every input is clamped to `capability.embedding.maxInputTokens`
+//   • THE WINDOW GUARD IS CLIENT-SIDE: every input is clamped to `capability.embedding.maxInputTokens`
 //     (discounted by `safeTokenWindow` — the estimate's error is proportional) and the engine is asked for
 //     NOTHING; a `truncate_prompt_tokens` knob converts an over-window input into an unbounded hang. A clamp
 //     is LOGGED — a silently shortened embed quietly changes what a vector means.
-//   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS (#187): `features.embedBatch.maxTokens` caps
-//     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`.
+//   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS: `features.embedBatch.maxTokens` caps
+//     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`. A model's own
+//     `maxBatchInputs` caps the item count below the wire's.
 //   • the `dimensions` REJECTION fallback: a pooling combo that 400s on the MRL knob is re-asked without it and
 //     the MRL vector is cut client-side; `fitToDim` refuses every other width mismatch.
 //   • the ChatML scaffold when the capability says `promptScaffold: "chatml"` (Qwen3-VL-Embedding); the
@@ -39,10 +40,12 @@ const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
 const DEFAULT_CHUNK_ITEMS = 128;
 const MS_PER_SEC = 1000;
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const embeddingResponseSchema = z.object({
-  model: z.string().min(1).nullish().catch(null),
-  usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
-});
+const embeddingResponseSchema = z
+  .object({
+    model: z.string().min(1).nullish().catch(null),
+    usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
+  })
+  .strip();
 
 interface KeptInput {
   readonly index: number;
@@ -234,7 +237,8 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   };
   const model = embeddingModelFor(call);
   const maxPerCall = (await Promise.resolve(model.maxEmbeddingsPerCall)) ?? DEFAULT_CHUNK_ITEMS;
-  const batches = packBatches(kept, Math.min(maxPerCall, DEFAULT_CHUNK_ITEMS), connection.features.embedBatch?.maxTokens);
+  const maxItems = Math.min(maxPerCall, DEFAULT_CHUNK_ITEMS, capability.maxBatchInputs ?? DEFAULT_CHUNK_ITEMS);
+  const batches = packBatches(kept, maxItems, connection.features.embedBatch?.maxTokens);
   const run: BatchRun = {
     scheduleTimeout: deps.scheduleTimeout,
     req,

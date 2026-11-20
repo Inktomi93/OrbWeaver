@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-07
+updated: 2026-11-14
 priority: P3
 area: connection
 ---
@@ -10,15 +10,15 @@ area: connection
 
 ## What
 
-Decide where a user browses a provider's catalog and compares models (context, price, tools, vision) before choosing, and how a pick there becomes a connection or a model change on an existing one.
+Connections gains a Browse models view as a content state of the section, never a modal. It lists the providers whose catalogs need no key, with each provider's models and their stated capabilities. A pick opens Add a connection with the provider and model filled in. A provider whose list needs a key shows its curated rows and says the full list appears after the key.
 
 ## Why
 
-The catalog is reachable only inside Add a connection, the connection editor and Add another model on this key, so comparing models means starting a connection.
+Owner ruling. A person choosing a provider cannot compare models today without starting a connection draft and entering a key.
 
 ## Done when
 
-A ruling names the browse home and the path from a pick to a saved connection, and a follow-up work item is boarded for it.
+A component test on the production Connections surface opens Browse models, shows a keyless provider's models, and a pick opens Add a connection with that provider and model set. A provider that needs a key shows the curated rows and the stated reason. No draft is saved by browsing.
 
 ## Evidence
 

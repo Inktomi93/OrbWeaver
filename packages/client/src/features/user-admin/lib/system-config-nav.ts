@@ -6,20 +6,21 @@
 // pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `config-anchor-system-*`
 // id survives anywhere.
 
+import { DEFAULT_HTML_STEP_SETTING_LABEL } from "#lib";
 import type { ConfigSubcategory } from "#state";
-import { MULTI_USER_CONFIG_SUB } from "#state";
+import { DEFAULT_HTML_STEP_CONFIG_SETTING, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB } from "#state";
 
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
-  id: "media-trust",
+  id: MEDIA_TRUST_CONFIG_SUB,
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
   teach: {
-    summary: "Security and privacy controls for rendered content: block external media URLs, trust rich HTML, and cap generated-image download size.",
-    affects: ["message rendering security and image generation, deployment-wide"],
+    summary: "Security and privacy controls for rendered content: block external media URLs and set the default HTML step for characters.",
+    affects: ["message rendering security, deployment-wide"],
   },
   settings: [
     {
-      id: "forbid-external-media",
+      id: FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
       label: "Block external media",
       keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
       teach: {
@@ -28,19 +29,14 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "trust-html",
-      label: "Render rich HTML as trusted",
-      keywords: ["html", "sanitize", "xss", "cards"],
+      id: DEFAULT_HTML_STEP_CONFIG_SETTING,
+      label: DEFAULT_HTML_STEP_SETTING_LABEL,
+      keywords: ["html", "trust", "interactive", "cards", "scripts", "javascript", "sanitize"],
       teach: {
-        summary: "Renders rich HTML cards as trusted instead of sanitized. Only for deployments where every author is trusted.",
-        affects: ["every account's message rendering, deployment-wide"],
+        summary:
+          "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, their cards and styled replies run no scripts. A character's own step wins over it.",
+        affects: ["every account's message rendering and card scripts, deployment-wide"],
       },
-    },
-    {
-      id: "max-image-bytes",
-      label: "Max generated-image size",
-      keywords: ["download", "megabytes", "bytes", "imagine", "cap"],
-      teach: { summary: "The size cap on a generated image the server will download and store.", affects: ["image generation, deployment-wide"] },
     },
   ],
 };

@@ -34,8 +34,17 @@
 // BEFORE the first `await` — the membrane admits up to 32 concurrent host calls per instance, and a
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
-import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX } from "@orb/contracts/plugin";
+import type {
+  PluginBridge,
+  PluginCharacterView,
+  PluginInvocationLiveness,
+  PluginMessageView,
+  PluginSearchHit,
+  PluginWorldBookView,
+  PluginWorldEntryView,
+} from "@orb/contracts/plugin";
+import { PLUGIN_CASCADE_DEPTH_MAX, PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError, PluginPubsubDepthError } from "@orb/contracts/plugin";
+import { DomainConflictError, DomainForbiddenError } from "@orb/kit/errors";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -50,6 +59,17 @@ function pluginEntryPrefix(pluginId: PluginId | null): string {
 
 function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
   return `${pluginEntryPrefix(pluginId)}${entryKey}`;
+}
+
+/** Run a host op under the guest invocation's liveness, so an ended invocation aborts the provider calls the op makes. */
+async function underLiveness<T>(liveness: PluginInvocationLiveness, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const unsubscribe = liveness.onAbort(() => controller.abort());
+  try {
+    return await run(controller.signal);
+  } finally {
+    unsubscribe();
+  }
 }
 
 /** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
@@ -71,14 +91,14 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
   const pluginId = plugin?.id ?? null;
   const requirePluginId = (fn: string): PluginId => {
     if (plugin === null) {
-      throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
+      throw new DomainForbiddenError(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
     }
     return plugin.id;
   };
   /** The identity form — for the one op that needs the plugin's NAME too (`ui.toast`'s attribution prefix). */
   const requirePlugin = (fn: string): PluginIdentity => {
     if (plugin === null) {
-      throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
+      throw new DomainForbiddenError(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
     }
     return plugin;
   };
@@ -170,7 +190,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
           // OWNERSHIP, so without this a plugin invoked in chat X writes any book its installer owns — including
           // one attached solely to chat Y, a room this invocation was never admitted to.
           if (!(await ops.worldInfo.isBookAttachedToChat(installerUserId, chatId, bookId))) {
-            throw new Error("plugin host: worldInfo.upsertEntry requires the book to be attached to this chat");
+            throw new DomainForbiddenError("plugin host: worldInfo.upsertEntry requires the book to be attached to this chat");
           }
           // (2) The per-plugin TITLE NAMESPACE + entry CEILING, keyed the way the automation arm keys its own
           // (`auto/<ruleId>:<entryKey>`). The namespace does two jobs: a re-upsert of the same entryKey updates
@@ -179,7 +199,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
           const title = pluginEntryTitle(pluginId, entry.entryKey);
           const owned = (await ops.worldInfo.listEntryTitles(installerUserId, bookId)).filter((t) => t.startsWith(pluginEntryPrefix(pluginId)));
           if (!owned.includes(title) && owned.length >= PLUGIN_LORE_ENTRIES_PER_BOOK_MAX) {
-            throw new Error(`plugin host: this plugin already owns ${PLUGIN_LORE_ENTRIES_PER_BOOK_MAX} entries in book ${bookId}`);
+            throw new DomainConflictError(`plugin host: this plugin already owns ${PLUGIN_LORE_ENTRIES_PER_BOOK_MAX} entries in book ${bookId}`);
           }
           await ops.worldInfo.upsertEntries({
             authorUserId: installerUserId,
@@ -207,9 +227,10 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       generatePicture: (
         chatId,
         args,
+        liveness,
       ): Promise<{
         readonly assetId: SandboxWireId<AssetId>;
-      }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
+      }> => underLiveness(liveness, (signal) => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args, signal })),
     },
     variables: {
       get: (key) => ops.variables.get(installerUserId, key),
@@ -238,9 +259,9 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern).
     // Query embedding may spend the installer's hosted credential, so claim this plugin's hourly slot first.
     search: {
-      documents: (queryText, limit): Promise<readonly PluginSearchHit[]> => {
+      documents: (queryText, limit, liveness): Promise<readonly PluginSearchHit[]> => {
         belts.searchQuery.admit(requirePluginId("search.query"));
-        return ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) });
+        return underLiveness(liveness, (signal) => ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}), signal }));
       },
     },
     // Plugin-PRIVATE KV — closed over BOTH the pluginId AND the installer (owner), so a cross-plugin OR
@@ -266,7 +287,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         // a burst through the gap.
         belts.notify.admit(id, chatId);
         if ((await ops.chat.resolveViewerVisibility(chatId, installerUserId)) === null) {
-          throw new Error("plugin host: notifications.post requires present membership on the chat");
+          throw new DomainForbiddenError("plugin host: notifications.post requires present membership on the chat");
         }
         await ops.notifications.post({ pluginId: id, installerUserId, chatId, recipient, message });
       },
@@ -286,13 +307,9 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       quiet: async (prompt, opts, liveness): Promise<{ readonly text: string }> => {
         const id = requirePluginId("llm.quiet");
         belts.quietLlm.admit(id);
-        const controller = new AbortController();
-        const unsubscribe = liveness.onAbort(() => controller.abort());
-        try {
-          return await ops.llm.quiet({ installerUserId, pluginId: id, prompt, signal: controller.signal, ...(opts !== undefined ? { opts } : {}) });
-        } finally {
-          unsubscribe();
-        }
+        return await underLiveness(liveness, (signal) =>
+          ops.llm.quiet({ installerUserId, pluginId: id, prompt, signal, ...(opts !== undefined ? { opts } : {}) }),
+        );
       },
     },
     // POSTURE 2 — stash the act as an ask instead of performing it. The membrane calls this on exactly the
@@ -317,6 +334,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // closure mechanics, different ceiling, so covers never starve text egress.
     admitAssetEgress: (): void => {
       belts.assetEgress.admit(requirePluginId("net.fetchAsset"));
+    },
+    // A guest already running when its installer is disabled keeps its sandbox, but every call on the installer's
+    // account is refused here, read fresh per call: a disabled installer stands as a departed one (owner-ruled).
+    admitInstaller: async (): Promise<void> => {
+      if (!(await ops.isInstallerEnabled(installerUserId))) {
+        throw new PluginInstallerDisabledError();
+      }
     },
     // Quick replies are room effects; a continuation must still hold the installer host seat when it emits.
     surfaceQuickReply: async (chatId, choices): Promise<void> => {
@@ -348,7 +372,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // wall; a transient snippet's fixed grant profile omits both capabilities, so neither closure is reachable
     // from a snippet regardless.
     databank: {
-      ingest: (doc) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text }),
+      ingest: (doc, liveness) => underLiveness(liveness, (signal) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text, signal })),
     },
     character: {
       // `pluginId` rides along for PROVENANCE only — the ingest/ingestAsset ops key no per-plugin
@@ -375,8 +399,17 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // manifest `slug` (`requirePlugin("pubsub.emit").slug` — a guest supplies only `name` + `data`, so it cannot
     // publish on another plugin's `plugin:<slug>:<name>` channel). It requires an installed plugin like `toast`
     // does: a snippet has no identity AND no `plugin_events` grant, so the capability gate refuses first.
+    // An emit is a new invocation in each subscriber, the emitter's own included. The depth refusal ends a cascade
+    // before it costs a floor slot; the hourly floor, claimed before the emit, bounds the total (plugin-event-bus.ts).
     pubsub: {
-      emit: (name, data) => ops.pubsub.emit({ installerUserId, emitterSlug: requirePlugin("pubsub.emit").slug, name, data }),
+      emit: async (name, data, depth): Promise<void> => {
+        const emitter = requirePlugin("pubsub.emit");
+        if (depth > PLUGIN_CASCADE_DEPTH_MAX) {
+          throw new PluginPubsubDepthError();
+        }
+        belts.pubsubEmit.admit(emitter.id);
+        await ops.pubsub.emit({ installerUserId, emitterSlug: emitter.slug, name, data, depth });
+      },
     },
   };
 }

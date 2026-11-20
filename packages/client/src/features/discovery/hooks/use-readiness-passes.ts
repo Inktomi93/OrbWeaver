@@ -11,6 +11,7 @@ import type { ModelRunConfirmDialogProps } from "#components";
 import { useModelRunConfirm, useUtilityModel } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import type { CorpusReadinessStageId } from "../lib/corpus-analysis-state.ts";
 import { CORPUS_READINESS_STAGE_IDS } from "../lib/corpus-analysis-state.ts";
 import type { ReadinessAction, ReadinessFacts } from "../lib/corpus-readiness-passes.ts";
@@ -80,7 +81,7 @@ export function useReadinessPasses(): ReadinessPassesView {
         estimates: readinessEstimates(stage),
         run: () => enqueueReadinessPass(stage, (run) => startRun.mutateAsync(run)),
       })
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => setCounting(null));
   };
 

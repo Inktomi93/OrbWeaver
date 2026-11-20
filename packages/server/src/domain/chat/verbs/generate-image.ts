@@ -8,17 +8,18 @@
 // Imagery is caller-blind — it returns blocks + warnings; chat holds the message-write authority. Reuses the
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
-import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { MessageView, PlainChatWarningCode } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
+import { ChatHostWithoutConsentError, ChatNotFoundError } from "../contract/errors.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
-import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { firstCharacterIdOf } from "../substrate/participant-actor.ts";
+import { hostConsentOf } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { resolveTurnIdentityVia } from "../substrate/turn-access.ts";
 
@@ -33,10 +34,10 @@ const GENERATED_IMAGE_ALT = "generated image";
  *  `image_edit_dropped` = the whole edit strip; `image_count_dropped` and `image_size_dropped` = that knob. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *
- *  The subset EXCLUDES `settings_adjusted`, and that exclusion is load-bearing rather than tidy: that
- *  code's bus member REQUIRES its structured `adjustment`, which the imagery vocabulary has no notion of — so
- *  a bare `{ code }` emit below is only well-typed while the subset cannot contain it. */
-type ImageryChatWarningCode = Exclude<ChatWarningCode, "settings_adjusted">;
+ *  The subset is the plain codes only: a detail-bearing code's bus member requires its structured fields, which the
+ *  imagery vocabulary has no notion of, so a bare `{ code }` emit below is only well-typed while the subset cannot
+ *  contain one. */
+type ImageryChatWarningCode = PlainChatWarningCode;
 const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
 
 function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
@@ -58,12 +59,18 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
   return {
     generateImage: async ({ principal, gallery, ...pictureParams }: GenerateImageParams): Promise<MessageView> => {
       const { chatId, prompt } = pictureParams;
-      await requireParticipant(ctx, principal, chatId);
+      const { admission } = await requireParticipant(ctx, principal, chatId);
       const participants = await loadParticipants(ctx.db, chatId);
-      const hostUserId = hostUserIdOf(participants);
-      if (hostUserId === null) {
-        throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
+      // The picture runs on the host's connections, so a room with no host, or a host outside the consent set
+      // (disabled), refuses as a turn does (`loadRoom`): no member spends a gone or disabled host's inference.
+      const consent = await hostConsentOf(ctx, participants);
+      if (consent.kind === "hostless") {
+        throw new ChatNotFoundError(chatId);
       }
+      if (consent.kind === "withheld") {
+        throw new ChatHostWithoutConsentError(chatId);
+      }
+      const { hostUserId } = consent;
       const identity = resolveTurnIdentityVia({ principalUserId: principal.userId, hostUserId });
       // The picture joins the gallery of the character it was generated for — the room's subject, one
       // character, never every member. Imagery adds it only when the run-as host owns that character.
@@ -85,12 +92,12 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       // a generation that never produced anything. By this line the picture exists and is durable, so the only
       // way the post fails is a DB fault. The ordering invariant is preserved on the other side: the claim
       // still precedes the canon WRITE (a claim after the write double-counts this row in the replay).
-      await deps.claimChat(chatId);
+      const claim = await deps.claimChat(admission);
 
       // The provider result is already paid-for and durable by here. A concurrent canon writer may have read
       // the same head; on that one expected collision the SHARED retry (`commitCanonAppend`) discards only the
       // attempted allocation, re-reads the head, and mints fresh ids. `generatePicture` is never called again.
-      const view = await commitCanonAppend(ctx.db, chatId, (seq) => {
+      const view = await commitCanonAppend(ctx.db, claim, (seq) => {
         const params = {
           messageId: ctx.newMessageId(),
           variantId: ctx.newMessageVariantId(),

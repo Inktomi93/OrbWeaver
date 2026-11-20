@@ -9,7 +9,12 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "#client/features/refinery/lib/refinery-names.ts";
+import {
+  REFINERY_NO_VERSIONS_TITLE,
+  REFINERY_READ_LABELS,
+  REFINERY_VERSION_LOADING_TEXT,
+  refineryCompareToggleName,
+} from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { VersionsTabStory } from "./_versions-stories.tsx";
 
@@ -42,13 +47,15 @@ test("a held snapshot walk shows the loading skeleton, a failed one the error bl
   await hold.requested;
   await expect(page.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(page.getByText("Couldn't load this card's versions.", { exact: true })).toBeVisible();
-  await expect(page.getByText("No versions yet", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.versions), { exact: true })).toBeVisible();
+  await expect(page.getByText(REFINERY_NO_VERSIONS_TITLE, { exact: true })).toHaveCount(0);
   failing = false;
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByText("Couldn't load this card's versions.", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("No versions yet", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.versions), { exact: true })).toHaveCount(0);
+  await expect(page.getByText(REFINERY_NO_VERSIONS_TITLE, { exact: true })).toBeVisible();
 });
+
+const SNAPSHOT_LABEL = "manual: before refining";
 
 test("a held snapshot compare shows its loading line, a failed one the error block, and Retry shows the diff", async ({ mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
@@ -57,7 +64,7 @@ test("a held snapshot compare shows its loading line, a failed one the error blo
   if (character === undefined) {
     throw new Error("The corpus must contain a character");
   }
-  const { id: snapshotId } = await caller.character.snapshot({ characterId: character.id, label: "manual: before refining" });
+  const { id: snapshotId } = await caller.character.snapshot({ characterId: character.id, label: SNAPSHOT_LABEL });
   const description = (await caller.character.getSnapshot({ characterId: character.id, snapshotId })).content.description ?? "";
   if (description === "") {
     throw new Error("The compared snapshot needs a description to diff");
@@ -68,16 +75,16 @@ test("a held snapshot compare shows its loading line, a failed one the error blo
     ...serveCorpusProcedures(caller, ["character.getSnapshot"], read.intercept),
   });
   await mount<typeof VersionsTabStory>(STORY, { characterId: character.id, sessionId: mintTypeId(ID_PREFIX.refinerySession, createSeededIds().next) });
-  await page.getByRole("button", { name: refineryCompareToggleName(false), exact: true }).click();
+  await page.getByRole("button", { name: refineryCompareToggleName(false, SNAPSHOT_LABEL), exact: true }).click();
   await read.hold.requested;
   await expect(page.getByText(REFINERY_VERSION_LOADING_TEXT, { exact: true })).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText(queryFailedLabel("that version"), { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.version), { exact: true })).toBeVisible();
   // The failure stays inside the compared row: the walk and its toggle stand.
-  await expect(page.getByRole("button", { name: refineryCompareToggleName(true), exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: refineryCompareToggleName(true, SNAPSHOT_LABEL), exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText(queryFailedLabel("that version"), { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.version), { exact: true })).toHaveCount(0);
   // Against an empty live description every word of the snapshot reads as removed.
   await expect(page.locator('pre:has([data-diff="removed"])')).toHaveJSProperty("textContent", description);
 });

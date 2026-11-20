@@ -43,12 +43,18 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContentPane, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
-import { CHARACTER_JUST_ADDED_SHELF_NAME, CHARACTER_RECENT_SHELF_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_JUST_ADDED_SHELF_NAME,
+  CHARACTER_LANDING_RESUME_TITLE,
+  CHARACTER_RECENT_SHELF_NAME,
+  characterAddedStamp,
+  characterStarredShelfName,
+} from "../lib/character-names.ts";
 import { chattedStamp } from "../lib/character-shelf-stamp.ts";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
 import type { ShelfFace } from "./character-shelf.tsx";
@@ -108,7 +114,9 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
 }
 
 function justAddedFacesOf(characters: readonly CharacterRow[]): ShelfFace[] {
-  return characters.slice(0, JUST_ADDED_SHELF_LIMIT).map((character) => faceOf(character, `added ${timeLib.formatRelativeAgo(character.createdAt)}`, null));
+  return characters
+    .slice(0, JUST_ADDED_SHELF_LIMIT)
+    .map((character) => faceOf(character, characterAddedStamp(timeLib.formatRelativeAgo(character.createdAt)), null));
 }
 
 /** The Characters CONTENT pane at rest. Its own `QueryBoundary`: the shell does NOT wrap a section's CONTENT
@@ -118,21 +126,21 @@ export function CharacterLibraryWelcome(): ReactElement {
   return (
     // THE SCROLL BOX IS THE PANE'S, NOT THE FRAME'S (#1748, the #1133 hoist). Under the reservation's
     // auto-height measuring Stack a scroller's `h-full` resolves to `auto` and the landing stops scrolling,
-    // so the box moved up here and `LandingFrame` keeps only the chrome it can author from the read. The
-    // `Container` rides up with it — the shelf grid is CONTAINER-queried (`cols="cellShelf"`) and an
-    // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
-    // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
-    // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container scroll="y" height="fill">
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="avatar-row" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
-        reserveKey="character.libraryWelcome"
-      >
-        <CharacterLandingBody />
-      </QueryBoundary>
-    </Container>
+    // so the box is the content pane above the boundary and `LandingFrame` keeps only the chrome it can author
+    // from the read, its block inset included. The `Container` sits on the pane's column, so the CONTAINER-queried
+    // shelf grid (`cols="cellShelf"`) measures the column it lays out in.
+    <ContentPane inset="none">
+      <Container>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="avatar-row" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
+          reserveKey="character.libraryWelcome"
+        >
+          <CharacterLandingBody />
+        </QueryBoundary>
+      </Container>
+    </ContentPane>
   );
 }
 
@@ -313,13 +321,13 @@ function ResumeArm({
   const justAddedFaces = justAddedFacesOf(newestItems);
   const addedThisWeek = weekLineRows(newestItems, libraryCount);
   return (
-    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
+    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title={CHARACTER_LANDING_RESUME_TITLE}>
       <Stack gap="section">
         {recentFaces.length === 0 ? null : (
           <CharacterShelf door="resume" faces={recentFaces} label={CHARACTER_RECENT_SHELF_NAME} legend="sorted by last chat" onOpen={selectCharacter} />
         )}
         {starredFaces.length === 0 ? null : (
-          <CharacterShelf door="open" faces={starredFaces} label={`Starred · ${String(starredCount)}`} legend={null} onOpen={selectCharacter} />
+          <CharacterShelf door="open" faces={starredFaces} label={characterStarredShelfName(starredCount)} legend={null} onOpen={selectCharacter} />
         )}
         {/* JUST ADDED belongs to the COLLAPSED arm alone (the artboards' own split). With the list docked the
             list itself is where newest rows are browsed, and a third shelf repeating it is this pane
@@ -367,7 +375,7 @@ function LandingFrame({
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" gap="section" justify="between" stackBelow="cq-28">
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Heading level={2} voice="promoted">
             {title}
           </Heading>

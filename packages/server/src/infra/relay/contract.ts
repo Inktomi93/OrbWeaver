@@ -1,6 +1,7 @@
 // The relay adapter's contract: the cloudflared pin's shape, the injected download and spawn seams, and the launcher
 // port the share domain's relay controller drives. db-free and domain-free, like every infra contract.
 
+import type { InferenceDeps } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
 
 /** The node `${process.platform}-${process.arch}` pairs cloudflared publishes a build for. */
@@ -34,11 +35,11 @@ export interface CloudflaredPin {
 export type RelayAssetFetch = (url: string, limits: { readonly maxBytes: number; readonly deadlineMs: number }) => Promise<Response>;
 
 /** Unpacks the single `cloudflared` entry of a verified tgz into `intoDir`. Called only after the archive's hash matched. */
-export type ExtractTgz = (archive: string, intoDir: string, signal?: AbortSignal) => Promise<void>;
+export type ExtractTgz = (archive: string, intoDir: string, signal: AbortSignal) => Promise<void>;
 
 /** What the binary verifier reads: the pin, this process's target, its private directory and the two I/O seams. */
 export interface CloudflaredBinaryDeps {
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   readonly pin: CloudflaredPin;
   /** `${process.platform}-${process.arch}`; a pair outside {@link CLOUDFLARED_TARGETS} refuses. */
   readonly target: string;
@@ -84,6 +85,8 @@ export interface RelayExecutionDeps {
   readonly fetch: RelayAssetFetch;
   /** Arms the SIGKILL grace for a native child that ignores its stop; the root passes its unref'd timer. */
   readonly schedule: ScheduleOp;
+  /** The environment the archive extractor (`tar`) starts with. */
+  readonly childEnv: InferenceDeps["env"]["childProcessEnv"];
   readonly spawn?: SpawnRelay;
 }
 

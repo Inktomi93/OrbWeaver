@@ -9,9 +9,9 @@ import { CHARA_CARD_V2_SPEC } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeAuthConfig, routeOrbSocket, routeToServer, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
@@ -63,18 +63,7 @@ test.describe("a card import's result", () => {
         "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
       });
       await routeOrbSocket(page);
-      await page.route(`**${PORTABILITY_ROUTES.importCards}`, async (route) => {
-        const incoming = route.request();
-        const upload = incoming.postDataBuffer();
-        const answer = await root.http.request(
-          new Request(`http://127.0.0.1${PORTABILITY_ROUTES.importCards}`, {
-            method: "POST",
-            headers: incoming.headers(),
-            body: upload === null ? null : new Uint8Array(upload),
-          }),
-        );
-        await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body: Buffer.from(await answer.arrayBuffer()) });
-      });
+      const route = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
       // A toast can come and go between two reads, so the page keeps the most toasts it ever held at once.
       await page.addInitScript(
         ({ key, selector }) => {
@@ -90,12 +79,16 @@ test.describe("a card import's result", () => {
       await mount<typeof ImportPreviewStory>(STORY, { width: WIDE_PANE_PX, appearance: appearanceSettingsSchema.parse({}) });
 
       await page.locator('input[type="file"]').first().setInputFiles(file);
+      // The route answers once the real server has read the file, so the report is awaited from that answer on the import's own deadline.
+      const answered = route.answered(WORKLOAD_DEADLINE_MS);
       await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
+      await answered;
 
       const result = page.getByRole("group", { name: IMPORT_RESULT_NAME });
       const report = page.getByTestId(testId("importReport"));
       await expect(report).toBeVisible();
       await expect(result).toBeFocused();
+      await expect(result, "the result is scrolled into the window, not left below the fold").toBeInViewport();
       const toastsSeen = await page.evaluate((key) => {
         const held: unknown = Reflect.get(globalThis, key);
         return typeof held === "object" && held !== null && "seen" in held && typeof held.seen === "number" ? held.seen : -1;

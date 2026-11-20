@@ -90,6 +90,14 @@ const appearance = appearanceChannelVocabulary();
 const INTENT_COLORS = TONES.filter((tone) => `color.${tone}` in TOKENS);
 // The one declaration the font-scale setting reaches the ramp through: the root size every `--text-*` rem step multiplies.
 const ROOT_FONT_SCALE = `calc(100% * var(${appearanceChannelName("fontScale")}))`;
+// The disabled look's one home is packages/ui/src/lib/disabled-state.ts (D355), so a sheet names no disabled state. The one
+// exception is the disabled CTA ring: it is a pseudo-element painted in the `ui` layer, which sorts after `utilities`, so a
+// class from that home could reach it only with the important modifier.
+const DISABLED_SELECTOR = /:disabled|\[(?:data|aria)-disabled/;
+const CTA_DISABLED_RING = '[data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after';
+const DISABLED_SELECTOR_MESSAGE = "A disabled look spelled in a sheet; compose the control kind's constant from packages/ui/src/lib/disabled-state.ts (D355).";
+const disabledSelectorRule = (refused: RegExp): [RegExp[], { message: string }] => [[refused], { message: DISABLED_SELECTOR_MESSAGE }];
+const DISABLED_SELECTOR_BUT_CTA_RING = new RegExp(`^(?!${RegExp.escape(CTA_DISABLED_RING)}$).*(?:${DISABLED_SELECTOR.source})`, "s");
 // Class recipes write custom properties too; both native variable rules use the same declaration inventory.
 const CUSTOM_PROPERTIES = Object.fromEntries([...declaredCustomProperties(import.meta.dirname)].map((name) => [name, "initial"]));
 
@@ -176,6 +184,7 @@ const config: Config = {
     "max-nesting-depth": [1, { ignoreAtRules: ["variant"] }],
     "selector-max-id": 0,
     "selector-no-qualifying-type": true,
+    "selector-disallowed-list": disabledSelectorRule(DISABLED_SELECTOR),
     "declaration-no-important": true,
     "property-no-vendor-prefix": true,
     "value-no-vendor-prefix": true,
@@ -226,6 +235,10 @@ const config: Config = {
       // query is read from `MEDIA_QUERIES`, the conditions' one home.
       files: ["packages/client/src/styles/appearance-channel.gen.css"],
       rules: { "nesting-selector-no-missing-scoping-root": null, "orb/no-raw-media-condition": null, "orb/no-intent-color-recipe": null },
+    },
+    {
+      files: ["packages/ui/src/styles/primitives.css"],
+      rules: { "selector-disallowed-list": disabledSelectorRule(DISABLED_SELECTOR_BUT_CTA_RING) },
     },
     {
       // The reduced-motion floor exists to beat inline styles; every declaration in it is `!important` by design.

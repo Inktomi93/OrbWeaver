@@ -9,7 +9,7 @@
 
 import { documentUploadRefusalSchema, uploadResultSchema } from "@orb/contracts/databank";
 import { EXTRACTION_OP_CODES, ExtractionFailedError, ExtractionTooLargeError } from "@orb/contracts/extraction";
-import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES, DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
+import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES, DATABANK_UPLOAD_ROUTE, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import { createAuthModeRoot, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import { strToU8, unzipSync, zipSync } from "fflate";
@@ -72,7 +72,7 @@ test.for(FORMATS)(
     const { headers, principal } = await signIn(root, await ownerSubject(root));
     const post = (bytes: Uint8Array): Promise<Response> => {
       const form = new FormData();
-      form.set("file", new File([new Uint8Array(bytes)], filename));
+      form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(bytes)], filename));
       return Promise.resolve(root.http.request(DATABANK_UPLOAD_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: form }));
     };
     // The warn records that name a document format; the root also warns about its public test peer, which is not this.
@@ -87,7 +87,7 @@ test.for(FORMATS)(
     const refused = await post(cut);
     expect(refused.status).toBe(400);
     expect(await refused.json()).toEqual({ error: new ExtractionFailedError(format).message, reason: EXTRACTION_OP_CODES.failed });
-    expect((await root.services.databank.list({ principal })).items).toEqual([]);
+    expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
     // The operator keeps the loader's own text: one warn record names the format and carries the cause.
     expect(extractionWarnings()).toMatchObject([{ format, err: { message: openingFailure(cut) } }]);
 
@@ -96,8 +96,12 @@ test.for(FORMATS)(
     expect(landed.status).toBe(200);
     const uploaded = uploadResultSchema.parse(await landed.json());
     expect(uploaded).toMatchObject({ outcome: "created", document: { name: filename } });
-    expect((await root.services.databank.get({ principal, id: uploaded.document.id, includeText: true })).extractedText).toBe(text);
-    expect((await root.services.databank.list({ principal })).items.map((item) => item.id)).toEqual([uploaded.document.id]);
+    expect(
+      (await root.services.databank.get({ signal: new AbortController().signal, principal, id: uploaded.document.id, includeText: true })).extractedText,
+    ).toBe(text);
+    expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items.map((item) => item.id)).toEqual([
+      uploaded.document.id,
+    ]);
     expect(extractionWarnings()).toHaveLength(1);
   },
 );
@@ -136,7 +140,7 @@ test.for(OVER_BUDGET)(
     await using root = await createAuthModeRoot("local", { logLevel: "warn" });
     const { headers, principal } = await signIn(root, await ownerSubject(root));
     const form = new FormData();
-    form.set("file", new File([new Uint8Array(bytes)], filename));
+    form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(bytes)], filename));
     const refused = await root.http.request(DATABANK_UPLOAD_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: form });
 
     expect(refused.status).toBe(400);
@@ -144,7 +148,7 @@ test.for(OVER_BUDGET)(
       error: new ExtractionTooLargeError(format).message,
       reason: EXTRACTION_OP_CODES.tooLarge,
     });
-    expect((await root.services.databank.list({ principal })).items).toEqual([]);
+    expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
   },
 );
 
@@ -152,10 +156,10 @@ test("a type the route does not accept is refused with the unsupported-type code
   await using root = await createAuthModeRoot("local", { logLevel: "warn" });
   const { headers, principal } = await signIn(root, await ownerSubject(root));
   const form = new FormData();
-  form.set("file", new File([new Uint8Array([1, 2, 3])], "ledger.csv", { type: "text/csv" }));
+  form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array([1, 2, 3])], "ledger.csv", { type: "text/csv" }));
   const refused = await root.http.request(DATABANK_UPLOAD_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: form });
 
   expect(refused.status).toBe(415);
   expect(documentUploadRefusalSchema.parse(await refused.json())).toMatchObject({ reason: EXTRACTION_OP_CODES.unsupportedType });
-  expect((await root.services.databank.list({ principal })).items).toEqual([]);
+  expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
 });

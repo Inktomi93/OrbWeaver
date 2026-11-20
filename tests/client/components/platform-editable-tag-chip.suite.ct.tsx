@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
-import { TAG_EDITOR_CLOSE_NAME } from "#client/components/shared-control-names.ts";
+import { editTagName, TAG_EDITOR_CLOSE_NAME, TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
 const STORY = "tests/client/components/_editable-tag-chip-stories/EditableTagChipStory";
@@ -29,7 +29,7 @@ for (const appearance of APPEARANCES) {
       expect(await page.evaluate((pointerFine) => matchMedia(pointerFine).matches, MEDIA_QUERIES["pointer-fine"])).toBe(true);
       await page.getByRole("button", { name: "Before tags", exact: true }).focus();
       for (const name of NAMES) {
-        const edit = page.getByRole("button", { name: `Edit tag ${name}`, exact: true });
+        const edit = page.getByRole("button", { name: editTagName(name), exact: true });
         const box = await settledBox(edit);
         const coarseFloor = await resolvedLength(page, TOKENS["size.touch-target"].value, edit);
         await testInfo.attach(`fine-${name}`, { body: JSON.stringify(box), contentType: "application/json" });
@@ -37,8 +37,8 @@ for (const appearance of APPEARANCES) {
         await page.keyboard.press("Tab");
         await expect(edit).toBeFocused();
         await page.keyboard.press("Enter");
-        const dialog = page.getByRole("dialog", { name: `Edit tag ${name}`, exact: true });
-        await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+        const dialog = page.getByRole("dialog", { name: editTagName(name), exact: true });
+        await expect(dialog.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
         await page.keyboard.press("Escape");
         await expect(dialog).toBeHidden();
         await expect(edit).toBeFocused();
@@ -56,23 +56,23 @@ for (const appearance of APPEARANCES) {
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "tag.listTagsWithUsage"]));
       await mount<typeof EditableTagChipStory>(STORY, { tags, appearance: appearance.settings });
       expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
-      await expect(page.getByRole("button", { name: "Edit tag OC", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: editTagName("OC"), exact: true })).toBeVisible();
       const findings = await touchTargetFindings(page);
       await testInfo.attach("actual-hit-target-findings", { body: JSON.stringify(findings), contentType: "application/json" });
       expect(findings).toEqual([]);
       await page.getByRole("button", { name: "Before tags", exact: true }).focus();
       for (const name of NAMES) {
-        const edit = page.getByRole("button", { name: `Edit tag ${name}`, exact: true });
+        const edit = page.getByRole("button", { name: editTagName(name), exact: true });
         await page.keyboard.press("Tab");
         await expect(edit).toBeFocused();
         await page.keyboard.press("Enter");
-        const dialog = page.getByRole("dialog", { name: `Edit tag ${name}`, exact: true });
-        await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+        const dialog = page.getByRole("dialog", { name: editTagName(name), exact: true });
+        await expect(dialog.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
         await page.keyboard.press("Escape");
         await expect(dialog).toBeHidden();
         await expect(edit).toBeFocused();
         await edit.tap();
-        await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+        await expect(dialog.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
         await dialog.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).tap();
         await expect(dialog).toBeHidden();
         await expect(edit).toBeFocused();

@@ -22,7 +22,7 @@ async function room(harness: ServerTestHarness): Promise<StartChatResult["chat"]
     allowBackground: false,
     declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { tools: { parallel: false }, output: { structured: true } } }),
   });
-  await harness.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal, cachedFacts: true });
+  await harness.app.runtime.resolve({ signal: new AbortController().signal, task: "chat", connectionId: connection.id, principal, cachedFacts: true });
   await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   const preset = await caller.preset.create({ name: "Compaction isolation", kind: "custom" });
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: preset.id } });

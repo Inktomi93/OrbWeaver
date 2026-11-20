@@ -1,6 +1,6 @@
 // Ordinary Chats pages real persisted canon without entering a Corpus source window.
 
-import { DIALOG_VERBS, RETRY_NAME } from "@orb/client/lib";
+import { contentRegionName, DIALOG_VERBS, RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -25,6 +25,7 @@ import {
   routeAuthConfig,
   routeOrbSocket,
   routeTrpc,
+  SECTION_LABELS,
   SECTION_PROCEDURES,
   serveCorpusProcedures,
   trpcError,
@@ -33,6 +34,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_NEW_WITH_SAME_CHARACTERS_NAME, CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
   CHAT_HISTORY_DISMISS_NAME,
@@ -40,7 +42,8 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
-import { CORPUS_SOURCE_OUTCOME_COPY, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { CORPUS_SOURCE_OUTCOME_COPY, JUMP_TO_LATEST_LEAD, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { INVALIDATE_ROOM_NAME } from "./_chat-room-shell-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -430,7 +433,7 @@ for (const regime of [
       await earlier.click();
       await expect.poll(() => calls.count("chat.listMessages")).toBeGreaterThan(beforeRequests);
       await expect(earlier).toBeEnabled();
-      await expect(page.getByRole("button", { name: /^Jump to latest/u })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: new RegExp(`^${RegExp.escape(JUMP_TO_LATEST_LEAD)}`, "u") })).toHaveCount(0);
       await expect
         .poll(async () => {
           const after = await reading.boundingBox();
@@ -466,7 +469,10 @@ for (const regime of [
         .toBeLessThanOrEqual(1);
       holdReads = false;
       refresh.release();
-      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
+      await expect(page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
       await expect(canonical).toContainText("Edited oldest history witness");
       await expect(deleted).toHaveCount(0);
       // Roving focus steps over the deleted row's place, not into it.
@@ -506,7 +512,10 @@ for (const regime of [
       await stepFocus(page, "ArrowUp", precedingCanon?.id ?? "");
       await stepFocus(page, "ArrowDown", firstArrival.id);
       await earlier.click();
-      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
+      await expect(page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
       await expect(earlier).toBeDisabled();
       // The end of history is on screen, not only announced: its statement is a laid-out box, not the 1px screen-reader clip.
       const endStatement = page.locator(`[id="${(await earlier.getAttribute("aria-describedby")) ?? ""}"]`);
@@ -553,11 +562,11 @@ for (const regime of [
       const rows = await loadedRows(list);
       await earlier.dispatchEvent("click");
       await expect.poll(() => loadedRows(list)).not.toBe(rows);
-      const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
+      const busy = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true }).locator(TRANSCRIPT_BUSY);
       await expect(busy).toHaveAttribute("aria-busy", "false");
       // The control: what one invalidation of the room's reads costs with these pages loaded.
       const idle = live.reads();
-      await page.getByRole("button", { name: "Invalidate the room", exact: true }).dispatchEvent("click");
+      await page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true }).dispatchEvent("click");
       await expect.poll(() => live.reads()).toBeGreaterThan(idle);
       await expect(busy).toHaveAttribute("aria-busy", "false");
       const once = live.reads() - idle;
@@ -775,7 +784,7 @@ for (const regime of [
       const alert = list.getByRole("alert");
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       await expect(alert).not.toBeInViewport();
-      const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
+      const busy = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true }).locator(TRANSCRIPT_BUSY);
       await expect(busy).toHaveAttribute("aria-busy", "false");
       // A failed bridge re-firing itself is a stream of reads against a server that is down.
       const reads = live.reads();
@@ -929,7 +938,10 @@ for (const regime of [
       refreshDown = false;
       await retry.dispatchEvent("click");
       await expect(alert).toHaveCount(0);
-      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
+      await expect(page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
     });
     test("a failed press stays pinned through a later failed refresh", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
@@ -1154,7 +1166,7 @@ for (const regime of [
         node.scrollTop = node.scrollHeight / 2;
       });
       await settledReadingRow(list);
-      const invalidate = page.getByRole("button", { name: "Invalidate the room", exact: true });
+      const invalidate = page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true });
       await earlier.dispatchEvent("click");
       for (const read of reads) {
         await read.requested;
@@ -1199,7 +1211,7 @@ for (const regime of [
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, invalidator: true, moment: { kind: "message", messageId: target.id } });
       const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
       await expect(earlier).toBeEnabled();
-      const invalidate = page.getByRole("button", { name: "Invalidate the room", exact: true });
+      const invalidate = page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true });
       await earlier.dispatchEvent("click");
       for (const read of reads) {
         await read.requested;
@@ -1342,8 +1354,8 @@ for (const regime of [
       });
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: initial.chat.id });
       await expect(page.locator(`[data-message-id="${before.id}"]`)).toBeVisible();
-      await page.getByRole("button", { name: "Chat options", exact: true }).click();
-      await page.getByRole("menuitem", { name: "New chat with the same characters", exact: true }).click();
+      await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+      await page.getByRole("menuitem", { name: CHAT_NEW_WITH_SAME_CHARACTERS_NAME, exact: true }).click();
       await confirmation.requested;
       const requested = calls.lastInput("chat.listMessages");
       if (requested === undefined) {

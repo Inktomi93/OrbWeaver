@@ -1,7 +1,7 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import type { ComponentProps, ReactElement } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** A Node mount supplies plain data while preserving the frame's sizing union. */
 type FrameStoryProps = ComponentProps<typeof SandboxFrame> & { readonly onHostMessage?: never };
@@ -20,10 +20,59 @@ export function FocusedBesideFrameStory(props: FrameStoryProps): ReactElement {
   );
 }
 
+/** A text field above two frames, nothing focused: a reader's keys, a press on either frame, and Tab between them. */
+export function TwoFramesBesideFieldStory({ first, second }: { readonly first: FrameStoryProps; readonly second: FrameStoryProps }): ReactElement {
+  return (
+    <CtIsolation subject="SandboxFrame focus gate" isolates="Focus entering two frames beside one text field, without application state">
+      <input aria-label="Outside the frame" />
+      <SandboxFrame {...first} />
+      <SandboxFrame {...second} />
+    </CtIsolation>
+  );
+}
+
+/** A text field above one frame whose handed-over links the story lists, so a case reads what the link gate let through. */
+export function LinkingFrameBesideFieldStory(props: FrameStoryProps): ReactElement {
+  const [links, setLinks] = useState<readonly string[]>([]);
+  return (
+    <CtIsolation subject="SandboxFrame link gate" isolates="Links a frame hands to its host beside one text field, without the confirm or application state">
+      <input aria-label="Outside the frame" />
+      <SandboxFrame
+        {...props}
+        onLink={(url): void => {
+          setLinks((handed) => [...handed, url]);
+        }}
+      />
+      <output aria-label="Handed-over links">{links.join(" ")}</output>
+    </CtIsolation>
+  );
+}
+
 export function SandboxFrameStory(props: FrameStoryProps): ReactElement {
   return (
     <CtIsolation subject="SandboxFrame" isolates="The sealed iframe painter and the policy its document is served under, without application state">
       <SandboxFrame {...props} />
+    </CtIsolation>
+  );
+}
+
+/** A routed reply frame veiled behind its stand-in at the end of a scroller, far below what the scroller shows, as the
+ *  newest row of a long transcript commits before the list has moved to it. The scroller is never scrolled. */
+export function FrameBelowScrollerFoldStory({
+  src,
+  title,
+  spacerRem,
+}: {
+  readonly src: string;
+  readonly title: string;
+  readonly spacerRem: number;
+}): ReactElement {
+  return (
+    <CtIsolation subject="SandboxFrame veil" isolates="A veiled routed frame clipped below a scroller's visible edge, without the transcript">
+      <div data-slot="story-scroller" style={{ blockSize: "10rem", overflowY: "auto" }}>
+        <div style={{ blockSize: `${String(spacerRem)}rem` }} />
+        <SandboxFrame html="" src={src} title={title} holds="reply" pending={<p>The reply is on its way.</p>} />
+      </div>
     </CtIsolation>
   );
 }

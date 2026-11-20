@@ -1,25 +1,76 @@
 // The accessible names the preset section drill-in prints. A zero-import leaf, so a spec's node side reads them without
 // loading the component graph.
 
-/** The section delete confirmation's title. */
-export const PRESET_DELETE_SECTION_TITLE = "Delete this section?";
-export const PRESET_BACK_TO_RACK_NAME = "Back to rack";
-export const PRESET_SECTION_ACTIONS_NAME = "Section actions";
+/** The prompt delete confirmation's title. */
+export const PRESET_DELETE_SECTION_TITLE = "Delete this prompt?";
+export const PRESET_BACK_TO_RACK_NAME = "Back to prompts";
+export const PRESET_SECTION_ACTIONS_NAME = "Prompt actions";
 export const PRESET_EDITOR_NAME = "Preset editor";
 export const PRESET_NAME_FIELD_NAME = "Preset name";
 export const PRESET_RENAME_NAME = "Rename preset";
-export const PRESET_SECTIONS_NAME = "Preset sections";
+/** The Params deck's disclosure over the less-used knobs. */
+export const PRESET_ADVANCED_NAME = "Advanced";
+export const PRESET_SECTIONS_NAME = "Preset prompts";
 export const PRESET_IMPORT_TITLE = "Import a preset";
+
+/** The variable editor's question field. */
+export const PRESET_VARIABLE_QUESTION_NAME = "Question";
+
+/** The variable editor's door to a new option row. */
+export const PRESET_VARIABLE_ADD_OPTION_NAME = "Add option";
+
+/** The variable editor's `ordinal`th option row, counted from 1, and its remove confirm. */
+export function presetVariableOptionGroupName(ordinal: number): string {
+  return `Option ${String(ordinal)}`;
+}
+export function presetVariableOptionRemoveTitle(ordinal: number): string {
+  return `Remove option ${String(ordinal)}?`;
+}
 export const PRESET_IMPORT_NAME = "Import preset";
+
+/** An import whose preset equals one the library holds: the dialog's preview line and the result line. */
+export const PRESET_IMPORT_ALREADY_HELD = "This preset is already in your library.";
+export const PRESET_IMPORT_LANDED = "Preset imported.";
+
+/** The result line when a different preset already holds the file's name. */
+export function presetImportRenamed(name: string, renamedFrom: string): string {
+  return `Imported as “${name}”: you already have a different “${renamedFrom}”.`;
+}
+
+/** The result line's count of the scripts a SillyTavern preset brought, attached to the preset. */
+export function presetImportScripts(attached: number, created: number): string {
+  return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
+}
+
+/** The line naming the sections a SillyTavern preset gains for orbweaver's own slots, in the preview and the result. */
+export function presetImportAddedSections(names: readonly string[]): string {
+  return `Added for orbweaver's own slots: ${names.join(", ")}.`;
+}
+
+/** The result line's count of scripts the write door left out, so "attached" never reads as every script the file held. */
+export function presetImportScriptsRefused(refused: number): string {
+  return `${String(refused)} more ${refused === 1 ? "was" : "were"} left out: too costly to run.`;
+}
+
+/** The built-in's fork choice: its second stage's title, the field it names the fork in, and the commits of both stages. */
+export const PRESET_FORK_NAME_TITLE = "Name the new fork";
+export const PRESET_FORK_NAME_FIELD_NAME = "New fork name";
+export const PRESET_FORK_START_NAME = "Start a new fork";
+export const PRESET_FORK_CREATE_NAME = "Create fork";
+export function presetForkKeepEditingName(forkName: string): string {
+  return `Keep editing ${forkName}`;
+}
 
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 
-/** The editor header's reset door, its name and tooltip alike. */
+/** The editor header's reset door: its accessible name, and the visible word it leads with. */
 export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
+export const PRESET_RESET_ARRANGEMENT_LABEL = "Reset to starter";
 
-/** The reset door's confirm. */
+/** The reset door's confirm: its title and its confirm button. */
 export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
+export const PRESET_RESET_ARRANGEMENT_CONFIRM = "Reset";
 
 /** The library pane's search field. */
 export const PRESET_SEARCH_NAME = "Search presets";
@@ -29,7 +80,276 @@ export const PRESET_ACTIVE_RADIOGROUP_NAME = "Active preset for generation";
 
 /** The label every door that creates a blank preset wears, and the name the new row takes. */
 export const NEW_PRESET_NAME = "New preset";
-export const NEW_PRESET_KIND = "generation";
 
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";
+
+/** The rack toolbar's add-section menu trigger, which also names the menu it opens. */
+export const PRESET_ADD_SECTION_LABEL = "Add";
+
+/** The import dialog's description: the SillyTavern preset a newcomer brings first, then the rule for a preset the library already holds. */
+export const PRESET_IMPORT_DESCRIPTION =
+  "Pick a SillyTavern Chat Completion preset or an orbweaver preset export (.json). A preset equal to one you have is already in your library; a different one with a name you use is added under a new name.";
+
+/** The dropzone's line under a picked file. */
+export const PRESET_IMPORT_PICK_ANOTHER = "Drop or choose another file to replace it.";
+
+/** The summary's lead: what the file is and how many prompts it holds, and how many of them are enabled. */
+export function presetImportLead(fromSillyTavern: boolean, name: string, prompts: number, enabled: number): string {
+  const kind = fromSillyTavern ? "SillyTavern preset" : "orbweaver preset export";
+  return `${kind} “${name}”: ${String(prompts)} prompt${prompts === 1 ? "" : "s"}, ${String(enabled)} enabled.`;
+}
+
+/** The summary's line on the sampler values and the context and output limits the preset lands with. */
+export function presetImportCarried(samplers: number, limits: number): string {
+  if (samplers > 0 && limits > 0) {
+    return "Samplers and limits came across.";
+  }
+  if (samplers > 0) {
+    return "Samplers came across. The file sets no limits.";
+  }
+  return limits > 0 ? "Limits came across. The file sets no samplers." : "The file sets no samplers or limits.";
+}
+
+/** The summary's line on the regex scripts a SillyTavern preset brings, attached to the preset, with how many of them
+ *  arrive switched off. */
+export function presetImportScriptsComing(count: number, off: number): string {
+  const scripts =
+    count === 1 ? "1 regex script comes with it and is attached to the preset" : `${String(count)} regex scripts come with it and are attached to the preset`;
+  if (off === 0) {
+    return `${scripts}.`;
+  }
+  return off === count ? `${scripts}, all switched off.` : `${scripts}: ${String(count - off)} on, ${String(off)} switched off.`;
+}
+
+/** The summary's list of what has no equivalent here: its heading, its scroll region's name, and the line when nothing is left out. */
+export const PRESET_IMPORT_DROPPED_HEADING = "Settings this app has no equivalent for";
+export const PRESET_IMPORT_DROPPED_REGION_NAME = "Settings left out";
+export const PRESET_IMPORT_NOTHING_DROPPED = "Everything in the file came across.";
+
+/** The summary's group of values the import brought into range: its heading, and each value's line. */
+export const PRESET_IMPORT_CLAMPED_HEADING = "Values brought into range";
+export function presetImportClamped(sent: number, landedAs: number): string {
+  return `Sent ${String(sent)}, imported as ${String(landedAs)}.`;
+}
+
+/** A landed import's action, and the line it says about whether the preset is in use. */
+export const PRESET_USE_THIS_NAME = "Use this preset";
+export const PRESET_IMPORT_IN_USE = "Every chat uses your active preset, and this one is the active preset.";
+export const PRESET_IMPORT_NOT_IN_USE = "Every chat uses your active preset, and this one is not active yet.";
+
+/** The template drill-in's return to the Actions list. */
+export const PRESET_BACK_TO_ACTIONS_NAME = "Back to actions";
+
+/** The editor's view tabs, by view id. */
+export const PRESET_EDITOR_VIEW_LABELS = {
+  params: "Params",
+  prompt: "Prompt",
+  actions: "Actions",
+  data: "Data",
+  transforms: "Regex",
+} as const;
+
+/** The two sides of the chat history pivot, as the budget readout and the pivot band name them. */
+export const PRESET_BEFORE_HISTORY_LABEL = "Before chat history";
+export const PRESET_AFTER_HISTORY_LABEL = "After chat history";
+
+/** The section menu's zone jump, from the side of the conversation the section sits on now. */
+export function presetMoveToZoneLabel(inSetup: boolean): string {
+  return inSetup ? "Move below the conversation" : "Move above the conversation";
+}
+
+/** The rack's chat history pivot; its drill door is `editActionName` over it. */
+export const PRESET_CHAT_HISTORY_LABEL = "Chat history";
+
+/** A library row's activate radio, named for the preset it picks. */
+export function presetActivateRowName(preset: string): string {
+  return `Activate ${preset} for generation`;
+}
+
+/** The chip the editor header and the readout wear while this preset is the active one. */
+export const PRESET_ACTIVE_STATUS = "Active";
+
+/** The library pane's list region. */
+export const PRESET_LIST_NAME = "Presets list";
+
+/** The built-in row's subtitle. */
+export const PRESET_BUILT_IN_SUBTITLE = "Built-in default";
+
+/** A text section with no name of its own, and the add menu's option that mints one. */
+export const PRESET_LITERAL_TEXT_LABEL = "Literal text";
+
+/** The Params view's quality block: its kicker and its select. */
+export const PRESET_QUALITY_LABEL = "Quality";
+
+/** The response replay lifetime field. */
+export const PRESET_REPLAY_LIFETIME_NAME = "Response replay lifetime (seconds)";
+
+/** The transforms tab's speaker-name select. */
+export const PRESET_SPEAKER_NAMES_LABEL = "Speaker names";
+
+/** The Actions view's template filter. */
+export const PRESET_TEMPLATE_FILTER_NAME = "Filter templates";
+
+/** The Data view's variables: the add door and the editor dialog's title. */
+export const PRESET_ADD_VARIABLE_NAME = "Add variable";
+export const PRESET_EDIT_VARIABLE_TITLE = "Edit variable";
+
+/** The readout pane's heading when no preset is picked, and its active-preset block kicker. */
+export const PRESET_READOUT_ACTIVE_LABEL = "Active preset";
+
+/** The Prompt readout's budget block. */
+export const PRESET_READOUT_BUDGET_LABEL = "Budget";
+
+/** The Prompt readout's assembled-preview toggle, one name per state. */
+export const PRESET_SHOW_PREVIEW_NAME = "Show assembled preview";
+export const PRESET_HIDE_PREVIEW_NAME = "Hide assembled preview";
+
+/** The Prompt readout's pricing states. */
+export const PRESET_READOUT_PRICING_STATUS = "Pricing these rows against the bound chat…";
+export const PRESET_READOUT_NOT_HOST_PRICED = "This chat cannot be priced. Its host resolves the prompt, and you are not it.";
+
+/** The Actions readout's refusal for a chat the viewer does not host. */
+export const PRESET_READOUT_NOT_HOST_INSPECTED = "This chat cannot be inspected. Its host resolves the prompt, and you are not it.";
+
+/** An Actions readout row's region, named for its action. */
+export function presetActionReadoutName(action: string): string {
+  return `Action readout: ${action}`;
+}
+
+/** The Transforms readout's stage status when its read failed. */
+export const PRESET_READOUT_STAGE_UNREAD = "couldn’t read";
+
+/** The capability panel's connection picker. */
+export const PRESET_CAPABILITY_CONNECTION_NAME = "Connection to describe";
+
+/** The section drill-in region, named for the section it edits. */
+export function presetSectionEditorName(section: string): string {
+  return `${section}: prompt editor`;
+}
+
+/** The template drill-in region, named for the template it edits. */
+export function presetTemplateEditorName(template: string): string {
+  return `${template}: template editor`;
+}
+
+/** What failed to load, said by the preset library's read. */
+export const PRESET_LIBRARY_READ_LABEL = "your presets";
+
+/** What failed to load, said by the usage readout's read. */
+export const PRESET_USAGE_READ_LABEL = "what uses this preset";
+
+/** What failed to load, said by the preset readout's read. */
+export const PRESET_READOUT_READ_LABEL = "the readout";
+
+/** What failed to load, said by the transforms readout's read. */
+export const PRESET_TRANSFORMS_READ_LABEL = "the attached scripts";
+
+/** What failed to load, said by the prompt readout's bound-chat cost read. */
+export const PRESET_BOUND_COSTS_READ_LABEL = "the bound chat's costs";
+
+/** What failed to load, said by the actions readout's resolved preview read. */
+export const PRESET_ACTIONS_PREVIEW_READ_LABEL = "the resolved preview";
+
+/** The singular nouns the sequence chip lists name their add box and each chip's Remove by. */
+export const PRESET_STOP_SEQUENCE_NOUN = "stop sequence";
+export const PRESET_DRY_BREAKER_NOUN = "DRY sequence breaker";
+export const PRESET_BANNED_PHRASE_NOUN = "banned phrase";
+
+/** A sequence chip's subject: its list's noun, then the text it shows. */
+export function sequenceChipSubject(noun: string, shown: string): string {
+  return `${noun} ${shown}`;
+}
+
+/** A sequence list's add box, named for the noun it adds. */
+export function sequenceAddName(noun: string): string {
+  return `Add ${noun}`;
+}
+
+/** The Context cluster's count of the newest messages a summary leaves word for word. */
+export const PRESET_VERBATIM_TAIL_LABEL = "Messages kept word-for-word";
+
+/** The Output cluster's two token caps. */
+export const PRESET_MAX_OUTPUT_LABEL = "Max output tokens";
+export const PRESET_MAX_CONTEXT_LABEL = "Max context tokens";
+
+/** The readout's capability row for the model's reply cap, and the tag a limit no tier stated carries (the kind
+ *  floor's guess, not the model's own number). */
+export const PRESET_READOUT_OUTPUT_CAP_LABEL = "Output cap";
+export const PRESET_ESTIMATED_LIMIT_SUFFIX = "estimated";
+
+/** The Prompt rack's one line when entries above Chat History change between turns on a connection that caches. */
+export function presetCacheBustersLine(count: number): string {
+  return `${String(count)} ${count === 1 ? "entry" : "entries"} above Chat History change between turns, so this connection can't reuse its prompt cache past them.`;
+}
+export const PRESET_CACHE_BUSTERS_SHOW_NAME = "Show which";
+
+/** The editor's state when no model is set for chat: its title, what it means for the deck, and its one door. */
+export const PRESET_NO_CHAT_MODEL_TITLE = "No model is set for chat yet.";
+export const PRESET_NO_CHAT_MODEL_DETAIL = "The sampling, reasoning and output controls show once you choose a chat model, at that model's own limits.";
+export const PRESET_OPEN_CONNECTIONS_NAME = "Open Connections";
+
+/** The Output cluster's door to the chat connection's own limit settings, shown when its limits are a guess. */
+export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
+
+/** The Output cluster's line when the chat connection's limits are a guess; each argument is the guessed number as the
+ *  row prints it, or `null` when that limit is reported. */
+export function presetGuessedLimitsNotice(context: string | null, output: string | null): string {
+  const guesses = [context === null ? null : `a context window of ${context} tokens`, output === null ? null : `a max output of ${output} tokens`].filter(
+    (guess): guess is string => guess !== null,
+  );
+  return `This model's connection doesn't say how much it can take, so these limits are a guess: ${guesses.join(" and ")}. If the model takes more, set its real limits.`;
+}
+
+/** Max output tokens' hint: what the knob does, then the ceiling, said as a guess when the connection reports none. */
+export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
+  return guessed
+    ? `Caps the length of one reply. This model's connection doesn't report its max output, so the slider stops at a guess of ${ceiling} tokens; the model may take more.`
+    : `Caps the length of one reply. This model accepts up to ${ceiling} output tokens.`;
+}
+
+/** Max context tokens' hint on a route that caps below the window: the window, said as a guess when the connection
+ *  reports none, and the room left for prompt and history. */
+export function presetMaxContextHint(window: string, room: string, guessed: boolean): string {
+  const size = guessed
+    ? `This model's connection doesn't report its context window, so we guess ${window} tokens (the model may take more);`
+    : `This model's window is ${window} tokens;`;
+  return `Soft-caps the working set below the model window: older turns beyond this are trimmed. ${size} ${room} of them fit prompt and history after the reply and the safety margin.`;
+}
+
+/** Max context tokens' hint on a route that sends the window: the knob sets how much the server runs. */
+export function presetSentWindowHint(settableMax: string, window: string): string {
+  return `How much context this server runs, up to ${settableMax} tokens. Unset, it runs ${window}.`;
+}
+
+/** Appended to the Max context hint when the cap leaves no room beside the reply. */
+export function presetReplyExceedsCapNote(reply: string): string {
+  return `The reply (${reply}) is larger than this limit, so only the newest message is sent.`;
+}
+
+/** A blank Max output tokens row: what a reply is capped at when the preset sets nothing. `sends` is the number sent,
+ *  `appDefault` the app's own default; they differ only when the model's limit is lower. */
+export function presetBlankOutputNote(sends: string, appDefault: string): string {
+  return sends === appDefault
+    ? `Blank: replies stop at ${appDefault} tokens, the app's default. A higher model limit doesn't change this; set a number for longer replies.`
+    : `Blank: replies stop at ${sends} tokens, this model's limit, below the app's default of ${appDefault}.`;
+}
+
+/** A stored limit above a ceiling the connection reports: the value stays, and the turn is capped at that ceiling. */
+export function presetCappedOnConnectionNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling}, this model's limit on this connection.`;
+}
+
+/** A stored limit above a guessed ceiling: the value stays, and the turn is capped at the guess. */
+export function presetCappedByGuessNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling} because this model's limit is a guess. Set the real limits to use more.`;
+}
+
+/** The delete confirm's list of the scripts only this preset uses. */
+export const PRESET_DELETE_SCRIPTS_REGION_NAME = "Scripts only this preset uses";
+
+/** The line over that list: what a checked script and an unchecked one become. */
+export function presetDeleteScriptsLead(count: number): string {
+  const scripts = count === 1 ? "1 regex script is" : `${String(count)} regex scripts are`;
+  return `${scripts} attached only to this preset. Checked scripts are deleted with it; an unchecked one stays in your script library, attached nowhere.`;
+}

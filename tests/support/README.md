@@ -183,7 +183,7 @@ A case that measures first-boot geometry (a reserved box, an empty library) read
 
 Do not spread a capture to change a request, output or viewer. A copy remains inspectable/serializable raw data, but cannot answer playback, even behind a cast. For a new finite request, `captureCorpusRead(root, viewerUserId, path, input)` through `@orb/testkit/node/composed` executes the actual root operation and admits its result. For changing application state or arbitrary pagination, use `serveCorpusProcedures`. Raw hydrators remain available inside testkit for malformed/forward-wire and publication tests; they do not mint playback.
 
-Publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. One clock advance wakes every workload lane, so a producer settles the work it admitted on one lane before it admits work on another, and `settleCorpusWorkloads` refuses to advance while two lanes hold active rows. Detached work, such as a turn's memory build, a sign-in's user seed or the automation a write fires, settles through `root.settleBackground()` before the producer's next write. `node/corpus-determinism.int.test.ts` compares a plain publish with a second plain one, one under scripted provider latency, and one whose internal tRPC calls wait before they run (`callerStallMs`); a missed settle before such a call splits the stalled publish. Calls made through `root.services` or HTTP are not stalled. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
+Publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. One clock advance wakes every workload lane, so a producer settles the work it admitted on one lane before it admits work on another, and `settleCorpusWorkloads` refuses to advance while two lanes hold active rows. Detached work, such as a turn's memory build, a sign-in's user seed or the automation a write fires, settles through `root.settleBackground()` before the producer's next write. A corpus root is built with `refuseUnsettledWrites`, so an internal tRPC mutation that starts while that work is still running is refused and named; `node/unsettled-write-guard.int.test.ts` plants such a write. `node/corpus-determinism.int.test.ts` compares a plain publish with a second plain one, one under scripted provider latency, and one whose internal tRPC calls wait before they run (`callerStallMs`); a missed settle before such a call splits the stalled publish. Calls made through `root.services` or HTTP are not stalled. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
 
 ## What is enforced
 
@@ -228,10 +228,13 @@ Publishes from one tree are byte-identical: every producer draws ids from the in
 | A product test reads a design token through `TOKENS[...].cssVar` and a media condition through `MEDIA_QUERIES`; stylesheet text a parser takes as input, a Tailwind class and a name production does not hold stay literal | The `orb/no-hand-typed-css-token` rule, indexed from `@orb/ui/tokens`; `tests/tooling` is outside its scope because a tool's literal is that tool's input |
 | A refusal names its reason: a production error class, `toThrowTRPCError`, `toMatchObject({ code })` or a message pattern, never a bare `toThrow()`, `toThrow(Error)`, a match-all expectation, the `DomainOperationError` base alone, or `rejects.toBeDefined()` | The `orb/no-bare-throw-assertion` rule |
 | A test mints ids through a seed: `ids.typeId`, `root.idSource.typeId` or a `mintTypeId` generator | The `orb/no-unseeded-type-id` rule |
-| A test reads no wall clock and no ambient randomness: no `Date.now`, `Date()`, bare `new Date()` or `Math.random`, each also through `globalThis` | `TEST_DETERMINISM_SYNTAX` in [eslint.config.ts](../../eslint.config.ts), composed into every test class through `TEST_SYNTAX`; `tests/tooling` is outside its configured scope |
+| A test reads no wall clock and no ambient randomness: no `Date.now`, `Date()`, bare `new Date()` or `Math.random`, each also through `globalThis`. A wait polls a lifecycle signal with `expect.poll` or `vi.waitFor`, and a duration reads `performance.now()` | `TEST_DETERMINISM_SYNTAX` in [eslint.config.ts](../../eslint.config.ts), composed into every test class through `TEST_SYNTAX` and into the `tests/tooling` block; planted cases in [eslint-package-syntax.test.ts](../tooling/eslint-package-syntax.test.ts) |
+| An equality's expected value does not come from the production call the subject runs. A round trip of the expected binding, an equivalence whose case also pins the call's output with a stated value or a `.not` comparison, and a schema `parse` over two real reads stay legal | The `orb/no-subject-derived-expected` rule; planted cases in [eslint-test-expected.test.ts](../tooling/eslint-test-expected.test.ts) |
+| A case asserts something other than a literal: a case whose every assertion's subject is a literal, a no-expression template or `undefined` cannot fail. A snapshot of a literal runs the serializer and counts | The `orb/ct-negative-only-case` rule with `{ literal: true }`, on every test file; planted cases in [eslint-test-expected.test.ts](../tooling/eslint-test-expected.test.ts) |
 | A case table a `.filter()` produced registers through `forEachNonEmpty`, in `test.for`, `test.each` or a registering `for...of` | The `orb/no-filtered-case-table` rule, which follows a `const` that holds the filter |
 | A test never spreads a corpus capture; a new request goes through `serveCorpusProcedures` or `captureCorpusRead` | The `orb/no-spread-corpus-capture` rule, which follows a `const` that holds the capture |
 | A test spells no label function result, copy module string, error code, route or env key a production `.ts` module exports | The `orb/no-hand-copied-label` rule at scope `all`, which also indexes label-producing functions, zero-import `*-copy.ts` and `*-names.ts` modules, `*_CODES` objects, `*_ROUTES` objects and `*_ENV` or `*_KEY` constants. The repository config runs it at scope `all` over every test, except two suites that pin a wire spelling |
+| A list a test walks as its cases (a loop, a case table, `forEach`, `map` or `flatMap` outside JSX) does not restate an exported production string tuple, and a walked part of one names the tuple's member type | The `orb/no-restated-roster` rule, indexed from every exported string tuple of `packages/*/src`; planted cases in [eslint-test-authoring.test.ts](../tooling/eslint-test-authoring.test.ts). A list passed as one input or expected as one output is not judged, and neither is an object's key set: key a `Record` by the union so a missing member fails the typecheck |
 | A live design-audit proof that says a rule was silent names why, and the run's report must agree | `AuditRuleProof` in [node/ui-audit-relational.ts](node/ui-audit-relational.ts) requires a disposition, and `auditRuleTest` in [node/tool-fixtures.ts](node/tool-fixtures.ts) reads each one through `expectPopulation` from the report its case must return. A judged claim beside an excluded subject holds only when the same case declares that exclusion |
 | Unknown stories and render failures do not become successful empty mounts | [Gallery runtime regressions](browser/gallery.ct.tsx) |
 | Cold failures remain failures | Native runner configuration and first-navigation regression checks; no automatic warm-up navigation or test retries |
@@ -256,6 +259,17 @@ The row-write lint judges call sites, so a state the product can no longer produ
 | `plantForeignRoomBackground`, `plantForeignCardBackground`, `plantForeignSettingsValue`, `plantForeignSettingsBytes` | a stored reference another build wrote | a database shared across versions holds kinds and encodings this build never writes |
 | `plantMemberOperatorSchedule`, `plantMemberOperatorRun` | a member who holds a bare `import-st` schedule or run, which reads the operator tree | builds before D340 stored them, and launched databases still hold them |
 
+## A suite on an older schema
+
+Two helpers in [node/db.ts](node/db.ts) build a database from before a migration. Pick by what the suite runs on it.
+
+| The suite | Use | Why |
+| - | - | - |
+| runs SQL and row builders only, then the migration | `migrationsBefore(tag)` | the chain stops before `tag`, so the database is the one that migration shipped against |
+| boots the composed root or calls a service before the migration | `migrationsHolding(tag)` | services read today's schema; a chain cut before `tag` also lacks every later migration, so the suite breaks when the next migration adds a table the boot reads |
+
+`migrationsHolding` applies `tag` after the later migrations. Use it only while no later migration touches the tables `tag` rewrites; otherwise the suite belongs in `tests/db/schema/` on rows alone.
+
 ## What review must establish
 
 - The selected behavior matters and belongs at this layer.
@@ -276,3 +290,15 @@ Run affected compiler programs, lint and dependency checks. Reuse matching compl
 Read the completed output. A timeout, tool error or failed cold start supplies no passing verdict. Preserve first-failure artifacts and fix the cause. Do not raise limits, weaken assertions, suppress real findings or rerun warm to claim success.
 
 Report the covered behavior, checks, remaining gaps and limitations. For each new test, name the production entry it runs, the layer and why, and the defect that turned it red. Passing a selected batch does not complete the wider restoration plan.
+
+## Run the mutation targets by hand
+
+`pnpm test:mutation:targets` runs `pnpm test:mutation` over each file in `tooling/src/mutation-run/lib/targets.ts`, one at a time. The list holds the files the change history keeps ranking as defect-prone. Run it by hand only; no test script, hook or CI job runs it.
+
+- Run one target: `pnpm test:mutation:targets <path-part>`. Every target whose path contains the part runs.
+- Print the targets and the tests each runs against: `pnpm test:mutation:targets --list`.
+- Print what the history ranks and the list lacks, and listed files that no longer rank: `pnpm test:mutation:targets --candidates`.
+- Add a target with one row: the file and a short reason. Name `tests` only when the lookup misses the tests that reach the file. The lookup takes the mirror directory, every test whose header says `@subject <file>`, and, when both are empty, tests that import the file.
+- The command refuses a missing or non-source file, and a file no test reaches, by name before any run.
+
+Each target's Stryker report lands in `reports/mutation/targets/`, named after its file. The table of every target that finished lands in `reports/mutation/targets/summary.txt`. A stop signal ends the current run and prints the table for the targets that finished.

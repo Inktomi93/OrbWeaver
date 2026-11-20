@@ -18,7 +18,7 @@
 // the consumer that knows about the other home, not here.
 
 import type { UserMacroSpec } from "@orb/contracts/preset";
-import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
+import type { MacroArgType } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -32,6 +32,20 @@ import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import { DestructiveAction } from "./confirm-dialog.tsx";
 import { DismissDialog } from "./form-dialog.tsx";
+import {
+  USER_MACRO_ADD_ARGUMENT_NAME,
+  USER_MACRO_ADD_INPUT_NAME,
+  USER_MACRO_ADD_OPTION_NAME,
+  USER_MACRO_ARG_NAME_FIELD_NAME,
+  USER_MACRO_EDITOR_TITLE,
+  USER_MACRO_INPUT_KIND_LABELS,
+  USER_MACRO_INPUT_KIND_NAME,
+  USER_MACRO_INPUT_QUESTION_NAME,
+  USER_MACRO_TEMPLATE_NAME,
+  userMacroArgumentGroupName,
+  userMacroInputGroupName,
+  userMacroOptionGroupName,
+} from "./shared-control-names.ts";
 import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog never
@@ -48,12 +62,6 @@ type InputBase = `userMacros[${number}].inputs[${number}]`;
 
 // ── the editor's own select vocabularies (WAVE MU) — derived from the kit tuples, never re-spelled ──
 
-const USER_MACRO_INPUT_KIND_LABELS: Record<UserMacroInputKind, string> = {
-  "single-select": "Single select: pick one option",
-  "boolean-toggle": "Toggle: on/off",
-  "multi-select": "Multi select: pick several, joined",
-  "random-pick": "Random pick: draw one from your pool each turn",
-};
 const USER_MACRO_INPUT_KIND_ITEMS: SelectItems = USER_MACRO_INPUT_KINDS.map((value) => ({
   value,
   label: USER_MACRO_INPUT_KIND_LABELS[value],
@@ -107,7 +115,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
           onClose();
         }
       }}
-      title="Edit macro"
+      title={USER_MACRO_EDITOR_TITLE}
     >
       <DialogBody gap="block">
         <form.AppField name={`userMacros[${index}].name`}>
@@ -128,7 +136,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
         <form.AppField name={`userMacros[${index}].body`}>
           {(field): ReactElement => (
             <field.MacroField
-              label="Template"
+              label={USER_MACRO_TEMPLATE_NAME}
               description="The body this macro expands to. Reference args and inputs by name ({{argname}}); a block body lands as {{content}}."
               suggestions={suggestions}
               rows={4}
@@ -167,8 +175,10 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
         {(values): ReactElement => (
           <Stack gap="field">
             {values.macroRowIds[index]?.args.map((id, j) => (
-              <Row key={id} gap="field" align="end" role="group" aria-label={`Argument ${j + 1}`}>
-                <form.AppField name={`userMacros[${index}].args[${j}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
+              <Row key={id} gap="field" align="end" role="group" aria-label={userMacroArgumentGroupName(j + 1)}>
+                <form.AppField name={`userMacros[${index}].args[${j}].name`}>
+                  {(field): ReactElement => <field.TextField label={USER_MACRO_ARG_NAME_FIELD_NAME} />}
+                </form.AppField>
                 <form.AppField name={`userMacros[${index}].args[${j}].type`}>
                   {(field): ReactElement => <field.SelectField label="Type" items={MACRO_ARG_TYPE_ITEMS} />}
                 </form.AppField>
@@ -191,7 +201,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                   }}
                   trigger={
                     <Button variant="ghost" size="sm">
-                      Remove
+                      {DIALOG_VERBS.remove}
                     </Button>
                   }
                 />
@@ -208,7 +218,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                 }}
               >
                 <Icon icon={Plus} size="sm" />
-                Add argument
+                {USER_MACRO_ADD_ARGUMENT_NAME}
               </Button>
             </Row>
           </Stack>
@@ -272,7 +282,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
                 }}
               >
                 <Icon icon={Plus} size="sm" />
-                Add input
+                {USER_MACRO_ADD_INPUT_NAME}
               </Button>
             </Row>
           </Stack>
@@ -302,10 +312,12 @@ function InputEditor({
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
   const hasOptions = kind !== "boolean-toggle";
   return (
-    <Card role="group" aria-label={`Macro input ${inputIndex + 1}`}>
+    <Card role="group" aria-label={userMacroInputGroupName(inputIndex + 1)}>
       <Stack gap="field">
         <Row gap="field" align="end" justify="between">
-          <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
+          <form.AppField name={`${base}.kind`}>
+            {(field): ReactElement => <field.SelectField label={USER_MACRO_INPUT_KIND_NAME} items={USER_MACRO_INPUT_KIND_ITEMS} />}
+          </form.AppField>
           <DestructiveAction
             confirm={{
               title: `Remove input ${inputIndex + 1}?`,
@@ -317,7 +329,7 @@ function InputEditor({
             onConfirm={onRemove}
             trigger={
               <Button variant="ghost" size="sm">
-                Remove
+                {DIALOG_VERBS.remove}
               </Button>
             }
           />
@@ -327,7 +339,7 @@ function InputEditor({
             {(field): ReactElement => <field.TextField label="Name" description="Bound as {{name}} in the template." />}
           </form.AppField>
           <form.AppField name={`${base}.label`}>
-            {(field): ReactElement => <field.TextField label="Question" description="What the user is asked." />}
+            {(field): ReactElement => <field.TextField label={USER_MACRO_INPUT_QUESTION_NAME} description="What the user is asked." />}
           </form.AppField>
         </Row>
         {hasOptions ? <InputOptionList form={form} base={base} macroIndex={macroIndex} inputIndex={inputIndex} /> : null}
@@ -400,7 +412,7 @@ function InputOptionList({
       {(values): ReactElement => (
         <Stack gap="field">
           {values.macroRowIds[macroIndex]?.inputs[inputIndex]?.options.map((id, k) => (
-            <Row key={id} gap="field" align="end" role="group" aria-label={`Input option ${k + 1}`}>
+            <Row key={id} gap="field" align="end" role="group" aria-label={userMacroOptionGroupName(k + 1)}>
               <form.AppField name={`${base}.options[${k}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
               <form.AppField name={`${base}.options[${k}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
               <DestructiveAction
@@ -419,7 +431,7 @@ function InputOptionList({
                 }}
                 trigger={
                   <Button variant="ghost" size="sm">
-                    Remove
+                    {DIALOG_VERBS.remove}
                   </Button>
                 }
               />
@@ -436,7 +448,7 @@ function InputOptionList({
               }}
             >
               <Icon icon={Plus} size="sm" />
-              Add option
+              {USER_MACRO_ADD_OPTION_NAME}
             </Button>
           </Row>
         </Stack>

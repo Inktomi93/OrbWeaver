@@ -4,28 +4,32 @@
 // original single-path (byte-identical no-op). Untrusted HTML never touches the main DOM; external
 // media never bypasses MessageMediaBlock. Macros resolve against renderContext BEFORE the speaker split
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
+//
+// `MessageContent` is the drawing hook (`useDrawnMessage`) and the body (`MessageBody`). Tide's train calls the hook
+// once over the whole reply and a body per bubble (`message-train.tsx`).
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import { parseSpeakerSpans } from "@orb/kit/speaker-label";
+import { scanStyledHold, stripStyleElements } from "@orb/kit/content";
+import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement } from "react";
-import type { PluginDisplayRow } from "#data";
-import { usePluginDisplayText } from "#data";
-import type { MessageRenderContext, RowRenderPolicy } from "#lib";
-import { renderMessageForDisplay } from "#lib";
-import { toContentBlocks } from "../lib/content-blocks.ts";
+import type { ReactElement, RefCallback } from "react";
+import { FormingChip, HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "#components";
+import type { RowRenderPolicy } from "#lib";
+import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
+import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
+import { holdsUnwrappedCard, toContentBlocks } from "../lib/content-blocks.ts";
+import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
+import type { FrameReplySegment, ReplyLayout, ReplyPart } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
-
-/** A stable empty CHARACTER-NAME list — a fresh `[]` per render would be a new identity for no reason. */
-const NO_CHARACTER_NAMES: readonly string[] = [];
+import { ReplyFrame } from "./reply-frame.tsx";
+import { HoldsRowDraw } from "./row-handover.tsx";
 
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
@@ -37,8 +41,10 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     case "markdown":
       return (
         // Quote tinting rides the PROSE arm only — a card block owns its own styles.
+        // A `<style>` or `<script>` element in prose never applies in the main document, and both allowlists keep its
+        // content as text, so it is removed with its content on every row; a card keeps its own for its frame.
         <Markdown key={key} trust={trust} mode="static" inlineDice={true} colorQuotes={render.colorQuotes} allowExternalMedia={allowExternal}>
-          {block.md}
+          {stripStyleElements(block.md)}
         </Markdown>
       );
     case "media":
@@ -53,7 +59,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     //           inline style=, so `block.css` is not merely unused here, it is unusable by law.
     // The inert arm is wrapped in InertCard rather than emitted bare: an unstyled card in the prose flow is
     // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The
-    // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
+    // frame says a card is here, the badge says it is plain, and the row's notice says what turns it on — the same
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     case "html-card":
       return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
@@ -72,9 +78,14 @@ interface MessageSegmentProps {
   readonly render: RowRenderPolicy;
   readonly keyPrefix: string;
   readonly cardOrigin: CardOrigin | undefined;
+  /** The display pass's hold, set only on the body's outer element: while its scripts have not answered the
+   *  body is laid out but not shown (`data-display-pending`, which the client stylesheet hides). */
+  readonly pending?: boolean | undefined;
+  /** Observes the body's outer element, so the display-pass queue runs it first while it is on screen. */
+  readonly observeBody?: RefCallback<HTMLElement> | undefined;
 }
 
-function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentProps): ReactElement {
+function MessageSegment({ text, render, keyPrefix, cardOrigin, pending, observeBody }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) resolves BOTH the markdown trust and the card
   // TIER — this renderer only dispatches. The tier mapping was INVERTED here until 2026-08-04 (trusted rows
   // were sent to tierA, whose allowlist forbids `<style>`, so every trusted card rendered as unstyled HTML
@@ -84,70 +95,277 @@ function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentP
   // never re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
   // card's srcdoc.
   const blocks = toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards });
-  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}</Stack>;
+  return (
+    <Stack gap="row" ref={observeBody} data-display-pending={pending === true ? "" : undefined}>
+      {blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}
+    </Stack>
+  );
 }
 
-export interface MessageContentProps {
-  readonly content: string;
+function tinted(node: ReactElement, tokens: ThemeScopeTokens | undefined, key: string): ReactElement {
+  return tokens === undefined ? (
+    node
+  ) : (
+    <ThemeScope key={key} tokens={tokens}>
+      {node}
+    </ThemeScope>
+  );
+}
+
+// A frame run through the INERT path: what shows whenever the frame cannot draw it. Its prose renders under the
+// untrusted allowlist, the same path the streaming ghost draws, so no inline style survives; `<style>` and `<script>`
+// elements are removed with their content first, because the allowlist drops the tag and keeps its content as prose.
+// Each markdown run is projected again with today's reading policy, so a directive the frame keeps as markup stays
+// hidden here.
+function renderRunNatively(
+  segments: readonly FrameReplySegment[],
+  rowRender: RowRenderPolicy,
+  cardOrigin: CardOrigin | undefined,
+  keyPrefix: string,
+): ReactElement {
+  const render: RowRenderPolicy = { ...rowRender, trust: "untrusted" };
+  return (
+    <Stack gap="row">
+      {segments.map((segment, index) => {
+        const key = `${keyPrefix}${index}-${segment.kind}`;
+        if (segment.kind === "card") {
+          return renderBlock({ kind: "html-card", html: segment.html, trust: render.cardTier }, key, render, cardOrigin);
+        }
+        return tinted(
+          <MessageSegment key={key} text={stripStyleElements(segment.markdown)} render={render} keyPrefix={key} cardOrigin={cardOrigin} />,
+          segment.tokens,
+          key,
+        );
+      })}
+    </Stack>
+  );
+}
+
+// A frame run while its frame is on the way: the prose through the inert path, and each HTML block and card a forming
+// chip with none of its bytes (`scanStyledHold`), the way a streaming card forms (§4.5). Nothing a template drew paints.
+function renderRunHeld(segments: readonly FrameReplySegment[], rowRender: RowRenderPolicy, keyPrefix: string): ReactElement {
+  const render: RowRenderPolicy = { ...rowRender, trust: "untrusted" };
+  const chip = (key: string): ReactElement => <FormingChip key={key} title={REPLY_PANEL_FORMING_TITLE} />;
+  return (
+    <Stack gap="row">
+      {segments.flatMap((segment, index) => {
+        const key = `${keyPrefix}${index}-${segment.kind}`;
+        if (segment.kind === "card") {
+          return [chip(key)];
+        }
+        return scanStyledHold(segment.markdown).map((part, partIndex) => {
+          const partKey = `${key}-${partIndex}-${part.kind}`;
+          return part.kind === "forming-markup"
+            ? chip(partKey)
+            : tinted(<MessageSegment key={partKey} text={part.text} render={render} keyPrefix={partKey} cardOrigin={undefined} />, segment.tokens, partKey);
+        });
+      })}
+    </Stack>
+  );
+}
+
+/** A styled reply: its frame runs in routed card frames, and the blocks a frame cannot hold kept native between them. */
+function FramedReply({
+  parts,
+  render,
+  cardOrigin,
+  speakerName,
+  observeBody,
+}: {
+  readonly observeBody: RefCallback<HTMLElement> | undefined;
+  readonly parts: readonly ReplyPart[];
   readonly render: RowRenderPolicy;
-  /** Absent means no roster/persona threaded yet, so content renders unchanged. */
-  readonly renderContext?: MessageRenderContext | undefined;
-  /** Retargets `{{char}}` to this character; ignored when renderContext is absent. */
-  readonly rowCharacterId?: CharacterId | null | undefined;
-  /** Retargets `{{user}}`/`{{persona}}` to this persona; ignored when renderContext is absent. */
-  readonly rowPersonaId?: PersonaId | null | undefined;
-  /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
-   *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
-  readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
-  /** True only for a row this room voices through the NARRATOR grammar (one generation speaking every
-   *  character). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a
-   *  row is one speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member
-   *  could forge) and must never split. The `<speaker>` marker half is unconditional — it is markup, not
-   *  prose, and cannot be typed into a body by accident. */
-  readonly narratorVoiced?: boolean | undefined;
-  /** The room + author this body was written in — the card-frame doorway selector (see {@link CardOrigin}).
-   *  Absent (a story/preview mount with no room) ⇒ every tierB card renders the srcdoc floor. */
-  readonly cardOrigin?: CardOrigin | undefined;
-  /** The COMMITTED row this body belongs to — the plugin DISPLAY-transform seam (seam 14, U6).
-   *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
-   *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
-  readonly pluginDisplayRow?: PluginDisplayRow | undefined;
+  readonly cardOrigin: CardOrigin | undefined;
+  readonly speakerName: string | undefined;
+}): ReactElement {
+  return (
+    <Stack gap="row" data-slot="message-content-framed" ref={observeBody}>
+      {parts.map((part, index) => {
+        const key = `${index}-${part.kind}`;
+        if (part.kind === "native") {
+          return tinted(renderBlock(part.block, key, render, cardOrigin), part.tokens, key);
+        }
+        return (
+          <ReplyFrame
+            key={key}
+            segments={part.segments}
+            styles={part.styles}
+            colorQuotes={render.colorQuotes}
+            cardOrigin={cardOrigin}
+            speakerName={speakerName}
+            held={renderRunHeld(part.segments, render, `${key}-`)}
+            fallback={renderRunNatively(part.segments, render, cardOrigin, `${key}-`)}
+          />
+        );
+      })}
+    </Stack>
+  );
 }
 
-export function MessageContent({
-  content,
+// A tierA row draws rich content plain when a display script styled it, when its prose holds a panel its author wrote,
+// or when it carries a card: the notice says once, under the row, which setting holds it there. A row still waiting on
+// its scripts shows none until its answer lands.
+function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, styled: boolean, pending: boolean): ReactElement | null {
+  if (render.plain === undefined || pending) {
+    return null;
+  }
+  const holdsCard = (): boolean =>
+    texts.some((text) => toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards }).some((block) => block.kind === "html-card"));
+  return styled || holdsCard() ? <PlainContentNotice key="plain-notice" subject={render.plain} /> : null;
+}
+
+// A game room with its card wrap off says once, under the row, that card markup in it is not drawn as a card. A row
+// still waiting on its scripts shows none until its answer lands.
+function rowHeldCardsNotice(texts: readonly string[], render: RowRenderPolicy, pending: boolean): ReactElement | null {
+  if (render.heldCards === undefined || pending || !texts.some(holdsUnwrappedCard)) {
+    return null;
+  }
+  return <HeldCardsNotice key="held-cards-notice" viewerIsHost={render.heldCards.viewerIsHost} />;
+}
+
+// What a row says under its body about content it draws plain: the trust notice, for a game room whose card wrap is off
+// the held-cards notice, and for a styled reply too heavy to frame, why it is plain whole. Null when it says nothing.
+function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayout | undefined, render: RowRenderPolicy): ReactElement | null {
+  const texts = drawn.spans.map((span) => (drawn.styled ? stripStyleElements(span.text) : span.text));
+  const trust = rowPlainNotice(texts, render, drawn.styled || drawn.modelPanel, drawn.pending);
+  const held = rowHeldCardsNotice(texts, render, drawn.pending);
+  const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
+  return trust === null && held === null && heavy === null ? null : (
+    <>
+      {trust}
+      {held}
+      {heavy}
+    </>
+  );
+}
+
+/** The row's notices about content it draws plain, said once under the row however many bubbles draw it. */
+export function RowNotices({
+  drawn,
+  layout,
+  render,
+}: {
+  readonly drawn: Omit<DrawnMessage, "observeBody">;
+  readonly layout: ReplyLayout | undefined;
+  readonly render: RowRenderPolicy;
+}): ReactElement | null {
+  return rowNotices(drawn, layout, render);
+}
+
+function withNotice(body: ReactElement, notice: ReactElement | null): ReactElement {
+  return notice === null ? (
+    body
+  ) : (
+    <Stack gap="row">
+      {body}
+      {notice}
+    </Stack>
+  );
+}
+
+export interface MessageContentProps extends MessageDrawProps {
+  readonly content: string;
+}
+
+/** One drawn body in its layout: the reply's frames, or the inert path. */
+export function MessageBody({
+  drawn,
+  layout,
   render,
   renderContext,
-  rowCharacterId,
-  rowPersonaId,
+  display,
   speakerThemes,
-  narratorVoiced = false,
   cardOrigin,
-  pluginDisplayRow,
-}: MessageContentProps): ReactElement {
-  const rendered = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
-  // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
-  // produced. Inert without a row or without a registered transform — same string in, same string out.
-  const resolvedContent = usePluginDisplayText(rendered, pluginDisplayRow);
-  const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
-  const spans = parseSpeakerSpans(resolvedContent, characterNames);
+  notices = true,
+}: {
+  readonly drawn: DrawnMessage;
+  readonly layout: ReplyLayout | undefined;
+  /** False for a bubble of a train, which says the row's notices once itself (`RowNotices`). */
+  readonly notices?: boolean;
+} & MessageDrawProps): ReactElement {
+  if (layout?.kind === "framed") {
+    // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
+    const { characterId, personaId } = display.row;
+    const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
+    const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
+    // A framed row says the same row notices an unframed one does: the held-cards notice is the one a sandboxed row can owe.
+    return withNotice(
+      <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />,
+      notices ? rowNotices(drawn, layout, render) : null,
+    );
+  }
+  const { spans, styled, pending, observeBody } = drawn;
+  const inert = renderInert({ spans, styled, pending, render, speakerThemes, cardOrigin, observeBody });
+  // A reply too heavy to frame renders plain whole, and its notice says why.
+  const body =
+    layout === undefined ? (
+      inert
+    ) : (
+      <Stack gap="block" data-slot="message-content-plain" data-plain-reason={layout.reason}>
+        {inert}
+      </Stack>
+    );
+  // A body still waiting on its scripts is laid out unseen, so it holds a settled row's hand-over (`row-handover.tsx`).
+  return (
+    <>
+      {withNotice(body, notices ? rowNotices(drawn, layout, render) : null)}
+      {pending ? <HoldsRowDraw /> : null}
+    </>
+  );
+}
 
+export function MessageContent({ content, ...props }: MessageContentProps): ReactElement {
+  const drawn = useDrawnMessage(content, props);
+  return <MessageBody drawn={drawn} layout={drawnLayout(drawn, props)} {...props} />;
+}
+
+// A styled row the frame does not draw (a Tier A row, a plugin rewrote its text, or its runs would carry too much CSS)
+// renders through the inert allowlist, with the template's `<style>` and `<script>` elements removed, so their content
+// never prints as prose.
+function renderInert({
+  spans,
+  styled,
+  pending,
+  render,
+  speakerThemes,
+  cardOrigin,
+  observeBody,
+}: {
+  readonly spans: readonly SpeakerSpan[];
+  readonly styled: boolean;
+  readonly pending: boolean;
+  readonly render: RowRenderPolicy;
+  readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens> | undefined;
+  readonly cardOrigin: CardOrigin | undefined;
+  readonly observeBody: RefCallback<HTMLElement> | undefined;
+}): ReactElement {
+  const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
+  const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" cardOrigin={cardOrigin} />;
+    return (
+      <MessageSegment
+        text={segmentText(onlySpan.text)}
+        render={segmentRender}
+        keyPrefix=""
+        cardOrigin={cardOrigin}
+        pending={pending}
+        observeBody={observeBody}
+      />
+    );
   }
 
   return (
-    <Stack gap="block" data-slot="message-content-spans">
+    <Stack gap="block" data-slot="message-content-spans" ref={observeBody} data-display-pending={pending ? "" : undefined}>
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return <MessageSegment key={key} text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />;
+          return <MessageSegment key={key} text={segmentText(span.text)} render={segmentRender} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />;
         }
         const spanTokens = speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker);
         return (
           <ThemeScope key={key} tokens={spanTokens}>
-            <MessageSegment text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />
+            <MessageSegment text={segmentText(span.text)} render={segmentRender} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />
           </ThemeScope>
         );
       })}

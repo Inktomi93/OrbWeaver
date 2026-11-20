@@ -1,11 +1,9 @@
-// The ONE new-injection seed — a fresh in-chat system injection at depth 0 with empty content. Shared by
-// the committed injections manager (`addInjection.mutate({ chatId, ...NEW_INJECTION })`) and the draft
-// context tab (appended to the draft array), so the default row can't drift (derive-modernization §W5).
+// The ONE new-injection seed — an empty row at the shared Add placement (`NEW_CHAT_INJECTION_PLACEMENT`, which a
+// saved Rewrite correction lands at too), so the default row can't drift between the list and the server.
 import type { ChatInjectionInput } from "@orb/contracts/chat";
+import { NEW_CHAT_INJECTION_PLACEMENT } from "@orb/contracts/chat";
 
 export const NEW_INJECTION: ChatInjectionInput = {
-  position: "in_chat",
-  depth: 0,
-  role: "system",
+  ...NEW_CHAT_INJECTION_PLACEMENT,
   content: "",
 };

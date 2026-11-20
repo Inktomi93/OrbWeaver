@@ -1,16 +1,17 @@
 // Parsed profile interchange and collected file bundles; no driver dependencies or write authority.
 
-import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
+import type { PersonaImportName } from "@orb/contracts/persona";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle } from "@orb/kit/ids";
 import type { JsonObject } from "@orb/kit/json";
 import type { ParsedChat } from "#primitives/serde/chat";
+import type { ParsedStPreset } from "#primitives/serde/preset";
 import type { ParsedStTheme } from "#primitives/serde/theme";
 
 /** name is the key an imported chat's user_name maps against (case-insensitively) to attribute messages. */
 export interface ParsedPersona {
-  readonly name: string;
+  readonly name: PersonaImportName;
   readonly description: string;
   readonly avatarFile: string;
   readonly isDefault: boolean;
@@ -53,6 +54,9 @@ export interface CollectedCard {
    *  — what the dry run's create prediction asks by, in the one lookup order every door uses. */
   readonly contentHash: string;
   readonly textHash: string;
+  /** The handle an orbweaver export carried (`ParsedCard.handle`), null for a foreign card: the row the lookup's
+   *  current step compares, so the dry run asks what the write asks. */
+  readonly carriedHandle: CharacterHandle | null;
   readonly filename: string;
   /** The card's DISPLAY name off the parsed card. Carried because the ST group importer needs a card-name →
    *  seat fallback for pre-group-era transcript lines that carry no `original_avatar` filename; the handle is
@@ -75,20 +79,9 @@ export interface CollectedPersona {
  *  path (`CollectedCard` → the primary attach). */
 export interface CollectedWorld {
   readonly book: BulkImportLorebookInput;
-}
-
-/** One ST chat-completion preset mapped to the orb-native portable file, with the fields that did not travel.
- *  `file` is fed verbatim to the preset domain's own `ImportPreset` op (as UTF-8 JSON bytes) — the import
- *  domain mints no preset row and owns no collision rule. */
-export interface ParsedStPreset {
-  readonly name: string;
-  readonly file: PresetFile;
-  /** ST fields present with a meaningful value that orb has no seat for (the shared mapper's `dropped` list). */
-  readonly unmapped: readonly StDroppedField[];
-  /** The preset's OWN regex scripts (ST presetManager extension field `extensions.regex_scripts`) — lifted
-   *  into the library + `preset_regex_scripts` AFTER the preset row exists (the verb owns the sequencing).
-   *  Not part of the orb preset FILE: scripts are owner-library rows, never embedded config (D121-E). */
-  readonly regexScripts: readonly RegexScriptCard[];
+  /** The book file's path in the profile, stable across the uploads of a split folder. A book's name is not
+   *  its identity: an orb export names itself, so two files can carry one name. */
+  readonly sourceFile: string;
 }
 
 /** One parsed ST group definition. `memberFiles`/`disabledMemberFiles` are CARD FILENAMES (the collect-time
@@ -177,8 +170,8 @@ export interface CollectResult {
    *  ST card-wire schema. The driver lifts them into the library + `global_regex_scripts` (orb's identical
    *  semantic). ZERO on the real corpus — the count line is what keeps this plane loud. */
   readonly globalRegexScripts: readonly RegexScriptCard[];
-  /** `extension_settings.regex` entries the schema refused — counted for the report, never silent. */
-  readonly malformedGlobalRegexScripts: number;
+  /** Each `extension_settings.regex` entry refused and each placement lost, by position, for the report. */
+  readonly globalRegexScriptNotes: readonly { readonly field: string; readonly reason: string }[];
   /** ST's per-character EXTRA lorebook bindings (`world_info_settings.world_info.charLore`): card filename
    *  STEM → book NAMES. The driver attaches them role `auxiliary` after the standalone-world wave. */
   readonly extraBooksByCardStem: ReadonlyMap<string, readonly string[]>;
@@ -193,6 +186,8 @@ export interface CollectResult {
    *  mint-a-placeholder wave's input. Without it the chats would be counted, named, and thrown away. */
   readonly orphanBundles: { readonly dirName: string; readonly handle: CharacterHandle; readonly chats: CollectedChat[] }[];
   readonly unreadableCards: string[];
+  /** A card file the parser refused or threw on, with why: the import goes on without it and the report names it. */
+  readonly invalidCards: { file: string; reason: string }[];
   /** A `worlds/*.json` that did not parse as an ST world-info file (recorded, never silent). */
   readonly unreadableWorlds: string[];
   /** An `OpenAI Settings/*.json` that did not parse as an ST chat-completion preset (recorded, never silent). */

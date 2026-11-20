@@ -10,8 +10,19 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: docs/law/Spine-Identity-and-Auth.md.)
 
-import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE, USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
+import {
+  CHAT_NOT_HOST_OP_CODE,
+  MEMORY_ITEM_STALE_OP_CODE,
+  MESSAGE_MACRO_BUDGET_OP_CODE,
+  MESSAGE_TOO_LONG_OP_CODE,
+  TURN_ABORTED_OP_CODE,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
+  TURN_LOCKED_OP_CODE,
+  TURN_ROOM_CLOSING_OP_CODE,
+  USER_MACRO_UNKNOWN_PICK_OP_CODE,
+} from "@orb/contracts/chat";
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
+import type { DomainOperationDetail } from "@orb/kit/errors";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -24,13 +35,19 @@ export class ChatNotFoundError extends DomainNotFoundError {
   }
 }
 
+/** The room's turn host (the frozen one for an owed turn) is outside its consent set: disabled, or no longer
+ *  present. A turn refuses exactly as for a hostless room (NOT_FOUND) until the admission wrapper re-checks the
+ *  caller's seat and, for a present member only, re-throws it as `hostUnavailable`. A drained owed turn drops with
+ *  the `consent` reason instead of `chat-gone`, since the room itself still stands. */
+export class ChatHostWithoutConsentError extends ChatNotFoundError {}
+
 /** The `DomainOperationError.code` discriminators chat verbs throw. ONE home for the strings (§7.5). */
 export const CHAT_OP_CODES = {
   toolCallChanged: "tool_call_changed",
   promptExceedsWindow: "prompt_exceeds_window",
   /** A host-only verb (roster mutation, group-config, room-overrides, force-character, kick, delete-chat,
    *  invites, handoff, anchor-reassignment, memberCardVisibility) called by a non-host member. */
-  notHost: "not_host",
+  notHost: CHAT_NOT_HOST_OP_CODE,
   /** An edit/delete-a-slot verb (`author-or-host`) called by a member who is neither the slot's
    *  `authorUserId` nor the room host — a known-existence authority refusal (the caller IS a member). */
   notAuthor: "not_author",
@@ -61,9 +78,19 @@ export const CHAT_OP_CODES = {
    *  the contract wire home (the `aborted` precedent below) — the client keys on the same literal
    *  (`data.reason`) to say WHICH refusal this is instead of a generic "couldn't swipe". */
   locked: TURN_LOCKED_OP_CODE,
+  /** An admitted verb met its room held closed for removal (a husk reap's or the temporary-chat sweep's delete). Thrown only after the
+   *  caller's own room gate, so a stranger still reads the leak-free not found. Derived from the contract home. */
+  roomClosing: TURN_ROOM_CLOSING_OP_CODE,
+  /** An admitted verb met a room whose host is outside its consent set (`ChatHostWithoutConsentError`), and the
+   *  caller holds a present seat there, so the reason leaks nothing a member cannot already read from the dropped
+   *  owed-turn notice. Every other caller keeps the not found. Derived from the contract home. */
+  hostUnavailable: TURN_HOST_UNAVAILABLE_OP_CODE,
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
    *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
   noContinuation: "no_continuation",
+  /** A `swipe` with a `rewrite` steer that carries neither text nor a picked toggle. The request would end on the
+   *  reply being rewritten, which the model reads as a prefill to continue, not as a reply to revise. */
+  emptyRewriteSteer: "empty_rewrite_steer",
   /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. Derived
    *  from the contract wire home so the client can key on the same literal (`data.reason`) without a re-spell. */
   aborted: TURN_ABORTED_OP_CODE,
@@ -85,6 +112,9 @@ export const CHAT_OP_CODES = {
   /** A structured send's picture would not reach the transcript or the model exactly as authored: a transform
    *  removed or repeated it, or the final body swallows it. Refused before the row commits. */
   blockPictureLost: "block_picture_lost",
+  /** A user message's final body shows more pictures than one message may carry, counting attachments, picture
+   *  blocks and refs typed into the text together. Refused before the row commits. */
+  tooManyPictures: "too_many_pictures",
   /** `setGroupConfig` tried to flip a GAME chat OFF narrator+merged (to `per-speaker`) while an AGENT holds the
    *  GM seat (D60 AP4a — the F5 SEAL). narrator+merged keeps the GM tool loop on
    *  the narrator turn; `per-speaker` would let a player-CHARACTER turn carry GM-authority tools at an agent-GM
@@ -126,6 +156,10 @@ export const CHAT_OP_CODES = {
    *  canon untouched. Two codes rather than one because they tell a host two different stories about their
    *  own room, and "which thing moved" is exactly what makes a refusal actionable. */
   rewriteStale: "rewrite_stale",
+  /** `strikeMemory`'s content pin missed: the item the host read is gone, was summarized again, or no longer
+   *  resolves to the messages it covered. A strike names the item the host read, so it is refused rather than
+   *  landed on whatever now sits at that position; the view re-reads and the host decides again. */
+  memoryItemStale: MEMORY_ITEM_STALE_OP_CODE,
   /** A registered D50 prompt transform DELIBERATELY aborted the generation — an
    *  automation `transform_draft` rule or a plugin returned `{abort}` instead of a draft. Deliberately NOT the
    *  D53 skip: a broken/slow transform is skipped silently and the turn proceeds, while this is a transform
@@ -151,7 +185,7 @@ export const CHAT_OP_CODES = {
    *  drops an already-STORED pick whose option was renamed away after the write. */
   unknownMacroPick: USER_MACRO_UNKNOWN_PICK_OP_CODE,
   /** A STANDALONE (out-of-turn) runtime-variable write lost its compare-and-set every attempt
-   *  (`substrate/variable-ops.ts`). The plane has no lock by design, so a loss means a sibling writer
+   *  (`verbs/apply-standalone-variable-ops.ts`). The plane has no lock by design, so a loss means a sibling writer
    *  COMMITTED and the write re-derives; losing the bound repeatedly is therefore not contention but a
    *  defect somewhere else, and this refusal exists so it surfaces loudly instead of spinning or silently
    *  dropping the ops. Internal surface (the callers are automation/plugin ops, not a client verb). */
@@ -173,6 +207,13 @@ export const CHAT_OP_CODES = {
    *  than labelled with the id, which would put an internal id into the summarizer and embedding input.
    *  Internal surface: the memory build and recall query, both behind their own doors. */
   transcriptSpeakerUnresolved: "transcript_speaker_unresolved",
+  /** A canon write whose content or reasoning is longer than `MESSAGE_TEXT_MAX_CHARS`. Refused before the batch,
+   *  so nothing is stored; the detail names the field, its length and the limit. Derived from the contract home. */
+  messageTooLong: MESSAGE_TOO_LONG_OP_CODE,
+  /** A send or commit whose draft the macro freeze could not render within the engine's byte budget. Refused before
+   *  the room is claimed or a row is written, because the degraded render is empty or partial text. Derived from the
+   *  contract home. */
+  messageMacroBudget: MESSAGE_MACRO_BUDGET_OP_CODE,
   /** D259 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
   inviteSignupUnavailable: "invite_signup_unavailable",
   /** D259 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */
@@ -185,8 +226,8 @@ export type ChatOpCode = (typeof CHAT_OP_CODES)[keyof typeof CHAT_OP_CODES];
 /** A coded chat operational failure — clients/tests key on `code` (one of {@link CHAT_OP_CODES}). */
 export class ChatOperationError extends DomainOperationError {
   declare readonly code: ChatOpCode;
-  constructor(code: ChatOpCode, message: string) {
-    super(code, message);
+  constructor(code: ChatOpCode, message: string, detail?: DomainOperationDetail) {
+    super(code, message, detail);
     this.name = this.constructor.name;
   }
 }

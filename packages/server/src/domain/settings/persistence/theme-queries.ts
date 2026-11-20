@@ -7,7 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { themes, userSettings } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/query";
+import { isConstraintViolation, readableJson } from "@orb/db/query";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
@@ -111,12 +111,13 @@ export function isThemeNameConflict(err: unknown): boolean {
 /** ONLY-IF-SET heal: any user whose `theme.selectedThemeId` names one of `ids` falls back to `null` (the
  *  Hearth default). A JSON write, not a column write — `selectedThemeId` is a field inside the settings
  *  blob, so the WHERE is a `json_extract` probe (the `asset-refs` precedent) and the SET is a `json_set`.
- *  A blob that names nothing, or names something else, is not touched at all. Returns the healed count. */
+ *  A blob that names nothing, or names something else, is not touched at all; nor is one whose text is not JSON,
+ *  which stays as stored for the settings read to report unreadable. Returns the healed count. */
 export async function clearSelectedThemeIds(db: Db, ids: readonly ThemeId[], at: number): Promise<number> {
   if (ids.length === 0) {
     return 0;
   }
-  const selected = sql`json_extract(${userSettings.config}, '$.theme.selectedThemeId')`;
+  const selected = sql`json_extract(${readableJson(userSettings.config)}, '$.theme.selectedThemeId')`;
   const healed = await db
     .update(userSettings)
     .set({ config: sql`json_set(${userSettings.config}, '$.theme.selectedThemeId', json('null'))`, updatedAt: at })

@@ -3,26 +3,23 @@
 // preset count, and the pane's create affordances now ride the `.shell-panel-header` band through the
 // section definition's `useListHeader` data slot, like chats/corpus/analytics already did.
 //
-// Exactly ONE primary action: New. Import sits beside it as a GHOST icon — a secondary entry into the same
-// "get a preset" job, ember-free, exactly as it was in the retired in-pane header. Both create paths (and
-// the ONE // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+// Exactly ONE primary action: New. Import sits beside it as a GHOST icon, a secondary entry into the same "get a
+// preset" job, ember-free. Its glyph is the file-import shape: `Upload` reads as export or share. The hook supplies
+// view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { Icon, Plus, Upload } from "@orb/ui/icons";
-import { useState } from "react";
+import { FileInput, Icon, Plus } from "@orb/ui/icons";
 import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ListPaneHeaderView } from "#lib";
-import { notify } from "#lib";
+import { BAND_NEW_LABEL } from "#lib";
 import { selectPresetFromList } from "#state";
-import { PresetImportDialog } from "../components/preset-import-dialog.tsx";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
-import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
-import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import { usePresetImport } from "../hooks/use-preset-import.tsx";
+import { useCreatePreset } from "../hooks/use-preset-mutations.ts";
+import { NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 import { PRESETS_SECTION_LABEL } from "../lib/presets-section-label.ts";
-
-/** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
-const IMPORT_LABEL = PRESET_IMPORT_TITLE;
 
 export function usePresetListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
@@ -33,28 +30,10 @@ export function usePresetListHeader(): ListPaneHeaderView {
   // census per regime, and the filter lens is not re-derived.
   const census = usePresetCensus();
   const create = useCreatePreset({ trpc, invalidation });
-  const importFile = useImportPresetFile({ trpc, invalidation });
-  const [importOpen, setImportOpen] = useState(false);
+  const importer = usePresetImport();
 
   const onCreate = (): void => {
-    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
-  };
-
-  /** The orb-native arm: resolves to the server's error message, or null once the row landed. */
-  const onImportOrb = async (fileText: string): Promise<string | null> => {
-    const outcome = await importFile.mutateAsync({ fileText });
-    if (!outcome.ok) {
-      return outcome.error;
-    }
-    setImportOpen(false);
-    if (outcome.created !== true) {
-      notify.success("That preset is already in your library. Nothing was added.");
-    } else if (outcome.renamedFrom !== null && outcome.renamedFrom !== undefined) {
-      notify.success(`Imported as “${outcome.name ?? outcome.renamedFrom}”: you already have a different “${outcome.renamedFrom}”.`);
-    } else {
-      notify.success("Preset imported.");
-    }
-    return null;
+    create.mutate({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
   };
 
   const newPreset = { id: "preset-new", label: NEW_PRESET_NAME, icon: Plus, onSelect: onCreate, disabled: create.isPending };
@@ -64,23 +43,22 @@ export function usePresetListHeader(): ListPaneHeaderView {
       {
         id: "preset-import",
         inline: (
-          // Icon-only, so the tooltip is the same string as the aria-label and the two can't drift.
-          // `square`, not a plain `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the
-          // coarse touch floor; the `md` square is `size-control-md`, 34px fine / 48px coarse by token.
-          <Tip text={IMPORT_LABEL}>
-            <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} square={true}>
-              <Icon icon={Upload} size="sm" />
+          // Icon-only, so the tooltip is the same string as the aria-label and the two can't drift. `square`, not a plain
+          // `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger would miss the coarse touch floor.
+          <Tip text={PRESET_IMPORT_TITLE}>
+            <Button aria-label={PRESET_IMPORT_TITLE} variant="ghost" onClick={importer.open} square={true}>
+              <Icon icon={FileInput} size="sm" />
             </Button>
           </Tip>
         ),
-        menu: [{ id: "preset-import", label: IMPORT_LABEL, icon: Upload, onSelect: (): void => setImportOpen(true) }],
+        menu: [{ id: "preset-import", label: PRESET_IMPORT_TITLE, icon: FileInput, onSelect: importer.open }],
       },
       {
         id: "preset-new",
         inline: (
           <Button disabled={create.isPending} onClick={onCreate} size="sm">
             <Icon icon={Plus} size="sm" />
-            New
+            {BAND_NEW_LABEL}
           </Button>
         ),
         menu: [newPreset],
@@ -89,26 +67,6 @@ export function usePresetListHeader(): ListPaneHeaderView {
     ],
     count: census ?? 0,
     title: PRESETS_SECTION_LABEL,
-    overlay: (
-      <>
-        <PresetImportDialog
-          busy={create.isPending || importFile.isPending}
-          onImportOrb={onImportOrb}
-          onImportSt={({ name, config }): void => {
-            create.mutate(
-              { name, kind: NEW_PRESET_KIND, config },
-              {
-                onSuccess: (created): void => {
-                  setImportOpen(false);
-                  selectPresetFromList(created.id);
-                },
-              },
-            );
-          }}
-          onOpenChange={setImportOpen}
-          open={importOpen}
-        />
-      </>
-    ),
+    overlay: importer.dialog,
   };
 }

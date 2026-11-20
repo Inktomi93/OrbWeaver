@@ -25,9 +25,18 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RequiredFormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId } from "#lib";
+import { DIALOG_PENDING_VERBS, notify, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import {
+  PERSONA_DESCRIPTION_FIELD_NAME,
+  PERSONA_FIRST_RUN_CREATE_NAME,
+  PERSONA_FIRST_RUN_FAILED,
+  PERSONA_FIRST_RUN_FINISH_NAME,
+  PERSONA_FIRST_RUN_FINISHING_LABEL,
+  PERSONA_FIRST_RUN_TITLE,
+  PERSONA_NAME_FIELD_NAME,
+} from "../lib/persona-copy.ts";
 
 /** The lowest id in the set — a total order BOTH ends agree on and every device computes identically, so
  *  "which persona does the gate offer to recover" never depends on the server's list ordering. That ordering
@@ -109,9 +118,9 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   const canSubmit = name.trim().length > 0 && !pending;
   // The verb NAMES THE REMAINING WORK. Once the persona exists, "Create persona" would offer to mint a second
   // one; what is left is the pointer the seed write failed to set.
-  let submitLabel = pending ? "Creating…" : "Create persona";
+  let submitLabel = pending ? DIALOG_PENDING_VERBS.creating : PERSONA_FIRST_RUN_CREATE_NAME;
   if (recoverable) {
-    submitLabel = pending ? "Finishing…" : "Finish setting up";
+    submitLabel = pending ? PERSONA_FIRST_RUN_FINISHING_LABEL : PERSONA_FIRST_RUN_FINISH_NAME;
   }
   /**
    * THE FIELDS ARE WRITTEN ON THE RECOVERY ARM TOO. They are editable and pre-filled there, so a reader who
@@ -130,7 +139,8 @@ export function FirstRunPersonaDialog(): ReactElement | null {
     try {
       await update.mutateAsync({ personaId: orphan.id, input: { name: name.trim(), description: description.trim() } });
       return true;
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error("Couldn't save your persona. Try again.");
       return false;
     }
@@ -142,8 +152,9 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       const created = await create.mutateAsync({ input: { name: name.trim(), description: description.trim() } });
       setCreatedId(created.id);
       return created.id;
-    } catch {
-      notify.error("Couldn't create your persona. Try again.");
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
+      notify.error(PERSONA_FIRST_RUN_FAILED);
       return null;
     }
   };
@@ -166,7 +177,8 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         section: "seeds",
         patch: { currentPersonaId: personaId, defaultPersonaId: personaId },
       });
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // NAMED HONESTLY: the persona exists. "Couldn't create your persona" over a persona that WAS created is
       // the lie that sent the reader back to a Create button.
       notify.error("Created your persona, but couldn't make it yours yet. Try again.");
@@ -181,13 +193,13 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       description="Chats speak to you through a persona: the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
       submit={{ label: submitLabel, disabled: !canSubmit, testKey: "firstRunPersonaCreate", onSubmit: (): void => void submit().catch(globalThis.reportError) }}
       testKey="firstRunPersonaDialog"
-      title="Who are you in the story?"
+      title={PERSONA_FIRST_RUN_TITLE}
     >
-      <Field label="Name">
+      <Field label={PERSONA_NAME_FIELD_NAME}>
         <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
       </Field>
       {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
-      <Field label="Description" description="Optional: how characters should picture you.">
+      <Field label={PERSONA_DESCRIPTION_FIELD_NAME} description="Optional: how characters should picture you.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
     </RequiredFormDialog>

@@ -18,7 +18,7 @@ interface DisclosureSectionProps {
   /** Expanded until this host answers for this section (`chat-context-section-open-store.ts`). */
   readonly defaultOpen: boolean;
   /** Keep the body in the DOM (hidden) while closed. Needed by the SILENT-CONTRIBUTOR COLLAPSE: the
-   *  `has-[…:empty]:hidden` selector below asks whether the graft's wrapper has element children, and an
+   *  `:empty` `has-` selector below asks whether the graft's wrapper has element children, and an
    *  unmounted wrapper answers "no wrapper", which would spend a kicker on a contributor that renders
    *  nothing — the exact orphan heading that collapse exists to prevent. */
   readonly keepMounted?: boolean;
@@ -40,7 +40,9 @@ export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted 
         hiddenAt={hiddenAt}
         kicker={
           <CollapsibleTrigger size="control">
-            <Text as="span" voice="interactiveKicker">
+            {/* The trigger and the kicker row are both sized to their content, so only `anywhere` lets a caps word wider than a phone
+                pane at enlarged text break instead of pushing the row past the pane's edge. */}
+            <Text as="span" voice="interactiveKicker" wrap="anywhere">
               {kicker}
             </Text>
           </CollapsibleTrigger>

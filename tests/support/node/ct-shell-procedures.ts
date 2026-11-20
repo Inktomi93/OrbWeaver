@@ -45,6 +45,7 @@ export const SECTION_PROCEDURES = [
   "settings.getTheme",
   "regex.countScripts",
   "regex.listScripts",
+  "regex.listUnattached",
   "worldInfo.countBooks",
   "stats.freshness",
   "stats.byModel",
@@ -69,7 +70,7 @@ export const ROOM_PROCEDURES = [
   "chat.previewContextFit",
   "automation.listChatActivity",
   "persona.listConnectedToCharacter",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "plugin.listDisplayTransforms",
 ] as const satisfies readonly TrpcProcedurePath[];
 

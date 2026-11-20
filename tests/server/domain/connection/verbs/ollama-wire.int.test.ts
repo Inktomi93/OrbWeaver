@@ -49,7 +49,7 @@ async function nativeSummary(value: object): Promise<SummarizeResult> {
   await root.services.connection.setBinding({ principal, task: "summarize", connectionId: row.id });
   const clients = await root.roleClientsFor(principal.userId);
   try {
-    const work = clients.summarize([{ systemPrompt: "Be terse.", userPrompt: "Answer." }]);
+    const work = clients.summarize([{ systemPrompt: "Be terse.", userPrompt: "Answer." }], { signal: new AbortController().signal });
     const state = { settled: false };
     void work.then(
       () => {

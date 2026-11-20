@@ -4,7 +4,7 @@
 import { legacyNotionalCostSamples, parseVariantMetadata } from "@orb/contracts/chat";
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
-import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
+import type { RetiredSpend, SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
 import { SPEND_DELTA_FIELDS, variantUsageLegDelta } from "@orb/contracts/stats";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -408,6 +408,7 @@ const SPEND_FOLD: Readonly<Record<SpendDeltaField, (g: SpendGrains, v: number) =
   },
   modelGenerations: (g, v) => addToModel(g.model, "generations", v),
   modelGenSamples: (g, v) => addToModel(g.model, "genSamples", v),
+  modelGenTimeMs: (g, v) => addToModel(g.model, "genTimeMs", v),
   modelCostUsd: (g, v) => addToModel(g.model, "costUsd", v),
   modelCostSamples: (g, v) => addToModel(g.model, "costSamples", v),
   modelNotionalCostSamples: (g, v) => addToModel(g.model, "notionalCostSamples", v),
@@ -474,15 +475,13 @@ export function foldSpend(d: StatsDelta, a: Accums): void {
   }
 }
 
-/** Owner extrema: earliest chat created, latest of (last message seen, last chat update). */
+/** Owner extrema: the earliest chat created. Last activity is folded from messages and spend alone: a write to
+ *  a room's row (a title, a seat, a compaction marker) is not activity, and the live write never credits one. */
 export function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
   let first: number | null = null;
   for (const m of meta.chatByChar.values()) {
     if (m.firstChatAt !== null && (first === null || m.firstChatAt < first)) {
       first = m.firstChatAt;
-    }
-    if (m.maxChatUpdated !== null && m.maxChatUpdated > owner.lastActivityAt) {
-      owner.lastActivityAt = m.maxChatUpdated;
     }
   }
   owner.firstChatAt = first;
@@ -503,7 +502,8 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
   return censusPopulation(charMap, meta).map((characterId) => {
     const c = charMap.get(characterId) ?? freshChar();
     const m = meta.chatByChar.get(characterId);
-    const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
+    // Only the character's own turns are its activity; a seat that never spoke has none.
+    const lastActivityAt = c.lastMsgAt || null;
     return {
       id: idSource.typeId(ID_PREFIX.characterStat),
       characterId: CHARACTER_ID.parse(characterId),
@@ -679,6 +679,35 @@ export function foldCanonMessage(ownerId: UserId, r: CanonMessage, a: Accums): v
   const legs = usageLegsOf(r.usageLegs);
   foldMessage(legs.length === 0 ? r : { ...r, ti: null, tout: null, cost: null, cacheR: null, cacheW: null, tokenProvenance: "unrecorded" }, a);
   foldVariantLegs({ ownerId, cid: r.role === "assistant" ? r.cid : null, legs, selected: true }, a);
+}
+
+/** The paid samples {@link foldCanonMessage} credits one selected message with, one per sample, on the clock, model and
+ *  notional flag it folds them under: its usage legs when it holds any, else its own reported cost. A retirement keeps
+ *  these on the live rollups and records them as `retired-canon` ledger rows, so the two must pick the same samples. */
+export function retiredSpendOf(ownerId: UserId, r: CanonMessage): RetiredSpend[] {
+  const legs = usageLegsOf(r.usageLegs);
+  if (legs.length > 0) {
+    return legs.flatMap((leg) =>
+      leg.costUsd === null
+        ? []
+        : [{ ownerId, costUsd: leg.costUsd, model: leg.model, provider: leg.provider, notional: leg.wire === "agent-sdk", now: leg.observedAt }],
+    );
+  }
+  if (r.cost === null) {
+    return [];
+  }
+  const identity = r.role === "assistant" ? modelIdentity(r.model, r.provider) : null;
+  const metadata = parseVariantMetadata(r.metadata === null ? null : JSON.parse(r.metadata));
+  return [
+    {
+      ownerId,
+      costUsd: r.cost,
+      model: identity?.model ?? null,
+      provider: identity?.provider ?? null,
+      notional: legacyNotionalCostSamples(r.cost, metadata) > 0,
+      now: r.createdAt,
+    },
+  ];
 }
 
 /** Unselected legs retain spend but do not credit the timeline's selected-message token counters. */

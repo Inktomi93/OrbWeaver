@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-10
+updated: 2026-11-12
 priority: P3
 area: tooling
-plan: cross-surface-consistency
+plan: surface-walk
 ---
 
 # The walker composites a dimmed glyph once over a pixel-sampled backdrop

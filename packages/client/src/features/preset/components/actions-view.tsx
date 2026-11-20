@@ -40,15 +40,17 @@ import { ChevronRight, ExternalLink, Icon, Search } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
-import { Band } from "#components";
+import { Band, MutedLine } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_TEMPLATE_FILTER_NAME } from "../lib/preset-names.ts";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
 import {
   ACTIONS_TAB_TEACH,
@@ -155,13 +157,13 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
             every group. The chrome is the host's; the matching is the row model's (`templateRowMatches`). */}
         <Row align="center" gap="tight">
           <Icon icon={Search} size="sm" ink="muted" />
-          <Input aria-label="Filter templates" onValueChange={setFilter} placeholder="Filter templates…" value={filter} />
+          <Input aria-label={PRESET_TEMPLATE_FILTER_NAME} onValueChange={setFilter} placeholder={`${PRESET_TEMPLATE_FILTER_NAME}…`} value={filter} />
         </Row>
 
         {groups.length === 0 ? (
           // The all-filtered-out state states its CONDITION (an empty state is required) — a silent blank
           // list reads as a broken tab, and the next step is the filter box one row up.
-          <Text voice="gloss">No template matches "{filter.trim()}". Clear the filter to see all of them.</Text>
+          <MutedLine>{`No template matches "${filter.trim()}". Clear the filter to see all of them.`}</MutedLine>
         ) : null}
 
         {/* HUMAN group labels (side-eye F-30 / ARIA rec 10): the kicker rendered the registry's raw enum
@@ -325,7 +327,7 @@ function TemplateListRow({
                   </Badge>
                 ) : null}
                 <Button
-                  aria-label={kindQualifier === undefined ? `Edit ${def.label}` : `Edit ${def.label} · ${kindQualifier}`}
+                  aria-label={editActionName(kindQualifier === undefined ? def.label : `${def.label} · ${kindQualifier}`)}
                   variant="ghost"
                   onClick={(): void => onDrill(def.id)}
                   onFocus={restoreFocus ? onRestoreFocus : undefined}

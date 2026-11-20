@@ -1,5 +1,4 @@
-// @orb/contracts/roster-preset — the saved-roster wire (D61 B6;
-// D170). A roster preset is an owner's NAMED ROSTER — a library
+// @orb/contracts/roster-preset — the saved-roster wire (D61, D170). A roster preset is an owner's NAMED ROSTER — a library
 // artifact consumed at chat start (and additively via `applyToChat`), never read at turn time. The member
 // vocabulary is NOT minted here: every membership-template lifetime PROJECTS through chat's D80
 // `characterMemberSpecSchema` (contracts/chat/roster.ts — "nothing mints a flat characterId array beside
@@ -26,7 +25,7 @@ import { characterMemberSpecSchema, groupConfigInputSchema, groupConfigSchema } 
 import type { RpgGameTemplate } from "#rpg";
 import { rpgGameTemplateSchema } from "#rpg";
 
-// Sanity rail on a roster's size (the program doc's "lean: 25 — matches nothing structural").
+// A roster is a curated start-time cast, not a structural bound, so its size rail is a round 25.
 const ROSTER_PRESET_MEMBER_MAX = 25;
 const NAME_MAX = 200;
 const DESCRIPTION_MAX = 2000;
@@ -46,7 +45,7 @@ const rosterPresetMembersSchema = z
     error: "a roster lists each character once",
   }) satisfies z.ZodType<CharacterMemberSpec[]>;
 
-/** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
+/** One captured automation rule preset on the wire: the CLOSED
  *  catalogue id + the knob bag as the capture read it (`RuleView.rulePresetKnobs` — the room rule's own
  *  mint provenance). Shape-only here; the write verb fully re-resolves the bag against the preset's own
  *  descriptors through automation's injected belt and stores the resolved OUTPUT (the `groupConfig`
@@ -79,7 +78,7 @@ export const createRosterPresetSchema = z.strictObject({
   /** The game a start births with the room. Full-replace like every field, so an editor rename echoes it. */
   game: rpgGameTemplateSchema.nullable().optional(),
   members: rosterPresetMembersSchema,
-  /** B10's rules rider — the room's captured ENABLED rule presets. Defaulted `[]` (a roster without
+  /** The room's captured ENABLED rule presets. Defaulted `[]` (a roster without
    *  rules never touches a room's rules at apply); full-replace like every other field, so the
    *  library editor's rename ECHOES the stored list back verbatim. */
   rules: rosterPresetRulesSchema.default([]),
@@ -125,7 +124,7 @@ export interface RosterPresetView {
   /** The game a start births with the room. NULL = the roster starts a plain chat. */
   readonly game: RpgGameTemplate | null;
   readonly members: readonly RosterPresetMemberView[];
-  /** B10's rules rider — capture order (= apply order). Empty = the roster carries no rules. */
+  /** Capture order (= apply order). Empty = the roster carries no rules. */
   readonly rules: readonly RosterPresetRuleView[];
   readonly updatedAt: number;
 }
@@ -144,7 +143,7 @@ export interface RosterPresetSummary {
   readonly hasGroupConfig: boolean;
   /** The game a start births with the room — the start door hands it to `startChat` as `startAsGame`. */
   readonly game: RpgGameTemplate | null;
-  /** B10's rules rider — the picker's "N rules" badge reads the length; a roster row caps at the
+  /** The picker's "N rules" badge reads the length; a roster row caps at the
    *  catalogue size, so the "preview" is simply all of them (the members posture). */
   readonly rules: readonly RosterPresetRuleView[];
   readonly updatedAt: number;
@@ -158,7 +157,7 @@ export interface RosterPresetSummary {
  *  window, or the room dying mid-apply) SURFACES and aborts the loop; it is NOT collected into
  *  `skipped`. That is safe by construction: the apply is additive and every landed seat is idempotent,
  *  so a retry converges (already-landed members classify `alreadyPresent`). */
-/** One roster rule the apply could not land — the EXPECTED per-preset refusal class (build record §6.4):
+/** One roster rule the apply could not land — the EXPECTED per-preset refusal class:
  *  automation's own mint validation said no (the lore presets' book-attachment consent gate in a room
  *  without the book, a knob a catalogue evolution retired, a preset no longer offered). `reason` is
  *  automation's own host-vocabulary message, surfaced verbatim. */
@@ -171,9 +170,9 @@ export interface ApplyRosterPresetResult {
   readonly added: readonly CharacterId[];
   readonly alreadyPresent: readonly CharacterId[];
   readonly skipped: readonly CharacterId[];
-  /** B10's rules rider — rule presets minted fresh into the room (INCLUDING a re-mint that replaced a
+  /** Rule presets minted fresh into the room (INCLUDING a re-mint that replaced a
    *  knob-drifted or incomplete earlier mint), then enabled: the apply is the host's consent act for
-   *  the target room (build record §6.5). */
+   *  the target room. */
   readonly rulesMinted: readonly RulePresetId[];
   /** Rule presets the room already held complete with knob-equal provenance — nothing re-minted;
    *  enablement re-asserted (the member knob re-stamp posture). */

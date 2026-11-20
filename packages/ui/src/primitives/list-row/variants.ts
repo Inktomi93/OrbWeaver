@@ -1,4 +1,18 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
+import {
+  CAPTION,
+  DISABLED_GROUP,
+  DISABLED_INK_WITHIN,
+  DISABLED_STATE,
+  FOCUS_RING_INSET,
+  HOVER_SWAP,
+  OPEN_TURN,
+  PUSH,
+  RECEDED,
+  SELECTION_RAIL,
+  TITLE_FLOOR,
+  TITLE_STEP,
+  tv,
+} from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -48,7 +62,7 @@ export const listRowVariants = tv({
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
     body: [
       "group group/body flex flex-auto items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
-      `${SELECTION_RAIL} ${DISABLED_STATE}`,
+      `${SELECTION_RAIL} ${DISABLED_STATE} ${DISABLED_GROUP}`,
       // A disclosure header that is open holds the tint-active fill under its on-tint ink (`aria-expanded`, D336).
       "aria-expanded:bg-tone-tint-active aria-expanded:text-tone-text-on-tint",
     ],
@@ -63,11 +77,14 @@ export const listRowVariants = tv({
     // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
-    title: `
-      block flex-1 truncate text-start text-body leading-body font-medium text-foreground
-      group-aria-expanded/body:text-tone-text-on-tint
-      group-data-selected:text-tone-text-on-tint
-    `,
+    title: [
+      `
+        block flex-1 truncate text-start text-body leading-body font-medium text-foreground
+        group-aria-expanded/body:text-tone-text-on-tint
+        group-data-selected:text-tone-text-on-tint
+      `,
+      DISABLED_INK_WITHIN,
+    ],
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
@@ -83,10 +100,20 @@ export const listRowVariants = tv({
     markers: "flex shrink-0 items-center gap-field",
     // Trailing title-line meta (e.g. relative-time): a quiet mono DATUM (tabular so a column of stamps
     // aligns), never shrinks. The tier map takes it to the `gloss` step under an instrument surface.
-    meta: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums",
+    // `PUSH.inlineEnd` holds it at the line's end edge on every row, a wrapped line and an inline-placed row included, so
+    // a list's data form one column whatever each name's length.
+    meta: `shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums ${PUSH.inlineEnd}`,
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
     subtitle: `block text-start ${CAPTION}`,
+    // The row's state under its subtitle: a verdict, a last-run line, a one-line excerpt of what the row holds. The caller clamps it.
+    detail: "flex flex-col gap-tight text-start min-inline-0",
+    // A disclosure row's turn, at the body's inline end.
+    chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
+    // What a disclosure row opens takes a full line under the body and its actions, at the row's inline step held to a share of the
+    // screen, so a phone at enlarged text keeps the panel's controls their width.
+    panel: "basis-full min-inline-0",
+    panelBody: "px-inset-row pbe-row",
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
@@ -97,20 +124,24 @@ export const listRowVariants = tv({
     fullTitle: "sr-only",
     // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
     // the trailing `actions` buttons for width.
-    subtitleReveal: `
-      invisible col-start-1 row-start-1 truncate text-start font-mono ${CAPTION}
-      group-focus-within:visible
-      group-hover:visible
-    `,
+    subtitleReveal: `invisible col-start-1 row-start-1 truncate text-start font-mono ${CAPTION} ${HOVER_SWAP.show}`,
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
-    // `max-inline-full`: a cluster wider than its row (a rem-sized control at enlarged text) takes the row's width and lets its own content wrap, instead of ending past the row.
-    actions: "flex shrink-0 items-center justify-end gap-field max-inline-full",
+    // `max-inline-full` + `flex-wrap`: a cluster wider than its row (rem-sized controls at enlarged text) takes the row's width and wraps its controls onto
+    // further lines, instead of ending past the row. The controls are the slot's own children: a wrapper the caller puts around them does not wrap for it.
+    // `PUSH.inlineEnd` (`ms-auto`): once the cluster has dropped under the body to a line of its own it sits at the row's end edge, not at the start of the line.
+    actions: `flex shrink-0 flex-wrap items-center justify-end gap-field max-inline-full ${PUSH.inlineEnd}`,
   },
   variants: {
     // A row whose body runs to several lines keeps its leading mark at the first.
     align: { start: { root: "items-start" } },
     // Read only by the compound below: a block-placed name beside a qualifier keeps the smaller of the title floor and its own text.
     qualified: { true: {}, false: {} },
+    // A shut disclosure row cuts its name to one line like every list row; the open row sets the name whole, so a reader reaches the
+    // whole name by the row's own press. The body is the collapsible's trigger, which carries `data-panel-open` while open.
+    disclosure: {
+      true: { title: "group-data-panel-open/body:wrap-break-word group-data-panel-open/body:whitespace-normal" },
+      false: {},
+    },
     titleQualifierFace: {
       mono: {},
       body: { titleQualifier: "font-sans", titleSeparator: "font-sans" },
@@ -144,8 +175,8 @@ export const listRowVariants = tv({
     stackActions: {
       true: {
         root: "flex-wrap",
-        // The cluster holds the row's width and wraps its own controls: at enlarged text its controls' minimum widths exceed the row.
-        actions: "basis-full flex-wrap justify-between min-inline-0",
+        // The cluster holds the row's width: at enlarged text its controls' minimum widths exceed the row.
+        actions: "basis-full justify-between min-inline-0",
       },
       false: {},
     },
@@ -158,6 +189,11 @@ export const listRowVariants = tv({
     receded: {
       true: { root: RECEDED },
       false: {},
+    },
+    // A set state marked on the row's leading edge (an override that differs from the default), Card's own rail arm.
+    rail: {
+      none: {},
+      primary: { root: "border-s-rule border-s-primary" },
     },
     // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
     // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
@@ -332,6 +368,7 @@ export const listRowVariants = tv({
   ],
   defaultVariants: {
     clickable: false,
+    disclosure: false,
     float: false,
     stackActions: false,
     stackActionsAt: "cq-32",

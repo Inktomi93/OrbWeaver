@@ -15,7 +15,6 @@ const HEARTH_OVERRIDE: ThemeOverride = {
   font: "Geist",
   radius: "card",
   background: "oklch(0.158 0.006 60)",
-  density: "comfortable",
 };
 
 const MOCHA_OVERRIDE: ThemeOverride = {
@@ -30,11 +29,10 @@ const MOCHA_OVERRIDE: ThemeOverride = {
   font: "Geist",
   radius: "card",
   background: "oklch(0.15 0.015 250)",
-  density: "comfortable",
 };
 
 const LIGHT_OVERRIDE: ThemeOverride = {
-  accent: "oklch(0.5 0.16 50)",
+  accent: "oklch(0.415 0.16 50)",
   userBubble: { bg: "oklch(0.93 0.02 60)", fg: "oklch(0.25 0.02 60)" },
   aiBubble: { bg: "oklch(0.95 0.006 60)", fg: "oklch(0.22 0.02 60)" },
   systemBubble: { bg: "oklch(0.93 0.015 60)", fg: "oklch(0.45 0.02 60)" },
@@ -45,7 +43,6 @@ const LIGHT_OVERRIDE: ThemeOverride = {
   font: "Geist",
   radius: "card",
   background: "oklch(0.98 0.004 75)",
-  density: "comfortable",
 };
 
 /** One seeded palette row: its sentinel id, display name, and the duplicate-to-customize override. The

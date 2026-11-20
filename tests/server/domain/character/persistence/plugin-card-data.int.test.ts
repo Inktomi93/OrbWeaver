@@ -3,7 +3,7 @@
 // touches only its own key, and a state write is metadata that never changes the card's content hash.
 // @subject packages/server/src/domain/character/persistence/plugin-card-data.ts
 
-import { createCharacterSchema } from "@orb/contracts/character";
+import { createCharacterSchema, PLUGIN_CARD_DATA_WRITES } from "@orb/contracts/character";
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import { characters } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
@@ -12,8 +12,11 @@ import { mintTypeId } from "@orb/kit/ids";
 import { readPluginCardData, writePluginCardData } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
+const [WRITTEN, ABSENT, UNWRITABLE] = PLUGIN_CARD_DATA_WRITES;
+// Past the depth the database's JSON functions accept.
+const OVER_DEEP = 3000;
 const ALPHA = "scraper-alpha";
 const BETA = "scraper-beta";
 
@@ -51,7 +54,7 @@ test("a plugin's blob round-trips under its reserved plugin key and never change
 
   // An owned card with no state for this plugin reads as found-but-empty, which is not the not-found answer.
   expect(await readPluginCardData(handle, target)).toEqual({ found: true, data: null });
-  expect(await writePluginCardData(handle, target, { hp: 10, note: "ok" })).toBe(true);
+  expect(await writePluginCardData(handle, target, { hp: 10, note: "ok" })).toBe(WRITTEN);
   expect(await readPluginCardData(handle, target)).toEqual({ found: true, data: { hp: 10, note: "ok" } });
 
   const after = await stored(harness, id);
@@ -64,7 +67,7 @@ test("a foreign card writes nothing and reads exactly like an absent one", async
   const stranger = await harness.principalFor((await harness.actor()).id);
   const handle = databaseHandle(harness.db);
 
-  expect(await writePluginCardData(handle, { characterId: id, ownerId: stranger.userId, slug: ALPHA }, { hax: true })).toBe(false);
+  expect(await writePluginCardData(handle, { characterId: id, ownerId: stranger.userId, slug: ALPHA }, { hax: true })).toBe(ABSENT);
   expect(await readPluginCardData(handle, { characterId: id, ownerId: stranger.userId, slug: ALPHA })).toEqual({ found: false });
   expect(await readPluginCardData(handle, { characterId: mintTypeId("character", ids.next), ownerId: owner.userId, slug: ALPHA })).toEqual({ found: false });
   expect((await stored(harness, id)).extensions).toEqual({ [pluginCardStateKey(ALPHA)]: { secret: "owner's" } });
@@ -82,7 +85,7 @@ test("one plugin's write replaces only its own key and leaves a sibling plugin a
   const { owner, id } = await card(harness, seeded);
   const handle = databaseHandle(harness.db);
 
-  expect(await writePluginCardData(handle, { characterId: id, ownerId: owner.userId, slug: ALPHA }, { a: 999, extra: "x" })).toBe(true);
+  expect(await writePluginCardData(handle, { characterId: id, ownerId: owner.userId, slug: ALPHA }, { a: 999, extra: "x" })).toBe(WRITTEN);
 
   expect((await stored(harness, id)).extensions).toEqual({ ...seeded, [pluginCardStateKey(ALPHA)]: { a: 999, extra: "x" } });
   expect(await readPluginCardData(handle, { characterId: id, ownerId: owner.userId, slug: ALPHA })).toEqual({ found: true, data: { a: 999, extra: "x" } });
@@ -92,4 +95,25 @@ test("one plugin's write replaces only its own key and leaves a sibling plugin a
 test("a non-object stored under a plugin key reads as empty state, never off-contract", async ({ harness }) => {
   const { owner, id } = await card(harness, { [pluginCardStateKey(ALPHA)]: "not-an-object" });
   expect(await readPluginCardData(databaseHandle(harness.db), { characterId: id, ownerId: owner.userId, slug: ALPHA })).toEqual({ found: true, data: null });
+});
+
+test("a card whose extensions nest past the database's JSON limit reads as no state and refuses the write, raising nothing", async ({ harness }) => {
+  const { owner, id } = await card(harness, { vendorKeep: { depth: 3 } });
+  const handle = databaseHandle(harness.db);
+  const target = { characterId: id, ownerId: owner.userId, slug: ALPHA };
+  // The upload path stores such a card as text; planted the same way, since no typed write takes this value.
+  const deep = `{"vendor":${"[".repeat(OVER_DEEP)}${"]".repeat(OVER_DEEP)}}`;
+  await harness.db
+    .update(characters)
+    .set({ extensions: sql`${deep}` })
+    .where(eq(characters.id, id));
+
+  expect(await readPluginCardData(handle, target)).toEqual({ found: true, data: null });
+  expect(await writePluginCardData(handle, target, { hp: 10 })).toBe(UNWRITABLE);
+
+  const [after] = await harness.db
+    .select({ text: sql<string>`${characters.extensions}` })
+    .from(characters)
+    .where(eq(characters.id, id));
+  expect(after?.text).toBe(deep);
 });

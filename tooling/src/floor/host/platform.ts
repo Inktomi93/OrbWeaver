@@ -335,8 +335,10 @@ function processCompletionOn(platform: SupportedPlatform, pid: number, deps: Pla
 }
 
 /** Every process on the box for a sweep that must know it read the whole table: a failed read throws and is
- *  never an empty list. With `owner`, only that incarnation of this process may read it. `marker` lets Linux
- *  skip processes this user cannot read and that provably descend from no marked process. */
+ *  never an empty list. With `owner`, only that incarnation of this process may read it. On Linux, a process
+ *  whose metadata cannot be read is skipped only when it is gone or exited, started before `owner`, belongs to
+ *  another user, or (given `marker` and `owner`) provably descends from no marked process. Any other unreadable
+ *  process refuses the sweep. */
 export function completionProcesses(deps: PlatformDeps & { readonly owner?: ProcessCompletionOwner; readonly marker?: string } = {}): readonly ProcessEntry[] {
   const platform = supportedPlatform(deps);
   if (platform === null) {

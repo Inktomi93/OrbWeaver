@@ -7,8 +7,7 @@
 // PRINCIPAL-LESS BY CONSTRUCTION (the standalone-factory class): every argument is already an id the CALLER
 // gated. `ownerId` is the turn's frozen `runAsUserId` (D19 — the host, never the calling member), which is
 // exactly why a non-host member cannot contribute: they have no parameter on this surface. The chat scope
-// is not owner-filtered (a room's attached scripts are room-public prompt content, membership is the
-// caller's gate) — the `listChatBooks` precedent.
+// reads only the scripts `ownerId` owns (D64), so a script a former host left on the room transforms nothing.
 
 import type { Db } from "@orb/db";
 

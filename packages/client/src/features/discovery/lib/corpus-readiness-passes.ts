@@ -8,6 +8,7 @@ import type { Trpc } from "#data";
 import type { CorpusReadinessStageId } from "./corpus-analysis-state.ts";
 
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
+type EstimateWorkloadWire = inferInput<Trpc["workloads"]["estimateModelCalls"]>;
 
 /** One enqueue of a pass. The chain supplies `dependsOn`, so a pass never spells it. */
 type ReadinessRun = Omit<StartWorkloadWire, "dependsOn">;
@@ -135,8 +136,13 @@ export async function enqueueReadinessPass(
   );
 }
 
-/** The call estimate for a pass: every run it would enqueue, counted before any row exists. */
-export function readinessEstimates(stage: CorpusReadinessStageId): readonly Pick<ReadinessRun, "input" | "mode">[] {
+/** The call estimate for a pass: every run it would enqueue, counted before any row exists, each naming the runs the
+ *  chain puts ahead of it so a run whose input an earlier one grows is counted at its ceiling. */
+export function readinessEstimates(stage: CorpusReadinessStageId): readonly EstimateWorkloadWire[] {
   const runs: readonly ReadinessRun[] = READINESS_PASSES[stage].runs;
-  return runs.map((run) => ({ input: run.input, mode: run.mode }));
+  return runs.map((run, index) => ({
+    input: run.input,
+    mode: run.mode,
+    ...(index === 0 ? {} : { after: runs.slice(0, index).map((prior) => prior.input) }),
+  }));
 }

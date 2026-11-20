@@ -29,8 +29,24 @@ import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
-import { REFINERY_VERSION_DIFF_HEADING, REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "../lib/refinery-names.ts";
-import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
+import {
+  REFINERY_GO_TO_SCORE_NAME,
+  REFINERY_NO_RUNS_TITLE,
+  REFINERY_NO_VERSIONS_TITLE,
+  REFINERY_READ_LABELS,
+  REFINERY_SCOPE_NAME,
+  REFINERY_UNLABELED_VERSION,
+  REFINERY_VERSION_DIFF_HEADING,
+  REFINERY_VERSION_LOADING_TEXT,
+  refineryCompareToggleName,
+  refineryCompareVerb,
+  refineryRestoreVersionName,
+  refineryUseRunName,
+  refineryUseRunVerb,
+  refineryVersionRowLabel,
+  refineryViewRunName,
+} from "../lib/refinery-names.ts";
+import { SETUP_ORIGINAL_CARD_ROW, SETUP_SCHEMA_ROWS, SETUP_VIEW_ACTION, schemaDoorActionOf, setupDoorName } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -126,17 +142,12 @@ function RunRow({
           </Text>
         ) : null}
         <Row wrap={true} gap="field">
-          <Button aria-label={`View ${runLabel}`} variant="ghost" onClick={(): void => onView(run)} size="sm">
+          <Button aria-label={refineryViewRunName(runLabel)} variant="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
           {run.stage === "rewrite" ? (
-            <Button
-              aria-label={`${armed ? "Use latest instead" : "Use for apply"}: ${runLabel}`}
-              variant="ghost"
-              onClick={(): void => onArmRewrite(armed ? null : run.id)}
-              size="sm"
-            >
-              {armed ? "Use latest instead" : "Use for apply"}
+            <Button aria-label={refineryUseRunName(armed, runLabel)} variant="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
+              {refineryUseRunVerb(armed)}
             </Button>
           ) : null}
         </Row>
@@ -148,16 +159,18 @@ function RunRow({
 export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrite, onGoToScore }: RunsTabProps): ReactElement {
   if (runs.length === 0) {
     return (
-      <EmptyState
-        action={
-          // The ledger recovers the owning run control even when the workbench has scrolled past it.
-          <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
-            Go to Score
-          </Button>
-        }
-        description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
-        title="No runs yet"
-      />
+      <ContextTabBody kind="rows">
+        <EmptyState
+          action={
+            // The ledger recovers the owning run control even when the workbench has scrolled past it.
+            <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
+              {REFINERY_GO_TO_SCORE_NAME}
+            </Button>
+          }
+          description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
+          title={REFINERY_NO_RUNS_TITLE}
+        />
+      </ContextTabBody>
     );
   }
   // Two runs of one stage can share a round (a second rewrite before iterating); the ledger's own order, oldest first, tells them apart.
@@ -214,7 +227,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
         </Stack>
@@ -224,7 +237,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
           // visual context — would meet identically-named buttons that open different editors. The name is DERIVED from the two strings the row already has, so a new row
           // cannot ship an ambiguous one, and it CONTAINS the visible label (WCAG 2.5.3 label-in-name: the
           // accessible name must start with what the control visibly says, or voice control cannot hit it).
-          <Button aria-label={`${action} ${k}`} variant="ghost" onClick={onAction} size="sm">
+          <Button aria-label={setupDoorName(action, k)} variant="ghost" onClick={onAction} size="sm">
             {action}
           </Button>
         ) : null}
@@ -281,8 +294,8 @@ export function SetupTab({
 }: SetupTabProps): ReactElement {
   return (
     <ContextTabBody data-testid={testId("refinerySetupTab")} kind="rows">
-      <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
-      <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
+      <SetupRow action={SETUP_VIEW_ACTION} k={SETUP_ORIGINAL_CARD_ROW} onAction={onViewOriginal} v={anchorLine} />
+      <SetupRow action="Edit" k={REFINERY_SCOPE_NAME} onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
           does. Each stage carries its own "Edit" ("Create" on the built-in schema) → the editor at that stage; the body resolves
           edit-vs-author. */}
@@ -303,6 +316,10 @@ export function SetupTab({
 
 type SnapshotRow = SnapshotList[number];
 
+function versionLabelOf(snapshot: SnapshotRow): string {
+  return snapshot.label ?? REFINERY_UNLABELED_VERSION;
+}
+
 function classOf(snapshot: SnapshotRow): { word: string; tone: RenderHintTone } {
   const label = snapshot.label ?? "";
   if (label.startsWith(REFINERY_SNAPSHOT_PREFIX)) {
@@ -320,13 +337,16 @@ const SNAPSHOT_PENDING_ROWS = 3;
 
 export function VersionsTab({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[state.characterId]}
-      fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this card's versions" onRetry={retry} />}
-    >
-      <LoadedVersions state={state} liveDescription={liveDescription} />
-    </QueryBoundary>
+    // The column holds the boundary, so the pending and failed arms stand where the versions do.
+    <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
+      <QueryBoundary
+        resetKeys={[state.characterId]}
+        fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.versions} onRetry={retry} />}
+      >
+        <LoadedVersions state={state} liveDescription={liveDescription} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -348,29 +368,39 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
           </Button>
         }
         description="Every apply snapshots the card first, and you can snapshot by hand. Versions land here as they are made."
-        title="No versions yet"
+        title={REFINERY_NO_VERSIONS_TITLE}
       />
     );
   }
+  // The walk lists newest first. Two snapshots can share a label, so a twin carries an ordinal counted from the oldest,
+  // and a later snapshot never renames an earlier one.
+  const qualifiers = groupOrdinalQualifiers(rows.map(versionLabelOf).toReversed()).toReversed();
   return (
-    <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
+    <>
       {/* NOT "the LIVE card" (caps mid-sentence is "the one place the app raises its voice at the reader"). The contrast is real and survives in
           words — the live card against the session's pinned original — and the sentence carries it. */}
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
-      {rows.map((snapshot) => {
+      {rows.map((snapshot, index) => {
         const klass = classOf(snapshot);
+        const label = versionLabelOf(snapshot);
+        const qualifier = qualifiers[index];
         return (
           <Card key={snapshot.id}>
             <Stack gap="tight" padding="row">
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
                 <Text truncate="fill" voice="gloss">
-                  {snapshot.label ?? "unlabeled"}
+                  {refineryVersionRowLabel(label, qualifier)}
                 </Text>
               </Row>
               <Row wrap={true} gap="field">
-                <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
-                  {refineryCompareToggleName(compareId === snapshot.id)}
+                <Button
+                  aria-label={refineryCompareToggleName(compareId === snapshot.id, label, qualifier)}
+                  variant="ghost"
+                  onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)}
+                  size="sm"
+                >
+                  {refineryCompareVerb(compareId === snapshot.id)}
                 </Button>
                 <DestructiveAction
                   confirm={{
@@ -381,7 +411,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                   }}
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
                   trigger={
-                    <Button variant="ghost" size="sm">
+                    <Button aria-label={refineryRestoreVersionName(label, qualifier)} variant="ghost" size="sm">
                       {DIALOG_VERBS.restore}
                     </Button>
                   }
@@ -393,7 +423,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                   <QueryBoundary
                     resetKeys={[state.characterId, snapshot.id]}
                     fallback={<Text voice="gloss">{REFINERY_VERSION_LOADING_TEXT}</Text>}
-                    renderError={(_error, retry): ReactElement => <QueryErrorState label="that version" onRetry={retry} />}
+                    renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.version} onRetry={retry} />}
                   >
                     <SnapshotDiff characterId={state.characterId} snapshotId={snapshot.id} liveDescription={liveDescription} />
                   </QueryBoundary>
@@ -403,7 +433,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
           </Card>
         );
       })}
-    </ContextTabBody>
+    </>
   );
 }
 

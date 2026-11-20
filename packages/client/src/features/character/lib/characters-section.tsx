@@ -26,7 +26,7 @@ import type { ReactNode } from "react";
 import type { CharacterChatsProjectionView, CharacterContextState, CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { characterSectionSelection } from "#state";
+import { CHARACTER_TRUST_TAB_ID, characterSectionSelection } from "#state";
 import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
 import { CharacterLookTab } from "../components/character-appearance-tab.tsx";
@@ -37,11 +37,20 @@ import { CharacterFacetInspector } from "../components/character-facet-inspector
 import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
 import { CharacterTrustTab } from "../components/character-trust-tab.tsx";
+import { NewCharacterHost } from "../components/new-character-host.tsx";
 import { useCharacterContextResetKeys, useCharacterContextState } from "../hooks/use-character-context-state.ts";
 import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
-import { CHARACTER_CHATS_TAB_LABEL, CHARACTER_HISTORY_TAB_LABEL, CHARACTER_LINKS_TAB_LABEL } from "./character-names.ts";
+import {
+  CHARACTER_CHATS_TAB_LABEL,
+  CHARACTER_CONTEXT_TABLIST_NAME,
+  CHARACTER_HISTORY_TAB_LABEL,
+  CHARACTER_LINKS_TAB_LABEL,
+  CHARACTER_LOOK_TAB_LABEL,
+  CHARACTER_OVERVIEW_TAB_LABEL,
+  CHARACTER_TRUST_TAB_LABEL,
+} from "./character-names.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
 import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
 
@@ -52,16 +61,18 @@ export function makeCharactersSection(
   return {
     id: "characters",
     rail: { label: CHARACTERS_SECTION_LABEL, icon: Users, group: "primary", mobile: "tab" },
-    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CHARACTERS_SECTION_LABEL,
       description: "Your characters live here. Browse the list, then open someone to see their card.",
     },
     // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
+    // The new-character request host rides the list and the content both: a phone's list screen mounts no content and a
+    // collapsed list mounts no list body, and whichever is mounted takes the request.
     list: () => (
       <CharacterLibraryAnchor>
         <CharacterLibrarySurface />
+        <NewCharacterHost />
       </CharacterLibraryAnchor>
     ),
     // …so the band has ONE mode too: `CHARACTERS` + the create primary.
@@ -71,7 +82,12 @@ export function makeCharactersSection(
     selection: characterSectionSelection,
     // …and what the phone topbar calls this screen: the open character, else `Characters · <census>` (#1670).
     useSelectionTitle: useCharactersSelectionTitle,
-    content: () => <CharacterContent detailContributors={detailContributors} />,
+    content: () => (
+      <>
+        <CharacterContent detailContributors={detailContributors} />
+        <NewCharacterHost />
+      </>
+    ),
     // THE SIX-TAB HEADER STRIP (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.
     // Overview is the resting card + the drilled facet detail; Chats is #501's home for her threads (the
     // pane the LIST used to become); Links is world books + personas; Look is the theme override +
@@ -93,11 +109,11 @@ export function makeCharactersSection(
       // context bracket's band slot — the pane's identity, under its header tab strip.
       header: (s) => <CharacterContextBand characterId={s.characterId} />,
       // The header tablist's name — the artifact noun, carried as its a11y group name.
-      railLabel: "Character",
+      railLabel: CHARACTER_CONTEXT_TABLIST_NAME,
       tabs: [
         {
           id: "overview",
-          label: "Overview",
+          label: CHARACTER_OVERVIEW_TAB_LABEL,
           icon: IdCard,
           body: (s) => <CharacterFacetInspector characterId={s.characterId} />,
         },
@@ -115,7 +131,7 @@ export function makeCharactersSection(
         },
         {
           id: "look",
-          label: "Look",
+          label: CHARACTER_LOOK_TAB_LABEL,
           icon: Palette,
           body: (s) => <CharacterLookTab characterId={s.characterId} />,
         },
@@ -126,8 +142,8 @@ export function makeCharactersSection(
           body: (s) => <CharacterHistoryTab characterId={s.characterId} />,
         },
         {
-          id: "trust",
-          label: "Trust",
+          id: CHARACTER_TRUST_TAB_ID,
+          label: CHARACTER_TRUST_TAB_LABEL,
           icon: Shield,
           body: (s) => <CharacterTrustTab characterId={s.characterId} />,
         },

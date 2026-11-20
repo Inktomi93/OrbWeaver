@@ -5,9 +5,22 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
-import { PERSONA_DELETE_NAME, PERSONA_DUPLICATE_NAME, PERSONA_EXPORT_NAME, PERSONA_TITLE_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import {
+  PERSONA_DELETE_NAME,
+  PERSONA_DELETE_TITLE,
+  PERSONA_DUPLICATE_NAME,
+  PERSONA_EXPORT_NAME,
+  PERSONA_FROM_CHARACTER_NAME,
+  PERSONA_NAME_FIELD_NAME,
+  PERSONA_NEW_NAME,
+  PERSONA_RESTORE_NAME,
+  PERSONA_TITLE_FIELD_NAME,
+  personaDetailsToggleName,
+} from "#client/features/persona/lib/persona-copy.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -66,15 +79,19 @@ for (const regime of REGIMES) {
         throw new Error("The persona identity must retain its visible title column");
       }
       expect(nameBox.width).toBeGreaterThanOrEqual(titleFloor);
-      const expand = page.getByRole("button", { name: `Show details for ${name}`, exact: true });
+      const expand = page.getByRole("button", { name: personaDetailsToggleName(name, false), exact: true });
+      // Each state's name is the literal the reader hears, so a swapped arm in the name builder fails here.
+      await expect(expand).toHaveAccessibleName(`Show details for ${name}`);
       await expand.focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: `Edit ${name}`, exact: true });
+      await expect(page.getByRole("button", { name: `Hide details for ${name}`, exact: true })).toBeVisible();
+      await expect(expand).toHaveCount(0);
+      const editor = page.getByRole("group", { name: editActionName(name), exact: true });
       const footer = editor.locator('[data-slot="persona-editor-footer"]');
       const duplicate = footer.getByRole("button", { name: PERSONA_DUPLICATE_NAME, exact: true });
       const exportButton = footer.getByRole("button", { name: PERSONA_EXPORT_NAME, exact: true });
       const remove = footer.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true });
-      await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+      await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
       await duplicate.focus();
       await page.keyboard.press("Tab");
       await expect(exportButton).toBeFocused();
@@ -100,9 +117,9 @@ for (const regime of REGIMES) {
       }, previousMinimum);
       expect(planted.inlineOverflow).toBeGreaterThan(1);
       await page.keyboard.press("Enter");
-      const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
+      const confirm = page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true });
       await expect(confirm).toContainText(name);
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(confirm).toBeHidden();
       await expect(remove).toBeFocused();
@@ -124,9 +141,9 @@ for (const regime of REGIMES) {
       const before = await caller.persona.list();
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-      const from = page.getByRole("button", { name: "New persona from a character", exact: true });
-      const restore = page.getByRole("button", { name: "Restore a persona from an Orbweaver backup file", exact: true });
-      const create = page.getByRole("button", { name: "New persona", exact: true });
+      const from = page.getByRole("button", { name: PERSONA_FROM_CHARACTER_NAME, exact: true });
+      const restore = page.getByRole("button", { name: PERSONA_RESTORE_NAME, exact: true });
+      const create = page.getByRole("button", { name: PERSONA_NEW_NAME, exact: true });
       await from.focus();
       await page.keyboard.press("Tab");
       await expect(restore).toBeFocused();
@@ -137,8 +154,8 @@ for (const regime of REGIMES) {
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
       await from.focus();
       await page.keyboard.press("Enter");
-      const picker = page.getByRole("dialog", { name: "New persona from a character", exact: true });
-      await expect(picker.getByRole("combobox", { name: "New persona from a character", exact: true })).toBeFocused();
+      const picker = page.getByRole("dialog", { name: PERSONA_FROM_CHARACTER_NAME, exact: true });
+      await expect(picker.getByRole("combobox", { name: PERSONA_FROM_CHARACTER_NAME, exact: true })).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(picker).toBeHidden();
       await expect(from).toBeFocused();
@@ -175,9 +192,9 @@ for (const regime of REGIMES) {
         }),
       });
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-      await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+      await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
+      const editor = page.getByRole("group", { name: editActionName(persona.name), exact: true });
       const title = editor.getByRole("textbox", { name: PERSONA_TITLE_FIELD_NAME, exact: true });
       await expect(title).toHaveValue(persona.title ?? "");
       const nextTitle = "A locally saved qualification identity";
@@ -185,7 +202,7 @@ for (const regime of REGIMES) {
       await firstSave.requested;
       const status = editor.locator('[data-slot="autosave-status"]');
       try {
-        await expect(status).toHaveText("Saving…");
+        await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
         expect((await caller.persona.get({ personaId: persona.id })).title).toBe(persona.title);
       } finally {
         firstSave.fail();
@@ -193,7 +210,7 @@ for (const regime of REGIMES) {
       await expect(status).toHaveAttribute("role", "alert");
       await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
       await expect(title).toHaveValue(nextTitle);
-      const retry = status.getByRole("button", { name: "Retry", exact: true });
+      const retry = status.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
       const geometry = await actionGroupGeometry(status, [retry]);
       await info.attach("persona-save-retry-geometry", { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);

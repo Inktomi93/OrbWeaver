@@ -13,6 +13,7 @@ import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { AnthropicStreamEvent, RecordedRequest } from "@orb/testkit/node/helpers";
 import {
@@ -70,6 +71,7 @@ interface Drive {
   readonly toolChoice?: ToolChoice;
   readonly systemPrompt?: { readonly static: string; readonly dynamic: string };
   readonly headers?: Readonly<Record<string, string>>;
+  readonly extras?: Readonly<Record<string, JsonValue>>;
 }
 
 interface Driven {
@@ -88,8 +90,16 @@ async function drive(options: Drive): Promise<Driven> {
   };
   await using root = await createRuntimeRoot({ providerFetch });
   using errors = vi.spyOn(root.logger, "error");
-  const connection = await wireConnection(root, { task: "chat", providerId: "anthropic", model: options.model, baseUrl: null, key: "sk-ant-not-a-real-key" });
+  const connection = await wireConnection(root, {
+    task: "chat",
+    providerId: "anthropic",
+    model: options.model,
+    baseUrl: null,
+    key: "sk-ant-not-a-real-key",
+    ...(options.extras === undefined ? {} : { extras: options.extras }),
+  });
   const turn = await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "anthropic-messages",
     connection,
     params: options.params ?? { effort: "high" },
@@ -195,6 +205,26 @@ test("a minimal turn sends exactly one request body, so a provider SDK upgrade t
   });
 });
 
+test("extras fallbacks and a context-management edit are refused on this wire: each drops with custom_parameters_ignored naming its key and reaches no body, while an allowlisted key still rides", async () => {
+  const { turn, sent } = await drive({
+    model: "claude-opus-5",
+    reply: textReply,
+    extras: {
+      fallbacks: [{ model: "claude-sonnet-5" }],
+      contextManagement: { edits: [{ type: "compact_20260112" }] },
+      inferenceGeo: "us",
+    },
+  });
+
+  const refused = turn.events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.customParametersIgnored ? [event.key] : []));
+  expect(new Set(refused)).toEqual(new Set(["fallbacks", "contextManagement"]));
+  expect(sent.body).not.toHaveProperty("fallbacks");
+  expect(sent.body).not.toHaveProperty("context_management");
+  // Positive control: the allowlist still carries keys the cost fold prices whole, so the refusal above is
+  // the per-iteration ban firing, not the whole extras block silently going missing.
+  expect(sent.body["inference_geo"]).toBe("us");
+});
+
 test("a delivered trailing assistant row on a model that refuses prefill is a typed refusal and nothing is sent", async () => {
   const recorded: RecordedRequest[] = [];
   await using root = await createRuntimeRoot({
@@ -207,6 +237,7 @@ test("a delivered trailing assistant row on a model that refuses prefill is a ty
 
   const refused = await root.app.runtime.executor
     .runChatTurn({
+      signal: new AbortController().signal,
       api: "anthropic-messages",
       connection,
       params: { effort: "high" },

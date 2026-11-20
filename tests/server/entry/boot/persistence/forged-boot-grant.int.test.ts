@@ -42,7 +42,10 @@ const VERBS: readonly { readonly name: string; readonly run: (grant: BootDatabas
   { name: "healLegacyBackgroundPins", run: (grant) => healLegacyBackgroundPins(grant) },
   { name: "ensureSeedThemes", run: (grant, root) => ensureSeedThemes(grant, root.clock.now, root.logger) },
   { name: "migrateProseSlotVocab", run: (grant) => migrateProseSlotVocab(grant) },
-  { name: "reconcileOwnersMissingTimeline", run: (grant, root) => reconcileOwnersMissingTimeline(grant, root.clock.now, root.idSource) },
+  {
+    name: "reconcileOwnersMissingTimeline",
+    run: (grant, root) => reconcileOwnersMissingTimeline(grant, root.clock.now, root.idSource, new AbortController().signal),
+  },
   {
     name: "reclaimInFlightOnBoot",
     run: (grant, root) =>

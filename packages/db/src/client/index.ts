@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
@@ -21,6 +21,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 // biome-ignore lint/performance/noNamespaceImport: drizzle needs the whole schema module as `{ schema }` and as `typeof schema` for the Db type — the canonical pattern.
 import * as schema from "#schema";
 import { backupNamePatterns, isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "./backup-names.ts";
+import { localPath } from "./local-path.ts";
 
 // The drizzle database `createDb` builds. Only the migrator takes it whole.
 type DrizzleDb = LibSQLDatabase<typeof schema>;
@@ -47,7 +48,6 @@ export type LibSqlWrap = (client: Client) => Client;
 
 // `PRAGMA foreign_keys` reads back 1 when enforcement is ON.
 const FK_ENABLED = 1;
-const FILE_SCHEME = "file:";
 const WAL = "wal";
 
 /**
@@ -90,19 +90,6 @@ function builtHandle(db: Db): { readonly client: Client; readonly drizzle: Drizz
 
 function clientOf(db: Db): Client {
   return builtHandle(db).client;
-}
-
-/** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */
-export function localPath(url: string): string | undefined {
-  if (!url.startsWith(FILE_SCHEME)) {
-    return;
-  }
-  // Node roots bare file URLs; libSQL retains relative paths and percent-decodes only the URI pathname.
-  if (!url.startsWith(`${FILE_SCHEME}//`)) {
-    const pathname = url.slice(FILE_SCHEME.length).split(/[?#]/u, 1)[0] ?? "";
-    return decodeURIComponent(pathname);
-  }
-  return fileURLToPath(url); // file://host-form
 }
 
 /**
@@ -157,18 +144,20 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
 
 /**
  * Is `path` a COMPLETE sqlite db (i.e. a finished backup), or the debris of an interrupted one? Opens it
- * with a bare client (no pragmas, read-only in effect) and asks SQLite. Any throw ⇒ not usable.
+ * with a bare client (no pragmas, read-only in effect) and asks SQLite. A SQLite refusal ⇒ not usable.
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
   const client = createClient({ url: pathToFileURL(path).href });
-  // this asks "does the file read as a complete db?"; `false` is the answer for
+  // this asks "does the file read as a complete db?"; `false` is SQLite's answer for
   // an unreadable file. `backupBeforeMigrate` is the only caller: it removes the debris and retries `VACUUM INTO`,
-  // and that retry's own failure throws with the cause and aborts boot.
-  // Ends if a caller needs the reason rather than the verdict.
+  // and that retry's own failure throws with the cause and aborts boot. Any fault that is not SQLite's refusal rejects.
   try {
     const result = await client.execute("PRAGMA quick_check");
     return result.rows[0]?.["quick_check"] === "ok";
-  } catch {
+  } catch (error) {
+    if (!(error instanceof LibsqlError)) {
+      throw error;
+    }
     return false;
   } finally {
     client.close();
@@ -407,7 +396,7 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
 // compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
 // committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which the
 // boot refuses, so no forward migration could ever be applied. A db whose newest
-// applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
+// applied migration IS one of the shipped entries is `current` on this axis; `pendingMigrations` owns
 // the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
 //
 // `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
@@ -463,7 +452,7 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
     return { when: entry["when"], tag: entry["tag"] };
   });
   // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES — `shippedMigrationChain` takes `.at(-1)`
-  // as "the newest" and `hasPendingMigrations` walks the list in apply order. Drizzle generates the file in
+  // as "the newest" and `pendingMigrations` walks the list in apply order. Drizzle generates the file in
   // apply order, so this asserts an invariant rather than imposing one; stating it means a generator that
   // ever stopped sorting is a loud error instead of a chain tip computed off the wrong migration.
   for (let i = 1; i < entries.length; i += 1) {
@@ -475,18 +464,13 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
 }
 
 /**
- * Would {@link runMigrations} actually APPLY something? Mirrors drizzle's migrator selection exactly: it
- * applies every journal entry whose `when` is newer than the newest `created_at` in `__drizzle_migrations`
- * (and all of them when that table is absent/empty). Read-only.
+ * The tag of every journal entry {@link runMigrations} would still apply to this db, in apply order. Mirrors
+ * drizzle's migrator selection exactly: every journal entry whose `when` is newer than the newest `created_at` in
+ * `__drizzle_migrations` (and all of them when that table is absent/empty). Read-only.
  *
  * The boot step gates the pre-migration backup on this: a no-op boot (every dev-stack restart) must NOT
  * copy the db aside, while the backup-before-change guarantee is unchanged for boots that change anything.
  */
-export async function hasPendingMigrations(db: Db, migrationsFolder: string): Promise<boolean> {
-  return (await pendingMigrations(db, migrationsFolder)).length > 0;
-}
-
-/** The tag of every journal entry {@link runMigrations} would still apply to this db, in apply order. Read-only. */
 export async function pendingMigrations(db: Db, migrationsFolder: string): Promise<readonly string[]> {
   const entries = readJournalEntries(migrationsFolder);
   const applied = await readAppliedBaseline(db);

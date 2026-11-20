@@ -14,8 +14,8 @@ export interface AppearanceMutationIsolationEvidence {
   /** WHERE THE READER FOUND THE INPUT, or why it could not (#2448). `section=null density=null` used to be
    *  the ONLY trace of a body the reader had mis-shaped, and it reads exactly like "the client posted
    *  nothing" — which is what it was diagnosed as. A tRPC `httpBatchLink` POST body is a DICT keyed by the
-   *  procedure's position in the comma-joined path (`arrayToDict`, the trpc client 11.18.0
-   *  dist/httpUtils-BNq9QC3d.mjs:24-38), never an array, so the shape word names the door that was taken:
+   *  procedure's position in the comma-joined path (`arrayToDict`, the trpc client 11.23.0
+   *  dist/httpUtils-CAZsqwOQ.mjs:62-69), never an array, so the shape word names the door that was taken:
    *  `batch[<i>]` for the dict, `bare` for a single-procedure body, or `unreadable:<why>`. */
   readonly bodyShape: string | null;
 }

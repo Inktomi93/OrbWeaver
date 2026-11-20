@@ -14,7 +14,7 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
-import type { CollectedGroup, ParsedStGroup } from "../contract/collection.ts";
+import type { CollectedCard, CollectedGroup, CollectResult, ParsedStGroup } from "../contract/collection.ts";
 import type { ImportSkippedGroupMember } from "../contract/results.ts";
 
 /** ST's own group-config numerals we can read. `generation_mode` 0 = swap (one speaker per turn), 1 = append
@@ -57,7 +57,7 @@ export function parseStGroupFile(bytes: Uint8Array, fileStem: string): ParsedStG
   };
 }
 
-/** Resolve one group's member FILENAMES against the run's card-filename → character map. Order is preserved
+/** Resolve one group's member FILENAMES against its profile's card-filename → character map. Order is preserved
  *  (ST's own member order), and the FIRST resolved member becomes the room's primary — the character the write
  *  op scopes its dedup + branch resolution on. */
 export function resolveMembers<Seat extends string>(
@@ -90,20 +90,36 @@ export function groupRefusal(group: CollectedGroup, seatCount: number): GroupRef
   return group.chats.length === 0 ? "no-transcript" : null;
 }
 
-/** The groups a run can turn into rooms, and the ones it refuses, judged against the cards the folder carries. */
-export function partitionGroups(
-  groups: readonly CollectedGroup[],
-  cardFiles: readonly string[],
-): { readonly importable: CollectedGroup[]; readonly refused: { readonly group: CollectedGroup; readonly refusal: GroupRefusal }[] } {
-  const seats = new Map(cardFiles.map((file) => [file, file]));
+/** One profile's card filename → what its card resolved to: the map a group of that profile seats from. A group seats
+ *  only the cards of its own profile directory. A filename two profiles share names a card in each, so a map over the
+ *  whole upload would seat the later profile's card in the earlier profile's room. */
+export function seatsOf<Seat>(bundles: readonly CollectedCard[], byCard: ReadonlyMap<CollectedCard, Seat>): Map<string, Seat> {
+  const seats = new Map<string, Seat>();
+  for (const bundle of bundles) {
+    const seat = byCard.get(bundle);
+    if (seat !== undefined) {
+      seats.set(bundle.filename, seat);
+    }
+  }
+  return seats;
+}
+
+/** The groups a run can turn into rooms, and the ones it refuses, each judged against its own profile's cards. */
+export function partitionGroups(profiles: readonly { readonly result: Pick<CollectResult, "groups" | "bundles"> }[]): {
+  readonly importable: CollectedGroup[];
+  readonly refused: { readonly group: CollectedGroup; readonly refusal: GroupRefusal }[];
+} {
   const importable: CollectedGroup[] = [];
   const refused: { group: CollectedGroup; refusal: GroupRefusal }[] = [];
-  for (const group of groups) {
-    const refusal = groupRefusal(group, resolveMembers(group, seats).seated.length);
-    if (refusal === null) {
-      importable.push(group);
-    } else {
-      refused.push({ group, refusal });
+  for (const { result } of profiles) {
+    const seats = new Map(result.bundles.map((bundle) => [bundle.filename, bundle.filename]));
+    for (const group of result.groups) {
+      const refusal = groupRefusal(group, resolveMembers(group, seats).seated.length);
+      if (refusal === null) {
+        importable.push(group);
+      } else {
+        refused.push({ group, refusal });
+      }
     }
   }
   return { importable, refused };

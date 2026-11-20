@@ -8,8 +8,12 @@ import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 
+/** The error `dns.lookup` rejects with: an Error carrying the errno `code`. */
+function lookupFailure(code: string): Error {
+  return Object.assign(new Error(`getaddrinfo ${code} unresolved.example`), { code, syscall: "getaddrinfo", hostname: "unresolved.example" });
+}
+
 test("unresolved write-time endpoint admission remains public without attempting a physical request", async () => {
-  const failure = new Error("controlled NXDOMAIN");
   let rawCalls = 0;
   await using egress = createScopedEgress({
     traces: null,
@@ -17,7 +21,7 @@ test("unresolved write-time endpoint admission remains public without attempting
     env: createTestEnv(),
     timers: createQuietTimers(),
     buildConnector: systemConnector,
-    resolver: () => Promise.reject(failure),
+    resolver: () => Promise.reject(lookupFailure("ENOTFOUND")),
     fetch: () => {
       rawCalls += 1;
       return Promise.reject(new Error("write admission attempted raw HTTP"));
@@ -25,6 +29,20 @@ test("unresolved write-time endpoint admission remains public without attempting
   });
   await expect(egress.resolvedEndpointAdmission("https://unresolved.example/v1")).resolves.toBe("public");
   expect(rawCalls).toBe(0);
+});
+
+test("a write-time resolver fault that is not a missing name rejects instead of reading as public", async () => {
+  const broken = lookupFailure("ECONNREFUSED");
+  await using egress = createScopedEgress({
+    traces: null,
+    log: createTestLogger(),
+    env: createTestEnv(),
+    timers: createQuietTimers(),
+    buildConnector: systemConnector,
+    resolver: () => Promise.reject(broken),
+    fetch: () => Promise.reject(new Error("write admission attempted raw HTTP")),
+  });
+  await expect(egress.resolvedEndpointAdmission("https://unresolved.example/v1")).rejects.toBe(broken);
 });
 
 test.each([
@@ -61,7 +79,7 @@ test("configured and arbitrary URL execution still reject DNS failure before the
     },
   });
   await expect(egress.configuredEndpointFetch("https://unresolved.example/v1")).rejects.toBe(failure);
-  await expect(egress.safeFetch("https://unresolved.example/asset", { allowedHosts: ANY_HOST })).rejects.toBe(failure);
+  await expect(egress.safeFetch("https://unresolved.example/asset", { signal: new AbortController().signal, allowedHosts: ANY_HOST })).rejects.toBe(failure);
   expect(rawCalls).toBe(0);
 });
 

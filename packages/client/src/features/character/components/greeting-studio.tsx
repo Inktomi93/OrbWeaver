@@ -3,6 +3,7 @@
 
 import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/preset";
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
@@ -26,6 +27,10 @@ export interface GreetingStudioProps {
   /** The existing greeting text (the rewrite base). Empty ⇒ Rewrite is unavailable (nothing to rewrite);
    *  Make-new is always available. */
   readonly baseGreeting: string;
+  /** The generated text under review, or `null` while none is. The hero band owns it so the band's own actions can step
+   *  back for as long as the preview's Accept is the region's one primary control. */
+  readonly preview: string | null;
+  readonly onPreviewChange: (preview: string | null) => void;
   /** Accept the previewed text — the character editor appends it to the autosaved form. */
   readonly onAccept: (text: string) => void;
   /** Whether this character's own greeting content is render-trusted (§6.1) — drives the preview Markdown. */
@@ -48,10 +53,17 @@ const AXIS_LABEL: Record<GreetingTransformAxis, string> = {
   gender: "Pronouns",
 };
 
-export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = true, allowExternalMedia = false }: GreetingStudioProps): ReactElement {
+export function GreetingStudio({
+  characterId,
+  baseGreeting,
+  preview,
+  onPreviewChange,
+  onAccept,
+  trusted = true,
+  allowExternalMedia = false,
+}: GreetingStudioProps): ReactElement {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [instruction, setInstruction] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
   const rewriteRef = useRef<HTMLButtonElement>(null);
   const generateRef = useRef<HTMLButtonElement>(null);
   const lastGenerator = useRef(rewriteRef);
@@ -84,14 +96,14 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
     lastGenerator.current = rewriteRef;
     rewrite.mutate(
       { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
-      { onSuccess: (result): void => setPreview(result.text) },
+      { onSuccess: (result): void => onPreviewChange(result.text) },
     );
   };
   const onGenerate = (): void => {
     lastGenerator.current = generateRef;
     generate.mutate(
       { characterId, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
-      { onSuccess: (result): void => setPreview(result.text) },
+      { onSuccess: (result): void => onPreviewChange(result.text) },
     );
   };
 
@@ -104,17 +116,17 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         <MessageBubble messageRole="assistant">
           <Stack gap="row">
             <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-              {preview}
+              {stripStyleElements(preview)}
             </Markdown>
           </Stack>
         </MessageBubble>
-        <Row gap="field" align="center" justify="end">
+        <Row wrap={true} gap="field" align="center" justify="end">
           <Button
             variant="ghost"
             size="sm"
             onClick={(): void => {
               restoreGeneratorFocus.current = true;
-              setPreview(null);
+              onPreviewChange(null);
             }}
           >
             <Icon icon={X} size="sm" />
@@ -124,7 +136,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             size="sm"
             onClick={(): void => {
               onAccept(preview);
-              setPreview(null);
+              onPreviewChange(null);
             }}
           >
             <Icon icon={Check} size="sm" />

@@ -28,7 +28,7 @@ type UnstampedRow = Omit<InboxView, "actionable">;
  * dropped deferred turn, an auto-disable notice: they are news, and reading them IS the whole interaction.
  *
  * `plugins-awaiting-consent` is `true` and needs NO external check, which is a property of its producer
- * rather than an exception here: it is a SINGLETON standing ask that `domain/plugin/substrate/consent-prompt.ts`
+ * rather than an exception here: it is a SINGLETON standing ask that `domain/plugin/consent/consent-prompt.ts`
  * re-derives from the table on every consent-shaped act and RETRACTS (dismisses) the moment the count
  * reaches zero. A dismissed row is already excluded from both reads, so an ACTIVE consent row is a live ask
  * by construction. (`.min(1)` on its payload is the same rule at the type.)

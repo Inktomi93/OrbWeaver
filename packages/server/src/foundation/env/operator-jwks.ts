@@ -5,7 +5,7 @@ import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 
 // The set's own shape (RFC 7517 section 5). Members stay loose: jose owns what a key must hold.
-const jwksLiteralSchema = z.object({ keys: z.array(z.looseObject({})).min(1) });
+const jwksLiteralSchema = z.object({ keys: z.array(z.looseObject({})).min(1) }).strip();
 
 export type OperatorJwks = { readonly kind: "url"; readonly url: URL } | { readonly kind: "literal"; readonly jwks: z.infer<typeof jwksLiteralSchema> };
 

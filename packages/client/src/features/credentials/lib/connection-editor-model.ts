@@ -1,6 +1,6 @@
 // The connection EDITOR's pure model (inference program §5.3a, step 9 · the step-3b
 // mock): the TIER-LEVEL derived content — the inferred-kind verdict,
-// the task-requirement badge rail, the two tier count badges, the Extras rows and their belt gloss, the
+// the servable-role rail, the two tier count badges, the Extras rows and their belt gloss, the
 // request-body overrides field, and the private-endpoint admission predicate. No JSX, no hooks — every
 // function here is a fold over data already on the wire.
 //
@@ -88,61 +88,22 @@ export function inferredKindOf(tasks: readonly Task[]): ModelKind {
   return tasks.includes("embed") || tasks.includes("imageEmbed") ? "embedding" : "generation";
 }
 
-// ── the Purpose tier: the task-requirement badge rail ──────────────────────────────────────────────────
+// ── the Purpose tier: the servable-role rail ───────────────────────────────────────────────────────────
 
-interface CapabilityBadgeBase {
+/** One Model-roles slot this connection can serve, as the Purpose rail names it. */
+export interface ServableRole {
   readonly task: RoutableTask;
   readonly label: string;
 }
 
-/** A servable role has no refusal; an unservable role always explains why. */
-export type CapabilityBadge = CapabilityBadgeBase & ({ readonly ok: true; readonly reason: null } | { readonly ok: false; readonly reason: string });
-
-/** `requirementMet`'s `axis:member` clauses in the user's words. A clause with no phrasing falls back to the
- *  clause itself rather than being dropped — an unnamed refusal is worse than a machine one. */
-const CLAUSE_WORDS: Readonly<Record<string, string>> = {
-  "input:image": "no image input",
-  "input:video": "no video input",
-  "input:audio": "no audio input",
-  "input:file": "no file input",
-  "output:image": "no image output",
-  tools: "no tools",
-  structured: "no structured output",
-};
-
-function clauseWords(clause: string): string {
-  const axis = clause.split(":")[0] ?? clause;
-  return CLAUSE_WORDS[clause] ?? CLAUSE_WORDS[axis] ?? clause;
-}
-
-/** The verdict for ONE role slot against this connection's capability. */
-function badgeFor(task: RoutableTask, label: string, capability: Capability, tasks: readonly Task[]): CapabilityBadge {
-  const def = taskDef(task);
-  if (def.kind !== capability.kind) {
-    return { task, label, ok: false, reason: "wrong kind" };
-  }
-  // THE CAPABILITY REASON WINS OVER THE PROVIDER REASON, and the order is the ruling. A vLLM chat model
-  // cannot serve image generation for TWO true reasons at once — the provider's `serves` does not list the
-  // task, and the model declares no image output — and only the second tells the user anything they can act
-  // on (drawn as "Image generation — no image output" on the mock's Board A). The provider sentence is the
-  // fallback for a task nothing more specific refused.
-  const verdict = requirementMet(capability, def.requires);
-  if (!verdict.ok) {
-    return { task, label, ok: false, reason: verdict.missing.map(clauseWords).join(", ") };
-  }
-  if (!tasks.includes(task)) {
-    return { task, label, ok: false, reason: "this provider doesn't serve it" };
-  }
-  return { task, label, ok: true, reason: null };
-}
-
-/** One badge per Model-roles slot, GREENS FIRST — §5.3a truncates greens last, so the rail's order IS the
- *  truncation order and a narrow surface drops from the tail. A role of the wrong KIND says so: the
- *  requirement check cannot, because a rerank model asked for `output: image` is not missing a modality, it
- *  is the wrong thing entirely. */
-export function capabilityBadges(capability: Capability, tasks: readonly Task[]): readonly CapabilityBadge[] {
-  const badges = ROLE_ROWS_ORDERED.map((row) => badgeFor(row.task, row.label, capability, tasks));
-  return [...badges.filter((badge) => badge.ok), ...badges.filter((badge) => !badge.ok)];
+/** The Model-roles slots this connection can serve, in the pane's own order. A slot is listed when it is of
+ *  the connection's kind, the capability meets what its task requires, and the provider serves the task. A
+ *  slot the connection cannot serve is left out: Model roles is where its reason is read. */
+export function servableRoles(capability: Capability, tasks: readonly Task[]): readonly ServableRole[] {
+  return ROLE_ROWS_ORDERED.filter(({ task }) => {
+    const def = taskDef(task);
+    return def.kind === capability.kind && requirementMet(capability, def.requires).ok && tasks.includes(task);
+  }).map(({ task, label }) => ({ task, label }));
 }
 
 /** The Purpose tier's notes: what an unstated or guessed fact costs the user, and where to state it. Only facts

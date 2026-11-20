@@ -11,7 +11,7 @@
 // THE SPACE THIS FILE ANSWERS WITH IS ALWAYS THE LIVE ONE, and that is the write side's correct answer:
 // a new vector can only be produced by the embedder the binding resolves to right now. The LAST COMPLETE
 // space (§10-5, `embed_space_state`) is the READ side's question and is folded in `domain/search`
-// (`substrate/space.ts`) — embeddings is that table's WRITER (each sweep's terminal records its scope's
+// (`persistence/space.ts`) — embeddings is that table's WRITER (each sweep's terminal records its scope's
 // completion), search is its reader, and the fold itself lives once in `@orb/contracts/embeddings`.
 //
 // `null` from {@link requireTaskModel} means the owner has no binding for the task (`no-connection`): a
@@ -24,8 +24,8 @@ import type { LiveEmbedSpaceDeps } from "../contract/live-embed-space.ts";
 import type { ImageSpace } from "../contract/results.ts";
 
 /** The LIVE `embed` space tag, or `null` when the owner has no connection bound for it. */
-export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId): Promise<string | null> {
-  const resolved = await (await ctx.roleClientsFor(ownerId)).resolved("embed");
+export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId, signal: AbortSignal): Promise<string | null> {
+  const resolved = await (await ctx.roleClientsFor(ownerId)).resolved("embed", signal);
   return resolved === null ? null : embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability));
 }
 
@@ -40,13 +40,17 @@ export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId)
  *  findable — one lens instead of two, which is a real degrade and is reported as one rather than hidden.
  *
  *  `null` only when the owner has NO vector connection at all; that IS "nothing can be embedded". */
-export async function resolveImageSpace(ctx: { readonly roleClientsFor: RoleClientsFor }, ownerId: UserId): Promise<ImageSpace | null> {
+export async function resolveImageSpace(
+  ctx: { readonly roleClientsFor: RoleClientsFor<AbortSignal> },
+  ownerId: UserId,
+  signal: AbortSignal,
+): Promise<ImageSpace | null> {
   const rc = await ctx.roleClientsFor(ownerId);
-  const imageEmbed = await rc.resolved("imageEmbed");
+  const imageEmbed = await rc.resolved("imageEmbed", signal);
   if (imageEmbed !== null && servesImageVectors(imageEmbed.capability)) {
     return { via: "imageEmbed", model: embedSpaceOf(imageEmbed.model, embedDtypeOf(imageEmbed.capability)) };
   }
-  const embed = await rc.resolved("embed");
+  const embed = await rc.resolved("embed", signal);
   if (embed === null) {
     return null;
   }

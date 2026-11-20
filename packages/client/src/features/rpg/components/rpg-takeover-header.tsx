@@ -34,6 +34,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { RPG_READ_ONLY_LABEL } from "../lib/rpg-names.ts";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
 
@@ -141,7 +142,7 @@ function BandWhen({ when, dateInBody }: { readonly when: ReturnType<typeof whenP
     return null;
   }
   return (
-    <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
+    <Stack gap="field" minWidth="shrinks" data-slot="rpg-band-when">
       {context === "" ? null : <BandDateLine context={context} />}
       {when.state === "" ? null : (
         <Text as="span" ink="muted" voice="datum" cap="fit" clamp={2} wrap="word" data-slot="rpg-band-when-state">
@@ -200,7 +201,7 @@ export function RpgTakeoverHeader({
           <Badge size="sm">
             <Icon icon={Lock} size="xs" />
             <Text as="span" voice="gloss" ink="inherit">
-              Read-only
+              {RPG_READ_ONLY_LABEL}
             </Text>
           </Badge>
           <HintTrigger className="" hint="This model can't update trackers. They still steer the story; edit them by hand." subject="Read-only trackers" />
@@ -231,7 +232,7 @@ export function RpgTakeoverHeader({
     return (
       <Row gap="block" align="center" wrap={true} data-slot="rpg-takeover-header">
         {stone}
-        <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
+        <Stack gap="field" minWidth="shrinks" floor="title" grow={true} cap="fit">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" truncate={true}>
@@ -252,7 +253,7 @@ export function RpgTakeoverHeader({
     <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center" wrap={true}>
         {stone}
-        <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
+        <Stack gap="field" minWidth="shrinks" floor="title" grow={true} cap="fit">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the

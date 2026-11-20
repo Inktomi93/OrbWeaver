@@ -49,17 +49,19 @@ test("an own segment stores; a later foreign row refuses the flood by name; a de
     text: "Own segment",
     contentHash: "own-hash",
   };
-  await expect(ops.embeddingsStoreSegments([base])).resolves.toEqual([
+  await expect(ops.embeddingsStoreSegments([base], new AbortController().signal)).resolves.toEqual([
     { ownerId: ownHost.userId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch },
   ]);
   expect(storeSegments).toHaveBeenCalledTimes(1);
 
-  await expect(ops.embeddingsStoreSegments([base, { ...base, chatId: neighbor.id, text: "Foreign room" }])).rejects.toThrow(
+  await expect(ops.embeddingsStoreSegments([base, { ...base, chatId: neighbor.id, text: "Foreign room" }], new AbortController().signal)).rejects.toThrow(
     `memory segment owner changed during sweep for chat ${neighbor.id}`,
   );
   expect(storeSegments).toHaveBeenCalledTimes(1);
 
   await root.services.chat.selfLeave({ principal: ownHost, chatId: own.id });
-  await expect(ops.embeddingsStoreSegments([base])).rejects.toThrow(`memory segment owner changed during sweep for chat ${own.id}`);
+  await expect(ops.embeddingsStoreSegments([base], new AbortController().signal)).rejects.toThrow(
+    `memory segment owner changed during sweep for chat ${own.id}`,
+  );
   expect(storeSegments).toHaveBeenCalledTimes(1);
 });

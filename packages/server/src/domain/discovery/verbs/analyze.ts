@@ -27,14 +27,14 @@ const SCENE_MAX_CHARS = 1200;
 
 export function createAnalyze(ctx: DiscoveryContext, deps: AnalyzeDeps): Pick<DiscoveryService, "compareCharactersDeep" | "askCard"> {
   return {
-    compareCharactersDeep: (userId, idA, idB) => compareCharactersDeep(ctx, deps, { userId, idA, idB }),
-    askCard: (userId, characterId, question) => askCard(ctx, userId, characterId, question),
+    compareCharactersDeep: (userId, idA, idB, signal) => compareCharactersDeep(ctx, deps, { userId, idA, idB, signal }),
+    askCard: (userId, characterId, question, signal) => askCard(ctx, { userId, characterId, question, signal }),
   };
 }
 
 // The structured-output payload (D79) — the zod schema is BOTH the wire constraint (via the one projection
 // rule) and the runtime validator inside runStructuredTurn.
-const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() });
+const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() }).strip();
 const NARRATIVE_RESPONSE_FORMAT: ResponseFormat = { name: "comparison_narrative", schema: projectJsonSchema(NARRATIVE_PAYLOAD) };
 
 /** null when the ids are equal or either card isn't owned/distilled (delegates the belt + diff to
@@ -42,7 +42,7 @@ const NARRATIVE_RESPONSE_FORMAT: ResponseFormat = { name: "comparison_narrative"
 async function compareCharactersDeep(
   ctx: DiscoveryContext,
   deps: AnalyzeDeps,
-  args: { userId: UserId; idA: CharacterId; idB: CharacterId },
+  args: { userId: UserId; idA: CharacterId; idB: CharacterId; signal: AbortSignal },
 ): Promise<CharacterComparisonDeep | null> {
   const base = await deps.compareCharacters(args.userId, args.idA, args.idB);
   if (base === null) {
@@ -52,9 +52,10 @@ async function compareCharactersDeep(
   // The caller's Utility-role preset over the `analyze` posture (temp 0.3, 400 out — a short grounded answer).
   // The structured-output `responseFormat` is orthogonal and always rides.
   const rc = await ctx.roleClientsFor(args.userId);
-  const sampleOpts: StructuredOptions = {
+  const sampleOpts: StructuredOptions<AbortSignal> = {
     responseFormat: NARRATIVE_RESPONSE_FORMAT,
     ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUtilityPresetParams(args.userId)),
+    signal: args.signal,
   };
   // The system prompt is a PROSE-1 slot resolved on the SAME caller rung as the sampling above — the library
   // being compared is this user's own. No override ⇒ the shipped prompt, byte for byte.
@@ -96,11 +97,14 @@ function buildComparePrompt(cmp: CharacterComparison): string {
   ].join("\n");
 }
 
-const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() });
+const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() }).strip();
 const ANSWER_RESPONSE_FORMAT: ResponseFormat = { name: "card_answer", schema: projectJsonSchema(ANSWER_PAYLOAD) };
 
 /** null when the character isn't owned/distilled. Otherwise answers from the recent PLAYED scenes. */
-async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: CharacterId, question: string): Promise<AskCardAnswer | null> {
+async function askCard(
+  ctx: DiscoveryContext,
+  { userId, characterId, question, signal }: { userId: UserId; characterId: CharacterId; question: string; signal: AbortSignal },
+): Promise<AskCardAnswer | null> {
   const card = await readOwnedCardFacet(ctx.db, userId, characterId);
   if (card === undefined) {
     return null;
@@ -110,9 +114,10 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   // The caller's Utility-role preset over the `analyze` posture (the `askCard` half of the analyze pair —
   // identical posture to the compare narrative). `responseFormat` always rides.
   const rc = await ctx.roleClientsFor(userId);
-  const sampleOpts: StructuredOptions = {
+  const sampleOpts: StructuredOptions<AbortSignal> = {
     responseFormat: ANSWER_RESPONSE_FORMAT,
     ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUtilityPresetParams(userId)),
+    signal,
   };
   const system = resolveProseText("discovery.ask.system", await ctx.resolveUserProse(userId));
   // NO RETRY DRIFT — the compare-narrative invariant above, same shape: everything the retry sends is

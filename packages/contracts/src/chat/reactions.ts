@@ -1,26 +1,25 @@
-// @orb/contracts/chat/reactions — the B6/MR0 message-reaction wire contract: the emoji VOCABULARY, the
-// grouped read projection a pill row renders, and the room's read WINDOW bound.
+// @orb/contracts/chat/reactions — the message-reaction wire contract: the emoji VOCABULARY, the grouped read
+// projection a pill row renders, and the room's read WINDOW bound.
 //
 // THE THREE DECISIONS:
-//   • ANCHOR = the VARIANT (Open-Q A, ruled variant-level). Content is `message_variants`-owned (D26), so a
-//     reaction to "this reply" is a reaction to ONE swipe's text; a fresh regeneration legitimately starts
-//     empty and swiping back shows that swipe's own set. The pill row therefore keys on the row's
-//     `selectedVariantId`, which also makes a swipe free client-side (no refetch — the window already holds
-//     the siblings, the `rpg.listTurnToolCalls` posture).
-//   • REACTOR = a `chat_participants` SEAT (D80). One column covers every plane — a human member, a
-//     character (B7's `react` tool), and the reserved agent — with no `reactorKind` discriminant, and a
-//     non-member is structurally unable to react because they have no seat (D18).
+//   • ANCHOR = the VARIANT. Content is `message_variants`-owned (D26), so a reaction to "this reply" is a
+//     reaction to ONE swipe's text; a fresh regeneration legitimately starts empty and swiping back shows
+//     that swipe's own set. The pill row therefore keys on the row's `selectedVariantId`, which also makes a
+//     swipe free client-side (no refetch — the window already holds the siblings).
+//   • REACTOR = a `chat_participants` SEAT (D80). One column covers every plane — a human member, and a
+//     character (the `react` tool) — with no `reactorKind` discriminant, and a non-member is structurally
+//     unable to react because they have no seat (D18).
 //   • GROUPING IS A READ PROJECTION, never a stored array. The DB holds one row per reactor; this module's
-//     {@link MessageReactionGroup} is the `GROUP BY (variantId, emoji)` view. Marinara's stored-grouped
-//     `extra.reactions` blob does NOT port: it is single-user by construction (a read-modify-write of the
-//     whole array), and two members toggling the same message concurrently lose-update it.
+//     {@link MessageReactionGroup} is the `GROUP BY (variantId, emoji)` view. A stored grouped blob does not
+//     port: it is single-user by construction (a read-modify-write of the whole array), and two members
+//     toggling the same message concurrently lose-update it.
 //
-// SEGMENT TARGETING (B7/MR3): a reaction may anchor to ONE speaker's line — a `parseSpeakerSpans` LINE
-// index over the variant's STORED CANON (never display text; the renderer parses post-regex/macro bytes
-// no other surface shares). The persisted trio is `(segmentIndex, segmentSpeaker, segmentSnippet)`: a bare
-// index is not edit-stable and `(index, speaker)` is defeated by a same-speaker insert, so the snippet is the
-// fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
-// rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
+// SEGMENT TARGETING: a reaction may anchor to ONE speaker's line — a `parseSpeakerSpans` LINE index over the
+// variant's STORED CANON (never display text; the renderer parses post-regex/macro bytes no other surface
+// shares). The persisted trio is `(segmentIndex, segmentSpeaker, segmentSnippet)`: a bare index is not
+// edit-stable and `(index, speaker)` is defeated by a same-speaker insert, so the snippet is the
+// fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (the one rule is kit's
+// `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
 // Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
@@ -34,10 +33,10 @@ import { z } from "zod";
  *  bytes, of any length, that every other member's transcript then renders). A vocabulary the picker
  *  enumerates costs nothing and makes the un-renderable case unrepresentable.
  *
- *  WHY IT IS NOT ALSO A DB `CHECK`, stated so the omission reads as a decision: Open-Q D ruled CUSTOM
- *  (CAS-backed) emoji SHIP, so this vocabulary is OPEN BY DESIGN in a way the enum columns of this schema
- *  are not. A tuple-derived CHECK would make widening it a second baseline squash; validation lives at the
- *  wire (this schema) plus the verb's own re-parse instead, and the column stays plain TEXT. */
+ *  WHY IT IS NOT ALSO A DB `CHECK`, stated so the omission reads as a decision: CUSTOM (CAS-backed) emoji
+ *  ship, so this vocabulary is OPEN BY DESIGN in a way the enum columns of this schema are not. A
+ *  tuple-derived CHECK would make widening it a second baseline squash; validation lives at the wire (this
+ *  schema) plus the verb's own re-parse instead, and the column stays plain TEXT. */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "🎉", "👀", "🤔"] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 export const reactionEmojiSchema = z.enum(REACTION_EMOJIS) satisfies z.ZodType<ReactionEmoji>;
@@ -60,7 +59,7 @@ export const CHAT_REACTION_SLOT_WINDOW = 200;
  *  `message_reactions.emoji_image_asset_id` column stays for the custom-emoji arm. */
 export interface MessageReactionGroup {
   readonly variantId: MessageVariantId;
-  /** The segment anchor (B7/MR3), or all-null for a whole-message reaction. The trio is stored FROM THE
+  /** The segment anchor, or all-null for a whole-message reaction. The trio is stored FROM THE
    *  SERVER'S OWN PARSE at write time (a member's claim is validated, never stored — no free-text write
    *  surface into a column every transcript renders). Staleness is the READER's job: re-resolve through
    *  kit's `resolveSegmentAnchor` and render a failed anchor as whole-message. */
@@ -79,7 +78,7 @@ export interface MessageReactionGroup {
   readonly reactorParticipantIds: readonly ChatParticipantId[];
 }
 
-/** The `listReactions` wire (B7) — the grouped window PLUS the room's RESOLVED reactions posture.
+/** The `listReactions` wire — the grouped window PLUS the room's RESOLVED reactions posture.
  *
  *  WHY THE VERDICT RIDES THIS READ and not `ChatDetail`: `reactionsEnabled` resolves room-value-else-HOST-
  *  default (`resolveReactionsEnabled`), and only the SERVER can read the host's `UserSettings.chat` — a
@@ -92,7 +91,7 @@ export interface ChatReactionsView {
 }
 
 /** The `react` tool's registry key + wire `function.name` — minted ONCE (the plugin-tool one-mint law):
- *  the ToolDefinition, the S2 attach contribution and every test spell it from here. */
+ *  the ToolDefinition, the attach contribution and every test spell it from here. */
 export const CHAT_REACT_TOOL_NAME = "react";
 
 /** The stored segment snippet's cap (chars, over the span's TRIMMED text — kit `segmentSnippet`). Long
@@ -126,12 +125,12 @@ export type ReactToolOutcome =
   | { readonly ok: true; readonly value: ReactToolValue }
   | { readonly ok: false; readonly error: Extract<ReactAsCharacterResult, { readonly ok: false }>["reason"] };
 
-/** B7/MR4 — the prompt-attribution loop's bounds (the mini-spec §6 caps, ruled owner-tunable in shape;
- *  the tunable SURFACE is a recorded flip — these constants are the one built home).
+/** The prompt-attribution loop's bounds (owner-tunable in shape; the tunable SURFACE is a recorded flip —
+ *  these constants are the one built home).
  *  `MAX_PER_MESSAGE` = most-recent K reactions attributed per message (a brigaded message cannot blow the
- *  prompt budget); `CONTENT_CAP` = bodies past it skip re-segmentation (whole-message note only — the
- *  Marinara `REACTION_ANNOTATION_CONTENT_CAP` precedent); `SLOT_WINDOW` = how many newest reacted slots
- *  the loop reads at all (recency is the loop's whole value — the model acknowledges what just happened). */
+ *  prompt budget); `CONTENT_CAP` = bodies past it skip re-segmentation (whole-message note only);
+ *  `SLOT_WINDOW` = how many newest reacted slots the loop reads at all (recency is the loop's whole value —
+ *  the model acknowledges what just happened). */
 export const REACTION_ATTRIBUTION_MAX_PER_MESSAGE = 8;
 export const REACTION_ATTRIBUTION_CONTENT_CAP = 32_000;
 export const REACTION_ATTRIBUTION_SLOT_WINDOW = 10;

@@ -29,6 +29,15 @@ import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
+import {
+  ENDPOINT_QUIRKS_LABEL,
+  FACT_COUNT_HINT,
+  FACT_RESET_VERB,
+  factOverrideName,
+  factResetName,
+  factSaveName,
+  factYourValueName,
+} from "../lib/credentials-names.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -90,7 +99,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         <Text className="shrink-0" voice="code">
           {row.name}
         </Text>
-        <Stack className="min-inline-0" grow="fill" gap="tight">
+        <Stack minWidth="shrinks" grow="fill" gap="tight">
           <Text tone={row.overridden ? "info" : undefined} voice="label">
             {row.value}
           </Text>
@@ -99,17 +108,17 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         <Row className="shrink-0" endBelow="cq-32" gap="field">
           {row.overridden ? (
             <DestructiveAction
-              confirm={{ confirmLabel: "Reset", description: "Your override is removed.", title: `Reset ${row.name}?` }}
+              confirm={{ confirmLabel: FACT_RESET_VERB, description: "Your override is removed.", title: `Reset ${row.name}?` }}
               onConfirm={(): void => onReset(row)}
               trigger={
-                <Button aria-label={`Reset ${row.name}`} disabled={busy} variant="ghost" size="sm">
-                  Reset
+                <Button aria-label={factResetName(row.name)} disabled={busy} variant="ghost" size="sm">
+                  {FACT_RESET_VERB}
                 </Button>
               }
             />
           ) : null}
           {row.overridden || row.setElsewhere === true ? null : (
-            <Button aria-label={`Override ${row.name}`} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
+            <Button aria-label={factOverrideName(row.name)} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
               Override
             </Button>
           )}
@@ -148,8 +157,8 @@ function FactOverrideEditor({
 
   return (
     <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
-      <Stack className="min-inline-0" grow="fill" gap="tight">
-        <FactEditControl edit={row.edit} label={`${row.name}: your value`} value={draft} onChange={setDraft} />
+      <Stack minWidth="shrinks" grow="fill" gap="tight">
+        <FactEditControl edit={row.edit} label={factYourValueName(row.name)} value={draft} onChange={setDraft} />
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>
         ) : (
@@ -163,7 +172,7 @@ function FactOverrideEditor({
           {DIALOG_VERBS.cancel}
         </Button>
         <Button
-          aria-label={`Save your ${row.name}`}
+          aria-label={factSaveName(row.name)}
           disabled={busy || draft.trim() === "" || refusal !== null}
           onClick={(): void => onCommit(parseFactValue(row.edit, draft))}
           size="sm"
@@ -206,7 +215,7 @@ function FactEditControl({
     <Field label={label}>
       <Input
         autoComplete="off"
-        inputMode={edit.kind === "number" ? "numeric" : "text"}
+        inputMode={edit.kind === "number" && edit.count !== true ? "numeric" : "text"}
         onChange={(event): void => onChange(event.target.value)}
         value={value}
       />
@@ -235,6 +244,9 @@ function FactSelect({
 function editHint(edit: FactRow["edit"]): string {
   if (edit.kind === "list") {
     return "Comma-separated, in the order the server sends them.";
+  }
+  if (edit.kind === "number" && edit.count === true) {
+    return FACT_COUNT_HINT;
   }
   if (edit.kind === "number") {
     return "A number. What you type here is what we believe about this server.";
@@ -271,7 +283,7 @@ export function QuirksBlock({
   }
   return (
     <Stack gap="tight">
-      <Text voice="label">Endpoint quirks</Text>
+      <Text voice="label">{ENDPOINT_QUIRKS_LABEL}</Text>
       <Text voice="gloss">
         How this kind of server behaves, and where each answer came from. Read-only: override a line only when this box differs from the others of its kind.
       </Text>

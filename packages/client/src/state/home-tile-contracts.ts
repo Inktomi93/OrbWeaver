@@ -64,8 +64,10 @@ interface HomeTileContributionBase {
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */
   readonly useVisible?: () => boolean;
   /** `true` while the tile shows its empty state. Home then hands the tile its start control as `body`'s `start` and draws none in the
-   *  masthead, so the page keeps one control and the empty tile owns it. Called unconditionally, like {@link HomeTileContribution.useVisible}. */
-  readonly useHoldsStart?: () => boolean;
+   *  masthead, so the page keeps one control and the empty tile owns it. `null` while the tile's read has not said which: Home then draws
+   *  the control nowhere, so it never shows in the masthead and moves. A failed read is `false`, so the masthead keeps the control.
+   *  Called unconditionally, like {@link HomeTileContribution.useVisible}. */
+  readonly useHoldsStart?: () => boolean | null;
   /** How many skeleton rows this tile's LOADING box holds on a device that has never seen it settle —
    *  the FIRST-EVER-boot arm of the F14 reservation (`surface-box-store`: from the second boot on, the
    *  measured box wins and this is only the fill-count fallback).

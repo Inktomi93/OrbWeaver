@@ -3,16 +3,17 @@
 // that keeps an unplaced command reachable.
 
 import { spawn } from "node:child_process";
-import { MESSAGE_TOOLS_LABEL, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
+import { MESSAGE_TOOLS_LABEL, sectionBackName, TRAIL_OVERFLOW_LABEL, YOU_TAB_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { BUG_REPORT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
@@ -103,9 +104,8 @@ test("with no plugin placing, nothing plugin-related renders in the top bar and 
   const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
   const rpc = await openRoom({ root, corpus, page, show }, [UNPLACED], DESKTOP);
   const trail = trailOf(page);
-  await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+  await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
   await expect(pluginControls(trail)).toHaveCount(0);
-  await expect(trail.getByRole("button", { name: "Plugin commands", exact: true })).toHaveCount(0);
   await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);
   await trail.getByRole("button", { name: /^Jump/u }).click();
   await runFromPalette(page, UNPLACED.name);
@@ -151,8 +151,8 @@ test("placed commands that do not fit overflow before any house control and run 
   const trigger = trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL });
   await expect(trigger).toBeVisible();
   // Only a settled row proves the order: every action is in the row until the first measure.
-  await expect(trail.locator('[data-overflowed] [aria-label="Report a bug"]')).toHaveCount(0);
-  await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+  await expect(trail.locator(`[data-overflowed] [aria-label="${BUG_REPORT_NAME}"]`)).toHaveCount(0);
+  await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
   // The inert inline control stays mounted, so `__orb.pluginUi()` keeps a host for an overflowed command.
   await expect(trail.locator(`[data-overflowed] [aria-label="${attributed("Command 24")}"]`)).toHaveCount(1);
   await trigger.focus();
@@ -202,8 +202,8 @@ test("a phone keeps the top bar row clear: placed commands are You sheet rows an
   const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
   await openRoom({ root, corpus, page, show }, [DRAW, UNPLACED], PHONE);
   await expect(pluginControls(trailOf(page))).toHaveCount(0);
-  await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
-  await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
+  await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("button", { name: attributed("Draw"), exact: true }).click();
   await expect(reached(page, DRAW.name)).toBeVisible();
   root.clock.advance(PLUGIN_TOAST_COOLDOWN_SECONDS * MS_PER_SECOND);

@@ -20,9 +20,9 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { Dispatch, ReactElement, RefObject, SetStateAction } from "react";
 import { useState } from "react";
+import { REFINERY_INSERT_RENDER_HINT_NAME, REFINERY_RENDER_HINT_ROLE_NAME } from "../lib/refinery-names.ts";
 
 const RENDER_HINT_ROLE_ITEMS: SelectItems = RENDER_HINT_ROLES.map((value) => ({ value, label: value }));
-const RENDER_HINT_ROLE_QUESTION = "Render hint role";
 
 /** Insert the `x-orb-ui` hint snippet for `role` at `textarea`'s cursor (or append, when unfocused —
  *  `selectionStart`/`End` default to the end of the value on an un-interacted control). Returns the new
@@ -44,10 +44,10 @@ export interface RenderHintPickerProps {
 export function RenderHintPicker({ schemaTextRef, setSchemaText }: RenderHintPickerProps): ReactElement {
   const [hintRole, setHintRole] = useState<RenderHintRole>(RENDER_HINT_ROLES[0]);
   return (
-    <Row align="end" gap="field">
-      <Field grow={true} cap="paneSm" className="min-inline-0" label={RENDER_HINT_ROLE_QUESTION}>
+    <Row align="end" gap="field" wrap={true}>
+      <Field grow={true} cap="paneSm" className="min-inline-0" floor="field" label={REFINERY_RENDER_HINT_ROLE_NAME}>
         <Select
-          aria-label={RENDER_HINT_ROLE_QUESTION}
+          aria-label={REFINERY_RENDER_HINT_ROLE_NAME}
           items={RENDER_HINT_ROLE_ITEMS}
           onValueChange={(value): void => {
             const next = RENDER_HINT_ROLES.find((role) => role === value);
@@ -59,7 +59,7 @@ export function RenderHintPicker({ schemaTextRef, setSchemaText }: RenderHintPic
         />
       </Field>
       <Button variant="outline" onClick={(): void => setSchemaText((text) => insertRenderHint(text, schemaTextRef.current, hintRole))} size="sm">
-        Insert render hint
+        {REFINERY_INSERT_RENDER_HINT_NAME}
       </Button>
     </Row>
   );

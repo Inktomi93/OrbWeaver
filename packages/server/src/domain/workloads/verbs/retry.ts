@@ -1,8 +1,9 @@
 // verb: retry — clones a row's kind+params+dependsOn into a fresh queued row; never mutates the original
 // (the failure row stays as the audit trail). Subject to the same single-active constraint (collides →
 // DomainConflictError). The clone preserves the original's mode + ownerId; a bulk original requires the
-// box owner, same as starting one. The LANE is re-stamped from the kind's CURRENT contribution (a lane is
-// the owning domain's live declaration, not a property of the failed attempt).
+// box owner, same as starting one, and a delegated admin may not retry the box owner's run (`mayActOnRow`, D17).
+// The LANE is re-stamped from the kind's CURRENT contribution (a lane is the owning domain's live declaration, not
+// a property of the failed attempt).
 //
 // A POISON original (params that no longer parse) is retryable BY DESIGN — that is the point of surfacing it
 // instead of dropping it — and clones the RAW params blob so the operator's original input survives verbatim
@@ -16,31 +17,41 @@ import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
-import { canCloneRow } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, resolveLane, runAccount } from "../substrate/params.ts";
+import { canCloneRow, mayActOnRow } from "../substrate/authorize.ts";
+import {
+  activeConflictMessage,
+  assertAdmissible,
+  assertRunAuthority,
+  resolveAdmissionKey,
+  resolveLane,
+  resolveTransient,
+  runAccount,
+} from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
-/** The clone's params + admission key + lane. A HEALTHY row re-uses its parsed params and re-derives its key and
- *  lane from the kind's CURRENT contribution. A POISON row carries the RAW blob verbatim — its parsed view is
- *  `null`, and an admission key and a params-dependent lane are both params reads, so the clone locks under the
- *  shared `none` bucket and takes the kind's fixed lane. */
+/** The clone's params + admission key + lane + transient stamp. A HEALTHY row re-uses its parsed params and re-derives
+ *  its key, lane and stamp from the kind's CURRENT contribution. A POISON row carries the RAW blob verbatim — its parsed
+ *  view is `null`, and an admission key, a params-dependent lane and the stamp are all params reads, so the clone locks
+ *  under the shared `none` bucket, takes the kind's fixed lane and is a listed run its owner can see. */
 async function resolveCloneParams(
   ctx: WorkloadServiceContext,
   contributions: WorkloadContributions,
   original: WorkloadRowAnyKind,
-): Promise<{ params: Record<string, unknown>; admissionKey: string; lane: WorkloadLane }> {
+): Promise<{ params: Record<string, unknown>; admissionKey: string; lane: WorkloadLane; transient: boolean }> {
   if (original.poison) {
     return {
       params: (await loadRawWorkloadParams(ctx.db, original.id)) ?? {},
       admissionKey: DEFAULT_ADMISSION_KEY,
       lane: contributions[original.kind].lane,
+      transient: false,
     };
   }
   return {
     params: original.params,
     admissionKey: resolveAdmissionKey(contributions, original.kind, original.params),
     lane: resolveLane(contributions, original.kind, original.params),
+    transient: resolveTransient(contributions, original.kind, original.params),
   };
 }
 
@@ -56,8 +67,10 @@ async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, ori
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
   async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
-    const original = await loadWorkload(ctx.db, contributions, params.id, (access) => canCloneRow(ctx, params.caller, access));
-    if (original === null) {
+    const original = await loadWorkload(ctx.db, { contributions, logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable }, params.id, (access) =>
+      canCloneRow(ctx, params.caller, access),
+    );
+    if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     await assertCloneDependenciesAvailable(ctx, original);
@@ -68,7 +81,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // kind's PARSED params and a poison row has none; surfacing it for repair is the whole point of retry.
     if (!original.poison) {
       await assertRunAuthority(
-        { contributions, isBoxOwner: ctx.isBoxOwner },
+        { contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled },
         { caller: params.caller, account: runAccount(original) },
         original.kind,
         original.params,
@@ -84,6 +97,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         mode: original.mode,
         admissionKey: clone.admissionKey,
         lane: clone.lane,
+        transient: clone.transient,
         params: clone.params,
         ownerId: original.ownerId,
         funderUserId: original.funderUserId,

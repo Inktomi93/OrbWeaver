@@ -7,9 +7,11 @@
 // (today: a format string that dropped its carrier token). Reads keep the plain schema on purpose, so a
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
+import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
   effectivePresetSchema,
   presetDetailSchema,
+  presetFilePreviewSchema,
   presetIdInputSchema,
   presetImportOutcomeSchema,
   presetSummarySchema,
@@ -17,15 +19,23 @@ import {
   promptConfigWriteSchema,
   resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
+import { regexScriptIdsInputSchema } from "@orb/contracts/regex";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
-/** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to
- *  the schema's own per-field caps (100k-char section bodies × 500 sections is the real ceiling), and a bound
- *  the untrusted-input boundary needs so a hostile paste can't stream unbounded text at the parser. */
-const MAX_PRESET_FILE_CHARS = 8_000_000;
+// The upload bound for one preset file is `IMPORT_FILE_TEXT_MAX_CHARS.preset`, shared with the client's pre-send check.
+// A preset blob is sections + knobs + templates — generous next to the schema's own per-field caps (100k-char section
+// bodies × 500 sections is the real ceiling), and a bound the untrusted-input boundary needs so a hostile paste can't
+// stream unbounded text at the parser.
+// A file name is a picked file's own name, which every desktop file system caps at 255.
+const MAX_PRESET_FILE_NAME_CHARS = 255;
+const presetFileInputSchema = z.strictObject({
+  fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.preset),
+  fileName: z.string().max(MAX_PRESET_FILE_NAME_CHARS),
+});
 
 export const presetRouter = t.router({
   create: authedProcedure
@@ -54,6 +64,11 @@ export const presetRouter = t.router({
     .output(presetDetailSchema)
     .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.get({ userId: ctx.auth.userId, id: input.id })),
+
+  exportFile: authedProcedure
+    .output(strictTwin(portableTextFileSchema))
+    .input(presetIdInputSchema)
+    .query(({ ctx, input }) => ctx.services.preset.exportFile({ userId: ctx.auth.userId, id: input.id })),
 
   update: authedProcedure
     .output(presetDetailSchema)
@@ -84,8 +99,8 @@ export const presetRouter = t.router({
 
   remove: authedProcedure
     .output(z.void())
-    .input(presetIdInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
+    .input(presetIdInputSchema.extend({ scriptIds: regexScriptIdsInputSchema.default([]) }))
+    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id, scriptIds: input.scriptIds })),
 
   resetToDefault: authedProcedure
     .output(presetDetailSchema)
@@ -98,8 +113,13 @@ export const presetRouter = t.router({
   resolveEffective: authedProcedure
     .output(effectivePresetSchema)
     .input(resolveEffectivePresetInputSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.preset.resolveEffective({
+        principal: ctx.auth,
+        id: input.id,
+        signal: procedureSignal(signal),
+        ...(input.target !== undefined ? { target: input.target } : {}),
+      }),
     ),
 
   // The CONTEXT panel's backward bindings — principal-carrying like `resolveEffective`, because its
@@ -109,10 +129,15 @@ export const presetRouter = t.router({
     .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
-  // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,
-  // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
+  // The single-preset import door (G6) — a batch of one through the ONE `ImportPresets` op the profile bundle uses,
+  // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text. The preview is a
+  // mutation only because the file is too large for a query's URL; it writes nothing.
+  previewFile: authedProcedure
+    .output(presetFilePreviewSchema)
+    .input(presetFileInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.previewFile({ userId: ctx.auth.userId, ...input })),
   importFile: authedProcedure
     .output(presetImportOutcomeSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_PRESET_FILE_CHARS) }))
-    .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, fileText: input.fileText })),
+    .input(presetFileInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, ...input })),
 });

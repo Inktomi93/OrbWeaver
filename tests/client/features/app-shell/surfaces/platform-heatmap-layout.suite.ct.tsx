@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
 import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { ANALYTICS_TIME_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 import type { HeatmapLayoutStory } from "./_heatmap-layout-stories.tsx";
 
@@ -47,7 +48,7 @@ for (const regime of [
       await mode.click();
       await expect(mode).toHaveAttribute("aria-checked", "true");
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-      const tab = page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: "Time", exact: true });
+      const tab = page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: ANALYTICS_TIME_NAME, exact: true });
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");
       const panel = await controlledPanel(tab);

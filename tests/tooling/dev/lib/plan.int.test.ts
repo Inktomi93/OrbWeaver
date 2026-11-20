@@ -54,12 +54,8 @@ setInterval(() => {}, 1000);`,
       const unrelated = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
       let marker: string | undefined;
       try {
-        // this deadline bounds real OS child startup; a frozen clock cannot measure the external process. Ends if startup uses an injected clock.
-        const deadline = Date.now() + CEILING / 2;
-        // polling must expire while a real child fails to publish its file. Ends if the child and polling loop share an injected clock.
-        while (!existsSync(descendantFile) && Date.now() < deadline) {
-          await sleep(25);
-        }
+        // The descendant publishing its file is the startup signal; the poll's timeout bounds a child that never starts.
+        await expect.poll(() => existsSync(descendantFile), { timeout: CEILING / 2, interval: 25 }).toBe(true);
         const recorded = childRecord.parse(JSON.parse(readFileSync(descendantFile, "utf8")));
         marker = readFileSync(markerFile, "utf8");
         const parents = new Map(listProcesses().map((entry) => [entry.pid, entry.ppid]));

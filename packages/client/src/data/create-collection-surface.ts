@@ -5,6 +5,7 @@
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { surfaceDeferredFailure } from "#lib";
 import { pressForPage } from "./press-for-page.ts";
 import type { Trpc } from "./trpc.ts";
 
@@ -18,6 +19,10 @@ type BaseInfiniteOptions<TPage, TPageParam, TError = DefaultError, TKey extends 
   TKey,
   TPageParam
 >;
+
+/** Rows one keyset page fetches. An infinite-scroll list shows no pages, so this is a transport batch, not a
+ *  reader's choice; the list verbs clamp a larger request anyway. */
+export const COLLECTION_FETCH_BATCH = 30;
 
 export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError = DefaultError, TKey extends QueryKey = QueryKey> {
   /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam })`. */
@@ -106,7 +111,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
     const onEndApproach = (): void => {
       if (hasNextPage && !isFetching) {
-        fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
+        fetchNextPage().catch(surfaceDeferredFailure); // Query state owns the fetch error.
       }
     };
     const loadMore = (): Promise<boolean> => {
@@ -132,7 +137,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
       return press.current;
     };
     const retry = (): void => {
-      refetch().catch(() => undefined); // Query state owns the retry error.
+      refetch().catch(surfaceDeferredFailure); // Query state owns the retry error.
     };
 
     return {

@@ -9,7 +9,7 @@ import type { ServiceJobs } from "#transport/jobs";
 import { createServiceJobs } from "#transport/jobs";
 import type { Services } from "#transport/trpc";
 
-type ServiceJobDeps = Pick<WorkloadRunnerAssemblyDeps, "db" | "now" | "contributions" | "isBoxOwner" | "audit" | "logger" | "traces"> &
+type ServiceJobDeps = Pick<WorkloadRunnerAssemblyDeps, "db" | "now" | "contributions" | "isBoxOwner" | "isAccountEnabled" | "audit" | "logger" | "traces"> &
   Pick<BackgroundWork, "track" | "supervise"> & {
     readonly services: Pick<Services, "workloads" | "settings">;
     readonly ownerId: UserId | null;
@@ -56,8 +56,10 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
         now: deps.now,
         contributions: deps.contributions,
         isBoxOwner: deps.isBoxOwner,
+        isAccountEnabled: deps.isAccountEnabled,
         audit: deps.audit,
         emitEvent: deps.progress.emitWorkloadEvent,
+        trackRun: deps.progress.trackWorkloadRun,
         scheduleInterval: deps.timers.interval,
       },
       nextRunnable: (_db, _contributions, now, lane) => nextRunnable(now, lane),

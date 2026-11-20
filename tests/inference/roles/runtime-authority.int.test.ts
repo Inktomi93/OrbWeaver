@@ -1,6 +1,7 @@
 // @subject packages/inference/src/roles/executor.ts
 // @subject packages/inference/src/resolve/resolve-task.ts
 
+import { CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -28,14 +29,17 @@ test("a real owned HTTP connection executes, then current funding consent refuse
     allowBackground: true,
     declared: { kind: "generation", features: { detectServer: false } },
   });
-  expect((await root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).items[0]?.text).toBe("summary");
+  expect((await root.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [INPUT] })).items[0]?.text).toBe("summary");
   expect(authorizations).toEqual([`Bearer ${RUNTIME_KEY}`]);
   await root.services.connection.update({
     principal: await root.principalFor(root.ownerId),
     connectionId: connection.connectionId,
     patch: { allowBackground: false },
   });
-  await expect(root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).rejects.toMatchObject({ name: "NoConnectionError", retryable: false });
+  await expect(root.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [INPUT] })).rejects.toMatchObject({
+    name: "NoConnectionError",
+    retryable: false,
+  });
   expect(authorizations).toHaveLength(1);
 });
 
@@ -67,13 +71,15 @@ test("a saved subscription credential reaches native Query and a current revocat
     key: RUNTIME_TOKEN,
     allowBackground: true,
   });
-  expect((await root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).items[0]?.text).toBe("summary");
-  expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([RUNTIME_TOKEN]);
+  expect((await root.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [INPUT] })).items[0]?.text).toBe("summary");
+  expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([RUNTIME_TOKEN]);
   const credentialId = connection.credential.credentialId;
   if (credentialId === null) {
     throw new Error("the persisted subscription lost its credential");
   }
   await root.services.credentials.markRevokedByUser({ principal: await root.principalFor(root.ownerId), credentialId });
-  await expect(root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).rejects.toThrow(DomainNoCredentialError);
+  await expect(root.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [INPUT] })).rejects.toThrow(
+    DomainNoCredentialError,
+  );
   expect(edge.children).toHaveLength(1);
 });

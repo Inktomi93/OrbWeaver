@@ -119,7 +119,7 @@ export interface ReconcileOpts {
   /** INJECTED clock (epoch-ms) — the determinism seam (Spine-Testing §3). Stamped as every row's computedAt. */
   now: Clock;
   /** Cooperative abort between owners. */
-  signal?: AbortSignal;
+  signal: AbortSignal;
 }
 
 export interface CanonMessage {
@@ -176,7 +176,6 @@ export interface CharChatMeta {
   chats: number;
   forkedChats: number;
   firstChatAt: number | null;
-  maxChatUpdated: number | null;
 }
 export interface ChatMeta {
   chatByChar: Map<string, CharChatMeta>;

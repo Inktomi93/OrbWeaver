@@ -1,4 +1,4 @@
-// ONE chat turn on the openai-compat wire over a V4 `doStream` (§8.1). The turn: the funnel resolves the
+// ONE chat turn on the openai-compat wire over a V4 `doStream`. The turn: the funnel resolves the
 // knobs ONCE (`resolveChat`), the shared prompt builder lays out the wire plan, the placer decides the cache
 // breakpoints (openrouter on an Anthropic route), the dialect's option builder spells what the SDK models
 // natively, the transport's hooks shape the rest of the body, the shared reducer drains the stream, and the
@@ -7,7 +7,7 @@
 // `warning` event (D41).
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { CachePolicy, Dialect, GenerationCapability, ResolvedWarning, ResponseCache } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, EndpointFeatures, GenerationCapability, ResolvedWarning, ResponseCache } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, honoursParallelControl } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
@@ -15,26 +15,26 @@ import type { JsonValue } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
-import { ProviderError } from "#contract";
+import { generationOf, ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
-import type { StructuredPlan } from "#src/contract/structured.ts";
-import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
+import type { PlannedTool, StructuredPlan } from "#src/contract/structured.ts";
+import type { StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
+import { extractHttpErrorDiagnostic, forbiddenAsRefusal, providerErrorFromHttp, refusalWords, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
-import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
+import { cachePolicyContextOf, effectiveDialectOf, implicitPromptCacheFields, responseCacheOf } from "../http/response-cache.ts";
 import { runWithPreCommitRetry } from "../http/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
+import { emitTurnReceipts, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
@@ -65,32 +65,6 @@ const SESSION_ID_HEADER = "x-session-id";
 const SESSION_ID_MAX_LENGTH = 256;
 const openRouterSessionSchema = z.string().max(SESSION_ID_MAX_LENGTH);
 
-const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const nativeOpenAiUsageSchema = z.object({
-  prompt_tokens: reportedCount,
-  completion_tokens: reportedCount,
-  prompt_tokens_details: z.object({ cached_tokens: reportedCount, cache_write_tokens: reportedCount }).nullish().catch(null),
-  completion_tokens_details: z.object({ reasoning_tokens: reportedCount }).nullish().catch(null),
-});
-
-function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapability, providerId: string): Pick<ResultContext, "tokenUsage"> {
-  if (providerId !== "openai" || generation.turns?.promptCacheFormat !== "openai-breakpoint") {
-    return {};
-  }
-  // The compatible SDK drops cache_write_tokens and defaults absent axes to zero; only raw reports establish these facts.
-  const parsed = nativeOpenAiUsageSchema.safeParse(drain.usage?.raw);
-  const raw = parsed.success ? parsed.data : null;
-  return {
-    tokenUsage: {
-      tokensIn: raw?.prompt_tokens ?? null,
-      tokensOut: raw?.completion_tokens ?? null,
-      cacheReadTokens: raw?.prompt_tokens_details?.cached_tokens ?? null,
-      cacheWriteTokens: raw?.prompt_tokens_details?.cache_write_tokens ?? null,
-      reasoningTokens: raw?.completion_tokens_details?.reasoning_tokens ?? null,
-    },
-  };
-}
-
 /** The openrouter routing-prefs shape a connection's `extras.provider` may carry (snake_case, OR's own
  *  vocabulary — validated here, the ONE reader). A malformed block is dropped loudly, never sent. */
 const openRouterRoutingSchema = z
@@ -105,18 +79,8 @@ const openRouterRoutingSchema = z
     sort: z.enum(["price", "throughput", "latency"]),
     max_price: z.record(z.string(), z.union([z.number(), z.string()])),
   })
+  .strip()
   .partial();
-
-function requireGeneration(connection: Resolved, label: string): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${label}: the connection's model is a ${connection.capability.kind} model, not a generation model`,
-    });
-  }
-  return connection.capability.generation;
-}
 
 function upstreamText(error: unknown): string {
   const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
@@ -205,6 +169,19 @@ function plannedStrict(plan: StructuredPlan): boolean | undefined {
   return plan.responseFormat?.vehicle === "response-format" ? plan.responseFormat.strict : undefined;
 }
 
+/** Whether this turn must be built against the row's beta route (`features.betaChatPath`, `model.ts`): a
+ *  `prefix-flag` turn that may stamp — the body shaper's rule 5a is the narrow gate, this is its superset, so
+ *  every possible stamp rides `/beta` — or any turn carrying a strict tool: strict tool mode is the vendor's
+ *  beta feature, its guarantee lives on `/beta` and prod only tolerates the flag. */
+function betaRouteNeeded(
+  prefill: EndpointFeatures["prefill"],
+  prefillAllowed: boolean,
+  endsOnAssistant: boolean,
+  tools: readonly PlannedTool[] | undefined,
+): boolean {
+  return (prefill === "prefix-flag" && prefillAllowed && endsOnAssistant) || tools?.some((tool) => tool.strict === true) === true;
+}
+
 type TurnShape = {
   readonly options: Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal">;
   readonly extraBody: Record<string, unknown>;
@@ -265,38 +242,48 @@ function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
   return turn.parallelOff ? { parallel_tool_calls: false } : {};
 }
 
-/** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
- *  (`OpenRouterChatSettings.plugins`, `index.d.ts:98-131`) — five ids, each with its own fields. Spelled here
+/** THE OPENROUTER PLUGIN UNION, validated against the provider's own `OpenRouterChatSettings.plugins`
+ *  shape (`@openrouter/ai-sdk-provider@3.1.0`) — five ids, each with its own fields. Spelled here
  *  because this file is the ONE reader of `extras` on this transport; a malformed entry drops loudly and is
  *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side
  *  repair for the malformed JSON our non-streaming structured task otherwise has to re-ask for. */
 const openRouterPluginSchema = z.discriminatedUnion("id", [
-  z.object({ id: z.literal("web"), max_results: z.number().int().positive().optional(), search_prompt: z.string().optional(), engine: z.string().optional() }),
-  z.object({ id: z.literal("file-parser"), max_files: z.number().int().positive().optional(), pdf: z.object({ engine: z.string().optional() }).optional() }),
-  z.object({ id: z.literal("moderation") }),
-  z.object({ id: z.literal("response-healing") }),
-  z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }),
+  z
+    .object({ id: z.literal("web"), max_results: z.number().int().positive().optional(), search_prompt: z.string().optional(), engine: z.string().optional() })
+    .strip(),
+  z
+    .object({
+      id: z.literal("file-parser"),
+      max_files: z.number().int().positive().optional(),
+      pdf: z.object({ engine: z.string().optional() }).strip().optional(),
+    })
+    .strip(),
+  z.object({ id: z.literal("moderation") }).strip(),
+  z.object({ id: z.literal("response-healing") }).strip(),
+  z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }).strip(),
 ]);
 
-/** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the audit's D3 door. `echo_upstream_body`
- *  makes OpenRouter return, as the FIRST SSE frame, the body it actually sent upstream after routing and
- *  caching: the only way to see what a routed provider received rather than what we asked OR for. It is a
- *  REQUEST BODY field and its payload rides the ordinary stream, so the wire capture's own reply tap
- *  (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it — the SDK's
- *  `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
+/** OR's request DEBUG block (`debug.echo_upstream_body`, `@openrouter/ai-sdk-provider@3.1.0`) — the `debug`
+ *  extras door. `echo_upstream_body` makes OpenRouter return, as the FIRST SSE frame, the body it actually
+ *  sent upstream after routing and caching: the only way to see what a routed provider received rather than
+ *  what we asked OR for. It is a REQUEST BODY field and its payload rides the ordinary stream, so the wire
+ *  capture's own reply tap (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it —
+ *  the SDK's `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
  *  Streaming-only per the dist's own note; a non-streaming call simply gets nothing back. */
-const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() });
+const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() }).strip();
 
-/** OR's built-in web-search options (`web_search_options`, `index.d.ts:134-153`) — a sibling of the `web`
+/** OR's built-in web-search options (`web_search_options`, `@openrouter/ai-sdk-provider@3.1.0`) — a sibling of the `web`
  *  plugin, not a duplicate of it: the plugin ADDS search to a model that has none, these options configure a
  *  model whose own search is native. */
-const openRouterWebSearchSchema = z.object({
-  max_results: z.number().int().positive().optional(),
-  search_prompt: z.string().optional(),
-  engine: z.string().optional(),
-});
+const openRouterWebSearchSchema = z
+  .object({
+    max_results: z.number().int().positive().optional(),
+    search_prompt: z.string().optional(),
+    engine: z.string().optional(),
+  })
+  .strip();
 
-/** THE PLUGIN MERGE (audit C3): the turn-owned context-compression entry FIRST, then the user's declared
+/** THE PLUGIN MERGE: the turn-owned context-compression entry FIRST, then the user's declared
  *  plugins. Order is the precedence, and compression leads on purpose — it is the one plugin whose value
  *  this layer decides (off `params.providerContextCompression`), so a user entry re-declaring
  *  `context-compression` must not silently take the turn's decision away. Such an entry is dropped with the
@@ -345,7 +332,7 @@ function webSearchOptions(extras: Resolved["extras"], warnings: ResolvedWarning[
   return parsed.data;
 }
 
-/** `debug` off `extras`, validated; a malformed block drops loudly and is never sent (D3). */
+/** `debug` off `extras`, validated; a malformed block drops loudly and is never sent. */
 function debugOptions(extras: Resolved["extras"], warnings: ResolvedWarning[]): JSONObject | undefined {
   const declared = extras?.["debug"];
   if (declared === undefined) {
@@ -413,10 +400,10 @@ function openRouterSession(req: OpenAiCompatChatRequest): Record<string, unknown
 
 /** The openrouter transport: reasoning nested under `providerOptions.openrouter`, routing + the fallback
  *  chain off `extras`, the managed context-compression plugin, `parallel_tool_calls` beside a tools request,
- *  the hosted-common schema subset, `strict` caller-set only (STRICTFMT).
+ *  the hosted-common schema subset, `strict` caller-set only.
  *
- *  VERBOSITY RIDES `extraBody` (§H1(b)). The OR provider models no verbosity option, but OR FORWARDS an
- *  unmodelled body field to the upstream — MEASURED 2026-09-19 via `debug.echo_upstream_body`:
+ *  VERBOSITY RIDES `extraBody`. The OR provider models no verbosity option, but OR FORWARDS an
+ *  unmodelled body field to the upstream — verified via `debug.echo_upstream_body`:
  *  `openai/gpt-5.4` with `extraBody: { verbosity: "low" }` produced an upstream Responses body carrying
  *  `text: { verbosity: "low" }`. The funnel has already gated it (`knobs.verbosity` is present only when the
  *  resolved capability advertises the level), so the old unconditional `verbosity_dropped` was a lie on
@@ -450,7 +437,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
       ...(turn.automaticCache === null ? {} : { cache_control: { ...turn.automaticCache.directive } }),
       ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
-      // C3: the turn-owned compression entry MERGED with the user's declared plugins (validated against the
+      // The turn-owned compression entry MERGED with the user's declared plugins (validated against the
       // provider dist's own five-id union); `web_search_options` is the sibling knob for a model whose
       // search is native. Both ride `extraBody` beside `provider` because that is where this transport
       // already puts every OR body field the SDK models at the MODEL level — one home, one merge order.
@@ -469,7 +456,7 @@ function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** B1: the effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
+/** The effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
  *  openrouter — `providerOptions.openrouter.reasoning.effort` (`"none"` when off; a budget or the mandatory
  *  replay carries no effort word ⇒ `null`); openai-compatible — the V4 `reasoning` word when the row spells
  *  `reasoning_effort`, `none` where the template kwarg alone spelled thinking off, else nothing was sent ⇒ `null`. A
@@ -501,7 +488,7 @@ interface StreamOnceArgs {
   readonly now: Clock;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
-  /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */
+  /** The response headers the V4 stream result exposes — before the first part, once per attempt. */
   readonly onResponse: (headers: SharedV4Headers | undefined) => void;
 }
 
@@ -523,6 +510,8 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
     args.onResponse(response?.headers);
     return await drainStream(stream, {
       label,
+      // The SDK hands over a chunk's `error` object as the part's payload; it carries `message` as a refusal body does.
+      errorWords: (payload) => refusalWords({ error: payload }, resolvedScrubSet(req.connection)),
       onPart: idle.reset,
       onText: (text): void => {
         commit();
@@ -536,51 +525,6 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   } finally {
     idle.dispose();
   }
-}
-
-// ── receipts ──────────────────────────────────────────────────────────────────────────────────────────────
-
-function emitReceipts(args: {
-  readonly log: ProviderLogger;
-  readonly req: OpenAiCompatChatRequest;
-  readonly generation: GenerationCapability;
-  readonly knobs: ResolvedChatKnobs;
-  readonly turn: ChatResult;
-  readonly written: CacheWriteReceipt;
-  readonly warnings: readonly ResolvedWarning[];
-}): void {
-  const { log, req, generation, knobs, turn, written, warnings } = args;
-  if (generation.turns?.explicitPromptCache === true && req.connection.provider.dialect === "openrouter") {
-    const { cacheReadTokens, cacheWriteTokens } = turn.usage;
-    const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
-    let hitRatio: number | null = null;
-    if (total !== null && cacheReadTokens !== null) {
-      hitRatio = total > 0 ? cacheReadTokens / total : 0;
-    }
-    log.cache({
-      turnId: knobs.turnId,
-      cacheReadTokens: turn.usage.cacheReadTokens,
-      cacheWriteTokens: turn.usage.cacheWriteTokens,
-      breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.requestBlocks,
-      breakpointOffsets: written.historyDepths,
-      hitRatio,
-      minCacheTokens: cacheMinTokensOf(generation),
-    });
-  }
-  log.capability({
-    turnId: knobs.turnId,
-    api: req.api,
-    providerId: req.connection.providerId,
-    requestedModel: req.connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
-  });
-  log.sampling({
-    turnId: knobs.turnId,
-    requested: { ...req.params },
-    applied: { ...appliedSampling(knobs.sampling, warnings), ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}) },
-    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
-  });
 }
 
 function rowOptionsFor(
@@ -617,16 +561,17 @@ function prefixOptions(
   anthropicRoute: boolean,
   chatId: OpenAiCompatChatRequest["chatId"],
 ): { readonly splitSystem: boolean; readonly body: Record<string, unknown> } {
+  const implicit = implicitPromptCacheFields(policy, generation, chatId);
   const common = {
-    ...(policy.implicit.retention === null ? {} : { prompt_cache_retention: policy.implicit.retention }),
-    ...(generation.turns?.promptCacheKey === true && chatId !== undefined ? { prompt_cache_key: chatId } : {}),
+    ...(implicit.retention === null ? {} : { prompt_cache_retention: implicit.retention }),
+    ...(implicit.key === null ? {} : { prompt_cache_key: implicit.key }),
   };
-  if (generation.turns?.promptCacheFormat !== "openai-breakpoint") {
+  if (implicit.breakpoint === null) {
     return { splitSystem: anthropicRoute, body: common };
   }
   return {
     splitSystem: policy.prefix.action === "markers",
-    body: { ...common, prompt_cache_options: { mode: policy.implicit.disableApplied ? "explicit" : "implicit", ttl: "30m" } },
+    body: { ...common, prompt_cache_options: implicit.breakpoint },
   };
 }
 
@@ -634,7 +579,7 @@ function prefixOptions(
 export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps: OpenAiCompatChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  const generation = requireGeneration(connection, label);
+  const generation = generationOf(connection, label);
   const dialect = effectiveDialectOf(connection);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
@@ -693,11 +638,14 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     label,
   );
   warnings.push(...structured.downgrades);
+  const forbiddenIsNotCredentialVerdict = connection.features.forbiddenIsNotCredentialVerdict === true;
   const classify = (err: unknown): ProviderError => {
+    // SECURITY: an error the stream drain already typed (an error frame's status) meets the same 403 rule as one from
+    // before the stream, or a frame that only refuses the request would strike the stored key.
     if (err instanceof ProviderError) {
-      return err;
+      return forbiddenAsRefusal({ error: err, classified: err, label, secrets, forbiddenIsNotCredentialVerdict });
     }
-    const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, {
+    const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, {
       log,
       model: connection.model,
       mode: structured.mode,
@@ -712,11 +660,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return templateRoleRefusal(err, label, classified) ?? classified;
+    return templateRoleRefusal(err, label, classified) ?? forbiddenAsRefusal({ error: err, classified, label, secrets, forbiddenIsNotCredentialVerdict });
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,
-    ...(req.signal !== undefined ? { signal: req.signal } : {}),
+    signal: req.signal,
     now: deps.now,
     random: deps.random,
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
@@ -734,6 +682,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   };
 
   const reasoningEffort = knobs.reasoning.enabled ? knobs.reasoning.effort : undefined;
+  // The one key derivation this wire writes `providerOptions` under and the compatible SDK files vendor metadata
+  // under. The fold reads the same value back, so the bag cannot land under a spelling the reader never asks for.
+  const providerMetadataKey = providerOptionsKey(connection.providerId);
   const onNativeBody = (body: Readonly<Record<string, unknown>>): void => {
     attempt.nativeBody = body;
   };
@@ -743,8 +694,12 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         const shape =
           dialect === "openrouter"
             ? openRouterShape(req, turnKnobs, warnings, includeReasoning)
-            : openAiCompatibleShape(req, turnKnobs, warnings, providerOptionsKey(connection.providerId));
+            : openAiCompatibleShape(req, turnKnobs, warnings, providerMetadataKey);
         attempt.shape = shape;
+        // The beta-route decision; the route is the stamping gate's superset, so a turn that routes to `/beta`
+        // without stamping is harmless and a stamp never rides prod where the vendor 400s it.
+        const prefillAllowed = acceptsAssistantPrefill(generation) && req.tools === undefined;
+        const betaRoute = betaRouteNeeded(connection.features.prefill, prefillAllowed, plan.endsOnAssistant, structured.tools);
         const call: ModelCall = {
           cachePolicy: policy.plan,
           responseCache: req.responseCache,
@@ -755,7 +710,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           api: req.api,
           chatId: req.chatId,
           plan,
-          prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
+          prefillAllowed,
+          prefillReasoning: req.prefillReasoning,
+          requiresBetaRoute: betaRoute,
           templateThinking: turnKnobs.templateThinking,
           templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,
           reasoningEffort,
@@ -795,23 +752,23 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
 
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
   // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
-  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
-  // ruling stands — but it left every streaming-chat failure escaping the package RAW, breaking the one thing
-  // `contract/errors.ts` promises: "ONE error class across every task so a consumer catches a single type
-  // regardless of which backend threw". Measured 2026-09-20 by the cross-backend conformance suite: a
-  // cancelled turn surfaced a bare `DOMException: AbortError` here while the agent-sdk and local-light wires
-  // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
-  // without normalising. So the classify happens HERE, outside everything that needs the raw error and
-  // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
+  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). But
+  // every streaming-chat failure then escapes the package RAW, breaking the one thing `contract/errors.ts`
+  // promises: "ONE error class across every task so a consumer catches a single type regardless of which
+  // backend threw". A cancelled turn surfaces a bare `DOMException: AbortError` here while the agent-sdk and
+  // local-light wires surface `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection
+  // straight on without normalising. So the classify happens HERE, outside everything that needs the raw
+  // error and inside nothing that does. `classify` returns an existing `ProviderError` untouched.
   const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true, warnings).catch((err: unknown): never => {
     throw classify(err);
   });
-  // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
+  // The SDK's OWN drops, folded into the same array as the funnel's before the result is built.
   warnings.push(...sdkWarnings(drain.warnings));
   const finishedAt = deps.now();
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
@@ -819,9 +776,8 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     now: finishedAt,
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     responseCache: attempt.responseCache,
-    ...nativeOpenAiUsageOverlay(drain, generation, connection.providerId),
     pricing: connection.features.pricing,
-    // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
+    // The provider's response id: OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.
     generationId: drain.responseId ?? null,
     appliedEffort: appliedEffortOf(attempt.shape, dialect, attempt.nativeBody),
@@ -834,8 +790,32 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }
-  emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
-  // D4: the turn's timeline, same three events as the direct wire (the trace must read the same on both).
+  // The receipt's gate is the PLACEMENT, not the dialect: `placeCache` runs for every dialect whose
+  // resolved plan says markers (curated openai rows spell `prompt_cache_breakpoint` themselves; OpenRouter
+  // rides the SDK's `cache_control` path), so the OR-dialect gate once hid this line from exactly the rows
+  // the curator marked explicit-cache while the span below reported their breakpoints.
+  const breakpointsPlaced = cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks;
+  emitTurnReceipts({
+    log,
+    knobs,
+    generation,
+    api: req.api,
+    providerId: req.connection.providerId,
+    requestedModel: req.connection.model,
+    requestedParams: { ...req.params },
+    usage: turn.usage,
+    warnings,
+    ...(breakpointsPlaced > 0
+      ? {
+          cache: {
+            breakpointsPlaced,
+            breakpointOffsets: cache.written.historyDepths,
+          },
+        }
+      : {}),
+    ...(knobs.verbosity !== undefined ? { sentVerbosity: knobs.verbosity } : {}),
+  });
+  // The turn's timeline, same three events as the direct wire (the trace must read the same on both).
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,
     turnId: knobs.turnId,
@@ -844,7 +824,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     firstDeltaAt,
     turn,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks,
+      breakpointsPlaced,
       readTokens: turn.usage.cacheReadTokens,
       writeTokens: turn.usage.cacheWriteTokens,
     },

@@ -24,8 +24,9 @@
 // user-silent. (A snake_case-keyed `Record` would trip `useNamingConvention`; the exhaustive switch is
 // the sibling `turnAbortNotice` shape and carries the same tsc guarantee.)
 
-import type { AdjustedKnob, ChatSettingsAdjustedWarning, ChatWarning, PlainChatWarningCode } from "@orb/contracts/chat";
+import type { AdjustedKnob, ChatRegexNotAppliedWarning, ChatSettingsAdjustedWarning, ChatWarning, PlainChatWarningCode } from "@orb/contracts/chat";
 import type { NotifyNotice } from "#lib";
+import { regexNotAppliedDescription, regexNotAppliedTitle } from "./regex-stop-copy.ts";
 
 /** The user-visible notice for a chat `warning` — honest, plain-language copy voiced like the
  *  other transient chat notices (`TURN_STALE_ABORT_COPY`). Total over `ChatWarningCode`: every degrade
@@ -41,7 +42,34 @@ export function warningNotice(warning: ChatWarning): NotifyNotice {
   // `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) "unreachable" while tsc is fine (the same family as a
   // cross-module tuple union). Handing the plain switch a plain union keeps it legible to both checkers,
   // and it is also the honest shape — one of these notices is written from a payload, the rest from a code.
-  return warning.code === "settings_adjusted" ? settingsAdjustedNotice(warning) : plainNotice(warning.code);
+  if (warning.code === "settings_adjusted") {
+    return settingsAdjustedNotice(warning);
+  }
+  if (warning.code === "regex_not_applied_overflow") {
+    return regexNotAppliedNotice([], warning.count);
+  }
+  return warning.code === "regex_script_not_applied"
+    ? regexNotAppliedNotice([{ name: null, cause: warning.cause, pass: warning.pass }])
+    : plainNotice(warning.code);
+}
+
+/** The id the room's one notice for skipped regex scripts carries, so each new report updates it in place. */
+const REGEX_NOT_APPLIED_NOTICE_ID = "regex-scripts-not-applied";
+
+/** The room's one notice for every host script a server pass skipped this session, newest last. A name is the
+ *  host's own library's, or `null` for an id the library no longer holds. `more` counts the scripts a turn reported
+ *  past its per-turn cap, which arrive as a count with no ids. Host-only by delivery: a member never receives the
+ *  event. */
+export function regexNotAppliedNotice(
+  skipped: readonly (Pick<ChatRegexNotAppliedWarning, "cause" | "pass"> & { readonly name: string | null })[],
+  more = 0,
+): NotifyNotice {
+  const latest = skipped.at(-1);
+  return {
+    id: REGEX_NOT_APPLIED_NOTICE_ID,
+    title: regexNotAppliedTitle(skipped.length + more),
+    description: regexNotAppliedDescription(latest, skipped.length + more, more),
+  };
 }
 
 /** A turn's drops as ONE notice (`turn-warning-cadence.ts`): a single drop keeps its own notice, and several
@@ -135,6 +163,18 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "The words came through, but the picture didn't save. Swiping again usually redraws it.",
         title: "A picture in this reply couldn't be saved",
       };
+    // Says where globals do work, so the reader knows the card is not broken.
+    case "global_variables_held":
+      return {
+        description: "This reply's prompt reads or sets global variables, which only run in a room no one else has ever joined.",
+        title: "Global variables were skipped in this shared room",
+      };
+    case "global_variable_dropped":
+      return {
+        description:
+          "A card or preset tried to save a global variable that was too large, or more variables than the limit allows. The reply and the other variables were saved.",
+        title: "A global variable wasn't saved",
+      };
     // Host-only by delivery: the reply stands, and members stop reading at the broken tag until the host mends it.
     case "hidden_tag_broken":
       return {
@@ -222,6 +262,17 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       return {
         description: "You gave the model text to continue, which it can't do while reasoning, so it continued your text instead.",
         title: "Reasoning was skipped for this reply",
+      };
+    case "prefill_reasoning_dropped":
+      return {
+        description: "The thinking you wrote can ride only a reply you left half-finished for the model, and this turn had none, so it was not sent.",
+        title: "Your written thinking wasn't used",
+      };
+    case "prefill_suppressed_by_tools":
+      return {
+        description:
+          "This turn also runs a tool, and a reply the model continues can't stop and call one at the same time. Your half-written reply was sent as a normal message.",
+        title: "Your half-written reply wasn't continued",
       };
     case "tool_choice_downgraded":
       return {

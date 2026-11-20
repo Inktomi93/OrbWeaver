@@ -52,17 +52,26 @@ export interface InferenceRuntime {
   /** Tasks whose actual capability requirements this model meets. `cachedFacts` reads only the facts already held,
    *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change; it never opens
    *  credentials. `coldAs` is the kind such a read answers while a warm could still change it (anything short of the
-   *  row's own declaration): a preview that must err toward the change that asks the user first. */
+   *  row's own declaration): a preview that must err toward the change that asks the user first. `listWhenCold`, on a
+   *  `cachedFacts` read, fetches the server's model list (no per-model probe) when nothing held or declared says what
+   *  the model is: a row just saved, whose list is the only word on whether it makes text or images. */
   readonly modelTasks: (
     connection: UserConnection,
-    options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
+    options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined; readonly listWhenCold?: boolean | undefined },
   ) => Promise<readonly Task[]>;
   readonly executor: ProviderExecutor;
   readonly embeddingExecution: (connection: Pick<ResolveOutcome["resolved"], "wire" | "features">) => EmbeddingExecution;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
-     *  (the credential is resolved so an endpoint's own `/v1/models` window can be read). */
-    readonly for: (args: { readonly connectionId: UserConnection["id"]; readonly principal: Principal }) => Promise<CapabilityRead>;
+     *  (the credential is resolved so an endpoint's own `/v1/models` window can be read). `listFacts` fetches the
+     *  server's model list and the reads that load no model, and runs no per-model probe, so nothing loads or wakes a
+     *  local model: the add flow's read right after a save. */
+    readonly for: (args: {
+      readonly connectionId: UserConnection["id"];
+      readonly principal: Principal;
+      readonly signal: AbortSignal;
+      readonly listFacts?: boolean | undefined;
+    }) => Promise<CapabilityRead>;
   };
   readonly funnel: {
     readonly chat: (intent: UserIntent, capability: GenerationCapability) => ResolvedChatKnobs;
@@ -88,9 +97,9 @@ export interface InferenceRuntime {
     readonly invalidateEndpoint: (connection: UserConnection) => Promise<void>;
     /** What each word tokenizes to on a resolved connection's server, through the same cache a turn reads (the
      *  logit-bias editor's live display). A row with no tokenize endpoint answers `available: false`, no words. */
+    readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[], signal: AbortSignal) => Promise<TokenizeResult>;
     /** An uncached passage counter for the resolved model, or null when its server exposes no tokenizer. */
-    readonly passageCounter: (resolved: ResolveOutcome["resolved"]) => ((text: string, signal?: AbortSignal) => Promise<number>) | null;
-    readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[]) => Promise<TokenizeResult>;
+    readonly passageCounter: (resolved: ResolveOutcome["resolved"]) => ((text: string, signal: AbortSignal) => Promise<number>) | null;
   };
   readonly diagnostics: ProviderDiagnostics;
   readonly providers: {

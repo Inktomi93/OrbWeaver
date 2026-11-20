@@ -6,10 +6,13 @@
 //   • D143(c) as amended by D292: PERMISSIVE modalities for an endpoint row that nobody described. A row whose
 //     `declared` block or whose server (the advertised tier) states an input list is taken at its word; a row
 //     that states none gets image + video with `modalitiesEstimated`, never a bare text-only floor (the engine
-//     refuses a part it cannot take; hiding the knob was #317).
+//     refuses a part it cannot take; a hidden knob refuses one it could).
+//   • A hosted route keeps the fail-closed text-only floor for a model nothing describes, marked
+//     `modalitiesEstimated`, so the editor and the add step can tell it from a model stated as text only.
 //   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.
 
-import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
+import type { Capability, ChatApi, Dialect, EndpointFeatures, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill } from "@orb/contracts/inference";
 import type { ServedWindow, ServerToolChoice } from "../contract/capability.ts";
 
 /** A server that states its model's trained maximum clamps any larger window to it at load (Ollama), so a
@@ -67,7 +70,46 @@ export function applyServerToolChoice(capability: Capability, toolChoice: Server
   return Object.keys(stated).length === 0 ? capability : { kind: "generation", generation: { ...capability.generation, tools: { ...tools, ...stated } } };
 }
 
-export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean): Capability {
+/** The route a connection's turns take, as the route-fact floor reads it. */
+export interface RouteFacts {
+  readonly wire: ProviderDef["wire"];
+  readonly api: ChatApi | null;
+  readonly dialect: Dialect;
+  readonly prefill: EndpointFeatures["prefill"];
+}
+
+/** The controls a route alone decides, stamped over whatever a row stated, because they follow from the code path a
+ *  turn takes rather than from the model:
+ *  • `contextCompression`: only the OpenRouter chat-completions shape sends the middle-out plugin
+ *    (`backends/openai-compat/chat.ts`).
+ *  • `reasoning.seedable`: only a `prefix-flag` continue row on the chat-completions route carries the authored chain
+ *    of thought (`backends/openai-compat/body.ts` rule 5a), and only where the model takes a prefill.
+ *  • `tools.parallelControl: false` on the agent-sdk wire: the bundled runtime exposes no parallel tool control. */
+export function markRouteFacts(capability: Capability, route: RouteFacts): Capability {
+  if (capability.kind !== "generation") {
+    return capability;
+  }
+  const generation = capability.generation;
+  const chatCompletions = route.wire === "openai-compat" && route.api === "chat-completions";
+  const { contextCompression: _replacedCompression, ...rest } = generation;
+  const { seedable: _replacedSeed, ...reasoning } = generation.reasoning;
+  const seedable = chatCompletions && route.prefill === "prefix-flag" && acceptsAssistantPrefill(generation);
+  const tools = route.wire === "agent-sdk" && generation.tools !== undefined ? { ...generation.tools, parallelControl: false } : generation.tools;
+  return {
+    kind: "generation",
+    generation: {
+      ...rest,
+      reasoning: seedable ? { ...reasoning, seedable: true } : reasoning,
+      ...(chatCompletions && route.dialect === "openrouter" ? { contextCompression: true } : {}),
+      ...(tools === undefined ? {} : { tools }),
+    },
+  };
+}
+
+/** `modalitiesStated` = the declaration or the server's list states the input; `rowsStateInput` = a hosted catalog's
+ *  advertised entry, a curated row or a measured row does. Only a hosted route reads the second, since an endpoint
+ *  row's posture follows its own server alone. */
+export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean, rowsStateInput: boolean): Capability {
   if (capability.kind !== "generation") {
     return capability;
   }
@@ -75,7 +117,8 @@ export function applyEndpointPosture(provider: ProviderDef, capability: Capabili
     // The estimated-turns relaxation is for the user's own server: a hosted route nobody measured keeps the
     // fail-closed floor, because its SDK or API refuses what the floor folds (a mid-history system row on Gemini).
     const { turnsEstimated: _localOnly, ...hosted } = capability.generation;
-    return capability.generation.turnsEstimated === undefined ? capability : { kind: "generation", generation: hosted };
+    const unstated = !(modalitiesStated || rowsStateInput) && hosted.input.length <= 1;
+    return { kind: "generation", generation: unstated ? { ...hosted, modalitiesEstimated: true } : hosted };
   }
   let generation: GenerationCapability = capability.generation;
   const tools: GenerationCapability["tools"] = generation.tools;

@@ -18,7 +18,7 @@
 // Portraits (F7/D3) arrive resolved on each row (one seat = a portrait, two or more = an AvatarStack).
 // Reads its OWN selection (`useActiveChatId`) so the chats-section definition
 // composing it stays a pure data object (the character/preset/world-info library-surface precedent); writes
-// the choice out via onSelect/onNewChat/onDeletedChat.
+// the choice out via onSelect/onNewChat.
 //
 // BOTH `new chat` DOORS STAY — the ONE ruled exception to "never two doors at once" (#1361 item 2, owner
 // 2026-09-05). The Characters precedent (`character/components/character-create-actions.tsx`) is the general
@@ -52,7 +52,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { ListPage } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useGatedQuery, useTRPC } from "#data";
 import { ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
@@ -103,10 +103,9 @@ const CLEAR_SEARCH_LABEL = CHAT_CLEAR_SEARCH_NAME;
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
   readonly onNewChat: () => void;
-  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
-export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatListSurfaceProps): ReactElement {
+export function ChatListSurface({ onSelect, onNewChat }: ChatListSurfaceProps): ReactElement {
   const activeChatId = useActiveChatId();
   // BOTH NARROWING AXES ARE STORE STATE NOW (#490) — see `chat-list-filter-store.ts` for why: the chrome
   // band is a sibling shell region and cannot read this component's `useState`, which is how `CHATS 896`
@@ -144,7 +143,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
       search={
         // One reset contract for both filters: the clear glyph sits inside the field's inline end, over a
         // constant reserve, so the value never reflows when it appears.
-        <Row align="center" className="relative min-inline-0" grow={true}>
+        <Row align="center" className="relative" minWidth="shrinks" grow={true}>
           <Input
             aria-label={SEARCH_LABEL}
             className="min-inline-0"
@@ -166,7 +165,6 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         monthLabel={monthLabel}
         onClearMonth={clearMonth}
         onClearSearch={clearSearch}
-        onDeletedChat={onDeletedChat}
         onNewChat={onNewChat}
         onSelect={onSelect}
         query={settledQuery}
@@ -181,7 +179,6 @@ interface ChatListBodyProps {
   readonly characterFilter: ChatListCharacterFilter | null;
   readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
-  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onNewChat: () => void;
   readonly onClearMonth: () => void;
   readonly onClearSearch: () => void;
@@ -194,7 +191,7 @@ interface ChatListBodyProps {
  *  neither earns the sentence. */
 function useOpenChatJoinsList(activeChatId: ChatId | null): boolean {
   const trpc = useTRPC();
-  const { data: openChat } = useGatedQuery(activeChatId, (chatId) => trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: openChat } = useGatedQuery(activeChatId, (chatId) => roomRosterOptions(trpc, { chatId }));
   return openChat !== undefined && !openChat.temporary && !openChat.archived;
 }
 
@@ -216,7 +213,6 @@ function ChatListBody({
   characterFilter,
   monthLabel,
   onSelect,
-  onDeletedChat,
   onNewChat,
   onClearMonth,
   onClearSearch,
@@ -288,7 +284,6 @@ function ChatListBody({
           listReady={!collection.isPlaceholderData}
           listProps={collection.listProps}
           monthLabel={monthLabel}
-          onDeletedChat={onDeletedChat}
           onSelect={onSelect}
           query={query}
         />
@@ -312,24 +307,11 @@ interface ChatRowsProps {
   readonly listReady: boolean;
   readonly monthLabel: string | null;
   readonly onSelect: (chatId: ChatId) => void;
-  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly query: string;
 }
 
 /** The search-empty → rows ladder. */
-function ChatRows({
-  activeChatId,
-  characterName,
-  exits,
-  items,
-  listKey,
-  listProps,
-  listReady,
-  monthLabel,
-  onDeletedChat,
-  onSelect,
-  query,
-}: ChatRowsProps): ReactElement {
+function ChatRows({ activeChatId, characterName, exits, items, listKey, listProps, listReady, monthLabel, onSelect, query }: ChatRowsProps): ReactElement {
   const actions = useChatListRowActions();
   if (items.length === 0) {
     // The server searched the whole active scope, not only the pages that happened to be loaded.
@@ -350,7 +332,6 @@ function ChatRows({
     <ChatListRow
       actions={actions}
       chat={chat}
-      onDeletedChat={onDeletedChat}
       onSelect={onSelect}
       portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}

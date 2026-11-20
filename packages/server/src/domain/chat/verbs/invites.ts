@@ -7,12 +7,12 @@
 // resolver built once inside chat's own composition root.
 //
 // Targeted invites: `createInvite` resolves `invitedHandle` through the injected `ctx.resolveHandle`
-// (exact handle→userId, no listing). An unknown/disabled handle is a coded `invite_target_unknown`
+// (exact handle→userId, no listing). An unknown/disabled handle is a coded `INVITE_TARGET_UNKNOWN_CODE`
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
 import type { ClaimChatOp, CreateInviteInput, InvitePreview, InviteView } from "@orb/contracts/chat";
-import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import { INVITE_TARGET_UNKNOWN_CODE, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -30,6 +30,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
   acceptInviteByIdAtomic,
@@ -44,14 +45,13 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
   readonly emit: ChatServiceDeps["emit"];
   /** The husk→real transition (R0). Only `createInvite` claims: opening a room to another human is
-   *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
+   *  effort put into it (D166). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
    *  -- an invite has to exist first, and minting it claimed. */
   readonly claimChat: ClaimChatOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
@@ -156,12 +156,11 @@ function assertSignupMint(ctx: ChatContext, principal: Principal, input: CreateI
  *  never the raw token. A share-link invite has no single recipient to notify — skipped. */
 function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
-    await requireHost(ctx, principal, chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
     const allowSignup = input.allowSignup === true;
     if (allowSignup) {
       assertSignupMint(ctx, principal, input, ctx.now());
     }
-    await claimChat(chatId);
     // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
@@ -169,7 +168,7 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       // dedicated (still-unbuilt) seat verb, never an invite.
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
-        throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");
+        throw new DomainOperationError(INVITE_TARGET_UNKNOWN_CODE, "no invitable user with that exact handle");
       }
     }
     const at = ctx.now();
@@ -177,9 +176,9 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     const inviteId = ctx.newInviteId();
     const maxUses = resolveMaxUses(input.maxUses);
     const expiresAt = resolveExpiresAt(input.expiresAt, at);
-    await insertInvite(ctx.db, {
+    const claim = await claimChat(admission);
+    await insertInvite(ctx.db, claim, {
       id: inviteId,
-      chatId,
       tokenHash: ctx.hashToken(token),
       maxUses,
       uses: 0,

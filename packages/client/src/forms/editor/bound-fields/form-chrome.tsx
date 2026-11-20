@@ -12,14 +12,16 @@ import { fieldErrorText } from "./field-error.ts";
 
 export interface SubmitButtonProps {
   readonly children?: ReactNode;
+  /** A reason the form cannot be submitted that its validators do not hold yet, such as a required pick still empty. */
+  readonly disabled?: boolean;
 }
 
-export function SubmitButton({ children }: SubmitButtonProps): ReactElement {
+export function SubmitButton({ children, disabled = false }: SubmitButtonProps): ReactElement {
   const form = useFormContext();
   return (
     <form.Subscribe selector={(s): readonly [boolean, boolean] => [s.canSubmit, s.isSubmitting] as const}>
       {([canSubmit, isSubmitting]): ReactElement => (
-        <Button type="submit" disabled={!canSubmit || isSubmitting} loading={isSubmitting}>
+        <Button type="submit" disabled={disabled || !canSubmit || isSubmitting} loading={isSubmitting}>
           {children ?? DIALOG_VERBS.save}
         </Button>
       )}

@@ -37,7 +37,7 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
   const publicHealth = await fetch(`${origin}/healthz`);
   expect(publicHealth.status).toBe(200);
   expect(await publicHealth.json()).toMatchObject({ status: "ok" });
-  const anonymous = await fetch(url, { headers: { forwarded: "" } });
+  const anonymous = await fetch(url, { headers: { forwarded: "", [CSRF_HEADER]: "1" } });
   expect(anonymous.status).toBe(401);
   await anonymous.arrayBuffer();
   const claim = (csrf: boolean): Promise<Response> =>
@@ -57,9 +57,9 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
     .map((line) => line.split(";", 1).join(""))
     .join("; ");
   expect(cookie).not.toBe("");
-  const identity = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie, forwarded: "" } });
+  const identity = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await identity.json()).result.data).toEqual(owner);
-  const owned = await fetch(url, { headers: { cookie, forwarded: "" } });
+  const owned = await fetch(url, { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(z.object({ result: z.object({ data: personaDetailSchema }) }).parse(await owned.json()).result.data).toEqual(expected);
   const reset = await fetch(`${origin}/api/trpc/admin.resetPassword`, {
     method: "POST",
@@ -79,9 +79,9 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
     .getSetCookie()
     .map((line) => line.split(";", 1).join(""))
     .join("; ");
-  const memberMe = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie: memberCookie, forwarded: "" } });
+  const memberMe = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie: memberCookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await memberMe.json()).result.data).toEqual(member);
-  const foreign = await fetch(url, { headers: { cookie: memberCookie, forwarded: "" } });
+  const foreign = await fetch(url, { headers: { cookie: memberCookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(foreign.status).toBe(404);
   const foreignBody = await foreign.text();
   expect(foreignBody).toContain("NOT_FOUND");
@@ -89,7 +89,7 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
   const logout = await fetch(`${origin}/api/auth/logout`, { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });
   expect(logout.status).toBe(200);
   await logout.arrayBuffer();
-  const revoked = await fetch(url, { headers: { cookie, forwarded: "" } });
+  const revoked = await fetch(url, { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(revoked.status).toBe(401);
   await revoked.arrayBuffer();
   const signedOut = await fetch(`${origin}/api/auth/me`, { headers: { cookie, forwarded: "" } });
@@ -166,7 +166,7 @@ test("the default corpus resumes native plugin ownership, public registrations a
   const active = library.ownerActive;
   const auth = await captureCookieAuth(root, await root.principalFor(root.ownerId), PASSWORD);
   expect(auth.identity.viewer.userId).toBe(active.viewerUserId);
-  const headers = { cookie: auth.cookie, forwarded: "" };
+  const headers = { cookie: auth.cookie, forwarded: "", [CSRF_HEADER]: "1" };
   const statePath = `/api/trpc/plugin.getSurfaceState?input=${encodeURIComponent(JSON.stringify(active.reads.state.input))}`;
   const readState = async (): Promise<ReturnType<typeof pluginSurfaceStateSchema.parse> | null> => {
     const response = await root.http.request(statePath, { headers });
@@ -196,7 +196,7 @@ test("the default corpus resumes native plugin ownership, public registrations a
   await action.arrayBuffer();
   expect(await readState()).toEqual({ actionId: "record", values: { entry: "Native clone entry" }, inRoom: false });
   const foreign = await captureCookieAuth(root, await root.principalFor(foreignViewer.userId), MEMBER_PASSWORD);
-  const refused = await root.http.request(statePath, { headers: { cookie: foreign.cookie, forwarded: "" } });
+  const refused = await root.http.request(statePath, { headers: { cookie: foreign.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(refused.status).toBe(404);
   const refusedBytes = await refused.text();
   expect(refusedBytes).toContain("NOT_FOUND");

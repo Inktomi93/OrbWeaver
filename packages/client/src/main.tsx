@@ -26,6 +26,7 @@ import {
   buildClientErrorPayload,
   createToastNotify,
   installSafeErrorRing,
+  rethrowUnlessTrpcFailure,
 } from "#lib";
 import type { ConfigSectionContribution } from "#state";
 import { AppDataProviders } from "./compose/app-data-providers.tsx";
@@ -112,10 +113,9 @@ installSafeErrorRing();
 
 function reportClientError(error: Error, ownerStack: string | null): void {
   const url = `${globalThis.location.pathname}${globalThis.location.search}`;
-  // a failed report is not silent — the client's loggerLink (data/trpc.ts) logs every failed settlement in prod as a console.error line, which installSafeErrorRing records. Ends if the loggerLink stops logging error settlements.
-  trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {
-    // A failed error report must never itself throw — there is nowhere left to report that to.
-  });
+  // A failed report is not silent: the client's loggerLink (data/trpc.ts) logs every failed settlement in prod as a
+  // console.error line, which installSafeErrorRing records, so the tRPC failure is absorbed here.
+  trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(rethrowUnlessTrpcFailure);
 }
 
 bindRouteCrashReporter(reportClientError);

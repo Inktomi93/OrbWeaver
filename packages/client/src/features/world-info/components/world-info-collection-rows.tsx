@@ -30,13 +30,12 @@ import { Badge } from "@orb/ui/badge";
 import { Download, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { RowDeleteFocus } from "#components";
-import { LibraryRow, useRowDeleteFocus } from "#components";
+import { LibraryRow, MutedLine, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import { downloadTextFile, ESTIMATED_ROW_PX, notify, ROW_EXPORT_NAME } from "#lib";
@@ -122,11 +121,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
       // state with no rows at all had no feedback a keyboard reader received. `role="status"` rides the
       // MESSAGE, never the row container — a live region around the list would announce every row on every
       // keystroke. Same fix, same words, in the tag and regex arms.
-      return needle === "" ? null : (
-        <Text role="status" voice="gloss">
-          No books match that filter.
-        </Text>
-      );
+      return needle === "" ? null : <MutedLine announce={true}>No books match that filter.</MutedLine>;
     }
     return (
       <VirtualList

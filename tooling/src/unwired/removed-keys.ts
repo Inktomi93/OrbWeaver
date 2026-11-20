@@ -49,8 +49,9 @@ export interface RemovedKeysReport {
 
 // How many times a file declares each key: an interface or type member, a schema or literal key, a shorthand. The parser
 // sees a key wherever it sits, a one-line `z.object({ a: … })` included.
-function declaredKeys(file: string, text: string, into: Map<string, number>): void {
+function declaredKeys(file: string, text: string): ReadonlyMap<string, number> {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false);
+  const into = new Map<string, number>();
   const visit = (node: ts.Node): void => {
     const named = ts.isPropertySignature(node) || ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node) ? node.name : undefined;
     if (named !== undefined && (ts.isIdentifier(named) || ts.isStringLiteral(named))) {
@@ -59,6 +60,7 @@ function declaredKeys(file: string, text: string, into: Map<string, number>): vo
     ts.forEachChild(node, visit);
   };
   visit(source);
+  return into;
 }
 
 // Each file's text at `rev`, one batch read. A file the rev lacks (added or deleted on the branch) declares nothing, and
@@ -79,33 +81,36 @@ function blobsAt(root: string, rev: string, files: readonly string[]): ReadonlyM
   return found;
 }
 
-function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
-  for (const [file, text] of blobsAt(root, rev, files)) {
-    declaredKeys(file, text, counts);
-  }
-  return counts;
+// Each file's own key counts at `rev`. The file is the declaration home: a sum across files would cancel a key one file
+// drops against the same name another file gains.
+function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
+  return new Map([...blobsAt(root, rev, files)].map(([file, text]) => [file, declaredKeys(file, text)]));
 }
 
-// The keys the changed contract files declare fewer times at `head` than at the merge base: a moved or reformatted key
-// is still there, and a second declaration of a removed name leaves it removed and listed as still declared.
+// The keys some changed contract file declares fewer times at `head` than at the merge base. A key reformatted or moved
+// inside one file is still there. A key moved to another file, or carried by a renamed file, is removed from its old
+// home and listed as still declared, since a sender of the old home's procedure now sends a stripped key.
 function removedKeys(root: string, base: string, head: string): readonly string[] {
   const files = execGit(root, ["diff", "--name-only", "--no-renames", `${base}...${head}`, "--", ...CONTRACT_PATHS])
     .split("\n")
     .filter((file) => PARSED.test(file));
   const fork = execGit(root, ["merge-base", base, head]).trim();
-  const before = keyCounts(root, fork, files);
   const after = keyCounts(root, head, files);
-  return [...before]
-    .filter(([key, count]) => (after.get(key) ?? 0) < count)
-    .map(([key]) => key)
-    .sort();
+  const removed = new Set<string>();
+  for (const [file, before] of keyCounts(root, fork, files)) {
+    for (const [key, count] of before) {
+      if ((after.get(file)?.get(key) ?? 0) < count) {
+        removed.add(key);
+      }
+    }
+  }
+  return [...removed].sort();
 }
 
 // Whether a contract file at `head` still declares the key: the grep finds candidate files, the parser decides.
 function stillDeclared(root: string, head: string, key: string): boolean {
   const files = [...new Set(gitGrep(root, head, ["-w", "-F", key], CONTRACT_PATHS).map((hit) => hit.file))].filter((file) => PARSED.test(file));
-  return (keyCounts(root, head, files).get(key) ?? 0) > 0;
+  return [...keyCounts(root, head, files).values()].some((counts) => counts.has(key));
 }
 
 /** Compare `head` with its merge base against `base` and search every receiver at `head` for each removed key. */

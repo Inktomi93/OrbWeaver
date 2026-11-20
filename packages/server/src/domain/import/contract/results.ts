@@ -25,6 +25,8 @@ export interface ImportOrphanCharacterResult {
 export interface ImportCharacterResult {
   readonly characterId: CharacterId;
   readonly created: boolean;
+  /** The library row's name: the held character's current name, else the written character's. Not clipped. */
+  readonly name: string;
   readonly importHash: string;
   /** The card's regex-script lift (D121-E): fresh library rows minted from
    *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
@@ -38,6 +40,22 @@ export interface ImportCharacterResult {
    *  re-upload KEEPS instead of replacing, because the character already holds a primary book the owner may
    *  have edited since (the restore verb is how they ask for the card's version back). */
   readonly skippedOverlays: readonly string[];
+  /** The card's embedded world book when this import landed it, with the SillyTavern activation fields its
+   *  entries keep inert; null when the card carries none, a carried reference stood in for it, or the seat was kept. */
+  readonly embeddedBook: ImportBookNote | null;
+}
+
+/** One world book an import landed, by its entry count and the inert activation fields its entries keep. */
+export interface ImportBookNote {
+  readonly name: string;
+  readonly entries: number;
+  /** Each inert activation field present with a non-default value, with how many entries carry it. */
+  readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
+}
+
+/** The embedded world book one imported card landed, named by its card file. */
+export interface ImportCardBookNote extends ImportBookNote {
+  readonly file: string;
 }
 
 /** The RESTORE door's outcome. Never throws for a bad/unmatched card — the refusal is a value the
@@ -51,12 +69,18 @@ export type RestoreCharacterBookResult = CardLorebookRestoreResult;
  *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
   readonly chatsImported: number;
+  /** Inputs the write found already landed, by the library's import claims or an earlier input of the batch. */
+  readonly chatsReused: number;
+  /** Per input, in order: the room it landed on or was held under, and the title the import computed for it. */
+  readonly rooms: readonly { readonly chatId: ChatId; readonly title: string }[];
   readonly memoryChatIds: readonly ChatId[];
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms this run back-filled persona attribution onto (the dedup-skip arm's HEAL — the
    *  write op's `chatsPersonaHealed`). NOT counted as `changed`: healing an existing room writes no new canon,
    *  exactly as a merged preset or a replaced world book is not new canon. */
   readonly chatsPersonaHealed: number;
+  /** Swipes the write refused as over-long, one entry each; the rest of each chat imported. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
 }
 
 /** The ST preset wave's tally. The two counts are deliberately DISTINCT: `presetsImported` is every preset the
@@ -90,6 +114,9 @@ export interface ImportThemesResult {
 export interface ImportGroupsResult {
   readonly groupsImported: number;
   readonly groupChatsImported: number;
+  /** Groups whose every transcript the write found already landed, and the transcripts it found so. */
+  readonly groupsReused: number;
+  readonly groupChatsReused: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedMembers: readonly ImportSkippedGroupMember[];
   readonly memoryChatIds: readonly ChatId[];
@@ -105,10 +132,14 @@ export interface ImportGroupsResult {
   /** Members ST had disabled that the room seats MUTED — the flag TRAVELLED through
    *  the bulk-import wire's knob channel. */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
+  /** The solo wave's {@link ImportChatsResult.skippedChatRows} twin for group transcripts. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
 }
 
 export interface ImportPersonasResult {
   readonly personasCreated: number;
+  /** Inputs that reused an equal persona, the library's or an earlier input's; a merge is not among them. */
+  readonly personasReused: number;
   readonly mergedKeys: readonly string[];
 }
 
@@ -122,7 +153,14 @@ export interface ImportPersonasResult {
  *  here. Present even when EMPTY (the {@link ImportPresetNote} rule): "restored whole" must be legible apart
  *  from "never looked at". The chat itself always still imports — an overlay never un-writes canon. */
 export type ImportChatFileOutcome =
-  | { readonly ok: true; readonly created: boolean; readonly skippedOverlays: readonly string[]; readonly memoryChatIds: readonly ChatId[] }
+  | {
+      readonly ok: true;
+      readonly created: boolean;
+      /** The room's title: the library row's current one, else the title the import computed, else the file's name. */
+      readonly title: string;
+      readonly skippedOverlays: readonly string[];
+      readonly memoryChatIds: readonly ChatId[];
+    }
   | { readonly ok: false; readonly error: string };
 
 /** One card the bulk import SKIPPED (per-card isolation) — the source file + the concise refusal reason. */
@@ -154,6 +192,8 @@ export interface ImportPresetNote {
   readonly scriptsLifted: number;
   /** Carried scripts that content-matched an existing library row and were attached rather than cloned. */
   readonly scriptsReused: number;
+  /** The sections a newly created preset gained for orb's own slots, by name; empty for a reused preset. */
+  readonly addedSections: readonly string[];
 }
 
 /** One imported ST theme's honest lossiness note — the same shape (and the same "present even when empty"
@@ -169,14 +209,10 @@ export interface ImportThemeNote {
 
 /** One standalone world book the run landed: where it landed, and the SillyTavern activation fields its
  *  entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
-export interface ImportWorldNote {
-  readonly name: string;
+export interface ImportWorldNote extends ImportBookNote {
   /** The file's own name when the landed name took a collision suffix (a different same-named book exists). */
   readonly renamedFrom: string | null;
   readonly created: boolean;
-  readonly entries: number;
-  /** Each inert activation field present with a non-default value, with how many entries carry it. */
-  readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
 }
 
 /** One ST group the importer could NOT turn into a room, with the reason (no member resolved, the chat write
@@ -248,8 +284,15 @@ export interface ImportReport {
   readonly found: ImportKindCounts;
   /** The dry run's names per kind and its skips, or null on a real run. */
   readonly preview: ImportPreview | null;
+  /** A real run only, in {@link found}'s units: the entries its waves reused because the library or an earlier entry
+   *  of the upload held them (`inLibrary`, merged personas aside), and the recorded skips it never attempted. */
+  readonly held?: { readonly inLibrary: number; readonly skipped: number };
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
   readonly skippedCardTags: readonly ImportSkippedCardTag[];
+  /** What an imported card did not land, by card file: a refused or narrowed regex script, a kept world book. */
+  readonly cardNotes: readonly ImportSkippedCard[];
+  /** The embedded world book each imported card landed, with the inert activation fields its entries keep. */
+  readonly cardBookNotes: readonly ImportCardBookNote[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly unreadableCards: readonly string[];
@@ -298,7 +341,11 @@ export interface ImportReport {
   readonly missingGroupChats: readonly string[];
   /** A persona's avatar name that matched no file in the profile's avatar folder; the persona imported without art. */
   readonly missingPersonaAvatars: readonly string[];
+  /** A persona's avatar file the store refused (not a picture, over the cap), with why; the persona imported without art. */
+  readonly skippedPersonaAvatars: readonly ImportSkippedCard[];
   readonly skippedChats: readonly string[];
+  /** Swipes the solo, group and orphan waves refused as over-long; each chat still imported without them. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];
   /** Top-level ST profile entries the importer does not process (assets/backgrounds/presets/themes/…). */
@@ -332,8 +379,8 @@ export interface ImportReport {
   readonly globalRegexScriptsFound: number;
   readonly globalRegexScriptsLifted: number;
   readonly globalRegexScriptsReused: number;
-  /** `extension_settings.regex` entries the ST card-wire schema refused. */
-  readonly malformedGlobalRegexScripts: number;
+  /** Each `extension_settings.regex` entry refused and each placement lost, by position. */
+  readonly globalRegexScriptNotes: readonly { readonly field: string; readonly reason: string }[];
   /** Why found global scripts did not lift (unwired op / dryRun), or null when they lifted (or none exist). */
   readonly globalRegexSkippedReason: string | null;
   /** The CARD lift halves (D121-E — `data.extensions.regex_scripts`), summed across the bundle wave. */

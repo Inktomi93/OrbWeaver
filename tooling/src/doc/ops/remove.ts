@@ -6,6 +6,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { CitingLine } from "../contract/types.ts";
 import { ADR_KIND, DOC_TOOL_TREES, PARKED, PLAN_KIND } from "../contract/vocab.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { DESIGN_FILE, isGeneratedPath, planSlugOf } from "../lib/indexes.ts";
@@ -62,6 +63,30 @@ export function textCiters(targets: readonly string[], repoRoot = root): readonl
   return lines;
 }
 
+/** Every line that refers to one of `targets` by path or cites an ADR among them by `D<n>`: the same two spellings
+ *  {@link textCiters} reads, per line. The targets, the `exempt` docs and the generated indexes do not count. */
+export function citingLines(targets: readonly string[], exempt: readonly string[], repoRoot = root): readonly CitingLine[] {
+  const skipped = new Set([...targets, ...exempt]);
+  const citations = targets.map((target) => ({ target, cite: citationOf(target, repoRoot) }));
+  const cites = (path: string, text: string, { target, cite }: (typeof citations)[number]): boolean =>
+    refersTo(path, text, target) || cite?.pattern.test(text) === true;
+  const found: CitingLine[] = [];
+  for (const path of textFiles(repoRoot)) {
+    if (skipped.has(path) || isGeneratedPath(path)) {
+      continue;
+    }
+    const source = readFileSync(join(repoRoot, path), "utf8");
+    for (const citation of citations.filter((candidate) => cites(path, source, candidate))) {
+      source.split("\n").forEach((text, index) => {
+        if (cites(path, text, citation)) {
+          found.push({ path, line: index + 1, target: citation.target, text: text.trim() });
+        }
+      });
+    }
+  }
+  return found;
+}
+
 /** Items and parked plans that name a removed item as their blocker, and items filed under a removed plan. */
 function structuralCiters(targets: readonly string[], repoRoot: string): readonly string[] {
   const removing = new Set(targets);
@@ -112,16 +137,16 @@ export function removeDocs(targets: readonly string[], repoRoot = root): WriteOu
   const resolved = targets.map((target) => resolve(target, repoRoot));
   const refusals = resolved.flatMap((entry) => ("refusal" in entry ? [entry.refusal] : []));
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   const paths = [...new Set(resolved.flatMap((entry) => ("path" in entry ? [entry.path] : [])))];
   const citers = [...structuralCiters(paths, repoRoot), ...textCiters(paths, repoRoot)];
   if (citers.length > 0) {
-    return { written: [], refusals: citers };
+    return { written: [], created: [], refusals: citers };
   }
   for (const path of paths) {
     const plan = !isItemPath(path) && basenameOf(path) === DESIGN_FILE;
     rmSync(join(repoRoot, plan ? folderOf(path) : path), { recursive: plan });
   }
-  return { written: [...paths, ...regenerateIndexes(repoRoot)], refusals: [] };
+  return { written: [...paths, ...regenerateIndexes(repoRoot)], created: [], refusals: [] };
 }

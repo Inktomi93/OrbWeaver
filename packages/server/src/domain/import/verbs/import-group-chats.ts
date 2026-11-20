@@ -14,20 +14,22 @@
 // name-keyed roster seats the wrong card in silence. A display-name match, SCOPED to this group's own roster,
 // is the fallback for pre-group-era exports whose lines carry no `original_avatar`.
 //
-// ISOLATION IS PER GROUP AND PER MEMBER: a member card that is neither in this import set nor already in the
-// library is SKIPPED with a report note (the room still forms around the members that did resolve); a group
+// A group seats only the cards of its own profile directory: two profiles can keep different cards under one filename.
+//
+// ISOLATION IS PER GROUP AND PER MEMBER: a member card its profile does not carry is SKIPPED with a report note (the room still forms around the members that did resolve); a group
 // whose members ALL fail to resolve is skipped with a note. Neither aborts the wave.
 
 import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { CollectedGroup } from "../contract/collection.ts";
-import type { ImportGroupsInput } from "../contract/params.ts";
+import type { ImportGroupsInput, ImportProfileGroups } from "../contract/params.ts";
 import type {
   GroupSeats,
   ImportAmbiguousSpeakerName,
   ImportGroupsResult,
   ImportSeatedDisabledMember,
+  ImportSkippedCard,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportUnresolvedPinnedPersona,
@@ -37,6 +39,7 @@ import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 import type { GroupRefusal } from "../substrate/group.ts";
 import { groupRefusal, resolveMembers } from "../substrate/group.ts";
+import { skippedChatRowsOf } from "../substrate/report.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -51,7 +54,7 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
   // it is built from the knobs BOTH arms share — destructured off the canonical default rather than re-spelled,
   // so a new shared knob is a compile error here instead of a silently-defaulted room. `speakerTags` is the
   // narrator arm's OWN default (true), which differs from the per-speaker arm's.
-  const { policy, smartPicker, groupNudge, autoMode, autoModeMaxTurns, autoModeDelayMs, memberCardVisibility } = DEFAULT_GROUP_CONFIG;
+  const { policy, smartPicker, groupNudge, autoMode, autoModeMaxTurns, autoModeDelayMs, memberCardVisibility, waitForEveryone } = DEFAULT_GROUP_CONFIG;
   return {
     group: {
       output: "narrator",
@@ -64,6 +67,7 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
       autoModeDelayMs,
       memberCardVisibility,
       allowSelfResponses,
+      waitForEveryone,
     },
   };
 }
@@ -78,7 +82,7 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
 function speakerNamesOf(
   group: CollectedGroup,
   seated: readonly { readonly file: string; readonly characterId: CharacterId }[],
-  input: ImportGroupsInput,
+  input: ImportProfileGroups,
 ): { readonly byName: ReadonlyMap<string, CharacterId>; readonly ambiguous: ImportAmbiguousSpeakerName[] } {
   // Keyed by the LOWERCASED name (the lookup key a transcript line matches against), carrying the card's own
   // casing for the report — the operator recognizes "Eleni", not "eleni".
@@ -139,21 +143,23 @@ function refusalFor(group: CollectedGroup, seatCount: number): string | null {
 
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:
  *  a refused seat or one malformed transcript is one skipped room, never an aborted wave. */
-type GroupOutcome =
-  | { readonly ok: true; readonly chatsImported: number; readonly memoryChatIds: readonly ChatId[]; readonly chatsPersonaHealed: number }
-  | { readonly ok: false; readonly reason: string };
+interface GroupWrite {
+  readonly chatsImported: number;
+  readonly chatsReused: number;
+  readonly memoryChatIds: readonly ChatId[];
+  readonly chatsPersonaHealed: number;
+  readonly skippedChatRows: readonly ImportSkippedCard[];
+}
+
+type GroupOutcome = ({ readonly ok: true } & GroupWrite) | { readonly ok: false; readonly reason: string };
 
 export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, "importGroupChats"> {
-  async function importOne(
-    group: CollectedGroup,
-    profile: ReturnType<typeof requireProfile>,
-    seats: GroupSeats,
-  ): Promise<{ readonly chatsImported: number; readonly memoryChatIds: readonly ChatId[]; readonly chatsPersonaHealed: number }> {
+  async function importOne(group: CollectedGroup, profile: ReturnType<typeof requireProfile>, seats: GroupSeats): Promise<GroupWrite> {
     const { seated, speakerByName, mutedSeats } = seats;
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
-      return { chatsImported: 0, memoryChatIds: [], chatsPersonaHealed: 0 };
+      return { chatsImported: 0, chatsReused: 0, memoryChatIds: [], chatsPersonaHealed: 0, skippedChatRows: [] };
     }
     const characterIds = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
@@ -163,11 +169,11 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const speakerByFile = new Map(seated.map((s) => [s.file, s.characterId]));
     // Every transcript of ONE group shares the room's name, so same-day leaves collide by construction — the
     // suffix pass runs over the group's whole set, exactly as the solo wave runs it over a character's.
-    const chats: BulkImportChatInput[] = disambiguateChatTitles(
-      group.chats.map((c) =>
-        buildGroupChatInput(c, {
+    const built: BulkImportChatInput[] = [];
+    for (const c of group.chats) {
+      built.push(
+        await buildGroupChatInput(c, {
           now: profile.now,
-          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
           roomName: group.parsed.name,
           personaByUserName: profile.personaByUserName,
           characterIds,
@@ -176,10 +182,17 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
           speakerByName,
           metadata,
         }),
-      ),
-    );
+      );
+    }
+    const chats = disambiguateChatTitles(built);
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
-    return { chatsImported: counts.chatsImported, memoryChatIds: counts.realConversationsWritten, chatsPersonaHealed: counts.chatsPersonaHealed };
+    return {
+      chatsImported: counts.chatsImported,
+      chatsReused: counts.chatsSkipped,
+      memoryChatIds: counts.realConversationsWritten,
+      chatsPersonaHealed: counts.chatsPersonaHealed,
+      skippedChatRows: skippedChatRowsOf(counts.refusedRows),
+    };
   }
 
   /** Import one group, converting BOTH refusal shapes — the precondition miss and a thrown write — into the
@@ -202,6 +215,8 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const profile = requireProfile(ctx);
     let groupsImported = 0;
     let groupChatsImported = 0;
+    let groupsReused = 0;
+    let groupChatsReused = 0;
     const memoryChatIds: ChatId[] = [];
     let chatsPersonaHealed = 0;
     const skippedGroups: ImportSkippedGroup[] = [];
@@ -213,14 +228,16 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // facts about the ST snapshot, not about whether this room happened to import.
     const ambiguousSpeakerNames: ImportAmbiguousSpeakerName[] = [];
     const seatedDisabledMembers: ImportSeatedDisabledMember[] = [];
+    const skippedChatRows: ImportSkippedCard[] = [];
 
-    for (const group of input.groups) {
-      const { seated, skipped } = resolveMembers(group, input.characterIdByCardFilename);
+    const seatings = input.profiles.flatMap((scope) => scope.groups.map((entry) => ({ group: entry, cards: scope })));
+    for (const { group, cards } of seatings) {
+      const { seated, skipped } = resolveMembers(group, cards.characterIdByCardFilename);
       skippedMembers.push(...skipped);
       unresolvedPins.push(...unresolvedPinnedPersonas(group.chats, profile.personaByUserName));
       const disabled = disabledSeatsOf(group, seated);
       seatedDisabledMembers.push(...disabled.reported);
-      const names = speakerNamesOf(group, seated, input);
+      const names = speakerNamesOf(group, seated, cards);
       ambiguousSpeakerNames.push(...names.ambiguous);
       const outcome = await runGroup(group, profile, { seated, speakerByName: names.byName, mutedSeats: disabled.mutedSeats });
       if (!outcome.ok) {
@@ -231,13 +248,19 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       // every transcript by importHash, and counting the room again would report a no-op as work.
       groupsImported += outcome.chatsImported > 0 ? 1 : 0;
       groupChatsImported += outcome.chatsImported;
+      // Held as the preview judges a group: every transcript it brings was already landed.
+      groupsReused += outcome.chatsReused === group.chats.length ? 1 : 0;
+      groupChatsReused += outcome.chatsReused;
       memoryChatIds.push(...outcome.memoryChatIds);
       chatsPersonaHealed += outcome.chatsPersonaHealed;
+      skippedChatRows.push(...outcome.skippedChatRows);
     }
 
     return {
       groupsImported,
       groupChatsImported,
+      groupsReused,
+      groupChatsReused,
       skippedGroups,
       skippedMembers,
       memoryChatIds,
@@ -245,6 +268,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       chatsPersonaHealed,
       ambiguousSpeakerNames,
       seatedDisabledMembers,
+      skippedChatRows,
     };
   }
   return { importGroupChats };

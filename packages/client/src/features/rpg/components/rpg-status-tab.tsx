@@ -29,9 +29,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { Tip } from "#components";
+import { MutedLine, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { revealContextPanel } from "#state";
+import { GAME_SETTINGS_TAB_ID, revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
 import { useRpgStatusSheetRequest } from "../hooks/use-rpg-status-sheet-request.ts";
@@ -39,7 +39,6 @@ import { actorKey, actorSubjects } from "../lib/actor-key.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { RpgCharacterDetail } from "./rpg-character-detail.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgVeiledSection } from "./rpg-veiled-section.tsx";
@@ -72,7 +71,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   useRpgStatusSheetRequest(characters, chatId, state.viewerUserId, setOpenKey);
 
   if (characters.length === 0) {
-    return <Text>No characters yet: add them in Members.</Text>;
+    return <MutedLine>No characters yet: add them in Members.</MutedLine>;
   }
 
   // One op-and-mutate for a target actor's volatile: the panel names the OP it performed, the server applies
@@ -151,9 +150,9 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
           gets out of the way; an established game never carries it. */}
       {characters.length === 0 || characters.every((actor) => actor.volatile === null) ? (
         // The Game tab is the host's, so only a host is offered the door to it.
-        <RpgDoorwayLine {...(isHost ? { actionLabel: "Open the Game tab", onAction: (): void => revealContextPanel("rpg.game") } : {})}>
+        <MutedLine action={isHost ? { label: "Open the Game tab", onAction: (): void => revealContextPanel(GAME_SETTINGS_TAB_ID) } : undefined}>
           The story fills this in as you play. Set up trackers in the Game tab.
-        </RpgDoorwayLine>
+        </MutedLine>
       ) : null}
       {characters.map((actor) => {
         const edit = editFor(actor);
@@ -210,9 +209,9 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
     <Card>
       <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject}>
         <Row gap="block" align="center" justify="between">
-          <Row gap="field" align="center" className="min-inline-0">
+          <Row gap="field" align="center" minWidth="shrinks">
             <Tip text={`Open ${subject}'s sheet`}>
-              <InlineAction variant="ghost" step="label" onClick={onOpen} aria-label={`Open ${subject}`} inset="control" className="min-inline-0">
+              <InlineAction variant="ghost" step="label" onClick={onOpen} aria-label={`Open ${subject}`} inset="control" minWidth="shrinks">
                 <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
                   {actor.name.slice(0, 1).toUpperCase()}
                 </Avatar>

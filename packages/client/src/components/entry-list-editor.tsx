@@ -4,12 +4,14 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { removeActionName } from "@orb/ui/lib";
+import { removeActionName, removeQuotedTitle } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { DIALOG_VERBS } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
+import { MutedLine } from "./muted-line.tsx";
 
 export interface EntryListEditorProps<TItem> {
   /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */
@@ -84,9 +86,7 @@ export function EntryListEditor<TItem>({
 
       <Stack gap="field">
         {items.length === 0 ? (
-          <Text ink="muted" voice="gloss">
-            {emptyText}
-          </Text>
+          <MutedLine>{emptyText}</MutedLine>
         ) : (
           items.map((item, index) => (
             <ListRow
@@ -100,17 +100,17 @@ export function EntryListEditor<TItem>({
                     size="sm"
                     variant="ghost"
                   >
-                    Remove
+                    {DIALOG_VERBS.remove}
                   </Button>
                   <ConfirmDialog
                     open={removal.items === items && removal.index === index}
                     onOpenChange={(open): void => setRemoval({ items, index: open ? index : null, invalidated: false })}
                     {...(removal.invalidated ? { finalFocus: addButton } : {})}
-                    confirmLabel="Remove"
+                    confirmLabel={DIALOG_VERBS.remove}
                     // Callers can nest this list in a dialog, where Base UI otherwise suppresses its backdrop.
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}
-                    title={`Remove “${getTitle(item, index)}”?`}
+                    title={removeQuotedTitle(getTitle(item, index))}
                   />
                 </Row>
               }

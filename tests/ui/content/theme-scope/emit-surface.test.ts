@@ -24,7 +24,6 @@ const FULL_OVERRIDE = {
   radius: "control",
   background: "oklch(0.5 0.01 60)",
   borderColor: "oklch(0.7 0.1 330)",
-  density: "compact",
 } as const satisfies Required<ThemeScopeTokens>;
 
 /** The custom properties the generated token surface names: every served token, every per-tone knob and literal, and the tone host. */

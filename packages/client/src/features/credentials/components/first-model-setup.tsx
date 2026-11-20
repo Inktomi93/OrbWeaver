@@ -1,11 +1,11 @@
 // The first-model step of "Add a connection": the first connection that can chat becomes the Chat model, and the same
 // step asks which model background work runs on (this one, another connection, a new one, or none for now). Whichever
 // is picked gets Allow background work turned on, said before it happens, because a role binding alone never runs.
+// Finish applies the pick; closing the step applies nothing, so each choice's note names Finish as what does it.
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Select } from "@orb/ui/select";
@@ -13,12 +13,13 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
-import { useSetBinding, useUpdateConnection } from "#components";
+import { CommitFooter, useSetBinding, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useSuspenseQuery } from "#data";
-import { CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
+import { ALLOW_BACKGROUND_SETTING, CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
 import { openConfigTo } from "#state";
 import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
+import { FIRST_MODEL_ADD_UTILITY_CHOICE, FIRST_MODEL_ADD_UTILITY_NAME, FIRST_MODEL_FINISH_NAME } from "../lib/credentials-names.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 
@@ -31,11 +32,12 @@ function isUtilityChoice(value: unknown): value is UtilityChoice {
   return (UTILITY_CHOICES as readonly unknown[]).includes(value);
 }
 
-/** What each choice tells the person will happen, read before they press Finish. */
+/** What each choice tells the person will happen. Each names the control that does it, because closing the step
+ *  applies nothing: only {@link FIRST_MODEL_FINISH_NAME} or the Utility add writes the role and the switch. */
 const CHOICE_NOTES: Record<UtilityChoice, string> = {
-  same: "Allow background work is turned on for it, so these can run while you chat.",
-  existing: "Allow background work is turned on for the one you pick, so these can run while you chat.",
-  add: "You add it next. Allow background work is on for it, so these can run while you chat.",
+  same: `${FIRST_MODEL_FINISH_NAME} turns on ${ALLOW_BACKGROUND_SETTING} for it, so these can run while you chat.`,
+  existing: `${FIRST_MODEL_FINISH_NAME} turns on ${ALLOW_BACKGROUND_SETTING} for the one you pick, so these can run while you chat.`,
+  add: `You add it next, with ${ALLOW_BACKGROUND_SETTING} on, so these can run while you chat.`,
   later: "Until you pick one under Model roles, memory summaries, captions and extraction wait.",
 };
 
@@ -120,6 +122,7 @@ export function FirstModelSetup({
   }, [chatBinding]);
   const labelId = useId();
   const reasonId = useId();
+  const noteId = useId();
   const name = connectionSummary(chat);
 
   const utilityRow = (): ConnectionListItem | undefined => {
@@ -190,7 +193,7 @@ export function FirstModelSetup({
         ) : null}
       </Stack>
       <RadioGroup
-        aria-describedby={subscription ? reasonId : undefined}
+        aria-describedby={subscription ? `${reasonId} ${noteId}` : noteId}
         aria-labelledby={labelId}
         disabled={saving || chatState.pending || chatState.failure !== null}
         onValueChange={(value): void => {
@@ -202,7 +205,7 @@ export function FirstModelSetup({
       >
         {canUseSame ? <RadioGroupItem value="same">{`Use the same one, ${name}`}</RadioGroupItem> : null}
         {others.length === 0 ? null : <RadioGroupItem value="existing">Use another connection</RadioGroupItem>}
-        <RadioGroupItem value="add">Add a different model for it</RadioGroupItem>
+        <RadioGroupItem value="add">{FIRST_MODEL_ADD_UTILITY_CHOICE}</RadioGroupItem>
         <RadioGroupItem value="later">Not now</RadioGroupItem>
       </RadioGroup>
       {choice === "existing" ? (
@@ -218,7 +221,7 @@ export function FirstModelSetup({
           value={otherId}
         />
       ) : null}
-      <Text cap="prose" prose={true} voice="gloss">
+      <Text id={noteId} cap="prose" prose={true} voice="gloss">
         {CHOICE_NOTES[choice]}
       </Text>
       {failure === null ? null : (
@@ -226,22 +229,21 @@ export function FirstModelSetup({
           {`That didn't go through: ${failure}`}
         </Text>
       )}
-      <DialogFooter>
-        {choice === "add" ? (
-          <Button disabled={chatState.pending || chatState.failure !== null} onClick={onAddUtility}>
-            Add a model
-          </Button>
-        ) : (
-          <Button
-            // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
-            disabled={chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined)}
-            loading={saving}
-            onClick={finish}
-          >
-            Finish
-          </Button>
-        )}
-      </DialogFooter>
+      {/* Closing the step applies nothing, so the frame's corner close is its way out and the footer holds the one act the choice makes. */}
+      <CommitFooter
+        exit="corner"
+        submit={
+          choice === "add"
+            ? { label: FIRST_MODEL_ADD_UTILITY_NAME, onSubmit: onAddUtility, disabled: chatState.pending || chatState.failure !== null }
+            : {
+                label: FIRST_MODEL_FINISH_NAME,
+                onSubmit: finish,
+                // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
+                disabled: chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined),
+                loading: saving,
+              }
+        }
+      />
     </Stack>
   );
 }

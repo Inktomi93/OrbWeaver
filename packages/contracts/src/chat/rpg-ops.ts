@@ -1,7 +1,7 @@
 // The chat data and injected ops the rpg domain consumes. Runtime types (AbortSignal, resolved connections,
 // tool wires) stay with their owners; each consumer types its op signature over these shapes.
 
-import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, MessageVariantId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatMembership } from "#identity";
 import type { ProseOverrides } from "#prose-slot";
@@ -37,13 +37,38 @@ interface RpgTurnFacts {
   readonly prose: ProseOverrides;
 }
 
+// Nominal by a private member, so no literal, spread or `satisfies` produces one; `orb/room-token-mint` confines
+// the mints and refuses a cast.
+declare class RoomAdmissionMint {
+  private roomAdmission(): void;
+}
+declare class RoomClaimMint {
+  private roomClaim(): void;
+}
+
+/** Proof that a membership gate loaded the caller's present seat in `chatId`. Chat mints it; a consumer domain
+ *  receives it from {@link GetMembership} and spends it on {@link ClaimChatOp}. */
+export interface RoomAdmission extends RoomAdmissionMint {
+  readonly chatId: ChatId;
+}
+
+/** Proof that `chatId` was claimed. A room write door that a claim must precede takes it. */
+export interface RoomClaim extends RoomClaimMint {
+  readonly chatId: ChatId;
+}
+
 /** CLAIM a chat: the husk-to-real transition. Idempotent, one-way, and a no-op on an already-claimed or vanished
- *  room. Call it before your own canon write, because the claim replays the creation stats over the canon present
- *  at claim. */
-export type ClaimChatOp = (chatId: ChatId) => Promise<void>;
+ *  room. The room is the admitted one, so a claim cannot target a room its gate did not load. Call it before your
+ *  own canon write, because the claim replays the creation stats over the canon present at claim. */
+export type ClaimChatOp = (admission: RoomAdmission) => Promise<RoomClaim>;
+
+/** A present member's role plus the admission a claim spends. */
+interface AdmittedMembership extends ChatMembership {
+  readonly admission: RoomAdmission;
+}
 
 /** The caller's PRESENT role in a chat, or `null` (not a present member, or no such chat; one leak-free answer). */
-export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatMembership | null>;
+export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<AdmittedMembership | null>;
 
 /** Merge the healed `metadata.rpg` `{gameId}` pointer into the chat; a `null` pointer deletes the sub-blob. Chat
  *  stores the pointer blind: the truth is the game row. */
@@ -81,7 +106,7 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
 export interface GatherTurnContextArgs {
   readonly chatId: ChatId;
   /** The turn's FUNDER, whose chat connection the rpg delivery verdict reads. */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   readonly pendingUserText: string | undefined;
   readonly respondsToLatestUserTurn: boolean;
   readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;
@@ -160,7 +185,7 @@ export interface RpgTurnRuntime<Connection, ToolCall, Signal> extends RpgTurnFac
   readonly connection: Connection;
   /** Null means no usable folded channel; an empty array means it ran and recorded no calls. */
   readonly terminalToolCalls: readonly ToolCall[] | null;
-  readonly signal: Signal | undefined;
+  readonly signal: Signal;
 }
 
 /** A game turn's gather contribution plus the TERMINAL tools the contributor mounts on this turn. Chat attaches them
@@ -190,6 +215,8 @@ export type MarkDicePreRollEligibleOp = (turnId: ChatTurnId) => void;
  *  terminal calls and signal to {@link RpgTurnFacts}. */
 export interface RpgTurnCompletedParams<Turn extends RpgTurnFacts> {
   readonly chatId: ChatId;
+  /** The room's admission, which a flush fold into a shadowing hand row spends on its claim. */
+  readonly admission: RoomAdmission;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly turnId: ChatTurnId;
@@ -212,4 +239,4 @@ export type HandoffHealStatementsOp<Statement> = (args: HandoffHealArgs) => Prom
 export type HandoffWouldCopyGmPresetOp = (chatId: ChatId, nomineeUserId: UserId) => Promise<boolean>;
 
 /** The post-swap move of each copied character's tracker rows onto its copy. */
-export type HandoffRekeyActorsOp = (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;
+export type HandoffRekeyActorsOp = (admission: RoomAdmission, cardCopies: readonly HandoffCardPair[]) => Promise<void>;

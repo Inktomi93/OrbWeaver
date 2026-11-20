@@ -92,21 +92,14 @@ const keyRegexCache = new Map<string, RegExp>();
 // `我去北京了`). Latin/Cyrillic/Greek/etc. keep whole-word boundaries.
 const BOUNDARYLESS_SCRIPT = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
 
-// ReDoS pre-compile heuristic for a USER-AUTHORED key pattern — the same two caps the regex-script executor
-// applies (`@orb/kit/regex` `tooComplex`), restated rather than imported: pulling `@orb/kit/regex` in here
-// would drag the macro engine into every consumer of these leaf primitives (contracts/world-info imports
-// this module). Counts quantifier-stack OCCURRENCES, not nesting depth — defense in depth, not a guarantee.
+// No key pattern is refused for its SHAPE, as no regex script is (D53): a quantifier count refuses a key of lazy
+// groups that finishes in microseconds and still admits `(a+)+$`. The cost guard is the server's per-key watchdog
+// (`createRegexTest` in `packages/server/src/primitives/regex/index.ts`); the only pre-compile refusal is this
+// length cap, kept local because pulling `@orb/kit/regex` in here would drag the macro engine into every consumer of
+// these leaf primitives (contracts/world-info imports this module).
 const MAX_KEY_PATTERN_LENGTH = 2048;
-const MAX_STACKED_QUANTIFIERS = 3;
-function keyPatternTooComplex(pattern: string): string | null {
-  if (pattern.length > MAX_KEY_PATTERN_LENGTH) {
-    return `pattern length ${pattern.length} exceeds cap ${MAX_KEY_PATTERN_LENGTH}`;
-  }
-  const stacks = pattern.match(/[*+?}][)\]]*[*+?]/g);
-  if (stacks && stacks.length >= MAX_STACKED_QUANTIFIERS) {
-    return `pattern stacks ${stacks.length} quantifiers (cap ${MAX_STACKED_QUANTIFIERS})`;
-  }
-  return null;
+function keyPatternTooLong(pattern: string): string | null {
+  return pattern.length > MAX_KEY_PATTERN_LENGTH ? `pattern length ${pattern.length} exceeds cap ${MAX_KEY_PATTERN_LENGTH}` : null;
 }
 
 // A regex key may be written bare (`he(llo|y)`) or in ST's delimited form (`/he(llo|y)/i`). `g`/`y` are
@@ -141,7 +134,7 @@ function literalKeyRegex(key: string): RegExp {
 
 // Compile-or-return the cached RegExp for a key. `literal` (the default) escapes the key — the whole-word /
 // boundary-less compile above. `regex` compiles the key AS a pattern (a V3 `use_regex` entry): an invalid or
-// over-complex pattern falls back to the LITERAL compile and reports through `onCompileFailure` — a bad key
+// too-long pattern falls back to the LITERAL compile and reports through `onCompileFailure` — a bad key
 // must never take a turn's context build down. A failed compile is NOT cached, so the report fires per call
 // rather than once per process lifetime. Updates the LRU position on hit so the cap doesn't evict hot keys.
 function keyRegex(key: string, mode: EntryKeyMode = "literal", onCompileFailure?: (key: string, reason: string) => void): RegExp {
@@ -175,13 +168,13 @@ function keyRegex(key: string, mode: EntryKeyMode = "literal", onCompileFailure?
   return re;
 }
 
-/** The guarded pattern compile — null when the key is over-complex or syntactically invalid (reported, then
+/** The guarded pattern compile — null when the key is too long or syntactically invalid (reported, then
  *  the caller falls back to the literal compile). */
 function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason: string) => void): RegExp | null {
   const { pattern, flags } = parseKeyPattern(key);
-  const complexity = keyPatternTooComplex(pattern);
-  if (complexity !== null) {
-    onCompileFailure?.(key, complexity);
+  const tooLong = keyPatternTooLong(pattern);
+  if (tooLong !== null) {
+    onCompileFailure?.(key, tooLong);
     return null;
   }
   // reported to the optional onCompileFailure, which matchEntryKeys passes down from its options;
@@ -211,7 +204,7 @@ const REGEX_FLAG_LETTERS = /^[dgimsuvy]*$/;
  *
  *  Strict on purpose — a false positive would silently turn a user's literal key into a pattern. All four
  *  must hold: opens with `/`, has a LATER closing `/`, the pattern between them is non-empty, the trailing
- *  characters are all real flag letters, and the whole thing actually compiles under the same ReDoS cap +
+ *  characters are all real flag letters, and the whole thing actually compiles under the same length cap +
  *  flag normalization that regex-mode compile applies. `and/or`, `/path/to/file` and `/unclosed` are literal keys. */
 export function isDelimitedKeyPattern(key: string): boolean {
   const lastSlash = key.lastIndexOf("/");
@@ -224,7 +217,7 @@ export function isDelimitedKeyPattern(key: string): boolean {
 
 /** Seam over `regex.test(haystack)` for a REGEX-mode (V3 `use_regex`) key — the world-info twin of the regex
  *  executor's `applyReplace`. Default (see {@link matchEntryKeys}): native `.test` with NO timeout — the
- *  browser's lot, guarded only by the pre-compile complexity heuristic. The server injects a node:vm-sandboxed
+ *  browser's lot, guarded only by the pre-compile length cap. The server injects a node:vm-sandboxed
  *  version with a per-call budget so a catastrophic-backtracking USER key throws (→ treated as a non-match +
  *  reported) instead of hanging the event loop for every user on the process (a ReDoS). Isomorphic —
  *  RegExp+string in, boolean out, no `node:*` — so kit stays browser-safe and the timeout lives server-side. */
@@ -252,7 +245,7 @@ export interface MatchEntryKeysOptions {
  *  its escapes (`\W` → `\w` inverts the class); case-insensitivity comes from the forced `i` flag instead. */
 export function matchEntryKeys(keys: readonly string[], haystack: string, options?: MatchEntryKeysOptions): string[] {
   if (options?.keyMode === "regex") {
-    // A user-authored pattern is UNTRUSTED: the pre-compile heuristic misses one-stack alternation/nesting
+    // A user-authored pattern is UNTRUSTED: no pre-compile check can tell a runaway from a lazy key
     // (`(a|a)+$`, `(a+)+$`), so the actual `.test` runs under the injected budget (`testRegex`). A throw from
     // it (the server watchdog's timeout, or any executor error) is caught HERE — the key is treated as a
     // NON-match (fail-closed on the pathological key) and reported through `onKeyCompileFailure`, exactly as a
@@ -336,9 +329,9 @@ const nonEmptyArray = (value: unknown): boolean => Array.isArray(value) && value
 
 /** When each inert field carries a value ST would act on. A `Record` over the tuple, so a new member fails
  *  `tsc` until it says when it is set. */
-const SET_WHEN: Record<StInertActivationField, (value: unknown, metadata: Record<string, unknown>) => boolean> = {
+const SET_WHEN: Record<StInertActivationField, (value: unknown, gates: Readonly<Record<string, unknown>>) => boolean> = {
   keysecondary: nonEmptyArray,
-  probability: (value, metadata) => isNumber(value) && (value as number) < ST_PROBABILITY_ALWAYS && metadata["useProbability"] !== false,
+  probability: (value, gates) => isNumber(value) && (value as number) < ST_PROBABILITY_ALWAYS && gates["useProbability"] !== false,
   scanDepth: isNumber,
   caseSensitive: isBoolean,
   matchWholeWords: isBoolean,
@@ -362,17 +355,71 @@ const SET_WHEN: Record<StInertActivationField, (value: unknown, metadata: Record
   matchCreatorNotes: isTrue,
 };
 
-/** The inert ST activation fields an entry's metadata carries with a non-default value, in tuple order. */
+/** Where an embedded card book (`character_book`) keeps a field: a key of the entry, or of its `extensions`. */
+type CardSpelling = { readonly entry: string } | { readonly extensions: string };
+
+/** Each inert field's card spellings, read after the world-file spelling. A card entry names secondary keys
+ *  `secondary_keys` and keeps the rest under `extensions` in snake case; `characterFilter` has no card spelling. */
+const CARD_SPELLINGS: Record<StInertActivationField, readonly CardSpelling[]> = {
+  keysecondary: [{ entry: "secondary_keys" }],
+  probability: [{ extensions: "probability" }],
+  scanDepth: [{ extensions: "scan_depth" }],
+  caseSensitive: [{ extensions: "case_sensitive" }, { entry: "case_sensitive" }],
+  matchWholeWords: [{ extensions: "match_whole_words" }],
+  group: [{ extensions: "group" }],
+  sticky: [{ extensions: "sticky" }],
+  cooldown: [{ extensions: "cooldown" }],
+  delay: [{ extensions: "delay" }],
+  excludeRecursion: [{ extensions: "exclude_recursion" }],
+  preventRecursion: [{ extensions: "prevent_recursion" }],
+  delayUntilRecursion: [{ extensions: "delay_until_recursion" }],
+  vectorized: [{ extensions: "vectorized" }],
+  triggers: [{ extensions: "triggers" }],
+  characterFilter: [],
+  automationId: [{ extensions: "automation_id" }],
+  outletName: [{ extensions: "outlet_name" }],
+  matchPersonaDescription: [{ extensions: "match_persona_description" }],
+  matchCharacterDescription: [{ extensions: "match_character_description" }],
+  matchCharacterPersonality: [{ extensions: "match_character_personality" }],
+  matchCharacterDepthPrompt: [{ extensions: "match_character_depth_prompt" }],
+  matchScenario: [{ extensions: "match_scenario" }],
+  matchCreatorNotes: [{ extensions: "match_creator_notes" }],
+};
+
+/** The probability gate's switch, which both spellings name `useProbability`. */
+const USE_PROBABILITY = "useProbability";
+
+/** The first defined value among a field's spellings: the world-file key, then each card spelling in order. */
+function firstDefined(metadata: Record<string, unknown>, extensions: Record<string, unknown>, world: string, card: readonly CardSpelling[]): unknown {
+  const candidates = [metadata[world], ...card.map((spelling) => ("entry" in spelling ? metadata[spelling.entry] : extensions[spelling.extensions]))];
+  return candidates.find((value) => value !== undefined && value !== null);
+}
+
+/** The inert ST activation fields an entry's metadata carries with a non-default value, in tuple order. The one
+ *  reader of every spelling a stored entry can hold: a world-file entry and a card book entry, first defined wins. */
 export function inertActivationFields(metadata: unknown): InertActivationField[] {
   if (!isPlainObject(metadata)) {
     return [];
   }
+  const extensions = isPlainObject(metadata["extensions"]) ? metadata["extensions"] : {};
+  const gates = { [USE_PROBABILITY]: firstDefined(metadata, extensions, USE_PROBABILITY, [{ extensions: USE_PROBABILITY }]) };
   const out: InertActivationField[] = [];
   for (const field of ST_INERT_ACTIVATION_FIELDS) {
-    const value = metadata[field];
-    if (value !== undefined && value !== null && SET_WHEN[field](value, metadata)) {
+    const value = firstDefined(metadata, extensions, field, CARD_SPELLINGS[field]);
+    if (value !== undefined && SET_WHEN[field](value, gates)) {
       out.push({ field, value });
     }
   }
   return out;
+}
+
+/** Each inert field a book's entries carry, with how many entries carry it, in first-seen order. */
+export function inertFieldCounts(entries: readonly { readonly metadata?: unknown }[]): { readonly field: StInertActivationField; readonly entries: number }[] {
+  const counts = new Map<StInertActivationField, number>();
+  for (const entry of entries) {
+    for (const { field } of inertActivationFields(entry.metadata)) {
+      counts.set(field, (counts.get(field) ?? 0) + 1);
+    }
+  }
+  return [...counts].map(([field, count]) => ({ field, entries: count }));
 }

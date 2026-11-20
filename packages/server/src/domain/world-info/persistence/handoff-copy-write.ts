@@ -5,10 +5,8 @@
 // mechanism.
 //
 // EVERY SOURCE READ CARRIES `fromOwnerId` IN ITS WHERE. A junction row is not a license: the old host may
-// have a book attached to a card or to the room that they do not own (a prior host's, still licensed by the
-// room-public chat-book posture), and those are not theirs to give away. They are skipped, silently — the
-// nominee is no worse off than before the handoff, and the honest alternative (refusing the accept over
-// someone else's lore) is not an alternative.
+// have a book attached to a card or to the room that they do not own, and those are not theirs to give away.
+// The copy skips them; the swap's {@link createDetachHandoffBooks} takes the room's off it.
 //
 // …AND EVERY DESTINATION READ CARRIES `toOwnerId`. The paragraph above is the SOURCE axis; the card
 // half also has a DESTINATION, and it is a caller-supplied id (`cardCopies[].characterId`). Nothing here
@@ -19,9 +17,9 @@
 // therefore joins `characters` on `toOwnerId` and a foreign or absent id is dropped BEFORE any mint — the
 // local belt an injected op's signature owes its next call site, exactly as the `duplicate-carry` twin
 // and the six handoff seams took it. The one production caller derives the ids under `toOwnerId`
-// (`chat/substrate/handoff-copy.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
-// a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room and stays
-// chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority).
+// (`chat/verbs/participants.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
+// a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room, and the copy it
+// attaches is minted under `toOwnerId` in this call.
 
 import type { CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -31,8 +29,8 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import { and, eq, inArray } from "drizzle-orm";
-import type { CopyHandoffBooks } from "../contract/handoff-copy.ts";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
+import type { CopyHandoffBooks, DetachHandoffBooks } from "../contract/handoff-copy.ts";
 import type { WorldInfoImportContext } from "../contract/import.ts";
 
 type BookRow = typeof worldBooks.$inferSelect;
@@ -84,7 +82,9 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
       const bookId = ctx.newBookId();
       copyOf.set(source.id, bookId);
       mints.push(
-        batchStmt(db.insert(worldBooks).values({ id: bookId, ownerId: toOwnerId, name: source.name, description: source.description, createdAt: at })),
+        batchStmt(
+          db.insert(worldBooks).values({ id: bookId, ownerId: toOwnerId, name: source.name, description: source.description, createdAt: at, updatedAt: at }),
+        ),
       );
       return bookId;
     };
@@ -122,6 +122,23 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
     }
     return repoint.map(statementToken);
   };
+}
+
+/** The handoff's D64 detach, built here because `chat_books` is world-info's table. One statement with its owner
+ *  test inside it, so it judges the junction as the swap batch finds it, after any copy re-point. `db` only. */
+export function createDetachHandoffBooks(handle: DatabaseHandle): DetachHandoffBooks {
+  const db = databaseForOwner(handle);
+  return ({ chatId, hostUserId }): StatementToken =>
+    statementToken(
+      db
+        .delete(chatBooks)
+        .where(
+          and(
+            eq(chatBooks.chatId, chatId),
+            notInArray(chatBooks.worldBookId, db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, hostUserId))),
+          ),
+        ),
+    );
 }
 
 /** THE DISCLOSURE — the same two owner-filtered halves the copy above reads, counted instead of
@@ -229,6 +246,7 @@ async function entryMints(ctx: WorldInfoImportContext, copyOf: ReadonlyMap<World
               ignoreBudget: entry.ignoreBudget,
               metadata: entry.metadata,
               createdAt: at,
+              updatedAt: at,
             }),
           ),
         ];

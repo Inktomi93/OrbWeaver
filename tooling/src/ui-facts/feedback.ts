@@ -538,7 +538,7 @@ const OUT_OF_SIGHT_ROWS: readonly KeptRead[] = [
     reason: "a save to another place: the background lands in the chat, not in this dialog",
   },
   {
-    path: "packages/client/src/features/imagery/components/image-edit-body.tsx",
+    path: "packages/client/src/features/imagery/hooks/use-image-edit-commit.tsx",
     label: "useEditImage",
     value: "toast",
     count: 1,

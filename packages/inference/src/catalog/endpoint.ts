@@ -8,7 +8,7 @@
 // evidence: a server that does not answer it still lists, the reason goes to `warn`, and the facts stay unreported.
 
 import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference";
-import { parseModalities } from "@orb/contracts/inference";
+import { EFFORT_LEVELS, parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
@@ -18,17 +18,15 @@ import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { FetchJsonArgs } from "../contract/http.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 
-const rowSchema = z
-  .object({
-    id: z.string(),
-    max_model_len: z.number().nullable().optional(),
-    context_length: z.number().nullable().optional(),
-    max_context_length: z.number().nullable().optional(),
-  })
-  .loose();
+const rowSchema = z.looseObject({
+  id: z.string(),
+  max_model_len: z.number().nullable().optional(),
+  context_length: z.number().nullable().optional(),
+  max_context_length: z.number().nullable().optional(),
+});
 type RawRow = z.infer<typeof rowSchema>;
 
-const listSchema = z.object({ data: z.array(rowSchema) }).loose();
+const listSchema = z.looseObject({ data: z.array(rowSchema) });
 
 /** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
  *  precedes a `/` is a registry port, not a tag. */
@@ -60,6 +58,15 @@ async function boundedRead(args: EndpointFetchArgs, read: Omit<FetchJsonArgs, "f
 }
 
 export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  if (args.modelInfoApi === "nanogpt") {
+    return await fetchNanoGptModels(args);
+  }
+  if (args.modelInfoApi === "literouter") {
+    return await fetchLiteRouterModels(args);
+  }
+  if (args.modelInfoApi === "deepseek") {
+    return await fetchDeepSeekModels(args);
+  }
   const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
@@ -86,6 +93,430 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
     default:
       return assertNever(args.modelInfoApi, "model info api");
   }
+}
+
+// ── hosted lists (NanoGPT, LiteRouter) ───────────────────────────────────────────────────────────────
+// A hosted list states each model's facts as fields beside its id. Every field parses alone, so a value of the wrong
+// shape states nothing and never takes its neighbours with it, and no single row fails the list. The one exception is
+// the field that says whether a row is a chat model: a malformed one drops its row, so it never lists as chat.
+
+/** A stated limit: a positive safe integer, else nothing. */
+const STATED_LIMIT = z.int().positive().nullable().optional().catch(null);
+const STATED_FLAG = z.boolean().optional().catch(undefined);
+const STATED_PRICE = z.number().nonnegative().nullable().optional().catch(undefined);
+const STATED_TEXT = z.string().min(1).optional().catch(undefined);
+/** A list of names; a member that is not a string is dropped, the rest kept. */
+const STATED_NAMES = z
+  .array(z.unknown())
+  .transform((values) => values.filter((value): value is string => typeof value === "string"))
+  .optional()
+  .catch(undefined);
+
+const PER_MILLION = 1_000_000;
+
+/** A window and output cap as a list states them. An output cap above the window cannot be run, so it states
+ *  nothing and the cap stays assumed. */
+function statedLimits(
+  window: number | null | undefined,
+  output: number | null | undefined,
+): { readonly window: number | null; readonly output: number | undefined } {
+  const stated = window ?? null;
+  const cap = output ?? undefined;
+  return { window: stated, output: cap !== undefined && stated !== null && cap > stated ? undefined : cap };
+}
+
+// A listed price is the provider's data. Far above any hosted price (the dearest listed today is $120 per million
+// output tokens), a figure past this is a list error, and an estimate from it would print a nonsense cost.
+const MAX_LISTED_USD_PER_TOKEN = 0.01;
+
+function plausiblePerToken(usd: number): number | undefined {
+  return Number.isFinite(usd) && usd <= MAX_LISTED_USD_PER_TOKEN ? usd : undefined;
+}
+
+function perToken(perMillion: number | null | undefined): number | undefined {
+  return perMillion === null || perMillion === undefined ? undefined : plausiblePerToken(perMillion / PER_MILLION);
+}
+
+const PER_THOUSAND = 1000;
+
+function perTokenOfThousand(perThousand: number | null | undefined): number | undefined {
+  return perThousand === null || perThousand === undefined ? undefined : plausiblePerToken(perThousand / PER_THOUSAND);
+}
+
+function listedPriceOf(
+  promptPerMillion: number | null | undefined,
+  completionPerMillion: number | null | undefined,
+  cache: { readonly read?: number | undefined; readonly write?: number | undefined } = {},
+): EndpointModel["listedPrice"] {
+  const prompt = perToken(promptPerMillion);
+  const completion = perToken(completionPerMillion);
+  if (prompt === undefined && completion === undefined) {
+    return;
+  }
+  return {
+    ...(prompt === undefined ? {} : { prompt }),
+    ...(completion === undefined ? {} : { completion }),
+    ...(cache.read === undefined ? {} : { cacheRead: cache.read }),
+    ...(cache.write === undefined ? {} : { cacheWrite: cache.write }),
+  };
+}
+
+/** What a turn may carry: the list's modality names where it states known ones, else its image and video flags. */
+function hostedInput(
+  listed: readonly string[] | undefined,
+  flags: { readonly vision?: boolean | undefined; readonly video?: boolean | undefined },
+): Modality[] | undefined {
+  if (listed !== undefined) {
+    const { modalities } = parseModalities(listed);
+    if (modalities.length > 0) {
+      return [...modalities];
+    }
+  }
+  if (flags.vision === undefined && flags.video === undefined) {
+    return;
+  }
+  return modalitiesOf(flags);
+}
+
+async function hostedRows<T>(args: EndpointFetchArgs, read: { readonly path: string; readonly label: string }, schema: z.ZodType<T>): Promise<T[]> {
+  const listed = await boundedRead(args, { url: openAiPath(args.baseUrl, read.path), headers: authHeaders(args.secret, args.headers), label: read.label });
+  const rows: T[] = [];
+  for (const raw of z.looseObject({ data: z.array(z.unknown()) }).parse(listed).data) {
+    const parsed = schema.safeParse(raw);
+    if (parsed.success) {
+      rows.push(parsed.data);
+    }
+  }
+  return rows;
+}
+
+// ── NanoGPT ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** The detailed list's fields this reader keeps (docs.nano-gpt.com Models). */
+const nanoGptRowSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  /** The window shared by input and output; `null` when the service does not know it. */
+  context_length: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  // The stated output kind decides chat, so a malformed one fails the row instead of stating nothing; absent stays chat.
+  architecture: z
+    .looseObject({
+      input_modalities: STATED_NAMES,
+      output_modalities: z
+        .array(z.unknown())
+        .transform((values) => values.filter((value): value is string => typeof value === "string"))
+        .optional(),
+    })
+    .nullish(),
+  capabilities: z
+    .looseObject({
+      vision: STATED_FLAG,
+      video_input: STATED_FLAG,
+      tool_calling: STATED_FLAG,
+      parallel_tool_calls: STATED_FLAG,
+      structured_output: STATED_FLAG,
+      reasoning: STATED_FLAG,
+    })
+    .optional()
+    .catch(undefined),
+  /** USD per million tokens for `prompt` and `completion`; USD per thousand for the cache prices, absent when the model
+   *  has none (the API reference's `ModelsResponse`). The price tiers above a context threshold are not read, so a
+   *  long prompt's estimate uses the base price. */
+  pricing: z
+    .looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE, cacheReadInputPer1kTokens: STATED_PRICE, cacheWriteInputPer1kTokens: STATED_PRICE })
+    .optional()
+    .catch(undefined),
+  /** The effort words the model takes; the service refuses any other with a 400 before the turn runs. */
+  reasoning_efforts: STATED_NAMES,
+});
+type NanoGptRow = z.infer<typeof nanoGptRowSchema>;
+
+/** The effort word that turns thinking off where a list names it. */
+const EFFORT_OFF = "none";
+
+const NANOGPT_DETAILED_PATH = "/models?detailed=true";
+const TEXT_OUTPUT = "text";
+
+/** The embedding list's fields this reader keeps (docs.nano-gpt.com Embedding Models): `dimensions` is the default
+ *  width the route returns when a request names none, `max_tokens` the longest input, and `supports_dimensions`
+ *  whether a request may name a smaller width. `max_inputs`, the most inputs one request takes, is on the live list
+ *  though the page omits it. */
+const nanoGptEmbedderSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  dimensions: STATED_LIMIT,
+  max_tokens: STATED_LIMIT,
+  max_inputs: STATED_LIMIT,
+  supports_dimensions: STATED_FLAG,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+/** The rerank list's fields this reader keeps (the Rerank page): `max_tokens` bounds one query and document pair. */
+const nanoGptRerankerSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  max_tokens: STATED_LIMIT,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+const NANOGPT_EMBEDDING_PATH = "/embedding-models";
+const NANOGPT_RERANK_PATH = "/rerank-models";
+
+/** The detailed list read in place of the bare one, which carries ids only, then the embedding and rerank lists, which
+ *  sit outside it. A `null` limit states nothing, so the capability keeps that limit marked assumed. A row whose stated
+ *  output has no text is not a chat model. A side list that fails drops its own models and never the chat list. */
+async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: NANOGPT_DETAILED_PATH, label: "NanoGPT models" }, nanoGptRowSchema);
+  const embedders = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_EMBEDDING_PATH, label: "NanoGPT embedding models" }, nanoGptEmbedderSchema));
+  const rerankers = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_RERANK_PATH, label: "NanoGPT rerank models" }, nanoGptRerankerSchema));
+  return [
+    ...rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel),
+    ...(embedders ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "embedding",
+          name: row.name,
+          embeddingDims: row.dimensions ?? undefined,
+          embedInputTokens: row.max_tokens ?? undefined,
+          embedMaxInputs: row.max_inputs ?? undefined,
+          embedTruncatable: row.supports_dimensions,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+    ...(rerankers ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "rerank",
+          name: row.name,
+          rerankInputTokens: row.max_tokens ?? undefined,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+  ];
+}
+
+// The levels a thinker's list names, and whether `none` turns its thinking off (NanoGPT's DeepSeek Harness page: "its
+// `reasoning_efforts` list for the reasoning levels. NanoGPT's `none` effort maps to the Off level"). The docs say a
+// plain id may start with reasoning off but the list states no per-model default, so `default: true` is this
+// reader's assumption, not a stated fact.
+function nanoGptThinking(row: NanoGptRow): EndpointModel["thinking"] {
+  const efforts = row.reasoning_efforts;
+  if (efforts === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => efforts.includes(level));
+  if (levels.length === 0) {
+    return;
+  }
+  return { values: [...levels, ...(efforts.includes(EFFORT_OFF) ? [false] : [])], default: true };
+}
+
+function nanoGptModel(row: NanoGptRow): EndpointModel {
+  const flags = row.capabilities;
+  const limits = statedLimits(row.context_length, row.max_output_tokens);
+  return withStated(
+    { id: row.id, contextLength: limits.window },
+    {
+      kind: "generation",
+      name: row.name,
+      maxCompletionTokens: limits.output,
+      input: hostedInput(row.architecture?.input_modalities, { vision: flags?.vision, video: flags?.video_input }),
+      tools: flags?.tool_calling === true ? { parallel: flags.parallel_tool_calls === true } : undefined,
+      structured: flags?.structured_output,
+      thinks: flags?.reasoning === true ? true : undefined,
+      thinking: flags?.reasoning === true ? nanoGptThinking(row) : undefined,
+      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion, {
+        read: perTokenOfThousand(row.pricing?.cacheReadInputPer1kTokens),
+        write: perTokenOfThousand(row.pricing?.cacheWriteInputPer1kTokens),
+      }),
+      // A hosted list has no per-model probe: every fact it holds is in this read.
+      probed: true,
+    },
+  );
+}
+
+// ── LiteRouter ───────────────────────────────────────────────────────────────────────────────────────
+
+/** The served window per `variant`, from LiteRouter's Model naming page (docs.literouter.com/model-naming): the
+ *  native window for `full-context`, `metered:full-context` and `payg`; an approximate input budget for the named
+ *  budgets, and 5,000 tokens for `free`, each still bounded by the native window. The plain and `metered` variants run
+ *  the account's chat-memory setting, which no read states, so they are absent here and stay assumed, as does any
+ *  variant this table does not name. */
+const LITEROUTER_VARIANT_WINDOWS: Readonly<Record<string, number | "native">> = {
+  "full-context": "native",
+  "metered:full-context": "native",
+  payg: "native",
+  "32k-context": 32_000,
+  "64k-context": 64_000,
+  "128k-context": 128_000,
+  "256k-context": 256_000,
+  free: 5000,
+};
+
+/** The list's model types this reader keeps: a chat model, and an image model, which answers on the row's image host
+ *  (the Image Generation page). */
+const LITEROUTER_CHAT_TYPE = "chat";
+const LITEROUTER_IMAGE_TYPE = "image";
+
+const literouterRowSchema = z.looseObject({
+  id: z.string().min(1),
+  display_name: STATED_TEXT,
+  // The type decides what the model is, so only a stated chat or image type parses; a missing or malformed one drops
+  // the row.
+  type: z.enum([LITEROUTER_CHAT_TYPE, LITEROUTER_IMAGE_TYPE]),
+  variant: STATED_TEXT,
+  /** The model's native window, whatever the variant serves. */
+  context_window: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  input_modalities: STATED_NAMES,
+  /** The request fields the model takes; the chat route accepts any field silently, so this is the only word on which
+   *  samplers it honours. */
+  supported_parameters: STATED_NAMES,
+  capabilities: z
+    .looseObject({ tools: STATED_FLAG, reasoning: STATED_FLAG, vision: STATED_FLAG, video: STATED_FLAG, structured_output: STATED_FLAG })
+    .optional()
+    .catch(undefined),
+  /** USD per million tokens. */
+  price_usd_per_1m: z.looseObject({ input: STATED_PRICE, output: STATED_PRICE }).optional().catch(undefined),
+  /** The service's measured reasoning controls: each effort word's status, and `mode` `none` for a model that shows
+   *  no reasoning on any route. */
+  reasoning_hint: z
+    .looseObject({
+      mode: STATED_TEXT,
+      efforts: z
+        .record(z.string(), z.looseObject({ status: STATED_TEXT }).optional().catch(undefined))
+        .optional()
+        .catch(undefined),
+    })
+    .optional()
+    .catch(undefined),
+});
+type LiteRouterRow = z.infer<typeof literouterRowSchema>;
+
+/** An effort word the service runs as asked; `turns_off` on `none` makes thinking switchable. */
+const EFFORT_SUPPORTED = "supported";
+const EFFORT_TURNS_OFF = "turns_off";
+const EFFORT_DEFAULT_ON = "on";
+const EFFORT_DEFAULT_OFF = "off";
+const REASONING_HIDDEN = "none";
+
+async function fetchLiteRouterModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: "/models", label: "LiteRouter models" }, literouterRowSchema);
+  return rows.map((row) => (row.type === LITEROUTER_IMAGE_TYPE ? literouterImageModel(row) : literouterModel(row)));
+}
+
+// An image model takes a text prompt and returns one picture; the list states neither a window nor a price for it.
+function literouterImageModel(row: LiteRouterRow): EndpointModel {
+  return withStated({ id: row.id, contextLength: null }, { kind: "generation", name: row.display_name, input: ["text"], output: ["image"], probed: true });
+}
+
+function literouterWindow(row: LiteRouterRow, native: number | null): number | null {
+  const served = row.variant === undefined ? undefined : LITEROUTER_VARIANT_WINDOWS[row.variant];
+  if (served === undefined) {
+    return null;
+  }
+  if (served === "native") {
+    return native;
+  }
+  return native === null ? served : Math.min(served, native);
+}
+
+/** The effort words the service measured as working, and whether `none` turns thinking off. */
+function literouterThinking(row: LiteRouterRow): EndpointModel["thinking"] {
+  const efforts = row.reasoning_hint?.efforts;
+  if (efforts === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => efforts[level]?.status === EFFORT_SUPPORTED);
+  const values = [...levels, ...(efforts[EFFORT_OFF]?.status === EFFORT_TURNS_OFF ? [false] : [])];
+  const defaulted = efforts["default"]?.status;
+  if (levels.length === 0 || (defaulted !== EFFORT_DEFAULT_ON && defaulted !== EFFORT_DEFAULT_OFF)) {
+    return;
+  }
+  return { values, default: defaulted === EFFORT_DEFAULT_ON };
+}
+
+function literouterModel(row: LiteRouterRow): EndpointModel {
+  const flags = row.capabilities;
+  const limits = statedLimits(row.context_window, row.max_output_tokens);
+  const thinks = flags?.reasoning === true && row.reasoning_hint?.mode !== REASONING_HIDDEN;
+  return withStated(
+    { id: row.id, contextLength: literouterWindow(row, limits.window) },
+    {
+      kind: "generation",
+      name: row.display_name,
+      // The native window bounds whatever window the connection runs at, the assumed chat-memory one included.
+      contextTrained: limits.window ?? undefined,
+      maxCompletionTokens: limits.output,
+      input: hostedInput(row.input_modalities, { vision: flags?.vision, video: flags?.video }),
+      tools: flags?.tools === true ? { parallel: false } : undefined,
+      structured: flags?.structured_output,
+      thinks: thinks ? true : undefined,
+      thinking: thinks ? literouterThinking(row) : undefined,
+      listedPrice: listedPriceOf(row.price_usd_per_1m?.input, row.price_usd_per_1m?.output),
+      supportedParameters: row.supported_parameters,
+      probed: true,
+    },
+  );
+}
+
+// ── DeepSeek ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** The live list's fields this reader keeps (api-docs.deepseek.com Models list, live 2026-11-16): the window and
+ *  output cap the service runs, what each model takes as input, and the effort levels its `reasoning_effort`
+ *  accepts. `api_capabilities` describes the Anthropic route and stays a loose unknown. */
+const deepseekRowSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  context_window: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  input_modalities: STATED_NAMES,
+  effort: z.looseObject({ supported_levels: STATED_NAMES, default_level: STATED_TEXT }).optional().catch(undefined),
+});
+type DeepSeekRow = z.infer<typeof deepseekRowSchema>;
+
+/** The effort words the model states, and whether thinking is switchable: `reasoning_effort: "none"` is the off
+ *  (Thinking Mode guide; measured 2026-11-16 — no `reasoning_content` came back), so `false` is always among the
+ *  values and this reader never states a mandatory thinker. */
+function deepseekThinking(row: DeepSeekRow): EndpointModel["thinking"] {
+  const stated = row.effort?.supported_levels;
+  if (stated === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => stated.includes(level));
+  if (levels.length === 0) {
+    return;
+  }
+  return { values: [...levels, false], default: row.effort?.default_level ?? true };
+}
+
+async function fetchDeepSeekModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: "/models", label: "DeepSeek models" }, deepseekRowSchema);
+  return rows.map((row) => {
+    const limits = statedLimits(row.context_window, row.max_output_tokens);
+    const thinks = row.effort !== undefined;
+    return withStated(
+      { id: row.id, contextLength: limits.window },
+      {
+        kind: "generation",
+        name: row.name,
+        // The hosted service runs every model at its stated window; there is nothing above it to clamp to.
+        contextTrained: limits.window ?? undefined,
+        maxCompletionTokens: limits.output,
+        input: hostedInput(row.input_modalities, {}),
+        thinks: thinks ? true : undefined,
+        thinking: thinks ? deepseekThinking(row) : undefined,
+        probed: true,
+      },
+    );
+  });
 }
 
 // ── shared ───────────────────────────────────────────────────────────────────────────────────────────
@@ -165,7 +596,7 @@ function prefillOf(rendered: unknown): EndpointModel["prefill"] {
   return rendered.trimEnd().endsWith(PREFILL_MARK) ? "deliver" : "none";
 }
 
-const embeddingResponseSchema = z.object({ data: z.array(z.object({ embedding: z.array(z.number()) }).loose()).min(1) }).loose();
+const embeddingResponseSchema = z.looseObject({ data: z.array(z.looseObject({ embedding: z.array(z.number()) })).min(1) });
 
 /** An embedder's width, measured: the length of the vector it returns (a server's `n_embd` is the hidden size). */
 async function measuredWidth(args: EndpointFetchArgs, model: string): Promise<number | undefined> {
@@ -224,24 +655,21 @@ function withStated(row: EndpointModel, facts: Partial<EndpointModel>): Endpoint
 
 // ── Ollama ───────────────────────────────────────────────────────────────────────────────────────────
 
-const ollamaPsSchema = z
-  .object({ models: z.array(z.object({ name: z.string(), model: z.string().optional(), context_length: z.number().int().positive().optional() }).loose()) })
-  .loose();
-const ollamaShowSchema = z
-  .object({
-    parameters: z.string().optional(),
-    model_info: z.record(z.string(), z.unknown()).nullable().optional(),
-    /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
-    capabilities: z.array(z.string()).optional(),
-    /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
-    thinking: z
-      .object({ values: z.array(z.unknown()), default: z.unknown() })
-      .loose()
-      .nullable()
-      .optional(),
-  })
-  .loose();
-const ollamaVersionSchema = z.object({ version: z.string() }).loose();
+const ollamaPsSchema = z.looseObject({
+  models: z.array(z.looseObject({ name: z.string(), model: z.string().optional(), context_length: z.number().int().positive().optional() })),
+});
+const ollamaShowSchema = z.looseObject({
+  parameters: z.string().optional(),
+  model_info: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
+  capabilities: z.array(z.string()).optional(),
+  /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
+  thinking: z
+    .looseObject({ values: z.array(z.unknown()), default: z.unknown() })
+    .nullable()
+    .optional(),
+});
+const ollamaVersionSchema = z.looseObject({ version: z.string() });
 
 /** A Modelfile `PARAMETER num_ctx N` line as `ollama show` prints it in `parameters`. */
 const NUM_CTX_RE = /^num_ctx\s+(\d+)\s*$/mu;
@@ -335,7 +763,7 @@ async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Pro
  *  field; `/api/chat` neither), so no choice, `none` included, and no parallel switch reaches the model. */
 const OLLAMA_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
-const ollamaRenderSchema = z.object({ ["_debug_info"]: z.object({ ["rendered_template"]: z.string() }).loose() }).loose();
+const ollamaRenderSchema = z.looseObject({ ["_debug_info"]: z.looseObject({ ["rendered_template"]: z.string() }) });
 
 /** `_debug_render_only` renders the model's template over the messages and generates nothing. Non-streaming:
  *  only that reply carries `_debug_info`. A model in the server's native mode is loaded to render. */
@@ -458,34 +886,26 @@ function thinkingDescriptor(raw: { readonly values: readonly unknown[]; readonly
 
 // ── llama.cpp server ─────────────────────────────────────────────────────────────────────────────────
 
-const llamaCppPropsSchema = z
-  .object({
-    /** `router` on the multi-model router, whose bare `/props` describes no model. */
-    role: z.string().optional(),
-    modalities: z.object({ vision: z.boolean().optional(), video: z.boolean().optional(), audio: z.boolean().optional() }).loose().optional(),
-    /** Per-template booleans (`supports_tools`, `supports_system_role`, …), kept whole. */
-    chat_template_caps: z.record(z.string(), z.boolean()).optional(),
-    default_generation_settings: z
-      .object({ n_ctx: z.number().int().optional(), params: z.record(z.string(), z.unknown()).nullable().optional() })
-      .loose()
-      .optional(),
-    build_info: z.string().optional(),
-  })
-  .loose();
+const llamaCppPropsSchema = z.looseObject({
+  /** `router` on the multi-model router, whose bare `/props` describes no model. */
+  role: z.string().optional(),
+  modalities: z.looseObject({ vision: z.boolean().optional(), video: z.boolean().optional(), audio: z.boolean().optional() }).optional(),
+  /** Per-template booleans (`supports_tools`, `supports_system_role`, …), kept whole. */
+  chat_template_caps: z.record(z.string(), z.boolean()).optional(),
+  default_generation_settings: z
+    .looseObject({ n_ctx: z.number().int().optional(), params: z.record(z.string(), z.unknown()).nullable().optional() })
+    .optional(),
+  build_info: z.string().optional(),
+});
 /** The llama.cpp spellings on a `/v1/models` row: the loaded slot's window and the trained maximum, and in router
  *  mode the per-model modalities (stated without loading the model). `meta.n_embd` is the hidden size, never read
  *  as an embedding width. */
-const llamaCppRowSchema = z
-  .object({
-    meta: z.object({ n_ctx: z.number().int().positive().optional(), n_ctx_train: z.number().int().positive().optional() }).loose().optional(),
-    architecture: z
-      .object({ input_modalities: z.array(z.string()).optional() })
-      .loose()
-      .optional(),
-  })
-  .loose();
-const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string(), type: z.string().optional() }).loose() }).loose();
-const llamaCppTemplateSchema = z.object({ prompt: z.string() }).loose();
+const llamaCppRowSchema = z.looseObject({
+  meta: z.looseObject({ n_ctx: z.number().int().positive().optional(), n_ctx_train: z.number().int().positive().optional() }).optional(),
+  architecture: z.looseObject({ input_modalities: z.array(z.string()).optional() }).optional(),
+});
+const llamaCppErrorSchema = z.looseObject({ error: z.looseObject({ message: z.string(), type: z.string().optional() }) });
+const llamaCppTemplateSchema = z.looseObject({ prompt: z.string() });
 const LLAMA_CPP_ROUTER_ROLE = "router";
 /** `build_info` is `b<number>-<hash>`. */
 const LLAMA_CPP_BUILD_RE = /^b(\d+)/u;
@@ -683,27 +1103,23 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
 
 // ── KoboldCpp ────────────────────────────────────────────────────────────────────────────────────────
 
-const koboldCppVersionSchema = z
-  .object({
-    version: z.string().optional(),
-    vision: z.boolean().optional(),
-    audio: z.boolean().optional(),
-    /** A text model is loaded. */
-    llm: z.boolean().optional(),
-    /** A separate embeddings model is loaded (`--embeddingsmodel`). */
-    embeddings: z.boolean().optional(),
-    /** Chat renders through the model's jinja template (`--jinja`) rather than KoboldCpp's adapter. */
-    jinja: z.boolean().optional(),
-  })
-  .loose();
-const koboldCppPropsSchema = z
-  .object({
-    n_ctx: z.number().int().positive().optional(),
-    default_generation_settings: z.object({ n_ctx: z.number().int().positive().optional() }).loose().optional(),
-    chat_template: z.string().nullable().optional(),
-  })
-  .loose();
-const koboldCppValueSchema = z.object({ value: z.number().int().positive() }).loose();
+const koboldCppVersionSchema = z.looseObject({
+  version: z.string().optional(),
+  vision: z.boolean().optional(),
+  audio: z.boolean().optional(),
+  /** A text model is loaded. */
+  llm: z.boolean().optional(),
+  /** A separate embeddings model is loaded (`--embeddingsmodel`). */
+  embeddings: z.boolean().optional(),
+  /** Chat renders through the model's jinja template (`--jinja`) rather than KoboldCpp's adapter. */
+  jinja: z.boolean().optional(),
+});
+const koboldCppPropsSchema = z.looseObject({
+  n_ctx: z.number().int().positive().optional(),
+  default_generation_settings: z.looseObject({ n_ctx: z.number().int().positive().optional() }).optional(),
+  chat_template: z.string().nullable().optional(),
+});
+const koboldCppValueSchema = z.looseObject({ value: z.number().int().positive() });
 /** The release that added `response_format` with a JSON schema to the OpenAI chat endpoint. */
 const KOBOLDCPP_STRUCTURED_FLOOR = "1.90";
 /** Without `--jinja_tools` the server picks ONE tool itself and grammar-forces it; with it, the choice is ignored
@@ -769,6 +1185,9 @@ export async function probeListedModel(args: EndpointFetchArgs, row: EndpointMod
 async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
   switch (args.modelInfoApi) {
     case undefined:
+    case "nanogpt":
+    case "literouter":
+    case "deepseek":
       return { probed: true };
     case "ollama":
       return await ollamaLateFacts(args, row);

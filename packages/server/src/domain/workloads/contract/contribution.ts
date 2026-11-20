@@ -14,6 +14,8 @@
 // constraint that keeps `PortableEntity.exportAll` signal-free in `@orb/contracts/portability`.
 
 import type {
+  ModelCallCount,
+  PriorStageCount,
   ReportProgress,
   WorkloadEstimateScope,
   WorkloadKind,
@@ -43,6 +45,12 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * the kind belongs on one lane.
    */
   readonly laneFor?: (params: WorkloadParamsByKind[K]) => WorkloadLane;
+  /**
+   * Whether a row is TRANSIENT: work its owner reads by id while it runs and never lists afterwards, e.g. a dry-run
+   * preview. The enqueue doors stamp the answer; a transient row is left out of every list and deleted once
+   * terminal, when its owner's next row of the kind ends and at boot. OMIT IT when every row is a run the owner keeps.
+   */
+  readonly transientFor?: (params: WorkloadParamsByKind[K]) => boolean;
   /**
    * The ADMISSION sub-partition: what this kind's CONCURRENCY UNIT is, derived from the row's own params and
    * stamped into `workloads.admission_key` at the enqueue door. Two active rows of one kind collide only when
@@ -84,9 +92,17 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * How many Utility-model calls a run over this scope would make, counted by the owning domain WITHOUT running
    * or writing anything, so a person confirms a library-wide paid run knowing its size. `ownerId` is the row's
    * enumeration scope (`null` = the bulk pass) and `funderUserId` is whose Utility model the run would spend.
-   * OMIT IT when the kind makes no generative model call.
+   * OMIT IT when the kind makes no generative model call. `before` holds the stages a confirmed chain runs ahead of
+   * this one, in order, each with its own count; a stage that grows this kind's input makes the count a ceiling.
    */
-  readonly modelCalls?: (args: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
+  readonly modelCalls?: (
+    args: WorkloadEstimateScope & {
+      readonly funderUserId: UserId | null;
+      readonly params: WorkloadParamsByKind[K];
+      readonly before: readonly PriorStageCount[];
+      readonly signal: AbortSignal;
+    },
+  ) => Promise<ModelCallCount>;
   readonly resume: WorkloadResumePolicy;
   /**
    * The kinds this one must never run BESIDE, for any owner, on any lane or replica (D334). The exclusion binds
@@ -96,11 +112,14 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;
   /**
-   * Free what an admitted row holds outside the database when a cancel ends it before it ever ran, since `run`'s own
-   * cleanup then never starts. The row is already terminal when this runs, so it must not reject: what it cannot
-   * free stays for {@link WorkloadContribution.sweepOnBoot}. OMIT IT when a queued row holds nothing.
+   * Free what an admitted row holds outside the database when it ends before its body ever ran, since `run`'s own
+   * cleanup then never starts: a cancel while queued, a row failed in the queue (its params no longer parse, its
+   * owner is gone, a dependency failed) or a run refused for authority. `params` is the row's stored value, which
+   * may no longer parse, and `ownerId` is `null` once the owner is gone. The row is already terminal when this
+   * runs, so it must not reject: what it cannot free stays for {@link WorkloadContribution.sweepOnBoot}. OMIT IT
+   * when a queued row holds nothing.
    */
-  readonly releaseUnrun?: (row: { readonly ownerId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<void>;
+  readonly releaseUnrun?: (row: { readonly ownerId: UserId | null; readonly params: unknown }) => Promise<void>;
   /**
    * Free what dead processes and rows that never ran left outside the database. It runs once per kind that declares
    * it, after the boot reclaim and before the worker starts, so no run is live and every row that may still run is

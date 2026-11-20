@@ -47,7 +47,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import type { ComposerDraftWrite } from "#state";
 import { useComposerFieldWrap } from "../hooks/use-composer-field-wrap.ts";
@@ -131,6 +131,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const rewrite = useRewriteModal(trimmed, guided.fireRewrite, onChange);
   const characters = useRoomCharacters(chatId);
   const game = useGameSteer(chatId);
+  const viewerHosts = useViewerHostsRoom(chatId);
 
   const canTargetTail = guided.tailAssistantMessageId !== null;
   // The honest-refusal gate (#54) folds into `idle`: an unserveable connection idles EVERY fire action (they
@@ -193,8 +194,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="min-inline-0" minHeight="shrinks" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
-      <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
+    <Stack minWidth="shrinks" minHeight="shrinks" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
+      <Row align="center" justify="between" gap="glyph" className="shrink-0" minWidth="shrinks" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu
             moved={movedActions}
@@ -236,7 +237,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
-          <Row aria-label={COMPOSER_THEM_GROUP_NAME} className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
+          <Row aria-label={COMPOSER_THEM_GROUP_NAME} className="shrink-0" minWidth="shrinks" data-slot="composer-them-actions" gap="glyph" role="group">
             <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatSwipe}>
               <GuidedIconButton
                 icon={{ glyph: RotateCcw, fills: false }}
@@ -279,7 +280,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       <Row
         align="center"
         gap="glyph"
-        className="min-inline-0"
+        minWidth="shrinks"
         minHeight="controlMd"
         grow="content"
         data-field-wrapped={fieldWrapped ? "" : undefined}
@@ -297,6 +298,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         </Row>
       </Row>
       <RewriteDialog
+        chatId={chatId}
+        canKeep={viewerHosts}
         open={rewrite.isOpen}
         onOpenChange={rewrite.setOpen}
         instruction={rewrite.instruction}
@@ -331,7 +334,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
  *  Response icon then fires Auto directly (no submenu). */
 function useRoomCharacters(chatId: ChatId): ReturnType<typeof filterCharacters> {
   const trpc = useTRPC();
-  const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const rosterQuery = useQuery(roomRosterOptions(trpc, { chatId }));
   return filterCharacters(rosterQuery.data?.participants ?? []);
 }
 
@@ -339,8 +342,15 @@ function useRoomCharacters(chatId: ChatId): ReturnType<typeof filterCharacters> 
  *  same warm `getChat`/`getGame` caches the panel + old wand used (lockdown §12 direct cross-feature read). */
 function useGameSteer(chatId: ChatId): { readonly isGame: boolean; readonly plotAvailable: boolean } {
   const trpc = useTRPC();
-  const chatQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const chatQuery = useQuery(roomRosterOptions(trpc, { chatId }));
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };
+}
+
+/** Whether the viewer hosts the room, off the same warm room read: the injections surface's host gate, which
+ *  keeping a Rewrite correction follows. */
+function useViewerHostsRoom(chatId: ChatId): boolean {
+  const trpc = useTRPC();
+  return useQuery(roomRosterOptions(trpc, { chatId })).data?.viewerIsHost === true;
 }

@@ -1,6 +1,7 @@
 import { routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TAG_SUGGESTIONS_EMPTY_TEXT } from "#client/features/tag/lib/tag-list-name.ts";
 import type { SuggestionFocusStory } from "./_suggestion-focus-stories.tsx";
 
 for (const remaining of [false, true]) {
@@ -62,7 +63,7 @@ for (const remaining of [false, true]) {
     await expect(apply).toHaveCount(remaining ? 2 : 1);
     await listening.promise;
     await apply.first().click();
-    const target = remaining ? apply : page.getByRole("status").filter({ hasText: "No suggested tags awaiting review." });
+    const target = remaining ? apply : page.getByRole("status").filter({ hasText: TAG_SUGGESTIONS_EMPTY_TEXT });
     await expect(apply).toHaveCount(remaining ? 1 : 0);
     await expect(target).toBeFocused();
     await component.unmount();

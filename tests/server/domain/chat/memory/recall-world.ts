@@ -2,10 +2,11 @@
 // Shared by the recall pipeline suite and the persistence suites that remove a stored row from the same room.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
+import type { MemoryItemView, MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict, MemoryView } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { present } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -17,6 +18,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
   SECRET_BOX_TEST_KEY,
   SUMMARIZE_TRANSCRIPT_MARKER,
   summaryReply,
@@ -75,6 +77,16 @@ function lineText(arc: Arc): string {
   return `line-${arc}. They went on about the ${arc}.`;
 }
 
+/** One transcript line of `arc`'s scene, long enough that a few later lines push it out of the prompt's window. */
+export function sceneLine(arc: Arc): string {
+  return `${lineText(arc)} ${FILLER}`;
+}
+
+/** One long transcript line that names no arc, so its block is summarized as filler. */
+export function fillerLine(index: number): string {
+  return `Filler ${index}: ${FILLER}`;
+}
+
 function digestText(arc: Arc): string {
   return summaryReply({ anchor: `Arc ${arc}`, facts: `arc-${arc}. The ${arc} scene happened here.`, keywords: [arc] });
 }
@@ -85,11 +97,12 @@ interface RecallWorld extends AsyncDisposable {
   readonly h: ChatRoot;
   /** The arc the scripted cross-encoder scores highest. */
   readonly rerankPrefers: (arc: Arc) => void;
-  /** Run one production sweep to completion, as the sweeps that built this room did. */
-  readonly sweep: (input: WorkloadInput) => Promise<void>;
+  /** Run one production sweep to completion, as the sweeps that built this room did: the owner's, or `as`'s, which
+   *  reaches the rooms `as` hosts. */
+  readonly sweep: (input: StartWorkloadInput, as?: ChatRoot["owner"]) => Promise<void>;
+  /** The sweeps that built this room, in order: they put the memory built so far in the active vector space. */
+  readonly activate: (as?: ChatRoot["owner"]) => Promise<void>;
 }
-
-type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
 
 export interface World {
   readonly build: (config: {
@@ -98,15 +111,22 @@ export interface World {
     readonly scout?: boolean;
     /** Serve the transport with its local sign-in, so a test can open the owner's event stream. */
     readonly signIn?: boolean;
+    /** A case's own reply for a model body, or undefined to keep the scripted one ({@link generatedText}). */
+    readonly replyFor?: (body: string) => string | undefined;
   }) => Promise<RecallWorld>;
 }
 
 // The consolidation prompt leads with this slot; its default text is the one production sends when the host sets no override.
 const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {});
 
+/** The facts the scripted consolidation reply carries. */
+export const MERGED_FACTS = "The scenes merged into one arc.";
+/** The storm arc's consolidation, told apart from the other merged arcs so the prompt shows which one it carries. */
+export const STORM_ARC = "The storm arc was merged into one telling.";
+
 export function generatedText(body: string): string {
   if (body.includes(CONSOLIDATION_LEAD)) {
-    return summaryReply({ anchor: "Merged arc", facts: "The scenes merged into one arc.", keywords: ["merged"] });
+    return summaryReply({ anchor: "Merged arc", facts: MERGED_FACTS, keywords: ["merged"] });
   }
   if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return "The keeper answers.";
@@ -123,7 +143,7 @@ export const world: World = {
       embedding: embeddingFor,
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
       images: [],
-      chatText: generatedText,
+      chatText: (body) => config.replyFor?.(body) ?? generatedText(body),
     });
     await using construction = new AsyncDisposableStack();
     const h = construction.use(
@@ -146,8 +166,8 @@ export const world: World = {
         ],
         ...(config.scout === true ? { group: { output: "per-speaker" as const, policy: "list" as const, cardScope: "scoped" as const } } : {}),
         transcript: [
-          ...ARCS.flatMap((arc) => [0, 1].map(() => ({ role: "assistant" as const, content: `${lineText(arc)} ${FILLER}` }))),
-          ...Array.from({ length: FILLER_LINES }, (_, index) => ({ role: "assistant" as const, content: `Filler ${index}: ${FILLER}` })),
+          ...ARCS.flatMap((arc) => [0, 1].map(() => ({ role: "assistant" as const, content: sceneLine(arc) }))),
+          ...Array.from({ length: FILLER_LINES }, (_, index) => ({ role: "assistant" as const, content: fillerLine(index) })),
         ],
       }),
     );
@@ -182,17 +202,21 @@ export const world: World = {
     if (runAdmittedWorkload === undefined) {
       throw new Error("the recall world has no admitted-workload driver");
     }
-    const sweep = async (input: WorkloadInput): Promise<void> => {
-      const job = await h.caller.workloads.start({ input, mode: "singular" });
+    const sweep = async (input: StartWorkloadInput, as: ChatRoot["owner"] = h.owner): Promise<void> => {
+      const job = await h.root.services.workloads.start({ caller: as, ownerId: as.userId, mode: "singular", input });
       await runAdmittedWorkload(job.id, lifetime.signal);
     };
-    for (const input of [
+    const activation: readonly StartWorkloadInput[] = [
       { kind: "index", params: { source: "text" } },
       { kind: "memory-backfill", params: {} },
       { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
-    ] as const satisfies WorkloadInput[]) {
-      await sweep(input);
-    }
+    ];
+    const activate = async (as?: ChatRoot["owner"]): Promise<void> => {
+      for (const input of activation) {
+        await sweep(input, as);
+      }
+    };
+    await activate();
     // The build runs under mixB: a room with memory off has nothing to back fill. The case's own mode applies after it.
     await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: config.mode } } });
     const kept = construction.move();
@@ -202,6 +226,7 @@ export const world: World = {
         preferred = arc;
       },
       sweep,
+      activate,
       [Symbol.asyncDispose]: () => kept.disposeAsync(),
     };
   },
@@ -246,3 +271,33 @@ export function blockOf(arc: Arc): number {
 }
 
 export const ask = (arc: Arc | typeof OFF_CORPUS): string => `Tell me about the scene. ${probe(arc)}`;
+
+/** Two scenes in one query, the storm scene weighted first; both clear the floor, so both are admitted unstruck. */
+export const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
+export const RECALL_KNOBS = { minScore: 0.05, queryWindow: 1, keywordMatch: false } as const;
+
+export function itemAt(view: MemoryView, tier: number, blockIdx: number): MemoryItemView {
+  return present(view.items.find((item) => item.key.tier === tier && item.key.blockIdx === blockIdx));
+}
+
+export function sceneOf(view: MemoryView, arc: Arc): MemoryItemView {
+  return itemAt(view, 0, blockOf(arc));
+}
+
+/** Rebuild the room's memory after a canon change: the live pass after a turn, then the corpus sweep. */
+export async function redigest(w: Pick<RecallWorld, "h" | "sweep">): Promise<void> {
+  const keeper = present(w.h.characters[0]);
+  const turn = await w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: keeper.id, intent: TURN_INTENT });
+  expect(turn.aborted).toBe(false);
+  await w.h.root.settleBackground();
+  await w.sweep({ kind: "memory-backfill", params: {} });
+}
+
+/** Rewrite the first transcript line of `arc`'s scene, keeping the marker the scripted summarizer keys on. */
+export async function editScene(h: ChatRoot, arc: Arc): Promise<void> {
+  const line = (await readRoomCanon(h.root, h.owner, h.chatId)).find((message) => message.content.includes(`line-${arc}.`));
+  if (line === undefined) {
+    throw new Error(`the room holds no ${arc} line`);
+  }
+  await h.root.services.chat.editMessage({ principal: h.owner, chatId: h.chatId, messageId: line.id, content: `line-${arc}. The ${arc} was told again.` });
+}

@@ -15,7 +15,7 @@ import {
   unifiedSearchResultSchema,
 } from "@orb/contracts/search";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const searchRouter = t.router({
   fields: authedProcedure
@@ -43,12 +43,13 @@ export const searchRouter = t.router({
   similarArt: authedProcedure
     .output(z.array(similarArtHitSchema))
     .input(similarArtInputSchema)
-    .query(({ ctx, input }) =>
+    .query(({ ctx, input, signal }) =>
       ctx.services.search.similarArt({
         ownerId: ctx.auth.userId,
         characterId: input.characterId,
         topN: input.topN,
         lens: input.lens,
+        signal: procedureSignal(signal),
       }),
     ),
 
@@ -57,8 +58,9 @@ export const searchRouter = t.router({
   search: authedProcedure
     .output(unifiedSearchResultSchema)
     .input(unifiedSearchInputSchema)
-    .query(({ ctx, input }) =>
+    .query(({ ctx, input, signal }) =>
       ctx.services.search.search({
+        signal: procedureSignal(signal),
         ownerId: ctx.auth.userId,
         query: input.query,
         topN: input.topN,

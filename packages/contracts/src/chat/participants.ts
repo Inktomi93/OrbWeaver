@@ -1,31 +1,27 @@
 // @orb/contracts/chat/participants — the chat VOCABULARY AXES: participant KINDS + the drive/identity axes +
-// the AI-speaker ref, the wire message-role schema (the tuple-in-kit rule §5), and the MESSAGE-KIND axis with
-// its total policy record. The runtime seats live in `domain/chat`; these are the shared vocabulary every
-// other chat seam derives its role/kind fields from (no inline re-spell).
+// the AI-speaker ref, the wire message-role schema, and the MESSAGE-KIND axis with its total policy record.
+// The runtime seats live in `domain/chat`; these are the shared vocabulary every other chat seam derives its
+// role/kind fields from (no inline re-spell).
 //
-// WHY MESSAGE_KIND lives HERE and not in its own file (the `content-classes.ts` two-file split is NOT the
-// precedent to copy): that split exists because its AXIS is in kit (`ContentSpanKind` — the tokenizer must
-// read it and the cake forbids kit→contracts) while only the POLICY could home in contracts. The message-kind
-// axis has no kit reachability, so tuple + schema + policy are ONE home, beside the sibling role axis they are
-// orthogonal to.
+// The participant-kind and message-kind TUPLES live in `@orb/kit/message-author`, because the regex executor
+// scopes a script by them and kit cannot import contracts; their schemas and the message-kind policy live
+// here, the `content-classes.ts` split.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { MessageKind as KitMessageKind, ParticipantKind as KitParticipantKind } from "@orb/kit/message-author";
+import { MESSAGE_KINDS as KIT_MESSAGE_KINDS, PARTICIPANT_KINDS as KIT_PARTICIPANT_KINDS } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 
-// `human`/`character` are the only live kinds post-rollback purge. `agent` (a first-class
-// userId-backed AND AI-driven principal, D60) and `observer` (the Narrative Director seam — watches +
-// proposes, never acts, unseatable) were purged with the agent-principal build; docs/work/0048 tracks the rebuild —
-// no `chat.seatAgent`/`requestAgentSeat` verb exists today. The rebuild grafts both kinds back onto this
-// tuple if the agent-principal design set returns.
-export const PARTICIPANT_KINDS = ["human", "character"] as const;
-export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+// `human`/`character` are the only live kinds.
+export const PARTICIPANT_KINDS = KIT_PARTICIPANT_KINDS;
+export type ParticipantKind = KitParticipantKind;
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS) satisfies z.ZodType<ParticipantKind>;
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
-// `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices) — an agent is
-// AI-driven AND userId-backed. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK `users`).
+// `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices); `USER_BACKED_KINDS`
+// is the column shape that FKs `users`. A kind added to the tuple must be placed on both axes here.
 const AI_DRIVEN_KINDS = ["character"] as const satisfies readonly ParticipantKind[];
 const USER_BACKED_KINDS = ["human"] as const satisfies readonly ParticipantKind[];
 export const isAiDriven = (k: ParticipantKind): boolean => (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
@@ -41,20 +37,18 @@ export function speakerKey(ref: SpeakerRef): string {
   return `c:${ref.characterId}`;
 }
 
-// The tuple is `@orb/kit/message-role`; the WIRE schema lives HERE (§5 tuple-in-kit rule). Every role
+// The tuple is `@orb/kit/message-role`; the WIRE schema lives HERE. Every role
 // field across this node goes through this one axis — no inline re-spell.
 export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<MessageRole>;
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// MESSAGE KIND — what a canon row IS, DECLARED at mint (canon-message-identity §2/§R1)
+// MESSAGE KIND — what a canon row IS, DECLARED at mint (D129)
 //
-// The problem it closes: a row's PURPOSE was inferred from `role` + attribution + the room's CURRENT config —
-// a narrator row was "assistant + the synthetic group character", an agent line "assistant + authorUserId".
+// A row's PURPOSE is per-row truth, never inferred from `role` + attribution + the room's CURRENT config.
 // All three attribution FKs are `onDelete:'set null'` (schema/chat.ts — the deliberate history-preservation
-// cascade), so deleting the group character or a user DEGRADED those rows into indistinguishable standard
-// rows: the render tint, the speaker split, the memory label and the export mapping all silently
-// reclassified. **Attribution is DESIGNED to degrade; purpose must not.** And a per-room `output` dial flip
-// (narrator → per-speaker) re-classified every historical row the instant it moved. Kind is per-row truth.
+// cascade), so deleting the group character or a user would degrade those rows into indistinguishable
+// standard rows, and a per-room `output` dial flip (narrator → per-speaker) would reclassify every
+// historical row the instant it moved. **Attribution is DESIGNED to degrade; purpose must not.**
 //
 // THREE ORTHOGONAL AXES, one home each — collapsing any two re-creates the overload this axis unwinds:
 //   • DRIVE      — who runs the seat        → `chat_participants.kind` (PARTICIPANT_KINDS, above)
@@ -62,18 +56,15 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<Messa
 //                                             `personaId`) + the per-chat name producer
 //   • PURPOSE    — what sort of row it is   → THIS axis
 // So there is deliberately NO `agent` kind: an agent's room speech is `standard` + `authorUserId` (real
-// canon, D60), and its OUT-OF-BAND, unseated reaction is `comment` (visible, never prompt, never memory).
+// canon), and its OUT-OF-BAND, unseated reaction is `comment` (visible, never prompt, never memory).
 //
-// KIND NEVER DECIDES THE CANON `role` (owner ruling). Narrator rows stay `role:'assistant'` in
-// canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, verbatim: "if you mean group chat
-// narration mode then that is the wrong behavior"): the "ship a narrator row as a wire `system` row on
-// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell —
-// is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
-// own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
-// synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
-// the host-owned mint. Kind is purpose; attribution remains voice.
-export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
-export type MessageKind = (typeof MESSAGE_KINDS)[number];
+// KIND NEVER DECIDES THE CANON `role` NOR A WIRE ROLE (owner ruling). Narrator rows stay
+// `role:'assistant'` and deliver as `assistant` on every wire: group narration is ONE generation voicing all
+// the seated characters, i.e. the assistant's own output voice. Kind also does not replace the synthetic
+// group character: that identity keeps the `__group__` memory scoping, the attribution chrome and the
+// host-owned mint. Kind is purpose; attribution remains voice.
+export const MESSAGE_KINDS = KIT_MESSAGE_KINDS;
+export type MessageKind = KitMessageKind;
 /** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
 export const messageKindSchema = z.enum(MESSAGE_KINDS) satisfies z.ZodType<MessageKind>;
 
@@ -84,14 +75,13 @@ export const DEFAULT_MESSAGE_KIND: MessageKind = "standard";
 /** Whether a row's body is voiced through the NARRATOR grammar (one generation speaking all the seated characters) —
  *  the OUTER gate on the plain-`Name:` half of the speaker-span parse: in any other kind a row is one
  *  speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member could forge)
- *  and must never split. Deliberately KIND-based, not role-based (the old
- *  `narratorRoom && role === "assistant"` inference mis-classified every historical row the moment the
- *  room's output dial moved).
+ *  and must never split. Deliberately KIND-based, not role-based: a role-based test mis-classifies historical
+ *  rows the moment the room's output dial moves.
  *
- *  PROMOTED here from the client's `attribution.ts` (B7): the server's segment-anchor validation parses
- *  the SAME body with the SAME character-name gate (`verbs/reactions.ts`), and two spellings of this predicate
- *  is a client picker and a server validator disagreeing about the same bytes. `undefined` = a row with no
- *  server slot yet (a pre-commit draft greeting) — not narrator-voiced, same as before. */
+ *  Homed here rather than in the client: the server's segment-anchor validation parses the SAME body with
+ *  the SAME character-name gate (`verbs/reactions.ts`), and two spellings of this predicate is a client
+ *  picker and a server validator disagreeing about the same bytes. `undefined` = a row with no server slot
+ *  yet (a pre-commit draft greeting) — not narrator-voiced. */
 export function isNarratorVoiced(kind: MessageKind | undefined): boolean {
   switch (kind) {
     case "narrator":
@@ -113,11 +103,8 @@ function assertNeverMessageKind(kind: never): never {
  *  span-level: bytes INSIDE a row; this is row-level: what the row IS).
  *   • `prompt`  — how the row enters the assembled prompt. `conversation` = an ordinary history row;
  *     `system-channel` = ALSO an ordinary history row on the wire, assistant-voiced, byte-identically to
- *     `conversation`. The arm's name is archaeology: it was minted for the capability-gated
- *     narrator→wire-`system` mapping, which the owner RULED OUT (group narration is the
- *     assistant's own output voice, not the operator channel). It is kept as its own arm because the two
- *     purposes still differ where purpose matters — the label policy and the delivered-row trace read it.
- *     `never` = the row is not prompt material at all.
+ *     `conversation`. It stays a distinct arm because the two purposes differ where purpose matters — the
+ *     label policy and the delivered-row trace read it. `never` = the row is not prompt material at all.
  *   • `memory`  — whether the row is ingested by the digest/segment build (`loadCanonThroughSeq`). A narrator
  *     recap IS story canon and is precisely what a digest wants; an OOC comment is not story.
  *   • `reading` — the transcript surface. Every kind SHOWS: a comment is out-of-character, not secret (the
@@ -128,9 +115,10 @@ export interface MessageKindPolicy {
 }
 
 /** The shipped cells. The `Record<MessageKind, …>` is the compile-force: a fourth member will not build until
- *  it declares its row, and every dispatch over it is a total Record / `assertNever` (spine §5.5), so the
- *  coupled sites become tsc errors rather than a sweep. An `aside` kind is a NAMED DOORWAY, not minted —
- *  D41's no-code-without-an-emit-site rule says a kind waits for its writer. */
+ *  it declares its row, and every dispatch over it is a total Record / `assertNever`
+ *  (Spine-TypeScript-and-Patterns §7.4), so the coupled sites become tsc errors rather than a sweep. An
+ *  `aside` kind is a NAMED DOORWAY, not minted — D41's no-code-without-an-emit-site rule says a kind waits
+ *  for its writer. */
 export const MESSAGE_KIND_POLICY: Readonly<Record<MessageKind, MessageKindPolicy>> = {
   standard: { prompt: "conversation", memory: "ingest" },
   narrator: { prompt: "system-channel", memory: "ingest" },
@@ -140,3 +128,11 @@ export const MESSAGE_KIND_POLICY: Readonly<Record<MessageKind, MessageKindPolicy
 /** The kinds a memory build ingests — DERIVED from {@link MESSAGE_KIND_POLICY}, never re-spelled, so the
  *  policy row is the only place the answer lives (the memory canon load reads this). */
 export const MEMORY_INGEST_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => MESSAGE_KIND_POLICY[k].memory === "ingest");
+
+// Whether each prompt arm puts a row in the prompt. A mapped record over the arms, so a new arm fails tsc here until it
+// says; `system-channel` is delivered like `conversation`, so it is a different label, not a drop.
+const PROMPT_ARM_ENTERS = { conversation: true, "system-channel": true, never: false } as const satisfies Record<MessageKindPolicy["prompt"], boolean>;
+
+/** The kinds a prompt carries, derived from {@link MESSAGE_KIND_POLICY}: the prompt build drops every other kind, and
+ *  the transcript's display depth counts only these, so a depth-scoped script counts the rows the model sees. */
+export const PROMPT_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => PROMPT_ARM_ENTERS[MESSAGE_KIND_POLICY[k].prompt]);

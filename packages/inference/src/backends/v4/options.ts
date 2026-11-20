@@ -8,11 +8,13 @@ import type { EffortLevel } from "@orb/contracts/inference";
 import type { ResolvedSampling, ToolChoice } from "#contract";
 import type { PlannedResponseFormat, PlannedTool, StructuredPlan } from "#src/contract/structured.ts";
 
-/** The V4 `reasoning` vocabulary — our `max` is the wire's `xhigh` (no provider spells `max` on this axis). */
+/** The V4 `reasoning` vocabulary. Our `max` rides as the wire's `xhigh` unless the row declares the wire
+ *  spells `max` itself (`features.effortMaxLiteral` — the V4 vocabulary carries the word and the compatible
+ *  transport forwards it verbatim; DeepSeek's `reasoning_effort` takes it, measured 2026-11-16). */
 type WireEffort = Exclude<NonNullable<LanguageModelV4CallOptions["reasoning"]>, "provider-default">;
 
-export function wireEffortOf(effort: EffortLevel): WireEffort {
-  return effort === "max" ? "xhigh" : effort;
+export function wireEffortOf(effort: EffortLevel, maxLiteral = false): WireEffort {
+  return effort === "max" && !maxLiteral ? "xhigh" : effort;
 }
 
 /** The standardized V4 sampler fields off the resolved sampling. The knobs V4 does NOT model are the wire's to

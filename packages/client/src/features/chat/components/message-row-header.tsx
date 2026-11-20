@@ -100,7 +100,7 @@ function renderRowIdentity(args: {
       stackBelow={stackStamp ? "cq-28" : undefined}
       alignBelow={stampAlignment(stackStamp, mirrored)}
       reverse={mirrored}
-      className="min-inline-0"
+      minWidth="shrinks"
       wrap={stackStamp ? "untilCq28" : true}
       gapNarrow={stackStamp ? "none" : undefined}
     >
@@ -109,9 +109,9 @@ function renderRowIdentity(args: {
         // contract's own declaration for this row (`appearance-invariant-manifest.ts`
         // #dark-name-time-short-bubble: tailwind-core `items-center` -> `items-baseline` on
         // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
-        // name is the one datum whose size moves independently (`--appearance-reading-name-scale`, globals.css:795),
-        // so centring it puts a scaled name off the line its own row sits on.
-        <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
+        // name is the one datum whose size moves with the message text size (`--appearance-reading-body-scale`), not
+        // the row's own, so centring it puts a scaled name off the line its own row sits on.
+        <Row gap="field" align="baseline" minWidth="shrinks" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
@@ -121,8 +121,9 @@ function renderRowIdentity(args: {
   if (chip === null) {
     return cluster;
   }
+  // No wrap: a chip pushed onto a line of its own separates the face from its name, so the cluster shrinks and the name wraps in its own box.
   return (
-    <Row gap="field" align="center" reverse={mirrored} className="min-inline-0" wrap={true}>
+    <Row gap="field" align="center" reverse={mirrored} minWidth="shrinks">
       {chip}
       {cluster}
     </Row>
@@ -167,6 +168,7 @@ export function renderRowNameRow(args: {
       actions={args.actions}
       chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
+      pins={true}
       actionsReveal={args.actionsReveal}
       edges={args.edges}
       mirrored={mirrored}
@@ -201,7 +203,7 @@ export function renderGhostNameRow(args: {
   /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
    *  settled last row will carry, so the commit does not shift the reply down a line. */
   readonly named: boolean;
-  /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width. */
+  /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width and the bar's height, named or not. */
   readonly actionsFootprint: ReactNode;
   /** The identity chip the skin seats in the header, or null. */
   readonly chip: ReactNode;
@@ -213,9 +215,10 @@ export function renderGhostNameRow(args: {
     return (
       <NameRowFrame
         identity={null}
-        actions={null}
+        actions={args.actionsFootprint}
         chipped={false}
-        stickyAttribution={false}
+        stickyAttribution={args.stickyAttribution}
+        pins={false}
         actionsReveal="expanded"
         edges={args.edges}
         mirrored={false}
@@ -228,12 +231,13 @@ export function renderGhostNameRow(args: {
   if (attribution === undefined || attribution.name === null) {
     return null;
   }
+  // The settled row's chip rule holds here too: the live turn must not change anatomy at commit.
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="center" className="min-inline-0" wrap={true}>
+        <Row gap="field" align="center" minWidth="shrinks">
           {args.chip}
-          <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
+          <Row gap="field" align="baseline" minWidth="shrinks" data-slot="message-attribution">
             {renderAttributionName(attribution)}
           </Row>
         </Row>
@@ -241,6 +245,7 @@ export function renderGhostNameRow(args: {
       actions={args.actionsFootprint}
       chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
+      pins={true}
       actionsReveal="expanded"
       edges={args.edges}
       // The ghost is always the assistant side; there is no own-message mirror to take.

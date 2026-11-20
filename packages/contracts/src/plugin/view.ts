@@ -40,7 +40,7 @@ export const pluginViewSchema = z.strictObject({
 });
 export type PluginView = z.output<typeof pluginViewSchema>;
 
-/** One registered UI surface as the CALLER's client renders it (`listSurfaces` U1): the
+/** One registered UI surface as the CALLER's client renders it (`listSurfaces`): the
  *  serializable registration meta (id/anchor/title/tier/spec — the `onAction` handle stays server-side) plus the
  *  `pluginId` it belongs to (the client joins to the plugin's own name/glyph for the labeled shell). */
 export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
@@ -57,7 +57,7 @@ export const pluginSurfaceViewSchema = pluginSurfaceRegistrationMetaSchema
   .safeExtend({ pluginId: pluginIdSchema, toolWireName: z.string().exactOptional() })
   .strict() satisfies z.ZodType<PluginSurfaceView>;
 
-/** A surface's published state (`getSurfaceState` U1): the whole JSON map the renderer
+/** A surface's published state (`getSurfaceState`): the whole JSON map the renderer
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
 
@@ -82,8 +82,7 @@ export const pluginBundleAssetViewSchema = z.strictObject({
   assetId: typeIdSchema(ID_PREFIX.asset),
 }) satisfies z.ZodType<PluginBundleAssetView>;
 
-/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`
- *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
+/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
  *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer
  *  is no (the byte-identity-when-off law, applied to a per-row cost). `name` is the plugin's own label for it,
  *  carried so a diagnostic surface can say WHICH transform is annotating a row. */
@@ -114,7 +113,7 @@ export const distributedPluginViewSchema = z.strictObject({
   updatedAt: z.number(),
 }) satisfies z.ZodType<DistributedPluginView>;
 
-/** Why one recipient was passed over by a fan-out. The ONE home for this axis (§5.5) — the client's admin
+/** Why one recipient was passed over by a fan-out. The ONE home for this axis — the client's admin
  *  surface renders each arm's sentence off it, so a new arm fails `tsc` at the renderer rather than
  *  degrading into an unexplained number.
  *  - `already-installed` (install fan-out): the user already holds this slug, at any version. Their row is

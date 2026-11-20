@@ -1,23 +1,25 @@
-// infra/providers/backends/http/error-classify — the HTTP-status → typed `ProviderErrorKind` table, plus
-// the transport-name fallback and the one-line `ProviderError` builder every HTTP-based runner classifies
-// through. ONE home for "an HTTP failure → our cross-provider error vocab" so adding a status is a
+// packages/inference/src/backends/http/error-classify.ts — the HTTP-status → typed `ProviderErrorKind` table,
+// plus the transport-name fallback and the one-line `ProviderError` builder every HTTP-based runner
+// classifies through. ONE home for "an HTTP failure → our cross-provider error vocab" so adding a status is a
 // one-file edit, not a hunt across runners.
 //
-// SCOPE (orbweaver vs neo): neo's error-classify also held the Agent-SDK assistant/result-subtype
-// classifiers (which import `@anthropic-ai/claude-agent-sdk`). The SDK is the agent-sdk backend's PRIVATE
-// dep (D8 — the core stays SDK-free) and kit sits BELOW the backends, so those classifiers do NOT live
-// here — they belong to `backends/agent-sdk`. This module is the HTTP path only.
+// SCOPE: this module is the HTTP path only. The agent-sdk assistant/result-subtype classifiers import
+// `@anthropic-ai/claude-agent-sdk`, which is the agent-sdk backend's PRIVATE dep (D8 — the core stays
+// SDK-free) and sits below the backends, so those classifiers live in `backends/agent-sdk`.
 
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
-import type { ProviderScrubSet } from "#contract";
+import type { Clock } from "@orb/kit/time";
+import { z } from "zod";
+import type { ProviderErrorKind, ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
-import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
+import { retryAfterResetsAt } from "./rate-limit-headers.ts";
+import { decodedJsonText, NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
 const TRANSIENT_TRANSPORT_RE = /timeout|connection|network|overload/i;
@@ -39,6 +41,10 @@ const HTTP_SERVER_ERROR_FLOOR = 500;
 // File-local: narrow an unknown to a string-keyed record without an `as` cast (`orb/no-unsafe-cast` refuses one).
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
 }
 
 /**
@@ -134,6 +140,87 @@ function parseBody(body: unknown): unknown {
   return typeof body === "string" && body.includes("reasons") ? parseJsonText(body) : undefined;
 }
 
+/**
+ * The reflected upstream body as data: a JSON string parsed, an already-parsed object as given, `undefined` when the
+ * chain carries none or it is not JSON. RAW upstream content: a caller that shows a field of it scrubs and sanitizes
+ * that field after reading it.
+ */
+function upstreamBody(error: unknown): unknown {
+  if (!isRecord(error)) {
+    return;
+  }
+  const body = readBody(error);
+  return typeof body === "string" ? parseJsonText(body) : body;
+}
+
+/** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
+ *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
+const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
+const credentialCodeSchema = z.enum(CREDENTIAL_ERROR_CODES);
+const credentialCodeBodySchema = z.looseObject({ error: z.looseObject({ code: credentialCodeSchema }) });
+
+/** The `detail` an `auth_failed` failure carries when its parsed upstream body names the key by a structured code. */
+export function credentialDetail(kind: ProviderErrorKind, body: unknown): { readonly detail?: string } {
+  if (kind !== "auth_failed") {
+    return {};
+  }
+  const parsed = credentialCodeBodySchema.safeParse(body);
+  return parsed.success ? { detail: parsed.data.error.code } : {};
+}
+
+/**
+ * Whether a failure is a verdict on the stored key: an `auth_failed` 401 always, and a 403 unless the row says its
+ * 403 judges nothing (`features.forbiddenIsNotCredentialVerdict`) and the body named no key code
+ * ({@link credentialDetail}). The ONE rule: a chat turn's strike and the key check both read it.
+ */
+export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVerdict: boolean): boolean {
+  if (failure.kind !== "auth_failed") {
+    return false;
+  }
+  if (failure.apiErrorStatus !== HTTP_FORBIDDEN || !forbiddenIsNotCredentialVerdict) {
+    return true;
+  }
+  return credentialCodeSchema.safeParse(failure.detail).success;
+}
+
+/** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
+ *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown.
+ *  A 403 whose structured code names the key still judges it: {@link judgesTheKey}, the rule the key check reads.
+ *  Read by every openai-compat protocol runner (chat-completions and responses alike). */
+export function forbiddenAsRefusal(args: {
+  readonly error: unknown;
+  readonly classified: ProviderError;
+  readonly label: string;
+  readonly secrets: ProviderScrubSet;
+  readonly forbiddenIsNotCredentialVerdict: boolean;
+}): ProviderError {
+  const { classified } = args;
+  if (classified.kind !== "auth_failed" || judgesTheKey(classified, args.forbiddenIsNotCredentialVerdict)) {
+    return classified;
+  }
+  const words = refusalWords(upstreamBody(args.error), args.secrets);
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: words === undefined ? classified.message : `${args.label}: ${words}`,
+    apiErrorStatus: HTTP_FORBIDDEN,
+    cause: classified,
+  });
+}
+
+const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
+
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
+ *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
+export function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
+  const parsed = refusalBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return;
+  }
+  const words = sanitizeApiError(redactSecretsFromText(typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message, secrets));
+  return words === "" ? undefined : words;
+}
+
 function isModerationBlock(error: unknown): boolean {
   if (!isRecord(error)) {
     return false;
@@ -170,10 +257,10 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  * parse failure that wrapped it). Defensive throughout (unknown-narrowing only) so it works for any
  * HTTP-based error; both fields are sanitized before they land on a log record.
  *
- * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is (#1599) — the
- * peeled `body` is the reflected upstream body, the single most secret-prone string on this boundary.
+ * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is — the peeled
+ * `body` is the reflected upstream body, the single most secret-prone string on this boundary.
  *
- * ORDER (#1809): SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
+ * ORDER: DECODE, SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
  */
 export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScrubSet): HttpErrorDiagnostic {
   if (!isRecord(error)) {
@@ -182,7 +269,7 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScru
   const out: { body?: string; cause?: string } = {};
   const body = readBody(error);
   if (typeof body === "string" && body.length > 0) {
-    out.body = sanitizeApiError(redactSecretsFromText(body, secrets));
+    out.body = sanitizeApiError(redactSecretsFromText(decodedJsonText(body), secrets));
   }
   const cause = error["cause"];
   if (cause !== undefined && cause !== null) {
@@ -275,19 +362,26 @@ export function withSchemaRejection(failure: ProviderError, error: unknown, ctx:
  * cause. The message is sanitized BEFORE concatenation so an HTML error page or control-char-laced body
  * can't poison logs/UI.
  *
- * SECURITY (#1599): `secrets` is REQUIRED and is a branded {@link ProviderScrubSet} — it used to default to
- * `[]`, which made the by-value scrub pure call-site discipline on a message that reaches a DURABLE sink
- * (the #1373 strike-out logs it as `securityEvent("credential_revoked", { reason })`). A credential-bearing
- * runner now cannot omit it, and cannot fake it with a bare `[]`: the only two admissible values are
- * `resolvedScrubSet(connection)` and the loudly-named `NO_PROVIDER_SECRETS`.
+ * SECURITY: `secrets` is REQUIRED and is a branded {@link ProviderScrubSet} — a default of `[]` would make
+ * the by-value scrub pure call-site discipline on a message that reaches a DURABLE sink (the strike-out logs
+ * it as `securityEvent("credential_revoked", { reason })`). A credential-bearing runner cannot omit it, and
+ * cannot fake it with a bare `[]`: the only two admissible values are `resolvedScrubSet(connection)` and the
+ * loudly-named `NO_PROVIDER_SECRETS`.
  *
- * ORDER (#1809): the by-value scrub runs FIRST, on intact text, and `sanitizeApiError` mangles what is
- * left — a message reaching that durable sink cannot carry a credential fragment the 500-char cap or the
- * `<…>` strip created. See {@link sanitizeApiError}'s file header.
+ * ORDER: the by-value scrub runs FIRST, on intact text, and `sanitizeApiError` mangles what is left — a
+ * message reaching that durable sink cannot carry a credential fragment the 500-char cap or the `<…>` strip
+ * created. See {@link sanitizeApiError}'s file header.
  */
-export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet): ProviderError {
+export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet, now?: Clock): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
-  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
+  // A rate limit's `retry-after` (seconds or an HTTP date) is when the service takes the request again; the retry
+  // policy waits until then. The SDK's `APICallError` carries the failed response's headers.
+  const headers = isRecord(error) ? error["responseHeaders"] : undefined;
+  const resetsAt = kind === "rate_limit" && now !== undefined && isStringRecord(headers) ? retryAfterResetsAt(headers, now()) : undefined;
+  // A refused credential's message is the body's own words where the SDK kept only the status text (a bare-string
+  // `error`, as LiteRouter sends), so a 403 the executor reads as a refusal still says what the service said.
+  const words = kind === "auth_failed" ? refusalWords(upstreamBody(error), secrets) : undefined;
+  const safe = words ?? sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
@@ -302,6 +396,8 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
     retryable,
     message: `${prefix}: ${safe}`,
     ...(status !== undefined ? { apiErrorStatus: status } : {}),
+    ...credentialDetail(kind, upstreamBody(error)),
+    ...(resetsAt !== undefined ? { resetsAt } : {}),
     cause,
   });
 }

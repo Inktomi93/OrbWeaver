@@ -6,7 +6,7 @@ import type {
   SharedV4ProviderOptions,
   SharedV4Warning,
 } from "@ai-sdk/provider";
-import type { TextSignature } from "@orb/contracts/chat";
+import type { ChatSource, TextSignature } from "@orb/contracts/chat";
 import type {
   CostDetails,
   EndpointFeatures,
@@ -55,9 +55,9 @@ export interface WrapFetchArgs {
         readonly wire: Wire;
         readonly providerId: ProviderId;
         readonly model: ModelId;
-        /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
+        /** Tap the RESPONSE BODY too. Off by default and independently gated: the request capture
          *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
-         *  deliberately never keeps. A caller that does not ask gets today's request-and-headers entry. */
+         *  deliberately never keeps. A caller that does not ask gets the request-and-headers entry only. */
         readonly reply: boolean;
       }
     | undefined;
@@ -109,6 +109,10 @@ export interface ResultContext {
   readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;
   readonly providerId: ProviderId;
+  /** The `providerMetadata` key THIS wire's SDK files vendor bags under. A compatible SDK resolves it from the
+   *  caller's `providerOptions` key, never from the registry id, so reading it back under the id misses every
+   *  hyphenated row. Each runner passes the same derivation it wrote `providerOptions` with. */
+  readonly providerMetadataKey: string;
   readonly generation: GenerationCapability;
   readonly maxOutputTokens: number | undefined;
   readonly startedAt: number;
@@ -133,6 +137,10 @@ export interface ResultContext {
 export interface StreamDrain {
   readonly reply: string;
   readonly textSignatures: readonly TextSignature[];
+  /** Every source the wire cited, in arrival order, one entry per citation statement and never deduplicated.
+   *  ALWAYS present, like {@link textSignatures}: an empty list is "this wire cited nothing", which is a fact
+   *  the fold holds and no reader has to distinguish from an absent field. */
+  readonly sources: readonly ChatSource[];
   readonly reasoning: string;
   /** One entry per reasoning BLOCK the provider opened, in stream order, carrying that block's text and the
    *  wire-opaque provenance the next leg must replay (§A1). Empty when the wire surfaced no reasoning. */
@@ -153,6 +161,9 @@ export interface DrainCallbacks {
   readonly onText?: ((text: string) => void) | undefined;
   readonly onReasoning?: ((text: string) => void) | undefined;
   readonly onImage?: ((image: GeneratedImage) => void) | undefined;
+  /** The service's own words from a stream error part's payload, scrubbed and sanitized by the wire that knows its
+   *  shape; absent or `undefined` ⇒ the failure names the error part only. */
+  readonly errorWords?: ((payload: unknown) => string | undefined) | undefined;
   readonly label: string;
 }
 

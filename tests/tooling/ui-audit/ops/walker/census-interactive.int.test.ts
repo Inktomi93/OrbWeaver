@@ -24,9 +24,9 @@ import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-async function auditFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+async function auditFixture(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return await readAuditReport(res.stdout);
 }
 
@@ -50,9 +50,9 @@ auditRuleTest(
     },
   ],
   "a control named by <label for> is not filed as unnamed",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<label for="sw-1">Show timestamps</label><button role="switch" id="sw-1" ${CONTROL}></button>`;
-    const report = await auditFixture(scratch, runCli, "name-label-for", body);
+    const report = await auditFixture(scratch, runSnap, "name-label-for", body);
     expect(namesIn(report)).toHaveLength(0);
     return report;
   },
@@ -68,9 +68,9 @@ auditRuleTest(
     },
   ],
   "a control wrapped in its <label> is not filed as unnamed",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<label>Show timestamps <button role="switch" id="sw-2" ${CONTROL}></button></label>`;
-    const report = await auditFixture(scratch, runCli, "name-label-wrap", body);
+    const report = await auditFixture(scratch, runSnap, "name-label-wrap", body);
     expect(namesIn(report)).toHaveLength(0);
     return report;
   },
@@ -88,9 +88,9 @@ auditRuleTest(
     },
   ],
   "a control with no label of any kind is still filed as unnamed",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button role="switch" id="sw-3" ${CONTROL}></button>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-none", body))).toHaveLength(1);
+    expect(namesIn(await auditFixture(scratch, runSnap, "name-none", body))).toHaveLength(1);
   },
 );
 
@@ -104,9 +104,9 @@ auditRuleTest(
     },
   ],
   "a <label for> pointing at another id does not name this control",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<label for="sw-elsewhere">Show timestamps</label><button role="switch" id="sw-4" ${CONTROL}></button><button id="sw-elsewhere" ${CONTROL}>elsewhere</button>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-label-other", body))).toHaveLength(1);
+    expect(namesIn(await auditFixture(scratch, runSnap, "name-label-other", body))).toHaveLength(1);
   },
 );
 
@@ -127,10 +127,10 @@ auditRuleTest(
     },
   ],
   "a control named only by <label for> is censused as a named action door",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const row = (id: string): string => `<label for="${id}">Show timestamps</label><button role="switch" id="${id}" ${CONTROL}></button>`;
     const body = `<section><div>${row("dup-a")}</div></section><article><p>x</p>${row("dup-b")}</article>`;
-    const report = await auditFixture(scratch, runCli, "door-label-for", body);
+    const report = await auditFixture(scratch, runSnap, "door-label-for", body);
     const doors = report.findings.filter(({ rule }) => rule === "duplicate-action-door");
     expect(doors).toHaveLength(1);
   },
@@ -156,9 +156,9 @@ auditRuleTest(
     },
   ],
   "text inside an aria-hidden subtree is not an accessible name",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button id="icon-only" ${CONTROL}><span aria-hidden="true">x</span></button>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-aria-hidden-text", body))).toHaveLength(1);
+    expect(namesIn(await auditFixture(scratch, runSnap, "name-aria-hidden-text", body))).toHaveLength(1);
   },
 );
 
@@ -173,10 +173,10 @@ auditRuleTest(
     },
   ],
   "screen-reader-only text still names its control",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const srOnly = 'style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"';
     const body = `<button id="icon-sr" ${CONTROL}><span aria-hidden="true">x</span><span ${srOnly}>Close</span></button>`;
-    const report = await auditFixture(scratch, runCli, "name-sr-only-text", body);
+    const report = await auditFixture(scratch, runSnap, "name-sr-only-text", body);
     expect(namesIn(report)).toHaveLength(0);
     return report;
   },
@@ -217,8 +217,8 @@ auditRuleTest(
     },
   ],
   "a toolbar cell sharing a name with a nav button is excluded as a view switch, and counted",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-toolbar-cell", SWITCHER(' role="toolbar"'));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "door-toolbar-cell", SWITCHER(' role="toolbar"'));
     expect(doorsIn(report), "the nav button and the toolbar cell are two verbs, not two homes").toHaveLength(0);
     // Counted, never dropped: both cells of the switcher are in the denominator with their reason.
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 0, excluded: { viewSwitchCell: 2 } });
@@ -236,8 +236,8 @@ auditRuleTest(
     },
   ],
   "the identical pair without role=toolbar is still two homes",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-plain-cell", SWITCHER(""));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "door-plain-cell", SWITCHER(""));
     expect(doorsIn(report), "without the toolbar role there is no view switcher to recognise").toHaveLength(1);
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
   },
@@ -272,8 +272,8 @@ auditRuleTest(
     },
   ],
   "a shared option label in two differently named radiogroups is two choices",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-two-settings", CHOICES("Surface elevation"));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "door-two-settings", CHOICES("Surface elevation"));
     expect(doorsIn(report), "Chat style · Flat and Surface elevation · Flat are two settings").toHaveLength(0);
     return report;
   },
@@ -288,8 +288,8 @@ auditRuleTest(
     },
   ],
   "a shared option label in two radiogroups of one name is still two homes",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-one-setting-twice", CHOICES("Chat style"));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "door-one-setting-twice", CHOICES("Chat style"));
     expect(doorsIn(report), "the group-qualified key still pairs a repeated setting").toHaveLength(1);
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
   },
@@ -304,8 +304,8 @@ auditRuleTest(
     },
   ],
   "a shared option label in two unnamed radiogroups is still two homes",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "door-unnamed-groups", CHOICES(null, null));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "door-unnamed-groups", CHOICES(null, null));
     expect(doorsIn(report), "an unnamed group is not named after its options").toHaveLength(1);
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
   },
@@ -334,9 +334,9 @@ auditRuleTest(
     },
   ],
   "an undersized unlabeled textarea now enters the tap-target population",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = '<textarea style="width:20px;height:20px;display:block;box-sizing:border-box;border:0;padding:0;margin:0"></textarea>';
-    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-vocab-textarea", body);
     expect(tapTargetSelectorsIn(report).length, "a sub-floor textarea must now be a judged candidate").toBeGreaterThan(0);
     expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
   },
@@ -352,9 +352,9 @@ auditRuleTest(
     },
   ],
   "an undersized summary disclosure now enters the tap-target population",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = '<details><summary style="width:20px;height:20px;display:block">show</summary><p>detail</p></details>';
-    const report = await auditFixture(scratch, runCli, "interactive-vocab-summary", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-vocab-summary", body);
     expect(tapTargetSelectorsIn(report).length, "a sub-floor summary must now be a judged candidate").toBeGreaterThan(0);
     expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
   },
@@ -371,9 +371,9 @@ auditRuleTest(
     },
   ],
   "a floor-sized labeled textarea does not file a tap-target finding",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = '<label for="notes">Notes</label><textarea id="notes" style="width:64px;height:64px;display:block"></textarea>';
-    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea-clean", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-vocab-textarea-clean", body);
     expect(tapTargetSelectorsIn(report)).toHaveLength(0);
     return report;
   },
@@ -403,14 +403,14 @@ auditRuleTest(
     },
   ],
   "a rest-hidden reveal cluster produces a reveal-coverage EXCLUDED row and keeps the verdict",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // The stray labeled control gives the walker something ELSE to censuse (evidence.ts's own
     // `censusTotal` doctrine): the subject under test is entirely invisible by design, so without it
     // the page would census zero nodes everywhere and refuse as NO VERDICT before this rule ever runs.
     const body =
       '<label for="anchor">Anchor</label><input id="anchor" style="width:64px;height:32px" />' +
       '<div class="group"><button id="reveal-btn" style="opacity:0;width:40px;height:40px">Reveal</button></div>';
-    const report = await auditFixture(scratch, runCli, "reveal-coverage-fires", body);
+    const report = await auditFixture(scratch, runSnap, "reveal-coverage-fires", body);
     expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 1, judged: 0, excluded: { restHiddenReveal: 1 } });
     expect(report.populationAccounting?.["reveal-coverage"]?.withheld, "the cluster is a CLOSED negative — it must not hold the run's verdict").toEqual({});
   },
@@ -427,11 +427,11 @@ auditRuleTest(
     },
   ],
   "a page with no rest-hidden reveal cluster produces no reveal-coverage row",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body =
       '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />' +
       '<div class="group"><button id="visible-btn" style="opacity:1;width:40px;height:40px">Visible</button></div>';
-    const report = await auditFixture(scratch, runCli, "reveal-coverage-silent", body);
+    const report = await auditFixture(scratch, runSnap, "reveal-coverage-silent", body);
     // The JSON accounting record is always present (every family carries its own zero); the row this
     // test names is the PRINTED `POPULATION reveal-coverage …` line, which report.ts folds a
     // zero-candidate rule into the `nothing-to-judge` summary instead of printing on its own.
@@ -456,9 +456,9 @@ auditRuleTest(
     },
   ],
   "a generic tabindex -1 scroller is excluded from the names census",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div class="cm-scroller" tabindex="-1" ${SCROLLER}><div aria-hidden="true">1</div></div>`;
-    const report = await auditFixture(scratch, runCli, "name-programmatic-scroller", body);
+    const report = await auditFixture(scratch, runSnap, "name-programmatic-scroller", body);
     expect(report.populationAccounting?.["aria-name"]).toMatchObject({ judged: 0, excluded: { programmaticFocus: 1 } });
     return report;
   },
@@ -473,9 +473,9 @@ auditRuleTest(
     },
   ],
   "an unnamed tabindex -1 node with a widget role is still judged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div role="textbox" tabindex="-1" ${SCROLLER}><div aria-hidden="true">1</div></div>`;
-    const report = await auditFixture(scratch, runCli, "name-roled-tabindex", body);
+    const report = await auditFixture(scratch, runSnap, "name-roled-tabindex", body);
     expect(namesIn(report)).toHaveLength(1);
     expect(report.populationAccounting?.["aria-name"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },

@@ -4,19 +4,30 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
-import type { CardImportResult, ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
-import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
+import { cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
+import {
+  IMPORT_LEFT_ON_DISK_PHRASE,
+  IMPORT_PREVIEW_SCRIPT_VERDICTS,
+  importPreviewPresetLeftOutLine,
+  importPreviewPresetScriptsLine,
+  importPreviewScriptEntry,
+  importPreviewScriptRefused,
+  importPreviewUncomparedNote,
+  importSummaryImported,
+} from "./import-library-names.ts";
 
-/** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
+/** One normalized per-file outcome for the report summary. `held` marks a file the library already held: it reused its row
+ *  and wrote none. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
  *  kept: primary already exists"). Absent on a failed outcome (nothing landed, so nothing was skipped). */
 type ImportOutcomeView = { readonly path: string; readonly detail: string } & (
-  | { readonly ok: true; readonly notes?: readonly string[] }
+  | { readonly ok: true; readonly held?: true; readonly notes?: readonly string[] }
   | { readonly ok: false; readonly notes?: never }
 );
 
@@ -25,6 +36,8 @@ type ImportOutcomeView = { readonly path: string; readonly detail: string } & (
  *  notes are per-file and ride `outcomes[].notes` instead, since that arm already has per-file detail). */
 export interface ImportSummary {
   readonly imported: number;
+  /** Files the library already held: each reused its row and added nothing. */
+  readonly inLibrary: number;
   readonly skipped: number;
   /** Personas the reader chose to merge into one they already own: neither new canon nor a skip. */
   readonly merged: number;
@@ -39,11 +52,18 @@ export interface ImportSummary {
 // Blobs always travel so exported entities keep their media; never a user-facing checkbox.
 const ASSETS_KIND = "assets";
 
-/** The kinds the export checkboxes offer — every portable kind except the always-included `assets`. */
-export const EXPORTABLE_KINDS: readonly PortableKind[] = PORTABLE_KINDS.filter((kind) => kind !== ASSETS_KIND);
+type ExportableKind = Exclude<PortableKind, typeof ASSETS_KIND | (typeof WHOLE_LIBRARY_ONLY_KINDS)[number]>;
+
+function isExportable(kind: PortableKind): kind is ExportableKind {
+  return kind !== ASSETS_KIND && !(WHOLE_LIBRARY_ONLY_KINDS as readonly PortableKind[]).includes(kind);
+}
+
+/** The kinds the export checkboxes offer: every portable kind except the always-included `assets` and the kinds only the
+ *  whole-library export carries, which travel when every box is ticked and never on a partial pick. */
+export const EXPORTABLE_KINDS: readonly ExportableKind[] = PORTABLE_KINDS.filter(isExportable);
 
 /** The human label per portable kind (checkboxes + report copy). */
-export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
+export const PORTABLE_KIND_LABELS: Record<ExportableKind, string> = {
   character: "Characters",
   chat: "Chats",
   persona: "Personas",
@@ -55,7 +75,6 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   "user-settings": "Settings",
   tag: "Tags",
   gallery: "Gallery",
-  assets: "Media",
   imagery: "Image generation history",
 };
 
@@ -64,7 +83,7 @@ export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): str
   if (selected.size >= EXPORTABLE_KINDS.length) {
     return PORTABILITY_ROUTES.exportLibrary;
   }
-  const picked = [...EXPORTABLE_KINDS.filter((kind) => selected.has(kind)), ASSETS_KIND];
+  const picked: PortableKind[] = [...EXPORTABLE_KINDS.filter((kind) => selected.has(kind)), ASSETS_KIND];
   return `${PORTABILITY_ROUTES.exportLibrary}?kinds=${picked.join(",")}`;
 }
 
@@ -72,6 +91,7 @@ export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): str
  *  `bundleImportNotes` already flattened the per-file planes into one batch-wide list). */
 export interface BundleCounts {
   readonly imported: number;
+  readonly inLibrary: number;
   readonly skipped: number;
   /** Folded names of the personas merged into one the reader owns. Keys, so the uploads of a split folder
    *  (which each re-merge the same persona) union instead of adding. */
@@ -90,8 +110,8 @@ function mergeScopes(a: ImportWindow | null, b: ImportWindow | null): ImportWind
 }
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
- *  maintenance-pass shape (`scanned`/`changed`/`failed`) instead of `imported`/`skipped`: its new canon is
- *  what landed and the rest of what it examined is what it already had or set aside. */
+ *  maintenance-pass shape (`changed`/`failed`) for `imported`, beside the same `inLibrary` and `skipped` a bundle
+ *  reports, so a held entry reads as held and never as skipped. */
 export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
@@ -100,10 +120,11 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
   const mergedKeys = Array.isArray(record["mergedKeys"]) ? record["mergedKeys"].filter((key): key is string => typeof key === "string") : [];
-  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - mergedKeys.length) : count(record["skipped"]);
   return {
     imported,
-    skipped,
+    // A dry run and a bundle row stored before the held count existed carry neither count.
+    inLibrary: count(record["inLibrary"]),
+    skipped: count(record["skipped"]),
     mergedKeys,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
@@ -122,6 +143,7 @@ export function asImportPreview(result: unknown): ImportPreview | null {
 export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts {
   return {
     imported: a.imported + b.imported,
+    inLibrary: a.inLibrary + b.inLibrary,
     skipped: a.skipped + b.skipped,
     mergedKeys: [...new Set([...a.mergedKeys, ...b.mergedKeys])],
     failed: a.failed + b.failed,
@@ -133,7 +155,9 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
  *  uploads the folder takes. One builder, so the two surfaces cannot disagree. */
 export function planNotes(plan: TreeImportPlan): string[] {
-  const lines = skippedByReason(plan.skipped).map(({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} will stay on your disk: ${reason}.`);
+  const lines = skippedByReason(plan.skipped).map(
+    ({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} ${IMPORT_LEFT_ON_DISK_PHRASE}: ${reason}.`,
+  );
   if (plan.batches.length > 1) {
     lines.push(
       `The folder is over the per-upload cap, so it is sent as ${String(plan.batches.length)} uploads, one after another. Each one imports on its own.`,
@@ -158,7 +182,8 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
   const nothingLanded = result.imported.length === 0 && result.failed.length > 0;
   return {
     imported: created.length,
-    skipped: deduped.length,
+    inLibrary: deduped.length,
+    skipped: 0,
     merged: 0,
     failed: result.failed.length,
     notes: nothingLanded ? [cardImportRefusalLine(result.failed)] : [],
@@ -179,7 +204,8 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
         return {
           path: card.filename ?? UNNAMED_CARD,
           ok: true,
-          detail: "Already imported",
+          held: true,
+          detail: IN_LIBRARY_DETAIL,
           ...(notes.length > 0 ? { notes } : {}),
         };
       }),
@@ -194,9 +220,12 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
   };
 }
 
-/** A one-line "3 imported · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies shown). */
+/** A one-line "3 imported · 2 already in your library · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies after the first shown). */
 export function summaryCaption(summary: ImportSummary): string {
-  const parts = [`${summary.imported} imported`];
+  const parts = [importSummaryImported(summary.imported)];
+  if (summary.inLibrary > 0) {
+    parts.push(inLibraryClause(summary.inLibrary));
+  }
   if (summary.merged > 0) {
     parts.push(`${summary.merged} merged into existing`);
   }
@@ -221,7 +250,7 @@ export function previewIsEmpty(preview: ImportPreview): boolean {
  *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
 export const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library. Nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
-  "Anything already in your library (the same card, world book, theme or preset) is skipped, so running the same import twice is not a duplicate.",
+  "Anything already in your library (the same card, world book, theme or preset) is left as it is, so running the same import twice is not a duplicate.",
   "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
 
@@ -245,10 +274,75 @@ export function counted(count: number, [one, many]: readonly [string, string]): 
   return `${String(count)} ${count === 1 ? one : many}`;
 }
 
-/** One kind's summary line: its total, then the items already in the library and the personas that import without art. */
+/** One kind's summary line: its total, then the entries already in the library, the entries the same as another in the
+ *  upload (a run adds nothing for either), the personas that import without art and, for a folder sent in several
+ *  uploads, the entries no other upload could be compared with. Every number is the server's exact count, never a count
+ *  of the listed names. */
 export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
-  const owned = list.items.filter((item) => item.inLibrary === true).length;
-  const bare = list.items.filter((item) => item.withoutArt === true).length;
-  const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
+  const { inLibrary, repeat, withoutArt, uncompared } = list.counts;
+  const notes = [
+    ...(inLibrary === 0 ? [] : [`${String(inLibrary)} already in your library`]),
+    ...(repeat === 0 ? [] : [`${String(repeat)} the same as another in this upload`]),
+    ...(withoutArt === 0 ? [] : [`${String(withoutArt)} will import without art`]),
+    ...(uncompared === 0 ? [] : [importPreviewUncomparedNote(uncompared)]),
+  ];
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
+}
+
+type PreviewScript = NonNullable<ImportPreviewItem["regexScripts"]>[number];
+
+function scriptVerdict(script: PreviewScript): string {
+  if (script.refused !== undefined) {
+    return importPreviewScriptRefused(script.refused);
+  }
+  if (script.inLibrary === true) {
+    return IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary;
+  }
+  return script.repeat === true ? IMPORT_PREVIEW_SCRIPT_VERDICTS.repeat : IMPORT_PREVIEW_SCRIPT_VERDICTS.added;
+}
+
+/** A preset entry's detail lines in the names panel: its own regex scripts with what the run does with each, then the
+ *  fields the run leaves out. Empty for any other entry, and for a preset with neither. */
+export function previewPresetDetailLines(item: ImportPreviewItem): readonly string[] {
+  const scripts = item.regexScripts ?? [];
+  const leftOut = item.leftOut ?? [];
+  return [
+    ...(scripts.length === 0
+      ? []
+      : [
+          importPreviewPresetScriptsLine(
+            item.name,
+            scripts.map((script) => importPreviewScriptEntry(script.name, scriptVerdict(script))),
+          ),
+        ]),
+    ...(leftOut.length === 0 ? [] : [importPreviewPresetLeftOutLine(item.name, leftOut)]),
+  ];
+}
+
+/** The preview with its persona counts taken from `judged`, a dry run of the persona files alone under the owner's newer
+ *  answers. The listed names stay as the folder's own dry run sent them: only the counts say what a run writes, and the
+ *  count line reads those. */
+export function withPersonaCounts(preview: ImportPreview, judged: ImportPreview): ImportPreview {
+  const { total, counts } = judged.kinds.personas;
+  return { ...preview, kinds: { ...preview.kinds, personas: { ...preview.kinds.personas, total, counts } } };
+}
+
+/** The profile directories a preview names, in listed order, then `null` when a skip sits at the upload's root. More than one
+ *  means the upload holds several profiles, so the reader needs each entry's profile beside it. */
+export function previewProfiles(preview: ImportPreview): readonly (string | null)[] {
+  const named = new Set<string>();
+  for (const kind of IMPORT_PREVIEW_KINDS) {
+    for (const { source } of preview.kinds[kind].items) {
+      named.add(source.profile);
+    }
+  }
+  let atRoot = false;
+  for (const { source } of preview.skipped.items) {
+    if (source.profile === null) {
+      atRoot = true;
+    } else {
+      named.add(source.profile);
+    }
+  }
+  return atRoot ? [...named, null] : [...named];
 }

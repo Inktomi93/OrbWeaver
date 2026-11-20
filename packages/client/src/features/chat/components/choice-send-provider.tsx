@@ -14,7 +14,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { ChoiceSend } from "../hooks/choice-send-context.tsx";
 import { ChoiceSendContext } from "../hooks/choice-send-context.tsx";
@@ -37,7 +37,7 @@ export function ChoiceSendProvider({ chatId, children }: ChoiceSendProviderProps
   // getChat rpg pointer, cache-first, through the ONE `isRpgEngaged` predicate). Gating on `chatId` alone
   // fired `rpg.getGame` on EVERY committed chat and 404-retry-looped on non-game rooms (owner-hit). Absent /
   // unsettled / non-game ⇒ the "compose" default (a lower-commitment interaction; the intended fallback).
-  const detailQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const detailQuery = useQuery(roomRosterOptions(trpc, { chatId }));
   const isGame = isRpgEngaged(detailQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const behavior = gameQuery.data?.publicConfig.cyoaChoiceBehavior ?? "compose";

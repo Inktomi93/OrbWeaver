@@ -1,5 +1,10 @@
-// custom-types — the db's own column codecs (reserved cross-cutting db artifact): the native vector column and the
-// NUL-free text column.
+// custom-types — the db's own column codecs (reserved cross-cutting db artifact): the native vector column, the
+// NUL-free text column, the stored-JSON text column and the row stamp column.
+//
+// A ROW STAMP COMES FROM THE INJECTED CLOCK. `stampColumn` is typed as a not-null column with no default, so tsc
+// requires every insert to state the stamp. The stored `(unixepoch() * 1000)` default is a backstop that nothing may
+// rely on: it exists only so the DDL is unchanged. It goes when a table is next rebuilt for another reason: that
+// change writes the table's stamps as `integer(name).notNull()` in the schema, so its migration drops the default.
 //
 // A NUL IS NOT TEXT IN THIS APP. It is removed from every value written to, or compared against, a `nulFreeText`
 // column. The libSQL client stores a TEXT value whole and reads it back cut at its first NUL, so a NUL
@@ -25,8 +30,20 @@
 //      cannot wrap an unaligned buffer and reads corrupt. `slice()` produces a fresh, 4-byte-aligned
 //      `ArrayBuffer` (offset 0, exact length). Removing the copy is a silent data-corruption bug.
 
+import type { JsonValue } from "@orb/kit/json";
+import { parseJsonText, UnreadableJsonText } from "@orb/kit/json";
 import { withoutNul } from "@orb/kit/strings";
-import { customType } from "drizzle-orm/sqlite-core";
+import type { NotNull } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import type { SQLiteIntegerBuilderInitial } from "drizzle-orm/sqlite-core";
+import { customType, integer } from "drizzle-orm/sqlite-core";
+
+/** An epoch-ms row stamp: required in the insert type, so each insert states it from the injected clock. The DDL keeps
+ *  a `(unixepoch() * 1000)` default only so it does not change; see the header. */
+export function stampColumn<TName extends string>(name: TName): NotNull<SQLiteIntegerBuilderInitial<TName>> {
+  // The return type drops `HasDefault` by widening, which is what makes the insert key required.
+  return integer(name).notNull().default(sql`(unixepoch() * 1000)`);
+}
 
 /** A free-string TEXT column that removes every NUL from the value on its way to the driver, written or compared. The
  *  stored type is `text`, so the DDL and the inferred row and insert types are drizzle's `text` column's. */
@@ -36,6 +53,23 @@ export const nulFreeText = customType<{ data: string; driverData: string }>({
   },
   toDriver(value: string): string {
     return withoutNul(value);
+  },
+});
+
+/** A JSON TEXT column read through a parse-on-read seam. Text that is not JSON reads as an {@link UnreadableJsonText},
+ *  never a thrown `SyntaxError`, so the seam reports the row unreadable and offers its repair. Writing that value
+ *  back stores its text unchanged. Narrow the stored shape with `.$type<T | UnreadableJsonText>()`. */
+export const storedJsonText = customType<{ data: JsonValue | UnreadableJsonText; driverData: string }>({
+  dataType(): string {
+    return "text";
+  },
+  toDriver(value: JsonValue | UnreadableJsonText): string {
+    return value instanceof UnreadableJsonText ? value.text : JSON.stringify(value);
+  },
+  fromDriver(value: string): JsonValue | UnreadableJsonText {
+    // `undefined` is the parse failure; a stored JSON `null` parses to `null` and reads as itself.
+    const parsed = parseJsonText(value);
+    return parsed === undefined ? new UnreadableJsonText(value) : parsed;
   },
 });
 

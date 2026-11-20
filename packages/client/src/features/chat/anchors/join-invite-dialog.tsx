@@ -22,10 +22,10 @@ import { useEffect, useRef, useState } from "react";
 import { FlowDialog } from "#components";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
-import { DEAD_INVITE_SENTENCE, DIALOG_VERBS, inviteRoomSentence, testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, DIALOG_VERBS, inviteRoomSentence, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
-import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_NOT_NOW_NAME } from "../lib/members-names.ts";
+import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_DIALOG_TITLE, JOIN_NOT_NOW_NAME } from "../lib/members-names.ts";
 
 type Preview = inferOutput<Trpc["invites"]["previewInvite"]>;
 
@@ -60,7 +60,11 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
     fired.current = true;
     previewAsync({ token }).then(
       (result) => setState({ kind: "ready", preview: result }),
-      () => setState({ kind: "invalid" }),
+      // A preview the server refuses (a tRPC failure) reads as the flat invalid state; any other fault rejects.
+      (error: unknown) => {
+        rethrowUnlessTrpcFailure(error);
+        setState({ kind: "invalid" });
+      },
     );
   }, [previewAsync, token]);
 
@@ -80,8 +84,9 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         setActiveSection("chats");
         selectChat(chat.id);
       },
-      () => {
+      (error: unknown) => {
         // The redeem raced an expiry/last-use — collapse to the same flat invalid state (no oracle).
+        rethrowUnlessTrpcFailure(error);
         setState({ kind: "invalid" });
       },
     );
@@ -102,7 +107,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           </Button>
         ) : undefined
       }
-      title="Join a chat"
+      title={JOIN_DIALOG_TITLE}
       open={true}
       onOpenChange={(next): void => {
         if (!next) {

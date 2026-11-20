@@ -12,10 +12,10 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
+import { FormDialog, MutedLine } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { ManualTarget } from "../lib/manual-targets.ts";
-import { REFINERY_HAND_EDIT_EMPTY_SCOPE } from "../lib/refinery-names.ts";
+import { REFINERY_HAND_EDIT_EMPTY_SCOPE, refineryEmptySlotLabel } from "../lib/refinery-names.ts";
 import { slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ManualRewriteDialogProps {
@@ -94,14 +94,14 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
           Your edit lands as a rewrite round, not a card write. Analyze can judge it against the original, and nothing touches the card until you apply.
           Untouched fields stay out of the round.
         </Text>
-        {targets.length === 0 ? <Text voice="gloss">{REFINERY_HAND_EDIT_EMPTY_SCOPE}</Text> : null}
+        {targets.length === 0 ? <MutedLine>{REFINERY_HAND_EDIT_EMPTY_SCOPE}</MutedLine> : null}
         {targets.map((target) => {
           const draft = draftOf(target);
           return (
             <Stack gap="tight" key={keyOf(target)}>
               <Row align="center" gap="row">
                 <Text voice="label">{slotLabelOf(target.field, target.greetingIndex)}</Text>
-                <Field label={`Empty ${slotLabelOf(target.field, target.greetingIndex)}`} orientation="inline">
+                <Field label={refineryEmptySlotLabel(slotLabelOf(target.field, target.greetingIndex))} orientation="inline">
                   <Checkbox checked={draft.cleared} onCheckedChange={(cleared: boolean): void => patch(target, { cleared })} />
                 </Field>
               </Row>

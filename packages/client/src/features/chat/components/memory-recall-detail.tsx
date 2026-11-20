@@ -1,17 +1,21 @@
 // The `{{memory}}` recall DETAIL readout (#250 / #313) — WHAT memory fetched and WHY: the query it matched
 // on, the pool it chose from, every surfaced block with the score it was admitted on, and the top rejects
-// with the reason each lost. ONE home, two consumers: the Preview tab's Diagnostics drawer
-// (`assembly-preview-diagnostics.tsx`) and the header brain-icon POPOVER (`chat-recall-indicator.tsx`).
+// with the reason each lost. ONE home: the Preview tab's Diagnostics drawer (`assembly-preview-diagnostics.tsx`),
+// and `RecallHostDetail` under the header brain-icon popover (`chat-recall-indicator.tsx`) and the Memory tab.
 //
 // Host-only DATA by inheritance — both consumers feed it a `MemoryRecallSlice` read under a host gate (the
 // digest scores/identity are not room-public; they never ride the bus). Content-free by construction: the
 // slice carries block identity + scores, never digest bytes.
 
 import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 
 /** The instrument's section voice (micro-caps, muted) — a panel-width heading, never the `Section` default
  *  title size, which shouts louder than the data it labels. */
@@ -42,6 +46,8 @@ const RECALL_VERDICT_LABEL: Record<MemoryRecallVerdict, string> = {
   "mode-excluded": "not eligible in this mode",
   "live-window": "still in the live history",
   unwitnessed: "not witnessed by this speaker",
+  struck: "struck by the host",
+  "covers-struck": "retells a struck memory",
 };
 
 /** `relevance` is cosine similarity in 0..1; the readout is a percentage, the only unit a host has intuition
@@ -79,7 +85,7 @@ export function MemoryRecallDetail({ recall }: { readonly recall: MemoryRecallSl
           </Stack>
         )}
         {recall.candidates.length === 0 ? (
-          <Text>No memory blocks were considered.</Text>
+          <MutedLine>No memory blocks were considered.</MutedLine>
         ) : (
           <Stack gap="row" role="list">
             {recall.candidates.map((candidate) => (
@@ -98,7 +104,7 @@ function RecallCandidateLine({ candidate }: { readonly candidate: MemoryRecallCa
   const rank = candidate.rank === undefined ? "" : `#${candidate.rank + 1} `;
   const label = RECALL_VERDICT_LABEL[candidate.verdict];
   return (
-    <Row align="baseline" data-slot="memory-recall-candidate" gap="block" justify="between" role="listitem">
+    <Row align="baseline" data-slot="memory-recall-candidate" data-verdict={candidate.verdict} gap="block" justify="between" role="listitem">
       <Text voice="code">{`${rank}tier ${candidate.tier} · block ${candidate.blockIdx}`}</Text>
       <Row align="baseline" className="shrink-0" gap="field">
         {candidate.verdict === "admitted" ? (
@@ -111,5 +117,31 @@ function RecallCandidateLine({ candidate }: { readonly candidate: MemoryRecallCa
         {candidate.relevance === undefined ? null : <Text voice="gloss">{`${Math.round(candidate.relevance * RELEVANCE_PERCENT)}% match`}</Text>}
       </Row>
     </Row>
+  );
+}
+
+/** The HOST-only full recall detail from the assembly-preview read (the same host-gated source the Preview tab
+ *  renders). Mount it only for the host, and only once its surface opens, so a member never fires the
+ *  `requireHost` read. */
+export function RecallHostDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[chatId]}
+      fallback={<Text voice="gloss">Loading recall detail…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the recall detail" onRetry={retry} />}
+    >
+      <LoadedRecallDetail chatId={chatId} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedRecallDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
+  return (
+    <Stack gap="row">
+      <Text voice="gloss">Detail below is what recall does with the room's CURRENT config. Not a byte-exact replay of this turn.</Text>
+      <MemoryRecallDetail recall={data.trace.memoryRecall} />
+    </Stack>
   );
 }

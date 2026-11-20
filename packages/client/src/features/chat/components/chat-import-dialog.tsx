@@ -13,13 +13,24 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { mergeImportWindows } from "@orb/contracts/chat";
 import type { ChatImportResult } from "@orb/contracts/import";
+import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import {
+  chatInLibraryNotice,
+  chatsInLibraryNotice,
+  DIALOG_VERBS,
+  importedOfLead,
+  inLibraryClause,
+  notify,
+  refuseOversizeFiles,
+  rethrowUnlessTrpcFailure,
+} from "#lib";
+import { CHAT_IMPORT_TITLE } from "../lib/chat-surface-names.ts";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
 // (which carries the room whole — injections, room overrides, the tag overlay, the rpg campaign). `.json`
@@ -38,18 +49,29 @@ function failureMessage(failure: ChatImportResult["failed"][number]): string {
   return `${failure.filename}: ${failure.error}`;
 }
 
-/** Derive the toast from the real per-file outcome (the `importNotice` sibling the card import uses). */
+/** Derive the toast from the real per-file outcome (the `importNotice` sibling the card import uses). A file that
+ *  lands as `created: false` is a room the library already held (D290), and the toast says so rather than "imported". */
 function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
   const [firstFailure] = failed;
   if (imported.length === 0) {
     return { kind: "error", message: firstFailure === undefined ? "Couldn't import the chat." : failureMessage(firstFailure) };
   }
+  const landed = imported.filter((chat) => chat.created).length;
+  const held = imported.filter((chat) => !chat.created);
   if (firstFailure === undefined) {
-    return { kind: "success", message: imported.length === 1 ? "Chat imported." : `${imported.length} chats imported.` };
+    const [onlyHeld] = held;
+    if (landed === 0) {
+      return {
+        kind: "info",
+        message: held.length === 1 && onlyHeld !== undefined ? chatInLibraryNotice(onlyHeld.title ?? onlyHeld.filename) : chatsInLibraryNotice(held.length),
+      };
+    }
+    const landedLine = landed === 1 ? "Chat imported" : `${landed} chats imported`;
+    return { kind: "success", message: held.length === 0 ? `${landedLine}.` : `${landedLine}, ${inLibraryClause(held.length)}.` };
   }
   return {
     kind: "info",
-    message: `${imported.length} of ${imported.length + failed.length} imported: ${failureMessage(firstFailure)}`,
+    message: `${importedOfLead(landed, held.length, imported.length + failed.length)}: ${failureMessage(firstFailure)}`,
   };
 }
 
@@ -68,16 +90,23 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   // is still judged by the real switch; a failed read counts as off and closes the dialog, never strands it.
   useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open });
   const readMemoryOn = (): Promise<boolean> =>
-    // a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory.
+    // A deliberate fail-closed: a switch that fails to read (a tRPC failure) takes the Memory-off arm, the import's own
+    // toast already reported what landed, and every chat still builds at its next reply. Any other fault rejects.
     queryClient.query({ ...trpc.settings.getUserSettings.queryOptions() }).then(
       (settings) => settings.config.memory.enabled,
-      () => false,
+      (error: unknown) => {
+        rethrowUnlessTrpcFailure(error);
+        return false;
+      },
     );
   // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
   const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);
+  // The drop's size refusal, on the dropzone's own line: the dialog stays open for another file, so a toast would repeat it.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const changeOpen = (next: boolean): void => {
     if (!next) {
       setOffer(null);
+      setRefusal(null);
     }
     onOpenChange(next);
   };
@@ -87,6 +116,13 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
 
   const onFiles = (accepted: readonly File[]): void => {
     if (accepted.length === 0) {
+      return;
+    }
+    setRefusal(null);
+    // The route holds a whole drop in memory under one cap, so the files' sizes together are what it refuses on.
+    const tooLarge = refuseOversizeFiles(accepted, IMPORT_MAX_TOTAL_BYTES);
+    if (tooLarge !== undefined) {
+      setRefusal(tooLarge.message);
       return;
     }
     importChats(accepted).then(
@@ -121,9 +157,15 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       dismissLabel={DIALOG_VERBS.cancel}
       onOpenChange={changeOpen}
       open={open}
-      title="Import chats"
+      title={CHAT_IMPORT_TITLE}
     >
-      <FileDropzone accept={TRANSCRIPT_ACCEPT} subject="files" multiple={true} onFilesSelected={({ accepted }): void => onFiles(accepted)} />
+      <FileDropzone
+        accept={TRANSCRIPT_ACCEPT}
+        {...(refusal === null ? {} : { error: refusal })}
+        subject="files"
+        multiple={true}
+        onFilesSelected={({ accepted }): void => onFiles(accepted)}
+      />
       <ImportedChatsMemoryOffer
         nested={true}
         onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}

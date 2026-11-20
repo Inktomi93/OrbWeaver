@@ -387,7 +387,7 @@ test("a member's own folder upload still runs through the route, with the operat
   await plantOperatorTree(root);
   const { id, cookie } = await signedInMember(root, castId<Handle>("upload-member"));
 
-  const response = await post(root, profile(root, ORIGINAL), [], { ...CSRF_HEADERS, cookie });
+  const response = await post(root, profile(root, ORIGINAL), [], { headers: { ...CSRF_HEADERS, cookie } });
 
   expect(response.status).toBe(202);
   const { workloadId } = importStartedSchema.parse(await response.json());

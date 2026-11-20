@@ -23,6 +23,7 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -85,13 +86,13 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   const anyOverridden = (isOwner && (multiUserOverridden || allowlistOverridden)) || discreetOverridden;
 
   const write = (partial: Pick<AppSettings, "localMultiUser" | "discreetLogin">): void => {
-    save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
+    save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure); // the sticky save.error slot surfaces the failure
   };
   const saveAllowlist = (): void => {
     save
       .mutateAsync({ partial: { privateEndpointAllowlist: allowlistEntries } })
       .then((resolvedAfter) => setAllowlistDraft(resolvedAfter.privateEndpointAllowlist.join("\n")))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
   // The Share card's one confirmed write: only the seating keys that are off, so the patch names nothing it keeps.
   const enableSeating = (): Promise<void> =>
@@ -102,7 +103,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
     save
       .mutateAsync({ partial: clearable })
       .then((resolvedAfter) => setAllowlistDraft(resolvedAfter.privateEndpointAllowlist.join("\n")))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

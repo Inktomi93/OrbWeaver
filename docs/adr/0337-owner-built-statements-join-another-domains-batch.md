@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-10-30
+updated: 2026-11-14
 ---
 
 # A domain joins another domain's batch only through an owner-built statement this row names
@@ -19,18 +19,21 @@ A database handle crosses a domain boundary only as an owner-built statement, gu
 | `localUserInsertStatement` | sessions | admin's audited create | [D257](0257-handles-compare-on-one-unicode-key.md): the user and its audit row land together |
 | `revokeAllForUserStatement` | sessions | admin's audited password reset and disable | A new password or a disable never stands beside the old live sessions, and the audit row lands with it |
 | `linkExternalIdStatement` | sessions | admin's audited SSO bind | The bind and its audit row land together or not at all |
-| the stats batch ops (`StatsBatchWiring`) | stats | chat's committed turn | Rollups and the canon-version marker commit with the canon write they count, so a rebuild never double counts |
+| the stats batch ops (`StatsBatchWiring`) | stats | chat's committed turn, chat's room delete and character seat, and character's delete | Rollups and the canon-version marker commit with the canon write they count, so a rebuild never double counts, and a delete or seat moves canon in or out of scope in the same batch |
 | `emptyMemoryScope` | chat (a `SQL` guard) | embeddings' space promotion and retire | The guard evaluates inside the batch, so no chat gains memory between the check and the delete |
 | `planGameBirth` | rpg | chat's creation batch | [D264](0264-roster-preset-carries-a-game-template.md): a failed birth leaves no room |
 | `handoffHealStatements`, `restampHandoffDigests`, `copyHandoffBooks`, `copyHandoffRegexScripts` | rpg, embeddings, world-info, regex | chat's handoff swap | [D131](0131-a-host-handoff-carries-an-opt-in-class.md) (D): the room moves in one atomic batch |
+| `detachHandoffBooks`, `detachHandoffRegexScripts`, `detachHandoffDocuments` | world-info, regex, databank | chat's handoff swap | [D64](0064-handoff-and-fork-drop-prior-host-characters.md): the chat attachments the new host does not own leave with the role swap, after the copy re-points |
 | `rpgRestoreStatement` | rpg | chat's restore | The game state restores with the message it belongs to |
 | `NotificationsEmitOp` coStatements and `claimStatement` | chat | notifications' emit | A notification and the chat write it announces commit together, so no notice points at an unsaved row and none is lost |
+| `globalVariableWriteStatements` | automation | chat's committed turn | [D46](0046-scripting-variables-live-on-two-planes.md): a turn's `{{setglobalvar}}` writes land with the reply, so a failed or aborted turn stores none. The plane never stages in a room another human ever held a seat in, and a chat file without the shared flag imports as shared (`chats.everShared`) |
+| `reseatPersonaSeatsStatement` | chat | persona's delete | [D315](0315-persona-pointers-one-writer-pin-read-through-chat.md): the seats move off the persona in the batch that deletes it, so no seat switched onto it before the commit is left empty |
 
 The signup statements stay under D259. A new joint batch needs a new row here before its op lands. `pnpm unwired ports` reads the ruled ops from one tuple in `tooling/src/unwired/`, and a test holds that tuple equal to this table, so an op absent from the table reports as `db-handle-review`.
 
 ## Consequences
 
-Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
+A stats rebuild, and a batch that retires or admits canon, opens with a guard that rewrites the owner's canon-version row with the version it read, so an owner with no stats write gains a row at version 0. Every reader takes a missing row as version 0 and the next write moves either to 1, so the two states are the same. Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
 
 ## Alternatives rejected
 

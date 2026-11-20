@@ -14,6 +14,7 @@ import {
   guestRunner,
   installGuest,
 } from "@orb/testkit/node/composed";
+import { dismissActionName } from "@orb/ui/lib";
 import type { SuggestionCardStory } from "./_suggestion-card-stories.tsx";
 
 const STEER_OPS = { steer: "(h, room, a) => h.chat.requestTurn(room, { guided: a.steer })" } as const;
@@ -76,7 +77,9 @@ test("a plugin turn card names its installer apart from its title and opens to t
   const byline = cards.locator('[data-slot="chat-control-card-byline"]');
   await expect(byline).toContainText(member.handle);
   // The dismiss control's name carries the plugin's free-text title, so the installer is its description.
-  await expect(cards.getByRole("button", { name: `Dismiss ${card.summary}`, exact: true })).toHaveAccessibleDescription((await byline.textContent()) ?? "");
+  await expect(cards.getByRole("button", { name: dismissActionName(card.summary), exact: true })).toHaveAccessibleDescription(
+    (await byline.textContent()) ?? "",
+  );
 
   const trigger = cards.locator('[data-slot="collapsible-trigger"]');
   const steer = cards.locator('[data-slot="scroll-area-viewport"] [data-slot="suggestion-steer"]');

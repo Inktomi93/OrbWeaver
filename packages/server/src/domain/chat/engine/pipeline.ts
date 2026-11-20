@@ -27,6 +27,7 @@ import type {
   ChatDeltaEvent,
   ChatInjection,
   ChatReasoningPart,
+  ChatSource,
   ContentSignatures,
   MessageView,
   ToolCallRecord,
@@ -40,17 +41,18 @@ import {
   coEmitsProseWithTools,
   projectGenerationUsage,
   turnsLevelFor,
+  WARNING_CODE,
 } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
+import { DEFAULT_NAMES_BEHAVIOR, statedIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsManagedCompaction, withPresetWindow } from "@orb/inference";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -60,12 +62,12 @@ import { applyReceivePostProcess } from "#primitives/post-process";
 import { parseReasoningTags } from "#primitives/reasoning";
 import type {
   ApplyPromptTransformsOp,
-  ApplyRegexReplaceOp,
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
   EngineContext,
   LoadInlineReplyAssetIdsOp,
+  OpenRegexPassOp,
   ReserveReceiptEventsOp,
   ResolveTurnImageUrlOp,
   RunChatTurnOp,
@@ -76,6 +78,7 @@ import type {
   DeliveredCue,
   HistoryMacroNames,
   OrderedReplyImage,
+  RegexNoticeEpisode,
   ReplyPartReceipt,
   TurnEconomics,
   TurnRequest,
@@ -121,7 +124,10 @@ interface RunTurnPipelineArgs {
   readonly now: Clock;
   /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
   readonly random: RandomSource;
-  readonly applyRegexReplace: ApplyRegexReplaceOp;
+  readonly openRegexPass: OpenRegexPassOp;
+  /** The turn's record of host scripts a pass did not apply; the engine drains it. Absent on a run that tells the
+   *  room nothing (an unpersisted draft). */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: ResolveTurnImageUrlOp;
   readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
@@ -162,7 +168,7 @@ interface RunTurnPipelineArgs {
   readonly shape?: TurnSpeakerShape | undefined;
   /** Fans one streamed delta out. Fire-and-forget — not on the durable-await path. */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** Null means tool-use unwired (the byte-identical no-op). */
   readonly tools: ChatToolOps | null;
   /** Empty means no tools ride. */
@@ -369,6 +375,87 @@ function assertNever(chunk: never): never {
   throw new Error(`Unknown turn stream chunk: ${String(chunk)}`);
 }
 
+/** One depth's streamed text and reasoning as it arrives, so a stopped stream still says what it wrote. */
+interface StreamedDepth {
+  text: string;
+  reasoning: string;
+  reasoningMs: number | null;
+}
+
+/** The recurse loop's running totals: every depth that completed, plus the depth in flight when it stopped. */
+type RecurseLoopResult = Awaited<ReturnType<typeof runRecurseLoop>>;
+
+/**
+ * The provider stream stopped under the turn's own signal. Carries what the loop had: completed depths in full,
+ * the depth in flight as streamed (`inFlight`, null when the stop landed between depths), and how many provider
+ * calls completed (`completedCalls`), so the engine can tell whether the stopped call reported its own usage.
+ * The engine decides what the stop means; the pipeline never classifies a reason.
+ */
+class StoppedRecurseLoop extends Error {
+  readonly loop: RecurseLoopResult;
+  readonly inFlight: StreamedDepth | null;
+  readonly completedCalls: number;
+  constructor(
+    stopped: { readonly loop: RecurseLoopResult; readonly inFlight: StreamedDepth | null; readonly completedCalls: number },
+    options: { readonly cause: unknown },
+  ) {
+    super("the turn's provider stream stopped mid-generation", options);
+    this.name = "StoppedRecurseLoop";
+    this.loop = stopped.loop;
+    this.inFlight = stopped.inFlight;
+    this.completedCalls = stopped.completedCalls;
+  }
+}
+
+/** The estimated usage of the one provider call a stop cut short: no final chunk ever reported its own. */
+export interface StoppedCallEstimate {
+  readonly tokensIn: number;
+  readonly tokensOut: number;
+}
+
+/** Whether a reply's text holds prose. A stopped turn keeps its reply only then, and only then runs the receive pass on it. */
+export function holdsReplyProse(content: string): boolean {
+  return content.trim().length > 0;
+}
+
+/**
+ * A turn stopped by its own signal mid-generation: `result` is what streamed, through the same receive
+ * transforms a finished reply takes when it {@link holdsReplyProse}, and as streamed otherwise. `estimate`
+ * prices the cut call; it is null when the stop landed between calls. `completedCalls` counts the provider calls that finished, so an observation beyond that count is
+ * the cut call's own measured usage.
+ */
+export class StoppedTurn extends Error {
+  readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+  readonly estimate: StoppedCallEstimate | null;
+  readonly completedCalls: number;
+  constructor(
+    stopped: {
+      readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+      readonly estimate: StoppedCallEstimate | null;
+      readonly completedCalls: number;
+    },
+    options: { readonly cause: unknown },
+  ) {
+    super("the turn stopped mid-generation", options);
+    this.name = "StoppedTurn";
+    this.result = stopped.result;
+    this.estimate = stopped.estimate;
+    this.completedCalls = stopped.completedCalls;
+  }
+}
+
+/** Run one step of the recurse loop; a throw under the aborted turn signal becomes the stop carrier. */
+async function orStopped<T>(work: () => Promise<T>, signal: AbortSignal, stopped: () => ConstructorParameters<typeof StoppedRecurseLoop>[0]): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    if (signal.aborted && !(err instanceof StoppedRecurseLoop)) {
+      throw new StoppedRecurseLoop(stopped(), { cause: err });
+    }
+    throw err;
+  }
+}
+
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
  *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
  *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
@@ -376,6 +463,8 @@ function assertNever(chunk: never): never {
 async function reduceStream(
   stream: AsyncIterable<TurnStreamChunk>,
   args: RunTurnPipelineArgs,
+  // What this depth streamed so far, readable after the stream throws: a user Stop keeps it.
+  streamed: StreamedDepth,
 ): Promise<{
   content: string;
   reasoning: string | null;
@@ -395,11 +484,14 @@ async function reduceStream(
       case "text":
         clock.onAnswerDelta();
         text += chunk.text;
+        streamed.text = text;
         args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
         break;
       case "reasoning":
         clock.onReasoningDelta();
         reasoning += chunk.text;
+        streamed.reasoning = reasoning;
+        streamed.reasoningMs = clock.elapsedMs();
         args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
         break;
       case "warning": {
@@ -471,12 +563,18 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       onWarn: (msg, warnErr) => getLog(args.logger).warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
       registry: args.macroRegistry,
     }),
-    applyReplace: args.applyRegexReplace,
-    onScriptFailure: (scriptErr, script) =>
+    openRegexPass: args.openRegexPass,
+    onScriptFailure: (scriptErr, script): void => {
       getLog(args.logger).warn(
-        { err: scriptErr, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err: scriptErr, pass: "prompt", findRegex: script.findRegex },
         "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
-      ),
+      );
+      args.regexNotices?.note("prompt_history", scriptErr, script, scripts);
+    },
+    room: ctx.hostTierRegexRoom ?? NO_SEATS,
+    continuing: args.kind === "continue",
+    // A turn reads the history once, so there is nothing to reuse; the memo serves repeated previews.
+    memo: null,
   };
 }
 
@@ -487,7 +585,7 @@ function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
   // THE ROUND'S SHAPED CTX, not `args.assembleContext` — the identity a host regex script's `{{char}}`
-  // resolves against. `PROMPT_HISTORY` (see `promptHistoryEnv`) has always used the shaped ctx, so a script
+  // resolves against. The prompt pass (see `promptHistoryEnv`) has always used the shaped ctx, so a script
   // library that spelled `{{char}}` got the SPEAKING character on the prompt leg and the room's PRIMARY on
   // the reply leg: on a merged round voiced by Bran, one turn's `{{char}}` meant Bran going out and Aria
   // coming back. Both legs transform ONE round, the round's speaker is available to both, and the receive
@@ -525,14 +623,15 @@ function applyReceiveTransforms(
         })
       : null;
   if (macroCtx !== null) {
-    content = executeRegexScripts({
+    content = args.openRegexPass().execute({
       text: content,
       scripts,
-      placement: "AI_OUTPUT",
+      call: { pass: "save", target: "AI_OUTPUT", edit: false },
       ctx: macroCtx,
-      applyReplace: args.applyRegexReplace,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("ai_output", scriptErr, script, scripts);
+      },
     });
   }
 
@@ -540,18 +639,25 @@ function applyReceiveTransforms(
   content = cleanPerSpeakerContent(content, args);
 
   if (macroCtx !== null && reasoning !== null) {
-    reasoning = executeRegexScripts({
+    reasoning = args.openRegexPass().execute({
       text: reasoning,
       scripts,
-      placement: "REASONING",
+      call: { pass: "save", target: "REASONING", edit: false },
       ctx: macroCtx,
-      applyReplace: args.applyRegexReplace,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("reasoning", scriptErr, script, scripts);
+      },
     });
   }
 
   return { content, reasoning };
+}
+
+// A stopped loop's receive pass: run only over a reply it keeps, so a script it skipped never names a reply never saved.
+function receiveStopped(loop: RecurseLoopTotals, args: RunTurnPipelineArgs, ctx: AssembleContext): { content: string; reasoning: string | null } {
+  const streamed = { content: loop.content, reasoning: loop.reasoning };
+  return holdsReplyProse(loop.content) ? applyReceiveTransforms(streamed, args, ctx) : streamed;
 }
 
 /** Field-wise merge of the two `advanced` escape-hatch blocks — the per-turn override wins per sub-field;
@@ -635,6 +741,26 @@ function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
   return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
 
+/** The verdict's loud half: an authored tail prefill (an assistant injection at depth 0) that ONLY the tools
+ *  could have stood down is a degradation their author must be told about — no silent vanish. It requires the
+ *  capability, not only an unhonored prefill: on a wire that cannot continue at all the tools changed nothing
+ *  (the documented plain-message normalization), so that turn stays quiet, as the delivery-cluster contract
+ *  spells it. */
+function prefillStoodDownByTools(args: RunTurnPipelineArgs, inChatInjections: readonly ChatInjection[]): boolean {
+  return (
+    turnCarriesTools(args) &&
+    acceptsAssistantPrefill(generationOf(args.connection)) &&
+    inChatInjections.some((inj) => inj.role === "assistant" && inj.depth === 0)
+  );
+}
+
+/** The preset's authored chain of thought (`reasoningSeed`) rides the turn WHOLESALE: the transports own every
+ *  drop with their own notice (`prefill_reasoning_dropped`), so a stated seed never vanishes silently and the
+ *  pipeline never pre-judges whether THIS turn has a continue row. */
+function seedRideOf(intent: UserIntent): { readonly prefillReasoning?: string } {
+  return intent.reasoningSeed === undefined ? {} : { prefillReasoning: intent.reasoningSeed };
+}
+
 /** SHAPE's synthetic trailing user row: the caller's, minus a CONTINUATION FALLBACK the prefill verdict makes
  *  wrong. A continue's nudge is the fallback spelling of "keep going" for a wire that cannot continue its own
  *  trailing row; where prefill IS honored, shipping it defeats the mechanism twice — the tail makes the
@@ -681,7 +807,11 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // reserve) and the runner's wire `max_tokens` read `effectiveIntent.maxOutputTokens` from here — pinning
   // the reserve to exactly what the runner generates. Unset ⇒ the shared response-length default (NOT the
   // model's output-cap ceiling / window), so the fit-pass leaves history room instead of reserving it all.
-  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences));
+  // STATED: a value whose control this model does not take is removed here, before any reader (D68), so the seed,
+  // the request and the reply row's recorded params never carry it.
+  const effectiveIntent = materializeMaxOutput(
+    statedIntent(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences), generationOf(input.connection)),
+  );
   // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
   // effective Max context; every read of `args.connection` below, the request included, sees it.
   let streamedText = "";
@@ -731,6 +861,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // THE TURN'S PREFILL VERDICT — one value, two readers: SHAPE (keep an assistant@depth-0 injection at depth 0
   // and skip the continuation nudge) and {@link shapeTail} (drop the continue verb's fallback row).
   const prefillHonored = honorsAssistantPrefill(args);
+  const prefillSuppressedByTools = prefillStoodDownByTools(args, inChatInjections);
 
   // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`): SHAPE reads it
   // for the cue replay and the CONVERT step below for the carried thinking, both upstream of every wire call. The
@@ -855,6 +986,9 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     ...(ctx.promptConfig.reasoningParse?.autoParse === true
       ? { reasoningTags: { prefix: ctx.promptConfig.reasoningParse.prefix, suffix: ctx.promptConfig.reasoningParse.suffix } }
       : {}),
+    // The preset's authored chain of thought rides WHOLESALE: the transports own every drop with their own
+    // notice (`prefill_reasoning_dropped`), so a preset that states a seed never loses it silently.
+    ...seedRideOf(effectiveIntent),
     signal: args.signal,
   };
 
@@ -866,17 +1000,96 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({
-    args,
-    request: structured.request,
-    execute: attach.execute,
-    reserveToolOrdinals,
-    reserveReceiptEvents,
-    terminalNames: terminal.names,
-    carryReasoning,
-  });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
-  const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
+  // A stopped loop takes the same pass over what it kept (`receiveStopped`), so a kept reply is stored as a finished one would be.
+  const settle = (loop: RecurseLoopTotals, received: { content: string; reasoning: string | null }): TurnPipelineResult =>
+    pipelineResult({
+      loop,
+      received,
+      attach,
+      terminal,
+      structured,
+      toolEvents,
+      exchangeEnds,
+      shaped,
+      fitted,
+      budget,
+      deliveredBudget,
+      fitUsedTokens,
+      args,
+      ctx,
+      imageDropped,
+      videoDropped,
+      prefillSuppressedByTools,
+    });
+  const finish = (loop: RecurseLoopTotals): TurnPipelineResult =>
+    settle(loop, applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx));
+  try {
+    return finish(
+      await runRecurseLoop({
+        args,
+        request: structured.request,
+        execute: attach.execute,
+        reserveToolOrdinals,
+        reserveReceiptEvents,
+        terminalNames: terminal.names,
+        carryReasoning,
+      }),
+    );
+  } catch (err) {
+    if (!(err instanceof StoppedRecurseLoop)) {
+      throw err;
+    }
+    // The cut call reported no usage: price its request as this turn's fit priced it and its output by what streamed.
+    const estimate =
+      err.inFlight === null
+        ? null
+        : { tokensIn: fitted.usedTokens + systemTokens, tokensOut: estimateTokens(err.inFlight.text) + estimateTokens(err.inFlight.reasoning) };
+    throw new StoppedTurn({ result: settle(err.loop, receiveStopped(err.loop, args, ctx)), estimate, completedCalls: err.completedCalls }, { cause: err });
+  }
+}
+
+/** Assemble the pipeline product from the loop's totals and the per-turn facts computed before it ran. */
+function pipelineResult(input: {
+  readonly loop: RecurseLoopTotals;
+  readonly received: { readonly content: string; readonly reasoning: string | null };
+  readonly attach: Awaited<ReturnType<typeof attachTools>>;
+  readonly terminal: ReturnType<typeof attachTerminalTools>;
+  readonly structured: ReturnType<typeof attachResponseFormat>;
+  readonly toolEvents: ReadonlyMap<number, number>;
+  readonly exchangeEnds: ReadonlyMap<number, number>;
+  readonly shaped: Awaited<ReturnType<typeof shapeConvertFit>>["shaped"];
+  readonly fitted: Awaited<ReturnType<typeof shapeConvertFit>>["fitted"];
+  readonly budget: ReturnType<typeof buildHistoryBudget>;
+  readonly deliveredBudget: Awaited<ReturnType<typeof shapeConvertFit>>["fitBudget"];
+  readonly fitUsedTokens: number;
+  readonly args: RunTurnPipelineArgs;
+  readonly ctx: AssembleContext;
+  readonly imageDropped: boolean;
+  readonly videoDropped: boolean;
+  /** The turn stood down an authored tail prefill because it carries tools; rides the runner warnings as the
+   *  author's notice. See the verdict's loud half at the {@link honorsAssistantPrefill} call site. */
+  readonly prefillSuppressedByTools: boolean;
+}): TurnPipelineResult {
+  const {
+    loop,
+    received,
+    attach,
+    terminal,
+    structured,
+    toolEvents,
+    exchangeEnds,
+    shaped,
+    fitted,
+    budget,
+    deliveredBudget,
+    fitUsedTokens,
+    args,
+    ctx,
+    imageDropped,
+    videoDropped,
+    prefillSuppressedByTools,
+  } = input;
   return {
     toolEvents,
     exchangeEnds,
@@ -914,7 +1127,15 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     toolsUnsupported: attach.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
-    runnerWarnings: loop.warnings,
+    runnerWarnings: prefillSuppressedByTools
+      ? [
+          ...loop.warnings,
+          {
+            code: WARNING_CODE.prefillSuppressedByTools,
+            message: "tail prefill suppressed: the turn carries tools, and a continued row and a tool call cannot share the turn end",
+          },
+        ]
+      : loop.warnings,
     providerRefused: loop.refused,
   };
 }
@@ -1165,10 +1386,29 @@ async function runRecurseLoop(input: {
   // ON the cognitive-complexity cap and a logical operator in the loop body is what pushes it over.
   const refusedByDepth: boolean[] = [];
   let depth = 0;
+  const totals = (): RecurseLoopTotals => ({
+    content,
+    reasoning,
+    economics,
+    records,
+    toolSignatures,
+    terminalCalls,
+    replyImages,
+    warnings: [...warnings.values()],
+    refused: refusedByDepth.includes(true),
+    reasoningMs,
+  });
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     const contentStart = content.length;
-    const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
+    const streamed: StreamedDepth = { text: "", reasoning: "", reasoningMs: null };
+    const sent = history;
+    const completedCalls = depth;
+    const reduced = await orStopped(
+      () => reduceStream(args.runChatTurn({ ...input.request, history: sent }), args, streamed),
+      args.signal,
+      () => ({ loop: withInFlight(totals(), streamed), inFlight: streamed, completedCalls }),
+    );
     content += reduced.content;
     refusedByDepth.push(reduced.refused);
     for (const warning of reduced.warnings) {
@@ -1213,7 +1453,12 @@ async function runRecurseLoop(input: {
     // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` does not carry the `execute === null` break above
     // into this line and reads the union as non-thenable (the same false positive `applyDynamicTransform` wraps
     // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
-    const batch = await Promise.resolve(execute(calls));
+    // A stop while the batch runs keeps the completed depths; the batch's own records never come back.
+    const batch = await orStopped(
+      () => Promise.resolve(execute(calls)),
+      args.signal,
+      () => ({ loop: totals(), inFlight: null, completedCalls: completedCalls + 1 }),
+    );
     records.push(...recordToolBoundary(batch, { textOffset: content.length, turnId: args.toolExecFrame.turnId, firstOrdinal, calls, prefix: contentStart }));
     history = [
       ...history,
@@ -1227,18 +1472,29 @@ async function runRecurseLoop(input: {
     ];
     depth += 1;
   }
-  return {
-    content,
-    reasoning,
-    economics,
-    records,
-    toolSignatures,
-    terminalCalls,
-    replyImages,
-    warnings: [...warnings.values()],
-    refused: refusedByDepth.includes(true),
-    reasoningMs,
-  };
+  return totals();
+}
+
+/** The recurse loop's product: every depth folded into one reply. */
+interface RecurseLoopTotals {
+  readonly content: string;
+  readonly reasoning: string | null;
+  readonly economics: TurnEconomics | null;
+  readonly records: readonly ToolCallRecord[];
+  readonly toolSignatures: NonNullable<ContentSignatures["tools"]>;
+  readonly terminalCalls: readonly ToolCallInput[];
+  readonly replyImages: readonly OrderedReplyImage[];
+  readonly warnings: readonly ResolvedWarning[];
+  readonly refused: boolean;
+  readonly reasoningMs: number | null;
+}
+
+/** The completed depths plus what the depth in flight streamed. Its unfinished tool calls never arrived: they ride
+ *  only the final chunk, so nothing here can carry one. */
+function withInFlight(totals: RecurseLoopTotals, streamed: StreamedDepth): RecurseLoopTotals {
+  const reasoning = streamed.reasoning.length > 0 ? (totals.reasoning ?? "") + streamed.reasoning : totals.reasoning;
+  const reasoningMs = streamed.reasoningMs === null ? totals.reasoningMs : (totals.reasoningMs ?? 0) + streamed.reasoningMs;
+  return { ...totals, content: totals.content + streamed.text, reasoning, reasoningMs };
 }
 
 /** §6.7 — one depth's inline pictures rebased onto the DEPTH-CUMULATIVE reply. `atChars` is an offset into
@@ -1359,6 +1615,21 @@ function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning
   return carry === "off" ? [] : (economics?.reasoningParts ?? []);
 }
 
+/** The earlier leg's citations shifted into the concatenated reply's frame: every span is an offset into the leg
+ *  that produced it, and the stored reply is the two legs joined, so the prose now in front of them is the shift.
+ *  The later leg needs none — it IS the tail. */
+function shiftedSources(acc: TurnEconomics, next: TurnEconomics): readonly ChatSource[] {
+  const shift = acc.content.length;
+  return [
+    ...(acc.sources ?? []).map((source) => ({
+      ...source,
+      atChars: source.atChars + shift,
+      ...(source.endChars === undefined ? {} : { endChars: source.endChars + shift }),
+    })),
+    ...(next.sources ?? []),
+  ];
+}
+
 /** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is
  *  the first depth's, terminal reasons/model/window are the last depth's. The per-provider sidecar rides the
  *  `...next` spread with that last group ON PURPOSE: it is one call's RECEIPT (a session id, a warm-spare
@@ -1385,6 +1656,10 @@ export function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomic
     modelCalls,
     content: acc.content + next.content,
     textSignatures: [...(acc.textSignatures ?? []), ...(next.textSignatures ?? [])],
+    // The spans are offsets into the reply each leg produced, and the stored reply is the concatenation of
+    // those legs: the earlier leg's citations shift by exactly the prose now in front of them, or the stored
+    // spans point into the wrong part of the turn's own text.
+    ...(acc.sources === undefined && next.sources === undefined ? {} : { sources: shiftedSources(acc, next) }),
     reasoning: [acc.reasoning ?? "", next.reasoning ?? ""].join("") || null,
     ttftMs: acc.ttftMs ?? next.ttftMs ?? null,
   };

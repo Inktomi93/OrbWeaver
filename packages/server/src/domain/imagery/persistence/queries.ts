@@ -31,6 +31,7 @@ interface InsertGenerationInput {
   readonly usage: GenerationUsage;
   readonly edited: boolean;
   readonly createdAt: number;
+  readonly genTimeMs: number;
 }
 
 /** The provenance row's INSERT, unexecuted: the caller commits it in one batch with the generation's stats
@@ -64,6 +65,7 @@ export function insertGenerationStatement(db: Db, input: InsertGenerationInput):
     callId: input.callId,
     importHash: null,
     importSource: null,
+    genTimeMs: input.genTimeMs,
   });
 }
 

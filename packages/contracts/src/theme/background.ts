@@ -1,7 +1,7 @@
-// The carried-background SOURCE schema (BG-C) — the `ThemeOverride` TWIN: a per-character / per-chat
+// The carried-background SOURCE schema — the `ThemeOverride` TWIN: a per-character / per-chat
 // decorative-background POINTER that, in a true-solo room, takes over the app-root background layer. Only
 // the picture SOURCE is carried (kind + the per-kind reference); fit / dim / blur stay the VIEWER's own
-// `appearance` treatment (ST `/lockbg` semantics — the chat locks the image, never the viewer's dimming).
+// `appearance` treatment (the chat locks the image, never the viewer's dimming).
 //
 // INVARIANT — `kind:"external"` is an INPUT-ONLY transient, never a persisted PAINTABLE state:
 // a raw external URL can never paint (the CSP `img-src` allows only self/data/blob, by design), so
@@ -27,21 +27,19 @@ import { z } from "zod";
  *  is an OWNED background asset pinned by `assetId`/`assetHash` (GC-rooted via the asset-refs JSON
  *  live-sources for each carried location); `external` a URL, input-only per the INVARIANT above.
  *
- *  `seeded` — a slug into a static `public/`-served catalog of bundled plates — is RETIRED
- *  (owner ask, "the weird seeded backgrounds"). It was a parallel background channel no user-owned
- *  background could join: not in the library, not renameable, not deletable, not exportable, invisible to
- *  the CAS and to asset GC. The ten shipped scene plates are now seeded per user as ordinary
- *  `background`-kind assets from `@orb/default-content` and every carried reference to one is a
- *  `kind:"asset"` ref; the four landscape placeholders were deleted outright. A stored `"seeded"` reference
- *  is rewritten to its asset (or to `none`) by the per-user background seeder's migration pass
- *  (`domain/settings/seeder/backgrounds.ts`), and the `.catch("none")` below is the floor under anything it
- *  did not reach. */
+ *  `seeded` — a slug into a static `public/`-served catalog of bundled plates — is not a member: it was a
+ *  parallel background channel no user-owned background could join (not in the library, not renameable, not
+ *  deletable, not exportable, invisible to the CAS and to asset GC), so never re-add it. The shipped scene
+ *  plates are seeded per user as ordinary `background`-kind assets from `@orb/default-content`, and every
+ *  carried reference to one is a `kind:"asset"` ref. A stored `"seeded"` reference is rewritten to its asset
+ *  (or to `none`) by the per-user background seeder's pass (`domain/settings/seeder/backgrounds.ts`), and the
+ *  `.catch("none")` below is the floor under anything it misses. */
 export const BACKGROUND_IMAGE_KINDS = ["none", "external", "asset"] as const;
 
 /** Stored provenance is display metadata. Reading it must retain the original string. */
 export const storedBackgroundProvenanceSchema = z.string();
 
-/** The carried decorative-background SOURCE (BG-C) — a `ThemeOverride` twin. Source-only: fit/dim/blur are
+/** The carried decorative-background SOURCE — a `ThemeOverride` twin. Source-only: fit/dim/blur are
  *  never carried (the viewer keeps their own appearance treatment). `kind:"none"` (or an empty ref for the
  *  active kind) resolves to "no override" ⇒ the viewer's own background wins. Field naming mirrors the flat
  *  `appearance` background fields minus the `background` prefix (`kind`, not `backgroundImageKind`). */
@@ -61,7 +59,7 @@ export const themeBackgroundSchema = z
     // The immutable content hash for the `asset` kind — the SYNC url resolver builds `blobUrl(hash)` from it.
     assetHash: z.string().catch("").default(""),
     // The `asset` mime — the app-shell branches the `<video>` background layer over the image layer when this
-    // is `video/*` (the BG-V axis); blank (image assets / non-asset kinds) ⇒ the image layer.
+    // is `video/*`; blank (image assets / non-asset kinds) ⇒ the image layer.
     mime: z.string().catch("").default(""),
     // Provenance for a MATERIALIZED background (the INVARIANT above): the original external URL an `asset`
     // source was fetched-and-stored from, kept as metadata (never re-fetched — the bytes live in the CAS). Only
@@ -76,7 +74,7 @@ export type ThemeBackground = z.infer<typeof themeBackgroundSchema>;
 
 /** Canonicalize a parsed background SOURCE to its GC-safe persisted shape: ONLY `kind:"asset"` may carry an
  *  asset reference, so any non-asset kind's `assetId`/`assetHash`/`mime` are forced empty. Without this a
- *  `kind:"none"` (or `seeded`/`external`) payload carrying a populated `assetId` would smuggle that id past
+ *  `kind:"none"` (or `external`) payload carrying a populated `assetId` would smuggle that id past
  *  the ownership gate (which keys on `kind:"asset"`) and into the metadata JSON, where the GC live-source
  *  scans root it unconditionally — pinning an arbitrary/foreign asset. ONE home so every carried-background
  *  write path (chat metadata + character card) persists the identical clean shape. Idempotent. */

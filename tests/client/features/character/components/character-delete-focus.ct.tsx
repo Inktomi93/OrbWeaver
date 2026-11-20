@@ -20,6 +20,7 @@ import {
   trpcError,
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
@@ -28,7 +29,9 @@ import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellBusStory";
 const NAMES = ["Anselm of the Vale", "Branwen the Quiet", "Corvin Ashdown"] as const;
-const ACTIONS_BUTTON = /^Actions for /u;
+const ACTIONS_BUTTON = nameShape(rowActionsName);
+// What a row's actions name says before its subject.
+const ACTIONS_LEAD = rowActionsName("");
 
 type Root = Awaited<ReturnType<typeof createFirstBootHarness>>;
 
@@ -97,8 +100,8 @@ async function deleteByKeyboard(page: Page, library: Locator, name: string): Pro
 /** The doomed row and the one beside it, read from what the list shows. */
 async function middleAndNext(library: Locator): Promise<{ readonly doomed: string; readonly neighbour: string }> {
   const subjects = await rowSubjects(library);
-  const doomed = subjects[1]?.replace(ACTIONS_BUTTON, "");
-  const neighbour = subjects[2]?.replace(ACTIONS_BUTTON, "");
+  const doomed = subjects[1]?.slice(ACTIONS_LEAD.length);
+  const neighbour = subjects[2]?.slice(ACTIONS_LEAD.length);
   if (doomed === undefined || neighbour === undefined) {
     throw new Error("The library shows fewer rows than the case seeded");
   }
@@ -183,8 +186,8 @@ test("deleting the last listed character by keyboard moves focus to the row befo
   const library = await libraryOf(page);
 
   const subjects = await rowSubjects(library);
-  const last = subjects.at(-1)?.replace(ACTIONS_BUTTON, "");
-  const before = subjects.at(-2)?.replace(ACTIONS_BUTTON, "");
+  const last = subjects.at(-1)?.slice(ACTIONS_LEAD.length);
+  const before = subjects.at(-2)?.slice(ACTIONS_LEAD.length);
   if (last === undefined || before === undefined) {
     throw new Error("The library shows fewer rows than the case seeded");
   }

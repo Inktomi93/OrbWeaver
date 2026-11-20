@@ -19,6 +19,7 @@ import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useRowDele
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import {
+  CLEAR_FILTER_NAME,
   COLLECTION_LARGE_GROUP,
   deleteConfirmTitle,
   ESTIMATED_ROW_PX,
@@ -90,7 +91,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
                 focusFinderSearch();
               }}
             >
-              Clear filter
+              {CLEAR_FILTER_NAME}
             </Button>
           }
           description="No tags match that filter."

@@ -11,7 +11,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { pluginSurfaceAuditAttributes, testId } from "#lib";
-import { PLUGIN_SURFACE_KICKER } from "../lib/plugin-panel-copy.ts";
+import { PLUGIN_SURFACE_KICKER, pluginSurfaceName } from "../lib/plugin-panel-copy.ts";
 
 /** Host-selected chrome: boxed panels, unboxed settings blocks, or transcript-inline attribution. */
 const SHELL_CHROMES = ["panel", "block", "inline"] as const;
@@ -60,7 +60,7 @@ export function PluginSurfaceShell({
   // arm; only the redundant echo goes. Same rule for the group's accessible name, which would otherwise
   // read the doubled pair aloud.
   const showTitle = title !== pluginName;
-  const regionName = showTitle ? `${pluginName}: ${title}` : pluginName;
+  const regionName = pluginSurfaceName(pluginName, title);
   // PAGE scale (U5, §9): the biggest impersonation canvas in the design gets the pinned attribution BAND above a
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
@@ -125,7 +125,7 @@ export function PluginSurfaceShell({
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} grow={true} className="min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
-              <Stack className="min-inline-0" textAlign="start" grow={true} gap="tight">
+              <Stack minWidth="shrinks" textAlign="start" grow={true} gap="tight">
                 {/* The name is the attribution wall: it wraps rather than clip behind the panel's controls. */}
                 <Text voice="label" wrap="word">
                   {pluginName}
@@ -134,7 +134,7 @@ export function PluginSurfaceShell({
                 {showTitle ? (
                   <>
                     {" "}
-                    <Text truncate={true} voice="gloss">
+                    <Text voice="gloss" wrap="word">
                       {title}
                     </Text>
                   </>

@@ -2,6 +2,7 @@
 // Identity remains the lower DAG root; upload caps derive from their own contract owner.
 
 import { z } from "zod";
+import { HTML_TRUST_STEPS } from "#chat";
 import { authConfigShareSchema, CLIENT_SCOPES, REQUEST_TRANSPORTS } from "#identity";
 import { uploadCapsSchema } from "#uploads";
 
@@ -15,10 +16,8 @@ const authConfigFields = z.strictObject({
   multiHumanCapable: z.boolean(),
   /** Tighten-only deployment ceiling on external media. */
   forbidExternalMedia: z.boolean(),
-  /** Deployment default; a character override may move it in either direction. */
-  trustHtml: z.boolean(),
-  /** Deployment ceiling; a character cannot enable scripts while this is off. */
-  allowInteractiveCards: z.boolean(),
+  /** "Default for characters": an inheriting character's step. A character's own step wins over it. */
+  defaultHtmlStep: z.enum(HTML_TRUST_STEPS),
   uploads: uploadCapsSchema,
   transport: z.enum(REQUEST_TRANSPORTS),
   clientScope: z.enum(CLIENT_SCOPES),

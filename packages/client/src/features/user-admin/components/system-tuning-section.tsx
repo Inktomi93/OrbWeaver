@@ -1,5 +1,5 @@
 // The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for prompt transforms,
-// model-catalog refresh, image variants, databank uploads and prompt-cache depth. Each shows its deployment
+// model-catalog refresh, image variants, the two upload size caps side by side, and prompt-cache depth. Each shows its deployment
 // floor + whether an override is active; Reset clears the section's overrides at once. Reads
 // getAppSettingsWithOverrides for the floor-vs-override story and saves only the moved fields through the
 // admin-gated updateAppSettings path.
@@ -7,7 +7,14 @@
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
-import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN, PROMPT_CACHE_MIN_DEPTH_CEIL, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
+import {
+  IMAGE_VARIANT_QUALITY_MAX,
+  IMAGE_VARIANT_QUALITY_MIN,
+  MAX_IMAGE_BYTES_CEIL,
+  MAX_IMAGE_BYTES_FLOOR,
+  PROMPT_CACHE_MIN_DEPTH_CEIL,
+  PROMPT_CACHE_MIN_DEPTH_FLOOR,
+} from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -15,9 +22,16 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
+import {
+  ADMIN_DATABANK_UPLOAD_CAP_NAME,
+  ADMIN_IMAGE_SIZE_CAP_NAME,
+  ADMIN_PROMPT_CACHE_DEPTH_NAME,
+  ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME,
+} from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // One editable scalar knob: how to READ its effective baseline off the resolved config, whether a stored
@@ -38,7 +52,7 @@ interface KnobDescriptor {
 const KNOBS: readonly KnobDescriptor[] = [
   {
     id: "promptTransformDeadlineMs",
-    label: "Prompt-transform deadline (ms)",
+    label: ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME,
     hint: "Per-transform time budget; a transform that outruns it is SKIPPED (the draft passes through unchanged).",
     step: 50,
     min: 1,
@@ -69,7 +83,7 @@ const KNOBS: readonly KnobDescriptor[] = [
   },
   {
     id: "maxDatabankBytes",
-    label: "Databank upload cap (bytes)",
+    label: ADMIN_DATABANK_UPLOAD_CAP_NAME,
     hint: "Max single-document upload. May only TIGHTEN below the 20 MiB route belt; an over-belt value is ignored.",
     step: 1_048_576,
     min: 100_000,
@@ -78,8 +92,19 @@ const KNOBS: readonly KnobDescriptor[] = [
     patch: (v) => ({ maxDatabankBytes: v }),
   },
   {
+    id: "maxImageBytes",
+    label: ADMIN_IMAGE_SIZE_CAP_NAME,
+    hint: "Max size of any image the server takes in: avatar, background and gallery uploads, and every generated or fetched image. Lowering it to shrink generated images also refuses larger uploads.",
+    step: 1_000_000,
+    min: MAX_IMAGE_BYTES_FLOOR,
+    max: MAX_IMAGE_BYTES_CEIL,
+    read: (r) => r.maxImageBytes,
+    overridden: (o) => isOverridden(o.maxImageBytes),
+    patch: (v) => ({ maxImageBytes: v }),
+  },
+  {
     id: "promptCacheMinDepth",
-    label: "Prompt-cache depth floor (0–20)",
+    label: ADMIN_PROMPT_CACHE_DEPTH_NAME,
     hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum. A value deeper than a conversation disables caching for that chat entirely. Raise it sparingly.",
     step: 1,
     min: PROMPT_CACHE_MIN_DEPTH_FLOOR,
@@ -144,7 +169,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
     for (const knob of dirtyKnobs) {
       Object.assign(partial, deepMergePatch(partial, knob.patch(draftNumber(draft[knob.id] ?? ""))));
     }
-    save.mutateAsync({ partial }).catch(() => undefined);
+    save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure);
   };
   // Reset clears every override this section owns to the deployment floor.
   const onReset = (): void => {
@@ -155,6 +180,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           catalogRefreshIntervalMs: null,
           imageVariantQuality: null,
           maxDatabankBytes: null,
+          maxImageBytes: null,
           promptCacheMinDepth: null,
         },
       })
@@ -162,7 +188,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
       // default alongside the "Using the deployment default" copy — otherwise the input keeps the stale typed
       // value (side-eye P2). `useState` runs its initializer once; the mutation result is the server truth.
       .then((resolvedAfter) => setDraft(toDraft(resolvedAfter)))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

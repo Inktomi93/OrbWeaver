@@ -7,6 +7,7 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { refusalOr } from "#lib";
 
 /** Create a new (empty-default or seeded) preset. Refetches the library list; resolves to the created row
  *  (its id) so the caller can open it. */
@@ -33,15 +34,23 @@ export const useRemovePreset = createEntityMutation<inferInput<Trpc["preset"]["r
   errorToast: "Couldn't delete the preset.",
 });
 
-/** Import ONE orb-native `orb.preset` file (G6) — the thin door over the bundle's own `ImportPreset` verb,
- *  so the collision rule is the bundle's: idempotent on `(ownerId, name)`, a same-named preset MERGED in
- *  place. Refetches the library list (a merge changes a row, a create adds one). It RESOLVES rather than
- *  throws for a malformed file (`{ok:false, error}` — the verb contains a bad file so a bundle can't abort),
- *  so the dialog reads the outcome; `errorToast` covers only a transport failure. */
+/** What importing one preset file does, read by the server from the file and a dry run of the import. It writes
+ *  nothing, so it reconciles nothing; the import dialog states a failed read inline. */
+export const usePreviewPresetFile = createEntityMutation<inferInput<Trpc["preset"]["previewFile"]>, inferOutput<Trpc["preset"]["previewFile"]>>({
+  options: (trpc) => trpc.preset.previewFile.mutationOptions(),
+  invalidates: () => [],
+  failureShownInline: "the preset import dialog",
+});
+
+/** Import ONE preset file (G6), an `orb.preset` export or a SillyTavern preset with its own regex scripts — the thin
+ *  door over the bundle's own `ImportPresets` op, so the collision rule is the bundle's: an equal preset is reused,
+ *  a same-named different one lands beside it under a free name. Refetches the library list (a create adds a row);
+ *  the server's `regexChanged` covers the scripts. It RESOLVES rather than throws for a malformed file
+ *  (`{ok:false, error}`), so the dialog reads the outcome; `errorToast` covers only a transport failure. */
 export const useImportPresetFile = createEntityMutation<inferInput<Trpc["preset"]["importFile"]>, inferOutput<Trpc["preset"]["importFile"]>>({
   options: (trpc) => trpc.preset.importFile.mutationOptions(),
   invalidates: (trpc) => [trpc.preset.list.pathFilter()],
-  errorToast: "Couldn't import the preset.",
+  errorToast: refusalOr("Couldn't import the preset."),
 });
 
 /** Reset a preset's config back to the starter arrangement. Refetches the list + the open editor row, and

@@ -40,10 +40,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { Fragment, useRef, useState } from "react";
-import { RowActionsMenu, RowToggleAction } from "#components";
+import { MutedLine, RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { seedPresetId, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { rowActionsName, trpcErrorCode } from "#lib";
+import { rethrowUnlessTrpcFailure, rowActionsName, surfaceDeferredFailure, trpcErrorCode } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { CHAT_ADD_FROM_BANK_NAME } from "../lib/chat-attach-names.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
@@ -89,11 +89,11 @@ function useSlotState(): { readonly slot: SlotState; readonly recheck: () => voi
   const preset = useGatedQuery(settings.data === undefined ? null : activePresetId, (id) => trpc.preset.get.queryOptions({ id }));
   const recheck = (): void => {
     if (activePresetId === null) {
-      settings.refetch().catch(() => undefined);
+      settings.refetch().catch(surfaceDeferredFailure);
       return;
     }
     // each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state.
-    Promise.all([settings.refetch(), preset.refetch()]).catch(() => undefined);
+    Promise.all([settings.refetch(), preset.refetch()]).catch(surfaceDeferredFailure);
   };
 
   if (settings.isError) {
@@ -170,7 +170,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
     // the chain's own catch, never the mutation's: the write's failure is owned by `useSetChatDocumentVisibility`'s `errorToast` and optimistic `onError` rollback (hooks/use-chat-document-mutations.ts), and this catch only keeps one rejected write from wedging the queue for every later toggle. Ends if that mutation drops its errorToast.
     visibilityChainRef.current = visibilityChainRef.current
       .then(async () => setVisibility.mutateAsync({ chatId, visibility: { hidden: next } }))
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         queuedWritesRef.current -= 1;
         if (queuedWritesRef.current === 0) {
@@ -213,11 +213,11 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
       {rows.length === 0 ? (
         // Never render nothing: "nothing feeds this room" is the normal starting state, and a blank block
         // reads as a failed load (empty states are load-bearing).
-        <Text voice="gloss">
+        <MutedLine>
           {isHost
             ? "No documents feed this chat yet."
             : "No documents feed this chat yet. Switch one of your own on for every chat in Databank and it joins the rooms you are in."}
-        </Text>
+        </MutedLine>
       ) : (
         // THE RACK OWNS ITS SCROLL. The union is membership-derived: every present member's Everywhere
         // documents plus the roster characters' plus the room's own, so it can outgrow the pane while its

@@ -9,26 +9,42 @@
 // `characterId`). It never carries a policy: no token reaches the CSP, the sandbox or the script. The server
 // resolves the selector through the MEMBERSHIP-GATED roster read and takes that participant's server-resolved
 // `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the client, produced by
-// `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor.
+// `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor. A narrator row's selector is
+// the host's synthetic group character, which holds no seat; it takes the room's narrator policy, the most restrictive
+// among the present character seats (`resolveNarratorRenderPolicy`, the value `ChatDetail.narratorRender` carries).
 // Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
-// absent from the room, `characterId: null`, `renderPolicy` absent on the row. A failed read of the viewer's
-// own settings (the script-consent input below) is not caught: it throws, the request errors, and no
-// document is served — closed, not floored.
+// absent from the room, `characterId: null`, `renderPolicy` absent on the row. The viewer's own settings (the
+// script-consent input below) are read only when the author's step already allows scripts; a failed read there gives
+// that document the static posture, so one bad read never blanks a room.
 //
-//   • `allowExternalMedia` ⇐ the app-tier `forbidExternalMedia` ceiling AND the participant's verdict. The
-//     ceiling is read HERE, per mint, off the same live `getEffectiveConfig()` thunk the app-document CSP
-//     reads — one deployment ceiling, two consumers, and the frame can never out-vote it.
-//   • `allowInlineData` ⇐ the participant's HTML-TRUST LADDER at or above `trusted`. This is the door:
-//     `data:` images for cards authored by a character that resolves at or above that step (the same step
-//     D294 uses to grant the tierB sandbox).
-//     Both media grants are re-resolved on every SERVE and only ever narrowed (see the GET below).
-//   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
-//     ceiling AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
-//     ALL THREE say yes, `static` otherwise and on every selector failure. It selects which `CardFramePosture`
-//     the response policy is built through and is echoed as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
+//   • the MEDIA GRANT ⇐ `resolveCardMediaVerdict` (`@orb/contracts/chat`), the one rule the client's media notice
+//     also reads: `https:` media only while the app-tier ceiling allows it AND the participant does not forbid it
+//     (the ceiling read HERE, per mint, off the same live `getEffectiveConfig()` thunk the app-document CSP reads),
+//     and `data:` images from Rich HTML up. Both are re-resolved on every SERVE and only ever narrowed (see the GET).
+//   • the SCRIPT POSTURE ⇐ `resolveCardScriptVerdict`: the TOP step of that same ladder AND the viewer's own
+//     `chat.runCardScripts` consent — `interactive` only when BOTH say yes, `static` otherwise and on every selector
+//     failure. The install's "Default for characters" is no separate input: it reaches the posture only as the step an
+//     INHERITING character resolves to, and a character its owner set to Interactive runs scripts under any default
+//     (D294). The step is the server's own roster value, never the mint body's. It selects which `CardFramePosture`
+//     the response policy is built through and is echoed as `granted.interactive`. The interactive arm emits
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
 //     and recorded in `@orb/kit/card-frame`.
+//   • a FORMING mint (`forming: true`, a panel of a reply still streaming) is capped after the selector resolves: the
+//     static posture and no external media, whatever the selector grants, because the room has not kept those bytes and
+//     a save-pass script, a stop string or an abort can still remove them. `data:` images keep the step's answer: they
+//     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows). A forming
+//     handle lives until a turn ends in its room, every account's at once: the stream it drew a panel of is over, and
+//     the settled reply mints its own frame. ONLY A PRESENT MEMBER'S handle joins that release (`getMembership`): a
+//     handle that vanished at a foreign room's turn end would tell its minter when that room's turns end. A
+//     non-member's forming handle stays untagged and lives its TTL, and its mint answers exactly as a member's does,
+//     because a refusal would itself answer the membership question. A second turn streaming beside the first in one room loses its forming
+//     handles at the first one's end; its frames on screen keep their loaded documents, and a remount spends the one
+//     re-mint.
+//   • CARRIED AUTHORS (`carriedFrom`, the other characters whose stylesheets a framed reply carries) are resolved through
+//     the same read, at mint and on every serve: external media loads only while each of them allows it too, so one
+//     character's media setting never admits another's `url()`. An author the read cannot resolve allows none. They
+//     narrow the media grant only: a stylesheet runs no script.
 //
 // ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or an
 // INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
@@ -48,29 +64,36 @@
 // indistinguishable from an expired one (the `/api/blob` no-existence-leak precedent). Nothing persists:
 // model-authored bytes never reach disk through this route.
 //
-// That store is `frame-handle-store.ts` — the ONE home since U7 gave it a second doorway (the plugin frame).
-// Its behaviour here is unchanged: same 128-bit ids, same count AND byte ceilings, same oldest-first eviction,
-// same sliding 30-minute TTL, same owner check as the last word. This file's own tests are the proof of that.
+// That store is `frame-handle-store.ts`, the ONE home it shares with the plugin frame: 128-bit ids, count AND byte
+// ceilings (this doorway's are `CARD_FRAME_CEILINGS`, sized there for split replies), oldest-first eviction, a
+// sliding 30-minute TTL, and the owner check as the last word.
 
+import type { GetMembership, RenderPolicy } from "@orb/contracts/chat";
 import {
-  allowsInteractiveCards,
   CARD_FRAME_MINT_BODY_MAX_BYTES,
+  CARD_FRAME_MINTS_IN_FLIGHT,
   CARD_FRAME_ROUTE,
   cardFrameMintRequestSchema,
   cardFrameUrl,
-  rendersTrustedHtml,
+  cardScriptsNeedViewerConsent,
+  resolveCardMediaVerdict,
+  resolveCardScriptVerdict,
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
-import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_MISSING_ATTRIBUTE, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
+import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { Hono } from "hono";
+import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ChatService } from "#domain/chat";
+import type { Logger } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
-import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import { CARD_FRAME_CEILINGS, createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import type { OwnPolicyRegistrar, OwnPolicyReply } from "./security-headers.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -78,32 +101,30 @@ const FORBIDDEN = 403;
 const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const TOO_MANY_REQUESTS = 429;
 
-/** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
- *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
+/** The membership-gated author-policy read — the ONE authority for a card's render policy, a seat's or the room's
+ *  narrator policy. Structural port so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
-  /** Narrowed on purpose: the frame reads only each participant's `characterId` and `renderPolicy`. */
-  readonly listParticipants: (
-    params: Parameters<ChatService["listParticipants"]>[0],
-  ) => Promise<readonly Pick<Awaited<ReturnType<ChatService["listParticipants"]>>[number], "characterId" | "renderPolicy">[]>;
+  readonly resolveAuthorRenderPolicy: ChatService["resolveAuthorRenderPolicy"];
+  /** The present-seat read. A forming handle joins its room's turn-end release only when the minter sits there. */
+  readonly getMembership: GetMembership;
 }
 
 export interface CardFrameDeps {
   readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
   readonly allowExternalMedia: () => boolean;
-  /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor TRUE).
-   *  Read here per mint for the same reason `allowExternalMedia` is: `resolveRenderPolicy` already folded
-   *  it into the ladder, and this is the boundary that must still hold if that resolver is ever weakened.
-   *  It is the ONLY box-wide control over residual R1 (`@orb/kit/card-frame`), so it is read again on every
-   *  SERVE of an interactive document: switching it off withdraws card scripts from the next frame load,
-   *  even for a handle minted before the switch. */
-  readonly allowInteractiveCards: () => boolean;
-  /** The VIEWER's own consent (`UserSettings.chat.runCardScripts`): may card scripts run in this caller's
-   *  browser? Read per mint and per serve of an interactive document, so turning it off reaches a handle
-   *  minted before the switch, exactly as the deployment ceiling does. */
+  /** The VIEWER's own consent (`viewerRunsCardScripts`): may card scripts run in this caller's browser? Read per mint
+   *  and per serve when the author's step allows scripts, so turning it off reaches a handle minted before the
+   *  switch, exactly as lowering the author's step does. A rejection reads as no. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
+  /** Hears each turn that ends in a room, completed or aborted; returns the unsubscribe. */
+  readonly onTurnEnded: (listener: (chatId: ChatId) => void) => () => void;
   readonly now: Clock;
+  readonly logger: Logger;
+  /** Registers the served document's route, writes its policy and steps the app policy aside for its path. */
+  readonly registerOwnPolicyRoute: OwnPolicyRegistrar;
 }
 
 /** The floor policy, used for every non-serving response so no card-frame reply is ever un-policied. Static
@@ -118,6 +139,8 @@ const MISS_DOC = buildCardFrameDocument({
   themeTokens: undefined,
   styleTokens: undefined,
   fontFamily: undefined,
+  // The frame says so on load, so a framed reply mints again rather than showing this notice as the reply.
+  rootAttributes: { [CARD_FRAME_MISSING_ATTRIBUTE]: "" },
 });
 
 /** What ONE mint resolves from its selector: the media grants AND the document's script posture. Both come
@@ -131,56 +154,118 @@ interface ResolvedFramePolicy {
 /** The floor: no `data:`, no external media, and the static posture. Every failure arm returns exactly this. */
 const FRAME_POLICY_FLOOR: ResolvedFramePolicy = { media: CARD_FRAME_SAFE_FLOOR, posture: "static" };
 
+// The viewer's script consent, or no when it cannot be read: the document then serves static, and the read failure is
+// an operator event rather than a blank card.
+async function readViewerConsent(deps: CardFrameDeps, principal: Principal): Promise<boolean> {
+  try {
+    return await deps.viewerRunsCardScripts(principal);
+  } catch (err) {
+    getLog(deps.logger).warn({ err, userId: principal.userId }, "card-frame: viewer settings read failed, serving the static posture");
+    return false;
+  }
+}
+
+/** The selector a mint names and a named document keeps for its serves. */
+interface FrameSelector {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId | null;
+  readonly carriedFrom?: readonly CharacterId[] | undefined;
+}
+
+// One author's server-resolved policy in the room, or null when the caller cannot resolve it there.
+async function authorPolicy(deps: CardFrameDeps, principal: Principal, chatId: ChatId, characterId: CharacterId): Promise<RenderPolicy | null> {
+  // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
+  try {
+    return (await deps.participants.resolveAuthorRenderPolicy({ principal, chatId, characterId })) ?? null;
+  } catch (error) {
+    // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
+    // between "not a member" and "no such character" — both are the floor. Any other failure is a fault.
+    if (error instanceof DomainNotFoundError || error instanceof DomainForbiddenError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+// Whether every carried author lets external media load. A carried sheet's `url()` loads under the receiving document's
+// grant, so the document takes the narrower of its own grant and each author's (UI-Theming-and-Content §12.2). An author
+// the caller cannot resolve in the room allows none.
+async function carriedAuthorsAllowMedia(deps: CardFrameDeps, principal: Principal, selector: FrameSelector): Promise<boolean> {
+  for (const characterId of selector.carriedFrom ?? []) {
+    const policy = await authorPolicy(deps, principal, selector.chatId, characterId);
+    if (policy === null || !resolveCardMediaVerdict({ installForbids: !deps.allowExternalMedia(), policy }).external.loads) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Resolve the frame's media policy + posture from the SELECTOR. Every failure arm returns the safe floor. */
-async function resolvePolicy(
-  deps: CardFrameDeps,
-  principal: Principal,
-  selector: { readonly chatId: ChatId; readonly characterId: CharacterId | null },
-): Promise<ResolvedFramePolicy> {
+async function resolvePolicy(deps: CardFrameDeps, principal: Principal, selector: FrameSelector): Promise<ResolvedFramePolicy> {
   if (selector.characterId === null) {
     return FRAME_POLICY_FLOOR;
   }
-  let participants: Awaited<ReturnType<CardFrameParticipantsPort["listParticipants"]>>;
-  // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
-  try {
-    participants = await deps.participants.listParticipants({ principal, chatId: selector.chatId });
-  } catch {
-    // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
-    // between "not a member" and "no such character" — both are the floor.
+  const policy = await authorPolicy(deps, principal, selector.chatId, selector.characterId);
+  if (policy === null) {
     return FRAME_POLICY_FLOOR;
   }
-  const policy = participants.find((p) => p.characterId === selector.characterId)?.renderPolicy;
-  if (policy === undefined) {
-    return FRAME_POLICY_FLOOR;
-  }
+  // The external-media ceiling is passed HERE as well as folded inside `resolveRenderPolicy`: this is the boundary that
+  // must hold if that resolver is ever weakened. The step is the server's own membership-gated roster value — the
+  // mint body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled key).
+  const media = resolveCardMediaVerdict({ installForbids: !deps.allowExternalMedia(), policy });
+  // The viewer's consent is asked only when the author's step allows scripts; a failed read is a no, so the document
+  // still serves, static, rather than erroring (D294).
+  const viewerRuns = cardScriptsNeedViewerConsent({ step: policy.htmlTrust }) && (await readViewerConsent(deps, principal));
+  // Carried stylesheets are CSS only, so they narrow the media grant and never the posture or `data:` images, which
+  // fetch nothing.
+  const externalMedia = media.external.loads && (await carriedAuthorsAllowMedia(deps, principal, selector));
   return {
-    media: {
-      // Deployment ceiling AND the per-character verdict — tighten-only, and the ceiling is re-applied HERE
-      // even though `resolveRenderPolicy` already folded it in: this is the boundary that must hold if that
-      // resolver is ever weakened.
-      allowExternalMedia: deps.allowExternalMedia() && !policy.forbidExternalMedia,
-      // The `data:` door opens from the RENDER step up — `interactive` is above it on the one ordered
-      // ladder, so an interactive card is a trusted card by construction and cannot lose the door.
-      allowInlineData: rendersTrustedHtml(policy.htmlTrust),
-    },
-    // THE PER-DOCUMENT POSTURE SELECTION, now a real capability (leg 3): the interactive arm
-    // emits `script-src 'unsafe-inline'` and the card's own scripts RUN. Read through the ladder's one
-    // predicate rather than a second boolean, off the server's own membership-gated roster value — the mint
-    // body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled
-    // key outright). The deployment ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, the
-    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one. The viewer's
-    // own consent is the third input: the host and the box decide whether a card MAY run scripts, and each
-    // viewer decides whether it runs them in their browser. It is read last, so a static card costs no read.
-    posture:
-      deps.allowInteractiveCards() && allowsInteractiveCards(policy.htmlTrust) && (await deps.viewerRunsCardScripts(principal)) ? "interactive" : "static",
+    media: { allowExternalMedia: externalMedia, allowInlineData: media.inlineData },
+    // THE PER-DOCUMENT POSTURE SELECTION: the interactive posture emits `script-src 'unsafe-inline'` and the card's own
+    // scripts RUN. `resolveCardScriptVerdict` is the one home of the rule.
+    posture: resolveCardScriptVerdict({ step: policy.htmlTrust, viewerRuns }).runs ? "interactive" : "static",
   };
+}
+
+// A streaming panel's cap: no script and no request off the box, whatever the selector resolved.
+function capForming(policy: ResolvedFramePolicy): ResolvedFramePolicy {
+  return { media: { allowExternalMedia: false, allowInlineData: policy.media.allowInlineData }, posture: "static" };
 }
 
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
-  const store = createFrameHandleStore(deps.now);
+  const store = createFrameHandleStore(deps.now, CARD_FRAME_CEILINGS);
+  deps.onTurnEnded(store.dropForming);
+  const mintsInFlight = new Map<UserId, number>();
 
-  app.post(CARD_FRAME_ROUTE, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  // THE IN-FLIGHT GATE runs BEFORE the body limit, because the body limit buffers a chunked body whole before the
+  // handler runs. Past the bound the mint answers 429 without reading a byte of its body. A request with no principal
+  // passes through to the handler's own 401.
+  const mintGate: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
+    const principal = c.get("principal");
+    if (principal === null) {
+      await next();
+      return c.res;
+    }
+    const inFlight = mintsInFlight.get(principal.userId) ?? 0;
+    if (inFlight >= CARD_FRAME_MINTS_IN_FLIGHT) {
+      return c.body(null, TOO_MANY_REQUESTS);
+    }
+    mintsInFlight.set(principal.userId, inFlight + 1);
+    try {
+      await next();
+    } finally {
+      const left = (mintsInFlight.get(principal.userId) ?? 1) - 1;
+      if (left > 0) {
+        mintsInFlight.set(principal.userId, left);
+      } else {
+        mintsInFlight.delete(principal.userId);
+      }
+    }
+    return c.res;
+  };
+
+  app.post(CARD_FRAME_ROUTE, mintGate, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -202,7 +287,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.json({ error: "invalid card-frame mint" }, BAD_REQUEST);
     }
     const body = parsed.data;
-    const policy = await resolvePolicy(deps, principal, { chatId: body.chatId, characterId: body.characterId });
+    const selector: FrameSelector = { chatId: body.chatId, characterId: body.characterId, carriedFrom: body.carriedFrom };
+    const resolved = await resolvePolicy(deps, principal, selector);
+    const policy = body.forming === true ? capForming(resolved) : resolved;
     // The clamps inside `buildCardFrameDocument` run on OUR side of the boundary — the client's own clamp
     // is defense in depth for the srcdoc floor, never the reason these values are safe here.
     const doc = buildCardFrameDocument({
@@ -213,17 +300,23 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       // here and is the one that bounds the root size to the appearance range.
       styleTokens: body.styleTokens,
       fontFamily: body.fontFamily,
+      rootAttributes: body.rootAttributes,
     });
     // A document minted for a named character keeps its selector and the grants it resolved beside it, so a
     // SERVE can withdraw any of them (see the GET below). A null selector resolves to the floor, which has
     // nothing left to withdraw.
     const grant =
-      body.characterId === null ? {} : { grant: { chatId: body.chatId, characterId: body.characterId, media: policy.media, posture: policy.posture } };
+      body.characterId === null
+        ? {}
+        : { grant: { chatId: body.chatId, characterId: body.characterId, carriedFrom: body.carriedFrom, media: policy.media, posture: policy.posture } };
+    // The selector falls to the floor for a non-member by design, so the turn-end tag needs its own present-seat read.
+    const sitsInRoom = body.forming === true && (await deps.participants.getMembership(body.chatId, principal.userId)) !== null;
     const id = store.put({
       userId: principal.userId,
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
       ...grant,
+      ...(sitsInRoom ? { formingIn: body.chatId } : {}),
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({
@@ -233,20 +326,26 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     });
   });
 
-  app.get(`${CARD_FRAME_ROUTE}/:id`, async (c) => {
+  const served = (status: typeof OK | typeof NOT_FOUND, body: string, policy: string): OwnPolicyReply => ({
+    kind: "document",
+    status,
+    body,
+    headers: cardFrameResponseHeaders(),
+    policy,
+  });
+  deps.registerOwnPolicyRoute(app, "cardFrameDocument", async (c, id) => {
     const principal = c.get("principal");
     if (principal === null) {
-      return c.body(null, UNAUTHORIZED);
+      return { kind: "refusal", status: UNAUTHORIZED };
     }
-    const id = c.req.param("id");
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(CARD_FRAME_FLOOR_CSP));
+      return served(NOT_FOUND, MISS_DOC, CARD_FRAME_FLOOR_CSP);
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
-    // only at mint would outlive an admin switching interactive cards or external media off, a host moving
-    // the character to a lower rung or forbidding its media, the viewer leaving the room, or the viewer
-    // turning card scripts off. A named-character document is therefore re-resolved on every serve, through
+    // only at mint would outlive an admin lowering the default an inheriting character takes or blocking external
+    // media, a host moving the character to a lower rung or forbidding its media, the viewer leaving the room, or
+    // the viewer turning card scripts off. A named-character document is therefore re-resolved on every serve, through
     // the same membership-gated read as the mint, and served under the narrower of what it was minted with
     // and what it would mint now. A serve can only withdraw a grant, never add one.
     if (entry.grant !== undefined) {
@@ -256,8 +355,8 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
         allowInlineData: entry.grant.media.allowInlineData && current.media.allowInlineData,
       };
       const posture: CardFramePosture = entry.grant.posture === "interactive" && current.posture === "interactive" ? "interactive" : "static";
-      return c.body(entry.doc, OK, cardFrameResponseHeaders(buildCardFrameCsp(media, "document", posture)));
+      return served(OK, entry.doc, buildCardFrameCsp(media, "document", posture));
     }
-    return c.body(entry.doc, OK, cardFrameResponseHeaders(entry.csp));
+    return served(OK, entry.doc, entry.csp);
   });
 }

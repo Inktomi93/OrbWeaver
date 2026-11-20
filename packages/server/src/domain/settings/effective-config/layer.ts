@@ -2,6 +2,7 @@
 // Two floor origins: env-mirrored fields read the root's env record, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
+import type { HtmlTrustStep } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
@@ -11,13 +12,12 @@ import type { SettingsEnvFloor } from "../contract/service.ts";
 
 // Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
-const TRUST_HTML_FLOOR = false;
-// The html-trust ladder's TOP rung, deployment half. ON by owner ruling: interactive cards are the default
-// for every character, so this is both the ceiling and the rung an "Inherit default" card resolves to
-// (`resolveRenderPolicy`). An admin override of `false` is the revocation, and the only box-wide control over
-// the WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1). Each viewer can also
-// turn card scripts off for their own browser (`UserSettings.chat.runCardScripts`).
-const ALLOW_INTERACTIVE_CARDS_FLOOR = true;
+// "Default for characters" (D294). Interactive by owner ruling: interactive cards are the default for every
+// character, so this is the step an "Inherit default" card resolves to (`resolveRenderPolicy`); a character's own step
+// wins over it. An admin override below `interactive` closes the WebRTC/STUN beacon no CSP directive can close
+// (`@orb/kit/card-frame` residual R1) for every inheriting character. Each viewer can also turn card scripts off for
+// their own browser (`UserSettings.chat.runCardScripts`).
+const DEFAULT_HTML_STEP_FLOOR: HtmlTrustStep = "interactive";
 // The per-transform prompt-transform deadline (item 2) — was the PROMPT_TRANSFORM_DEADLINE_MS const.
 const PROMPT_TRANSFORM_DEADLINE_MS_FLOOR = 250;
 // The model-catalog success-refresh cadence (item 5) — was REFRESH_EVERY_MS in the catalog scheduler.
@@ -85,8 +85,7 @@ export function layer(overrides: AppSettings, floor: SettingsEnvFloor): Effectiv
     corpusAutoindex: overrides.corpusAutoindex ?? floor.CORPUS_AUTOINDEX,
     logLevel: overrides.logLevel ?? floor.LOG_LEVEL,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
-    trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
-    allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
+    defaultHtmlStep: overrides.defaultHtmlStep ?? DEFAULT_HTML_STEP_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits, floor),
     privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(floor.AUTH_MODE, floor.PRIVATE_ENDPOINT_ALLOWLIST),

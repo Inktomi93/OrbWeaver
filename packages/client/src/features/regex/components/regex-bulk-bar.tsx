@@ -5,13 +5,10 @@
 // `character-bulk-bar` precedent, whose anatomy this mirrors: one grammar for "act on the things I checked"
 // across the whole app).
 //
-// THE VERBS A SELECTION CAN MEAN HERE: on/off (the row's own `enabled`), CHANGE WHERE THEY RUN (the placement
-// set), in/out of every chat (the one scope this library owns), and delete. Placement joined the bar when D2
-// was unblocked — the display/prompt tier flags and the `historyDepth` scope it implies are DERIVED (not sent)
-// from the chosen set through the SHARED `@orb/kit/regex` derivations, the SAME ones the per-script editor's
-// save boundary uses (`../lib/derive-tier-flags.ts`), so there is one derivation home, not two. It is the one
-// verb whose target is a SET rather than a scalar, so it opens a chip picker (`RegexBulkPlacementDialog`)
-// rather than firing inline — which is why it rides the kebab, where an action that needs a dialog belongs.
+// THE VERBS A SELECTION CAN MEAN HERE: on/off (the row's own `enabled`), CHANGE WHAT THEY CHANGE AND WHEN (the
+// two axes), in/out of every chat (the one scope this library owns), and delete. The axes verb is the one whose
+// target is two sets rather than a scalar, so it opens a picker (`RegexBulkAxesDialog`) rather than firing
+// inline — which is why it rides the kebab, where an action that needs a dialog belongs.
 //
 // THE LAYOUT IS MEASURED, NOT CHOSEN. This bar's host is the config list's 330px LIST column — narrower
 // than the ~337px panel whose clipped trailing Delete is written into `character-bulk-bar`'s own header, and
@@ -26,25 +23,29 @@
 // consequence a reader cannot see from the list.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
 import { Ban, Globe, Icon, SlidersHorizontal } from "@orb/ui/icons";
+import { moreActionsName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { SelectionBar } from "@orb/ui/selection-bar";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { notify } from "#lib";
+import { notify, regexScriptTitle } from "#lib";
 import { exitRegexBulkMode } from "#state";
-import { useBulkRemoveRegexScripts, useBulkSetRegexEnabled, useBulkSetRegexGlobal, useBulkSetRegexPlacement } from "../hooks/use-regex-library.ts";
-import { RegexBulkPlacementDialog } from "./regex-bulk-placement-dialog.tsx";
+import { useBulkRemoveRegexScripts, useBulkSetRegexAxes, useBulkSetRegexEnabled, useBulkSetRegexGlobal } from "../hooks/use-regex-library.ts";
+import { REGEX_BULK_AXES_NAME, REGEX_BULK_DISABLE_NAME, REGEX_BULK_ENABLE_NAME } from "../lib/regex-names.ts";
+import { RegexBulkAxesDialog } from "./regex-bulk-axes-dialog.tsx";
 
 /** The batch verbs' shared answer, re-derived from the same proc rather than imported (the house shape for
  *  a client-feature derived type — a shared alias would be an exported type outside a type home). */
 type RegexBulkOutcome = inferOutput<Trpc["regex"]["bulkRemove"]>;
+type RegexBulkAxesOutcome = inferOutput<Trpc["regex"]["bulkSetAxes"]>;
 
 export interface RegexBulkBarProps {
   /** The checked ids, opaque strings at the store seam and re-branded here (the stamped-id posture). */
@@ -69,11 +70,13 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   const invalidation = useInvalidation();
   const setEnabled = useBulkSetRegexEnabled({ trpc, invalidation });
   const setGlobal = useBulkSetRegexGlobal({ trpc, invalidation });
-  const setPlacement = useBulkSetRegexPlacement({ trpc, invalidation });
+  const setAxes = useBulkSetRegexAxes({ trpc, invalidation });
+  // The library the rows already read, shared cache: the names a cleared-scope report needs.
+  const { data: scripts } = useQuery(trpc.regex.listScripts.queryOptions());
   const remove = useBulkRemoveRegexScripts({ trpc, invalidation });
   const scriptIds = ids.map((id) => typeIdSchema(ID_PREFIX.regexScript).parse(id));
   const count = ids.length;
-  const [placementOpen, setPlacementOpen] = useState(false);
+  const [axesOpen, setAxesOpen] = useState(false);
   const enabledWriteInFlight = useRef(false);
   const [isPending, setIsPending] = useState(false);
 
@@ -90,12 +93,23 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   // verbs cleared on the same tick as `.mutate`, so a rejected batch dropped the checked set that named its
   // own targets — leaving a toast about scripts the reader could no longer re-select. Same shape everywhere
   // now: the selection survives a failure, and only a landed write dismisses the bar.
-  const applyPlacement = (placement: RegexPlacement[]): void => {
-    setPlacement.mutate(
-      { scriptIds, placement },
+  const applyAxes = ({ targets, passes }: { readonly targets: RegexTarget[]; readonly passes: RegexPass[] }): void => {
+    setAxes.mutate(
+      { scriptIds, targets, passes },
       {
-        onSuccess: (outcome: RegexBulkOutcome): void => {
-          report("updated")(outcome);
+        onSuccess: (outcome: RegexBulkAxesOutcome): void => {
+          // A when-saved result clears each script's depth and author scope; the rows cannot show what was
+          // removed, so the change names those scripts. Otherwise only a short count is told.
+          if (outcome.cleared.length > 0) {
+            const cleared = new Set<string>(outcome.cleared);
+            const names = (scripts ?? []).filter((script) => cleared.has(script.id)).map(regexScriptTitle);
+            notify.info({
+              title: bulkToast("updated", outcome.affected),
+              description: `Their depth range and whose-messages lists were cleared: ${names.join(", ")}.`,
+            });
+          } else {
+            report("updated")(outcome);
+          }
           onClear();
         },
       },
@@ -136,7 +150,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           }}
           size="sm"
         >
-          Enable
+          {REGEX_BULK_ENABLE_NAME}
         </Button>
         <Button
           disabled={isPending}
@@ -149,13 +163,13 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           }}
           size="sm"
         >
-          Disable
+          {REGEX_BULK_DISABLE_NAME}
         </Button>
         {/* The menu's accessible name and its destructive copy both carry the COUNT: a bar-level menu acts on
             a selection the reader can no longer see once the popup covers the rows. The GLOBAL pair is named
             the way the row's own switch names it ("runs in every chat") — one vocabulary for one junction, so
-            the bar and the row can never read as different features. CHANGE WHERE THEY RUN opens a picker (its
-            target is a SET, not a scalar), so it homes here where a dialog-backed action belongs. */}
+            the bar and the row can never read as different features. The axes verb opens a picker, so it homes
+            here where a dialog-backed action belongs. */}
         <RowActionsMenu
           destructive={{
             title: `Delete ${scriptCount(count)}?`,
@@ -175,12 +189,12 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
               );
             },
           }}
-          label={`More actions for ${scriptCount(count)}`}
+          label={moreActionsName(scriptCount(count))}
           triggerSize="icon"
         >
-          <MenuItem onClick={(): void => setPlacementOpen(true)}>
+          <MenuItem onClick={(): void => setAxesOpen(true)}>
             <Icon icon={SlidersHorizontal} size="sm" />
-            Change where they run
+            {REGEX_BULK_AXES_NAME}
           </MenuItem>
           <MenuItem
             onClick={(): void => {
@@ -216,7 +230,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           </MenuItem>
         </RowActionsMenu>
       </SelectionBar>
-      <RegexBulkPlacementDialog count={count} onApply={applyPlacement} onOpenChange={setPlacementOpen} open={placementOpen} />
+      <RegexBulkAxesDialog count={count} onApply={applyAxes} onOpenChange={setAxesOpen} open={axesOpen} />
     </>
   );
 }

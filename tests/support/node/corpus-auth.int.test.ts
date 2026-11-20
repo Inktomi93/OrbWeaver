@@ -134,7 +134,7 @@ test("native loopback owner fallback cannot stand in for a cookie identity captu
   const owner = await root.principalFor(root.ownerId);
   const capture = await captureCookieAuth(root, owner, PASSWORD);
   const address = await root.listen();
-  const ambient = await fetch(`http://${address.address}:${String(address.port)}/api/trpc/sessions.me`);
+  const ambient = await fetch(`http://${address.address}:${String(address.port)}/api/trpc/sessions.me`, { headers: { [CSRF_HEADER]: "1" } });
   expect(ambient.status).toBe(200);
   await ambient.arrayBuffer();
   expect((await captureCorpusCookieIdentity(root, capture.identity.viewer, capture.cookie)).viewer.userId).toBe(root.ownerId);

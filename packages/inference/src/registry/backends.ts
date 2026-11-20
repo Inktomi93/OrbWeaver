@@ -87,6 +87,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     superviseDetached: deps.superviseDetached,
     config: deps.localLight,
     scheduleTimeout: deps.scheduleTimeout,
+    childEnv: deps.env.childProcessEnv,
   });
   const createAgent = (): AgentSdkBackend =>
     createAgentSdkBackend({

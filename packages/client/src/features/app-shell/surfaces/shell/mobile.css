@@ -20,7 +20,7 @@
       grid-row: 1;
     }
     /* The bar's own height (tab row plus the bottom inset) is the bottom inset a sheet opened from it keeps clear:
-     * the sheet and its scrim end above the bar, so the bar stays visible and its tab is the sheet's second tap. */
+     * the sheet ends above the bar, so the bar and its open tab stay in view, inert under the sheet's scrim. */
     .shell-portal-root {
       --drawer-bottom-inset: calc(var(--dimension-rail) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
     }
@@ -114,8 +114,39 @@
       color: var(--color-muted-foreground);
     }
     /* The active glow and ring are column affordances; a tab keeps the rail's tint and on-tint ink, a judged pair on every palette. */
-    .shell-rail .shell-rail-button[data-active]::before,
     .shell-rail .shell-rail-button[data-active]::after {
+      content: none;
+    }
+    /* Beside the tint the pressed tab wears the brand cell's accent bar on the edge it shares with the content, so the
+     * mark is a shape as well as a colour (ui-surface-and-interaction-rules §6.2). */
+    .shell-rail .shell-rail-button:is([data-active], [data-modal-open]) {
+      position: relative;
+    }
+    .shell-rail .shell-rail-button:is([data-active], [data-modal-open])::before {
+      content: "";
+      position: absolute;
+      inset-block: 0 auto;
+      inset-inline: var(--spacing-field);
+      z-index: 0;
+      pointer-events: none;
+      block-size: var(--border-width-rule);
+      border-radius: 0;
+      border-end-start-radius: var(--border-width-rule);
+      border-end-end-radius: var(--border-width-rule);
+      box-shadow: none;
+      background: var(--color-tone-solid);
+    }
+    /* While the You sheet is up its door is the pressed tab, in the active tab's roles. The standing section keeps
+     * `aria-current` (it is still the page) but gives up the paint and the bar, so exactly one tab reads as pressed. */
+    .shell-rail .shell-rail-button[data-modal-open] {
+      background: var(--color-tone-tint);
+      color: var(--color-tone-text-on-tint);
+    }
+    .shell-rail:has(.shell-rail-button[data-modal-open]) .shell-rail-button[data-active] {
+      background: none;
+      color: var(--color-muted-foreground);
+    }
+    .shell-rail:has(.shell-rail-button[data-modal-open]) .shell-rail-button[data-active]::before {
       content: none;
     }
     .shell-rail-button-label {
@@ -148,7 +179,7 @@
       /* The shell's own overlay step, as on desktop: inside the grid's isolated scope a fixed pane still paints
        * inside it, so a portal-tier number would order nothing more. */
       z-index: var(--z-overlay);
-      transition: transform var(--shell-motion) var(--shell-ease);
+      transition: var(--shell-panel-slide);
     }
     /* The width is re-stated at the desktop context-width rule's specificity, or a collapsed context drawer keeps
      * its desktop width and its slide leaves a slab over the content. A fixed sheet escapes the grid's insets, so
@@ -193,7 +224,16 @@
     .shell-grid[data-list-mode="docked"] .shell-content {
       display: none;
     }
-
+    /* The list as the screen is the screen's content, so it carries the content pane's capture name (content.css). One
+     * attribute both hides the content pane and names the list, so only one named region renders on either side of a
+     * swap: a second would abort the transition to a hard cut. */
+    .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] {
+      view-transition-name: orb-section-content;
+    }
+    /* A phone context pane is only ever a sheet, so it keeps its own capture name while parked too (content.css). */
+    :root:active-view-transition .shell-panel[data-panel-side="context"] {
+      view-transition-name: orb-shell-context-sheet;
+    }
     /* The title the rule below sheds holds no floor either, so the actions get the band back. */
     .shell-grid[data-list-mode="docked"]
       .shell-panel[data-panel-side="list"]

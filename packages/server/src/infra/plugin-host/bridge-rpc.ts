@@ -37,18 +37,12 @@ const THREE_ARGUMENTS = 3;
 export interface BridgeAuthority {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly chat: InvocationChat | null;
-  /** Rehydration may rediscover registrations, but may not repeat an effect from the original activation. */
-  readonly phase: "activation" | "rehydration" | "invocation" | "snippet" | "lifecycle";
+  /** Rehydration may rediscover registrations, but may not repeat an effect from the original activation. A display
+   *  call holds its grants for reads only. */
+  readonly phase: "activation" | "rehydration" | "invocation" | "display" | "snippet" | "lifecycle";
+  /** How many pubsub deliveries deep the command runs: 0 unless a delivery started it. */
+  readonly cascadeDepth: number;
 }
-
-const REHYDRATION_READ_OPERATIONS = new Set<PluginBridgeOperation>([
-  "variables.get",
-  "assets.read",
-  "storage.get",
-  "storage.list",
-  "character.getCardData",
-  "character.findCardData",
-]);
 
 const BRIDGE_HOST_FUNCTION = {
   "chat.listMessages": "chat.listMessages",
@@ -95,19 +89,21 @@ const SUGGESTED_ACT_HOST_FUNCTION = {
 
 // The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it. The steer
 // takes the cap the app's own steer input has, so an ask cannot carry more text than a member could type.
-const turnHintsSchema = z.object({
-  speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
-  guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
-}) satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
+const turnHintsSchema = z
+  .object({
+    speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+    guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
+  })
+  .strip() satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
 
 // An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.
 const suggestedActSchema = z.discriminatedUnion("kind", [
   turnHintsSchema.extend({ kind: z.literal("requestTurn"), automationDepth: z.int().nonnegative() }),
-  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }),
-  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }),
+  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }).strip(),
+  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }).strip(),
 ]) satisfies z.ZodType<PluginSuggestedAct>;
 
-const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() })) satisfies z.ZodType<
+const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() }).strip()) satisfies z.ZodType<
   Parameters<PluginBridge["surfaceQuickReply"]>[1]
 >;
 
@@ -134,8 +130,81 @@ const DIRECT_CHAT_WRITES = new Set<PluginBridgeOperation>([
   "surfaceQuickReply",
 ]);
 
+/** Whose resources a host call reaches. An `installer` call touches the installer's rooms, data, connections,
+ *  credentials or egress, so it runs only while the installer stands (`PluginBridge.admitInstaller`). A `sandbox`
+ *  call touches only the plugin's own storage, UI state or private bus, which reaches no account resource on its
+ *  own: a pubsub subscriber's own host calls meet this table too. */
+type BridgeReach = "installer" | "sandbox";
+
+/** What a host call does, read off its handler: `read` changes nothing; `write` mutates stored state or raises an
+ *  effect another party sees; `spend` calls a model or the network, or consumes a budget or a rate floor. A display
+ *  transform runs on every render, so its calls may only read. */
+const BRIDGE_EFFECTS = ["read", "write", "spend"] as const;
+type BridgeEffect = (typeof BRIDGE_EFFECTS)[number];
+
+interface BridgeOperationFacts {
+  readonly reach: BridgeReach;
+  readonly effect: BridgeEffect;
+}
+
+const BRIDGE_OPERATION_REACH = {
+  "chat.listMessages": { reach: "installer", effect: "read" },
+  "chat.getVariables": { reach: "installer", effect: "read" },
+  "chat.listCharacters": { reach: "installer", effect: "read" },
+  "chat.applyVariableOps": { reach: "installer", effect: "write" },
+  "chat.requestTurn": { reach: "installer", effect: "spend" },
+  "worldInfo.listBooks": { reach: "installer", effect: "read" },
+  "worldInfo.listEntries": { reach: "installer", effect: "read" },
+  "worldInfo.upsertEntry": { reach: "installer", effect: "write" },
+  "imagery.generatePicture": { reach: "installer", effect: "spend" },
+  "variables.get": { reach: "installer", effect: "read" },
+  "variables.set": { reach: "installer", effect: "write" },
+  "variables.delete": { reach: "installer", effect: "write" },
+  "assets.read": { reach: "installer", effect: "read" },
+  "net.fetch": { reach: "installer", effect: "spend" },
+  "net.fetchAsset": { reach: "installer", effect: "spend" },
+  "search.documents": { reach: "installer", effect: "spend" },
+  "storage.get": { reach: "sandbox", effect: "read" },
+  "storage.set": { reach: "sandbox", effect: "write" },
+  "storage.delete": { reach: "sandbox", effect: "write" },
+  "storage.list": { reach: "sandbox", effect: "read" },
+  "storage.compareAndSet": { reach: "sandbox", effect: "write" },
+  "notifications.post": { reach: "installer", effect: "spend" },
+  "llm.quiet": { reach: "installer", effect: "spend" },
+  suggest: { reach: "installer", effect: "write" },
+  surfaceQuickReply: { reach: "installer", effect: "write" },
+  "ui.setState": { reach: "sandbox", effect: "write" },
+  "ui.toast": { reach: "sandbox", effect: "write" },
+  "ui.openDialog": { reach: "sandbox", effect: "write" },
+  "databank.ingest": { reach: "installer", effect: "write" },
+  "character.ingest": { reach: "installer", effect: "write" },
+  "character.ingestAsset": { reach: "installer", effect: "write" },
+  "character.setCardData": { reach: "installer", effect: "write" },
+  "character.getCardData": { reach: "installer", effect: "read" },
+  "character.findCardData": { reach: "installer", effect: "read" },
+  "pubsub.emit": { reach: "sandbox", effect: "write" },
+} as const satisfies Record<PluginBridgeOperation, BridgeOperationFacts>;
+
+type BridgeReadOperation = {
+  [O in PluginBridgeOperation]: (typeof BRIDGE_OPERATION_REACH)[O]["effect"] extends "read" ? O : never;
+}[PluginBridgeOperation];
+
+// The reads a rebuilding runtime may repeat. Each member must be a `read` row of the table above, which tsc holds.
+const REHYDRATION_READ_OPERATIONS: ReadonlySet<PluginBridgeOperation> = new Set<BridgeReadOperation>([
+  "variables.get",
+  "assets.read",
+  "storage.get",
+  "storage.list",
+  "character.getCardData",
+  "character.findCardData",
+]);
+
 function egressInApp(): never {
   throw new Error("plugin broker: egress runs in the app process; the broker has no network");
+}
+
+function standingInApp(): never {
+  throw new Error("plugin broker: the installer's standing is checked in the app process");
 }
 
 // Every op forwards its `liveness` as the RPC's cancellation seam (`AsyncCall`'s optional 3rd arg): a guest
@@ -192,6 +261,7 @@ export function createRemoteBridge(call: AsyncCall): PluginBridge {
     suggest: (chatId, act, liveness) => call("suggest", [chatId, act], liveness) as Promise<void>,
     admitEgress: egressInApp,
     admitAssetEgress: egressInApp,
+    admitInstaller: standingInApp,
     surfaceQuickReply: (chatId, choices, liveness) => call("surfaceQuickReply", [chatId, choices], liveness) as Promise<void>,
     ui: {
       setState: (surfaceId, state, chatId, liveness) => call("ui.setState", [surfaceId, state, chatId], liveness) as Promise<void>,
@@ -206,7 +276,7 @@ export function createRemoteBridge(call: AsyncCall): PluginBridge {
       getCardData: (characterId, liveness) => call("character.getCardData", [characterId], liveness) as ReturnType<PluginBridge["character"]["getCardData"]>,
       findCardData: (values, liveness) => call("character.findCardData", [values], liveness) as ReturnType<PluginBridge["character"]["findCardData"]>,
     },
-    pubsub: { emit: (name, data, liveness) => call("pubsub.emit", [name, data], liveness) as Promise<void> },
+    pubsub: { emit: (name, data, depth, liveness) => call("pubsub.emit", [name, data, depth], liveness) as Promise<void> },
   };
 }
 
@@ -218,8 +288,11 @@ export function createRemoteNetEgress(call: AsyncCall): PluginNetEgress {
   };
 }
 
+/** The bridge's refusal of arguments the membrane would never build. A guest reads it under the name `TypeError`. */
+export class MalformedBridgeArgumentsError extends TypeError {}
+
 function invalid(operation: string): never {
-  throw new TypeError(`plugin broker: malformed arguments for ${operation}`);
+  throw new MalformedBridgeArgumentsError(`plugin broker: malformed arguments for ${operation}`);
 }
 
 function exact(args: readonly unknown[], count: number, operation: string): void {
@@ -317,6 +390,13 @@ function authorizeRequestTurn(chat: InvocationChat | null, operation: PluginBrid
   }
 }
 
+function authorizeEmit(authority: BridgeAuthority, operation: PluginBridgeOperation, args: readonly unknown[]): void {
+  exact(args, THREE_ARGUMENTS, operation);
+  if (numberAt(args, ARG_THIRD, operation) !== authority.cascadeDepth + 1) {
+    throw new Error("plugin broker: pubsub.emit carried a stale delivery depth");
+  }
+}
+
 function authorizeSuggestion(chat: InvocationChat | null, args: readonly unknown[]): void {
   if (chat === null) {
     throw new Error("plugin broker: suggest is missing invocation chat authority");
@@ -342,7 +422,9 @@ function authorizeUiState(authority: BridgeAuthority, args: readonly unknown[]):
 export function authorizeBridgeCall(authority: BridgeAuthority, operation: PluginBridgeOperation, args: readonly unknown[]): void {
   authorizePhase(authority, operation);
   const capability = bridgeCapability(operation, args);
-  if (!authority.grants.has(capability)) {
+  // A display call holds a grant only for the table's reads, so it meets the same refusal an ungranted call does.
+  const granted = authority.grants.has(capability) && (authority.phase !== "display" || BRIDGE_OPERATION_REACH[operation].effect === "read");
+  if (!granted) {
     throw new Error(`plugin broker: ${operation} lacks capability ${capability}`);
   }
   const chat = CHAT_SCOPED.has(operation) ? requireChatAuthority(authority, operation, args) : null;
@@ -354,6 +436,9 @@ export function authorizeBridgeCall(authority: BridgeAuthority, operation: Plugi
   }
   if (operation === "suggest") {
     authorizeSuggestion(chat, args);
+  }
+  if (operation === "pubsub.emit") {
+    authorizeEmit(authority, operation, args);
   }
   if (operation === "ui.setState") {
     authorizeUiState(authority, args);
@@ -378,6 +463,9 @@ export async function dispatchBridgeCall(
   liveness: PluginInvocationLiveness,
 ): Promise<unknown> {
   const { bridge, netEgress } = target;
+  if (BRIDGE_OPERATION_REACH[operation].reach === "installer") {
+    await bridge.admitInstaller();
+  }
   switch (operation) {
     case "chat.listMessages":
       exact(args, 2, operation);
@@ -413,7 +501,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "imagery.generatePicture":
       exact(args, 2, operation);
-      return await bridge.imagery.generatePicture(chatAt(args, 0, operation), parsedAt(generateImageActionArgsSchema, args, 1, operation));
+      return await bridge.imagery.generatePicture(chatAt(args, 0, operation), parsedAt(generateImageActionArgsSchema, args, 1, operation), liveness);
     case "variables.get":
       exact(args, 1, operation);
       return await bridge.variables.get(stringAt(args, 0, operation));
@@ -436,7 +524,7 @@ export async function dispatchBridgeCall(
       return await netEgress.fetchAsset(stringAt(args, 0, operation), liveness);
     case "search.documents":
       exact(args, 2, operation);
-      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation));
+      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation), liveness);
     case "storage.get":
       exact(args, 1, operation);
       return await bridge.storage.get(stringAt(args, 0, operation));
@@ -490,7 +578,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "databank.ingest":
       exact(args, 1, operation);
-      return await bridge.databank.ingest(parsedAt(databankTextDocumentSchema, args, 0, operation));
+      return await bridge.databank.ingest(parsedAt(databankTextDocumentSchema, args, 0, operation), liveness);
     case "character.ingest":
       exact(args, 1, operation);
       return await bridge.character.ingest(recordAt(args, 0, operation));
@@ -508,8 +596,8 @@ export async function dispatchBridgeCall(
       exact(args, 1, operation);
       return await bridge.character.findCardData(arrayAt(args, 0, operation).map((_, index, values) => stringAt(values, index, operation)));
     case "pubsub.emit":
-      exact(args, 2, operation);
-      await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      exact(args, THREE_ARGUMENTS, operation);
+      await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation), numberAt(args, 2, operation));
       return undefined;
   }
 }

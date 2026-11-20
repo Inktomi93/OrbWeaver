@@ -14,7 +14,7 @@ import type { Cas, VariantCache } from "#infra/storage";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
 import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
-import { purgeAsset } from "../substrate/purge-asset.ts";
+import { purgeAsset } from "../persistence/purge-asset.ts";
 
 /** The grace window (epoch-ms): a blob touched within this of `now` is skipped even if unreferenced —
  *  it may be a just-stored, not-yet-linked import. One hour generously covers a single import request's
@@ -29,7 +29,7 @@ interface SweepInput {
   readonly referenced: ReadonlySet<AssetId>;
   readonly now: number;
   readonly dryRun: boolean;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Sweep ONE owner's blobs against the live set; return the counts. Extracted so the verb body stays under
@@ -41,7 +41,7 @@ async function sweepOwner(input: SweepInput): Promise<{ scanned: number; reclaim
   let reclaimed = 0;
 
   for await (const hash of input.cas.listHashes(input.ownerId)) {
-    input.signal?.throwIfAborted();
+    input.signal.throwIfAborted();
     scanned++;
     const assetId = idByHash.get(hash);
     if (assetId !== undefined && input.referenced.has(assetId)) {

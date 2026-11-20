@@ -14,6 +14,8 @@
 //   • a message is `messages[i]` — `messageIndex`
 //   • a variant is `messages[i].variants[j]` — `{ messageIndex, variantIdx }`
 //   • a checkpoint's snapshot is `rpg.snapshots[k]` — `snapshotIndex`
+//   • a memory strike's span is `{ startMessageIndex, endMessageIndex }` — the digests it strikes are DERIVED
+//     and re-summarize on the target, so the strike travels and the digest does not
 // The import verb writes the canon first, collects the new ids in the SAME order, and re-links the rpg planes
 // through that remap. A reference that points past the end of its plane is DROPPED at parse (see
 // `pruneDangling`) rather than landing an orphan row — the one place this file is opinionated about the
@@ -185,6 +187,19 @@ export interface PortableSeatCard {
   readonly fileHash: string;
 }
 
+/** One host strike on a remembered item, named by its bucket, tier and the covered span's endpoint messages.
+ *  `characterHandle: null` is the room's shared bucket. No content hash travels: the target re-summarizes, so
+ *  a carried hash could only ever mismatch, and the strike matches by its endpoints alone. */
+export interface PortableMemoryStrike {
+  // Untrusted portable-file text, resolved against the destination library only by the import verb.
+  readonly characterHandle: string | null;
+  readonly tier: number;
+  readonly startMessageIndex: number;
+  readonly endMessageIndex: number;
+  readonly topicAnchor: string | null;
+  readonly createdAt: number;
+}
+
 /** One chat, whole. `characterHandles` is the seated cast with the PRIMARY first (the run's fallback voice);
  *  `importHash` is the per-chat dedup oracle that makes a re-import idempotent instead of duplicating. */
 export interface PortableChat {
@@ -193,6 +208,9 @@ export interface PortableChat {
   readonly updatedAt: number;
   readonly starred: boolean;
   readonly archived: boolean;
+  /** Another human once held a seat in the room or a room it was copied from. It keeps the host's global variables
+   *  closed after a restore (see `chats.everShared`). */
+  readonly everShared: boolean;
   readonly compactSummary: string | null;
   readonly compactedAtSeq: number | null;
   /** The room-behavior blob VERBATIM (group config / room overrides / opening policy / rpg pointer …). Its
@@ -213,6 +231,8 @@ export interface PortableChat {
   /** The content hash of each asset an inline image names, keyed by the carried asset id. The target may hold
    *  those bytes under its own id, so the import re-links each inline image by its hash. */
   readonly assetHashes?: Readonly<Record<string, string>>;
+  /** Absent when the room holds no strike, so a strikeless chat's bytes match a bundle written before strikes. */
+  readonly memoryStrikes?: readonly PortableMemoryStrike[];
   readonly rpg: PortableRpgGame | null;
 }
 
@@ -244,118 +264,159 @@ const wireVariantSchema = z
     metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
     usage: generationUsageSchema.optional(),
   })
+  .strip()
   .superRefine((variant, ctx) => {
     if (variant.usage !== undefined && ((variant.tokensIn ?? null) !== variant.usage.tokensIn || (variant.tokensOut ?? null) !== variant.usage.tokensOut)) {
       ctx.addIssue({ code: "custom", path: ["usage"], message: "normalized usage contradicts the legacy token fields" });
     }
   });
 
-const wireMessageSchema = z.object({
-  role: messageRoleSchema,
-  kind: messageKindSchema.catch("standard"),
-  speakerHandle: z.string().nullish().catch(null),
-  personaName: z.string().nullish().catch(null),
-  createdAt: z.int(),
-  selectedIdx: z.int().nonnegative().catch(0),
-  variants: z.array(wireVariantSchema),
-});
+const wireMessageSchema = z
+  .object({
+    role: messageRoleSchema,
+    kind: messageKindSchema.catch("standard"),
+    speakerHandle: z.string().nullish().catch(null),
+    personaName: z.string().nullish().catch(null),
+    createdAt: z.int(),
+    selectedIdx: z.int().nonnegative().catch(0),
+    variants: z.array(wireVariantSchema),
+  })
+  .strip();
 
-const wireInjectionSchema = z.object({
-  position: z.enum(CHAT_INJECTION_POSITIONS),
-  depth: z.int().catch(0),
-  role: messageRoleSchema,
-  content: z.string(),
-  order: z.int().nullish().catch(null),
-  createdAt: z.int(),
-});
+const wireInjectionSchema = z
+  .object({
+    position: z.enum(CHAT_INJECTION_POSITIONS),
+    depth: z.int().catch(0),
+    role: messageRoleSchema,
+    content: z.string(),
+    order: z.int().nullish().catch(null),
+    createdAt: z.int(),
+  })
+  .strip();
 
 // The record's own contract type carries no zod schema (it is produced, never parsed, in live code), so the
 // wire shape is declared HERE — the serde owns its wire shapes (`server/primitives` type-home-exempt, the chat-jsonl
 // precedent) — and `satisfies` pins it to the contract so a field change fails tsc here rather than silently
 // dropping data from a restore.
-const wireRecordedToolCallSchema = z.object({
-  ...rpgRecordedToolCallSchema.shape,
-  issues: z
-    .array(z.string())
-    .catch([])
-    .transform((issues): readonly string[] => issues),
-}) satisfies z.ZodType<RpgRecordedToolCall>;
+const wireRecordedToolCallSchema = z
+  .object({
+    ...rpgRecordedToolCallSchema.shape,
+    issues: z
+      .array(z.string())
+      .catch([])
+      .transform((issues): readonly string[] => issues),
+  })
+  .strip() satisfies z.ZodType<RpgRecordedToolCall>;
 
-const wireRpgSchema = z.object({
-  mode: rpgGameModeSchema,
-  status: rpgGameStatusSchema,
-  sessionNumber: z.int().positive().catch(1),
-  config: rpgGameConfigSchema,
-  createdAt: z.int(),
-  // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
-  // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
-  sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema })),
-  snapshots: z.array(
-    z.object({
-      messageIndex: nullableIndex,
-      variantIdx: nullableIndex,
-      asOfMessageIndex: nullableIndex,
-      bookmark: z.boolean().catch(false),
-      committed: z.boolean().catch(false),
-      createdAt: z.int(),
-      state: rpgSnapshotStateSchema,
-    }),
-  ),
-  journal: z.array(
-    z.object({
-      type: rpgJournalTypeSchema,
-      label: z.string().catch(""),
-      title: z.string(),
-      content: z.string(),
-      messageIndex: nullableIndex,
-      variantIdx: nullableIndex,
-      sourceMessageIndex: nullableIndex,
-      createdAt: z.int(),
-    }),
-  ),
-  turnToolCalls: z.array(
-    z.object({
-      messageIndex: index,
-      variantIdx: index,
-      calls: z.array(wireRecordedToolCallSchema),
-      createdAt: z.int(),
-    }),
-  ),
-  checkpoints: z.array(
-    z.object({
-      snapshotIndex: index,
-      label: z.string(),
-      trigger: rpgCheckpointTriggerSchema,
-      createdAt: z.int(),
-    }),
-  ),
-});
+const wireRpgSchema = z
+  .object({
+    mode: rpgGameModeSchema,
+    status: rpgGameStatusSchema,
+    sessionNumber: z.int().positive().catch(1),
+    config: rpgGameConfigSchema,
+    createdAt: z.int(),
+    // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
+    // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
+    sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema }).strip()),
+    snapshots: z.array(
+      z
+        .object({
+          messageIndex: nullableIndex,
+          variantIdx: nullableIndex,
+          asOfMessageIndex: nullableIndex,
+          bookmark: z.boolean().catch(false),
+          committed: z.boolean().catch(false),
+          createdAt: z.int(),
+          state: rpgSnapshotStateSchema,
+        })
+        .strip(),
+    ),
+    journal: z.array(
+      z
+        .object({
+          type: rpgJournalTypeSchema,
+          label: z.string().catch(""),
+          title: z.string(),
+          content: z.string(),
+          messageIndex: nullableIndex,
+          variantIdx: nullableIndex,
+          sourceMessageIndex: nullableIndex,
+          createdAt: z.int(),
+        })
+        .strip(),
+    ),
+    turnToolCalls: z.array(
+      z
+        .object({
+          messageIndex: index,
+          variantIdx: index,
+          calls: z.array(wireRecordedToolCallSchema),
+          createdAt: z.int(),
+        })
+        .strip(),
+    ),
+    checkpoints: z.array(
+      z
+        .object({
+          snapshotIndex: index,
+          label: z.string(),
+          trigger: rpgCheckpointTriggerSchema,
+          createdAt: z.int(),
+        })
+        .strip(),
+    ),
+  })
+  .strip();
 
-const wireChatSchema = z.object({
-  title: z.string().catch(""),
-  createdAt: z.int(),
-  updatedAt: z.int(),
-  starred: z.boolean().catch(false),
-  archived: z.boolean().catch(false),
-  compactSummary: z.string().nullish().catch(null),
-  compactedAtSeq: z.int().nullish().catch(null),
-  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
-  variableValues: z.record(z.string(), z.string()).nullish().catch(null),
-  userMacroValues: userMacroValuesSchema.nullish().catch(null),
-  anchorPersonaName: z.string().nullish().catch(null),
-  characterHandles: z.array(z.string().trim().min(1)).catch([]),
-  // A malformed list degrades to the handle binding an older bundle gets, never a refused chat.
-  seatCards: z
-    .array(z.object({ handle: z.string().trim().min(1), importHash: z.string().min(1), textHash: z.string().min(1), fileHash: z.string().min(1) }))
-    .optional()
-    .catch(undefined),
-  tagNames: z.array(z.string().trim().min(1)).catch([]),
-  injections: z.array(wireInjectionSchema).catch([]),
-  messages: z.array(wireMessageSchema),
-  pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
-  assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
-  rpg: wireRpgSchema.nullish().catch(null),
-});
+const wireChatSchema = z
+  .object({
+    title: z.string().catch(""),
+    createdAt: z.int(),
+    updatedAt: z.int(),
+    starred: z.boolean().catch(false),
+    archived: z.boolean().catch(false),
+    // Only an explicit false reads unshared. A bundle written before the flag cannot tell a member's line from the
+    // host's, so an absent or malformed value fails closed and keeps the host's global variables shut.
+    everShared: z.boolean().catch(true),
+    compactSummary: z.string().nullish().catch(null),
+    compactedAtSeq: z.int().nullish().catch(null),
+    metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+    variableValues: z.record(z.string(), z.string()).nullish().catch(null),
+    userMacroValues: userMacroValuesSchema.nullish().catch(null),
+    anchorPersonaName: z.string().nullish().catch(null),
+    characterHandles: z.array(z.string().trim().min(1)).catch([]),
+    // A malformed list degrades to the handle binding an older bundle gets, never a refused chat.
+    seatCards: z
+      .array(z.object({ handle: z.string().trim().min(1), importHash: z.string().min(1), textHash: z.string().min(1), fileHash: z.string().min(1) }).strip())
+      .optional()
+      .catch(undefined),
+    tagNames: z.array(z.string().trim().min(1)).catch([]),
+    injections: z.array(wireInjectionSchema).catch([]),
+    messages: z.array(wireMessageSchema),
+    pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
+    assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
+    // Healed per entry: a malformed strike is dropped alone, never its siblings or the chat; its scene comes back into
+    // recall, visibly, in the view. A list that is not a list at all loses only the plane.
+    memoryStrikes: z
+      .array(
+        z
+          .object({
+            characterHandle: z.string().trim().min(1).nullable(),
+            tier: index,
+            startMessageIndex: index,
+            endMessageIndex: index,
+            topicAnchor: z.string().nullish().catch(null),
+            createdAt: z.int(),
+          })
+          .strip()
+          .nullable()
+          .catch(null),
+      )
+      .optional()
+      .catch(undefined),
+    rpg: wireRpgSchema.nullish().catch(null),
+  })
+  .strip();
 
 type WireChat = z.infer<typeof wireChatSchema>;
 
@@ -403,6 +464,19 @@ function pruneDangling(rpg: PortableRpgGame, messages: readonly PortableChatMess
     turnToolCalls: rpg.turnToolCalls.filter((t) => variantExists(messages, t.messageIndex, t.variantIdx)),
     checkpoints: rpg.checkpoints.filter((c) => snapshots[c.snapshotIndex] !== undefined),
   };
+}
+
+/** The strikes whose span still names messages this file carries, start before end. A strike with a dead or
+ *  inverted span names no item, and landing it would strike nothing while listing a ghost. */
+function memoryStrikesFromWire(
+  wire: WireChat["memoryStrikes"],
+  messages: readonly PortableChatMessage[],
+): { readonly memoryStrikes?: readonly PortableMemoryStrike[] } {
+  const kept = (wire ?? []).filter(
+    (s): s is NonNullable<typeof s> =>
+      s !== null && s.startMessageIndex <= s.endMessageIndex && messages[s.startMessageIndex] !== undefined && messages[s.endMessageIndex] !== undefined,
+  );
+  return kept.length === 0 ? {} : { memoryStrikes: kept.map((s): PortableMemoryStrike => ({ ...s, topicAnchor: s.topicAnchor ?? null })) };
 }
 
 // ── the serde ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -560,6 +634,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     updatedAt: chat.updatedAt,
     starred: chat.starred,
     archived: chat.archived,
+    everShared: chat.everShared,
     compactSummary: chat.compactSummary,
     compactedAtSeq: chat.compactedAtSeq,
     metadata: chat.metadata,
@@ -589,6 +664,18 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     rpg: chat.rpg === null ? null : rpgToWire(chat.rpg),
     ...(chat.pendingGenerationObservations === undefined ? {} : { pendingGenerationObservations: [...chat.pendingGenerationObservations] }),
     ...(chat.assetHashes === undefined ? {} : { assetHashes: { ...chat.assetHashes } }),
+    ...(chat.memoryStrikes === undefined || chat.memoryStrikes.length === 0
+      ? {}
+      : {
+          memoryStrikes: chat.memoryStrikes.map((s) => ({
+            characterHandle: s.characterHandle,
+            tier: s.tier,
+            startMessageIndex: s.startMessageIndex,
+            endMessageIndex: s.endMessageIndex,
+            topicAnchor: s.topicAnchor,
+            createdAt: s.createdAt,
+          })),
+        }),
   }),
   fromWire: (body) => {
     const messages = body.messages.map(
@@ -609,6 +696,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
       updatedAt: body.updatedAt,
       starred: body.starred,
       archived: body.archived,
+      everShared: body.everShared,
       compactSummary: body.compactSummary ?? null,
       compactedAtSeq: body.compactedAtSeq ?? null,
       metadata: body.metadata ?? null,
@@ -641,6 +729,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
             ),
           }),
       ...(body.assetHashes === undefined ? {} : { assetHashes: body.assetHashes }),
+      ...memoryStrikesFromWire(body.memoryStrikes, messages),
       rpg,
     };
   },

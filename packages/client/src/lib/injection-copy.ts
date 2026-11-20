@@ -2,8 +2,11 @@
 // `isAssistantPrefill` (`@orb/kit/injection`) consumer editors (character-advanced-tab, room-overrides-
 // form, persona-editor) and had already drifted ("pick depth ≥ 1" vs "Use depth ≥ 1").
 
-import type { UnavailableCause } from "@orb/contracts/inference";
+import type { RoomUnavailableCause } from "@orb/contracts/chat";
+import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { ChatControlMode } from "./contribution-contracts.ts";
+import { REVOKED_KEY_COPY } from "./revoked-key-copy.ts";
+import { HOST_KEY_REVOKED_COPY, HOST_UNAVAILABLE_COPY } from "./turn-refusal-copy.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill. Unsupported across providers. Use depth ≥ 1, or role system/user.";
 
@@ -186,9 +189,17 @@ export const MODEL_ROLES_PATH_TEXT = `${MODEL_ROLES_PATH.trail} → ${MODEL_ROLE
 /** Where the user adds a connection: the Connections list's add verb, spelled as a settings trail plus leaf. */
 export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add connection" } as const;
 
-/** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
- *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = UnavailableCause | "no-chat-connection" | "host-no-chat-connection";
+/** The send gate's one cause the client mints: the room's own read failed, so a message sent now would land under the failure
+ *  plate unseen. The server never sends it. */
+export const ROOM_READ_FAILED_CAUSE = "room-read-failed";
+
+/** A cause the send gate holds: the server's verdict, or the failed room read. */
+export type SendRefusalCause = RoomUnavailableCause | typeof ROOM_READ_FAILED_CAUSE;
+
+/** A composer refusal reason: a gate cause, or `no-chat-connection`, the host-side split of `no-connection`
+ *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. The
+ *  `host-` keys are a member's reading of a cause on the host's account. */
+export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection" | "host-key-revoked";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
@@ -196,6 +207,11 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   "no-connection": `No chat connection is set: choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
   "no-chat-connection": `None of your connections can chat yet: add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   "host-no-chat-connection": "The host has no chat connection set. Ask them to choose one before sending.",
+  // The bound row's key is revoked, each cause in its own words.
+  "key-rejected": REVOKED_KEY_COPY.auth_failed.composer,
+  "key-revoked-unreachable": REVOKED_KEY_COPY.unreachable.composer,
+  "key-revoked-by-user": REVOKED_KEY_COPY.user.composer,
+  "host-key-revoked": HOST_KEY_REVOKED_COPY,
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
@@ -208,10 +224,23 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   unavailable: "That connection isn't available on this server.",
   // An in-process model (local-light) whose latest load failed; the next call retries the load.
   "model-load-failed": "Your connection's built-in model failed to load on this server. Send again to retry.",
+  // The room's host is outside its consent set. No unlock is named: a member is never told another account's state,
+  // and the words are the refused send's own.
+  [TURN_HOST_UNAVAILABLE_OP_CODE]: HOST_UNAVAILABLE_COPY,
+  // The room read failed; the plate above the composer carries the Retry that loads it.
+  [ROOM_READ_FAILED_CAUSE]: "This conversation didn't load, so nothing can be sent yet. Retry above to load it.",
 };
 
+// A cause this build has no words for. The server this build shipped with never sends one, so the only way here is
+// a newer server, and a reload fetches the build that knows the cause.
+const SEND_UNAVAILABLE_UNKNOWN_REASON = "This chat can't send right now. Reload the page to see why.";
+
 /** The composer disabled-reason for a refusal key — the single home the Send button + the guided fire
- *  actions read, so the copy can't drift between the two surfaces. Exhaustive over {@link SendRefusalKey}. */
+ *  actions read, so the copy can't drift between the two surfaces. Exhaustive over {@link SendRefusalKey}.
+ *
+ *  @remarks The key starts as the availability read's `cause`, which the client types from the contract and never
+ *  parses: a newer server can answer a cause outside the union. This lookup is where that wire value is first
+ *  used as a key, so the own-key check here is the boundary check, and a disabled Send always carries a reason. */
 export function sendUnavailableReason(key: SendRefusalKey): string {
-  return SEND_UNAVAILABLE_REASON[key];
+  return Object.hasOwn(SEND_UNAVAILABLE_REASON, key) ? SEND_UNAVAILABLE_REASON[key] : SEND_UNAVAILABLE_UNKNOWN_REASON;
 }

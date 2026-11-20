@@ -11,6 +11,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Copy, Download, Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -29,6 +30,7 @@ import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-muta
 import {
   deleteMovesDefaultNote,
   PERSONA_DELETE_NAME,
+  PERSONA_DELETE_TITLE,
   PERSONA_DESCRIPTION_FIELD_NAME,
   PERSONA_DUPLICATE_NAME,
   PERSONA_EXPORT_NAME,
@@ -98,7 +100,7 @@ export function PersonaEditorRegion({ persona, subject, onDelete, nextDefaultNam
     }
   }, [request, persona.id]);
   return (
-    <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
+    <Card aria-label={editActionName(subject)} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
       <PersonaEditor persona={persona} onDelete={onDelete} nextDefaultName={nextDefaultName} />
     </Card>
   );
@@ -153,7 +155,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
     <Stack cap="code" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         {avatar.control}
-        <Stack gap="row" className="min-inline-0" grow={true}>
+        <Stack gap="row" minWidth="shrinks" grow={true}>
           <form.AppField name="name">
             {(field): ReactElement => <field.TextField label={PERSONA_NAME_FIELD_NAME} hint="Characters call you this. It can't be empty." />}
           </form.AppField>
@@ -252,7 +254,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
                 {nextDefaultName === null ? "" : ` ${deleteMovesDefaultNote(nextDefaultName)}`} This can't be undone.
               </>
             ),
-            title: "Delete this persona?",
+            title: PERSONA_DELETE_TITLE,
           }}
           onConfirm={onDelete}
           trigger={

@@ -60,6 +60,7 @@ const READ_GATES = {
   getMessageWindow: "elsewhere",
   listMessageVariants: "room-read",
   listParticipants: "room-read",
+  resolveAuthorRenderPolicy: "room-read",
   replayLiveTurn: "room-read",
   replayChatEvents: "room-read",
   chatEventBounds: "room-read",
@@ -68,6 +69,7 @@ const READ_GATES = {
   swipe: "elsewhere",
   impersonateStream: "elsewhere",
   generate: "elsewhere",
+  replyToTail: "elsewhere",
   continueTurn: "elsewhere",
   undoContinue: "elsewhere",
   revertContinue: "elsewhere",
@@ -89,8 +91,12 @@ const READ_GATES = {
   duplicateMessage: "elsewhere",
   forkChat: "elsewhere",
   setChatInjection: "elsewhere",
+  saveCorrection: "elsewhere",
   listChatInjections: "elsewhere",
   deleteChatInjection: "elsewhere",
+  memoryView: "room-read",
+  strikeMemory: "elsewhere",
+  restoreMemory: "elsewhere",
   setVariables: "elsewhere",
   setUserMacroValues: "elsewhere",
   getUserMacroPicks: "elsewhere",
@@ -116,6 +122,7 @@ const READ_GATES = {
   setHostDisplayScripts: "elsewhere",
   setRegexAllow: "elsewhere",
   listEffectiveRegex: "elsewhere",
+  listDisplayScripts: "elsewhere",
   setOfferChoices: "elsewhere",
   setCharactersCanReact: "elsewhere",
   setReactionsEnabled: "elsewhere",
@@ -153,7 +160,11 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
   await h.root.services.chat.setGroupConfig({ principal: h.owner, chatId: h.chatId, config: { ...DEFAULT_GROUP_CONFIG, memberCardVisibility: "name-avatar" } });
   const line = await commit(h, h.owner, "hello");
   const preset = (await seedPreset(h.root, h.owner.userId, { name: "Inspector preset", kind: "custom" })).view;
-  const scope = (principal: Principal): { principal: Principal; chatId: typeof h.chatId } => ({ principal, chatId: h.chatId });
+  const scope = (principal: Principal): { principal: Principal; chatId: typeof h.chatId; signal: AbortSignal } => ({
+    principal,
+    chatId: h.chatId,
+    signal: new AbortController().signal,
+  });
   const inspectors: Record<VerbsGated<"inspector">, (principal: Principal) => Promise<unknown>> = {
     previewAssembly: (principal: Principal): Promise<unknown> => h.root.services.chat.previewAssembly(scope(principal)),
     previewActionTemplates: (principal: Principal): Promise<unknown> =>
@@ -221,14 +232,18 @@ test("a non-participant gets a leak-free not-found on every room read, while the
     listMessageVariants: (principal: Principal): Promise<unknown> =>
       h.root.services.chat.listMessageVariants({ principal, chatId: h.chatId, messageId: line.id }),
     listParticipants: (principal: Principal): Promise<unknown> => h.root.services.chat.listParticipants({ principal, chatId: h.chatId }),
+    resolveAuthorRenderPolicy: (principal: Principal): Promise<unknown> =>
+      h.root.services.chat.resolveAuthorRenderPolicy({ principal, chatId: h.chatId, characterId }),
     listForks: (principal: Principal): Promise<unknown> => h.root.services.chat.listForks({ principal, chatId: h.chatId }),
     getChatLineage: (principal: Principal): Promise<unknown> => h.root.services.chat.getChatLineage({ principal, chatId: h.chatId }),
     replayLiveTurn: (principal: Principal): Promise<unknown> => h.root.services.chat.replayLiveTurn({ principal, chatId: h.chatId, throughSeq: 0 }),
     replayChatEvents: (principal: Principal): Promise<unknown> => h.root.services.chat.replayChatEvents({ principal, chatId: h.chatId }),
     chatEventBounds: (principal: Principal): Promise<unknown> => h.root.services.chat.chatEventBounds({ principal, chatId: h.chatId }),
-    checkSendAvailability: (principal: Principal): Promise<unknown> => h.root.services.chat.checkSendAvailability({ principal, chatId: h.chatId }),
+    checkSendAvailability: (principal: Principal): Promise<unknown> =>
+      h.root.services.chat.checkSendAvailability({ signal: new AbortController().signal, principal, chatId: h.chatId }),
     getNextTurnConnection: (principal: Principal): Promise<unknown> => h.root.services.chat.getNextTurnConnection({ principal, chatId: h.chatId }),
     getMemberCard: (principal: Principal): Promise<unknown> => h.root.services.chat.getMemberCard({ principal, chatId: h.chatId, characterId }),
+    memoryView: (principal: Principal): Promise<unknown> => h.root.services.chat.memoryView({ principal, chatId: h.chatId }),
   };
   for (const [name, read] of Object.entries(reads)) {
     expect(await codeOf(read(h.owner)), name).toBe("resolved");

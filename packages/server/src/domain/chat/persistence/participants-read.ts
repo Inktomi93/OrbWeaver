@@ -1,7 +1,7 @@
 // domain/chat/persistence/participants-read — the participants READ + the initial-membership row BUILDER
 // (un-exiled from neo's `_shared/group-character-rows`). The `-read` half of the name is load-bearing: the
-// WRITE half of `chat_participants` is the sibling `participant.ts` (the kind-shape parser + the
-// membership-lifecycle writes), and the two are split by verb.
+// WRITE half of `chat_participants` is the sibling `participant.ts` (the membership-lifecycle writes),
+// and the two are split by verb.
 // QUERIES ONLY: `loadParticipants`
 // reads the present (or full) `chat_participants` set; `buildInitialParticipantRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
@@ -15,7 +15,7 @@ import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "
 import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ParticipantInsertRow, ParticipantRow } from "../contract/participant-row.ts";
-import { assertForcedCharacterMember } from "./participant.ts";
+import { assertForcedCharacterMember } from "../substrate/participant-actor.ts";
 
 /** How many rows an existence probe needs. */
 const LIMIT_ONE = 1;
@@ -114,16 +114,6 @@ export async function isCharacterSeated(db: Db, chatId: ChatId, characterId: Cha
         isNull(chatParticipants.leftSeq),
       ),
     )
-    .limit(LIMIT_ONE);
-  return rows.length > 0;
-}
-
-/** Is `userId` a PRESENT member (`leftSeq IS NULL`) of `chatId`, in any role? A gone chat reads false. */
-export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserId): Promise<boolean> {
-  const rows = await db
-    .select({ id: chatParticipants.id })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
   return rows.length > 0;
 }

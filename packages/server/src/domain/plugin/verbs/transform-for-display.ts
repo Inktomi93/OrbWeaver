@@ -21,27 +21,34 @@
 //
 // THE REFUSAL POSTURE IS D53's, verbatim: a transform that throws or outruns its deadline is SKIPPED — the fold
 // keeps the prior text and moves on. A display transform can never blank a message, and it can never block one.
+//
+// THIS IS A QUERY, SO IT WRITES NO PLUGIN STATE. Each guest call runs through the resident's `invokeForRead`, which
+// logs a failure and leaves the crash counter alone: a clean run must not reset the count a write path built, and a
+// failed one is a skip, never a strike.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
-import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
+import type { PluginDisplayTransformRegistration, PluginInstance } from "@orb/contracts/plugin";
+import { errorMessage } from "@orb/kit/error-message";
 import type { ScheduleOp } from "@orb/kit/time";
+import { addSpanEvent } from "#foundation/observability";
 
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
-import { logPluginFailure } from "../substrate/failure-log.ts";
+import { pluginFailureLine } from "../substrate/failure-log.ts";
 
 /** The per-TRANSFORM wall-clock bound (the "per-message budget" seam 14 names). Tighter than the 250 ms
  *  `PROMPT_TRANSFORM_DEADLINE_MS` would be generous here for the opposite reason it is generous there: this
  *  runs once per VISIBLE ROW and its latency is a person watching a transcript paint, not a turn already
  *  waiting on a model. Overrun ⇒ that transform is skipped and the row keeps the text it had. */
 const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
+const DISPLAY_TRANSFORM_SKIPPED_EVENT = "plugin.display_transform.skipped";
 
-/** One resident's crash-policy'd re-entry, curried to the (handler, argsJson) pair this seam uses. */
+/** One resident's read-path re-entry, curried to the (handler, argsJson) pair this seam uses. */
 type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;
 
 /** Why a transform left the row's text alone. A throw or rejected invoke already reached the log through the
- *  resident's crash-policy'd `invoke`, so only a deadline overrun is logged here. */
+ *  resident's `invokeForRead`, so only a deadline overrun is logged here. */
 type Outcome = { readonly text: string } | { readonly skip: "deadline" | "failed" };
 
 /** Run ONE display transform under the deadline. Returns the new text, or why it was skipped (throw, rejected
@@ -53,7 +60,7 @@ async function applyBounded(
   scheduleTimeout: ScheduleOp,
 ): Promise<Outcome> {
   let cancelTimer: (() => void) | undefined;
-  // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
+  // Aborted on the deadline so the orphaned invocation's later rejection logs no second line.
   const orphan = new AbortController();
   const deadline = new Promise<Outcome>((resolve) => {
     cancelTimer = scheduleTimeout(() => {
@@ -61,12 +68,14 @@ async function applyBounded(
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // the rejection was already logged by the resident's `invoke`; the
-  // caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows.
+  // The refusal posture in the header keeps every rejection contained and the row keeps its prior text. The resident's
+  // `invokeForRead` already logged a guest failure; a host refusal (a conflict) is never the plugin's fault and reaches
+  // no failure log, so every skip is also recorded on the request's span.
   try {
     const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);
     return typeof answer === "string" ? { text: answer } : answer;
-  } catch {
+  } catch (error) {
+    addSpanEvent(DISPLAY_TRANSFORM_SKIPPED_EVENT, { transform: transform.name, error: errorMessage(error) });
     return { skip: "failed" };
   } finally {
     cancelTimer?.();
@@ -80,19 +89,28 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
     const rows = await listOwned(ctx.db, caller.userId);
     // FLATTEN FIRST, fold second. Registration order within a plugin; plugin order is the caller's own install
     // order (`listOwned`). Both are the only orderings that exist here and both are the installer's own doing.
-    const steps: { readonly slug: string; readonly transform: PluginDisplayTransformRegistration; readonly invoke: ResidentInvoke }[] = [];
+    const steps: {
+      readonly slug: string;
+      readonly instance: PluginInstance;
+      readonly transform: PluginDisplayTransformRegistration;
+      readonly invoke: ResidentInvoke;
+    }[] = [];
     for (const row of rows) {
       const resident = registry.get(row.id);
       if (resident === undefined) {
         continue;
       }
       for (const transform of resident.instance.displayTransforms) {
-        // The re-entry runs through the resident's crash-policy'd `invoke` (never `ctx.host.invoke` directly),
-        // so a throwing/hung display transform bumps `consecutive_crashes` toward the 3-strike auto-disable
-        // exactly like a tool, event or surface-action handler. `null` chat scope: a display transform reads the
-        // text it was handed and nothing else — admitting a room would hand it a `chat.read` window this seam
-        // has no reason to open.
-        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invoke(handler, json, null, signal) });
+        // The re-entry runs through the resident's `invokeForRead` (never `ctx.host.invoke` directly), so it shares
+        // the resident's invocation lifetime and failure log and writes no crash state. `null` chat scope: a display
+        // transform reads the text it was handed and nothing else — admitting a room would hand it a `chat.read`
+        // window this seam has no reason to open.
+        steps.push({
+          slug: row.slug,
+          instance: resident.instance,
+          transform,
+          invoke: (handler, json, signal) => resident.invokeForRead(handler, json, null, signal),
+        });
       }
     }
     if (steps.length === 0) {
@@ -108,11 +126,9 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
       const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout);
       if ("skip" in next && next.skip === "deadline") {
-        logPluginFailure(
-          step.slug,
-          "display-deadline",
-          `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`,
-          ctx.logger,
+        ctx.host.logFailure(
+          step.instance,
+          pluginFailureLine(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`),
         );
         return foldFrom(index + 1, current);
       }

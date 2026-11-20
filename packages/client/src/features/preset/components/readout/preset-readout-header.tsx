@@ -13,6 +13,7 @@
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { PRESET_READOUT_ACTIVE_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "#src/features/preset/lib/preset-nav.ts";
 import { usePresetEditorView, useSelectedPresetId } from "#state";
 
@@ -22,7 +23,7 @@ import { usePresetEditorView, useSelectedPresetId } from "#state";
  *  names a view the body is not showing is the same class of lie as a readout bound to the wrong template
  *  (F-2); the band reads the SAME selection the panel does, so the two cannot disagree. The string is the
  *  panel's own first kicker, verbatim. */
-const NO_SELECTION_LABEL = "Active preset";
+const NO_SELECTION_LABEL = PRESET_READOUT_ACTIVE_LABEL;
 
 export function PresetReadoutHeader(): ReactElement {
   const presetId = useSelectedPresetId();
@@ -30,7 +31,7 @@ export function PresetReadoutHeader(): ReactElement {
   const entry = PRESET_EDITOR_VIEWS.find((candidate) => candidate.id === view) ?? PRESET_EDITOR_VIEWS[0];
   const label = presetId === null ? NO_SELECTION_LABEL : (entry?.label ?? "Preset");
   return (
-    <Row align="baseline" className="min-inline-0" gap="field">
+    <Row align="baseline" minWidth="shrinks" gap="field">
       <Text voice="promoted" truncate={true}>
         {label}
       </Text>

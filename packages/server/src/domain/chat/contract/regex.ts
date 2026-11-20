@@ -11,9 +11,11 @@
 
 import type { CharacterRegexSlice, HostTierRegexAllow } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { ChatId } from "@orb/kit/ids";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import type { ApplyRegexReplaceOp } from "./engine-context.ts";
+import type { OpenRegexPassOp } from "./engine-context.ts";
 
 /**
  * The four host-tier regex sources, each ALREADY resolved under the frozen `runAsUserId` (D19 — the host,
@@ -37,7 +39,7 @@ export interface HostTierRegexSources {
    *
    *  REQUIRED, not optional, and that is the point: every caller of the resolver must state the room's
    *  levers, so there is no "forgot to pass it" arm in which a tier the host switched off silently runs
-   *  anyway. tsc forces both turn callers (`substrate/assemble-gather.ts`, `verbs/edit.ts`) and the read.
+   *  anyway. tsc forces both turn callers (`assembly/gather.ts`, `verbs/edit.ts`) and the read.
    *  Both members are ABSENT-⇒-ALLOWED (`isRegexEnabledInChat` / `isRegexTierAllowed`), so a room that never
    *  touched the section resolves byte-identically to before. */
   readonly allow: HostTierRegexAllow;
@@ -73,9 +75,28 @@ export interface PromptHistoryRegexEnv {
   readonly scripts: readonly RegexScriptInput[];
   /** The turn-stage macro context for the find/replace TEMPLATE passes (`buildTurnMacroContext`). */
   readonly macroCtx: ProcessMacroOptions;
-  /** The injected node:vm ReDoS watchdog (D53) — every `text.replace` on this leg runs under it. */
-  readonly applyReplace: ApplyRegexReplaceOp;
+  /** Opens the node:vm ReDoS watchdog for this leg (D53): every `text.replace` of the pass runs under it and shares its budget. */
+  readonly openRegexPass: OpenRegexPassOp;
   /** Per-failure report. The caller logs it; the leg additionally EVICTS the script for the rest of the
    *  pass (its header states why history length must never multiply a watchdog trip). */
   readonly onScriptFailure: (err: unknown, script: RegexScriptInput) => void;
+  /** The room's seat standings an author scope reads. */
+  readonly room: RoomStanding;
+  /** A continue extends the newest row, which then sits at depth -1 rather than 0. */
+  readonly continuing: boolean;
+  /** The room's last output of this leg, reused when every input it read is unchanged. Required and nullable: a
+   *  real turn runs the leg fresh (`null`); a repeated read of an unchanged room passes its room's memo. */
+  readonly memo: PromptHistoryMemo | null;
+}
+
+/** One room's last prompt-history output, keyed by a digest of every input the leg read. It holds one entry, so a
+ *  changed room replaces it. */
+export interface PromptHistoryMemo {
+  readonly read: (key: string) => readonly string[] | undefined;
+  readonly write: (key: string, contents: readonly string[]) => void;
+}
+
+/** Hands out each room's {@link PromptHistoryMemo}. Process-wide and bounded by room count. */
+export interface PromptHistoryMemos {
+  readonly forRoom: (chatId: ChatId) => PromptHistoryMemo;
 }

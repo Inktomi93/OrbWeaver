@@ -1,11 +1,33 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { parse } from "yaml";
 import { z } from "zod";
+
+// Raw text, not parsed yaml: the parser drops the version comment this policy requires.
+function unreviewablePins(source: string): string[] {
+  return source
+    .split("\n")
+    .filter((line) => /^\s*(?:-\s+)?uses:\s*\S+@/u.test(line))
+    .filter((line) => !/^\s*(?:-\s+)?uses:\s*[^@\s]+@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*\s*$/u.test(line))
+    .map((line) => line.trim());
+}
+
+test("every external action pin is a full commit SHA with a version comment", ({ repoRoot }) => {
+  const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+  expect(unreviewablePins(`      - uses: actions/checkout@${sha}`)).toHaveLength(1);
+  expect(unreviewablePins("      - uses: actions/checkout@v7")).toHaveLength(1);
+  expect(unreviewablePins("      - uses: actions/checkout@v7 # v7.0.1")).toHaveLength(1);
+  expect(unreviewablePins(`      - uses: actions/checkout@${sha} # v7.0.1`)).toEqual([]);
+  expect(unreviewablePins("      - uses: ./.github/actions/setup")).toEqual([]);
+  const files = [...readdirSync(join(repoRoot, ".github/workflows")).map((name) => join(".github/workflows", name)), ".github/actions/setup/action.yml"];
+  for (const file of files) {
+    expect(unreviewablePins(readFileSync(join(repoRoot, file), "utf8")), file).toEqual([]);
+  }
+});
 
 test("Scorecard runs only on the repository default branch, including manual dispatch", ({ repoRoot }) => {
   const { jobs } = z
@@ -126,6 +148,51 @@ test("privileged run approval never checks out candidate code or restores candid
   expect(job.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
   expect(nonEmpty(job.steps).some((step) => step.uses?.includes("cache") === true)).toBe(false);
   expect(job.steps.map((step) => step.run ?? "").join("\n")).not.toMatch(/pull_request.head|checkout.*head|release edit|merge/u);
+});
+
+// Scheduled runs build main inside the default branch's cache scope, so a job holding any of these can ship what
+// another run wrote unless it stays off the Actions caches.
+const PUBLISHING_SCOPES = ["contents", "packages", "id-token", "attestations"] as const;
+const permissionsSchema = z.union([z.record(z.string(), z.string()), z.string()]).optional();
+const cacheJobSchema = z.object({
+  permissions: permissionsSchema,
+  steps: z.array(z.object({ uses: z.string().optional(), with: z.record(z.string(), z.json()).optional() })).optional(),
+});
+
+function cacheReaders(job: z.infer<typeof cacheJobSchema>): string[] {
+  return (job.steps ?? []).flatMap((step) => {
+    const uses = step.uses ?? "";
+    if (uses.startsWith("actions/cache")) {
+      return [uses];
+    }
+    if (uses.endsWith(".github/actions/setup") && step.with?.["cache"] !== "false") {
+      return [`${uses} without cache: "false"`];
+    }
+    if (uses.startsWith("pnpm/action-setup@") && step.with?.["cache"] === true) {
+      return [`${uses} with cache: true`];
+    }
+    return [];
+  });
+}
+
+test("a job that can publish installs without the Actions caches", ({ repoRoot }) => {
+  const caching = cacheJobSchema.parse({ steps: [{ uses: "$/.github/actions/setup" }] });
+  expect(cacheReaders(caching)).toEqual(['$/.github/actions/setup without cache: "false"']);
+  expect(cacheReaders({ steps: [{ uses: "$/.github/actions/setup", with: { cache: "false" } }] })).toEqual([]);
+  const publishing = readdirSync(join(repoRoot, ".github/workflows")).flatMap((name) => {
+    const workflow = z
+      .object({ permissions: permissionsSchema, jobs: z.record(z.string(), cacheJobSchema) })
+      .parse(parse(readFileSync(join(repoRoot, ".github/workflows", name), "utf8")));
+    return Object.entries(workflow.jobs).flatMap(([id, job]) => {
+      const granted = job.permissions ?? workflow.permissions;
+      const writes = granted === "write-all" || (typeof granted === "object" && PUBLISHING_SCOPES.some((scope) => granted[scope] === "write"));
+      return writes ? [[`${name}#${id}`, cacheReaders(job)] as const] : [];
+    });
+  });
+  expect(publishing.map(([job]) => job)).toEqual(
+    expect.arrayContaining(["release.yml#image", "release.yml#notes", "release.yml#plugin-authoring", "development-image.yml#image"]),
+  );
+  expect(Object.fromEntries(publishing)).toEqual(Object.fromEntries(publishing.map(([job]) => [job, []])));
 });
 
 test("CodeQL scheduled runs cannot be cancelled by incoming push or dispatch runs on the same ref", ({ repoRoot }) => {

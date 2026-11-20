@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ruleViewSchema } from "@orb/contracts/automation";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
 import { createDb, localPath, runMigrations, sessions } from "@orb/db";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
@@ -120,7 +120,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     if (read.input !== undefined) {
       url.searchParams.set("input", JSON.stringify(read.input));
     }
-    const response = await fetch(url, { headers: { cookie: fresh.cookie, forwarded: "" } });
+    const response = await fetch(url, { headers: { cookie: fresh.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
     expect(response.status).toBe(200);
     const envelope = z.object({ result: z.object({ data: schema }) }).parse(await response.json());
     expect(envelope.result.data).toEqual(read.output);
@@ -134,7 +134,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   ] as const) {
     const url = new URL(`/api/trpc/${path}`, origin);
     url.searchParams.set("input", JSON.stringify(read.input));
-    const response = await fetch(url, { headers: { cookie: foreign.cookie, forwarded: "" } });
+    const response = await fetch(url, { headers: { cookie: foreign.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
     expect.soft(response.status).toBe(404);
     const body = await response.text();
     expect(body).not.toContain(JSON.stringify(read.output));
@@ -167,7 +167,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   await clone.services.chat.acceptInvite({ principal: await clone.principalFor(produced.foreignId), inviteId: invite.invite.id });
   const memberRules = new URL("/api/trpc/automation.listRules", origin);
   memberRules.searchParams.set("input", JSON.stringify(reads.rulesRepeated.input));
-  const memberResponse = await fetch(memberRules, { headers: { cookie: foreign.cookie, forwarded: "" } });
+  const memberResponse = await fetch(memberRules, { headers: { cookie: foreign.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(memberResponse.status).toBe(403);
   expect(await memberResponse.text()).not.toContain(JSON.stringify(reads.rulesRepeated.output));
   const memberCaller = await clone.internalCallerFor(produced.foreignId);

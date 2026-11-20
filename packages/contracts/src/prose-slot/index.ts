@@ -1,5 +1,5 @@
 // @orb/contracts/prose-slot — the SHAPE half of the D132 prose registry: the slot interface, the ONE closed id
-// vocabulary, the override storage schema, and the legacy-field adapter. Split from `#prose` (which composes
+// vocabulary, the override storage schema, and the legacy-field adapter. Separate from `#prose` (which composes
 // the per-domain TABLES into `PROSE_SLOTS` and owns `resolveProse`) for exactly one reason: the tables live
 // beside the vocabulary they teach and must import the slot shape, so a single module would close a
 // `no-circular` cycle (`#prose` → `#preset` → `#prose`). Consumers import `@orb/contracts/prose`, which
@@ -10,12 +10,11 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
-// Which storage owns a slot's override. Exactly one per slot — never a cascade (D132 clause A).
+// Which storage owns a slot's override. Exactly one per slot — never a cascade (D132 clause A), and two
+// storages, never three: `preset` and `user`.
 //
-//  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling
-//  ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
-//  with no slot is dead vocabulary that invites the next author to re-open the storage this ruling closed, so
-//  it is deleted rather than parked (NO-LEGACY).
+//  A member with no slot is dead vocabulary that invites the next author to re-open a storage a ruling closed,
+//  so it is deleted rather than parked.
 const PROSE_HOMES = ["preset", "user"] as const;
 export type ProseHome = (typeof PROSE_HOMES)[number];
 
@@ -44,7 +43,7 @@ export interface ProseSlotDef {
  *  `<domain>.<group>.<key>` and are STABLE — an id is the key a host's override is stored under, so a
  *  rename is a storage migration, never a refactor. */
 export const PROSE_SLOT_IDS = [
-  // ── per-PRESET: the guided-action templates (census 38-44) ──
+  // ── per-PRESET: the guided-action templates ──
   "preset.guided.opening",
   "preset.guided.continue",
   "preset.guided.response",
@@ -52,20 +51,19 @@ export const PROSE_SLOT_IDS = [
   "preset.guided.rewrite",
   "preset.guided.greetingRewrite",
   "preset.guided.greetingNew",
-  // ── per-PRESET: the format strings (census 45-48) ──
+  // ── per-PRESET: the format strings ──
   "preset.format.continueNudge",
   "preset.format.impersonateNudge",
   "preset.format.responseNudge",
   "preset.format.wiFormat",
   "preset.format.newChatMarker",
-  // ── per-PRESET: the compaction steering (census 49) — ADAPTED like guided/format: the override is the
-  //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
+  // ── per-PRESET: the compaction steering — ADAPTED like guided/format: the override is the legacy
+  //    `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",
-  // ── per-PRESET: the Rewrite modal's toggle fragments (census 53-59) — the templating fork ruled ARM B
-  //    (owner ruling, D172): the fragment BYTES are prose slots
-  //    resolved SERVER-side at the seam that already holds the preset blob, and the wire carries only the
-  //    toggle KINDS. NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a Templates-tab
-  //    row. `macros:"none"`: a fragment is composed INTO the steer that becomes `{{input}}`
+  // ── per-PRESET: the Rewrite modal's toggle fragments — the templating fork ruled the fragment BYTES are
+  //    prose slots resolved SERVER-side at the seam that already holds the preset blob, and the wire carries
+  //    only the toggle KINDS (D172). NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a
+  //    Templates-tab row. `macros:"none"`: a fragment is composed INTO the steer that becomes `{{input}}`
   //    and is neutralized downstream, so a `{{…}}` here would reach the model as literal braces. ──
   "preset.rewriteToggle.concise",
   "preset.rewriteToggle.expand",
@@ -74,7 +72,7 @@ export const PROSE_SLOT_IDS = [
   "preset.rewriteToggle.literary",
   "preset.rewriteToggle.pastTense",
   "preset.rewriteToggle.presentTense",
-  // ── per-PRESET: the greeting studio's transform fragments (census 60-73) — the same ARM B ruling. The
+  // ── per-PRESET: the greeting studio's transform fragments — the same server-side resolution. The
   //    greeting seam resolves them from the caller's default-preset blob (`resolveGreetingTemplate`). ──
   "preset.greetingTransform.firstPersonStandard",
   "preset.greetingTransform.firstPersonByName",
@@ -90,7 +88,7 @@ export const PROSE_SLOT_IDS = [
   "preset.greetingTransform.heHim",
   "preset.greetingTransform.sheHer",
   "preset.greetingTransform.theyThem",
-  // ── per-USER: the imagery prompt catalog (census 82-90) ──
+  // ── per-USER: the imagery prompt catalog ──
   "imagery.template.character",
   "imagery.template.face",
   "imagery.template.scenario",
@@ -99,17 +97,17 @@ export const PROSE_SLOT_IDS = [
   "imagery.caption.faceMultimodal",
   "imagery.negative.base",
   "imagery.tool.generateImageDescription",
-  // ── per-USER: the app-tier chat side-generation prompts (census 74-81) ──
+  // ── per-USER: the app-tier chat side-generation prompts ──
   "chat.assembly.anchorIdentity",
   "chat.arbiter.system",
   "chat.compaction.system",
   "chat.memory.digestSystem",
   "chat.memory.consolidationSystem",
   "chat.memory.consolidationLead",
-  // ── per-PRESET: the group-round FRAMING prose (the S1b inline stragglers) — RE-HOMED user → preset by the
-  //    F4 ruling arm (a) + the D132(B) amendment. They resolve during the MAIN turn's context
-  //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
-  //    their storage and each has a Templates-tab `group`-kind row. ──
+  // ── per-PRESET: the group-round FRAMING prose — a user home that belongs to the preset by the D132(B)
+  //    amendment. They resolve during the MAIN turn's context build where the preset IS in scope
+  //    (`composeProse` at `assembly/context`), so `promptConfig.prose` is their storage and each has a
+  //    Templates-tab `group`-kind row. ──
   "chat.group.characterHeading",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
@@ -125,16 +123,16 @@ export const PROSE_SLOT_IDS = [
   // The frame chat's offer-choices teach carries, so a teach folded into the player's message never reads as
   // the player's words (owner ruling: every product-authored system note carries its own delimiter).
   "chat.teach.choicesFrame",
-  // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
+  // ── per-USER: the prose-less-completion recovery ask ──
   "chat.recovery.narrativeContinuation",
-  // ── per-USER: the B7 `react` tool's model-facing description (the imagery.tool.* shape) ──
+  // ── per-USER: the `react` tool's model-facing description (the imagery.tool.* shape) ──
   "chat.tool.reactDescription",
-  // ── per-USER: the automation quiet-pick prompts (census 91) ──
+  // ── per-USER: the automation quiet-pick prompts ──
   "automation.autobg.task",
   "automation.autobg.reply",
   "automation.autobg.system",
-  // ── per-USER: the S5 `run_analysis` system contract, ONE clause per output route (C1 — the clauses
-  //    compose per the arm's ENABLED routes, so an un-authored route's ask never reaches the model) ──
+  // ── per-USER: the `run_analysis` system contract, ONE clause per output route (the clauses compose per
+  //    the arm's ENABLED routes, so an un-authored route's ask never reaches the model) ──
   "automation.analysis.lead",
   "automation.analysis.arc",
   "automation.analysis.steer",
@@ -144,17 +142,17 @@ export const PROSE_SLOT_IDS = [
   "automation.analysis.vars",
   "automation.analysis.close",
   "automation.analysis.firstArc",
-  // ── per-PRESET: the frame around the S5 standing guidance on the turn it steers. The guidance is delivered
+  // ── per-PRESET: the frame around the standing guidance on the turn it steers. The guidance is delivered
   //    through the turn preset's teaching context, so its delimiter is preset-authored like the other turn-wire
-  //    frames (the same owner ruling as `chat.teach.choicesFrame`). ──
+  //    frames (the same rule as `chat.teach.choicesFrame`). ──
   "automation.guidance.frame",
-  // ── per-USER: discovery's three whole side-generation system prompts (S1b) ──
+  // ── per-USER: discovery's three whole side-generation system prompts ──
   "discovery.compare.system",
   "discovery.ask.system",
   "discovery.distill.system",
   // ── per-USER: the refinery pipeline prompts: four stage-SYSTEM
-  //    slots (`refine` = the refinement-rewrite system) + the eight F4 (stage × mode) instruction bodies.
-  //    All `macros:"none"` BY LAW (belt 5 by-construction): refinery prompts never enter the macro engine,
+  //    slots (`refine` = the refinement-rewrite system) + the eight (stage × mode) instruction bodies.
+  //    All `macros:"none"` by construction: refinery prompts never enter the macro engine,
   //    so card-text `{{…}}` rides to the model verbatim and applied rewrites keep their macros intact. ──
   "refinery.score.system",
   "refinery.rewrite.system",
@@ -168,9 +166,9 @@ export const PROSE_SLOT_IDS = [
   "refinery.analyze.mode.full",
   "refinery.analyze.mode.iteration",
   "refinery.analyze.mode.quick",
-  // The NL→schema generator's system prompt (R3/SF — the custom-schema editor's Generate/Refine calls).
+  // The NL→schema generator's system prompt (the custom-schema editor's Generate/Refine calls).
   "refinery.schemaForge.system",
-  // ── per-PRESET: the game-turn steering-reminder TEACHES (census 1-7) — stored in `promptConfig.prose`,
+  // ── per-PRESET: the game-turn steering-reminder TEACHES — stored in `promptConfig.prose`,
   //    authored in the preset Templates tab, and threaded to `LiteReminderInput.prose` by chat's rpg gather
   //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode: a host
   //    override's `{{user}}`/`{{char}}` resolve through the identity-only registry, the default resolves
@@ -184,22 +182,21 @@ export const PROSE_SLOT_IDS = [
   "rpg.reminder.cyoaTeach",
   "rpg.reminder.playerRolledDice",
   "rpg.reminder.frame",
-  // ── per-PRESET: the cast/offstage HEADERS (census 8 + the offstage sibling) and the delta-block headings
-  //    (census 9-10) — `macros:"none"`: a header/heading has no character context to substitute, so its bytes
-  //    ship verbatim (owner decision 5 ruled the delta headings prose/voice, in scope). The cast header is a
-  //    DUAL-surface vocabulary — the reminder AND the `{{rpgCast}}`/`{{rpgSceneState}}` macro feed both resolve
+  // ── per-PRESET: the cast/offstage HEADERS and the delta-block headings — `macros:"none"`: a header/heading
+  //    has no character context to substitute, so its bytes ship verbatim (the delta headings are prose/voice,
+  //    in scope). The cast header is a DUAL-surface vocabulary — the reminder AND the
+  //    `{{rpgCast}}`/`{{rpgSceneState}}` macro feed both resolve
   //    it, so an override lands on both surfaces at once (the "two surfaces, one vocabulary" law). ──
   "rpg.reminder.castHeader",
   "rpg.reminder.offstageHeader",
   "rpg.delta.changesHeading",
   "rpg.delta.sceneOpensHeading",
-  // ── per-PRESET: the EXTRACTION seam (census 11-27 + 29-36) — the WRITE-surface prose every state vehicle
+  // ── per-PRESET: the EXTRACTION seam — the WRITE-surface prose every state vehicle
   //    composes (`contracts/rpg/extraction-prompt.ts` + `domain/rpg/tools/rounds/prompts.ts`). `macros:"none"` for the whole
   //    cohort: several carry a PRE-SUBSTITUTION token vocabulary (this game's tracker catalogue, the worked
   //    example's keys, the resolved ref lists) which the seam splices as data — never the macro engine, which
-  //    has no binding to offer an extraction prompt. Census 27 is `rpg.extract.stateTrackingGuide` — the owner
-  //    ruled decision 6 WIRE, so the former dead `RPG_STATE_TRACKING_GUIDE` constant is now a slot
-  //    composed onto both write surfaces. 28/32 are structural labels, out by §2.11. ──
+  //    has no binding to offer an extraction prompt. `rpg.extract.stateTrackingGuide` stays a slot composed onto
+  //    both write surfaces; the structural labels are out by §2.11. ──
   "rpg.extract.deceptionSurface",
   "rpg.extract.party.resources",
   "rpg.extract.party.states",
@@ -246,13 +243,13 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.refs.closing",
   "rpg.extract.userPrompt.latestBeatLabel",
   "rpg.extract.tool.rollDice",
-  // ── per-PRESET: the POPULATE round's own prose (the populate census rows 1-7).
+  // ── per-PRESET: the POPULATE round's own prose.
   //    Its own `rpg.populate.*` group rather than more
   //    `rpg.extract.*` rows because the two fire on DIFFERENT CALLS — the extraction cohort rides every state
   //    round of every turn, this one rides the host's ONE born-state click over a card — so a host tuning the
   //    card read has no reason to read the turn-loop teaching. Same posture as the extraction cohort
   //    otherwise: `macros:"none"`, with a PRE-SUBSTITUTION token vocabulary the seam splices as data (the
-  //    card's name + body, the opening, the one target ref). Census rows 8-10 (the three host TOASTS) are OUT:
+  //    card's name + body, the opening, the one target ref). The three host TOASTS are OUT:
   //    they are read from a click result and never reach a model, which is the §Scope test. ──
   "rpg.populate.systemHeader",
   "rpg.populate.identity",
@@ -325,7 +322,7 @@ export interface ProseResolution {
   readonly text: string;
 }
 
-// The pre-PROSE-1 override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
+// The legacy override fields (`formatStrings.*`, and a stored `imagery` section the settings lift moves into `prose`) store a BARE string with no
 //  authored-against version. They are adapted, never duplicated: a legacy string is stamped
 //  at the FIRST slot version, so it reads as non-stale today and correctly reports stale the first time its
 //  shipped default is revised.

@@ -16,15 +16,16 @@ import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } 
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select/items";
 import { selectPresetSection, setPresetEditorView } from "#state";
+import { PRESET_EDITOR_VIEW_LABELS } from "./preset-names.ts";
 
 export type PresetEditorView = Readonly<Pick<(typeof PRESET_EDITOR_VIEW_TUPLE)[number], "id"> & { label: string }>;
 
 const PRESET_EDITOR_VIEW_TUPLE = [
-  { id: "params", label: "Params" },
-  { id: "prompt", label: "Prompt" },
-  { id: "actions", label: "Actions" },
-  { id: "data", label: "Data" },
-  { id: "transforms", label: "Transforms" },
+  { id: "params", label: PRESET_EDITOR_VIEW_LABELS.params },
+  { id: "prompt", label: PRESET_EDITOR_VIEW_LABELS.prompt },
+  { id: "actions", label: PRESET_EDITOR_VIEW_LABELS.actions },
+  { id: "data", label: PRESET_EDITOR_VIEW_LABELS.data },
+  { id: "transforms", label: PRESET_EDITOR_VIEW_LABELS.transforms },
 ] as const;
 
 type PresetEditorViewId = (typeof PRESET_EDITOR_VIEW_TUPLE)[number]["id"];
@@ -51,14 +52,6 @@ export const PRESET_EDITOR_VIEWS: readonly PresetEditorView[] = PRESET_EDITOR_VI
  *  drift from the strip's own vocabulary. */
 const PROMPT_VIEW: PresetEditorViewId = "prompt";
 
-/** The sampling view BY ITS VISIBLE LABEL, for prose that sends the reader to it (side-eye 2026-08-22
- *  P3-3). The effective readout's staleness line said "clear them in the deck" — "the deck" is this
- *  codebase's own name for that view (`params-deck.tsx` and ~14 comment sites) and appears nowhere in the
- *  UI, so the one sentence on the surface that names a problem then named a place the reader cannot find.
- *  Read from the tuple for the same reason `PROMPT_VIEW` is: a sentence that points at a tab must print
- *  the strip's own word, and re-spelling it is how the two drift. */
-export const PARAMS_VIEW_LABEL: string = PRESET_EDITOR_VIEW_TUPLE[0].label;
-
 // ── The static enum→label select vocabularies (the non-descriptor knobs) ────────────────────────────
 
 const THINKING_DISPLAY_LABELS: Record<ThinkingDisplay, string> = {
@@ -66,10 +59,10 @@ const THINKING_DISPLAY_LABELS: Record<ThinkingDisplay, string> = {
   omitted: "Omitted",
   updates: "Progress updates",
 };
-export const THINKING_DISPLAY_ITEMS: SelectItems = THINKING_DISPLAYS.map((value) => ({
-  value,
-  label: THINKING_DISPLAY_LABELS[value],
-}));
+/** The Reasoning-display items for the modes a model offers (`reasoning.displayModes`), in the canonical order. */
+export function thinkingDisplayItems(offered: readonly ThinkingDisplay[]): SelectItems {
+  return THINKING_DISPLAYS.filter((value) => offered.includes(value)).map((value) => ({ value, label: THINKING_DISPLAY_LABELS[value] }));
+}
 /** The label an UNSET Reasoning-display select GHOSTS (side-eye F-05). The VALUE comes from the effective
  *  read (the model's own resolved display mode), so a reading this build does not know prints ITSELF rather
  *  than a fabricated label — the read stays the authority on its own vocabulary. */

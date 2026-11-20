@@ -28,7 +28,7 @@ export class ManifestInvalidError extends DomainOperationError {
  *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that
  *  distinction to the caller would turn this into an SSRF ORACLE (an attacker learns their URL resolved private).
  *  The domain never branches on the reason (the `fetchWebDocument`→`ScrapeFailedError` precedent — infra performs
- *  the guarded fetch and THROWS; the verb collapses every throw here). The message
+ *  the guarded fetch and THROWS; `domain/plugin/context.ts` wraps the injected fetch to collapse every throw here). The message
  *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
  *  Maps to BAD_REQUEST. */
 export class PluginBundleFetchError extends DomainOperationError {
@@ -200,6 +200,14 @@ export function asPluginActionError(error: unknown): DomainError {
 
 /** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */
 export class PluginCrashedError extends DomainUnavailableError {}
+
+/** `setCardData` on a character whose stored extensions nest past what the database's JSON functions accept: the
+ *  character is the installer's own and nothing was written. */
+export class PluginCardDataUnwritableError extends DomainOperationError {
+  constructor() {
+    super("plugin_card_data_unwritable", "this character's extension data is nested too deeply to hold per-card plugin state");
+  }
+}
 
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either

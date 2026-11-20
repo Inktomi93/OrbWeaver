@@ -18,13 +18,14 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, notExists } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
 
-/** The degrade target for a corrupt behavior blob: parses, runs nothing (no placement ⇒ every leg skips it). */
-const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", placement: [] });
+/** The degrade target for a corrupt behavior blob: parses, runs nothing (no target and no pass ⇒ every pass skips it). */
+const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", targets: [], passes: [] });
 
 const behaviorParser = regexScriptBehaviorSchema.catch(INERT_BEHAVIOR);
 
@@ -126,6 +127,59 @@ export async function removeScriptsBulk(db: Db, ownerId: UserId, scriptIds: read
   return deleted.map((r) => r.id);
 }
 
+// A script on none of the four junctions runs nowhere. The GLOBAL tier counts: a script attached there runs in
+// every room its owner hosts, so it is never unattached. `exceptPresetId` leaves one preset's own attachment out
+// of the test, for the scripts that preset alone uses.
+function onNoJunction(db: Db, exceptPresetId?: PresetId): SQL | undefined {
+  const presetRows = eq(presetRegexScripts.regexScriptId, regexScripts.id);
+  return and(
+    notExists(db.select({ id: globalRegexScripts.regexScriptId }).from(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, regexScripts.id))),
+    notExists(
+      db.select({ id: characterRegexScripts.regexScriptId }).from(characterRegexScripts).where(eq(characterRegexScripts.regexScriptId, regexScripts.id)),
+    ),
+    notExists(
+      db
+        .select({ id: presetRegexScripts.regexScriptId })
+        .from(presetRegexScripts)
+        .where(exceptPresetId === undefined ? presetRows : and(presetRows, ne(presetRegexScripts.presetId, exceptPresetId))),
+    ),
+    notExists(db.select({ id: chatRegexScripts.regexScriptId }).from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, regexScripts.id))),
+  );
+}
+
+/** The owner's scripts that sit on no junction, newest first. */
+export async function listUnattachedScripts(db: Db, ownerId: UserId): Promise<ScriptRecord[]> {
+  return await db
+    .select()
+    .from(regexScripts)
+    .where(and(eq(regexScripts.ownerId, ownerId), onNoJunction(db)))
+    .orderBy(desc(regexScripts.createdAt));
+}
+
+/** The scripts attached to one owned preset and to nothing else, in the preset's run order. */
+export async function listPresetOnlyScripts(db: Db, ownerId: UserId, presetId: PresetId): Promise<ScriptRecord[]> {
+  const rows = await db
+    .select({ script: regexScripts })
+    .from(presetRegexScripts)
+    .innerJoin(regexScripts, eq(presetRegexScripts.regexScriptId, regexScripts.id))
+    .where(and(eq(presetRegexScripts.presetId, presetId), eq(regexScripts.ownerId, ownerId), onNoJunction(db, presetId)))
+    .orderBy(asc(presetRegexScripts.position), asc(regexScripts.createdAt));
+  return rows.map((r) => r.script);
+}
+
+/** Delete those of the named owned scripts that sit on no junction, in one statement, so a script another scope
+ *  took up after the caller listed it is kept. */
+export async function removeUnattachedScripts(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[]): Promise<RegexScriptId[]> {
+  if (scriptIds.length === 0) {
+    return [];
+  }
+  const deleted = await db
+    .delete(regexScripts)
+    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds]), onNoJunction(db)))
+    .returning({ id: regexScripts.id });
+  return deleted.map((r) => r.id);
+}
+
 /** Clear the GLOBAL attachment of many scripts. Owner-gating is the CALLER's `loadOwnedScriptsByIds` filter —
  *  `global_regex_scripts` has no owner column of its own (its scope is the script's), which is the same reason
  *  the single `detachGlobal` gates on the SCRIPT and then deletes by junction PK. */
@@ -189,6 +243,16 @@ export async function listPresetScripts(db: Db, ownerId: UserId, presetId: Prese
   return rows.map((r) => r.script);
 }
 
+/** Every script attached to any of the owner's presets, each preset's in its run order. */
+export async function listOwnedPresetAttachments(db: Db, ownerId: UserId): Promise<{ readonly presetId: PresetId; readonly script: ScriptRecord }[]> {
+  return await db
+    .select({ presetId: presetRegexScripts.presetId, script: regexScripts })
+    .from(presetRegexScripts)
+    .innerJoin(regexScripts, eq(presetRegexScripts.regexScriptId, regexScripts.id))
+    .where(eq(regexScripts.ownerId, ownerId))
+    .orderBy(asc(presetRegexScripts.presetId), asc(presetRegexScripts.position), asc(regexScripts.createdAt));
+}
+
 // ── The REVERSE rosters: "who attaches THIS script" (`listScriptUsage`) ───────────────────────────────
 // The mirror image of the four reads above — same junctions, read from the SCRIPT side. Ordered by carrier
 // NAME, not junction `position`: position is per-CARRIER execution order and says nothing across carriers,
@@ -225,14 +289,26 @@ export async function listChatIdsAttaching(db: Db, scriptId: RegexScriptId): Pro
   return rows.map((r) => r.chatId);
 }
 
-/** Not owner-filtered — a room's attached scripts are room-public prompt content (membership is the caller's
- *  gate). The `listChatBooks` posture, verbatim. */
+/** Every script attached to the room, whoever owns it: the attach position counts every junction row. The member
+ *  rack and a turn read {@link listHostChatScripts}. */
 export async function listChatScripts(db: Db, chatId: ChatId): Promise<ScriptRecord[]> {
   const rows = await db
     .select({ script: regexScripts })
     .from(chatRegexScripts)
     .innerJoin(regexScripts, eq(chatRegexScripts.regexScriptId, regexScripts.id))
     .where(eq(chatRegexScripts.chatId, chatId))
+    .orderBy(asc(chatRegexScripts.position), asc(regexScripts.createdAt));
+  return rows.map((r) => r.script);
+}
+
+/** The room's attached scripts the room's HOST owns, the set a turn applies and the member rack lists (D64). A row
+ *  a former host left on the room is in {@link listChatScripts} only. */
+export async function listHostChatScripts(db: Db, chatId: ChatId, hostUserId: UserId): Promise<ScriptRecord[]> {
+  const rows = await db
+    .select({ script: regexScripts })
+    .from(chatRegexScripts)
+    .innerJoin(regexScripts, eq(chatRegexScripts.regexScriptId, regexScripts.id))
+    .where(and(eq(chatRegexScripts.chatId, chatId), eq(regexScripts.ownerId, hostUserId)))
     .orderBy(asc(chatRegexScripts.position), asc(regexScripts.createdAt));
   return rows.map((r) => r.script);
 }

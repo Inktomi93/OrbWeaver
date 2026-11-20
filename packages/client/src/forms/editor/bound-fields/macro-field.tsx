@@ -8,6 +8,7 @@ import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { macroTokenCountLine } from "./macro-field-names.ts";
 import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
@@ -46,7 +47,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
         helper={
           props.showTokenCount === true ? (
             <Text as="span" flow="block" textAlign="end" ink="muted" voice="datum">
-              ~{estimateTokens(field.state.value)} tokens
+              {macroTokenCountLine(estimateTokens(field.state.value))}
             </Text>
           ) : undefined
         }

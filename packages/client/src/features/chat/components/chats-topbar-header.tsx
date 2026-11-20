@@ -12,7 +12,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { TEMPORARY_CHAT_BADGE } from "#lib";
 import { useActiveChatId } from "#state";
 import { ChatHeaderSurface } from "./chat-header.tsx";
@@ -22,7 +22,7 @@ import { ChatHeaderSurface } from "./chat-header.tsx";
  *  the moment the cache lands, which for a just-created room is its first frame: `useStartChat` seeds it). */
 function useIsTemporaryChat(chatId: ChatId): boolean {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   return chat?.temporary === true;
 }
 

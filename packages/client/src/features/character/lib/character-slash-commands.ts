@@ -9,7 +9,7 @@ import { Users } from "@orb/ui/icons";
 import type { SlashCommandContribution } from "#lib";
 import { SlashNewCharacterMount } from "../components/slash-new-character-mount.tsx";
 
-/** `/new-character` — opens the Characters section (the palette's former hardcoded "New character" row). */
+/** `/new-character` — opens the Characters section's new-character form (the palette's former hardcoded "New character" row). */
 const newCharacterCommand: SlashCommandContribution = {
   id: "new-character",
   label: "New character",

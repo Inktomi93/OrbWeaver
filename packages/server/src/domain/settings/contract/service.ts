@@ -58,7 +58,7 @@ export interface SettingsContext {
   readonly emitUserEvent: EmitUserEvent;
   /** Materialize a user-pasted external background URL into an owned CAS asset. Compose-built
    *  from infra + assets.store; drives `addExternalBackground`. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId: NewBackgroundEntryId;
   /** This process's frozen build identity (`#foundation/version` at the root). Injected rather than imported
@@ -95,7 +95,7 @@ export interface SettingsServiceDeps {
   readonly requireOwner: RequireOwner;
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   readonly newBackgroundEntryId: NewBackgroundEntryId;
   readonly versionIdentity: () => VersionIdentity;
   readonly probeUpstream: UpstreamProbes;

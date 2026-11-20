@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-10
+updated: 2026-11-12
 priority: P3
 area: tooling
-plan: cross-surface-consistency
+plan: surface-walk
 ---
 
 # Design-audit follow-ups from the contrast branch review

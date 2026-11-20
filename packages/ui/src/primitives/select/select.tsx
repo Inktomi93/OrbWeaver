@@ -138,8 +138,9 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
   size?: VariantProps<typeof selectVariants>["size"];
   /**
-   * The trigger's SCALE: `field` (default) is the form control; `inline` is the identity-line trigger —
-   * text-height, content-width, chrome-free (the name IS the affordance). @defaultValue "field"
+   * The trigger's SCALE: `field` (default) is the form control; `hug` is that control at its value's width; `inline` is the
+   * identity-line trigger — text-height, content-width, chrome-free (the name IS the affordance). Every layout wraps a long
+   * value instead of cutting it. @defaultValue "field"
    */
   layout?: VariantProps<typeof selectVariants>["layout"];
   /** The trigger's value is a name set in its semibold weight (an identity line's subject). */
@@ -287,7 +288,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...variantAttrs(selectVariants, { size, layout })}
             id={triggerId}
           >
-            <BaseSelect.Value className={slots.value({ layout })} data-slot="select-value" placeholder={placeholder}>
+            <BaseSelect.Value className={slots.value()} data-slot="select-value" placeholder={placeholder}>
               {renderValue}
             </BaseSelect.Value>
             <BaseSelect.Icon className={slots.icon()} data-slot="select-icon">

@@ -37,7 +37,7 @@ import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { copyWithNotice, NEEDS_CONTINUATION, notify, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
@@ -226,7 +226,8 @@ export function MessageActionsRow({
       // is a copy of the parent's, so without it the switch is invisible.
       selectChat(result.chat.id);
       notify.success("Forked to a new chat.");
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // The sticky mutation error + the global errorToast already surfaced the failure.
     }
   };

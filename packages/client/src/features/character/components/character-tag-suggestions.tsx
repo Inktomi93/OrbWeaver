@@ -19,6 +19,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { dismissActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { EditableTagChip, useAcceptSuggestion, useRejectSuggestion } from "#components";
@@ -139,14 +140,14 @@ function SuggestionChip({
           easy to mis-dismiss: the BUTTON computes 13px, the span inside it computed 10.5. The chip stays
           the quietest thing on the editor by the means CD3 actually names — no fill, a hairline outline —
           which this does not touch. */}
-      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="min-inline-0" cap="fit" onClick={onAccept}>
+      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} minWidth="shrinks" cap="fit" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
         <Text ink="inherit" as="span" voice="label" truncate={true}>
           {name}
         </Text>
       </Button>
       <EditableTagChip tag={tag} iconOnly={true} />
-      <Button type="button" square={true} variant="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
+      <Button type="button" square={true} variant="ghost" aria-label={dismissActionName(name)} onClick={onReject}>
         <Icon icon={X} size="xs" />
       </Button>
     </Badge>

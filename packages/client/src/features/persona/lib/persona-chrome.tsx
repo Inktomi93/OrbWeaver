@@ -9,10 +9,11 @@
 import type { ReactNode } from "react";
 import type { ChromeEntry, ChromePresentation } from "#state";
 import { PersonaPanelSurface } from "../surfaces/persona-panel-surface.tsx";
+import { PERSONA_PANEL_NAME } from "./persona-copy.ts";
 
 export const personaChrome: ChromeEntry = {
   id: "persona-identity",
-  label: "Account & personas",
+  label: PERSONA_PANEL_NAME,
   zone: "rail.end",
   // After the rail.end footer modals (theme/settings order 0/1) — the identity sits last, as the
   // desktop rail-foot avatar did.

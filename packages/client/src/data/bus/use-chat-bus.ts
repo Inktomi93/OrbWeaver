@@ -60,6 +60,7 @@ import { useEffect, useRef } from "react";
 import { busSubscribe, busUnsubscribe, notify } from "#lib";
 import type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 import { applyChatBusEvent } from "./apply-chat-bus-event.ts";
+import { useHandoverReadRelease } from "./chat-bus-writes.ts";
 import { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 import { useBusRoom } from "./use-bus-room.ts";
 
@@ -84,6 +85,7 @@ export function useChatBus(chatId: ChatId, deps: ChatBusDeps): void {
   // from the `chatOpened` synthetic's own frame seq. A REF, not state: it feeds the `sinceSeq` THUNK (re-read
   // at every re-announce) and never a render, so adopting it must not re-render the room.
   const attachFloor = useRef<number | null>(null);
+  useHandoverReadRelease(chatId);
   // [bus] dev log — mirrors the room's own lifecycle (same deps as the join effect below).
   useEffect((): (() => void) => {
     busSubscribe(chatId, false);

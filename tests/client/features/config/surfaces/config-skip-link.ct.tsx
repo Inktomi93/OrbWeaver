@@ -6,9 +6,9 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PRO
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { CONFIG_SKIP_NAME } from "#client/features/config/lib/config-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
-const SKIP_NAME = /^Skip to /u;
 
 test.use({ viewport: { width: 1280, height: 600 } });
 
@@ -23,7 +23,7 @@ test("the Settings list's focused skip link keeps its control height", async ({ 
   });
   await seedShellState(page, { activeSection: "config", panelOverrides: { config: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const skip = page.locator('[data-slot="config-list"]').getByRole("button", { name: SKIP_NAME });
+  const skip = page.locator('[data-slot="config-list"]').getByRole("button", { name: CONFIG_SKIP_NAME, exact: true });
   await skip.focus();
   await expect(skip).toBeFocused();
   const box = await skip.boundingBox();

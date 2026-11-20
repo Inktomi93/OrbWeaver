@@ -12,7 +12,7 @@ import type { AddCredentialParams } from "../contract/params.ts";
 import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { insertSealed, listProviderLabels } from "../persistence/queries.ts";
-import { reloadView, requireStorage } from "../substrate/stored.ts";
+import { reloadView, requireStorage } from "../persistence/stored.ts";
 
 const DEFAULT_LABEL = "default";
 

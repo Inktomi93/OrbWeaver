@@ -9,7 +9,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/helpers";
-import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_NOT_NOW_NAME } from "#client/features/chat/lib/members-names.ts";
+import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_DIALOG_TITLE, JOIN_NOT_NOW_NAME } from "#client/features/chat/lib/members-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 
@@ -24,7 +24,7 @@ const PREVIEW = invitePreviewSchema.parse({
   modeLabel: "The room mode supplied by the preview.",
 });
 const ROOM_SENTENCE = inviteRoomSentence(PREVIEW);
-const DIALOG = "Join a chat";
+const DIALOG = JOIN_DIALOG_TITLE;
 
 function previewFor({ token }: TrpcInput<"invites.previewInvite">): typeof PREVIEW | ReturnType<typeof trpcError> {
   return token === DEAD_TOKEN ? trpcError({ code: "NOT_FOUND", message: "The preview cannot be read." }) : PREVIEW;

@@ -6,15 +6,16 @@ import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ViewerDialog } from "#components";
+import { MutedLine, ViewerDialog } from "#components";
+import { REFINERY_ORIGINAL_CARD_NOTE, REFINERY_ORIGINAL_CARD_TITLE } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export function OriginalCardDialog({ card, onOpenChange }: { readonly card: CharacterCard; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   return (
-    <ViewerDialog onOpenChange={onOpenChange} open={true} title="Original card: pinned at session start">
+    <ViewerDialog onOpenChange={onOpenChange} open={true} title={REFINERY_ORIGINAL_CARD_TITLE}>
       <Heading level={2}>{card.name}</Heading>
       <Text cap="prose" voice="gloss">
-        Read-only authored fields pinned when this session started. Macros are shown as written.
+        {REFINERY_ORIGINAL_CARD_NOTE}
       </Text>
       {REFINABLE_FIELDS.map((field) => {
         if (field === "greetings") {
@@ -59,7 +60,7 @@ function OriginalGreetings({ greetings }: { readonly greetings: CharacterCard["g
           </Text>
         </Stack>
       ))}
-      {greetings.length === 0 ? <Text voice="gloss">No greetings pinned.</Text> : null}
+      {greetings.length === 0 ? <MutedLine>No greetings pinned.</MutedLine> : null}
     </Stack>
   );
 }

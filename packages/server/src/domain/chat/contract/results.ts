@@ -4,10 +4,14 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
+  ChatRegexNotAppliedOverflowWarning,
+  ChatRegexNotAppliedWarning,
+  ChatSource,
   CueRole,
   GroupConfig,
   ParticipantData,
   ReactAsCharacterResult,
+  RegexServerPass,
   SpeakerRef,
   TextSignature,
   TokenProvenance,
@@ -33,6 +37,7 @@ import type {
   TokenDetails,
 } from "@orb/contracts/inference";
 import type { EffortLevel, PromptSectionId, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
@@ -45,9 +50,10 @@ import type {
   ToolCallInput,
   WireTool,
 } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { RegexScriptInput } from "@orb/kit/regex";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
 import type { ChatDetailData } from "./views.ts";
@@ -145,6 +151,10 @@ export interface TurnRequest {
    *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
    *  when the wire already produced a reasoning channel. */
   readonly reasoningTags?: ReasoningTagPair | undefined;
+  /** The preset's authored chain of thought (`reasoningSeed`), forwarded to `ChatRequest.prefillReasoning`
+   *  where a wire with a continue row stamps it onto the prefill. The domain forwards it whenever the preset
+   *  states it; the transports own every drop with their own notice (no silent vanish). */
+  readonly prefillReasoning?: string | undefined;
   /** The tools this turn offers, BACKEND-NEUTRAL (D177): the executable set
    *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
    *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the
@@ -154,7 +164,7 @@ export interface TurnRequest {
   /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** ONE rendered contribution to a turn's context, attributed to its BUDGET SOURCE — the per-section product
@@ -255,6 +265,9 @@ export interface TurnEconomics {
   readonly connectionId?: UserConnectionId | null;
   readonly tokensIn?: number | null;
   readonly tokensOut?: number | null;
+  /** Where the two counts above came from. Absent reads as `measured` when either count is present; a stopped
+   *  reply's cut call is `estimated`, because no provider reported its usage. */
+  readonly tokenProvenance?: TokenProvenance;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
   /** The reasoning share of `tokensOut` where the wire reports one; absent/null otherwise. */
@@ -293,6 +306,10 @@ export interface TurnEconomics {
   /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
   readonly generationId?: ProviderGenerationId | null;
+  /** The vendor's per-generation `system_fingerprint` (`ChatResult.systemFingerprint`) — the backend's model-mix
+   *  identity for this generation, persisted as a top-level `message_variants.metadata` key. Absent/null where the
+   *  wire reported none. Opaque provenance (§5.3c class 4): recorded, never compared. */
+  readonly systemFingerprint?: string | null;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
    *  closed per-provider union (§5.3c class 3): the ephemeral cache-creation TTL split, the subscription's
    *  warm-spare receipt, OpenRouter's upstream vendor and its pre-fee charge. Persisted under
@@ -309,6 +326,10 @@ export interface TurnEconomics {
    *  moment an `asset:` id exists to spell into the body. Absent on every text-only turn. */
   readonly replyImages?: readonly GeneratedImage[] | undefined;
   readonly textSignatures?: readonly TextSignature[] | undefined;
+  /** The web sources the turn cited (`ChatResult.sources`), spans measured in THIS turn's reply text, in
+   *  arrival order and never deduplicated — persisted as `message_variants.metadata.sources`. Absent on a turn
+   *  that cited nothing. */
+  readonly sources?: readonly ChatSource[] | undefined;
 }
 
 /** §6.7 — the emitted twin of a `TurnEconomics.replyImages` entry: one picture the engine has already
@@ -338,6 +359,25 @@ export interface InlineReplyImageProjection {
   readonly offsets: readonly number[];
 }
 
+/** A host-only regex warning's payload: one script a pass did not apply, or the count left unnamed past the cap. */
+export type RegexNotice = ChatRegexNotAppliedWarning | ChatRegexNotAppliedOverflowWarning;
+
+/**
+ * A turn's (or one edit's) record of the host scripts its passes did not apply (D53). Each script and cause is
+ * recorded once for the episode's life, however many rows, entries or speakers report it; the pass is where it was
+ * first seen. Only the first `REGEX_NOT_APPLIED_NAMED_MAX` are named; past that the episode keeps a count and builds
+ * nothing per notice. A turn's round shares one episode across its speakers. A preview build carries none, so it
+ * records nothing.
+ */
+export interface RegexNoticeEpisode {
+  /** Record one `onScriptFailure`. `scripts` is the list the pass was given: the script is named by finding its
+   *  stored row in that list by identity, never by its pattern. */
+  readonly note: (pass: RegexServerPass, err: unknown, script: RegexScriptInput, scripts: readonly RegexScriptRow[]) => void;
+  /** The named notices recorded since the last take, in the order they were first seen, then one overflow notice
+   *  when any went unnamed since the last take. */
+  readonly take: () => readonly RegexNotice[];
+}
+
 /**
  * The immutable per-turn context (RESOLVE+GATHER produce it; BUILD+SHAPE take it + a speaker and return a
  * prompt, never mutating it). A per-speaker round re-derives SHAPE off this immutable prep — no shared-ctx
@@ -352,9 +392,9 @@ export interface TurnPrep {
   /** The initiator who owns attribution and abort. The caller (`Principal.userId`) need not be the initiator. */
   readonly triggeredBy: UserId;
   /** The frozen room host whose connection funds every inference call belonging to this turn. */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   /** The same frozen host as the assembly and tool principal. */
-  readonly runAsUserId: UserId;
+  readonly runAsUserId: ConsentingHostId;
   /** The turn's origin (the cascade guard's non-human-initiator seam). Absent ⇒
    *  a human turn (`'human'`/depth 0 — the DB column defaults), so every human/character/agent verb stays
    *  byte-identical. An automation `requestTurn` threads `'automation'` + `parentDepth + 1`; the engine
@@ -377,6 +417,10 @@ export interface TurnPrep {
    *  recall (merged/narrator/solo, memory off, or an empty roster) ⇒ the round-level `assembleContext.memory` stands
    *  byte-identically. Shared across the round's speakers (the recent-window + name-map are speaker-invariant). */
   readonly memoryRecall?: MemoryRecallInputs | null | undefined;
+  /** The round's record of host regex scripts its passes did not apply, shared across its speakers like
+   *  `memoryRecall`: USER_INPUT and WORLD_INFO recorded at the gather, the reply and history legs at each speaker's
+   *  pipeline. The engine drains it into host-only warnings. Absent ⇒ nothing to tell. */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU delivery) — handler CLOSURES capturing this turn's
    *  resolved input bindings, so it is SERVER-ONLY and rides HERE, NEVER on the serializable
    *  `assembleContext` (a client-imported contract shape). Absent ⇒ the preset authored no user macros ⇒
@@ -440,10 +484,10 @@ export interface TurnPrep {
   readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
    *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION: a post-start throw with
-   *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the
+   *  the signal SETTLED is `turnAborted(reason:"user"|"stale"|"shutdown")` and returns the aborted outcome; with the
    *  signal un-settled it is a fault — `turnAborted(reason:"error")` and a rethrow — however the error is
    *  NAMED. Absent ⇒ nothing can cancel this turn, so every post-start throw is a fault. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /**

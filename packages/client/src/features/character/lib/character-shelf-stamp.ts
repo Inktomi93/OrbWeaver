@@ -1,5 +1,6 @@
 // The stamp line under a Recently chatted face.
 import { timeLib } from "#lib";
+import { CHARACTER_CHATTED_STAMP_LEAD } from "./character-names.ts";
 
 const NO_BREAK_SPACE_CODE_POINT = 0xa0;
 const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
@@ -12,5 +13,5 @@ const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
  *  after it: a line that ends on the separator reads as a fragment of the count under it. */
 export function chattedStamp(lastChattedAt: number, chatCount: number): string {
   const threads = chatCount === 1 ? "1 chat" : `${chatCount} chats`;
-  return `chatted ${timeLib.formatRelativeAgo(lastChattedAt)} ·${NO_BREAK_SPACE}${threads.replace(" ", NO_BREAK_SPACE)}`;
+  return `${CHARACTER_CHATTED_STAMP_LEAD} ${timeLib.formatRelativeAgo(lastChattedAt)} ·${NO_BREAK_SPACE}${threads.replace(" ", NO_BREAK_SPACE)}`;
 }

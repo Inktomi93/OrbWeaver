@@ -14,6 +14,7 @@
 // enable the localMultiUser AppSetting (D17 toggle) → create the member (idempotent) → ASSERT
 // /api/auth/config reports multiHumanCapable and that BOTH humans authenticate.
 import process from "node:process";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -51,7 +52,11 @@ export function multiUserConfig(): MultiUserConfig {
 
 /** A non-batched tRPC call as the fallback owner (no transformer server-side → raw input body). */
 async function trpc(baseUrl: string, proc: string, input?: unknown): Promise<unknown> {
-  const init: RequestInit = input === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) };
+  // A read goes out as GET, which the mount refuses without the CSRF header even on the owner fallback.
+  const init: RequestInit =
+    input === undefined
+      ? { headers: { [CSRF_HEADER]: "1" } }
+      : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) };
   const res = await fetch(`${baseUrl}/api/trpc/${proc}`, init);
   const text = await res.text();
   if (!res.ok) {

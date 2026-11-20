@@ -1,5 +1,6 @@
-// The "Reading typography" appearance SECTION (SET-SEAMS stage 1) — message line-height / letter-spacing /
-// paragraph-spacing / name+body scale + the justify toggle. Sizing/spacing only, never blur.
+// The "Reading typography" appearance SECTION (SET-SEAMS stage 1) — message line spacing / letter spacing /
+// body scale + the justify toggle. Paragraph gaps derive from the line spacing and speaker names from the body
+// scale (client globals.css), so neither has a knob. Sizing/spacing only, never blur.
 //
 // It used to be a fragment TAKING the pane's one welded autosave form as a prop; under SET-SEAMS it owns its
 // own read, its own key-minimal write and its own form session, and it is a settings-SECTION CONTRIBUTION at
@@ -18,6 +19,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateReading } from "../hooks/use-appearance-mutations.ts";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
@@ -27,9 +29,6 @@ const READING_LINE_HEIGHT_STEP = 0.05;
 const READING_LETTER_SPACING_MIN = -0.02;
 const READING_LETTER_SPACING_MAX = 0.08;
 const READING_LETTER_SPACING_STEP = 0.005;
-const READING_PARAGRAPH_SPACING_MIN = 0;
-const READING_PARAGRAPH_SPACING_MAX = 3;
-const READING_PARAGRAPH_SPACING_STEP = 0.05;
 const READING_SCALE_MIN = 0.8;
 const READING_SCALE_MAX = 1.6;
 const READING_SCALE_STEP = 0.05;
@@ -88,7 +87,12 @@ function ReadingBody({
           <SettingRow settingId="line-height">
             <form.AppField name="readingLineHeight">
               {(field): ReactElement => (
-                <field.SliderField label="Line height" min={READING_LINE_HEIGHT_MIN} max={READING_LINE_HEIGHT_MAX} step={READING_LINE_HEIGHT_STEP} />
+                <field.SliderField
+                  label={configSettingLabel(APPEARANCE_READING_SUBCATEGORY, "readingLineHeight")}
+                  min={READING_LINE_HEIGHT_MIN}
+                  max={READING_LINE_HEIGHT_MAX}
+                  step={READING_LINE_HEIGHT_STEP}
+                />
               )}
             </form.AppField>
           </SettingRow>
@@ -96,7 +100,7 @@ function ReadingBody({
             <form.AppField name="readingLetterSpacing">
               {(field): ReactElement => (
                 <field.SliderField
-                  label="Letter spacing"
+                  label={configSettingLabel(APPEARANCE_READING_SUBCATEGORY, "readingLetterSpacing")}
                   min={READING_LETTER_SPACING_MIN}
                   max={READING_LETTER_SPACING_MAX}
                   step={READING_LETTER_SPACING_STEP}
@@ -104,34 +108,22 @@ function ReadingBody({
               )}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="paragraph-spacing">
-            <form.AppField name="readingParagraphSpacing">
+          <SettingRow settingId="body-scale">
+            <form.AppField name="readingBodyScale">
               {(field): ReactElement => (
                 <field.SliderField
-                  label="Paragraph spacing"
-                  min={READING_PARAGRAPH_SPACING_MIN}
-                  max={READING_PARAGRAPH_SPACING_MAX}
-                  step={READING_PARAGRAPH_SPACING_STEP}
+                  label={configSettingLabel(APPEARANCE_READING_SUBCATEGORY, "readingBodyScale")}
+                  min={READING_SCALE_MIN}
+                  max={READING_SCALE_MAX}
+                  step={READING_SCALE_STEP}
                 />
               )}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="name-scale">
-            <form.AppField name="readingNameScale">
-              {(field): ReactElement => (
-                <field.SliderField label="Speaker name size" min={READING_SCALE_MIN} max={READING_SCALE_MAX} step={READING_SCALE_STEP} />
-              )}
-            </form.AppField>
-          </SettingRow>
-          <SettingRow settingId="body-scale">
-            <form.AppField name="readingBodyScale">
-              {(field): ReactElement => (
-                <field.SliderField label="Message text size" min={READING_SCALE_MIN} max={READING_SCALE_MAX} step={READING_SCALE_STEP} />
-              )}
-            </form.AppField>
-          </SettingRow>
           <SettingRow settingId="justify">
-            <form.AppField name="justifyBodyText">{(field): ReactElement => <field.SwitchField label="Justify message text" />}</form.AppField>
+            <form.AppField name="justifyBodyText">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_READING_SUBCATEGORY, "justifyBodyText")} />}
+            </form.AppField>
           </SettingRow>
         </SettingRowGroup>
       </ConfigTeachScope>

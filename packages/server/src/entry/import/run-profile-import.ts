@@ -7,7 +7,7 @@ import type { ImportAssetPort } from "#domain/assets";
 import { createImportAvatarStore } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
-import type { ImportFile, RestoreCharacterBookResult } from "#domain/import";
+import type { ExportCurrentCard, ImportFile, RestoreCharacterBookResult } from "#domain/import";
 import { buildImportContext, createImportService, importCardBatch } from "#domain/import";
 import { createImportedCardTag } from "#domain/tag";
 
@@ -16,6 +16,8 @@ export interface ProfileImportDeps {
   readonly character: ImportCharacterPort;
   readonly assets: ImportAssetPort;
   readonly tag: ImportTagPort;
+  /** The lookup's last step, so a card exported from this library finds the row the app wrote (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
   /** When composed, embedded card lorebooks import to world_books/character_books. */
   readonly worldInfo?: ImportWorldInfoPort;
   /** When composed, a card's embedded regex scripts land as library rows attached to the character — the same
@@ -36,13 +38,14 @@ export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files"
  *  lorebook restore) compose the identical wiring, so a port that lands on one arm can never be missing from
  *  the other. */
 function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<typeof createImportService> {
-  const { principal, character, assets, tag, worldInfo, importCardScripts } = deps;
+  const { principal, character, assets, tag, exportCurrentCard, worldInfo, importCardScripts } = deps;
   return createImportService(
     buildImportContext({
       principal,
       characterOps: createCharacterImportOps(principal, character),
       storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
       attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
+      exportCurrentCard,
       ...(worldInfo !== undefined
         ? { importLorebook: worldInfo.importLorebook, hasPrimaryBook: worldInfo.hasPrimaryBook, linkCarriedBooks: worldInfo.linkCarriedBooks }
         : {}),

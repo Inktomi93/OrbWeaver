@@ -5,11 +5,11 @@
 // LAWS honored here:
 //   • Turn identity (D19): no bus event carries a caller id — turn attribution rides the turn path
 //     (`triggeredBy`/`runAsUserId`), never the public bus.
-//   • Bus-payload allowlist (Part III inv §11): every `ChatBusEvent` member is a closed object literal of
+//   • Bus-payload allowlist: every `ChatBusEvent` member is a closed object literal of
 //     branded ids, enum literals, plain scalars, and `MessageView` — credentials/secrets/baseUrls are
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
-import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, RegexScriptId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import { WARNING_CODE } from "../inference/warnings.ts";
@@ -96,7 +96,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // Tools were attached but `capability.tools` is absent → dropped; the turn proceeds tool-less
   // (D48; the domain-side gate per D51's rule — the emit site is the engine's attach gate).
   "tools_unsupported",
-  // The post-turn memory build (§3a fire-and-forget) threw — group/scoped digests did NOT build this turn
+  // The post-turn memory build (fire-and-forget) threw — group/scoped digests did NOT build this turn
   // (a summarizer outage, a store failure, a mint failure). Emitted from the engine's memory-trigger catch so
   // the silent-failure black hole is observable; the turn's reply is unaffected.
   "memory_build_failed",
@@ -108,9 +108,8 @@ const PLAIN_CHAT_WARNING_CODES = [
   // their embedding index is mid-move (`search_space_reindexing`) or no embed connection is bound
   // (`search_no_space`). The turn is UNAFFECTED apart from the missing slot.
   // WHY IT EXISTS: that refusal is correct for a SEARCH surface — a half-migrated geometry ranks
-  // dimensionally-valid nonsense — but it used to travel out of the in-turn GATHER and kill the whole turn
-  // with a 400, which is the opposite trade: a turn's retrieval is an ENHANCEMENT to the turn. The compose
-  // bindings now degrade those two codes to "nothing retrieved" and raise this instead. Degraded-and-loud
+  // dimensionally-valid nonsense — but a turn's retrieval is an ENHANCEMENT to the turn, so the compose
+  // bindings degrade those two codes to "nothing retrieved" and raise this instead. Degraded-and-loud
   // (D41); every OTHER search failure still propagates and still faults the turn.
   // ONE PER TURN, never one per slot or per speaker: the shared `TurnRetrievalWarningEpisode` collapses the
   // round-level recall, every per-speaker recall, and the databank gather into a single notice.
@@ -120,7 +119,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // Emitted from the registry's apply pass so a host sees a misbehaving rule/plugin without losing the reply.
   "prompt_transform_skipped",
   // An image generation dropped its edit/avatar-reference input because the resolved image model lacks
-  // `input.imageEdit` (the domain B3 gate drops-with-warning, or the runner belt strips
+  // `input.imageEdit` (the domain gate drops-with-warning, or the runner belt strips
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
@@ -150,11 +149,11 @@ const PLAIN_CHAT_WARNING_CODES = [
   // reranker sibling of `smart_arbitration_degraded`: the fix is a Reranker binding, not a Utility model.
   "speaker_rerank_unavailable",
   // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
-  // bound row has `allowBackground` off (inference program §5.3a: the background tasks share ONE degrade
+  // bound row has `allowBackground` off (the background tasks share ONE degrade
   // notice so "nothing ran" is never the whole signal). The turn itself is unaffected.
   "background_task_degraded",
   // A `system`-placement guided steer FELL BACK to a depth-0 injection because the active preset's template
-  // lacks (or disabled) the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands — via
+  // lacks (or disabled) the `{{guided_instruction}}` marker. The steer still lands — via
   // the ChatInjection channel — instead of vanishing behind the config-editor's marker chip. Degraded-and-loud
   // (D41): emitted from the engine's capability-drop pass off the assembled `guidedPlacedAsInjection` flag.
   "guided_placed_as_injection",
@@ -173,13 +172,19 @@ const PLAIN_CHAT_WARNING_CODES = [
   // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays where it already lives —
   // the infra `refusal` ChatEvent and the wire-outcome ring — and this is the user's half.
   "provider_refused",
-  // §6.7 — the model DID emit a picture inside its reply and we could not keep it: the provider's payload
+  // The model DID emit a picture inside its reply and we could not keep it: the provider's payload
   // carried neither bytes nor a URL, the URL was refused by the SSRF-safe egress belt, the bytes were not a
   // real image, or they blew the per-image cap. The PROSE still committed (the reply is the product), and no
   // `asset:` span was written, so canon never names a blob that does not exist. Degraded-and-loud (D41):
   // without it a captioned-but-pictureless reply reads as the model babbling about an image nobody sent.
   // COUNT-FREE like every other plain code — one notice per turn, not one per lost picture.
   "reply_image_failed",
+  // The turn's text read or set a global variable in a room another human has held a seat in, so the reads gave
+  // nothing and the writes were dropped (the plane is `held`). The reply is unaffected.
+  "global_variables_held",
+  // A `{{setglobalvar}}` write this reply made was refused by a cap (key or value size, a NUL, the per-turn
+  // key count or the owner's key total) and not stored; the reply and the other writes committed.
+  "global_variable_dropped",
   HIDDEN_TAG_BROKEN_CODE,
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
@@ -189,15 +194,47 @@ export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
  *  derived from this tuple (no inline re-spell), and the tuple COMPOSES the plain codes above with the one
  *  detail-bearing carrier so neither list can drift from the other.
  *
- *  THE PROVIDER-ADJUSTMENT CARRIER (owner ruling). Ten resolve/wire degradation classes
- *  used to map to `null` at the domain boundary (`engine.ts` `toChatWarning`) and were filtered out, so a
- *  user believed a requested knob/budget/tool result applied when the provider had ignored or clamped it.
- *  They surface as ONE code carrying STRUCTURED detail rather than ten members, because the ten share a
- *  single user sentence — "the provider did not do what you asked, here is what it did instead" — and the
- *  thing that differs is DATA (which knob, which value), not copy structure. The detail rides
+ *  THE PROVIDER-ADJUSTMENT CARRIER (owner ruling). Ten resolve/wire degradation classes share a single
+ *  user sentence — "the provider did not do what you asked, here is what it did instead" — so they surface
+ *  as ONE code carrying STRUCTURED detail rather than ten members: the thing that differs is DATA (which
+ *  knob, which value), not copy structure. Filtering them instead would let a user believe a requested
+ *  knob/budget/tool result applied when the provider had ignored or clamped it. The detail rides
  *  `adjustment` (+ `knob`/`appliedBudget`/`appliedEffort`); the client renders one notice per class. */
 export const SETTINGS_ADJUSTED_CODE = "settings_adjusted";
-export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE] as const;
+
+/** A host regex script a server pass did not apply (D53). HOST-ONLY: a script's existence and name are its owner's,
+ *  and every server leg runs the host's scripts, so `stripChatEventForMember` withholds it from a member on the live
+ *  fan, the durable replay and a late join. It names the script by id only. A script name is free text, and an
+ *  imported one is hostile, so the host's client reads it from the host's own script library. */
+export const REGEX_SCRIPT_NOT_APPLIED_CODE = "regex_script_not_applied";
+
+/** Why a pass did not apply a script. `row_deadline`: stopped at the per-text deadline. `pass_budget`: not run, the
+ *  pass's CPU budget was spent. `substitution_too_long`: raw macro substitution added too much to the find pattern.
+ *  `output_too_long`: the replacement would have grown the text past the pass's output bound. `did_not_compile`: the
+ *  find pattern would not compile, or failed in a way none of the others name. */
+const REGEX_NOT_APPLIED_CAUSES = ["row_deadline", "pass_budget", "substitution_too_long", "output_too_long", "did_not_compile"] as const;
+export type RegexNotAppliedCause = (typeof REGEX_NOT_APPLIED_CAUSES)[number];
+
+/** The server pass a script was skipped on: the four persist-time legs, the prompt-history leg, and the re-apply an
+ *  edit runs. */
+const REGEX_SERVER_PASSES = ["user_input", "ai_output", "reasoning", "world_info", "prompt_history", "edit_reapply"] as const;
+export type RegexServerPass = (typeof REGEX_SERVER_PASSES)[number];
+
+/** The most {@link REGEX_SCRIPT_NOT_APPLIED_CODE} warnings one turn or edit writes, the first in pass order. Each is a
+ *  durable row any member's turn can cause, so a host library of broken scripts must not grow the room's log per
+ *  script. */
+export const REGEX_NOT_APPLIED_NAMED_MAX = 8;
+
+/** The script-and-cause notices one turn or edit raised past {@link REGEX_NOT_APPLIED_NAMED_MAX}, as one count. HOST-ONLY
+ *  on the same arm and for the same reason as {@link REGEX_SCRIPT_NOT_APPLIED_CODE}; it carries no id or cause. */
+export const REGEX_NOT_APPLIED_OVERFLOW_CODE = "regex_not_applied_overflow";
+
+export const CHAT_WARNING_CODES = [
+  ...PLAIN_CHAT_WARNING_CODES,
+  SETTINGS_ADJUSTED_CODE,
+  REGEX_SCRIPT_NOT_APPLIED_CODE,
+  REGEX_NOT_APPLIED_OVERFLOW_CODE,
+] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 // The provider ran the turn in a compatibility mode: it substituted its own value where this model spells a setting
@@ -220,6 +257,8 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   WARNING_CODE.reasoningBudgetClamped,
   WARNING_CODE.toolResultErrorDropped,
   WARNING_CODE.reasoningDroppedForPrefill,
+  WARNING_CODE.prefillReasoningDropped,
+  WARNING_CODE.prefillSuppressedByTools,
   WARNING_CODE.toolChoiceDowngraded,
   WARNING_CODE.carryReasoningDowngraded,
   WARNING_CODE.cacheControlAdjusted,
@@ -241,7 +280,23 @@ type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *      clean on the D16 anchor allowlist), while `bus-payload-allowlist` refuses an unmodelled shape kind.
  *  The doubling is therefore ENFORCED rather than trusted: `index.test-d.ts` pins that the bus's `warning`
  *  members and this type are the same set, so a field added to one and not the other fails `tsc`. */
-export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning;
+export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning | ChatRegexNotAppliedWarning | ChatRegexNotAppliedOverflowWarning;
+
+/** The regex arm on its own, named for the same reason as {@link ChatSettingsAdjustedWarning}. One warning per
+ *  script and cause per turn or edit; `pass` is where it was first seen. */
+export interface ChatRegexNotAppliedWarning {
+  code: typeof REGEX_SCRIPT_NOT_APPLIED_CODE;
+  scriptId: RegexScriptId;
+  cause: RegexNotAppliedCause;
+  pass: RegexServerPass;
+}
+
+/** The overflow arm on its own, named for the same reason. `count` is a positive integer: the distinct
+ *  script-and-cause notices the turn or edit left unnamed. */
+export interface ChatRegexNotAppliedOverflowWarning {
+  code: typeof REGEX_NOT_APPLIED_OVERFLOW_CODE;
+  count: number;
+}
 
 /** The detail-bearing arm on its own — a NAMED type rather than an `Extract<ChatWarning, …>` at each reader,
  *  for the same measured reason the code tuple is split: biome does not evaluate a conditional type, so a copy
@@ -258,8 +313,8 @@ export interface ChatSettingsAdjustedWarning {
 const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
 export type TurnIntent = (typeof TURN_INTENTS)[number];
 
-/** Why a turn aborted. */
-export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
+/** Why a turn aborted. `shutdown` is the server closing under the turn: no member asked for it to end. */
+export const TURN_ABORT_REASONS = ["user", "error", "stale", "shutdown"] as const;
 export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 
 // The pre-provider `{{memory}}` recall phase the header brain-icon reflects (the `memoryRecall` bus member).
@@ -269,6 +324,12 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 //  stays idle — an absent event, never a lying "recalled 0"). One vocabulary; each event arm pairs its phase with the count witness.
 const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
 export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
+
+// The provider's first-token wait the pending row reflects (the `providerWait` bus member). `"waiting"` is stamped
+//  when a dispatched request has answered nothing for a short while, so a large local model still loading reads as a
+//  wait rather than a hang; `"started"` follows on the first chunk after a `"waiting"`. A fast provider emits neither.
+const PROVIDER_WAIT_PHASES = ["waiting", "started"] as const;
+export type ProviderWaitPhase = (typeof PROVIDER_WAIT_PHASES)[number];
 
 /** The `DomainOperationError.code` a lock-loss / cancel / fault turn abort surfaces to an AWAITING caller —
  *  the wire-vocabulary home the client keys on off a tRPC error's `data.reason` (the seat-refusal precedent:
@@ -282,8 +343,35 @@ export const TURN_ABORTED_OP_CODE = "aborted" as const;
  *  never on message text, and the server's `CHAT_OP_CODES.locked` derives this literal. The refusal is total
  *  (no turn ran, nothing was written), and it is the ONE turn error whose cause the user can act on — so the
  *  client maps it to honest copy naming the other turn instead of its generic "couldn't swipe" toast
- *  (`features/chat/lib/turn-abort-notice.ts`). */
+ *  (`packages/client/src/lib/turn-abort-notice.ts`). */
 export const TURN_LOCKED_OP_CODE = "locked" as const;
+
+/** The `DomainOperationError.code` a turn surfaces when it meets its room being removed (a husk reap holds the
+ *  room closed for its delete): the same wire-vocabulary home as `locked`, so the client can tell "the chat is
+ *  going away" from "another reply is generating". Nothing was written, and the room will not come back. */
+export const TURN_ROOM_CLOSING_OP_CODE = "room_closing" as const;
+
+/** The `DomainOperationError.code` a turn surfaces when the room's host is outside its consent set (disabled, or
+ *  gone from the room). Only a caller who holds a present seat reads it; everyone else reads the leak-free not
+ *  found. It names no account state: a member is told the host is unavailable, never why. */
+export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
+
+/** The `data.reason` prefix every provider failure rides on a tRPC error, followed by the provider's failure kind
+ *  (`provider_auth_failed`). The server's error mapping spells the reason from this constant. */
+export const PROVIDER_FAILURE_REASON_PREFIX = "provider_";
+
+/** A provider failure's `data.reason`: the prefix and one of `@orb/inference`'s failure kinds, which contracts cannot
+ *  import (it sits below inference). */
+export type ProviderFailureReason = `${typeof PROVIDER_FAILURE_REASON_PREFIX}${string}`;
+
+/** The provider failures the connection's owner fixes under Connections: a rejected key, the account's balance, or a
+ *  model the provider does not serve. A failed reply offers that door for these alone. Each member must name one of
+ *  those failure kinds. */
+export const CONNECTION_FIXABLE_FAILURE_REASONS = [
+  "provider_auth_failed",
+  "provider_billing",
+  "provider_model_unavailable",
+] as const satisfies readonly ProviderFailureReason[];
 
 /** The `DomainOperationError.code` `chat.setUserMacroValues` refuses an off-vocabulary select pick with
  * — the same wire-vocabulary home as the two twins above, for the same reason: the picks pane keys
@@ -293,11 +381,15 @@ export const TURN_LOCKED_OP_CODE = "locked" as const;
  *  renders it beside that control instead of letting it read as a server fault. */
 export const USER_MACRO_UNKNOWN_PICK_OP_CODE = "unknown_macro_pick" as const;
 
+/** The `DomainOperationError.code` a host-only chat verb refuses a member with; the server's `CHAT_OP_CODES.notHost`
+ *  derives this literal. A surface that offered a host control to a viewer who is no longer host keys on it. */
+export const CHAT_NOT_HOST_OP_CODE = "not_host" as const;
+
 // ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE
 // narrow `getTurnOrigin` op — the automation cascade guard's depth source. Human turns are born
-// `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` (AC-B) stamps its initiator + the parent
+// `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` stamps its initiator + the parent
 // depth + 1. `"automation"` = an automation rule's `trigger_turn` arm; `"plugin"` = a Tier-2 plugin membrane
 // host-fn's turn.trigger (both funded by + consent-gated on the responsible human, depth-capped). `"import"` =
 // a slot the bulk-import seam wrote (a user's imported history, the seeded example rooms): nobody typed it in
@@ -318,7 +410,7 @@ export const AUTOMATION_DEPTH_HARD_CAP = 3;
  *  + the initiator). Read back through `getTurnOrigin`; stamped on the reply slot at commit. */
 export interface TurnOrigin {
   readonly initiator: TurnInitiator;
-  /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3 — 03 §4). */
+  /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3). */
   readonly automationDepth: number;
 }
 
@@ -375,12 +467,13 @@ export const DEADLINE_ABORT_REASON = "deadline-reported";
  *  0–999, plugins 1000+ — host policy wraps guest). Each `apply` is deadline-bounded by the CALLER (250 ms);
  *  a timeout or throw SKIPS it (draft unchanged) + emits a `prompt_transform_skipped` warning (D53). A
  *  transform that instead returns a {@link PromptTransformAbort} REFUSES the generation — the deliberate
- *  outcome, distinct from the skip in both shape and consequence. */
-export interface PromptTransform {
+ *  outcome, distinct from the skip in both shape and consequence. `Signal` is the runtime's abort type, which this
+ *  isomorphic package cannot name: the registry aborts it at the deadline, and the server binds `AbortSignal`. */
+export interface PromptTransform<Signal> {
   readonly id: string;
   readonly point: PromptTransformPoint;
   readonly order: number;
-  readonly apply: (draft: string, env: PromptTransformEnv) => Promise<PromptTransformOutcome>;
+  readonly apply: (draft: string, env: PromptTransformEnv, signal: Signal) => Promise<PromptTransformOutcome>;
   /** The transform logs its own thrown failures, so the registry's skip warning does not repeat a throw. */
   readonly logsOwnFailures?: true;
 }
@@ -400,8 +493,7 @@ export interface PromptTransform {
  *  reach table's `regex` resolver serves the OTHER half (a library row's `enabled`/name changing under every
  *  room that attaches it), which is the same staleness one plane up.
  *
- *  `databank` is a member (owner ruling "im not locked in on three" — the wave's owner-named
- *  three was never a ceiling, and bridge design §8 / fork F-E is CLOSED). It takes BOTH `regex` shapes,
+ *  `databank` is a member: a chat rack has both inputs, so it takes BOTH `regex` shapes,
  *  because the per-chat document rack has both inputs: the ROOM's own junction moved (`attachToChat` /
  *  `detachFromChat` — the verb already holds the `chatId`), or a LIBRARY row / a non-chat D85 scope junction
  *  moved under every room that credits it (`rename`, the character- and global-scope attach/detach, and a
@@ -414,7 +506,7 @@ export type RoomEntityKind = (typeof ROOM_ENTITY_KINDS)[number];
 /** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log
  *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
  *
- *  BUS-PAYLOAD ALLOWLIST (Part III inv §11): every member is a closed object literal of branded ids, enum
+ *  BUS-PAYLOAD ALLOWLIST: every member is a closed object literal of branded ids, enum
  *  literals, plain scalars, and `MessageView` — there is NO `unknown`/`Record`/index field. Credentials /
  *  secrets / baseUrls are therefore TYPE-LEVEL UNREPRESENTABLE: a producer cannot place an `apiKey` into a
  *  bus event because no member declares a field to carry it. (The `.contract.test` pins this.) No member
@@ -432,7 +524,7 @@ export type ChatBusEvent =
   // allocated tail seq (`maxSeq + 1`) for a new slot. NEVER client-supplied, never defaulted; on the
   // new-slot seq-race retry the real row lands at a HIGHER seq than announced, which errs toward
   // withholding, never toward leaking.
-  // `memberText` = the §3.6 MEMBER PROJECTION of this tick's `text` bytes, STAMPED AT THE PRODUCER
+  // `memberText` = the MEMBER PROJECTION of this tick's `text` bytes, STAMPED AT THE PRODUCER
   // (`domain/chat/bus::createChatBus`, via `substrate/member-visibility::createMemberDeltaStamper`).
   // WHY IT LIVES ON THE EVENT: the hidden-span scrub is STATEFUL across a slot's whole delta stream (a
   // `<lie …/>` opener is withheld until its `/>` arrives) and VIEWER-INDEPENDENT (every non-host member is
@@ -466,12 +558,12 @@ export type ChatBusEvent =
   // ── Turn lifecycle (the extensibility seam) ─────────────────────────────────
   // Emitted the instant a turn is ACCEPTED — before arbitration, before the engine's `turnStarted`. It exists
   // so the client can open its turn slot (→ render Stop) during a hung smart arbitration, which runs BEFORE
-  // `turnStarted` and used to leave the user with no Stop affordance at all. Carries no speaker: the group
+  // `turnStarted` and would otherwise leave the user with no Stop affordance at all. Carries no speaker: the group
   // arbitration that picks the speaker has not run yet, so `speakerCharacterId` is null on accept and the
-  // later `turnStarted` re-opens the slot with the resolved speaker. The AUXILIARY turns (swipe / continue /
-  // generate) accept for the same reason at a different wall: their `turnStarted` lands only after the
-  // room/connection resolve, the context assembly and MEMORY RECALL (measured 151 ms - 1.9 s, unbounded), and
-  // until it did, the reader saw the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
+  // later `turnStarted` re-opens the slot with the resolved speaker. An auxiliary turn (swipe / continue /
+  // generate) accepts for the same reason at a different wall: its `turnStarted` lands only after the
+  // room/connection resolve, the context assembly and MEMORY RECALL (unbounded), and without it the reader
+  // sees the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
   // swipe/continue rerolls/extends (null for a fresh reply) — the client renders its ghost over that message.
   //
   // Every acceptance is TOTAL-RESOLVED — a `turnAccepted` slot never strands open. The arbitration path emits
@@ -502,7 +594,7 @@ export type ChatBusEvent =
       turnId: ChatTurnId;
       intent: TurnIntent;
       api: ChatApi | null;
-      /** The provider REGISTRY id the turn resolved to (inference program §5.3c) — the source axis is retired. */
+      /** The provider REGISTRY id the turn resolved to — the source axis is retired. */
       provider: ProviderId;
       model: string;
       /** The roster character speaking this turn (group "whose turn is it" automation; ST GROUP_MEMBER_DRAFTED).
@@ -524,7 +616,7 @@ export type ChatBusEvent =
   // recall starts for a turn (memory on), `phase:"recalled"` with the surfaced `count` once it closes. Stamped
   // at the SINGLE recall convergence (`domain/chat/memory/recall/recall.ts::finish` + its start), so both the
   // round-level and the per-speaker witnessed recall feed it with no second emit site. Memory OFF emits
-  // NEITHER — an absent event is the idle icon, never a lying "recalled 0". Allowlist-clean (Part III inv §11):
+  // NEITHER — an absent event is the idle icon, never a lying "recalled 0". Allowlist-clean:
   // a branded id, an enum phase, and a plain-scalar count — it carries NO digest content or scores (that detail
   // is host-only and stays off the room-public bus; the header popover reads it from the host-gated assembly
   // preview). LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): the phase is EPHEMERAL per-turn state — replaying a
@@ -532,6 +624,13 @@ export type ChatBusEvent =
   // `count` is null on `"recalling"` (not known yet) and the surfaced block count on `"recalled"`.
   | { type: "memoryRecall"; chatId: ChatId; phase: "recalling"; count: null }
   | { type: "memoryRecall"; chatId: ChatId; phase: "recalled"; count: number }
+  // ── The provider's FIRST-TOKEN WAIT (the pending row's live feed) ──────────────
+  // A turn's request reached the provider and nothing has come back past a short delay: the pending row says the
+  // provider is starting. It is a phase, never a deadline: the idle window alone ends a stalled request, so a large
+  // local model's cold start keeps its turn. Stamped at the ONE dispatch seam (`domain/chat/engine/provider-wait.ts`),
+  // at most once per phase per turn. LIVE-ONLY by SEMANTICS, like `memoryRecall`: replaying a stale "waiting" would
+  // be a lie, and the turn's own first token or terminal ends the state on every device that saw it.
+  | { type: "providerWait"; chatId: ChatId; turnId: ChatTurnId; phase: ProviderWaitPhase }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
   //    TWO ARMS, and the split is the enforcer: `settings_adjusted` is the only code whose notice
   //    cannot be written from the code alone, so it is the only arm that carries detail — and it carries it
@@ -556,6 +655,10 @@ export type ChatBusEvent =
       /** The reasoning effort that actually ran (`reasoning_mandatory_clamp`). */
       appliedEffort?: EffortLevel | undefined;
     }
+  // Host-only (see {@link REGEX_SCRIPT_NOT_APPLIED_CODE}): ids and enum literals, no name and no pattern text.
+  | { type: "warning"; chatId: ChatId; code: "regex_script_not_applied"; scriptId: RegexScriptId; cause: RegexNotAppliedCause; pass: RegexServerPass }
+  // Host-only (see {@link REGEX_NOT_APPLIED_OVERFLOW_CODE}): one count, nothing else.
+  | { type: "warning"; chatId: ChatId; code: "regex_not_applied_overflow"; count: number }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   //    `automationDepth` is the cascade depth of the GENERATING turn (the same plain scalar `turnAborted`
@@ -567,27 +670,21 @@ export type ChatBusEvent =
   //    DEPTH, not attribution — no caller id, no secret (the allowlist bans those, not a counter).
   | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[]; automationDepth: number }
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
-  // ── A message reaction was added or removed (B6/MR0). CANON, not per-viewer: every member of the room sees
-  //    the same reaction set, so a toggle by one member must reach every other member's open transcript —
-  //    which is the whole reason this member exists rather than the writing tab reconciling alone (MA-2 §5).
+  // ── A message reaction was added or removed. CANON, not per-viewer: every member of the room sees the same
+  //    reaction set, so a toggle by one member must reach every other member's open transcript — which is the
+  //    whole reason this member exists rather than the writing tab reconciling alone.
   //    DURABLE (absent from `LIVE_ONLY_CHAT_EVENT_TYPES`): the reaction it announces is canon that survives
   //    the fan, so a device dark through the toggle must learn about it on replay like any other canon
   //    mutation — the `roomEntityChanged` live-only ECONOMY argument does not apply, because there is no
-  //    attach synthesis that re-reads reactions.
-  //    Emitted AFTER the durable write commits (durable-first, the `createChatBus` discipline).
+  //    attach synthesis that re-reads reactions. Emitted AFTER the durable write commits.
   //    NO VIEW CARRIER, deliberately: the pill row is a SEPARATE bounded room-scoped read the client indexes
   //    by `variantId` (`chat.listReactions`), not a field of `MessageView` — folding reactions into the view
   //    would put a join on every canon read and every bus carrier for an ornament most rows never carry.
-  //    `emoji` + `added` ride the event so an automation predicate can say WHAT happened without a re-read
-  //    (the `reactionsChanged` trigger's fact projects exactly these). `emoji` is the CLOSED `ReactionEmoji`
-  //    union, not a raw `string`, and that is load-bearing rather than cosmetic: `index.test-d.ts` pins that
-  //    the ONLY raw-string keys on this bus are `turnStarted.model` and the seq-anchored `delta.memberText`
-  //    ("adding a THIRD raw-string key must clear the same bar: name the anchor, or don't ship it"). A
-  //    string-literal union does not satisfy `string extends T`, so this member stays outside that pin BY
-  //    CONSTRUCTION — the `roomEntityChanged.entity` / `memoryRecall.phase` precedent — allowlist-clean
-  //    (Part III inv §11): branded ids, a plain string, a boolean, and no caller id (D19 — the REACTOR is a
-  //    participant SEAT, which is room-public roster data, not a caller identity; it is deliberately absent
-  //    here anyway, because the grouped re-read is what tells a client who reacted).
+  //    `emoji` + `added` ride the event so an automation predicate can say WHAT happened without a re-read.
+  //    `emoji` is the CLOSED `ReactionEmoji` union, not a raw `string`: `index.test-d.ts` pins the only
+  //    raw-string keys on this bus, and a string-literal union does not satisfy `string extends T`, so this
+  //    member stays outside that pin BY CONSTRUCTION. No caller id (D19) — the REACTOR is a participant SEAT,
+  //    which is room-public roster data, and the grouped re-read is what tells a client who reacted.
   | { type: "reactionsChanged"; chatId: ChatId; messageId: MessageId; variantId: MessageVariantId; emoji: ReactionEmoji; added: boolean }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent
@@ -596,10 +693,9 @@ export type ChatBusEvent =
   //    lane is not an optimisation but the only correct shape: `chat_events.chat_id` FKs to `chats` with
   //    ON DELETE CASCADE, so a durable `chatDeleted` row either FK-fails (appended after the delete) or is
   //    cascaded away by the very delete it announces — no `chatDeleted` was EVER replayable. Being
-  //    append-free is what lets both delete paths run the DELETE FIRST and fan only on `RETURNING` rows,
-  //    which CLOSES the R1-4a false-emit (a raced reap used to announce the death of a room that survived)
-  //    rather than narrowing it. Owner fork F-A: the pump delivers this one GATE-FREE to every attached
-  //    subscriber, because after the row is gone the member probe can only answer "not a member".
+  //    append-free is what lets both delete paths run the DELETE FIRST and fan only on `RETURNING` rows, so a
+  //    raced reap cannot announce the death of a room that survived. The pump delivers this one GATE-FREE to
+  //    every attached subscriber, because after the row is gone the member probe can only answer "not a member".
   | { type: "chatDeleted"; chatId: ChatId }
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
   //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
@@ -611,7 +707,7 @@ export type ChatBusEvent =
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──
   | { type: "chatUpdated"; chatId: ChatId }
-  // ── The entity→room member-freshness bridge (design §3.3). An OWNER-PLANE entity edit (a card, a persona,
+  // ── The entity→room member-freshness bridge. An OWNER-PLANE entity edit (a card, a persona,
   //    a lorebook) moved something this room's MEMBER-VISIBLE projections read, so every member re-READS
   //    through the already-clamped verbs. LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): never appended to
   //    `chat_events`, so it is never replayed — the heal for a device that was dark is the attach synthesis
@@ -656,6 +752,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   turnCompleted: true,
   turnAborted: true,
   memoryRecall: true,
+  providerWait: true,
   warning: true,
   worldInfoActivated: true,
   personaSwitched: true,
@@ -673,7 +770,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   roomEntityChanged: true,
 } satisfies Record<ChatBusEvent["type"], true>;
 
-/** THE LIVE-ONLY LANE (design §3.4). These members are fanned on the room's live channel WITHOUT a
+/** THE LIVE-ONLY LANE. These members are fanned on the room's live channel WITHOUT a
  *  `chat_events` append — they carry no canon and have nothing to replay, so paying a durable row per fan
  *  would pollute the log and cost an INSERT per seated room per edit.
  *
@@ -686,20 +783,21 @@ export const CHAT_BUS_EVENT_TYPES = {
  *  the heal is the attach synthesis). Its frame carries `seq: null`, which the client seq guard admits without
  *  moving its high-water mark.
  *
- *  THE THREE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so a fourth is classified rather than
+ *  THE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so the next one is classified rather than
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
  *  nothing — the heal is the attach synthesis, and it is DERIVED over `ROOM_ENTITY_KINDS` so it cannot fall
  *  behind the kinds this economy applies to); `chatDeleted` is live-only by PHYSICS (its log row cascades
- *  away with the very chat it announces, so it was never replayable at all — design §4 / R1-4a), and being
+ *  away with the very chat it announces, so it was never replayable at all), and being
  *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
  *  gone; `memoryRecall` is live-only by SEMANTICS — it is an EPHEMERAL per-turn phase feeding the
  *  header brain-icon, so replaying a stale "recalling" from a prior subscription would be a lie, and there is
- *  no state to persist (the icon idles from an absent event). Only `roomEntityChanged` is quiet-coalescable
+ *  no state to persist (the icon idles from an absent event); `providerWait` joins for the same SEMANTICS, the
+ *  pending row's per-turn wait phase. Only `roomEntityChanged` is quiet-coalescable
  *  (`transport/trpc/quiet-fanout.ts`): a room death is one terminal event per room, never a storm, and
  *  silencing it would strand an open room on a dead chat — and `memoryRecall` must NOT coalesce either, since
  *  its "recalling"→"recalled" transition IS the signal (its volume is already bounded: at most one pair per
- *  scoped speaker per turn). */
-export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted", "memoryRecall"] as const;
+ *  scoped speaker per turn), and `providerWait` must not coalesce for the same reason. */
+export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted", "memoryRecall", "providerWait"] as const;
 export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
 
 /** A `ChatBusEvent` that MAY be appended to the durable `chat_events` log — the union minus the live-only
@@ -709,6 +807,9 @@ export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEven
 /** The complement: a `ChatBusEvent` fanned WITHOUT a durable append — what
  *  `entry/compose/services::emitChatEventLive` accepts. */
 export type LiveOnlyChatBusEvent = Extract<ChatBusEvent, { type: LiveOnlyChatEventType }>;
+
+/** The `providerWait` member on its own: the one shape the engine's dispatch seam builds. */
+export type ProviderWaitBusEvent = Extract<ChatBusEvent, { type: "providerWait" }>;
 
 /** Whether a durable event whose append the bus dropped still fans live with `seq: null` (D342). `true` unless a row
  *  below says why not: a dropped event that does not fan leaves an attached device or an automation rule (the watcher

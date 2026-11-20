@@ -11,12 +11,13 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DestructiveAction, DismissDialog } from "#components";
+import { DestructiveAction, DismissDialog, MutedLine } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 import { revokeSessionName } from "../lib/admin-model.ts";
+import { SESSION_REVOKE_VERB } from "../lib/user-admin-names.ts";
 
 /** The sessions list + revoke affordances for one account. */
 export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactElement {
@@ -35,7 +36,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   return (
     <DismissDialog
       description="Revoking a session signs that device out on its next request."
-      dismissLabel="Close"
+      dismissLabel={DIALOG_VERBS.close}
       onOpenChange={props.onOpenChange}
       open={props.open}
       size="lg"
@@ -67,7 +68,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         isEmpty={rows.length === 0}
         pending="Loading sessions…"
         error="Couldn't load the sessions. Try reopening this dialog."
-        empty="No sessions on record. They've never signed in."
+        empty={<MutedLine>No sessions on record. They've never signed in.</MutedLine>}
       />
 
       <Stack gap="field">
@@ -86,7 +87,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
                 revoked ? null : (
                   <DestructiveAction
                     confirm={{
-                      confirmLabel: "Revoke",
+                      confirmLabel: SESSION_REVOKE_VERB,
                       description: `This device is signed out of ${props.handle} on its next request.`,
                       title: "Revoke this session?",
                     }}
@@ -95,7 +96,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
                     onConfirm={(): void => revokeOne.mutate({ sessionId: session.id })}
                     trigger={
                       <Button tone="destructive" size="sm" disabled={mutating} aria-label={revokeSessionName(session.userAgent ?? session.id)}>
-                        Revoke
+                        {SESSION_REVOKE_VERB}
                       </Button>
                     }
                   />

@@ -16,11 +16,12 @@ import {
 } from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, notify } from "#lib";
-import type { NonEmptyLabel } from "./non-empty-label.ts";
+import { DialogFailure } from "./dialog-failure.tsx";
 
 /** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
  *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with
@@ -70,6 +71,9 @@ interface ConfirmDialogBaseProps<C extends string = string, K extends string = s
   readonly forceRender?: boolean;
   /** Where focus goes on close. Give one when the act unmounts the trigger, or focus falls to the page body. */
   readonly finalFocus?: ConfirmFinalFocus;
+  /** Focus Cancel when the confirm opens, even when `body` holds a tab stop before it (a scroll region). Without it the
+   *  first tab stop in the popup takes focus. */
+  readonly focusCancel?: boolean;
 }
 
 /** A confirm another surface opens: a menu item, an icon action, a row. The caller owns the state and its changes. */
@@ -138,7 +142,9 @@ function ConfirmSurface({
   confirmLoading = false,
   forceRender,
   finalFocus,
+  focusCancel = false,
 }: ConfirmSurfaceProps): ReactElement {
+  const cancel = useRef<HTMLButtonElement>(null);
   // The dialog owns its open state in BOTH entry shapes, because a close that must wait for an outcome
   // cannot be Base UI's to make (#1563). Controlled callers are unaffected: `open` still wins, and every
   // transition — theirs, the trigger's, Cancel's, ours — goes out through their `onOpenChange`.
@@ -200,7 +206,11 @@ function ConfirmSurface({
   return (
     <AlertDialog open={isOpen} onOpenChange={moveOpen}>
       {trigger === undefined ? null : <AlertDialogTrigger render={trigger} />}
-      <AlertDialogPopup {...(forceRender === undefined ? {} : { forceRender })} {...(finalFocus === undefined ? {} : { finalFocus })}>
+      <AlertDialogPopup
+        {...(forceRender === undefined ? {} : { forceRender })}
+        {...(finalFocus === undefined ? {} : { finalFocus })}
+        {...(focusCancel ? { initialFocus: cancel } : {})}
+      >
         <Stack gap="block">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description === undefined ? null : <AlertDialogDescription>{description}</AlertDialogDescription>}
@@ -208,13 +218,15 @@ function ConfirmSurface({
           {/* THE FAILURE, IN THE DIALOG THAT CAUSED IT. `role="alert"` because it arrives after the press,
               so a reader who is not looking at this line still hears it; the confirm button below is the
               retry, which is why nothing here is a second control. */}
-          {failure === null ? null : (
-            <Text data-slot="confirm-dialog-failure" role="alert" tone="destructive">
-              {confirmFailureSentence(failure)}
-            </Text>
-          )}
+          {failure === null ? null : <DialogFailure>{confirmFailureSentence(failure)}</DialogFailure>}
           <AlertDialogActions>
-            <AlertDialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
+            <AlertDialogClose
+              render={
+                <Button ref={cancel} variant="ghost">
+                  {cancelLabel}
+                </Button>
+              }
+            />
             {/* NOT an `AlertDialogClose` (#1563): the close is this component's to decide once the outcome
                 is known. Cancel stays one, because abandoning is done the moment it is pressed. */}
             <Button disabled={settling ? true : confirmDisabled} tone={confirmTone} loading={settling ? true : confirmLoading} onClick={onConfirmClick}>

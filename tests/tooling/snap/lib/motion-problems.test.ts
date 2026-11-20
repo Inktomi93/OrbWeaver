@@ -12,7 +12,7 @@
 
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
-import type { AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
+import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
 import { motionProblems } from "../../../../tooling/src/snap/lib/motion-problems.ts";
 
 const ENVIRONMENT: BrowserEnvironmentEvidence = {
@@ -150,6 +150,33 @@ test("a layout frame that does not meet the carve-out prints the failing row and
   expect(rows[0]?.observed).toBe("1");
   expect(rows[0]?.threshold).toBe("0");
   expect(present(rows[0]).detail).not.toContain("bounded-input-dispatch");
+});
+
+// The rail's scroll fade as the sampler records it: Chromium drops the custom properties it animates.
+const SCROLL_FADE: AnimationRecord = {
+  target: "nav[aria-label=Primary]",
+  properties: [],
+  compositorClean: false,
+  targetState: { startingStyle: false, endingStyle: false },
+  lifecycleState: null,
+  attribution: { owner: "application", mechanism: "css-animation" },
+  name: "scroll-fade-top",
+  timeline: "scroll",
+};
+
+function animationRows(animation: AnimationRecord): readonly { readonly kind: string; readonly observed: string; readonly threshold: string }[] {
+  return motionProblems({ ...auditData([]), animations: [animation] }, [], "assert").filter((problem) => problem.metric === "dirty-animation");
+}
+
+test("a scroll-driven animation with no readable property is named as an exemption, never as an unattributed failure", () => {
+  expect(animationRows(SCROLL_FADE)).toEqual([expect.objectContaining({ kind: "exemption", observed: "scroll-fade-top", threshold: "scroll-driven" })]);
+});
+
+// The control: the same record on the document clock still fails, and still carries its name.
+test("the same animation on the document clock prints the failing row under its name", () => {
+  expect(animationRows({ ...SCROLL_FADE, timeline: "document" })).toEqual([
+    expect.objectContaining({ kind: "threshold", observed: "scroll-fade-top", threshold: "compositor-only" }),
+  ]);
 });
 
 test("a window with no style/layout at all prints neither row", () => {

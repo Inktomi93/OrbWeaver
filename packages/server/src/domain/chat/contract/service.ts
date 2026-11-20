@@ -26,21 +26,25 @@ import type {
   InvitePreview,
   InviteView,
   MemberCardView,
+  MemoryView,
   MessageVariantSummary,
   MessageView,
   MessageWindow,
   NextTurnConnectionView,
   ParticipantData,
+  RegexDisplayEntry,
+  RenderPolicy,
   RoomOverrides,
+  RoomSendAvailability,
   SetGroupConfigOp,
   SetSeatKnobsOp,
   ShapeTrace,
+  StrikeMemoryResult,
   UserMacroPicksView,
   VariablePicksView,
   VariantWireView,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
-import type { SendAvailability } from "@orb/contracts/inference";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AbortParams,
@@ -49,6 +53,7 @@ import type {
   ApplyProseRewriteParams,
   ArchiveChatParams,
   ChatEventBoundsParams,
+  CheckSendAvailabilityParams,
   ClearReasoningParams,
   CommitMessageParams,
   CompactParams,
@@ -81,6 +86,7 @@ import type {
   KickParticipantParams,
   ListChatInjectionsParams,
   ListChatsParams,
+  ListDisplayScriptsParams,
   ListEffectiveRegexParams,
   ListForksParams,
   ListInvitesParams,
@@ -88,6 +94,7 @@ import type {
   ListMessageVariantsParams,
   ListParticipantsParams,
   ListReactionsParams,
+  MemoryViewParams,
   MoveMessageParams,
   NominateHostHandoffParams,
   PreviewActionTemplatesParams,
@@ -102,8 +109,12 @@ import type {
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  ReplyToTailParams,
+  ResolveAuthorRenderPolicyParams,
+  RestoreMemoryParams,
   RevertContinueParams,
   RevokeInviteParams,
+  SaveCorrectionParams,
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
@@ -126,6 +137,7 @@ import type {
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
+  StrikeMemoryParams,
   SwipeParams,
   ToggleReactionParams,
   UndoContinueParams,
@@ -155,9 +167,11 @@ export interface ChatService {
   /** The deterministic pre-send serveability verdict for THIS chat's own resolved connection (the
    *  honest-refusal gate) — "would the turn's own `resolveChat → deriveRunner → requireBackend` succeed,
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
-   *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. */
-  readonly checkSendAvailability: (params: GetChatParams) => Promise<SendAvailability>;
-  /** Current host's persisted chat binding; member-safe and independent of runtime availability. */
+   *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. A host
+   *  outside the room's consent set reads `host_unavailable`, and its connection is never read. */
+  readonly checkSendAvailability: (params: CheckSendAvailabilityParams) => Promise<RoomSendAvailability>;
+  /** Current host's persisted chat binding; member-safe and independent of runtime availability. A host outside the
+   *  room's consent set reads `unset`, and its binding is never read. */
   readonly getNextTurnConnection: (params: GetChatParams) => Promise<NextTurnConnectionView>;
   /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
    *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
@@ -190,6 +204,9 @@ export interface ChatService {
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantData[]>;
+  /** The policy content stamped with one character id renders at: the room's narrator policy for the room host's
+   *  synthetic group character, else that character's seat. Member-gated; `undefined` when neither applies. */
+  readonly resolveAuthorRenderPolicy: (params: ResolveAuthorRenderPolicyParams) => Promise<RenderPolicy | undefined>;
   /** The turn in flight, from generation start through `throughSeq`, for a device attaching with no cursor. */
   readonly replayLiveTurn: (params: ReplayLiveTurnParams) => Promise<ChatBusReplayEvent[]>;
   /** Resume the durable chat-bus log from a cursor (the chat room's SSE reconnect replay). */
@@ -216,6 +233,9 @@ export interface ChatService {
   readonly impersonateStream: (params: ImpersonateStreamParams) => AsyncIterable<ImpersonateStreamDelta>;
   /** A lock-free auxiliary generation (runs concurrent with a locked send; active-turns Set). */
   readonly generate: (params: GenerateParams) => Promise<TurnOutcome>;
+  /** Start the round the room's unanswered user tail is owed, at most once per tail, and only by a present member: the
+   *  line under the composer's reply action. A tail with nothing owed, a reply already running or queued, is a no-op. */
+  readonly replyToTail: (params: ReplyToTailParams) => Promise<TurnOutcome>;
   /** Extend the tail assistant message in place (continue snapshot per-variant). */
   readonly continueTurn: (params: ContinueTurnParams) => Promise<TurnOutcome>;
   /** Revert the last continuation on a variant (restores `preContinue*`). */
@@ -268,8 +288,18 @@ export interface ChatService {
   // ── injections ────────────────────────────────────────────────────────────────
   /** Upsert a persisted positional injection (the `ChatInjection` wire shape). */
   readonly setChatInjection: (params: SetChatInjectionParams) => Promise<ChatInjectionView>;
+  /** Keep a player's correction as a chat injection at the Add placement; the same text again returns the kept row. */
+  readonly saveCorrection: (params: SaveCorrectionParams) => Promise<ChatInjectionView>;
   readonly listChatInjections: (params: ListChatInjectionsParams) => Promise<ChatInjectionView[]>;
   readonly deleteChatInjection: (params: DeleteChatInjectionParams) => Promise<void>;
+
+  // ── story memory ──────────────────────────────────────────────────────────────
+  /** The room's remembered items in plain parts, with the host's strikes. Member-gated and floor-clamped. */
+  readonly memoryView: (params: MemoryViewParams) => Promise<MemoryView>;
+  /** Strike one remembered item from every later prompt (host-only; `memory_item_stale` when it changed since read). */
+  readonly strikeMemory: (params: StrikeMemoryParams) => Promise<StrikeMemoryResult>;
+  /** Remove one strike, so the item is recalled again (host-only; idempotent). */
+  readonly restoreMemory: (params: RestoreMemoryParams) => Promise<void>;
 
   // ── variables ─────────────────────────────────────────────────────────────────
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
@@ -355,6 +385,10 @@ export interface ChatService {
    *  above the room's own are the host's LIBRARY and a member has no parameter on them. A member reads the
    *  room's own tier through `regex.listForChat` (member-gated, room-public) instead. */
   readonly listEffectiveRegex: (params: ListEffectiveRegexParams) => Promise<EffectiveRegexView>;
+  /** The display-pass set ONE viewer's transcript renders through, in order, each with where it comes from: the
+   *  room's resolved tiers (for the host, or for a member when the host opted the room in), then the viewer's
+   *  own globals. Member-gated; `chatId: null` reads the viewer's own globals alone. */
+  readonly listDisplayScripts: (params: ListDisplayScriptsParams) => Promise<RegexDisplayEntry[]>;
 
   /** B1 — the per-room offer-choices posture (`chatMetadata.offerChoices`), host-only. Returns the stored
    *  value. Unlike its display-scripts neighbour this one reaches the PROMPT: on, the turn teaches the model

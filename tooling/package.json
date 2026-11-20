@@ -89,6 +89,7 @@
     "./floor/testing/stryker-config": "./src/floor/testing/stryker-config.ts",
     "./floor/testing/test-kinds": "./src/floor/testing/test-kinds.ts",
     "./floor/testing/test-tags": "./src/floor/testing/test-tags.ts",
+    "./floor/testing/test-worlds": "./src/floor/testing/test-worlds.ts",
     "./floor/testing/working-tree-guard": "./src/floor/testing/working-tree-guard.ts",
     "./floor/variant-matrix/variant-matrix": "./src/floor/variant-matrix/variant-matrix.ts",
     "./floor/variant-matrix/variant-matrix-contract": "./src/floor/variant-matrix/variant-matrix-contract.ts",

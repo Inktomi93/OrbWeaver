@@ -1,9 +1,19 @@
+import type { BulkImportRefusedRow } from "@orb/contracts/chat";
+import { MESSAGE_TEXT_MAX_CHARS } from "@orb/contracts/chat";
 import type { ImportPreviewKind } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
-import type { ImportReport } from "../contract/results.ts";
+import type { ImportBookNote, ImportReport, ImportSkippedCard } from "../contract/results.ts";
 
 function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
+}
+
+/** One report entry per variant the chat write refused as over-long, keyed by the chat's source name. */
+export function skippedChatRowsOf(rows: readonly BulkImportRefusedRow[]): ImportSkippedCard[] {
+  return rows.map((row) => ({
+    file: row.chat,
+    reason: `message ${String(row.messageIndex + 1)}, swipe ${String(row.variantIdx + 1)}: its ${row.field} is ${String(row.chars)} characters, over the ${String(MESSAGE_TEXT_MAX_CHARS)}-character limit, so that swipe was not imported`,
+  }));
 }
 
 /** One "not imported" line: the plane name + its one-line reason when known, else bare. */
@@ -24,17 +34,25 @@ function section(title: string, lines: readonly string[]): string {
  *  (a mangled list, caught only by reading the rendered markdown). A preset whose whole file mapped renders
  *  the reassuring "everything mapped" line rather than nothing at all — the operator has to be able to tell
  *  "landed whole" apart from "was never looked at". A preset that carried its own regex scripts (the ST
- *  presetManager extension field) gets the lift accounting appended to its head line. */
+ *  presetManager extension field) gets the lift accounting nested under its head line, and a new preset the sections
+ *  it gained for orbweaver's own slots. */
 function presetNoteLines(report: ImportReport): string[] {
   const base = noteLines(report.presetNotes);
   return base.map((line, i) => {
     const note = report.presetNotes[i];
-    if (note === undefined || note.scriptsLifted + note.scriptsReused === 0) {
+    if (note === undefined) {
       return line;
     }
-    const scripts = `${note.scriptsLifted + note.scriptsReused} regex script(s) → the script library, attached to this preset (${note.scriptsLifted} new, ${note.scriptsReused} matched existing rows)`;
-    // The scripts line nests under the preset's head line, exactly like the unmapped fields do.
-    return `${line}\n  - ${scripts}`;
+    const nested = [
+      ...(note.scriptsLifted + note.scriptsReused === 0
+        ? []
+        : [
+            `${note.scriptsLifted + note.scriptsReused} regex script(s) → the script library, attached to this preset (${note.scriptsLifted} new, ${note.scriptsReused} matched existing rows)`,
+          ]),
+      ...(note.addedSections.length === 0 ? [] : [`sections added for orbweaver's own slots: ${note.addedSections.map((name) => `\`${name}\``).join(", ")}`]),
+    ];
+    // These lines nest under the preset's head line, exactly like the unmapped fields do.
+    return [line, ...nested.map((entry) => `  - ${entry}`)].join("\n");
   });
 }
 
@@ -55,17 +73,27 @@ function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes
   });
 }
 
-/** One line per standalone world book the run landed: where it landed, and the SillyTavern activation
- *  fields its entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
+const entriesWord = (count: number): string => `${count} ${count === 1 ? "entry" : "entries"}`;
+
+/** The SillyTavern activation fields a book's entries keep stored but inert (owner ruling: kept untouched, shown
+ *  as not active yet), as a line suffix; empty when they keep none. */
+function inertSuffix(note: ImportBookNote): string {
+  return note.inertFields.length === 0
+    ? ""
+    : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+}
+
+/** One line per standalone world book the run landed: where it landed, and the fields its entries keep inert. */
 function worldLines(report: ImportReport): string[] {
   return report.worldNotes.map((note) => {
     const landed = note.created ? "new" : "already in your library";
-    const inert =
-      note.inertFields.length === 0
-        ? ""
-        : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${f.entries} ${f.entries === 1 ? "entry" : "entries"})`).join(", ")}`;
-    return `\`${note.name}\` — ${note.entries} ${note.entries === 1 ? "entry" : "entries"}, ${landed}${renamedSuffix(note.renamedFrom)}${inert}`;
+    return `\`${note.name}\` — ${entriesWord(note.entries)}, ${landed}${renamedSuffix(note.renamedFrom)}${inertSuffix(note)}`;
   });
+}
+
+/** One line per card world book the run landed into its character, with the fields its entries keep inert. */
+function cardBookLines(report: ImportReport): string[] {
+  return report.cardBookNotes.map((note) => `\`${note.name}\` (from \`${note.file}\`) — ${entriesWord(note.entries)}${inertSuffix(note)}`);
 }
 
 /** The regex-plane accounting (the silent-gap sweep): every plane renders its count EVEN AT
@@ -77,9 +105,7 @@ function regexLines(report: ImportReport): string[] {
     `Preset-carried scripts (\`extensions.regex_scripts\` in a chat-completion preset): see each preset's own note above`,
     `Global scripts (\`settings.json#extension_settings.regex\`): found ${report.globalRegexScriptsFound} — ${report.globalRegexScriptsLifted} new library rows (global), ${report.globalRegexScriptsReused} matched existing`,
   ];
-  if (report.malformedGlobalRegexScripts > 0) {
-    lines.push(`Global entries that did not parse as regex scripts: ${report.malformedGlobalRegexScripts} — dropped, see the server log`);
-  }
+  lines.push(...report.globalRegexScriptNotes.map(({ field, reason }) => `Global script \`${field}\` — ${reason}`));
   if (report.globalRegexSkippedReason !== null) {
     lines.push(`Global scripts NOT imported: ${report.globalRegexSkippedReason}`);
   }
@@ -177,6 +203,7 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       report.unreadableCards.map((f) => `\`${f}\``),
     ),
     section("World books imported (SillyTavern activation settings are kept on each entry but not active yet)", worldLines(report)),
+    section("Card world books landed with their character (SillyTavern activation settings are kept on each entry but not active yet)", cardBookLines(report)),
     section(
       "World books that failed to parse",
       report.unreadableWorlds.map((f) => `\`${f}\``),
@@ -184,6 +211,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     section(
       "Chats skipped (oversized)",
       report.skippedChats.map((f) => `\`${f}\``),
+    ),
+    section(
+      "Chat swipes NOT imported (over the message length limit; the rest of the chat imported)",
+      report.skippedChatRows.map((r) => `\`${r.file}\` — ${r.reason}`),
     ),
     section(
       "Orphan chat directories (no matching card — a placeholder character is minted; see the next section)",
@@ -196,6 +227,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       ...report.orphanSkipped.map((o) => `\`${o.dir}\` — NOT imported: ${o.reason}`),
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
+    section(
+      "Character planes that did NOT land (the character imported)",
+      report.cardNotes.map((n) => `\`${n.file}\` — ${n.reason}`),
+    ),
     section(
       "Library tags that did NOT attach (the character imported without them)",
       report.skippedCardTags.map((t) => `\`${t.character}\` → \`${t.tag}\` — ${t.reason}`),
@@ -257,6 +292,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     section(
       "Persona avatars named in settings.json with no file in the avatar folder (the persona imported without art)",
       report.missingPersonaAvatars.map((f) => `\`${f}\``),
+    ),
+    section(
+      "Persona avatars NOT imported (the persona imported without art)",
+      report.skippedPersonaAvatars.map((a) => `\`${a.file}\` — ${a.reason}`),
     ),
     section(
       "Chat-bound persona picks that did NOT resolve (the chat imported; only the pick was dropped)",

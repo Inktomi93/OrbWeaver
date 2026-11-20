@@ -1,7 +1,7 @@
 import { AppShell } from "@orb/client/features/app-shell";
 import type { ImagineSeed } from "@orb/client/state";
 import { openImagine } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtClientProviders, CtModalAsDrawer } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 
@@ -18,6 +18,18 @@ export function ImagineInShellStory({ seed }: { readonly seed: ImagineSeed }): R
     <CtClientProviders>
       <OpenImagineOnMount seed={seed} />
       <AppShell />
+    </CtClientProviders>
+  );
+}
+
+/** The same open, with the imagine modal presented in the host's phone drawer. */
+export function ImagineInShellAsDrawerStory({ seed }: { readonly seed: ImagineSeed }): ReactElement {
+  return (
+    <CtClientProviders>
+      <OpenImagineOnMount seed={seed} />
+      <CtModalAsDrawer modalId="imagine">
+        <AppShell />
+      </CtModalAsDrawer>
     </CtClientProviders>
   );
 }

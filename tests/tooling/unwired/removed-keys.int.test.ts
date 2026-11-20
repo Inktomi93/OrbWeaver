@@ -78,3 +78,17 @@ test("a branch whose removed keys have no sender, or only an ambiguous one, pass
   ]);
   expect(report.failed).toBe(false);
 });
+
+test("a key moved to another contract file is listed as removed from its old home, for a person to read", { timeout: 60_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {
+    "packages/contracts/src/list.ts": ["export interface ListInput {", "  readonly pageLimit?: number;", "  readonly guidedPick?: string;", "}"].join("\n"),
+    "packages/client/src/send.ts": "export const send = { chatId: 'c', guidedPick: 'g' };\n",
+  });
+  const report = checkRemovedKeys(repo, "main", "HEAD");
+  expect(report.removed.map(({ key, ambiguous, hits }) => `${key} ${ambiguous} ${hits.length}`)).toEqual([
+    "draft true 0",
+    "guidedPick true 1",
+    "pageLimit true 0",
+  ]);
+  expect(report.failed).toBe(false);
+});

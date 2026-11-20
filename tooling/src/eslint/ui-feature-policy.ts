@@ -7,6 +7,8 @@ const FORM_STATE_APIS = ["useActionState", "useFormState", "useFormStatus", "use
 
 const LAYOUT_CONTEXT_PROPS = ["compact", "inDrawer", "inModal", "isMobile", "narrow"];
 
+const DIALOG_DOOR = "@orb/ui/dialog";
+
 // Importing Container is how a surface would declare one under another name.
 const CONTAINER_IMPORT = "ImportDeclaration[source.value=/^@orb\\/ui\\/layout/] > ImportSpecifier[imported.name='Container']";
 
@@ -185,13 +187,70 @@ export const UI_FEATURE_RESTRICTIONS = [
     ],
   },
   {
+    // A CONTENT surface's own scroller puts the scroll edge, the inset and the column back in the feature (UI-Architecture-and-Layout.md §4.1).
+    id: "content-pane-scroller",
+    selectors: [
+      {
+        selector:
+          "JSXOpeningElement:matches([name.name='Stack'], [name.name='Container'], [name.name='Text']):has(> JSXAttribute[name.name='scroll'][value.value='y'])",
+        message:
+          "A CONTENT surface scrolls its own box: its body is a `#components` `ContentPane`, which owns the scroller, the inset, the column and the band.",
+      },
+    ],
+  },
+  {
     id: "dialog-via-composite",
     selectors: [
       {
         // The popup is refused with the root: `FormDialogRoot` is a root, so a raw popup inside it would have no way out.
-        selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name=/^(Dialog|DialogPopup)$/]",
+        selector: `ImportDeclaration[source.value='${DIALOG_DOOR}'] > ImportSpecifier[imported.name=/^(Dialog|DialogPopup)$/]`,
         message:
           "A raw dialog part from @orb/ui/dialog outside the composites: use FormDialog to commit, DismissDialog, ContentDialog, FlowDialog, ViewerDialog or PickerDialog for nothing to commit, or ConfirmDialog for an alert.",
+      },
+      {
+        // A hand-built footer skips the composite's exit and submit contract.
+        selector: "JSXOpeningElement[name.name='DialogFooter']",
+        message:
+          "A hand-built dialog footer: a commit footer is `CommitFooter` (or FormDialog's own), and a footer of actions is the `footer` of ContentDialog, FlowDialog or PickerDialog.",
+      },
+      {
+        // Leaving is the one act an empty dialog has, so an `EmptyState` action may close it; every other exit is the composite's.
+        selector:
+          "JSXOpeningElement[name.name='DialogClose']:not(JSXOpeningElement[name.name='EmptyState'] > JSXAttribute[name.name='action'] JSXOpeningElement)",
+        message:
+          "A hand-built dialog exit: the composite draws the way out (Cancel, Back, a dismiss label or the corner close). Only an EmptyState action may close a dialog.",
+      },
+      // The two selectors above read the JSX name, so every way to bind a part under another name is refused here, and the name they read
+      // is the binding. A feature has no use for the footer at all, so any import of it is refused, renamed or not.
+      {
+        selector: `ImportDeclaration[source.value='${DIALOG_DOOR}'] > ImportSpecifier[imported.name='DialogFooter']`,
+        message: "A dialog footer imported into a feature: a commit footer is `CommitFooter`, and a footer of actions is a composite's `footer`.",
+      },
+      {
+        selector: `ImportDeclaration[source.value='${DIALOG_DOOR}'] > ImportSpecifier[imported.name='DialogClose'][local.name!='DialogClose']`,
+        message: "The dialog close part imported under another name: import it as `DialogClose`, so the exit rule reads it.",
+      },
+      {
+        selector: wholeModule(DIALOG_DOOR),
+        message: "The whole `@orb/ui/dialog` module taken by namespace, `export *` or dynamic import: import a part by name, so the dialog rules read it.",
+      },
+      {
+        selector: "ExportSpecifier[local.name=/^Dialog(Close|Footer)$/]",
+        message: "A dialog part re-exported from a feature: the composites own the footer and the way out, so no feature module hands them on.",
+      },
+      {
+        selector: "Identifier[name='DialogClose']:not(ImportSpecifier > Identifier, ExportSpecifier > Identifier)",
+        message: "The dialog close part held as a value: render it as `<DialogClose>` in an EmptyState action, so the exit rule reads it.",
+      },
+    ],
+  },
+  {
+    id: "sheet-via-composite",
+    selectors: [
+      {
+        selector: "ImportDeclaration[source.value='@orb/ui/drawer']",
+        message:
+          "The drawer primitive outside the sheet composite: a phone bottom sheet is a `#components` `SheetDialog`, which owns the sticky header, Close and the keyboard wrap.",
       },
     ],
   },

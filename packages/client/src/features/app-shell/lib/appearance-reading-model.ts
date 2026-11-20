@@ -11,16 +11,20 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
   label: "Reading typography",
   keywords: ["text", "prose", "font"],
   teach: {
-    summary: "Fine-grained control over how message text reads: line height, letter spacing, paragraph gaps, speaker-name sizing and message-body scaling.",
+    summary:
+      "Fine-grained control over how message text reads: line spacing, letter spacing, message-body scaling and justification. Paragraph gaps follow the line spacing and speaker names follow the message size.",
     affects: ["message body and speaker-name text in every chat, on this account"],
   },
   settings: [
     {
       id: "line-height",
       key: "readingLineHeight",
-      label: "Line height",
-      keywords: ["leading", "spacing"],
-      teach: { summary: "Spacing between lines of message text.", affects: ["message body text in every chat"] },
+      label: "Line spacing",
+      keywords: ["leading", "spacing", "line height", "paragraph"],
+      teach: {
+        summary: "Spacing between lines of message text. The gap between paragraphs grows and shrinks with it.",
+        affects: ["message body text in every chat", "the gap between paragraphs"],
+      },
     },
     {
       id: "letter-spacing",
@@ -30,24 +34,12 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
       teach: { summary: "Tracking applied to message text, in em.", affects: ["message body text in every chat"] },
     },
     {
-      id: "paragraph-spacing",
-      key: "readingParagraphSpacing",
-      label: "Paragraph spacing",
-      teach: { summary: "The gap between paragraphs inside one message, in rem.", affects: ["multi-paragraph messages in every chat"] },
-    },
-    {
-      id: "name-scale",
-      key: "readingNameScale",
-      label: "Speaker name size",
-      teach: { summary: "A multiplier on the attribution name text above each message.", affects: ["speaker names in every chat"] },
-    },
-    {
       id: "body-scale",
       key: "readingBodyScale",
       label: "Message text size",
       teach: {
-        summary: "A multiplier on message body text, independent of the global text size.",
-        affects: ["message body text only; the rest of the app keeps the global size"],
+        summary: "A multiplier on message body text, independent of the global text size. Speaker names scale with it.",
+        affects: ["message body and speaker-name text only; the rest of the app keeps the global size"],
         related: [{ group: "appearance", sub: "sizing", setting: "font-scale" }],
       },
     },
@@ -55,8 +47,12 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
       id: "justify",
       key: "justifyBodyText",
       label: "Justify message text",
-      keywords: ["align", "manuscript"],
-      teach: { summary: "Aligns both edges of wrapped message text, manuscript style.", affects: ["paragraph edges in every chat"] },
+      keywords: ["align", "manuscript", "cjk", "chinese", "japanese", "korean"],
+      teach: {
+        summary:
+          "Aligns both edges of wrapped message text. Suits Chinese, Japanese and Korean text; English justified on a narrow column opens wide gaps between words.",
+        affects: ["paragraph edges in every chat"],
+      },
     },
   ],
 };

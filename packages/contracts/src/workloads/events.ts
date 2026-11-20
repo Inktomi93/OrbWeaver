@@ -1,14 +1,12 @@
 // `@orb/contracts/workloads` — the workload LIFECYCLE EVENT union + the failure shape it carries.
 //
-// IT HOMES HERE BECAUSE IT IS A WIRE SHAPE (AGENTS.md "Type homes and unions", and the precondition SSE-1 §14 decision 3 named
-// for stage S5). It started at `domain/workloads/contract/workload-events.ts`, which was honest while the only
-// reader was the server's own `workloads.subscribe` generator: the client hook could not import it, so it
-// hand-rolled a narrow structural VIEW of the two fields it read and cast the rest away. Now the events ride
+// IT HOMES HERE BECAUSE IT IS A WIRE SHAPE (AGENTS.md "Type homes and unions"). The events ride
 // the multiplexed socket verbatim under `frame.event` (`@orb/contracts/stream`, the `workloads` room), which
-// makes them a server↔client contract — and the client's local shadow copy is deleted with the move.
+// makes them a server↔client contract — a client must not hand-roll a narrow structural VIEW of a
+// domain-internal type and cast the rest away.
 //
 // The DOM-free half of the workloads seam lives in this package (D117 (1)); `WorkloadContribution` itself
-// still cannot, because its `run` takes an `AbortSignal`. Nothing about that changed here: these are plain
+// cannot, because its `run` takes an `AbortSignal`. These are plain
 // data shapes, and every producer stays inside the domain (`emitWorkloadEvent`).
 //
 // NO `*_EVENT_TYPES` BELT, deliberately. That suffix is the bus registry's marker for a bus
@@ -48,10 +46,9 @@ interface WorkloadEventBase extends WorkloadEventRow {
  * hand-restated arm per kind: the distribution IS the totality pin, so a new `WorkloadKind` needs no edit
  * here and lands as a tsc error at `WorkloadResultByKind` — the one home that owns the pairing.
  *
- * `result` IS REQUIRED. It was `result?: unknown` because an `unknown` property is inhabited by `undefined`,
- * which made tRPC's output inference emit it as optional and a required declaration unsatisfiable by the
- * client's own frame type. The concrete per-kind types retire that reason (none of them admits `undefined`),
- * and every producer already emitted the field — so the wire now says what the code always did.
+ * `result` IS REQUIRED. An optional `unknown` property is inhabited by `undefined`, which makes tRPC's output
+ * inference emit it as optional and a required declaration unsatisfiable by the client's own frame type. The
+ * concrete per-kind types admit no `undefined`, so the wire says what the code does.
  */
 type WorkloadSucceededEvent = {
   [K in WorkloadKind]: WorkloadEventRow & {

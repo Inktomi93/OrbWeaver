@@ -1,8 +1,8 @@
-// @orb/contracts/chat/content-blocks — the D294, UI-Theming-and-Content §12.4 message-content RENDER model: a message body is a typed
-// SEQUENCE of content blocks (markdown / gated media / trust-tiered html-card), NOT one HTML string. This is
-// how a stored message is DISPLAYED — distinct from the provider-send model (`ChatContentPart`, D45 — what the
-// model receives), which shares one stored asset but is a different contract in the opposite direction. Also
-// the `contentSpansToBlocks` projection off the kit content-span grammar (D51), which DEGRADES, never throws.
+// @orb/contracts/chat/content-blocks — the D294, UI-Theming-and-Content §12.4 message-content RENDER model: a
+// message body is a typed SEQUENCE of content blocks (markdown / gated media / trust-tiered html-card), NOT one
+// HTML string. Distinct from the provider-send model (`ChatContentPart`, D45 — what the model receives), which
+// shares one stored asset but is the opposite direction. Also the `contentSpansToBlocks` projection off the kit
+// content-span grammar (D51), which DEGRADES, never throws.
 
 import type { ContentSpan } from "@orb/kit/content";
 import { contentSpanRaw, tokenizeContent } from "@orb/kit/content";
@@ -13,10 +13,6 @@ import { ASSET_LIST_LIMIT_MAX } from "../assets/index.ts";
 import { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 // ── Message content blocks (D294, UI-Theming-and-Content §12.4) ────────────────────────────────────────────────────────────
-// A message body is a typed SEQUENCE of content blocks, NOT one HTML string (ST's fatal simplification).
-// This is the RENDER model — how a stored message is *displayed*. It is distinct from the provider-send
-// model (`ChatHistoryMessage.content` → content-parts, D45 — what the model receives as input); the two
-// share one stored asset but are different contracts in opposite directions. Chat assembles these.
 
 const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 
@@ -35,7 +31,7 @@ const messageMediaSrcSchema = z.discriminatedUnion("kind", [
 ]);
 
 /** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
- *  native audio/video; `markdown` is the default text path. (D294, UI-Theming-and-Content §12.4 — born-compliant before Phase 5.) */
+ *  native audio/video; `markdown` is the default text path (D294, UI-Theming-and-Content §12.4). */
 export const messageContentBlockSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("markdown"), md: authoredMarkdownText }),
   z.strictObject({
@@ -53,7 +49,7 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
     /** The `:::card title="…"` label — the expand-affordance/lightbox label. Absent on
      *  a title-less card and on the pre-grammar born-compliant arm (additive, version-tolerant). */
     title: z.string().optional(),
-    /** How the card was recognized (§4.8 provenance): `fence` = an explicit `:::card`; `lenient` = the
+    /** How the card was recognized: `fence` = an explicit `:::card`; `lenient` = the
      *  naked-HTML / html-tagged-code-fence implicit arm. Surfaced by the reveal/debug + view-raw chrome;
      *  absent on the pre-grammar born-compliant arm (additive, version-tolerant). */
     origin: z.enum(["fence", "lenient"]).optional(),
@@ -200,9 +196,8 @@ export const sendContentBlocksSchema = z
  * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into
  * the D294 render blocks: consecutive text spans join into one `markdown` block; image spans become
  * `media` blocks (`external` refs are rendered through the gated `MessageMedia`, never a raw
- * `<img>` — D294, UI-Theming-and-Content §12.3). The `html-card` extraction grammar is NOT parsed here — it lands with the
- * chat-content wiring that defines how a card is embedded in a stored body (the union member is
- * born-compliant; this projection covers the markdown + media classes the D51 grammar defines).
+ * `<img>` — D294, UI-Theming-and-Content §12.3). The `html-card` extraction grammar is NOT parsed here: this
+ * projection covers the markdown + media classes the D51 grammar defines.
  *
  * STORED-CONTENT PROJECTIONS DEGRADE, NEVER THROW (ratified doctrine). The input spans come from a
  * persisted, arbitrary model/user-authored body (any member can type — and any model can emit —
@@ -217,9 +212,13 @@ export const sendContentBlocksSchema = z
  */
 export interface ContentSpansToBlocksOptions {
   /** The trust tier stamped on `card`-span blocks — resolved by the CALLER from the row's render policy
-   *  (§4.3: model output → `tierB`; ONE trust authority, `render-trust`). Default `tierB` (the fail-closed
+   *  (model output → `tierB`; ONE trust authority, `render-trust`). Default `tierB` (the fail-closed
    *  sandbox arm — never default a card into the main DOM). */
   readonly cardTrust?: CardTrust | undefined;
+  /** Keep `unknown-directive` spans as text (D354). An attribute-carrying self-closing tag is a command shape in a
+   *  transcript, but inside a styled reply's frame document it is the reply's own markup: an SVG `<path/>` or
+   *  `<circle/>`, an `<img/>`. A `hidden` span stays hidden either way; it is the class that carries secrets. */
+  readonly keepUnknownDirectives?: boolean | undefined;
 }
 
 /** The image-span projection (the original D51 arm — degrade-not-throw on a bad persisted brand). */
@@ -272,7 +271,7 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: Co
   };
   for (const span of spans) {
     // Reading policy is not authorization: the server strips hidden bodies from member payloads (D285).
-    if (CONTENT_CLASS_POLICY[span.kind].reading === "hide") {
+    if (CONTENT_CLASS_POLICY[span.kind].reading === "hide" && !(span.kind === "unknown-directive" && options?.keepUnknownDirectives === true)) {
       continue;
     }
     if (span.kind === "text" || span.kind === "dice" || span.kind === "hidden" || span.kind === "unknown-directive") {

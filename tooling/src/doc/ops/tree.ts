@@ -11,7 +11,7 @@ import type { GitPathHistory } from "../../floor/git/git-history-contract.ts";
 import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
-import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome } from "../contract/types.ts";
+import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome, WrittenPaths } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES, INSTRUCTION_PATHS } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { foreignHolders } from "../lib/id-holders.ts";
@@ -117,14 +117,16 @@ export function writeDoc(path: string, source: string, repoRoot = root): void {
 /** Each path a write may touch, with its bytes before the write; null for a path that did not exist. */
 export type PriorFiles = ReadonlyMap<string, string | null>;
 
-/** Put every path a write touched back to its bytes before the write; a path the write created is removed. */
-export function putBack(written: readonly string[], prior: PriorFiles, repoRoot = root): void {
-  for (const path of written) {
+/** Put every path a write touched back to its bytes before the write, and remove the paths it declared it created.
+ *  A touched path the snapshot never saw and the write did not create stays: another process wrote it. */
+export function putBack(touched: WrittenPaths, prior: PriorFiles, repoRoot = root): void {
+  const created = new Set(touched.created);
+  for (const path of touched.written) {
     const source = prior.get(path) ?? null;
     const abs = join(repoRoot, path);
     if (source !== null) {
       writeFileSync(abs, source);
-    } else if (existsSync(abs)) {
+    } else if (created.has(path) && existsSync(abs)) {
       rmSync(abs);
     }
   }

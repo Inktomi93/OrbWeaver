@@ -44,7 +44,7 @@ async function withSharedAvatar<T>(realCards: number, syntheticCards: number, re
       principal,
       input: createCharacterSchema.parse({ handle: `shared-art-${String(index)}`, name: `Shared art ${String(index)}`, description: "A keeper." }),
     });
-    await root.services.character.update({ principal, characterId: card.id, input: { avatarAssetId: stored.assetId } });
+    await root.services.character.update({ signal: new AbortController().signal, principal, characterId: card.id, input: { avatarAssetId: stored.assetId } });
     realIds.push(card.id);
   }
   for (let index = 0; index < syntheticCards; index += 1) {
@@ -54,10 +54,15 @@ async function withSharedAvatar<T>(realCards: number, syntheticCards: number, re
     });
     const { chat } = await root.services.chat.startChat({ principal, characterIds: [anchor.id], opening: "none" });
     const group = await root.services.character.mintSyntheticGroupCharacter({ ownerId: principal.userId, chatId: chat.id });
-    await root.services.character.update({ principal, characterId: group.characterId, input: { avatarAssetId: stored.assetId } });
+    await root.services.character.update({
+      signal: new AbortController().signal,
+      principal,
+      characterId: group.characterId,
+      input: { avatarAssetId: stored.assetId },
+    });
   }
   await root.settleBackground();
-  await root.app.embeddings.indexAsset(stored.assetId, { force: false });
+  await root.app.embeddings.indexAsset(stored.assetId, { signal: new AbortController().signal, force: false });
   return await read(root, realIds);
 }
 
@@ -75,7 +80,7 @@ test("three real cards on one avatar are a shared avatar and drop out of the dup
     const principal = await root.principalFor(root.ownerId);
     const shared = await caller.discovery.imageDuplicates();
     for (const characterId of ids.slice(0, 1)) {
-      await root.services.character.update({ principal, characterId, input: { avatarAssetId: null } });
+      await root.services.character.update({ signal: new AbortController().signal, principal, characterId, input: { avatarAssetId: null } });
     }
     return { whileShared: shared, afterOneLeaves: await caller.discovery.imageDuplicates() };
   });

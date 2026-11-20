@@ -11,12 +11,14 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 
 | Law | Status |
 | - | - |
+| [Vercel AI SDK surface — installed packages, our use, and the hand-roll ledger](ai-sdk-surface.md) | active |
 | [Chat macro/persona resolution — the one home](Chat-Macro-Resolution.md) | active |
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
 | [Client architecture: state, data, error handling and sync spine](client-architecture-state-and-gates.md) | active |
 | [Orbweaver constitution](Constitution.md) | active |
 | [Container deployment security: the deployed surface and its review](container-deployment-security.md) | active |
 | [Orbweaver — structure and placement](Core-0-Architecture-and-Structure.md) | active |
+| [DeepSeek API surface — vendor facts for both routes](deepseek-api-surface.md) | active |
 | [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
@@ -37,6 +39,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [`@orb/ui` — the package design (structure · factories · seals · tokens)](ui-package-design.md) | active |
 | [UI platform rulings: styling, fonts, appearance, browser floor and evidence](ui-platform-rulings.md) | active |
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
+| [UI surface and interaction rules](ui-surface-and-interaction-rules.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
 | [User docs](user-docs.md) | active |
 | [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

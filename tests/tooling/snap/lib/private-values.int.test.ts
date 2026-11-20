@@ -6,8 +6,9 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
+import { noteUrlSecrets } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
-  __resetPrivateValues,
+  forgetPrivateValues,
   privateText,
   scrubPrivateFile,
   scrubPrivateJson,
@@ -26,11 +27,11 @@ const READ_ONLY = 0o400;
 
 /** Reveal `values` for one case, and forget them at its end: Node suites share one module registry per worker. */
 function revealed(...values: readonly string[]): Disposable {
-  __resetPrivateValues();
+  forgetPrivateValues();
   for (const value of values) {
     privateText(value).reveal();
   }
-  return { [Symbol.dispose]: __resetPrivateValues };
+  return { [Symbol.dispose]: forgetPrivateValues };
 }
 
 async function scrubbed(scratch: string, entries: Readonly<Record<string, Uint8Array>>): Promise<Record<string, Uint8Array>> {
@@ -38,6 +39,22 @@ async function scrubbed(scratch: string, entries: Readonly<Record<string, Uint8A
   await stopTraceToFile({ stop: ({ path: target }) => writeFile(target, zipSync({ ...entries })) }, path);
   return unzipSync(await readFile(path));
 }
+
+test("a short value from a key or code pair is scrubbed only where it is the whole text, so page words survive", () => {
+  using _values = revealed();
+  noteUrlSecrets("http://h.test/cb?key=home&code=1234");
+  expect(scrubPrivateText("go home now, code 1234")).toBe("go home now, code 1234");
+  expect(scrubPrivateText("home")).toBe(PRIVATE_MASK);
+  expect(scrubPrivateText("1234")).toBe(PRIVATE_MASK);
+});
+
+test("a long value from a key or code pair, and a short one from a token pair, are scrubbed inside page text", () => {
+  using _values = revealed();
+  const generated = "4/0AdQt8qh-generated-code";
+  noteUrlSecrets(`http://h.test/cb?code=${encodeURIComponent(generated)}&token=t0k3`);
+  expect(scrubPrivateText(`signed in with ${generated} here`)).toBe(`signed in with ${PRIVATE_MASK} here`);
+  expect(scrubPrivateText("bearer t0k3 sent")).toBe(`bearer ${PRIVATE_MASK} sent`);
+});
 
 test("a JSON line loses a value inside a string and keeps its keys and literals", async ({ scratch }) => {
   using _values = revealed(LONG, SHORT, KEYWORD);
@@ -94,6 +111,72 @@ test.each([
   using _values = revealed(...values);
   expect(scrubPrivateText("typed hunter2-long-tail here")).toBe(`typed ${PRIVATE_MASK} here`);
   expect(scrubPrivateText("typed hunter2 here")).toBe(`typed ${PRIVATE_MASK} here`);
+});
+
+// Playwright's `trimStringWithEllipsis` (playwright-core `coreBundle.js`), the external edge these lines come from: a text
+// over its cap keeps cap - 1 code points and an ellipsis, so a long value survives only as its prefix.
+function playwrightCut(text: string, cap: number): string {
+  const points = Array.from(text);
+  return points.length <= cap ? text : `${points.slice(0, cap - 1).join("")}…`;
+}
+
+const CUT_TOKEN = "plant-trace-token-0d4be29c71aa";
+const URL_WORD = "homepage-dashboard-v2";
+const TYPED = "Loading the composer draft";
+
+/** Note a URL token, a `?key=` word and a typed fill for one case, and forget them at its end. */
+function notedForCuts(): Disposable {
+  forgetPrivateValues();
+  privateText(TYPED).reveal();
+  noteUrlSecrets(`http://h.test/cb?lang=en&token=${CUT_TOKEN}&key=${URL_WORD}`);
+  return { [Symbol.dispose]: forgetPrivateValues };
+}
+
+async function traceLines(scratch: string, lines: readonly Record<string, unknown>[]): Promise<readonly string[]> {
+  const entries = await scrubbed(scratch, { "trace.trace": strToU8(lines.map((line) => `${JSON.stringify(line)}\n`).join("")) });
+  return Buffer.from(entries["trace.trace"] ?? [])
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line !== "");
+}
+
+test.for([
+  [
+    "element preview text",
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Signed in with ".padEnd(40, ".")}${CUT_TOKEN}`, 50)}</div>` },
+  ],
+  [
+    "element preview attributes",
+    { type: "log", message: `  locator resolved to <a${playwrightCut(` class="${"c".repeat(460)}" href="/cb?token=${CUT_TOKEN}"`, 500)}>Back</a>` },
+  ],
+  [
+    "a pending navigation URL",
+    { type: "log", message: `  waiting for "${playwrightCut(`http://h.test/cb?${"a=1&".repeat(42)}token=${CUT_TOKEN}`, 200)}" navigation to finish...` },
+  ],
+  ["a quoted URL argument", { type: "before", title: `Wait for URL "${playwrightCut(`http://h.test/cb?lang=en&token=${CUT_TOKEN}`, 50)}"` }],
+  [
+    "a long key word past its own floor",
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Go to ".padEnd(30, ".")}${URL_WORD}`, 50)}</div>` },
+  ],
+] as const)("a value Playwright cut at %s is scrubbed from the trace by its prefix", async ([_name, line], { scratch }) => {
+  using _values = notedForCuts();
+  const [cut] = await traceLines(scratch, [line]);
+  expect(cut).toContain(`${PRIVATE_MASK}…`);
+  expect(cut).not.toContain(CUT_TOKEN.slice(0, 4));
+  expect(cut).not.toContain(URL_WORD.slice(0, 16));
+});
+
+// The prefix pass judges only Playwright's own cuts, each value at its own floor, so ordinary UI text survives a run.
+test("ordinary text ending in an ellipsis keeps its words after a fill and a key word are noted", async ({ scratch }) => {
+  using _values = notedForCuts();
+  expect(scrubPrivateText("Loading…")).toBe("Loading…");
+  expect(scrubPrivateText("Back to home…")).toBe("Back to home…");
+  const kept = [
+    { type: "log", message: "  locator resolved to <div>Loading…</div>" },
+    { type: "log", message: "  locator resolved to <span>Back to home…</span>" },
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Go to the dashboard ".padEnd(45, ".")}${URL_WORD}`, 50)}</div>` },
+  ];
+  expect(await traceLines(scratch, kept)).toEqual(kept.map((line) => JSON.stringify(line)));
 });
 
 test("a trace that cannot be scrubbed is not kept, and its failure quotes none of it", async ({ scratch }) => {

@@ -9,6 +9,7 @@
 // actor merely LEFT the participants is retained-not-projected — persistence keeps the row; the verb's projection
 // drops it from the view (presence gates the write, the read derives).
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { RpgSheet } from "@orb/contracts/rpg";
 import { rpgSheetSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -16,12 +17,18 @@ import { rpgSheets } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { CharacterId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, eq } from "drizzle-orm";
 import { RpgStateCorruptError } from "../contract/errors.ts";
 import type { RpgSheetRow } from "../contract/service.ts";
 
-/** Re-validate a sheet row's `sheet` JSON through its contract schema (parse-on-read). */
-function parseSheetRow(row: RpgSheetRow): RpgSheetRow {
+/** Re-validate a sheet row's `sheet` JSON through its contract schema (parse-on-read); stored text that is not JSON
+ *  fails it like any other shape and is refused, never defaulted, so no write can replace it. */
+function parseSheetRow(row: typeof rpgSheets.$inferSelect): RpgSheetRow {
+  // Tested before the schema, which defaults every field and would read the marker as an empty sheet.
+  if (row.sheet instanceof UnreadableJsonText) {
+    throw new RpgStateCorruptError("rpg_sheets", row.id, "sheet: the stored text is not JSON");
+  }
   const parsed = rpgSheetSchema.safeParse(row.sheet);
   if (!parsed.success) {
     throw new RpgStateCorruptError("rpg_sheets", row.id, `sheet: ${parsed.error.message}`);
@@ -54,6 +61,7 @@ export async function findSheet(
  *  composes the MA-4 patch before calling — persistence writes the resolved sheet). `id`/`now` injected. */
 export async function upsertSheet(
   db: Db,
+  _claim: RoomClaim,
   input: {
     readonly id: RpgSheetId;
     readonly gameId: RpgGameId;

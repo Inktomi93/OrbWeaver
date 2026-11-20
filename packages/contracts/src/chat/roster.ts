@@ -1,9 +1,8 @@
 // @orb/contracts/chat/roster — the unified-roster wire (D16/D22/D80): the participant roster read-model, the
-// seat-knob one-home vocabulary + the roster-member spec, the membership-gated level-clamped member card
-// (D22), invites + the membership chokepoint, the resolved per-participant render policy (docs/law/UI-Theming-and-Content.md §12.2), the
-// join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and the phase-independent
-// carried appearance (the true-solo composition both takeovers gate on). The
-// LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
+// seat-knob vocabulary + roster-member spec, the membership-gated level-clamped member card (D22), invites +
+// the membership chokepoint, the resolved per-participant render policy
+// (docs/law/UI-Theming-and-Content.md §12.2), the join-history floor clamp, and the phase-independent
+// carried appearance both takeovers gate on. The LIFECYCLE logic is `domain/chat`; these are wire shapes.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -21,11 +20,6 @@ import type { MemberCardVisibility } from "./metadata.ts";
 import { memberCardVisibilitySchema } from "./metadata.ts";
 import type { ParticipantKind } from "./participants.ts";
 import { participantKindSchema } from "./participants.ts";
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE UNIFIED-ROSTER WIRE (D16) — the participant roster, the membership-gated member card (D22), invites,
-// and the group-macro context. The LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +
  *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
@@ -60,12 +54,8 @@ export const NO_HISTORY_FLOOR: HistoryFloorSeq = historyFloor(0);
 
 const TALKATIVENESS_MIN = 0;
 const TALKATIVENESS_MAX = 1;
-/** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
+/** The default talkativeness weight — the natural-arbitration sampling weight. */
 export const TALKATIVENESS_DEFAULT = 0.5;
-// `talkativenessSchema` (a .catch/.default-ing 0–1 clamp) is DELETED: its
-// predicted-future consumer — the roster-preset seat-knobs projection — arrived and stores the knob
-// through `characterMemberSpecSchema`'s inline clamp instead (NULL-means-inherit semantics, which the
-// defaulting schema could not express), so the prediction died on arrival and the export had no consumer.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ONE ROSTER-MEMBER VOCABULARY (D80 — the participant five-plane model). Homed HERE (chat owns the
@@ -74,25 +64,21 @@ export const TALKATIVENESS_DEFAULT = 0.5;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The knobs every AI seat carries — ONE home (D80). The participantId-keyed `setSeatKnobs` verb projects
- *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
- *  talkativeness gaps proved the class). Roster presets are BUILT (D61 B6 — `domain/roster-preset`):
- *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
- *  patch project exactly this shape. Founding character sets stay unbuilt (they graft onto the same shape if they
- *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
+ *  this shape, and so do the `roster_preset_members` junction's talkativeness/disabled columns when
+ *  `applyToChat` applies a roster preset. `talkativeness` absent = inherit the chat default
+ *  ({@link TALKATIVENESS_DEFAULT}). */
 export const seatKnobsSchema = z.strictObject({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
   disabled: z.boolean().optional(),
 });
 export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
 
-/** The card-seat shape every membership-template lifetime PROJECTS through (D16/D61/D60) — extracted so a
+/** The card-seat shape every membership-template lifetime PROJECTS through (D16/D60) — extracted so a
  *  surface that persists characters ONLY narrows to it without re-spelling the shape (derive, one home).
- *  LIVE consumer: roster presets v1 (`@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS
- *  this schema). A card seat: a `characterId` + `position` + the AI-seat knobs. Nothing mints a flat
- *  characterId array beside it; founding character sets and saved-rosters v2 remain unbuilt.
+ *  LIVE consumer: roster presets v1 (`@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS this
+ *  schema). A card seat: a `characterId` + `position` + the AI-seat knobs.
  *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
- *  invite's runtime preconditions); `observer` and `agent` are purged (the rebuild re-adds
- *  their arms here if either domain returns). */
+ *  invite's runtime preconditions). */
 export const characterMemberSpecSchema = z.strictObject({
   kind: z.literal("character"),
   characterId: typeIdSchema(ID_PREFIX.character),
@@ -101,32 +87,24 @@ export const characterMemberSpecSchema = z.strictObject({
 });
 export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
-/** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The chat domain resolves each
- *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
- *  resolution home — {@link resolveRenderPolicy}, never re-resolved client-side); the client READS these to
- *  pick the markdown render trust tier + gate external media for content THIS participant authored. Every
- *  field is non-null (already resolved). */
 /**
  * ONE ORDERED LADDER for how much a participant's authored HTML may do (owner ruling —
  * "one ladder control, not a second checkbox"). Strictly increasing, and the order IS the meaning:
  *
- *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
+ *   `untrusted`   — the ladder's floor. Sanitized markdown; a card renders in the inert tierA seal.
  *   `trusted`     — rich HTML render (still SANITIZED — no script/iframe/style/`on*`), and a
  *                   card gets the sandboxed tierB frame (docs/law/UI-Theming-and-Content.md §12.2).
- *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
- *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture, which since leg 3's
- *                   security pass RUNS the card's own scripts inside that sandbox.
+ *   `interactive` — everything `trusted` has, PLUS the card's own scripts RUN inside that sandbox
+ *                   (D294).
  *
- * THE TOP RUNG IS THE LADDER'S ONLY CAPABILITY JUMP, and this is worth saying because a sibling comment
- * once had it backwards: `trusted` widens what markup renders, but the renderer sanitizes it, so no rung
- * below `interactive` executes author code at all. `interactive` is the first and only one that does — and
- * it is the one rung that also needs the deployment operator's consent ({@link DeploymentRenderPolicy}).
+ * THE TOP RUNG IS THE LADDER'S ONLY CAPABILITY JUMP: `trusted` widens what markup renders, but the
+ * renderer sanitizes it, so no rung below `interactive` executes author code at all — and it is the one
+ * rung that also needs the viewer's own consent ({@link resolveCardScriptVerdict}).
  *
  * INTERACTIVE IMPLIES TRUSTED BY CONSTRUCTION — that is the whole reason this is a ladder and not two
  * booleans: with two flags, "interactive but not trusted" is representable, and every consumer has to
- * decide what that fourth state means (four different consumers, four answers). Here it cannot be said.
- * Read the axis through {@link rendersTrustedHtml} / {@link allowsInteractiveCards}, never by re-spelling
- * a comparison.
+ * decide what that fourth state means. Here it cannot be said. Read the axis through
+ * {@link rendersTrustedHtml} / {@link allowsInteractiveCards}, never by re-spelling a comparison.
  */
 export const HTML_TRUST_STEPS = ["untrusted", "trusted", "interactive"] as const;
 export type HtmlTrustStep = (typeof HTML_TRUST_STEPS)[number];
@@ -138,13 +116,83 @@ export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
 }
 
 /** Does this step select the INTERACTIVE card-frame posture — i.e. may this participant's routed cards RUN
- *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm
- *  selection. A step only REACHES `interactive` when the deployment ceiling allowed it ({@link
- *  resolveRenderPolicy}), so a reader of the resolved ladder never has to re-check the AppSetting. */
-export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
+ *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm selection. */
+function allowsInteractiveCards(step: HtmlTrustStep): boolean {
   return step === "interactive";
 }
 
+const CARD_SCRIPT_HOLDERS = ["character", "viewer"] as const;
+/** Which consent holds a frame's scripts off: the author's resolved ladder step, or the viewer's own
+ *  `chat.runCardScripts`. An inheriting author's step is the install's "Default for characters", so the install's
+ *  setting holds scripts only through that step; the notice tells the two apart by the seat's `renderSource`. */
+type CardScriptHolder = (typeof CARD_SCRIPT_HOLDERS)[number];
+
+/** Whether a routed frame's own scripts run, and when they do not, the first consent that holds them off. */
+export type CardScriptVerdict = { readonly runs: true } | { readonly runs: false; readonly heldBy: CardScriptHolder };
+
+/** The consents a frame's script posture reads, both already resolved. */
+export interface CardScriptConsents {
+  /** The author's resolved ladder step ({@link RenderPolicy.htmlTrust}). */
+  readonly step: HtmlTrustStep;
+  /** The viewer's own `chat.runCardScripts`. */
+  readonly viewerRuns: boolean;
+}
+
+const SCRIPTS_RUN: CardScriptVerdict = { runs: true };
+
+/**
+ * THE script posture of a routed card frame: scripts run only when the author's step is Interactive and the viewer's
+ * own switch is on. The ONE home of the rule and of its order. The card-frame route builds the frame's CSP from it,
+ * and the client's notice names the holder it returns.
+ *
+ * @remarks The order names the setting whose change matters first: the viewer's switch is named last, because the
+ * author's step decides whether the frame may run scripts at all. A served document keeps the narrower of its minted
+ * and its current posture, so a frame minted static stays static until it mints again: whether a frame runs scripts
+ * is its mint's `granted.interactive`, and this verdict names the holder when it does not.
+ */
+export function resolveCardScriptVerdict(consents: CardScriptConsents): CardScriptVerdict {
+  if (!allowsInteractiveCards(consents.step)) {
+    return { runs: false, heldBy: "character" };
+  }
+  return consents.viewerRuns ? SCRIPTS_RUN : { runs: false, heldBy: "viewer" };
+}
+
+/** Whether the viewer's consent is even asked: the author's step must allow scripts first. The card-frame route reads
+ *  the viewer's settings only when this holds. */
+export function cardScriptsNeedViewerConsent(consents: Omit<CardScriptConsents, "viewerRuns">): boolean {
+  return allowsInteractiveCards(consents.step);
+}
+
+const CARD_MEDIA_HOLDERS = ["install", "character"] as const;
+/** Which setting holds a frame's external media out: the install's "Block external media" or the author's own forbid. */
+type CardMediaHolder = (typeof CARD_MEDIA_HOLDERS)[number];
+
+/** A framed card's or styled reply's media grant: whether `https:` media loads (and who holds it when not), and
+ *  whether `data:` images open. */
+export interface CardMediaVerdict {
+  readonly external: { readonly loads: true } | { readonly loads: false; readonly heldBy: CardMediaHolder };
+  readonly inlineData: boolean;
+}
+
+/**
+ * THE media grant of a routed card frame, over the install's external-media ceiling (read live) and the author's
+ * resolved policy. The ONE home of the rule: the card-frame route builds `CardFrameMediaPolicy` from it, and the client
+ * notice names the holder it returns. External media is tighten-only, so the install binds whenever it forbids;
+ * `data:` images open from Rich HTML up, the same step that grants the frame.
+ */
+export function resolveCardMediaVerdict(consents: { readonly installForbids: boolean; readonly policy: RenderPolicy }): CardMediaVerdict {
+  const inlineData = rendersTrustedHtml(consents.policy.htmlTrust);
+  if (consents.installForbids) {
+    return { external: { loads: false, heldBy: "install" }, inlineData };
+  }
+  return { external: consents.policy.forbidExternalMedia ? { loads: false, heldBy: "character" } : { loads: true }, inlineData };
+}
+
+/** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The
+ *  chat domain resolves each character's tri-state overrides against the deployment effective config at
+ *  roster-build time (the ONE resolution home — {@link resolveRenderPolicy}, never re-resolved client-side);
+ *  the client READS these to pick the markdown render trust tier + gate external media for content THIS
+ *  participant authored. Every field is non-null (already resolved). */
 export interface RenderPolicy {
   /** The RESOLVED HTML-trust step — the single ordered axis (see {@link HTML_TRUST_STEPS}). */
   readonly htmlTrust: HtmlTrustStep;
@@ -159,20 +207,15 @@ const renderPolicySchema = z.strictObject({
   forbidExternalMedia: z.boolean(),
 }) satisfies z.ZodType<RenderPolicy>;
 
-/** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the two rungs
- *  have two DIFFERENT app-tier semantics (a default vs a ceiling — see {@link resolveRenderPolicy}), and
- *  one enum value could not say both. */
+/** The DEPLOYMENT tier as the resolver takes it. */
 export interface DeploymentRenderPolicy {
-  readonly trustHtml: boolean;
+  /** The install's "Default for characters" (D294). FLOOR IS `interactive` (owner ruling: interactive cards are on by
+   *  default for every character). It is the step a card that inherits takes, and nothing more: a character's own
+   *  step wins over it in either direction, Interactive included. Setting it below `interactive` closes the WebRTC/STUN
+   *  beacon no CSP directive in Chromium can close for every INHERITING character; a character its owner set to
+   *  Interactive keeps it open, and a viewer's own `UserSettings.chat.runCardScripts` closes it for that viewer. */
+  readonly defaultHtmlStep: HtmlTrustStep;
   readonly forbidExternalMedia: boolean;
-  /** The `allowInteractiveCards` AppSetting — the deployment operator's consent to run model-authored card
-   *  scripts in a viewer's browser at all. FLOOR IS TRUE (owner ruling: interactive cards are on by default
-   *  for every character). It plays two parts in {@link resolveRenderPolicy}: the DEFAULT rung of a card
-   *  that inherits, and an absolute CEILING (an AND, never `override ??`) that no per-character answer can
-   *  rise above. Switching it off is the revocation: it is the only box-wide control over the WebRTC/STUN
-   *  beacon no CSP directive in Chromium can close (`@orb/kit/card-frame` residual R1). A viewer's own
-   *  `UserSettings.chat.runCardScripts` closes it for that viewer, at the card-frame mint. */
-  readonly allowInteractiveCards: boolean;
 }
 
 /** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
@@ -192,50 +235,42 @@ export interface RenderPolicyOverride {
 /**
  * THE render-policy resolver — the ONE place the deployment tier and a lower tier (per-character today)
  * combine. Every producer of a {@link RenderPolicy} calls this; nobody re-spells the `??`/`||` inline.
+ * docs/law/UI-Theming-and-Content.md §12.2 holds the table this implements, one row per author kind.
  *
  * The two axes combine DIFFERENTLY, on purpose (owner ruling):
  *  • `forbidExternalMedia` is TIGHTEN-ONLY. The deployment "Block external media" AppSetting is an
  *    ABSOLUTE ceiling — a lower tier may only restrict FURTHER, never widen. So it is an OR (deployment
  *    forbids ∨ this tier forbids), never `override ?? deployment`: a card carrying `false` (allow) on a
  *    blocking deployment must NOT re-open external media. The app-document CSP enforces the same ceiling
- *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only), so an
- *    `override ?? deployment` here produced a control that rendered the element and then ate a CSP block:
- *    a dead opt-in that looked live. Belt and suspenders now agree.
- *  • the HTML-TRUST LADDER folds the two stored columns into ONE ordered step, and the fold is where
- *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling):
- *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
- *        a block: the floor is the strict end (`untrusted`), and an explicit per-character step IS the
- *        designed escalation path (docs/law/UI-Theming-and-Content.md §12.2); an admin-global `true` likewise stays overridable DOWN by a
- *        card. An inheriting card lands on this step only while the interactive ceiling below is down.
- *      – the INTERACTIVE step is an AND under the deployment `allowInteractiveCards` CEILING, the
- *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches the
- *        rung while the ceiling is down. Under the ceiling, a card reaches it two ways (owner ruling:
- *        interactive cards are on by default for all characters):
- *          · it INHERITS — both ladder columns are `null` ("Inherit default"), so the ceiling is also its
- *            default rung. This is every card nobody set, imported ones included.
- *          · it OPTED IN — `interactiveHtml === true`.
- *        Any other stored pair is an explicit lower answer and stays below the rung: "Render HTML" and
- *        "Untrusted" store `interactiveHtml: false`, and that `false` is the per-character disable even
- *        beside an inherited `trustHtml: null`. A pair with `trustHtml` set and `interactiveHtml: null`
- *        (a handoff copy, or a row written before the ladder) is an explicit render answer too.
- *        Inside the ceiling the rung WINS over a lower render answer rather than combining with it: a card
- *        carrying the contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by
- *        a direct API write, never by the single ladder control — resolves to `interactive`, and no
- *        consumer ever sees "runs scripts but renders untrusted". When the CEILING vetoes, that same card
- *        falls back to its own stored render answer (`untrusted` here), never to a rung it did not store.
- *  • `override === null` is NO CARD (a human seat, an unreadable row), not an inheriting card: it takes the
- *    deployment's render default (`trustHtml`, whose floor is `untrusted`), so it resolves `trusted` while the
- *    deployment trusts HTML, and it never reaches the interactive rung.
+ *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only).
+ *  • the HTML-TRUST LADDER folds the two stored columns and the install's one "Default for characters" step into
+ *    ONE ordered step, and the fold is where "interactive implies trusted" becomes unrepresentable-otherwise:
+ *      – a card that INHERITS (both columns `null`, "Inherit default", every imported card included) takes the
+ *        install's step as it stands, Interactive included.
+ *      – a card's own step wins over the install's step in either direction, Interactive included: an explicit
+ *        per-character step IS the designed escalation path, and a card may also step below the default. A
+ *        `null` render answer beside a set `interactiveHtml` takes the install step's render half.
+ *      – a card reaches the INTERACTIVE step by inheriting it or by `interactiveHtml: true`. "Rich HTML" and
+ *        "Plain text" store `interactiveHtml: false`, the per-character disable. The top step WINS over a lower
+ *        render answer: the contradictory pair of `trustHtml: false` with `interactiveHtml: true`, reachable only
+ *        by a direct API write, resolves to `interactive`, so no consumer ever sees "runs scripts but renders
+ *        untrusted".
+ *  • `override === null` is NO CARD (a seat with no readable card, or a room with no consenting host): no one
+ *    consents for it, so it is Plain text whatever the install says, and it never reaches Interactive.
  */
 export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
-  const trusted = override?.trustHtml ?? deployment.trustHtml;
-  const renderStep: HtmlTrustStep = trusted ? "trusted" : "untrusted";
-  const inherits = override !== null && override.trustHtml === null && override.interactiveHtml === null;
-  const interactive = deployment.allowInteractiveCards && (inherits || override?.interactiveHtml === true);
-  return {
-    htmlTrust: interactive ? "interactive" : renderStep,
-    forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
-  };
+  const forbidExternalMedia = deployment.forbidExternalMedia || override?.forbidExternalMedia === true;
+  if (override === null) {
+    return { htmlTrust: "untrusted", forbidExternalMedia };
+  }
+  if (override.trustHtml === null && override.interactiveHtml === null) {
+    return { htmlTrust: deployment.defaultHtmlStep, forbidExternalMedia };
+  }
+  if (override.interactiveHtml === true) {
+    return { htmlTrust: "interactive", forbidExternalMedia };
+  }
+  const trusted = override.trustHtml ?? rendersTrustedHtml(deployment.defaultHtmlStep);
+  return { htmlTrust: trusted ? "trusted" : "untrusted", forbidExternalMedia };
 }
 
 /** The stored column pair one ladder step means — the ONE home for the write direction, so a surface that
@@ -258,12 +293,83 @@ export function stepFromRenderPolicyOverride(override: Pick<RenderPolicyOverride
   return override.trustHtml ? "trusted" : "untrusted";
 }
 
+const RENDER_POLICY_SOURCES = ["own", "inherited", "no-card", "no-host"] as const;
+/** Where a seat's resolved render policy came from, so a surface that names the setting holding a row plain names the
+ *  one that does. `own`: the character's ladder step is set ({@link stepFromRenderPolicyOverride} is not null).
+ *  `inherited`: the character follows the install default. `no-card`: no card is read for the seat (a human seat, or a
+ *  card gone between the roster read and its card read; deleting a card removes its seats), so no one consents for it
+ *  and it is Plain text. `no-host`: the room seats no consenting host, so no card applies and it is Plain text.
+ *
+ *  @remarks Every present member reads it (D210: the visibility tier is default-visible, limited only by the host's
+ *  options), and no D22 level carries the trust columns. `no-card` and `no-host` repeat what the seat's name and the
+ *  roster already show. `own` versus `inherited` tells a member one fact the resolved step and the install defaults
+ *  (`/api/auth/config`) do not: that the host set an explicit step equal to the one the character would inherit, and
+ *  when that changes. That residual is accepted, because the notice needs the distinction to name the setting that
+ *  lifts the content. D44 owns the tiers it explains. */
+export type RenderPolicySource = (typeof RENDER_POLICY_SOURCES)[number];
+
+/** A seat's resolved policy and where it came from, produced together so the two can never disagree. */
+export interface SeatRenderPolicy {
+  readonly renderPolicy: RenderPolicy;
+  readonly renderSource: RenderPolicySource;
+}
+
+/** Resolve one seat: from its readable card's override, or as Plain text for the reason no card applies. The
+ *  one producer of {@link SeatRenderPolicy}; it resolves through {@link resolveRenderPolicy}, never beside it. */
+export function resolveSeatRenderPolicy(deployment: DeploymentRenderPolicy, basis: RenderPolicyOverride | "no-card" | "no-host"): SeatRenderPolicy {
+  if (typeof basis === "string") {
+    return { renderPolicy: resolveRenderPolicy(deployment, null), renderSource: basis };
+  }
+  return { renderPolicy: resolveRenderPolicy(deployment, basis), renderSource: stepFromRenderPolicyOverride(basis) === null ? "inherited" : "own" };
+}
+
+/** The policy every narrator row in a room renders at, with the present character whose setting binds it.
+ *
+ *  @remarks One narrator generation voices every character in the room, so the weakest consent bounds it: the lowest
+ *  ladder step among the present character seats, and external media forbidden when any seat forbids it. The binding
+ *  character is the first seat in roster order at that step, and the source is that seat's. Every input is a field
+ *  each present member already reads on the roster, so a member learns nothing from this value that the seats do not
+ *  show. docs/law/UI-Theming-and-Content.md §12.2 states the rule. */
+export interface NarratorRenderPolicy extends SeatRenderPolicy {
+  readonly characterId: CharacterId;
+}
+
+/** The strict runtime twin of {@link NarratorRenderPolicy}, a member of the chat detail's schema. */
+export const narratorRenderPolicySchema = z.strictObject({
+  renderPolicy: renderPolicySchema,
+  renderSource: z.enum(RENDER_POLICY_SOURCES),
+  characterId: typeIdSchema(ID_PREFIX.character),
+}) satisfies z.ZodType<NarratorRenderPolicy>;
+
+/** Resolve a room's {@link NarratorRenderPolicy} from its present roster, or `undefined` when nothing consents: no
+ *  character seat, a room with no consenting host (its seats say `no-host`), or a seat with no resolved policy. */
+export function resolveNarratorRenderPolicy(
+  participants: readonly Pick<ParticipantView, "kind" | "characterId" | "renderPolicy" | "renderSource">[],
+): NarratorRenderPolicy | undefined {
+  let binding: NarratorRenderPolicy | undefined;
+  let forbidExternalMedia = false;
+  for (const { kind, characterId, renderPolicy, renderSource } of participants) {
+    if (kind !== "character" || characterId === null) {
+      continue;
+    }
+    if (renderPolicy === undefined || renderSource === undefined || renderSource === "no-host") {
+      return;
+    }
+    forbidExternalMedia ||= renderPolicy.forbidExternalMedia;
+    // The ladder's own order: a strictly lower step binds, so a tie keeps the earlier seat.
+    if (binding === undefined || HTML_TRUST_STEPS.indexOf(renderPolicy.htmlTrust) < HTML_TRUST_STEPS.indexOf(binding.renderPolicy.htmlTrust)) {
+      binding = { renderPolicy, renderSource, characterId };
+    }
+  }
+  return binding === undefined ? undefined : { ...binding, renderPolicy: { htmlTrust: binding.renderPolicy.htmlTrust, forbidExternalMedia } };
+}
+
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)
  *  drives the identity + column shape per the `chat_participants_kind_shape` CHECK: `human` carries `userId`,
- *  `character` carries `characterId` (the old 2-way XOR was replaced at AP0; the CHECK still carries dormant
- *  `agent`/`observer` arms from the purged agent-principal build — unreachable while PARTICIPANT_KINDS stays
- *  2-member). `talkativeness`/`disabled` feed arbitration; `disabled` also drops a CHARACTER from
- *  `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing" predicate). */
+ *  `character` carries `characterId` (the CHECK still carries dormant `agent`/`observer` arms — unreachable
+ *  while PARTICIPANT_KINDS stays 2-member). `talkativeness`/`disabled` feed arbitration; `disabled` also
+ *  drops a CHARACTER from `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing"
+ *  predicate). */
 export interface ParticipantView {
   id: ChatParticipantId;
   chatId: ChatId;
@@ -275,13 +381,14 @@ export interface ParticipantView {
   talkativeness: number;
   disabled: boolean;
   joinedAt: number;
-  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single authority (read.ts:342, persistence/participants-read.ts:30) — the server returns seats already ordered by it, so a client read would be a second clamp authority. Ends if a join-history affordance renders the seq itself.
+  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single
+  // authority — the server returns seats already ordered by it, so a client read would be a second clamp
+  // authority.
   joinSeq: number;
   leftSeq: number | null;
   joinHistoryVisibility: JoinHistoryVisibility;
-  /** Resolved display name — one rule, no raw id ever (R10): a human's publics displayName (else handle, else
-   *  a removed-member label); a character's card name (else a removed-character label). (An agent's resolved
-   *  soul name was the third arm before the agent-principal purge; the rebuild re-adds it if that seat returns.) */
+  /** Resolved display name — one rule, no raw id ever: a human's publics displayName (else handle, else a
+   *  removed-member label); a character's card name (else a removed-character label). */
   displayName: string;
   /** A human's public handle (null for a character). */
   handle: Handle | null;
@@ -296,6 +403,9 @@ export interface ParticipantView {
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
    *  untrusted + gate-external safe floor), never fails open. */
   renderPolicy?: RenderPolicy;
+  /** Where {@link renderPolicy} came from, resolved with it by {@link resolveSeatRenderPolicy}. Optional for the same
+   *  reason: absent, the client names no cause and offers no control. */
+  renderSource?: RenderPolicySource;
   /** D294, UI-Theming-and-Content §12.1/§12.5 — the RAW per-character theme-token override (`character.themeOverride`, threaded
    *  through unmerged — chat assembly never reads the `themes` table). `null` = no
    *  override for a character seat, or always `null` for a human seat. Resolution to "character over
@@ -304,9 +414,9 @@ export interface ParticipantView {
    *  merge for free); the client nests a per-speaker ThemeScope inside the root scope.
    *  Every card-sourced READ projects through `cardEmbeddableSubset` (contracts/theme) first: the
    *  blob is raw and may carry a viewer-sacred key (a legacy write, or a hand-posted one), and a card
-   *  supplies the room's LOOK, never the viewer's ergonomics (TD §3). */
+   *  supplies the room's LOOK, never the viewer's ergonomics. */
   themeOverride?: ThemeOverride | null;
-  /** BG-C — the RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
+  /** The RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
    *  `themeOverride` twin), threaded unmerged. `null` = no card background for a character seat, always
    *  `null` for a human seat. In a TRUE-SOLO room (see {@link CarriedAppearance}) the sole
    *  character's carried background takes over the app-root background layer, BELOW the chat-set override;
@@ -339,6 +449,7 @@ export const participantViewSchema = z.strictObject({
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   renderPolicy: renderPolicySchema.exactOptional(),
+  renderSource: z.enum(RENDER_POLICY_SOURCES).exactOptional(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   themeOverride: themeOverrideSchema.nullable().exactOptional(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
@@ -346,7 +457,7 @@ export const participantViewSchema = z.strictObject({
 }) satisfies z.ZodType<ParticipantView>;
 
 // One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
-//  D294, UI-Theming-and-Content §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
+//  D294, UI-Theming-and-Content §12.1, and the background half). Deliberately the MINIMAL projection: it is the most a
 //  pre-send DRAFT can honestly produce, since a draft has no `chat_participants` row to read.
 interface CarriedAppearanceMember {
   readonly displayName: string;
@@ -357,19 +468,14 @@ interface CarriedAppearanceMember {
 /**
  * The room COMPOSITION the carried-appearance rules read — human seats counted, character seats carried.
  *
- * ONE shape for BOTH chat phases, and that is the point. The takeover rules used to be spelled over
- * `ParticipantView[]`, which only a COMMITTED chat has, so the whole carried look (background + room theme)
- * was silently gated on a server row existing: a brand-new chat wore the viewer's default chrome until its
- * first message landed and then re-skinned itself (owner dogfood — "backgrounds and avatars
- * don't show up until the first message"). A committed room projects this off its roster
- * ({@link carriedAppearanceFromParticipants}); a draft projects it off its founding CARDS plus the viewer's own
- * single seat. The rules below read only this shape, so the two phases cannot resolve a card's look
- * differently.
+ * ONE shape for BOTH chat phases, and that is the point: a COMMITTED room projects this off its roster
+ * ({@link carriedAppearanceFromParticipants}), while a pre-send DRAFT has no `chat_participants` row and
+ * projects it off its founding CARDS plus the viewer's own single seat. The rules below read only this
+ * shape, so the two phases cannot resolve a card's look differently.
  */
 export interface CarriedAppearance {
-  /** Human seats on the roster. Counted exactly as the old `isSingleHumanCast` counted them — every `human`
-   *  row, `leftSeq` NOT consulted. A pre-send draft has exactly one: the viewer (an invite can only land
-   *  once the chat exists). */
+  /** Human seats on the roster — every `human` row, `leftSeq` NOT consulted. A pre-send draft has exactly
+   *  one: the viewer (an invite can only land once the chat exists). */
   readonly humanCount: number;
   readonly characters: readonly CarriedAppearanceMember[];
 }
@@ -394,7 +500,7 @@ export function carriedAppearanceFromParticipants(participants: readonly Partici
   return { humanCount, characters };
 }
 
-/** BG-C true-solo composition — the ONE derivation of "exactly one human and exactly one character, no
+/** True-solo composition — the ONE derivation of "exactly one human and exactly one character, no
  *  other seat", count-derived (never an `isGroup` branch). The shared gate, so the room THEME takeover and
  *  the CARD-CARRIED arm of the background takeover can never drift to two spellings of the same rule. */
 function soleCarriedCharacter(appearance: CarriedAppearance): CarriedAppearanceMember | undefined {
@@ -402,9 +508,9 @@ function soleCarriedCharacter(appearance: CarriedAppearance): CarriedAppearanceM
 }
 
 /** "This room holds no OTHER human seat" — exactly one human, any number of characters (owner ruling,
- *  WIDENING the true-solo spelling). THE gate on the carried-appearance takeover: the
- *  stated rationale ("a host writing it never forces another human's viewport") does not reach a
- *  single-human GROUP room, because there is no second viewport. Two humans stays permanently INERT. */
+ *  WIDENING the true-solo spelling). THE gate on the carried-appearance takeover: the stated rationale
+ *  ("a host writing it never forces another human's viewport") does not reach a single-human GROUP room,
+ *  because there is no second viewport. Two humans stays permanently INERT. */
 function isSingleHumanRoom(appearance: CarriedAppearance): boolean {
   return appearance.humanCount === SOLO_COUNT;
 }
@@ -412,7 +518,7 @@ function isSingleHumanRoom(appearance: CarriedAppearance): boolean {
 /** THE room-THEME takeover (D294, UI-Theming-and-Content §12.1), ONE home for both chat phases: in a true-solo room the sole
  *  character's authored theme wins at the chat root; any other composition keeps the viewer's own theme
  *  (`undefined`). What rides is the CARD-EMBEDDABLE subset only — a card supplies the room's LOOK, never
- *  the viewer's ergonomics (TD §3). */
+ *  the viewer's ergonomics. */
 export function resolveCarriedTheme(appearance: CarriedAppearance): CardEmbeddableTheme | undefined {
   const override = soleCarriedCharacter(appearance)?.themeOverride;
   return override === null || override === undefined ? undefined : cardEmbeddableSubset(override);
@@ -420,7 +526,7 @@ export function resolveCarriedTheme(appearance: CarriedAppearance): CardEmbeddab
 
 /** The resolved carried background + WHERE it came from. The provenance arm is not decoration: the chat
  *  context panel's Background row echoes the EFFECTIVE source with its origin ("… — from <card>'s card"), so
- *  the settings echo and the painted pixels are ONE truth (the S4 override-echoed-as-default class). */
+ *  the settings echo and the painted pixels are ONE truth. */
 export interface CarriedBackground {
   readonly source: ThemeBackground;
   readonly arm: "chat-set" | "card-carried";
@@ -428,7 +534,7 @@ export interface CarriedBackground {
   readonly characterName: string | null;
 }
 
-/** THE carried-background cascade (BG-C), ONE home for the app-shell paint AND the panel echo — over the
+/** THE carried-background cascade, ONE home for the app-shell paint AND the panel echo — over the
  *  phase-independent {@link CarriedAppearance}, so a draft resolves it identically to the committed
  *  room it becomes. `undefined` ⇒ nothing is carried and the viewer's own appearance wins.
  *
@@ -466,7 +572,7 @@ export function resolveCarriedBackground(
   return resolveCarriedBackgroundForAppearance(carriedAppearanceFromParticipants(participants), chatBackground);
 }
 
-/** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
+/** The membership-gated, level-clamped PUBLIC card projection (D22). Fields above the
  *  effective `visibility` level are `null` (the ONE producer is chat's `clampMemberCard` —
  *  substrate/auth/clamp.ts — keyed to `chatMetadata.group.memberCardVisibility`; the host always
  *  gets `full`). Read-only +
@@ -512,7 +618,7 @@ export interface MemberCardView {
  *  own addendum asked to avoid; the blob is an OBJECT rather than a boolean precisely so a later per-class
  *  arm needs no schema churn.
  *
- *  BOTH FIELDS FALSE ⇒ byte-identical to a handoff with no offer at all: the built D64 drop runs, the
+ *  BOTH FIELDS FALSE ⇒ byte-identical to a handoff with no offer at all: the D64 drop runs, the
  *  `gmPresetId` heal runs, and nothing is copied. A `null` column is the same thing said by absence.
  *
  *  Message VARIANTS are deliberately absent from this shape: they are `messages`/`message_variants` rows
@@ -524,10 +630,9 @@ export const handoffOfferSchema = z
      *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
      *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
      *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (the executable
-     *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
-     *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
-     *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
-     *  which gates on the ROOM. */
+     *  member of the same set). `false` ⇒ the D64 drop and nothing is copied: the seats the nominee cannot
+     *  resolve are leftSeq-stamped, and every chat book and chat script the nominee does not own is detached
+     *  in the same swap batch. */
     copyCharacters: z.boolean(),
     /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
      *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
@@ -545,8 +650,7 @@ export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPre
 
 /** WHAT AN ACCEPTED OFFER WOULD LAND IN THE NOMINEE'S LIBRARY — the DISCLOSURE half of the offer,
  *  frozen at NOMINATE and carried by the `handoff-nominated` notification so the nominee can read what they
- *  are accepting before they accept it. The receiving side used to render a bare Accept for a press that
- *  copied four classes of someone else's property — including the room's REGEX SCRIPTS, which are executable
+ *  are accepting before they accept it — including the room's REGEX SCRIPTS, which are executable
  *  transforms over the accepter's own chats.
  *
  *  COUNTS, NEVER IDS. A nominee cannot resolve the departing host's character/book/script ids (they own
@@ -556,9 +660,9 @@ export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPre
  *
  *  A POINT-IN-TIME PREVIEW, resolved from the SAME resolvers the accept executes (chat's
  *  `previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`), never a second count of its own. It can still
- *  differ from what finally lands: the offer is executed at ACCEPT (§5 — acceptance is what freezes the
- *  point in time), so a card the host deletes in between is disclosed and then absent. That direction is the
- *  honest one — the disclosure is a ceiling on what the accept can copy, never a floor.
+ *  differ from what finally lands: the offer is executed at ACCEPT — acceptance is what freezes the
+ *  point in time — so a card the host deletes in between is disclosed and then absent. That direction is the
+ *  honest one: the disclosure is a ceiling on what the accept can copy, never a floor.
  *
  *  ZEROS ARE SENT, NOT OMITTED: "this gives you nothing" is a fact the nominee needs, and an absent field
  *  would make the confirm's silence ambiguous between "nothing" and "unknown". */
@@ -583,7 +687,7 @@ export type HandoffOfferContents = z.infer<typeof handoffOfferContentsSchema>;
  *  once so no producer re-spells the zeros. */
 export const NO_HANDOFF_OFFER_CONTENTS: HandoffOfferContents = { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false };
 
-// ── Invites & the membership chokepoint (Part III §2; D16) ──
+// ── Invites & the membership chokepoint (D16) ──
 const INVITE_MAX_USES_MIN = 1;
 const INVITE_MAX_USES_MAX = 10_000;
 const INVITE_TOKEN_MIN = 1;
@@ -629,6 +733,9 @@ export const createInviteSchema = z.strictObject({
 });
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 
+/** The refusal code (`data.reason`) for a targeted invite whose handle names no invitable user. */
+export const INVITE_TARGET_UNKNOWN_CODE = "invite_target_unknown";
+
 /** Preview an invite before confirming (the accept = preview-then-confirm flow). Carries the raw token. */
 export const previewInviteSchema = z.strictObject({
   token: z.string().min(INVITE_TOKEN_MIN),
@@ -652,7 +759,7 @@ export const acceptInviteSchema = z.strictObject({
 });
 
 /** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode
- *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept).
+ *  label ONLY. NO roster identities, NO history (those replay from `joinSeq` AFTER accept).
  *  STRICT, and the `invites.previewInvite` output parser: the caller is not a member yet, so any extra key
  *  (a roster, an id list) fails the call instead of reaching them. */
 export const invitePreviewSchema = z.strictObject({

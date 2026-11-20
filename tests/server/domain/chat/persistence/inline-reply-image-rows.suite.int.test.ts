@@ -29,7 +29,7 @@ test("the native picture lands in exact canon with a minted alt and an inline-re
   expect(outcome.aborted).toBe(false);
   const generated = await inlineImageRows(fixture.h).generated();
   expect(generated).toHaveLength(1);
-  expect(generated[0]).toMatchObject({ ownerId: fixture.h.owner.userId, kind: "generated", mime: "image/png", width: 8, height: 8 });
+  expect(generated[0]).toMatchObject({ ownerId: fixture.h.owner.userId, mime: "image/png", width: 8, height: 8 });
   expect(outcome.messages).toHaveLength(1);
   expect(outcome.messages[0]?.content).toBe(`${IMAGE_PROSE}\n\n![${IMAGE_PROSE}](asset:${generated[0]?.id})`);
   expect((await inlineImageRows(fixture.h).links()).map(({ assetId, origin, messageId }) => ({ assetId, origin, messageId }))).toEqual([

@@ -2,11 +2,14 @@
 // Every committed tape parses, holds no secret or foreign host, and its text steps replay through the production
 // chat turn: the recorded stream reaches canon through the real SSE parse, so a parse change breaks the replay.
 // Each rpg loop journey replays whole through a lite game, so its recorded state tool calls reach the production
-// tool round and the snapshot write.
-import { readdirSync } from "node:fs";
+// tool round and the snapshot write. A tape the recorder writes is the file the formatter would leave.
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import process from "node:process";
 import { RPG_NO_CHANGES_TOOL, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { forEachNonEmpty } from "../iso/non-empty.ts";
 import { readRoomCanon } from "./chat/canon.ts";
 import { createChatRoot } from "./chat/composed.ts";
@@ -20,7 +23,8 @@ import {
 } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ProviderTapeStep } from "./provider-tape.ts";
-import { PROVIDER_TAPE_DIR, providerTapeLeaks, RPG_LOOP_JOURNEYS, readProviderTape } from "./provider-tape.ts";
+import { PROVIDER_TAPE_DIR, providerTapeLeaks, RPG_LOOP_JOURNEYS, readProviderTape, writeProviderTape } from "./provider-tape.ts";
+import { ownedTempDir } from "./temp-dir.ts";
 
 const TAPE_SUFFIX = ".json";
 const CHAT_PATH = "/chat/completions";
@@ -73,6 +77,30 @@ const STATE_WRITING_TOOLS: readonly string[] = RPG_TOOL_ROUND_TOOL_NAMES.filter(
 forEachNonEmpty(TAPE_NAMES, "committed provider tapes", (name) => {
   test(`provider tape ${name} parses and holds no secret or foreign host`, () => {
     expect(providerTapeLeaks(readProviderTape(name))).toEqual([]);
+  });
+});
+
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
+const BIOME_ENTRY = join(REPO_ROOT, "node_modules", "@biomejs", "biome", "bin", "biome");
+
+// A recording run writes outside the committed directory and the record script copies the file in, so the bytes the
+// recorder writes are the bytes that get committed.
+forEachNonEmpty(TAPE_NAMES, "committed provider tapes", (name) => {
+  test(`provider tape ${name} is recorded as the formatter leaves it`, async () => {
+    await using owner = new AsyncDisposableStack();
+    const directory = await ownedTempDir(owner, "provider-tape-record-");
+    writeProviderTape(name, readProviderTape(name), directory);
+    const recorded = readFileSync(join(directory, `${name}${TAPE_SUFFIX}`), "utf8");
+
+    const committedPath = join(PROVIDER_TAPE_DIR, `${name}${TAPE_SUFFIX}`);
+    const formatted = runNicedSync(process.execPath, [BIOME_ENTRY, "format", `--stdin-file-path=${relative(REPO_ROOT, committedPath)}`], {
+      cwd: REPO_ROOT,
+      input: recorded,
+    });
+    expect(formatted.status, formatted.stderr).toBe(0);
+    expect(recorded).toBe(formatted.stdout);
+    // The committed tape went through the same recorder, so a re-record of the same turns changes no byte.
+    expect(recorded).toBe(readFileSync(committedPath, "utf8"));
   });
 });
 

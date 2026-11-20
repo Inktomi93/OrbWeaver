@@ -3,16 +3,23 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nameShape } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
   REFINERY_COMPARE_NAME,
   REFINERY_EDIT_SCOPE_NAME,
-  REFINERY_HIDE_COMPARE_NAME,
+  REFINERY_SCOPE_NAME,
+  REFINERY_USE_FOR_APPLY_VERB,
+  REFINERY_USE_LATEST_VERB,
   REFINERY_VERSION_DIFF_HEADING,
+  REFINERY_VIEW_RUN_VERB,
+  refineryCompareToggleName,
+  refineryOpenCardName,
+  refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
+import { scopeChipLabelOf } from "#client/features/refinery/lib/render-plan.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -82,14 +89,14 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "runs", width: regime.width, appearance: regime.appearance });
-      const view = page.getByRole("button", { name: /^View /u });
-      const useForApply = page.getByRole("button", { name: /^Use for apply: /u });
+      const view = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u") });
+      const useForApply = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_USE_FOR_APPLY_VERB)}: `, "u") });
       await expectContained(view.locator(".."), [view, useForApply]);
       await view.focus();
       await page.keyboard.press("Tab");
       await expect(useForApply).toBeFocused();
       await page.keyboard.press("Enter");
-      const latest = page.getByRole("button", { name: /^Use latest instead: /u });
+      const latest = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_USE_LATEST_VERB)}: `, "u") });
       await expect(latest).toBeFocused();
       await expectContained(view.locator(".."), [view, latest]);
       await page.keyboard.press("Enter");
@@ -106,12 +113,12 @@ for (const regime of REGIMES) {
         width: regime.width,
         appearance: regime.appearance,
       });
-      const compare = page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
-      const restore = page.getByRole("button", { name: "Restore", exact: true });
+      const compare = page.getByRole("button", { name: refineryCompareToggleName(false, "Manual layout reference"), exact: true });
+      const restore = page.getByRole("button", { name: refineryRestoreVersionName("Manual layout reference"), exact: true });
       await expectContained(compare.locator(".."), [compare, restore]);
       await compare.focus();
       await page.keyboard.press("Enter");
-      const hide = page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true });
+      const hide = page.getByRole("button", { name: refineryCompareToggleName(true, "Manual layout reference"), exact: true });
       await expect(hide).toBeFocused();
       await expect(page.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();
       await expectContained(hide.locator(".."), [hide, restore]);
@@ -128,15 +135,15 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session, caller } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "content", width: regime.width, appearance: regime.appearance });
-      const open = page.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true });
+      const open = page.getByRole("button", { name: refineryOpenCardName(CARD_NAME), exact: true });
       const scope = page.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true });
       await expectContained(open.locator(".."), [open, scope]);
       await open.focus();
       await page.keyboard.press("Tab");
       await expect(scope).toBeFocused();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Scope", exact: true });
-      await expect(dialog.getByRole("checkbox", { name: "Description", exact: true })).toBeChecked();
+      const dialog = page.getByRole("dialog", { name: REFINERY_SCOPE_NAME, exact: true });
+      await expect(dialog.getByRole("checkbox", { name: scopeChipLabelOf("description", undefined), exact: true })).toBeChecked();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
       await expect(scope).toBeFocused();
@@ -144,6 +151,55 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("each version's Compare and Restore name its version and its row shows the ordinal, so versions sharing a label are told apart oldest first", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const { session, caller, card } = await seedSession(root, page);
+  // The walk orders by creation time, so each snapshot is made a second after the last.
+  for (const label of ["Manual layout reference", "Before the rename"]) {
+    root.clock.advance(1000);
+    await caller.character.snapshot({ characterId: card.id, label });
+  }
+  await mount<typeof RefineryRemainingActionsStory>(STORY, {
+    sessionId: session.id,
+    plane: "versions",
+    width: 960,
+    appearance: appearanceSettingsSchema.parse({}),
+  });
+  const restores = page.getByRole("button", { name: nameShape((label) => refineryRestoreVersionName(label)) });
+  await expect(restores).toHaveCount(3);
+  // The walk lists newest first; the ordinal counts from the oldest, so a later snapshot never renames an earlier one.
+  const expected = [
+    refineryRestoreVersionName("Before the rename"),
+    refineryRestoreVersionName("Manual layout reference", "#2"),
+    refineryRestoreVersionName("Manual layout reference", "#1"),
+  ];
+  for (const [index, name] of expected.entries()) {
+    await expect(restores.nth(index)).toHaveAccessibleName(name);
+  }
+  const compares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} `, "u") });
+  await expect(compares).toHaveCount(3);
+  await expect(compares.first()).toHaveAccessibleName(refineryCompareToggleName(false, "Before the rename"));
+  // Sighted readers get the same ordinal the names carry; a row with a label of its own prints none.
+  await expect(page.getByText("Manual layout reference #2", { exact: true })).toBeVisible();
+  await expect(page.getByText("Manual layout reference #1", { exact: true })).toBeVisible();
+  await expect(page.getByText("Before the rename", { exact: true })).toBeVisible();
+  // Each twin's Compare ends with the ordinal its own row prints, read off the page rather than built by the names module, so the two
+  // twins' Compare names differ.
+  const twinLabel = "Manual layout reference";
+  const printed = await page.getByText(new RegExp(`^${RegExp.escape(twinLabel)} `, "u")).allTextContents();
+  const ordinals = printed.map((text) => text.slice(twinLabel.length).trim());
+  expect(new Set(ordinals).size).toBe(2);
+  const twinCompares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} ${RegExp.escape(twinLabel)}`, "u") });
+  await expect(twinCompares).toHaveCount(ordinals.length);
+  for (const [index, ordinal] of ordinals.entries()) {
+    expect(ordinal).not.toBe("");
+    await expect(twinCompares.nth(index)).toHaveAccessibleName(new RegExp(` ${RegExp.escape(ordinal)}$`, "u"));
+  }
+});
 
 test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
@@ -157,9 +213,9 @@ test("two runs of one stage in one round carry distinct names, oldest first", as
   });
   const names = (pattern: RegExp): Promise<(string | null)[]> =>
     page.getByRole("button", { name: pattern }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
-  await expect(page.getByRole("button", { name: /^View /u })).toHaveCount(2);
-  const views = await names(/^View /u);
-  const applies = await names(/^Use for apply: /u);
+  await expect(page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u") })).toHaveCount(2);
+  const views = await names(new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u"));
+  const applies = await names(new RegExp(`^${RegExp.escape(REFINERY_USE_FOR_APPLY_VERB)}: `, "u"));
   expect(new Set(views).size).toBe(2);
   expect(new Set(applies).size).toBe(2);
   // The ledger lists newest first; the qualifier counts from the oldest, so a later run never renames an earlier one.

@@ -5,7 +5,10 @@
 export const CONFIG_THEME_NAME_FIELD_NAME = "Theme name";
 
 /** The theme editor's base surface colour field. */
-export const CONFIG_THEME_BACKGROUND_FIELD_NAME = "Background";
+export const CONFIG_THEME_BACKGROUND_FIELD_NAME = "Background colour";
+
+/** The theme editor's accent colour field, and its row in the contrast report. */
+export const CONFIG_THEME_ACCENT_FIELD_NAME = "Accent";
 
 /** The theme editor's custom stylesheet section. */
 export const CONFIG_CUSTOM_CSS_NAME = "Custom CSS";
@@ -25,9 +28,31 @@ export const CONFIG_EDIT_IN_BUILDER_NAME = "Edit in builder";
 /** The theme editor's live preview section. */
 export const CONFIG_THEME_PREVIEW_NAME = "Preview";
 
+/** What every name of the Looks list's door to a new theme starts with. */
+export const CONFIG_NEW_THEME_LEAD = "New theme";
+
 /** The Looks list's door to a new theme, seeded from the current one when there is one. */
 export function newThemeName(current: string | undefined): string {
-  return current === undefined ? "New theme…" : `New theme from ${current}…`;
+  return current === undefined ? `${CONFIG_NEW_THEME_LEAD}…` : `${CONFIG_NEW_THEME_LEAD} from ${current}…`;
+}
+
+/** The theme editor's custom stylesheet editor. */
+export const CONFIG_THEME_CSS_FIELD_NAME = "Custom theme CSS";
+
+/** The Settings list's skip link past its rail. */
+export const CONFIG_SKIP_NAME = "Skip to settings";
+
+/** The Settings map's list page. */
+export const CONFIG_SETTINGS_GROUPS_NAME = "Settings groups";
+
+/** The pane footer's one sentence under its unsaved lead for each arm. A plural count composes from the same words. */
+export const CONFIG_SECTION_NEEDS_FIX_TEXT = "A section needs a fix";
+export const CONFIG_SECTION_WAITING_TEXT = "A section has changes waiting for Save";
+export function configSectionsNeedFixText(sections: number): string {
+  return sections === 1 ? CONFIG_SECTION_NEEDS_FIX_TEXT : `${String(sections)} sections need a fix`;
+}
+export function configSectionsWaitingText(sections: number): string {
+  return sections === 1 ? CONFIG_SECTION_WAITING_TEXT : `${String(sections)} sections have changes waiting for Save`;
 }
 
 /** The Settings map's jump search. */

@@ -2,33 +2,35 @@
 
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
-import type { PersonaCollisionChoices } from "#import";
-import type { PortableFile } from "#portability";
+import type { ImportAnswer, PersonaCollisionChoices } from "#import";
+import type { PortableExportNotes, PortableFile } from "#portability";
 import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./schemas.ts";
-
-/** Capture a persona's room seats before its delete; the thunk re-seats exactly those seats with the persona it is handed. */
-export type CapturePersonaSeatsForDeleteOp = (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
 
 /** Capture the rooms a persona reaches before junction teardown; call the thunk only after the owner-scoped write succeeds. */
 export type CapturePersonaRoomReachOp = (personaId: PersonaId) => Promise<() => void>;
 
-/** The persona-owned bulk-import op the entry root wires into `import`'s `ImportContext.profile.bulkImportPersonas`.
- *  An equal-content persona is reused; a same-name, different-content one follows `collisions[foldedName]` (merge
- *  into the owned persona, or keep both). Returns `idByName` so import can attribute chat `user_name`s. */
-export type BulkImportPersonas = (args: {
+interface PersonaImportBatch<Persona> {
   readonly ownerId: UserId;
-  readonly personas: readonly BulkImportPersonaInput[];
+  readonly personas: readonly Persona[];
   /** Absent or unlisted means merge. */
   readonly collisions?: PersonaCollisionChoices | undefined;
-}) => Promise<BulkImportPersonasResult>;
+}
 
-/** Which of these personas the owner already holds with equal content, one answer per input in order: the test
- *  {@link BulkImportPersonas} reuses a persona by. A read: it writes nothing. `artHash` is the content hash of
- *  the avatar image, or null for a persona without one. */
-export type FindOwnedPersonas = (args: {
-  readonly ownerId: UserId;
-  readonly personas: readonly (Pick<BulkImportPersonaInput, "name" | "description" | "metadata"> & { readonly artHash: string | null })[];
-}) => Promise<readonly boolean[]>;
+/** A persona a dry run judges: no avatar is stored, so its art is the content hash of the avatar image, or null for
+ *  a persona without one. */
+export type DryRunPersonaInput = Pick<BulkImportPersonaInput, "name" | "description" | "metadata"> & { readonly artHash: string | null };
+
+/** The persona-owned bulk-import op the entry root wires into `import`'s `ImportContext.profile.bulkImportPersonas`.
+ *  In order, an equal-content persona (owned, or landed by an earlier input) is reused; a same-name,
+ *  different-content one owned before the batch follows `collisions[foldedName]` (merge into the owned persona, or
+ *  keep both). Returns `idByName` so import can attribute chat `user_name`s. With `dryRun` it writes nothing and
+ *  answers, per input, what the write does with it: reuse a persona the owner holds or merges into (`"library"`),
+ *  reuse one an earlier input lands (`"upload"`), or a new persona (`null`), with the persona's content key, under the
+ *  same choices. */
+export interface BulkImportPersonas {
+  (args: PersonaImportBatch<DryRunPersonaInput> & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: PersonaImportBatch<BulkImportPersonaInput> & { readonly dryRun: false }): Promise<BulkImportPersonasResult>;
+}
 
 interface ListPersonasParams {
   readonly principal: Principal;
@@ -37,6 +39,8 @@ interface ListPersonasParams {
 interface ExportPersonaParams {
   readonly principal: Principal;
   readonly personaId: PersonaId;
+  /** Where stored metadata the export cannot carry is reported; the persona is written without it. */
+  readonly note: PortableExportNotes;
 }
 
 /** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same

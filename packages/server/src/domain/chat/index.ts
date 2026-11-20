@@ -5,6 +5,7 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { createTurnPersonaResolver } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
+export { createChatBoundBackfillOps } from "./context.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 export type {
   ChatServiceDeps,
@@ -36,6 +37,7 @@ export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 export { createWiredChatGuards, requireWiredAuthorOrHost } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
+export { createImportMemoryStrikes } from "./memory/persistence/import-strikes.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
@@ -47,7 +49,7 @@ export {
 } from "./persistence/token-usage-backfill.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
-// `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `migrateHandoffOfferVocab` and
+// `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `sweepLandingChatsOnBoot`, `migrateHandoffOfferVocab` and
 // `migratePluginToolWireNames` serve `entry/boot` steps; chat owns their SQL because it owns those tables.
 // Each of those crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export {
@@ -62,6 +64,7 @@ export {
   migrateSeededRoomBackgrounds,
   reclaimChatLocksOnBoot,
   repairStaleJoinSeq,
+  sweepLandingChatsOnBoot,
 } from "./persistence/wiring-reads.ts";
 export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
@@ -83,16 +86,14 @@ export { scrubDeltaEventForMember, stripChatEventForMember } from "./substrate/m
 // contract/context, re-exported above.)
 export { createPromptTransformRegistry } from "./substrate/prompt-transforms.ts";
 export { createChatPublication } from "./substrate/publication.ts";
-// The standalone (out-of-turn) variable write — the injected `applyVariableOps`
-// op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
-export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 export { eventViewMessageId, withViewPosition } from "./substrate/view-position.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — the rpg-gather
 // projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
+// The standalone (out-of-turn) variable write — the injected `applyVariableOps`
+// op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
+export { applyStandaloneVariableOps } from "./verbs/apply-standalone-variable-ops.ts";
 export { createChatAutomationReads } from "./verbs/automation-reads.ts";
-export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
-export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
 export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // The rpg-facing generic chat surface (D58) — wired into `RpgContext.chat` at the composition
@@ -107,6 +108,7 @@ export { createImageryRoomAccess } from "./verbs/imagery-room-access.ts";
 // The two co-participant asset reference checks assets consumes (`AssetsContext`): room membership is chat's data.
 export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
 export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
+export { createLoadConsentingHostUserId } from "./verbs/load-consenting-host.ts";
 export { createChatMemorySearchOps } from "./verbs/memory-search.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPluginChatAuthority } from "./verbs/plugin-authority.ts";
@@ -116,6 +118,8 @@ export { createReactToolHandler } from "./verbs/react-tool-handler.ts";
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
 export { createReactAsCharacter } from "./verbs/reactions.ts";
 export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.ts";
+// D337 — the seat half of a persona delete, which persona's delete batch places ahead of the delete.
+export { createReseatPersonaSeatsStatement } from "./verbs/reseat-persona-seats-statement.ts";
 // THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as
 // ONE inseparable answer, wired at the composition root into every non-chat consumer that decides "may this
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).
@@ -125,8 +129,6 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 export { createResolveMediaRef } from "./verbs/resolve-media-ref.ts";
-// The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
-export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
 export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
@@ -141,6 +143,9 @@ export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility
 // The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
 export { createEmitRoomEntityChanged, createRoomEntityRefresh } from "./verbs/room-refresh.ts";
+// The room-tier rows a non-host member may read, for regex's member-readable `listForChat`: the sharing switch and
+// the levers are chat's data, so chat answers and regex consumes the op.
+export { createRoomTierForMember } from "./verbs/room-tier-for-member.ts";
 export { createChatInferenceOps } from "./verbs/runtime-inference.ts";
 // The opaque rpg-pointer WRITE op (D58) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).

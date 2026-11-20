@@ -2,18 +2,21 @@
 // (`chat_participants` — the `no-direct-users-read`/membership chokepoint). A STANDALONE compose-built factory
 // (not a `ChatService` verb: it takes no principal — rpg gates game authority around it, feeding the result to
 // `can()`); the `createExtractQuiet` precedent. `null` = not a present member OR no such chat (one leak-free
-// answer — the not-a-participant 404 rpg surfaces).
+// answer — the not-a-participant 404 rpg surfaces). A present seat is a membership gate, so the read mints the
+// room admission a consumer's claim spends; the consumer never mints one.
 
 import type { GetMembership } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../contract/context.ts";
 import { loadPresentRole } from "../persistence/participants-read.ts";
+import { mintRoomAdmission } from "../substrate/room-tokens.ts";
 
 export function createGetMembership(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetMembership {
   const ctx = { db: databaseForOwner(input.db) };
-  return async (chatId, userId) => {
+  const getMembership: GetMembership = async (chatId, userId) => {
     const role = await loadPresentRole(ctx.db, chatId, userId);
-    return role === null ? null : { role };
+    return role === null ? null : { role, admission: mintRoomAdmission(chatId) };
   };
+  return getMembership;
 }

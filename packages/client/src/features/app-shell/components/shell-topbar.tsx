@@ -14,6 +14,7 @@ import { TitleReveal, useCutPart } from "#components";
 import type { ScreenTitle } from "#lib";
 import { censusSuffix, cn, screenListDoorName, screenOverviewDoorName } from "#lib";
 import type { PanelMode } from "#state";
+import { shellHeadingRef, shellLeadControlRef } from "#state";
 
 /** The list pane's durable focus-return target after its sheet closes. */
 export const LIST_TOGGLE_MARKER = "shell-list-toggle";
@@ -66,13 +67,14 @@ export interface TopbarIconButtonProps {
   readonly expanded?: boolean;
   readonly onClick: () => void;
   readonly focusReturnMarker?: string;
+  readonly ref?: Ref<HTMLButtonElement>;
   /** The button is the shell's context toggle, the hook `shell.css` keys on. */
   readonly contextToggle?: boolean;
 }
 
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
  *  Exported so the trail chrome widgets (features/app-shell/lib) render the SAME affordance shape. */
-export function TopbarIconButton({ label, icon, expanded, onClick, contextToggle = false, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
+export function TopbarIconButton({ label, icon, expanded, onClick, contextToggle = false, focusReturnMarker, ref }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -85,6 +87,7 @@ export function TopbarIconButton({ label, icon, expanded, onClick, contextToggle
             aria-expanded={expanded}
             data-focus-return-marker={focusReturnMarker}
             onClick={onClick}
+            ref={ref}
           >
             <Icon icon={icon} size="sm" />
           </Button>
@@ -107,7 +110,7 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
   if (onBack !== undefined && onBack !== null) {
     // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
     // wearing ChevronLeft, named by where it goes.
-    return <TopbarIconButton label={backLabel ?? "Back"} icon={ChevronLeft} onClick={onBack} />;
+    return <TopbarIconButton label={backLabel ?? "Back"} icon={ChevronLeft} onClick={onBack} ref={shellLeadControlRef} />;
   }
   if (!listAvailable || mobile !== true) {
     return null;
@@ -121,6 +124,7 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
       expanded={!listCollapsed}
       focusReturnMarker={LIST_TOGGLE_MARKER}
       onClick={onToggleList}
+      ref={shellLeadControlRef}
     />
   );
 }
@@ -184,7 +188,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
     <header className="shell-topbar" ref={ref}>
       {/* THE SCREEN'S ONE h1. The painted identity below is two width arms and a section's own header cluster, only one of
           which is exposed and none of which is a heading, so the page-level heading is stated once here at every width. */}
-      <Heading className="sr-only" level={1}>
+      <Heading className="sr-only" level={1} ref={shellHeadingRef} tabIndex={-1}>
         {(props.screenTitle ?? { name: props.title }).name}
       </Heading>
       <div className="shell-topbar-lead">

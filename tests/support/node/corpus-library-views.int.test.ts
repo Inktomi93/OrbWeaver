@@ -90,9 +90,9 @@ test("native library projections retain canonical usage, ordering, intake and re
     expect(capture.output.map((script) => script.id)).toContain(regex.first.id);
   }
   expect(regex.displayOff.output).toEqual([]);
-  expect(regex.displayOn.output.map((script) => script.id)).toEqual(expect.arrayContaining([regex.first.id, regex.second.id]));
-  expect(regex.imported.output).toEqual({ created: true });
-  expect(regex.repeated.output).toEqual({ created: false });
+  expect(regex.displayOn.output.map(({ script }) => script.id)).toEqual(expect.arrayContaining([regex.first.id, regex.second.id]));
+  expect(regex.imported.output).toEqual({ created: true, notes: [] });
+  expect(regex.repeated.output).toEqual({ created: false, notes: [] });
   expect(regex.bulk.output).toEqual({ affected: 1 });
   expect(regex.detached.output).toEqual({ detached: true });
   expect(regex.detachedAgain.output).toEqual({ detached: false });
@@ -431,9 +431,9 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(() => createCorpusReadResponder("regex.listForChat", root.ownerId, [admittedRegex.reads.before, admittedRegex.reads.after])).toThrow(
     "Conflicting corpus captures",
   );
-  expect(() =>
-    createCorpusReadResponder("regex.listRoomDisplayScripts", root.ownerId, [admittedRegex.reads.displayOff, admittedRegex.reads.displayOn]),
-  ).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("regex.listDisplayScripts", root.ownerId, [admittedRegex.reads.displayOff, admittedRegex.reads.displayOn])).toThrow(
+    "Conflicting corpus captures",
+  );
   const changedWorld = structuredClone(captured);
   Object.assign(changedWorld.worldInfoLibrary.reads.inheritedBooks, { input: world.chatBooks.input });
   expect(() => serializeCorpusWire(hydrateCorpusWire(changedWorld), authentication.secrets)).toThrow("publication recipe");

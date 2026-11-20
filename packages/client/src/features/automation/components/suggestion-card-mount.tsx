@@ -37,12 +37,13 @@ import type { ChatControl, ChatControlSourceMountProps } from "#lib";
 import { timeLib, trpcErrorCode } from "#lib";
 import type { PendingAsk } from "../lib/apply-automation-bus-event.ts";
 import { applyAutomationBusEvent, pruneExpiredAsks } from "../lib/apply-automation-bus-event.ts";
+import { RULE_RUN_NOW_NAME } from "../lib/automation-names.ts";
 import { useConfirmSuggestion, useDismissSuggestion } from "../lib/suggestion-mutations.ts";
 
 /** The button that answers each class. A confirm-first card asks about a CONCRETE act the summary already
  *  named, so its verb is the plain yes; an invitation asks about a rate-capped rule, so its verb names what
  *  the confirm actually does — one fresh run, now. */
-const CONFIRM_LABEL = { confirm: "Do it", invitation: "Run now" } as const;
+const CONFIRM_LABEL = { confirm: "Do it", invitation: RULE_RUN_NOW_NAME } as const;
 
 /** The host's own statement of who installed an asking plugin, drawn apart from the plugin-named title. */
 function installerByline(handle: string): string {

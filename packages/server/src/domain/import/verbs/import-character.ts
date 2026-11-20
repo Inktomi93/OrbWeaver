@@ -14,27 +14,32 @@
 // under a different picture is a separate character; the one exception is a JSON card followed by its PNG,
 // which gives the art-less row its art and keeps the JSON's identity as a second key, so the JSON still finds
 // it. Rows imported before the content identity landed carry the whole-file hash, so the lookup tries that
-// last (`findImportedCharacter`).
+// after the content keys. A row the app wrote carries no stored key, so the lookup's last step compares the card
+// with the current export of the owned row its carried handle names; a row edited since then does not match,
+// and the card lands beside it (`findImportedCharacter`, D290).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import { deriveCharacterHandle, pluginImportedFrom } from "@orb/contracts/character";
+import { clipImportText } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import { fileStem } from "@orb/kit/strings";
+import { inertFieldCounts } from "@orb/kit/world-info";
 import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
-import type { ImportCharacterResult } from "../contract/results.ts";
+import type { ImportBookNote, ImportCharacterResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import {
   cardToCreateInput,
-  findImportedCharacter,
+  currentCardIdentity,
   importFileHash,
   parseCardJson,
   parseCardPng,
   parsedCardImportHash,
   parsedCardTextHash,
+  reusedCardRow,
 } from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";
@@ -127,15 +132,17 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
+): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays" | "embeddedBook">> {
   const attachedBooksLinked = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
+  let embeddedBook: ImportBookNote | null = null;
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
     if (await primaryBookTaken(ctx, characterId)) {
       skippedOverlays.push(BOOK_KEPT_NOTE);
     } else {
       await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
+      embeddedBook = { name: carried.book.name, entries: carried.book.entries.length, inertFields: inertFieldCounts(carried.book.entries) };
     }
   }
 
@@ -150,9 +157,11 @@ async function attachCarriedContent(
     });
     regexScriptsLifted = lift.created;
     regexScriptsReused = lift.reused;
+    // A script refused at the write door is named beside the card's other planes that did not land.
+    skippedOverlays.push(...lift.refused.map((refusal) => `regex script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`));
   }
 
-  return { regexScriptsLifted, regexScriptsReused, skippedOverlays };
+  return { regexScriptsLifted, regexScriptsReused, skippedOverlays, embeddedBook };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:
@@ -186,20 +195,25 @@ async function resolveExisting({
   readonly png: boolean;
   readonly importHash: string;
 }): Promise<CharacterId | null> {
-  const found = await findImportedCharacter((hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }), {
-    importHash,
-    textHash: parsedCardTextHash(parsed),
-    fileHash: importFileHash(bytes),
+  const found = await reusedCardRow({
+    find: (hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }),
+    hashes: { importHash, textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) },
+    current: currentCardIdentity(ctx.exportCurrentCard, ctx.ownerId, parsed.handle),
+    takeArt: async (characterId) => {
+      if (!png) {
+        return true;
+      }
+      const avatarAssetId = await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME });
+      return await ctx.attachImportedArt({ ownerId: ctx.ownerId, characterId, avatarAssetId, importHash });
+    },
   });
-  if (found === null) {
-    return null;
-  }
-  if (found.match !== "text" || !png) {
-    return found.characterId;
-  }
-  const avatarAssetId = await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME });
-  const tookArt = await ctx.attachImportedArt({ ownerId: ctx.ownerId, characterId: found.characterId, avatarAssetId, importHash });
-  return tookArt ? found.characterId : null;
+  return found?.characterId ?? null;
+}
+
+/** The name a held card is shown by: what the owner calls the row now, or the card's own name when the row was deleted
+ *  since the lookup matched it. */
+async function heldName(ctx: ImportContext, characterId: CharacterId, cardName: string): Promise<string> {
+  return (await ctx.characterName({ ownerId: ctx.ownerId, characterId })) ?? cardName;
 }
 
 type ParsedCardIdentity = NonNullable<ReturnType<typeof parseCardJson>>;
@@ -219,7 +233,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
-    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts } = parsed;
+    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts, scriptNotes } = parsed;
 
     const importHash = parsedCardImportHash(parsed);
     const carried: CarriedContent = {
@@ -232,7 +246,14 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const existing = await resolveExisting({ ctx, parsed, bytes, png, importHash });
     if (existing !== null) {
       const attached = await attachAllPlanes(ctx, existing, tags, carried);
-      return { characterId: existing, created: false, importHash, ...attached };
+      return {
+        characterId: existing,
+        created: false,
+        name: await heldName(ctx, existing, characterCard.name),
+        importHash,
+        ...attached,
+        skippedOverlays: [...scriptNotes, ...attached.skippedOverlays],
+      };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
@@ -255,6 +276,6 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const characterId = ref.characterId;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    return { characterId, created: true, importHash, ...attached };
+    return { characterId, created: true, name: baseInput.name, importHash, ...attached, skippedOverlays: [...scriptNotes, ...attached.skippedOverlays] };
   };
 }

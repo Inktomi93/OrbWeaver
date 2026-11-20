@@ -5,6 +5,7 @@
 // member-readable (the room's shared pool).
 
 import { importLandingSchema, portableTextFileSchema } from "@orb/contracts/portability";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import {
   backfillResultSchema,
   bookAttachmentTargetsSchema,
@@ -32,8 +33,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-// A lorebook is the biggest orb-native JSON artifact people share; the cap only fences a hostile upload.
-const MAX_BOOK_FILE_CHARS = 8_000_000;
+// A lorebook is the biggest orb-native JSON artifact people share; the cap (`IMPORT_FILE_TEXT_MAX_CHARS.worldBook`) only
+// fences a hostile upload.
 const MAX_FILENAME_CHARS = 512;
 const DEC = new TextDecoder();
 
@@ -99,7 +100,7 @@ export const worldInfoRouter = t.router({
   // `filename` names a raw SillyTavern world file (the book takes its stem); an orb export carries its own.
   importFile: authedProcedure
     .output(importLandingSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_BOOK_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
+    .input(z.strictObject({ fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.worldBook), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.worldInfo.importFile({
         principal: ctx.auth,

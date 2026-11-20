@@ -10,7 +10,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 export type ComputeDuplicatesOptions = WorkloadRunScope & {
   readonly threshold?: number;
   /** The workload's cooperative abort, checked at every yield of the hub math. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 };
 
 /** Options for the `computeThemes` recompute. `seed` pins the k-means++ seeding PRNG for determinism. */
@@ -19,24 +19,28 @@ export type ComputeThemesOptions = WorkloadRunScope & {
   readonly seed?: number;
   /** WHO FUNDS the cluster naming — the workload's persisted admitted funder. */
   readonly funderUserId: UserId;
+  readonly signal: AbortSignal;
 };
 
 /** Count-only clustering inputs; cannot be supplied to the executing theme pass. */
 export type ThemeNameEstimateOptions = WorkloadEstimateScope & Pick<ComputeThemesOptions, "k" | "seed">;
+
+/** The ceiling counts at the cluster count the run will use, which the workload always resolves before it asks. */
+export type ThemeNameCeilingOptions = WorkloadEstimateScope & { readonly k: number };
 
 /** Options for the `compute*HubScores` passes. `denseMax` forces the streaming branch on a small fixture. */
 export type ComputeHubScoresOptions = WorkloadRunScope & {
   readonly k?: number;
   readonly denseMax?: number;
   /** The workload's cooperative abort, checked at every yield of the hub math. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 };
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */
 export type DistillCharactersOptions = DistillTargetNarrow & {
   /** WHO FUNDS the pass — the caller on the on-demand arm, the workload's admitted funder on the batch path. */
   readonly funderUserId: UserId;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —
    *  the workload wrapper never reads the target list — so N-of-M can only originate here. */
   readonly onProgress?: ((done: number, total: number) => void) | undefined;
@@ -147,7 +151,7 @@ export const IMAGE_FACET_KEYS: readonly ImageFacetKey[] = Object.values(IMAGE_FA
 export type ComputeCooccurrenceOptions = WorkloadRunScope & {
   readonly maxPairs?: number;
   readonly hubFraction?: number;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 };
 
 /** Options for the owner-scoped `topKeywords` read, count-descending. */

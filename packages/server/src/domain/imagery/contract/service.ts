@@ -9,7 +9,7 @@ import type { CallerInChatOp, ResolveRoomRunAsOp } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { BindingActor, GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
-import type { ApplyStatsDelta } from "@orb/contracts/stats";
+import type { ApplyStatsDelta, RecordLedgerSpend } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
@@ -32,6 +32,7 @@ interface CaptionAvatarArgs {
   readonly runAs: Principal;
   readonly mode: MultimodalMode;
   readonly subjectCharacterId: CharacterId | undefined;
+  readonly signal: AbortSignal;
 }
 /** The injected caption op resolvePrompt closes over (null ⇒ no avatar to caption ⇒ caller falls back). */
 export type CaptionAvatar = (args: CaptionAvatarArgs) => Promise<CaptionResult | null>;
@@ -57,6 +58,7 @@ interface ResolvePromptArgs {
   readonly subjectCharacterId: CharacterId | undefined;
   /** The initiating viewer's zone for the extraction template's time macros; absent ⇒ chat reads UTC. */
   readonly timeZone: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 /** The shared prompt resolution the extractPrompt verb + generatePicture step 3 both close over. */
 export type ResolvePrompt = (args: ResolvePromptArgs) => Promise<ResolvedPrompt>;
@@ -83,6 +85,7 @@ export interface ImageGenerateRequest {
   /** A hint (same posture as `n`) — passed where the wire supports it. */
   readonly size?: { readonly width: number; readonly height: number } | undefined;
   readonly edit?: InferenceImageGenerateRequest["edit"];
+  readonly signal: AbortSignal;
 }
 
 /** The executor's result — the returned images + the model provenance + the economics + the runner's edit-strip
@@ -110,7 +113,7 @@ export interface ImageryContext {
   readonly newGenerationId: () => ImageryGenerationId;
   readonly newCallId: () => ImageryCallId;
   /** The `generateImage` connection of the run-as principal (the funder). */
-  readonly resolveGenerateImage: (runAs: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
+  readonly resolveGenerateImage: (runAs: Principal, signal: AbortSignal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
   /** The run-as Principal for a room picture's `runAsUserId`, read from its row so the role is real. Chat
    *  resolved the id; this op only loads it. */
   readonly resolveRunAs: ResolveHostPrincipalOp;
@@ -125,7 +128,7 @@ export interface ImageryContext {
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`
    *  on any SSRF block/non-2xx/size-cap/network failure — the caller drops that image. */
-  readonly fetchImage: (url: string) => Promise<Uint8Array | null>;
+  readonly fetchImage: (url: string, signal: AbortSignal) => Promise<Uint8Array | null>;
   /** `assets.store` — the per-user CAS write under the run-as principal. `kind` is always `"generated"` from this domain. */
   readonly storeAsset: GeneratedAssetStore;
   /** The chat-owned quiet extraction shaper (over the `summarize` role — doc 02 §2): chat windows its own
@@ -139,9 +142,10 @@ export interface ImageryContext {
     readonly instruction: string;
     readonly subjectCharacterId?: CharacterId | undefined;
     readonly timeZone?: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
-  /** ⑫ — the run-as principal's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]`
-   *  override ⊕ the shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose
+  /** ⑫ — the run-as principal's per-mode EXTRACTION instruction: the mode's `UserSettings.prose` slot override
+   *  ⊕ the shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose
    *  off `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
   readonly resolvePromptTemplate: (runAs: Principal, mode: ExtractionMode) => Promise<string>;
   /** ⑫ — the run-as principal's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
@@ -158,6 +162,7 @@ export interface ImageryContext {
     readonly bytes: Uint8Array;
     readonly mime: string;
     readonly instruction: string;
+    readonly signal: AbortSignal;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
   /** Owner-gated byte read of the caller's OWN asset (B3 avatar reference + editImage source) — assets'
    *  `readOwnedAssetBytes` (EC-B). Throws assets' not-found on non-owned; imagery does not re-gate. */
@@ -170,6 +175,8 @@ export interface ImageryContext {
   /** stats' rollup upsert, pushed into the batch that writes the provenance rows: those rows are the canon the
    *  stats rebuild re-derives image spend from, so the two commit together or neither does. */
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
+  /** stats' spend-ledger write: a prompt's extraction or caption spend, with its delta, in the caller's batch. */
+  readonly recordLedgerSpend: RecordLedgerSpend<BatchStmt[], Db>;
   /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture never
    *  targets a character its owner does not hold. Wired to the same owner-scoped `characters` read the
    *  gallery add verb gates on. */
@@ -180,15 +187,16 @@ export interface ImageryContext {
 }
 
 /** Assembly receives neither the query connection nor raw atomic callback operands. */
-export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyStatsDelta"> & {
+export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyStatsDelta" | "recordLedgerSpend"> & {
   readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
+  readonly recordLedgerSpend: RecordLedgerSpend<BatchHandle, DatabaseHandle>;
 };
 
 /** The imagery surface — the orchestrator + the standalone extraction preview. */
 export interface ImageryService {
   /** The orchestrator: resolve prompt (user | caption | extract) → resolve role → generate → store →
    *  provenance → blocks. Never posts to chat — the caller owns message authorship. */
-  readonly generatePicture: GeneratePicture;
+  readonly generatePicture: GeneratePicture<AbortSignal>;
   /** Step-1 standalone: the preview-before-spend surface (review the prompt, then generate with it). */
   readonly extractPrompt: (p: ExtractPromptParams) => Promise<ExtractedPrompt>;
   /** Read the durable provenance of a generated image (prompt/model/cost/mode/subject) — the gallery detail +

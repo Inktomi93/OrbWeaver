@@ -12,7 +12,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { REGEX_GROUP_LABEL } from "#client/features/regex/lib/regex-names.ts";
+import { CHARACTER_SELECT_MULTIPLE_NAME } from "#client/features/character/lib/character-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_SELECT_SCRIPTS_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "#ui/primitives/selection-bar/selection-bar-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -37,7 +38,7 @@ async function prepareList(page: Page, root: Root, corpus: Corpus, list: BulkLis
           input: createCharacterSchema.parse({ handle: name.toLowerCase().replaceAll(" ", "-"), name, description: "A character for the bulk bar." }),
         })
       : caller.regex.createScript({
-          input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+          input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
         }));
   }
   await routeTrpc(page, {
@@ -60,16 +61,25 @@ async function selectRows(page: Page, list: BulkList): Promise<{ readonly bar: L
       .first()
       .click();
   }
-  await page.getByRole("button", { name: /^Select( multiple| scripts)?$/u }).click();
+  await page.getByRole("button", { name: list === "regex" ? REGEX_SELECT_SCRIPTS_NAME : CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   const checkboxes = page.getByRole("checkbox");
   await expect(checkboxes.first()).toBeVisible();
+  let lastSelected = checkboxes.first();
   for (let index = 0; index < SELECTED; index += 1) {
-    await checkboxes.nth(index).scrollIntoViewIfNeeded();
-    await checkboxes.nth(index).click();
+    const checkbox = checkboxes.nth(index);
+    await checkbox.scrollIntoViewIfNeeded();
+    // The list recycles its rows as the pane lifts the selected one clear of the bar, so a position names a different row afterwards:
+    // the row just selected is found again by its name.
+    const name = await checkbox.getAttribute("aria-label");
+    if (name === null) {
+      throw new Error("A selectable row's checkbox carries no name");
+    }
+    lastSelected = page.getByRole("checkbox", { name, exact: true });
+    await checkbox.click();
   }
   const bar = page.locator('[data-slot="selection-bar-root"]');
   await expect(bar.locator('[data-slot="selection-bar-count"]')).toHaveText(selectionCountLabel(SELECTED));
-  return { bar, lastSelected: checkboxes.nth(SELECTED - 1) };
+  return { bar, lastSelected };
 }
 
 function middle(box: { readonly y: number; readonly height: number } | null): number {

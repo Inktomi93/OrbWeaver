@@ -8,8 +8,9 @@
 //
 // tag.listTagsWithUsage shares the management collection query key and runs only while open. Opening
 // beside a loaded roster is a cache hit; opening from the character library can require a fetch. The field
-// stays mounted and typeable while the library loads or fails, and a QueryBoundary beside it shows the
-// shared loading and error states. The suggestions, the create-or-attach line and the `Create "x"` confirm
+// stays mounted and typeable while the library loads or fails. The QueryBoundary beside it renders the helper line
+// in every arm (busy while loading, beside the shared error block on failure), so the dialog keeps its height when the
+// read lands. The suggestions, the create-or-attach line and the `Create "x"` confirm
 // wait for a known library, so an unresolved library never invites duplicate creation.
 //
 // Suggestions omit already attached tags, but the exact-name decision examines the whole library (#1488).
@@ -24,11 +25,11 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { sortTagsBy } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { createTagName, TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
+import { createTagName, TAG_LIBRARY_READ_LABEL, TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
 
 /** How many suggestions the inline list renders at once — a scroll of 400 is not a suggestion list (the
  *  box itself shows ~4 and scrolls, so this is the depth of the scroll, not the height of the box). */
@@ -39,7 +40,7 @@ type TagLibrary = inferOutput<Trpc["tag"]["listTagsWithUsage"]>;
 export interface TagPickerDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly title: ReactNode;
+  readonly title: string;
   readonly description: ReactNode;
   /** The confirm button's label for the ATTACH-EXISTING arm (e.g. "Apply"). The create arm overrides it
    *  with its own `Create "<name>"` so the click always says which of the two things it does. */
@@ -67,6 +68,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
   const claim = library === undefined ? undefined : libraryClaim(library, attachedNames, trimmed);
   const alreadyAttached = claim?.match?.attached === true;
   const creating = claim !== undefined && trimmed !== "" && claim.match === undefined;
+  const helper = claim === undefined ? unknownLibraryText(trimmed) : helperText(claim, trimmed);
 
   const close = (): void => {
     setName("");
@@ -116,28 +118,42 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           placeholder="Search or create a tag…"
           value={name}
         />
-        {/* ONE live line across the read: `aria-live` because the create ⇄ attach flip happens while the user is
-            typing INTO the field it describes, and a describedby alone is only read on focus. */}
-        <Text aria-live="polite" id={helperId} voice="gloss">
-          {claim === undefined ? unknownLibraryText(trimmed) : helperText(claim, trimmed)}
-        </Text>
+        {/* The helper line is every arm of the library boundary, so the dialog's shape does not change when the read
+            lands (a fallback the settled arm does not have would collapse under the footer). */}
         <QueryBoundary
           resetKeys={[]}
-          fallback={<SkeletonRows count={1} />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your tags" onRetry={retry} />}
+          fallback={<HelperLine busy={true} id={helperId} text={helper} />}
+          renderError={(_error, retry): ReactElement => (
+            <>
+              <HelperLine busy={false} id={helperId} text={helper} />
+              <QueryErrorState label={TAG_LIBRARY_READ_LABEL} onRetry={retry} />
+            </>
+          )}
         >
-          <LibraryRead />
+          <LibraryRead>
+            <HelperLine busy={false} id={helperId} text={helper} />
+          </LibraryRead>
         </QueryBoundary>
       </Stack>
     </FormDialog>
   );
 }
 
-/** Suspends on the library so its loading and failure reach the shared states; the line above states what it knows. */
-function LibraryRead(): null {
+/** Suspends on the library so its loading and failure reach the shared states, then renders the settled line. */
+function LibraryRead({ children }: { readonly children: ReactNode }): ReactNode {
   const trpc = useTRPC();
   useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
-  return null;
+  return children;
+}
+
+/** The field's description. `aria-live` because the create ⇄ attach flip happens while the user is typing INTO the
+ *  field it describes, and a describedby alone is only read on focus. `busy` marks the boundary's loading arm. */
+function HelperLine({ id, text, busy }: { readonly id: string; readonly text: string; readonly busy: boolean }): ReactElement {
+  return (
+    <Text aria-busy={busy} aria-live="polite" id={id} voice="gloss">
+      {text}
+    </Text>
+  );
 }
 
 interface LibraryClaim {

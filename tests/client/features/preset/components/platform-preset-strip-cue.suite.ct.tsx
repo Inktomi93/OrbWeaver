@@ -3,7 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_EDITOR_NAME, PRESET_SECTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_BUILT_IN_SUBTITLE, PRESET_EDITOR_NAME, PRESET_SECTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -34,7 +34,7 @@ test.describe("wide desktop", () => {
     await routeTrpc(page, serveCorpusProcedures(caller, READS));
     await mount<typeof PresetActionGroupsStory>(STORY, { width: 960, appearance, subject: "list" });
     // The control: the built-in row is on screen, locked, beside at least one other row.
-    const builtIn = page.locator('[data-slot="list-row-root"]').filter({ hasText: /Built-in default/u });
+    const builtIn = page.locator('[data-slot="list-row-root"]').filter({ hasText: new RegExp(RegExp.escape(PRESET_BUILT_IN_SUBTITLE), "u") });
     await expect(builtIn).toHaveCount(1);
     await expect(builtIn.locator('[data-slot="list-row-subtitle"] svg')).toHaveCount(1);
     const titles = page.locator('[data-slot="list-row-title"]');

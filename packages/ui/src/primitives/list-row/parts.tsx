@@ -3,6 +3,7 @@
 // that lays out ONE row's text column lives here. Internal to the primitive — `index.ts` exports neither.
 
 import type { ReactElement, ReactNode } from "react";
+import { HOVER_SWAP } from "#lib";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { TitleQualifier } from "./title-qualifier.tsx";
 import type { listRowVariants } from "./variants.ts";
@@ -13,12 +14,13 @@ function subtitleStepAttribute(step: "default" | "label"): "label" | undefined {
   return step === "label" ? "label" : undefined;
 }
 
-/** The DOM ids of the row's describing spans (subtitle · meta · markers · full title), for the body's
+/** The DOM ids of the row's describing spans (subtitle · meta · markers · detail · full title), for the body's
  *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty ⇒ no attr). */
 export interface ListRowDescriptors {
   subtitleId: string | undefined;
   metaId: string | undefined;
   markersId: string | undefined;
+  detailId: string | undefined;
   fullTitleId: string | undefined;
 }
 
@@ -123,6 +125,7 @@ export function ListRowContent({
   subtitleStep,
   meta,
   markers,
+  detail,
   titleStep,
   titleQualifier,
   ids,
@@ -142,12 +145,13 @@ export function ListRowContent({
   subtitleStep: "default" | "label";
   meta: string | undefined;
   markers: ReactNode;
+  detail: ReactNode;
   ids: ListRowDescriptors;
 }): ReactElement {
   // The subtitle YIELDS on hover/focus only when a reveal is present, so the reveal takes the exact line.
   // VISIBILITY, not display: both spans share one grid cell (`subtitleStack`), so the line's box is the max
   // of the two and never changes under the pointer.
-  const subtitleSwap = subtitleReveal === undefined ? "" : "col-start-1 row-start-1 group-hover:invisible group-focus-within:invisible";
+  const subtitleSwap = subtitleReveal === undefined ? "" : `col-start-1 row-start-1 ${HOVER_SWAP.hide}`;
   const subtitleSpan =
     subtitle === undefined ? null : (
       <span
@@ -205,6 +209,11 @@ export function ListRowContent({
             <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal">
               {subtitleReveal}
             </span>
+          </span>
+        )}
+        {detail === undefined ? null : (
+          <span className={slots.detail()} data-slot="list-row-detail" id={ids.detailId}>
+            {detail}
           </span>
         )}
       </span>

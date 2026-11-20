@@ -15,9 +15,8 @@ export type {
   WorkloadService,
   WorkloadServiceContext,
 } from "./contract/service.ts";
+export type { WorkloadReads } from "./contract/workload-row.ts";
 export { createWorkloadProgressBus } from "./engine/progress-bus.ts";
-export { createWorkloadService } from "./service.ts";
-export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";
 // `reclaimInFlightOnBoot` disposes of every owner's in-flight rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export {
   createNextRunnableWorkload,
@@ -26,4 +25,6 @@ export {
   reclaimInFlightOnBoot,
   runWorkload,
   tickWorkloadSchedules,
-} from "./substrate/wiring.ts";
+} from "./engine/wiring.ts";
+export { createWorkloadService } from "./service.ts";
+export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";

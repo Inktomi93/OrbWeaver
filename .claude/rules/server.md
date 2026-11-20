@@ -27,7 +27,7 @@ paths:
 ## automation (`domain/automation/**`)
 
 - Rule dispatch runs in mint position order over one shared CEL env
-  (`packages/server/src/domain/automation/substrate/cel-env.ts`); a preset that stamps then reads a var mints a private key.
+  (`packages/server/src/domain/automation/engine/cel-env.ts`); a preset that stamps then reads a var mints a private key.
 - `update-rule`'s PUT clears `rule_preset` provenance on purpose; a new per-rule
   preference gets its own verb, never the PUT.
 
@@ -45,18 +45,6 @@ paths:
 - A model-facing tool argument schema holds only JSON-Schema-representable fields: no
   branded-id or `.transform()` field, and no id a model cannot author.
 
-## import, character, filesystem
-
-- Never dedupe an imported character by name. Its identity is `cardImportHash`
-  (`packages/server/src/primitives/serde/card/index.ts`), a hash over the parsed card, embedded
-  book and art, never the file bytes; a content-new card, or the same text under
-  other art, is always a new character, and only its per-owner handle gets a numeric suffix
-  on collision. Look a card up through `findImportedCharacter`, never a bare hash read. A
-  pack migration writes a field only where it can prove the live value is still the prior
-  pack's.
-- Realpath both ends before comparing staged-path containment, open reads with
-  `O_NOFOLLOW`, and `lstat`-refuse symlinks before `rm`.
-
 ## refinery (`domain/refinery/**`)
 
 - An output-budget window reserve scales with input size; a fixed constant
@@ -68,6 +56,17 @@ paths:
 - `reaper.ts` gates a reap on positive liveness (a port health check, a heartbeat),
   never on cwd or parent-pid alone; a sibling process can share both while it is
   still healthy.
+
+## Windows, macOS and Linux
+
+Server, inference and launcher code runs on native Windows and macOS installs and in the Linux container.
+
+- Use a Node API that behaves the same on all three. A POSIX-only mechanism needs a Windows path and a test.
+- Stop a child by closing its channel or by a deadline. A signal other than a forced kill does not reach a Windows child.
+- Treat a file mode, `O_NOFOLLOW` and a directory fsync as absent on Windows. `isDirectorySyncUnsupported` in `packages/server/src/primitives/errno/index.ts` reads the fsync answer.
+- Read an environment variable from a snapshot without regard to letter case on Windows, as `packages/inference/src/backends/agent-sdk/env.ts` does.
+- Split a host path with `node:path` or on both separators. A zip entry name always uses `/`.
+- A local run proves Linux only. `.github/workflows/install.yml` and `.github/workflows/contributor.yml` run on Windows and macOS after a push.
 
 ## infra
 

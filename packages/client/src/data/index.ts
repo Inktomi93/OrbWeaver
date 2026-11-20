@@ -19,14 +19,13 @@ export {
   fetchLiveShare,
   useAuthConfig,
   useExternalMediaBlocked,
-  useInteractiveCardsAllowed,
   useLiveShare,
   useMultiHumanCapable,
   useRenderPolicyFloor,
   useUploadCaps,
 } from "./auth-config.ts";
 export type { ChatBusDeps } from "./bus/apply-chat-bus-event.ts";
-export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./bus/chat-bus-writes.ts";
+export { markTurnStopping, recoverTurnAfterStopFailure, releaseGhostHandover, useChatBusDeps } from "./bus/chat-bus-writes.ts";
 export { RECOVERY_RETRY_BACKOFF_MS } from "./bus/recovery-retry.ts";
 export { useBusRoom } from "./bus/use-bus-room.ts";
 export { useChatBus } from "./bus/use-chat-bus.ts";
@@ -36,22 +35,25 @@ export { useUserBus } from "./bus/use-user-bus.ts";
 export type { ClientRuntime } from "./client-runtime-contract.ts";
 export { useCollectionCount } from "./collection-count.ts";
 export type { CollectionSurface } from "./create-collection-surface.ts";
-export { createCollectionSurface } from "./create-collection-surface.ts";
+export { COLLECTION_FETCH_BATCH, createCollectionSurface } from "./create-collection-surface.ts";
 export type { EntityMutateAsync } from "./create-entity-mutation.ts";
 export { createEntityMutation, withProcedureInput } from "./create-entity-mutation.ts";
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
+export { readFramePanels, rememberFramePanels } from "./frame-panels.ts";
 export { readFresh } from "./fresh-read.ts";
-export { HttpError } from "./http-error.ts";
+export { HttpError, isHttpFailure, readJsonBody } from "./http-error.ts";
 export { importBundle } from "./import-bundle.ts";
 export { importCharacters } from "./import-characters.ts";
 export { importChats } from "./import-chats.ts";
-export { importTree, relativePathOf } from "./import-tree.ts";
+export { importTree, personaFilesOf, relativePathOf } from "./import-tree.ts";
 export type { TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
-export { skippedByReason, UnsupportedFolderLayoutError } from "./import-tree-plan.ts";
+export { plannedFiles, skippedByReason, UnsupportedFolderLayoutError } from "./import-tree-plan.ts";
 export { planServedFolderImport } from "./import-tree-served.ts";
+export type { ProfileZipOutcome } from "./import-tree-zip.ts";
+export { importTreeZip, ProfileZipRefusedError } from "./import-tree-zip.ts";
 export type { Invalidation } from "./invalidation.ts";
-export {} from "./invalidation.ts";
+export { forgetGoneRoom } from "./invalidation.ts";
 export {} from "./invalidation-carrier.ts";
 export { connectionWriteReads, personaWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
@@ -60,7 +62,7 @@ export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
 export { pressForPage } from "./press-for-page.ts";
-export { createAppQueryClient, retryUnlessBadRequest } from "./query-client.ts";
+export { createAppQueryClient } from "./query-client.ts";
 export { QueryErrorState, QueryUnavailableState } from "./query-error-state.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";
 export { restoreCardLorebook } from "./restore-card-lorebook.ts";
@@ -73,13 +75,13 @@ export { SkeletonRows } from "./skeleton-rows.tsx";
 export { completeReauth } from "./stale-session.ts";
 export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
-export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
-export { UploadRefusedError } from "./upload-asset.ts";
+export { createTrpcClient, createTrpcProxy, RIDES_ALONE, roomRosterOptions, roomTailOptions, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
+export { isUploadFailure, UploadRefusedError } from "./upload-asset.ts";
 export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts";
-export { useCardFrameSrc } from "./use-card-frame.ts";
+export { useCardFrame } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
-export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
+export { useDisplayEntries, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
 export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { IdsContext, useIds } from "./use-ids.ts";

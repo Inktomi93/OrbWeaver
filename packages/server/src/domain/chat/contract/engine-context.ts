@@ -1,12 +1,13 @@
 // The engine's actual capabilities: frozen turn inputs and execution, never request authorization.
-import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ToolCallRecord } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ProviderWaitBusEvent, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
+import type { StatementToken } from "@orb/db/wiring";
 import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
-import type { RegexExecuteOptions } from "@orb/kit/regex";
+import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { Logger, TraceRing, WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
@@ -14,10 +15,17 @@ import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, Witness
 import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 
-/** The Node regex watchdog owns execution time outside the pure regex library. */
-export type ApplyRegexReplaceOp = NonNullable<RegexExecuteOptions["applyReplace"]>;
+/** One leg pass of the watchdog: it applies scripts the way the kit executor does, each text in one watchdog entry,
+ *  every entry drawing on the pass's one time budget (D53). */
+export interface RegexPassOp {
+  readonly execute: (args: ExecuteRegexScriptsArgs) => string;
+}
 
-/** The turn-bound image resolver: owner, room and quality are already closed over. */
+/** Open one leg pass. Open a pass per leg run, never per turn. `rows` is the history leg's row count, which the
+ *  budget grows with; a single-text leg passes none. */
+export type OpenRegexPassOp = (rows?: number) => RegexPassOp;
+
+/** The turn-bound image resolver: room and quality are already closed over. */
 export type ResolveTurnImageUrlOp = (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
 
 /** Per canon slot, the asset ids the model emitted inside that slot's own generation. Lazy: a history with no `asset:` span never awaits it. */
@@ -38,6 +46,9 @@ export type DelayOp = (ms: number) => Promise<void>;
  *  written or fanned: a continue's own stream can open inside a hidden tag that body left unclosed. */
 export type EmitDurableChatEventOp = (event: DurableChatBusEvent, continuedBody?: string) => Promise<void>;
 
+/** The live-only fan of a turn's first-token wait phase. Synchronous, never throws into the turn path. */
+export type EmitProviderWaitOp = (event: ProviderWaitBusEvent) => void;
+
 // Detail changes the room row; extra recipients include members just removed from its roster.
 interface EmitChatChangedOptions {
   readonly detail?: boolean;
@@ -50,12 +61,12 @@ export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>
 
 /** Execution carries the frozen host and initiator, not a request Principal. */
 export interface ChatToolExecFrame {
-  readonly runAsUserId: UserId;
+  readonly runAsUserId: ConsentingHostId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
   readonly membership: ChatMembership | null;
   readonly turnId: ChatTurnId;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Bound to one turn; individual tool failures remain ordered errors-as-data. */
@@ -82,23 +93,33 @@ export type ApplyPromptTransformsOp = (
 
 // Null omits a gone or policy-blocked attachment instead of sending an unauthorized reference.
 export type ResolveImageUrlOp = (params: {
-  readonly ownerId: UserId;
   readonly chatId: ChatId;
   readonly ref: ContentImageRef;
   readonly quality?: AttachmentQuality | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }) => Promise<ResolvedMediaRef | null>;
 
 // Store in the frozen host's CAS so every room member can read it; compose owns SSRF and byte validation.
 // Null drops only the refused picture, never the model's prose or a dangling canon asset reference.
-type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
+type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage, signal: AbortSignal) => Promise<{ readonly assetId: AssetId } | null>;
 
-export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
+/** D337 — automation's upserts for one turn's global writes, unexecuted, for the reply's commit batch; the writes the
+ *  caps refuse are only counted, for the warning. Last write per key wins. */
+export type GlobalVariableWriteStatementsOp = (
+  ownerId: UserId,
+  writes: readonly { readonly key: string; readonly value: string }[],
+) => Promise<{
+  readonly statements: readonly StatementToken[];
+  readonly droppedCount: number;
+}>;
+
+export interface EngineContext
+  extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "settleRetainedChatRebase" | "resolveRetainedChatAccountingScope"> {
   readonly logger: Logger;
   /** The root's trace ring the engine's detached post-turn roots seal into. */
   readonly traces: TraceRing;
   readonly timers: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
+  readonly backgroundSignal: AbortSignal;
   readonly trackBackground: (settled: Promise<void>, chatId: ChatId) => void;
   /** The wire-capture outcome recorder; compose wires it only when wire capture is on. */
   readonly recordTurnOutcome?: (outcome: WireOutcome) => void;
@@ -107,7 +128,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly newMessageAssetId: () => MessageAssetId;
   readonly newChatTurnId: () => ChatTurnId;
   readonly emitChatChanged: EmitChatChanged;
-  readonly applyRegexReplace: ApplyRegexReplaceOp;
+  readonly openRegexPass: OpenRegexPassOp;
   /** The service PRNG the turn-stage macro context draws `{{random}}`/`{{roll}}`/`{{pick}}` from. */
   readonly prng: RandomSource;
   readonly passageCounter: InferenceRuntime["catalogs"]["passageCounter"];
@@ -117,6 +138,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly storeInlineReplyImage: StoreInlineReplyImageOp;
   readonly promptTransforms: ApplyPromptTransformsOp | null;
   readonly rpg: RpgTurnOps | null;
+  readonly globalVariableWriteStatements: GlobalVariableWriteStatementsOp;
 }
 
 // Collect forbidden keys before intersecting so a narrow union member cannot hide a wider one.
@@ -132,6 +154,7 @@ export type EngineContextInput<Context extends EngineContext> = Context &
 /** Composition binds memory and compaction outside the engine; no callback accepts a chat context. */
 export interface EngineDeps {
   readonly emit: EmitDurableChatEventOp;
+  readonly emitProviderWait: EmitProviderWaitOp;
   readonly holder: string;
   readonly lockTtlMs: number;
   readonly generateMemory: (args: BuildTurnMemoryArgs) => Promise<void>;
@@ -143,6 +166,6 @@ export interface EngineDeps {
     readonly ownerId: UserId;
     readonly coveragePoint?: number | undefined;
     readonly instructions?: string | undefined;
-    readonly signal?: AbortSignal | undefined;
+    readonly signal: AbortSignal;
   }) => Promise<CompactResult>;
 }

@@ -21,6 +21,12 @@ export const useUpdateReading = createEntityMutation<SectionPatchVars<"appearanc
   errorToast: "Couldn't save your reading settings.",
 });
 
+export const useUpdateAccessibility = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
+  errorToast: "Couldn't save your accessibility settings.",
+});
+
 export const useUpdateSizing = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.

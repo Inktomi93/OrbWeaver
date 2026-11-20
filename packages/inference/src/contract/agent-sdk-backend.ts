@@ -67,7 +67,7 @@ export interface AgentSdkBackend extends AgentSdkLifetime {
   /** The daemon catalog under a USER's token — the resolver's `warmAgentSdk` arm (no host credential exists to
    *  run it under, so the scheduled workload dropped this lane; the result is process-wide because the model
    *  list is not per-user). */
-  readonly catalog: (identity: SpawnIdentity) => Promise<AgentSdkModel[]>;
+  readonly catalog: (identity: SpawnIdentity, signal: AbortSignal) => Promise<AgentSdkModel[]>;
 }
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
@@ -106,7 +106,6 @@ export interface AgentSdkLog {
     readonly unliftable?: { readonly tool: string; readonly construct: string; readonly path: string };
   }) => void;
   readonly compaction: (fields: Record<string, unknown>) => void;
-  readonly capability: ProviderLogger["capability"];
   readonly info: InferenceLog["info"];
   readonly warn: InferenceLog["warn"];
   readonly debug: InferenceLog["debug"];
@@ -124,8 +123,6 @@ export interface DisciplineOptions {
 }
 
 /** Deps the agent-sdk family closes over (`createAgentSdkBackend`); injected for hermetic tests. */
-/** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
- *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
 export interface AgentSdkDeps {
   readonly now: Clock;
   readonly log: InferenceLog;
@@ -145,7 +142,7 @@ export interface AgentSdkDeps {
 /** `consumeTurnStream` parameter shape. */
 export interface TurnStreamContext {
   readonly settleExecution?: AgentSdkQueryLease[typeof Symbol.asyncDispose];
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;
   readonly turnId?: string | undefined;
   readonly model: ModelId;

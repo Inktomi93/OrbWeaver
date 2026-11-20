@@ -3,6 +3,7 @@
 import { automationRuleToolViewSchema } from "@orb/contracts/automation";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/inference";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AutomationRuntimeDeps, AutomationRuntimeOps } from "../contract/runtime-ops.ts";
 
 /** Build the action adapters without transferring the author's shelf or the room host's funding. */
@@ -31,6 +32,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         caller,
         actor: { kind: "automation-rule", ruleId },
         ...(chatId === null ? {} : { chatId }),
+        signal: deps.backgroundSignal,
       });
       if (chatId !== null) {
         await deps.emitPictureWarnings(chatId, picture.warnings);
@@ -84,11 +86,14 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // with N users' copies of the same plugin resident, a name-only resolve would hand the arm whichever
         // copy happened to register first, i.e. it would spend a stranger's grant on the author's rule.
         set = deps.toolUse.resolveDrivableTools(authorUserId, [name]);
-      } catch {
-        // `resolveDrivableTools` THROWS on an unknown name — the "OUR wiring bug" posture it shares with
+      } catch (error) {
+        // `resolveDrivableTools` THROWS a not-found on an unknown name — the "OUR wiring bug" posture it shares with
         // `resolveTools`, which is right for a turn and wrong for this consumer. Reaching it here means the
         // deactivation landed in the microtask between the check above and this line, so it is the same
-        // vanished-contributor answer, never a rule fault.
+        // vanished-contributor answer, never a rule fault. Any other throw is a fault and rejects.
+        if (!(error instanceof DomainNotFoundError)) {
+          throw error;
+        }
         return { ok: false, reason: "unavailable" };
       }
       const records = await deps.toolUse.executeToolCalls(set, [{ toolCallId: deps.newToolCallId(), name, arguments: argsJson }], {
@@ -96,6 +101,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // ROW READ like every other author→Principal edge in this file; a bare `UserId` carries no authority.
         principal: await resolveOwnerPrincipal(authorUserId),
         chatId,
+        signal: deps.backgroundSignal,
         // No turn exists — a rule dispatch is not a turn. This is also why first-party tools are not
         // direct-drivable: `executeToolCalls` rejects this `exec` for a first-party set at compile time.
         turnId: null,
@@ -122,7 +128,11 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       const rc = await roleClientsFor(authorUserId);
       const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUtilityPresetParams(authorUserId));
       const inputs = [{ systemPrompt, userPrompt: prompt }];
-      const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
+      const signal = deps.backgroundSignal;
+      const res =
+        responseFormat === undefined
+          ? await rc.summarize(inputs, { ...sampling, signal })
+          : await rc.structured(inputs, { ...sampling, responseFormat, signal });
       const item = res.items[0];
       return { text: (item?.text ?? "").trim() };
     },

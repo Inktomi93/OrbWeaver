@@ -13,6 +13,7 @@ import { evalCel, isCelParseError, parseCel } from "#cel";
 import { diceNotationInBounds, parseDiceNotation, rollDiceNotation } from "#dice";
 import { readOwnKey, writeOwnKey } from "#objects";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
+import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
@@ -504,6 +505,7 @@ const getGlobalVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
+  ctx.globalVarReads?.push(key);
   return ctx.globalVars === undefined ? "" : (readOwnKey(ctx.globalVars, key) ?? "");
 };
 
@@ -542,6 +544,16 @@ function charField(read: (ctx: MacroContext) => string | undefined): MacroHandle
     }
     return raw.includes("{{") ? ctx.evaluateString(raw) : raw;
   };
+}
+
+// SECURITY (D353): a stored summary or game-state value is a record of the story, not a template. The model wrote
+// it over room messages (members' included), an import or a fork carried it, or the host hand-edited it, and a
+// row of mixed origin must not gain macro power on an edit. So it is never evaluated, name macros included, and
+// it is neutralized rather than returned raw so a later pass that evaluates its output (a user macro's argument)
+// still finds no opener. Read time is the home, so rows stored before this rule are covered. `{{databank}}`
+// keeps `charField`: D352 decides by document owner inside `gatherRetrieval`.
+function storyField(read: (ctx: MacroContext) => string | undefined): MacroHandler {
+  return (_args: string[], ctx: MacroContext): string => neutralizeMacros(read(ctx) ?? "");
 }
 
 /** The delivered-args → recorded `args` text join. `::` is the canonical arg separator the parser splits on,
@@ -630,8 +642,10 @@ export function createDefaultRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   const vol = { volatile: true } as const;
   const volChat = { volatile: true, requires: "chat" } as const;
-  const recursiveChar = { analysis: { cacheDependent: true }, requires: "char" } as const;
+  // Card prose renders its own macros, so a `{{memory}}` its author wrote is invisible to a static read.
+  const recursiveChar = { analysis: { cacheDependent: true, retrievalDependent: true }, requires: "char" } as const;
   const recursiveChat = { analysis: { cacheDependent: true }, requires: "chat" } as const;
+  const retrievalChat = { analysis: { cacheDependent: true, retrievalDependent: true }, requires: "chat" } as const;
 
   registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("user", (_args, ctx) => ctx.user, { requires: "char" });
@@ -740,26 +754,25 @@ export function createDefaultRegistry(): MacroRegistry {
 
   registry.register(
     "compact_summary",
-    charField((ctx) => ctx.compactSummary),
+    storyField((ctx) => ctx.compactSummary),
     recursiveChat,
   );
   registry.register(
     "memory",
-    charField((ctx) => ctx.memory),
-    recursiveChat,
+    storyField((ctx) => ctx.memory),
+    retrievalChat,
   );
   // Renders empty until domain/databank.gatherRetrieval stages `ctx.databank`; born now so preset
   // section templates can place it.
   registry.register(
     "databank",
     charField((ctx) => ctx.databank),
-    recursiveChat,
+    retrievalChat,
   );
-  registry.register(
-    "guided_instruction",
-    charField((ctx) => ctx.guidedInstruction),
-    recursiveChat,
-  );
+  // SECURITY (D353): the value is the guided template the assembler already rendered, so its macros have run.
+  // Evaluating it again would run what that render produced, such as a member's `{{setvar}}` that
+  // `{{lastUserMessage}}` returned as text. A plain read.
+  registry.register("guided_instruction", (_args, ctx) => ctx.guidedInstruction ?? "", recursiveChat);
 
   // The 8 rpg* data-fed macros — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
   // value or "". Registered here (the databank/memory precedent) so a preset referencing `{{rpgSceneState}}` in
@@ -771,7 +784,7 @@ export function createDefaultRegistry(): MacroRegistry {
   for (const [name, key] of RPG_DATA_MACROS) {
     registry.register(
       name,
-      charField((ctx) => ctx.rpgMacros?.[key]),
+      storyField((ctx) => ctx.rpgMacros?.[key]),
       volChat,
     );
   }

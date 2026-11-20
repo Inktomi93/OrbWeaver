@@ -4,12 +4,25 @@
 // so this file only routes a blob to the right contribution and translates a parse failure into a domain
 // error.
 
-import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
+import type {
+  ModelCallEstimate,
+  PriorStageCount,
+  StartWorkloadInput,
+  WorkloadEstimateScope,
+  WorkloadKind,
+  WorkloadLane,
+  WorkloadMode,
+  WorkloadParamsByKind,
+} from "@orb/contracts/workloads";
 import {
   DEFAULT_ADMISSION_KEY,
   startWorkloadEnvelope,
+  WORKLOAD_ASKER_NOT_OWNER,
+  WORKLOAD_KINDS,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_DISABLED,
+  WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
   WORKLOAD_RUN_ACCOUNT_REFUSAL,
 } from "@orb/contracts/workloads";
@@ -17,6 +30,7 @@ import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { RunAsker, WorkloadRunnerDeps, WorkloadServiceContext } from "../contract/service.ts";
+import type { WorkloadReads } from "../contract/workload-row.ts";
 
 /** Parse ONE kind's params blob against its contribution schema. Throws the raw Zod error — callers that
  *  face a client wrap it (`parseKindParams`); the row read path catches it for poison tolerance. */
@@ -37,6 +51,11 @@ function parseKindParams(contributions: WorkloadContributions, input: StartWorkl
   }
 }
 
+/** What a verb's row read narrows against: the registry as of this call, and the domain's log. */
+export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger" | "reportedUnreadable">): WorkloadReads {
+  return { contributions: ctx.getContributions(), logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable };
+}
+
 /** The account a stored run answers to. A bulk row's owner is only the account it targets, which the box owner may
  *  name freely (D340), so a bulk row answers to its funder, the account that started it. */
 export function runAccount(row: { readonly mode: WorkloadMode; readonly ownerId: UserId | null; readonly funderUserId: UserId | null }): UserId | null {
@@ -48,16 +67,20 @@ export function runAccount(row: { readonly mode: WorkloadMode; readonly ownerId:
  *  schedule tick and a dispatched row are judged like a door, whatever build stored them. A non-owner asking is refused
  *  as such; an owner-asked or stored run whose account is not the box owner gets the coded refusal a client can name. */
 export async function runAuthorityRefusal<K extends WorkloadKind>(
-  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
 ): Promise<DomainForbiddenError | DomainOperationError | null> {
+  // A disabled account is treated exactly like a departed one, so no run answers to it, whatever its kind.
+  if (asker.account !== null && !(await deps.isAccountEnabled(asker.account))) {
+    return new DomainOperationError(WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL);
+  }
   if (deps.contributions[kind].ownerOnly?.(params) !== true) {
     return null;
   }
   if (asker.caller !== null && !(await deps.isBoxOwner(asker.caller.userId))) {
-    return new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL);
+    return new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL, WORKLOAD_ASKER_NOT_OWNER);
   }
   if (asker.account === null || !(await deps.isBoxOwner(asker.account))) {
     return new DomainOperationError(WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL);
@@ -67,7 +90,7 @@ export async function runAuthorityRefusal<K extends WorkloadKind>(
 
 /** Throw {@link runAuthorityRefusal}'s answer when there is one. */
 export async function assertRunAuthority<K extends WorkloadKind>(
-  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
@@ -86,13 +109,13 @@ export async function assertRunAuthority<K extends WorkloadKind>(
  * escaping ZodError (which would 500).
  */
 export async function parseWorkloadInput(
-  ctx: Pick<WorkloadServiceContext, "getContributions" | "isBoxOwner">,
+  ctx: Pick<WorkloadServiceContext, "getContributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   input: StartWorkloadInput,
 ): Promise<StartWorkloadInput> {
   const contributions = ctx.getContributions();
   const parsed = parseKindParams(contributions, input);
-  await assertRunAuthority({ contributions, isBoxOwner: ctx.isBoxOwner }, asker, parsed.kind, parsed.params);
+  await assertRunAuthority({ contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled }, asker, parsed.kind, parsed.params);
   return parsed;
 }
 
@@ -110,6 +133,11 @@ export function resolveAdmissionKey<K extends WorkloadKind>(contributions: Workl
 export function resolveLane<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): WorkloadLane {
   const contribution = contributions[kind];
   return contribution.laneFor?.(params) ?? contribution.lane;
+}
+
+/** Whether a row is stamped transient: the kind's params-dependent answer, else a run its owner keeps. */
+export function resolveTransient<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): boolean {
+  return contributions[kind].transientFor?.(params) ?? false;
 }
 
 /**
@@ -144,25 +172,24 @@ export async function admissionRefusal<K extends WorkloadKind>(
 }
 
 /** The OWNING domain's count of the Utility-model calls a run would make (`WorkloadContribution.modelCalls`);
- *  `null` when the kind declares no estimator because it calls no generative model. */
+ *  `calls: null` when the kind declares no estimator because it calls no generative model. */
 export async function countModelCalls<K extends WorkloadKind>(
   contributions: WorkloadContributions,
   kind: K,
   params: WorkloadParamsByKind[K],
-  scope: WorkloadEstimateScope & { readonly funderUserId: UserId | null },
-): Promise<number | null> {
+  scope: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly before: readonly PriorStageCount[]; readonly signal: AbortSignal },
+): Promise<ModelCallEstimate> {
   const estimate = contributions[kind].modelCalls;
-  return estimate === undefined ? null : await estimate({ ...scope, params });
+  return estimate === undefined ? { calls: null, bound: "exact" } : await estimate({ ...scope, params });
 }
 
 /** Hand a row that ended before it ran back to its owning domain (`WorkloadContribution.releaseUnrun`). */
-export async function releaseUnrun<K extends WorkloadKind>(
-  contributions: WorkloadContributions,
-  kind: K,
-  params: WorkloadParamsByKind[K],
-  ownerId: UserId | null,
-): Promise<void> {
-  await contributions[kind].releaseUnrun?.({ ownerId, params });
+export async function releaseUnrun(contributions: WorkloadContributions, kind: string, params: unknown, ownerId: UserId | null): Promise<void> {
+  // A stored row can name a kind this build no longer ships; nothing here owns what it held.
+  const known = WORKLOAD_KINDS.find((candidate) => candidate === kind);
+  if (known !== undefined) {
+    await contributions[known].releaseUnrun?.({ ownerId, params });
+  }
 }
 
 /**

@@ -2,41 +2,41 @@
 // OpenRouter-only plain-fetch surfaces (`accountCredits` → `GET /credits`, `generationCost` → `GET
 // /generation?id=`, and the enriched `listModels` → `GET /models`), the `/v1/models` list for every other row,
 // and the "Test endpoint" INSPECTOR — one 1-token chat call on the route chat uses, the redacted request + raw
-// (scrubbed, over-read-then-cut, #1820) response back, never a throw.
+// (scrubbed, over-read-then-cut) response back, never a throw.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { foldFeatures } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
+import { isFetchFailure } from "@orb/kit/fetch-failure";
 import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import type { DiagnosticsDeps, InspectDeps } from "#src/contract/openai-backend.ts";
-import { authHeaders, bodyByteReader, fetchJson, openAiPath } from "../http/fetch-json.ts";
+import type { MirrorFetch } from "#src/contract/runtime.ts";
+import { judgesTheKey } from "../http/error-classify.ts";
+import { authHeaders, bodyByteReader, fetchJson, keyCheckUrl, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
 import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { languageModelFor } from "./model.ts";
 
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
 const BODY_PREVIEW_LIMIT = 4000;
 const INSPECT_LABEL = "endpoint inspector";
 const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
+const MODELS_PATH = "/models";
 const GENERATION_PATH = "/generation";
 
-const creditsSchema = z.object({ data: z.object({ total_credits: z.number(), total_usage: z.number() }).loose() }).loose();
-const generationSchema = z
-  .object({
-    data: z.object({ total_cost: z.number(), tokens_prompt: z.number().nullable().optional(), tokens_completion: z.number().nullable().optional() }).loose(),
-  })
-  .loose();
+const creditsSchema = z.looseObject({ data: z.looseObject({ total_credits: z.number(), total_usage: z.number() }) });
+const generationSchema = z.looseObject({
+  data: z.looseObject({ total_cost: z.number(), tokens_prompt: z.number().nullable().optional(), tokens_completion: z.number().nullable().optional() }),
+});
 
 function requireBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {
   if (connection.baseUrl === null) {
@@ -54,22 +54,31 @@ function requireOpenRouter(connection: Resolved, label: string): string {
 
 interface ReadArgs {
   readonly connection: Resolved;
-  readonly path: string;
+  /** Under the base URL, or a path from its origin (a row's `keyCheckPath`). */
+  readonly path: string | { readonly fromOrigin: string };
   readonly label: string;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
+}
+
+function readUrl(connection: Resolved, baseUrl: string, path: ReadArgs["path"]): string {
+  if (typeof path !== "string") {
+    // The origin guard's throw reads as `unchecked` in the probe: nothing is sent, healthy or struck.
+    return keyCheckUrl(baseUrl, path.fromOrigin);
+  }
+  return connection.provider.dialect === "openrouter" ? `${baseUrl.replace(/\/$/u, "")}${path}` : openAiPath(baseUrl, path);
 }
 
 async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise<unknown> {
   const { connection, path, label, signal } = args;
   const baseUrl = requireBaseUrl(connection, label);
-  const url = connection.provider.dialect === "openrouter" ? `${baseUrl.replace(/\/$/u, "")}${path}` : openAiPath(baseUrl, path);
+  const url = readUrl(connection, baseUrl, path);
   const result = await fetchJson({
     fetch: deps.fetch,
     url,
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     secrets: resolvedScrubSet(connection),
     label,
-    ...(signal !== undefined ? { signal } : {}),
+    signal,
   });
   return result.json;
 }
@@ -98,22 +107,30 @@ function brokenBeforeTheWire(error: unknown): boolean {
   return PROGRAMMING_ERRORS.some((kind) => root instanceof kind) && !("code" in root && typeof root.code === "string");
 }
 
-/** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, `/models`
- *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; a failure of our own request → `unchecked`;
+function keyCheckPathOf(connection: Resolved): ReadArgs["path"] {
+  if (connection.provider.dialect === "openrouter") {
+    return CREDITS_PATH;
+  }
+  const keyCheck = connection.features.keyCheckPath;
+  return keyCheck === undefined ? MODELS_PATH : { fromOrigin: keyCheck };
+}
+
+/** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, the row's
+ *  `keyCheckPath` where its models list answers without a key, `/models` elsewhere. Success → `ok`; an answer that
+ *  judges the key ({@link judgesTheKey}, the rule a chat turn strikes by) → `revoked`; a failure of our own request → `unchecked`;
  *  anything else → `unreachable`, carrying the status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
   const { connection } = req;
-  const path = connection.provider.dialect === "openrouter" ? CREDITS_PATH : "/models";
+  const path = keyCheckPathOf(connection);
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
-    // the probe returns the failure as `revoked`, `unchecked` or `unreachable` health with a sanitized reason at diagnostics.ts:117 and :123. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
-    if (httpStatus === HTTP_UNAUTHORIZED || httpStatus === HTTP_FORBIDDEN) {
+    if (err instanceof ProviderError && judgesTheKey(err, connection.features.forbiddenIsNotCredentialVerdict === true)) {
       return { status: "revoked", checkedAt, reason };
     }
     if (brokenBeforeTheWire(err)) {
@@ -142,6 +159,11 @@ export async function openRouterGenerationCost(req: GenerationCostRequest, deps:
   return { totalCost: parsed.data.total_cost };
 }
 
+/** The rows an OpenRouter catalog read can list: all of them, or the chat rows a read that lost a kind list kept. */
+function openRouterEntries(read: MirrorFetch<ModelCatalogEntry[]>): ModelCatalogEntry[] {
+  return "complete" in read ? read.complete : read.partial;
+}
+
 /** The model list by the row's dialect: the enriched openrouter catalog, else the `/v1/models` ids. A failed
  *  or empty list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
 export async function listOpenAiCompatModels(req: ListModelsRequest, deps: DiagnosticsDeps): Promise<ModelListing> {
@@ -151,7 +173,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
   try {
     const models: ModelCatalogEntry[] =
       connection.provider.dialect === "openrouter"
-        ? await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) })
+        ? openRouterEntries(await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, signal: req.signal }))
         : (
             await fetchEndpointModels({
               scheduleTimeout: deps.scheduleTimeout,
@@ -162,20 +184,19 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
               secrets,
               // The provider row's reader: a catalog target carries the row, not the folded features.
               modelInfoApi: foldFeatures(connection.provider.features).modelInfoApi,
-              ...(req.signal !== undefined ? { signal: req.signal } : {}),
+              signal: req.signal,
             })
           ).map((row) => bareCatalogEntry(row));
     return listingOf(models);
-    // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:171, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
-    return failedListing(err, secrets);
+    return failedListing(err, secrets, connection.provider.features?.forbiddenIsNotCredentialVerdict === true);
   }
 }
 
 // ── the inspector ─────────────────────────────────────────────────────────────────────────────────────────
 
 /** Read at most `BODY_PREVIEW_LIMIT + overhang` UTF-16 code units and cancel the rest — the over-read lets
- *  the by-value scrub see a credential the endpoint reflected ACROSS the cut (#1820), one unit throughout. */
+ *  the by-value scrub see a credential the endpoint reflected ACROSS the cut, one unit throughout. */
 async function readBodyPreview(res: Response, overhang: number): Promise<string> {
   if (res.body === null) {
     return "";
@@ -287,8 +308,14 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet): Prom
   if (reply === undefined) {
     return { ok: false, request, response: null };
   }
-  // a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the retired probe's mustPass fixture proved the same degraded inspection result. Ends if preview bytes become authoritative.
-  const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((): string => "");
+  // A body that dies mid-read (fetch's `TypeError`, or the abort of the send's own deadline) degrades to an explicit
+  // empty preview while status and headers remain inspectable. Any other fault rejects.
+  const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((error: unknown): string => {
+    if (!isFetchFailure(error)) {
+      throw error;
+    }
+    return "";
+  });
   return {
     ok: reply.ok,
     request,

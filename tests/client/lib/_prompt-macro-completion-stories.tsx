@@ -9,7 +9,7 @@ export function BuiltinMacroCompletionStory(): ReactElement {
   const [value, setValue] = useState("");
   return (
     <CtIsolation subject="MacroTextarea" isolates="The completion list over the builtin macro catalog, without the editor around it">
-      <MacroTextarea aria-label="Prompt" onChange={setValue} suggestions={BUILTIN_MACRO_SUGGESTIONS} value={value} />
+      <MacroTextarea aria-label="Macro field" onChange={setValue} suggestions={BUILTIN_MACRO_SUGGESTIONS} value={value} />
     </CtIsolation>
   );
 }

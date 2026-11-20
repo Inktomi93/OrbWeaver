@@ -1,5 +1,5 @@
-// The owned-table rows refuse the two doors that need no import of the table: drizzle's relational door
-// (`db.query.<table>`) in every access spelling, and raw SQL text that names the table. The probes compile in one
+// The owned-table rows refuse the doors that need no import of the table: drizzle's relational door
+// (`db.query.<table>`) in every access spelling, the table object off the db handle, and raw SQL text that names the table. The probes compile in one
 // server program, so the checker types each member as the real drizzle builder.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -25,12 +25,13 @@ const DB_TYPES = ["Db", "ReadOnlyDb"] as const;
 function header(body: string): string {
   const types = DB_TYPES.filter((name) => new RegExp(String.raw`\b${name}\b`, "u").test(body));
   const typeImport = types.length === 0 ? "" : `import type { ${types.join(", ")} } from "@orb/db";\n`;
-  return `${typeImport}${/\bsql\b/u.test(body) ? 'import { sql } from "drizzle-orm";\n' : ""}`;
+  const sqlImport = /\bsql\b/u.test(body) && !body.includes('from "drizzle-orm"') ? 'import { sql } from "drizzle-orm";\n' : "";
+  return `${typeImport}${sqlImport}`;
 }
 const TIMEOUT = scaledBudget(120_000);
 const CASE_TIMEOUT = { timeout: TIMEOUT };
 
-// Each relational and raw SQL spelling of a read of `table`; every one is refused.
+// Each relational, table-object and raw SQL spelling of a read of `table`; every one is refused.
 const refused = (table: string): Readonly<Record<string, string>> => {
   const name = sqlTableName(table);
   return {
@@ -43,14 +44,27 @@ const refused = (table: string): Readonly<Record<string, string>> => {
     "parameter destructure": `export const f = async ({ ${table}: rows }: Db["query"]) => await rows.findMany();`,
     "sql template": `export const f = (id: string) => sql\`select * from "${name}" where id = \${id}\`;`,
     "sql raw": `export const f = () => sql.raw("DELETE FROM ${name}");`,
+    "const name": `const NAME = "${table}";\nexport const f = async (db: Db) => await db.query[NAME].findMany();`,
+    helper: `const queryOf = (db: Db) => db.query;\nexport const f = async (db: Db) => await queryOf(db).${table}.findMany();`,
+    "helper alias": `const queryOf = (db: Db) => db.query;\nexport const f = async (db: Db) => {\n  const r = queryOf(db);\n  return await r.${table}.findMany();\n};`,
+    spread: `export const f = async (db: Db) => await { ...db.query }.${table}.findMany();`,
+    "nested destructure": `export const f = async (db: Db) => {\n  const { query: { ${table}: rows } } = db;\n  return await rows.findMany();\n};`,
+    "full schema": `export const f = async (db: Db) => await db.select().from(db._.fullSchema.${table});`,
+    "comma join": `export const f = () => sql\`select * from chats c, ${name} n\`;`,
+    "sql raw const": `const STATEMENT = "DELETE FROM ${name}";\nexport const f = () => sql.raw(STATEMENT);`,
+    "sql identifier": `export const f = () => sql\`select * from \${sql.identifier("${name}")}\`;`,
+    "aliased sql": `import { sql as q } from "drizzle-orm";\nexport const f = () => q\`select * from ${name}\`;`,
   };
 };
 
-// Spellings that name no owned table: a local binding of the name, a table no row owns, and a longer SQL identifier.
+// Spellings that name no owned table: a local binding of the name, a table no row owns, a longer SQL identifier, and a
+// member typed as something other than a drizzle door.
 const passed = (table: string): Readonly<Record<string, string>> => ({
   "local binding": `const ${table} = { findMany: () => 1 };\nexport const f = () => ${table}.findMany();`,
   "unowned table": "export const f = async (db: Db) => await db.query.assets.findMany();",
   "longer identifier": `export const f = () => sql\`select * from ${sqlTableName(table)}_archive\`;`,
+  "longer sql identifier": `export const f = () => sql.identifier("${sqlTableName(table)}_archive");`,
+  "typed non-drizzle member": `const rows = { ${table}: [1] };\nexport const f = () => rows.${table}.length;`,
 });
 
 interface Probe {

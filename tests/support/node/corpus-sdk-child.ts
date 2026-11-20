@@ -3,6 +3,7 @@
 import { once } from "node:events";
 import { join } from "node:path";
 import process from "node:process";
+import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import type { AgentSdkSessionId } from "@orb/inference";
 import { sdkSessionIdOf } from "./contract/sdk-process.ts";
 import {
@@ -58,7 +59,7 @@ async function run(): Promise<void> {
   const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
   const resume = process.argv.find((argument) => argument.startsWith("--resume="))?.slice("--resume=".length) ?? null;
   // biome-ignore lint/style/noProcessEnv: the physical CLI consumes the SDK-prepared protocol environment, not application configuration.
-  const config = process.env["CLAUDE_CONFIG_DIR"];
+  const config = process.env[CLAUDE_CONFIG_DIR_ENV];
   if (config === undefined) {
     throw new Error("native SDK provided no owned configuration directory");
   }

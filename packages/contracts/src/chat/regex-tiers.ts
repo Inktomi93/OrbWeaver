@@ -1,23 +1,22 @@
 // contracts/chat/regex-tiers — the ROOM'S REGEX TIER vocabulary: the tier KEY every per-chat allow flag and
 // every rendered lever is addressed by, the per-seat character slice the resolver consumes, and the wire view
-// of the room's effective regex (`chat.listEffectiveRegex`). The design was
-// owner-approved.
+// of the room's effective regex (`chat.listEffectiveRegex`).
 //
 // WHY THE KEY IS ONE FLAT STRING and not a structured `{scope, characterId?}`: it is the identity of a SWITCH.
 // The section draws one lever per tier, the host's per-chat allow blob stores one boolean per tier, and the
 // read hands back one group per tier — three surfaces that must agree on "which tier is this" without any of
 // them re-deriving a composite. A flat key makes the allow lookup a plain member read (`allow[key] !== false`)
 // and makes a React key, a `data-*` value and a JSON object key the SAME string. The character arm carries the
-// seat's id because a room seats several characters and each one is its own lever (the mock design §3, the lever
+// seat's id because a room seats several characters and each one is its own lever (the lever
 // strip); `characterRegexTierKey` is the ONE mint and `parseCharacterRegexTierKey` the ONE reader, so the
 // `character:` prefix is never spelled at a call site.
 //
 // ABSENT ⇒ ALLOWED, everywhere. The blob is a sparse OVERRIDE map: a room that never heard of the section has
-// no `regexTiers` key at all and every tier runs, which is byte-identical to today's behavior. That is why
+// no `regexTiers` key at all and every tier runs. That is why
 // {@link RegexTierAllow} is `Partial` and why {@link isRegexTierAllowed} exists rather than a `?? true` spelled
 // at each of the (server resolver, client lever, client count) readers.
 //
-// THE ALLOW DROP HAPPENS BEFORE DEDUP (the mock design §7.1): a script attached at BOTH a
+// THE ALLOW DROP HAPPENS BEFORE DEDUP: a script attached at BOTH a
 // disallowed tier and an allowed one must still RUN — dropping after the dedup would let the disallowed tier's
 // earlier occurrence swallow the allowed one and silently kill a script the host never switched off. The
 // resolver (`server/domain/chat/substrate/regex-tier.ts`) is the one implementation; this file owns the shapes
@@ -94,9 +93,9 @@ export function isRegexEnabledInChat(regexEnabled: boolean | undefined): boolean
 
 /**
  * ONE seated character's attached scripts. The character slice is per SEAT rather than one flat list because
- * each seat is its own tier — its own lever, its own allow flag, its own group in the section (the mock design
- * §7.2). Flattening it (which is what `domain/regex/persistence/resolve-sources.ts` used to hand back) made
- * per-character allows unrepresentable: the resolver could no longer tell whose rows were whose.
+ * each seat is its own tier — its own lever, its own allow flag, its own group in the section.
+ * Flattening it makes per-character allows unrepresentable: the resolver could no longer tell whose rows
+ * were whose.
  *
  * ROSTER ORDER is the slice ARRAY's order and stays load-bearing — the union feeds `executeRegexScripts`,
  * which applies its list in order, so a multi-character room's precedence is the roster's.
@@ -106,8 +105,7 @@ export interface CharacterRegexSlice {
   readonly scripts: readonly RegexScriptRow[];
 }
 
-/** ONE row inside a tier group — the section's row anatomy, resolved server-side so the client never re-unions
- *  (the mock design §7.1). */
+/** ONE row inside a tier group — the section's row anatomy, resolved server-side so the client never re-unions. */
 export interface RegexTierRowView {
   readonly script: RegexScriptRow;
   /** The 1-based rank in the room's effective run order, or `null` when this row does not run here (its tier
@@ -127,7 +125,7 @@ export interface RegexTierGroupView {
   readonly allowed: boolean;
   /**
    * THE IDENTITY THE TIER KEY DOES NOT CARRY — a NAME the server resolved, which the client renders
-   * into the tier's label (`From the preset · <name>`, the mock design §3). Absent ⇒ the client says the bare
+   * into the tier's label (`From the preset · <name>`). Absent ⇒ the client says the bare
    * word (`From the preset`), never a guess.
    *
    * WHY IT IS OPTIONAL AND WHY ONLY ONE ARM EVER FILLS IT. Three of the four keys already carry their own
@@ -185,6 +183,26 @@ const regexTierGroupViewSchema = z.strictObject({
   rows: z.array(regexTierRowViewSchema).readonly(),
 }) satisfies z.ZodType<RegexTierGroupView>;
 const effectiveRegexEntrySchema = z.strictObject({ scriptId: regexScriptSchema.shape.id, runsAt: z.number() }) satisfies z.ZodType<EffectiveRegexEntry>;
+/** Where a display-pass script comes from when it is not one of the room's tiers: the viewer's own library. */
+export const REGEX_VIEWER_SOURCE = "viewer";
+
+/** Where one display-pass script comes from: a tier of the room it renders in, or the viewer's own globals. */
+export type RegexDisplaySource = RegexTierKey | typeof REGEX_VIEWER_SOURCE;
+
+/** One script a viewer's transcript renders through on the display pass, in the order it is applied. */
+export interface RegexDisplayEntry {
+  readonly script: RegexScriptRow;
+  readonly from: RegexDisplaySource;
+}
+
+/** The display read's input: the room the transcript is in, or null for a surface outside any room. */
+export const regexDisplayInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat).nullable() });
+
+export const regexDisplayEntrySchema = z.strictObject({
+  script: regexScriptViewSchema,
+  from: z.union([regexTierKeySchema, z.literal(REGEX_VIEWER_SOURCE)]),
+}) satisfies z.ZodType<RegexDisplayEntry>;
+
 export const effectiveRegexViewSchema = z.strictObject({
   enabled: z.boolean(),
   tiers: z.array(regexTierGroupViewSchema).readonly(),

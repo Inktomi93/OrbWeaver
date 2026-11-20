@@ -1,28 +1,26 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, readRoomCanon, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
-// A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.
+// A catastrophic-backtracking pattern: the host's node:vm watchdog cuts it off.
 const RUNAWAY_PATTERN = "(a+)+$";
 const RUNAWAY_TEXT = `${"a".repeat(40)}!`;
 
 test("a runOnEdit script that fails on an edit leaves the content unchanged and tells the operator", async () => {
   await using root = await createServerHarness();
   const host = await root.principalFor(root.ownerId);
-  const placement = ["AI_OUTPUT"] as const;
   const script = await seedRegexScript(root, {
     principal: host,
     input: createRegexScriptSchema.parse({
       name: "runaway",
       findRegex: RUNAWAY_PATTERN,
       replaceString: "X",
-      placement,
+      targets: ["AI_OUTPUT"],
+      passes: ["save"],
       runOnEdit: true,
-      ...deriveRegexTierFlags(placement),
     }),
   });
   await seedGlobalRegexScript(root, { principal: host, scriptId: script.id });
@@ -45,7 +43,7 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
     expect(edited.content).toBe(RUNAWAY_TEXT);
     expect(warnSpy).toHaveBeenCalled();
     const [payload] = warnSpy.mock.calls[0] ?? [];
-    expect(payload).toMatchObject({ placement: "AI_OUTPUT", findRegex: RUNAWAY_PATTERN });
+    expect(payload).toMatchObject({ target: "AI_OUTPUT", findRegex: RUNAWAY_PATTERN });
   } finally {
     warnSpy.mockRestore();
   }

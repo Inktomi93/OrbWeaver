@@ -52,6 +52,7 @@ import {
   MESSAGE_UNDO_CONTINUATION_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
+import { NEEDS_CONTINUATION } from "#client/lib/injection-copy.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
@@ -93,9 +94,6 @@ const LIVE_TIMEOUT_MS = 240_000;
 const STEER_RESPONSE = "zorptastic emphasis marker alpha";
 const STEER_REWRITE = "make it terse and clinical";
 const STEER_CONTINUE = "keep going with the next beat";
-
-/** The ⋯ menu's continue-restore disabled reason names the unlock ("continue this reply first"). */
-const CONTINUE_UNLOCK_REASON = /continu/iu;
 
 /** The guided arm of the ▶ Response icon's accessible name — the composer has text, so the icon IS the
  *  guided fire (`resolveGuidedName`, composer-guided-buttons.tsx). Same name on the solo BUTTON and the
@@ -271,7 +269,7 @@ test.describe("guided generations on recorded provider turns", () => {
       const undoItem = page.getByRole("menuitem", { name: MESSAGE_UNDO_CONTINUATION_NAME });
       await expect(undoItem).toBeVisible({ timeout: WAIT_UI_MS });
       await expect(undoItem).toHaveAttribute("aria-disabled", "true");
-      await expect(undoItem).toHaveAccessibleDescription(CONTINUE_UNLOCK_REASON);
+      await expect(undoItem).toHaveAccessibleDescription(NEEDS_CONTINUATION);
       await page.keyboard.press("Escape");
 
       const preContinue = (await canonMessage(chat.id, tailId))?.content ?? "";

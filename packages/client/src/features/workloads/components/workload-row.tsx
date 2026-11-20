@@ -32,6 +32,18 @@ import { useWorkloadStream } from "../hooks/use-workload-stream.ts";
 import { friendlyWorkloadError } from "../lib/workloads-failure-copy.ts";
 import type { WorkloadChipStatus, WorkloadProgressView } from "../lib/workloads-model.ts";
 import { canRetryWorkload, isActiveWorkloadStatus, toProgressView, WORKLOAD_KIND_LABELS, WORKLOAD_STATUS_VOCABULARY } from "../lib/workloads-model.ts";
+import {
+  cancelWorkloadName,
+  retryWorkloadName,
+  WORKLOAD_BULK_BADGE,
+  WORKLOAD_CANCEL_CONFIRM_NAME,
+  WORKLOAD_CANCEL_TITLE,
+  WORKLOAD_KEEP_RUNNING_NAME,
+  WORKLOAD_SCHEDULED_BADGE,
+  WORKLOAD_UNREADABLE_BADGE,
+  WORKLOAD_WAITING_BADGE,
+  workloadOwnerLabel,
+} from "../lib/workloads-names.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
 import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model.ts";
 import { WorkloadFailedAssets } from "./workload-failed-assets.tsx";
@@ -43,6 +55,8 @@ export interface WorkloadRowProps {
   /** The owning user's handle for a cross-owner view; `null` = the caller's own row (or unresolved). */
   readonly ownerHandle: string | null;
   readonly viewerIsOwner: boolean;
+  /** Whether the viewer is offered Cancel and Retry on this row ({@link viewerActsOnRow}). */
+  readonly viewerActs: boolean;
   /** MAY return a promise (#1563b, widened #1632): it is this row's `ConfirmDialog.onConfirm`, which awaits
    *  it — the confirm holds open busy, closes on resolve, and stays open with the reason on rejection.
    *  `() => void` accepted an async handler anyway, so the declared type said the opposite of what happens. */
@@ -71,6 +85,7 @@ function WorkloadRowBody({
   workload,
   ownerHandle,
   viewerIsOwner,
+  viewerActs,
   onCancel,
   onRetry,
   progress,
@@ -86,7 +101,7 @@ function WorkloadRowBody({
 
   const subtitleParts = [timeLib.formatRelative(workload.createdAt)];
   if (ownerHandle !== null) {
-    subtitleParts.push(`for ${ownerHandle}`);
+    subtitleParts.push(workloadOwnerLabel(ownerHandle));
   }
   // The result rides the row's own subtitle so it sits under the title at the title's inset.
   if (resultSummary !== null) {
@@ -106,23 +121,23 @@ function WorkloadRowBody({
                 and the amber sat beside a green "Succeeded" telling two stories about one row. The queue-state
                 badges below already speak this vocabulary — a category badge is neutral, and colour on this
                 row is reserved for the status badge that owns it. */}
-            {workload.mode === "bulk" ? <Badge>Bulk</Badge> : null}
+            {workload.mode === "bulk" ? <Badge>{WORKLOAD_BULK_BADGE}</Badge> : null}
             {workload.poison ? (
               <Badge tone="destructive" variant="solid">
-                Unreadable
+                {WORKLOAD_UNREADABLE_BADGE}
               </Badge>
             ) : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
               <StatusChip status={chipStatus} vocabulary={WORKLOAD_STATUS_VOCABULARY} />
             </Row>
-            {active ? (
-              <Button type="button" variant="ghost" size="sm" aria-label={`Cancel: ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
+            {active && viewerActs ? (
+              <Button type="button" variant="ghost" size="sm" aria-label={cancelWorkloadName(kindLabel)} onClick={(): void => setConfirmCancel(true)}>
                 {DIALOG_VERBS.cancel}
               </Button>
             ) : null}
-            {canRetryWorkload(workload, viewerIsOwner) ? (
-              <Button type="button" variant="outline" size="sm" aria-label={`Retry: ${kindLabel}`} onClick={onRetry}>
+            {viewerActs && canRetryWorkload(workload, viewerIsOwner) ? (
+              <Button type="button" variant="outline" size="sm" aria-label={retryWorkloadName(kindLabel)} onClick={onRetry}>
                 {DIALOG_VERBS.retry}
               </Button>
             ) : null}
@@ -136,13 +151,13 @@ function WorkloadRowBody({
       <WorkloadFailedAssets workload={workload} />
 
       <ConfirmDialog
-        cancelLabel="Keep running"
-        confirmLabel="Cancel job"
+        cancelLabel={WORKLOAD_KEEP_RUNNING_NAME}
+        confirmLabel={WORKLOAD_CANCEL_CONFIRM_NAME}
         description={`Stops the ${kindLabel} run. Progress so far may be kept where the pass is resumable; you can start it again any time.`}
         onConfirm={onCancel}
         onOpenChange={setConfirmCancel}
         open={confirmCancel}
-        title="Cancel this job?"
+        title={WORKLOAD_CANCEL_TITLE}
       />
     </Stack>
   );
@@ -182,8 +197,8 @@ function QueueStateBadges({ deferred, waiting }: { readonly deferred: boolean; r
   }
   return (
     <>
-      {deferred ? <Badge>Scheduled</Badge> : null}
-      {waiting ? <Badge>Waiting</Badge> : null}
+      {deferred ? <Badge>{WORKLOAD_SCHEDULED_BADGE}</Badge> : null}
+      {waiting ? <Badge>{WORKLOAD_WAITING_BADGE}</Badge> : null}
     </>
   );
 }

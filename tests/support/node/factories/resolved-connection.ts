@@ -28,7 +28,7 @@ export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
  *
  * THIS IS A PURE CONST AND IT SEEDS NOTHING — deliberately. Any harness that drives the REAL embeddings write
  * path must ALSO seed the `user_connections` row this points at: `embed_generations.connection_id` FKs it
- * (`packages/server/src/domain/embeddings/substrate/generation.ts`), so without the row the generation insert
+ * (`packages/server/src/domain/embeddings/persistence/generation.ts`), so without the row the generation insert
  * fails the FK and the suite goes red — or worse, quietly green where the caller records a partial failure as
  * data. The row's seeder is NOT here because this module is imported by BROWSER-world CT stories —
  * a `@orb/db` import would drag the

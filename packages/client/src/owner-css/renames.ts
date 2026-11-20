@@ -10,11 +10,8 @@ type AppearanceKey = Parameters<typeof appearanceChannelName>[0];
 // The root custom properties the appearance channel replaced, each with the setting that now carries it.
 const RETIRED_PROPERTIES = [
   ["--font-scale", "fontScale"],
-  ["--blur-strength", "blurStrength"],
   ["--reading-line-height", "readingLineHeight"],
   ["--reading-letter-spacing", "readingLetterSpacing"],
-  ["--reading-paragraph-spacing", "readingParagraphSpacing"],
-  ["--reading-name-scale", "readingNameScale"],
   ["--reading-body-scale", "readingBodyScale"],
 ] as const satisfies readonly (readonly [string, AppearanceKey])[];
 
@@ -25,7 +22,6 @@ const RETIRED_ATTRIBUTES = [
   ["data-blur-composer", "blurSurfaces"],
   ["data-blur-messages", "blurSurfaces"],
   ["data-blur-modals", "blurSurfaces"],
-  ["data-shadow", "shadowEffects"],
   ["data-justify-body-text", "justifyBodyText"],
   ["data-theme-colorization", "enableThemeColorization"],
   ["data-texture", "surfaceTexture"],
@@ -49,6 +45,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "persona-row-name", to: null, see: "list-row-title" },
   { kind: "slot", name: "chat-style-stripe", to: "chat-style-tick" },
   { kind: "slot", name: "labels-control-row", to: null, see: "list-search" },
+  // A plain card's own hint gave way to one notice under the whole row, which also carries a control.
+  { kind: "slot", name: "inert-card-hint", to: null, see: "plain-notice" },
   // The empty library's line moved from the finder band into the rows, drawn by the shared empty state.
   { kind: "slot", name: "labels-finder-empty", to: null, see: "empty-state-root" },
   { kind: "slot", name: "stat-figure-delta", to: null },
@@ -59,15 +57,44 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "table-select-header", to: null },
   // The shared error block replaced it on every read, so a one-to-one rename would restyle every failed read.
   { kind: "slot", name: "provenance-error", to: null, see: "query-error" },
+  // Every dialog's failure line is one shared owner now, so a one-to-one rename would restyle every dialog's failure.
+  { kind: "slot", name: "confirm-dialog-failure", to: null, see: "dialog-failure" },
+  // The journal mark and pack list rows became shared list rows, so a one-to-one rename would restyle every list row.
+  { kind: "slot", name: "rpg-mark-row", to: null, see: "list-row-root" },
+  { kind: "slot", name: "rpg-mark-trigger", to: null, see: "list-row-subtitle" },
+  { kind: "slot", name: "rpg-pack-row", to: null, see: "list-row-root" },
+  // Every status box is one shared notice now, so a one-to-one rename would restyle every notice.
+  { kind: "slot", name: "prompt-cache-warning", to: null, see: "notice" },
+  // Every inline empty line of a list is one shared owner now, so a one-to-one rename would restyle every such line.
+  { kind: "slot", name: "rpg-doorway-line", to: null, see: "muted-line" },
+  { kind: "slot", name: "rpg-veiled-log-unreadable", to: null, see: "muted-line" },
+  { kind: "slot", name: "wire-params-unrecorded", to: null, see: "muted-line" },
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },
   // A container query cannot read a variable, so the step was only ever a value; its one query now reads `--container-cq-7`.
   { kind: "token", name: "--container-cq-6", to: null, see: "--container-cq-7" },
   { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
+  // One share sizes a fallback's initials at every box now, so the banner's own 70% has no one-to-one successor.
+  { kind: "token", name: "--immersive-band-initial-cqmin", to: null, see: "--immersive-initial-cqmin" },
+  { kind: "token", name: "--text-band-initial", to: null, see: "--text-art-initial" },
   // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
   { kind: "token", name: "--default-border-width", to: "--border-width-default" },
   { kind: "token", name: "--default-ring-width", to: "--border-width-default" },
+  // Settings that became derived or automatic, so no setting carries their value any more: the glass blur radius is a
+  // token, paragraph gaps follow the line spacing, speaker names follow the message size, text over a wallpaper takes
+  // the shell's over-art halo while a bubble keeps its own fill, and the glass always follows the device's
+  // reduced-transparency setting.
+  { kind: "token", name: "--blur-strength", to: null },
+  { kind: "token", name: "--appearance-blur-strength", to: null },
+  { kind: "token", name: "--reading-paragraph-spacing", to: null, see: appearanceChannelName("readingLineHeight") },
+  { kind: "token", name: "--appearance-reading-paragraph-spacing", to: null, see: appearanceChannelName("readingLineHeight") },
+  { kind: "token", name: "--reading-name-scale", to: null, see: appearanceChannelName("readingBodyScale") },
+  { kind: "token", name: "--appearance-reading-name-scale", to: null, see: appearanceChannelName("readingBodyScale") },
+  { kind: "token", name: "--shadow-prose", to: null, see: "--shadow-shell-over-art" },
+  { kind: "appearance-attribute", name: "data-shadow", to: null },
+  { kind: "appearance-attribute", name: "data-appearance-shadow-effects", to: null },
+  { kind: "appearance-attribute", name: "data-appearance-reduced-transparency", to: null },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];

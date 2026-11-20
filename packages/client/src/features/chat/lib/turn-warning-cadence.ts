@@ -10,8 +10,8 @@ const CADENCES = ["each", "turn-grouped", "once-per-session"] as const;
 type Cadence = (typeof CADENCES)[number];
 
 /** How often each code may reach the user. `turn-grouped` is a per-turn drop the same settings repeat every
- *  turn; `once-per-session` is a standing condition of the account; `each` is an event of this turn alone.
- *  Exhaustive: a new `ChatWarningCode` fails `tsc` here until it is classified. */
+ *  turn; `once-per-session` is a standing condition, said once per {@link sessionKeyOf}; `each` is an event of this
+ *  turn alone. Exhaustive: a new `ChatWarningCode` fails `tsc` here until it is classified. */
 function cadenceOf(code: ChatWarningCode): Cadence {
   switch (code) {
     case "settings_adjusted":
@@ -24,6 +24,10 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "background_task_degraded":
     case "smart_arbitration_degraded":
     case "speaker_rerank_unavailable":
+    case "global_variables_held":
+    // A script the history pass stops does so on every turn until the host edits it, and a dark device replays the
+    // durable event on reconnect: each script and cause is said once a session, never once a turn.
+    case "regex_script_not_applied":
       return "once-per-session";
     case "memory_build_failed":
     case "memory_rerank_unavailable":
@@ -38,11 +42,21 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "context_trimmed_no_summary":
     case "provider_refused":
     case "reply_image_failed":
+    case "global_variable_dropped":
     case "hidden_tag_broken":
+    // A count with no script id has no session key. A replayed frame never reaches the cadence: the bus's seq guard
+    // drops a frame at or under the room's high-water mark (`data/bus/use-chat-bus.ts`). A later turn's repeat of the
+    // count is new here, and the warning surface (`turn-warning-surface.ts`) keeps it from raising the notice again.
+    case "regex_not_applied_overflow":
       return "each";
     default:
       return assertNeverCode(code);
   }
+}
+
+/** What a once-per-session warning is said once for: its code, or for a skipped regex script that script and cause. */
+function sessionKeyOf(warning: ChatWarning): string {
+  return warning.code === "regex_script_not_applied" ? `${warning.code}\u0000${warning.scriptId}\u0000${warning.cause}` : warning.code;
 }
 
 function assertNeverCode(code: never): never {
@@ -67,7 +81,7 @@ interface OpenTurn {
 export function createTurnWarningCadence(): TurnWarningCadence {
   const open = new Map<ChatId, OpenTurn>();
   const lastSetByConnection = new Map<string, string>();
-  const saidThisSession = new Set<ChatWarningCode>();
+  const saidThisSession = new Set<string>();
 
   return {
     turnStarted: (chatId, connectionKey): void => {
@@ -76,10 +90,11 @@ export function createTurnWarningCadence(): TurnWarningCadence {
     warning: (chatId, warning): ChatWarning | null => {
       const cadence = cadenceOf(warning.code);
       if (cadence === "once-per-session") {
-        if (saidThisSession.has(warning.code)) {
+        const key = sessionKeyOf(warning);
+        if (saidThisSession.has(key)) {
           return null;
         }
-        saidThisSession.add(warning.code);
+        saidThisSession.add(key);
         return warning;
       }
       const turn = open.get(chatId);

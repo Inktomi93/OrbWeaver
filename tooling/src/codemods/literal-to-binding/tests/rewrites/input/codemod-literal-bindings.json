@@ -1,6 +1,14 @@
 {
   "rewrites": [
     { "literal": "Show details", "expression": "contextToggleLabel(true)", "binding": "contextToggleLabel", "from": "#client/toggle.ts", "files": ["a.ts"] },
+    {
+      "literal": "Couldn't load things.",
+      "expression": "queryFailedLabel(READ_LABELS.things)",
+      "binding": "queryFailedLabel",
+      "from": "#client/query.ts",
+      "also": [{ "binding": "READ_LABELS", "from": "#client/reads.ts" }],
+      "files": ["a.ts"]
+    },
     { "literal": "Hide details", "expression": "contextToggleLabel(false)", "binding": "contextToggleLabel", "from": "#client/toggle.ts", "files": ["a.ts"] },
     {
       "pattern": "$ROWS.find(($ROW) => $ROW.key === \"fontScale\")?.name ?? \"\"",

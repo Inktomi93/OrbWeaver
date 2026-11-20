@@ -20,6 +20,7 @@ import { ConfirmDialog, RowActionsMenu, StatusChip, USER_ROLE_STATUS } from "#co
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
 import { ROLE_ITEMS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
+import { ADMIN_SESSIONS_NAME } from "../lib/user-admin-names.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -52,7 +53,8 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         title={user.handle}
         subtitle={subtitle}
         actions={
-          <Row align="center" gap="row">
+          // The cluster wraps its controls onto further lines when enlarged text outgrows the row, and never runs past the row's end edge.
+          <Row align="center" cap="fit" gap="row" wrap={true}>
             {isOwnerRow ? <StatusChip status={user.role} vocabulary={USER_ROLE_STATUS} /> : null}
             {user.enabled ? null : (
               <Badge tone="destructive" variant="solid">
@@ -91,7 +93,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
               {isOwnerRow && !props.viewerIsOwner ? null : (
                 <MenuItem onClick={props.onOpenSessions}>
                   <Icon icon={MonitorSmartphone} size="sm" />
-                  Sessions…
+                  {ADMIN_SESSIONS_NAME}
                 </MenuItem>
               )}
               <MenuItem onClick={props.onResetPassword}>

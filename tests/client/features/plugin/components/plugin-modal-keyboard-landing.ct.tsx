@@ -14,6 +14,7 @@ import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Locator, Page } from "@playwright/test";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { humanizeId, PLUGIN_COMMAND_ARGS_TITLE, pluginCommandActionLabel } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { dialogBodyAnchor } from "../../../components/_dialog-landing.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
@@ -102,6 +103,33 @@ for (const { command, field, type, role } of ARG_COMMANDS) {
     await expect(page.getByRole("dialog").getByRole(role, { name: humanizeId(field), exact: true })).toBeFocused();
   });
 }
+
+test("the argument form tabs from its field to Cancel and then the named run, Escape abandons it, and Enter in the field runs it", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  const { command, field } = ARG_COMMANDS[1];
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  await seedShellState(page, { activeSection: "chats" });
+  await openRoomWithGuest(page, root, corpus, (chatId) => mount<typeof PluginRoomShellStory>(STORY, { chatId }));
+  await pickFromPalette(page, command);
+  const dialog = page.getByRole("dialog", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true });
+  const input = dialog.getByRole("textbox", { name: humanizeId(field), exact: true });
+  await expect(input).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: pluginCommandActionLabel(command), exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  await pickFromPalette(page, command);
+  await expect(input).toBeFocused();
+  await input.fill("Harbour");
+  await input.press("Enter");
+  await expect(dialog).toHaveCount(0);
+});
 
 test("a command whose run opens a plugin dialog lands focus on that dialog's body", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });

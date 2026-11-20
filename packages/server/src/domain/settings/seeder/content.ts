@@ -28,7 +28,7 @@ export function createUserContentSeeder(deps: ContentSeedPolicyDeps): UserConten
       return seeded;
     }
     const legacy = latchedKeys(deps.steps, await deps.legacyLatches(principal));
-    await deps.recordSeeded(principal.userId, legacy, deps.now());
+    await deps.recordSeeded(principal.userId, legacy);
     return new Set(legacy);
   }
 
@@ -45,7 +45,7 @@ export function createUserContentSeeder(deps: ContentSeedPolicyDeps): UserConten
       // One item's failure is logged and its key left unrecorded, so the next seed retries it; the others still seed.
       try {
         if (await item.seed(principal)) {
-          await deps.recordSeeded(userId, [item.key], deps.now());
+          await deps.recordSeeded(userId, [item.key]);
         }
       } catch (err) {
         complete = false;

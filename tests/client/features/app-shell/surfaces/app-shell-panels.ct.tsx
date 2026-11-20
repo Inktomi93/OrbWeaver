@@ -2,16 +2,17 @@
 // width regimes and the content-primacy crossover, the overlay sheets and their dismissals, the landmarks and the
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextPaneLabel, contextToggleLabel, panelCloseName } from "@orb/client/lib";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { nonEmpty } from "@orb/testkit/iso";
+import { nameShape, nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -29,7 +30,7 @@ const SUBPIXEL = 0.5;
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 const CONTEXT_TOGGLE = /^(?:Show|Hide) details$/u;
 // The edge control is a desktop sheet's one dismiss; a docked pane has no close of its own.
-const CONTEXT_SHEET_CLOSE = /^Close .+ details$/u;
+const CONTEXT_SHEET_CLOSE = nameShape((section) => panelCloseName(contextPaneLabel(section)));
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -286,7 +287,7 @@ test.describe("on a wide desktop", () => {
 
   test("the skip link is the grid's first tab stop, a real target once revealed, and lands focus on the main column", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
-    const skip = page.getByRole("button", { name: "Skip to content", exact: true });
+    const skip = page.getByRole("button", { name: SKIP_TO_CONTENT_NAME, exact: true });
     await expect
       .poll(() =>
         page.locator(".shell-grid").evaluate((grid) => {
@@ -294,7 +295,7 @@ test.describe("on a wide desktop", () => {
           return candidates.find((element) => !element.hasAttribute("disabled") && element.tabIndex >= 0)?.textContent ?? "";
         }),
       )
-      .toBe("Skip to content");
+      .toBe(SKIP_TO_CONTENT_NAME);
     await expect.poll(() => skip.evaluate((element) => getComputedStyle(element).clipPath)).toBe("inset(50%)");
     const rest = await skip.boundingBox();
     // A real Tab first: the reveal is `:focus-visible`, which a programmatic focus on a fresh page does not match.

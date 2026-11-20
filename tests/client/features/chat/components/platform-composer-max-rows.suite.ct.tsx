@@ -17,6 +17,8 @@ const SETTINGS_READS = [
   "automation.listRules",
 ] as const;
 const VISIBLE_DRAFT_LINES = 4;
+// Half a pixel: the field's height against its four-line ceiling rounds to the device pixel.
+const HEIGHT_TOLERANCE_PX = 0.5;
 const ROOT_FONT_PX = [16, 20] as const;
 const LONG_DRAFT = Array.from({ length: 60 }, (_unused, index) => `line ${index}`).join("\n");
 
@@ -44,21 +46,26 @@ for (const rootFontPx of ROOT_FONT_PX) {
     }, rootFontPx);
     const input = page.locator('[data-slot="composer-input"]').getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await input.fill(LONG_DRAFT);
-    const measured = await input.evaluate((node) => {
-      const style = getComputedStyle(node);
-      return {
-        height: node.getBoundingClientRect().height,
-        line: Number.parseFloat(style.lineHeight),
-        chrome:
-          Number.parseFloat(style.paddingTop) +
-          Number.parseFloat(style.paddingBottom) +
-          Number.parseFloat(style.borderTopWidth) +
-          Number.parseFloat(style.borderBottomWidth),
-        range: node.scrollHeight - node.clientHeight,
-      };
-    });
-    expect(measured.height).toBeCloseTo(VISIBLE_DRAFT_LINES * measured.line + measured.chrome, 0);
-    expect(measured.range).toBeGreaterThan(0);
+    // The composer lays itself out again after the draft and after the text-size change (its field wraps from a resize observer), so
+    // the field's height and its scroll range are polled until they take the four-line ceiling, not read once.
+    await expect
+      .poll(
+        () =>
+          input.evaluate((node, lines) => {
+            const style = getComputedStyle(node);
+            const chrome =
+              Number.parseFloat(style.paddingTop) +
+              Number.parseFloat(style.paddingBottom) +
+              Number.parseFloat(style.borderTopWidth) +
+              Number.parseFloat(style.borderBottomWidth);
+            return Math.abs(node.getBoundingClientRect().height - (lines * Number.parseFloat(style.lineHeight) + chrome));
+          }, VISIBLE_DRAFT_LINES),
+        { message: `the field's height against ${String(VISIBLE_DRAFT_LINES)} lines at a ${String(rootFontPx)}px root` },
+      )
+      .toBeLessThan(HEIGHT_TOLERANCE_PX);
+    await expect
+      .poll(() => input.evaluate((node) => node.scrollHeight - node.clientHeight), { message: "the long draft scrolls inside the field" })
+      .toBeGreaterThan(0);
     await input.evaluate((node) => {
       node.scrollTop = node.scrollHeight;
     });
@@ -78,6 +85,27 @@ const LARGE_TEXT = [
   { label: "landscape 200%", rootPx: 32, viewport: { width: 844, height: 390 }, keyboard: 190 },
   { label: "small landscape 200%", rootPx: 32, viewport: { width: 568, height: 320 }, keyboard: 160 },
 ] as const;
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** What keeps the field or Send off the screen: below the keyboard's top, above the room, or past its sides. Empty when both sit inside. */
+function reachFaults(view: number, { send, field, room }: { readonly send: Box; readonly field: Box; readonly room: Box }): readonly string[] {
+  const within = (box: Box): boolean => box.x >= room.x && box.x + box.width <= room.x + room.width;
+  const checks: readonly (readonly [string, boolean])[] = [
+    ["Send ends below the keyboard's top", send.y + send.height <= view],
+    ["the field starts above the room", field.y >= room.y],
+    ["the field ends below the keyboard's top", field.y + field.height <= view],
+    ["Send starts above the room", send.y >= room.y],
+    ["the field leaves the room's sides", within(field)],
+    ["Send leaves the room's sides", within(send)],
+  ];
+  return checks.filter(([, holds]) => !holds).map(([fault]) => fault);
+}
 
 for (const text of LARGE_TEXT) {
   test(`a six-line draft keeps Send on screen above the keyboard at ${text.label} text`, async ({ corpus, mount, page }, testInfo) => {
@@ -106,22 +134,29 @@ for (const text of LARGE_TEXT) {
     await composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(SIX_LINES);
     const send = composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
     await expect(send).toBeVisible();
-    const view = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
-    const sendBox = await send.boundingBox();
-    if (sendBox === null) {
-      throw new Error("Composer boxes did not resolve");
-    }
-    expect(sendBox.y + sendBox.height).toBeLessThanOrEqual(view);
+    // The shell follows the visual viewport through its own events, so the grid is awaited at the viewport the keyboard leaves before
+    // anything is measured against it.
+    const view = text.viewport.height - text.keyboard;
+    await expect
+      .poll(() => page.evaluate(() => window.visualViewport?.height), { message: `the visual viewport the ${text.label} keyboard leaves` })
+      .toBe(view);
+    await expect
+      .poll(() => page.locator(".shell-grid").evaluate((grid) => grid.getBoundingClientRect().height), { message: "the shell grid at that viewport" })
+      .toBe(view);
     const field = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
-    const fieldBox = await field.boundingBox();
-    const roomBox = await page.locator('[data-slot="chat-room-surface"]').boundingBox();
-    expect(fieldBox?.y).toBeGreaterThanOrEqual(roomBox?.y ?? Number.NaN);
-    expect((fieldBox?.y ?? Number.NaN) + (fieldBox?.height ?? Number.NaN)).toBeLessThanOrEqual(view);
-    expect(sendBox.y).toBeGreaterThanOrEqual(roomBox?.y ?? Number.NaN);
-    for (const box of [fieldBox, sendBox]) {
-      expect(box?.x).toBeGreaterThanOrEqual(roomBox?.x ?? Number.NaN);
-      expect((box?.x ?? Number.NaN) + (box?.width ?? Number.NaN)).toBeLessThanOrEqual((roomBox?.x ?? Number.NaN) + (roomBox?.width ?? Number.NaN));
-    }
+    const surface = page.locator('[data-slot="chat-room-surface"]');
+    // Every bound is polled together: the composer wraps its field and the room re-seats it from observers after the viewport lands.
+    await expect
+      .poll(
+        async () => {
+          const [sendBox, fieldBox, roomBox] = await Promise.all([send.boundingBox(), field.boundingBox(), surface.boundingBox()]);
+          return sendBox === null || fieldBox === null || roomBox === null
+            ? ["a composer box is not drawn"]
+            : reachFaults(view, { send: sendBox, field: fieldBox, room: roomBox });
+        },
+        { message: `the composer's reach at ${text.label} text` },
+      )
+      .toEqual([]);
     await expect(field).toBeFocused();
     for (const control of [field, send]) {
       await expect

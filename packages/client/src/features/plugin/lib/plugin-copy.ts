@@ -24,8 +24,9 @@
 // reads, so the badge carries its cost signal where a person scans for library access and asks
 // "what can this cost me".
 //
-// A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
-// `worldinfo.write`'s 64 entries, and the hourly floors on `net.fetch`, `net.fetch_asset`, `llm.quiet` and `search.query`). The numbers are
+// A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s key cap,
+// `worldinfo.write`'s 64 entries, and the hourly floors on `net.fetch`, `net.fetch_asset`, `llm.quiet` and `search.query`). The
+// key cap reads the contracts constant the server enforces. The other numbers are
 // prose copies of server constants (`domain/plugin/substrate/rate-floor.ts`) and drift is a copy bug, not a
 // security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
 // they cannot weigh.
@@ -37,6 +38,7 @@
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
+import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** One capability as the consent screen speaks it. */
@@ -99,7 +101,7 @@ export const CAPABILITY_COPY_ROWS = [
   {
     id: "storage.kv",
     label: "Keep its own private storage",
-    consequence: "A key/value store only this plugin can see, up to 256 keys.",
+    consequence: `A key/value store only this plugin can see, up to ${PLUGIN_KV_MAX_KEYS} keys.`,
   },
   {
     // #788 seam-11 read half. BENIGN band (neither spend nor risk): reading back the bytes of a file in YOUR own
@@ -318,7 +320,7 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
   readonly tone: "success" | "neutral" | "warning" | "destructive";
 } {
   if (plugin.status === "enabled") {
-    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: "On", tone: "success" };
+    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -330,6 +332,9 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
     ? { label: NEEDS_APPROVAL_LABEL, tone: "neutral" }
     : { label: "Off: asked for more than you allowed", tone: "warning" };
 }
+
+/** The settled state of an enabled plugin with a grant. A row leaves it unpainted, because the Enabled switch already says it. */
+export const PLUGIN_ON_STATUS_LABEL = "On";
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
  *  Plugin pages list alike. */
@@ -390,6 +395,10 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
  *  shows these. `CHECK_FOR_UPDATES_LABEL` triggers the check; the verdicts map 1:1 to `PluginUpdateCheck`
  *  (a showcase row can only reach `unreachable` by dropping out of the batch — nothing was fetched for it). */
 export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
+/** The row's check press, named for the plugin it checks. */
+export function pluginCheckForUpdatesLabel(pluginName: string): string {
+  return `Check ${pluginName} for updates`;
+}
 /** The settled `up-to-date` line. */
 export const UPDATE_UP_TO_DATE_LINE = "Up to date: this is the latest version from its source.";
 /** The settled `unreachable` line — leak-free by design (the server never says WHY, so neither do we). */
@@ -401,8 +410,8 @@ export function updateAvailableLabel(newVersion: string): string {
 
 const SOURCE_IDENTITY_ABBREVIATION_LENGTH = 12;
 
-/** The stable short commit spelling used by update copy and accessible names. */
-export function abbreviateSourceCommit(sourceCommit: string): string {
+// The stable short commit spelling used by update copy and accessible names.
+function abbreviateSourceCommit(sourceCommit: string): string {
   return sourceCommit.slice(0, SOURCE_IDENTITY_ABBREVIATION_LENGTH);
 }
 
@@ -454,6 +463,36 @@ export const PLUGIN_DETAILS_LABEL = "Plugin details";
 export function pluginDetailsLabel(pluginName: string): string {
   return `${PLUGIN_DETAILS_LABEL}: ${pluginName}`;
 }
+
+/** The plugin card's group name: one card per installed plugin. */
+export function pluginCardLabel(pluginName: string): string {
+  return `${pluginName} plugin`;
+}
+
+/** The card's permissions disclosure, and its name once a plugin disambiguates it. */
+export const PLUGIN_PERMISSIONS_HEADING = "What it's allowed to do";
+export function pluginPermissionsLabel(pluginName: string): string {
+  return `${PLUGIN_PERMISSIONS_HEADING}: ${pluginName}`;
+}
+
+/** The update press's accessible name, by what the update moves to. */
+export function pluginUpdateToLabel(pluginName: string, newVersion: string): string {
+  return `Update ${pluginName} to ${newVersion}`;
+}
+export function pluginUpdateFromCommitLabel(pluginName: string, sourceCommit: string): string {
+  return `Update ${pluginName} from commit ${abbreviateSourceCommit(sourceCommit)}`;
+}
+
+/** The install card's heading over a previewed bundle: the plugin and the version being reviewed. */
+export function pluginInstallReviewTitle(name: string, version: string): string {
+  return `Review ${name} ${version}`;
+}
+
+/** The install card's confirm press. */
+export const PLUGIN_INSTALL_NAME = "Install";
+
+/** The distribute section's publish press. */
+export const PLUGIN_DISTRIBUTE_ACTION_NAME = "Distribute to everyone";
 
 /** Every failed URL preview reads this one fixed line, so the reason never becomes an SSRF oracle. */
 export const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL. It may be unreachable, refused, or not a plugin bundle.";

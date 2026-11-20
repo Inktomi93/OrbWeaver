@@ -5,10 +5,9 @@ import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portabili
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { SchemaTableName } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
-import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsAssemblyContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
@@ -18,17 +17,19 @@ import { createExportDocument, createImportDocument, createListOwnedDocumentIds 
 import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportProfileDeps } from "#domain/import";
+import type { ExportCurrentCard, ImportProfileDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
 import { createAdoptImportedDefaultPersona, createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
+import type { SpendLedgerPortabilityService } from "#domain/stats";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
+import { NEVER_ABORTED, soleResult } from "#primitives/abort";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { LifecycleDoors, NonPortableCanon } from "../contract/portability.ts";
 
@@ -39,9 +40,10 @@ export interface PortabilityDeps {
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
   readonly assetsCtx: AssetsAssemblyContext;
   readonly imagery: ImageryPortabilityService;
+  readonly spend: SpendLedgerPortabilityService;
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
@@ -49,6 +51,11 @@ export interface PortabilityDeps {
   readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
   readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
+  /** The lookup's last step for a card or room the app wrote, which carries no stored key (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
+  readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
+  readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
+  readonly ownedChatTitle: ImportProfileDeps["ownedChatTitle"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** The seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];
@@ -65,6 +72,7 @@ export interface PortabilityDeps {
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
+  readonly importMemoryStrikes: NonNullable<ImportProfileDeps["importMemoryStrikes"]>;
   readonly findOwnedAssetIdsByHash: NonNullable<ImportProfileDeps["findOwnedAssetIdsByHash"]>;
   readonly enqueueImportIndex: ImportProfileDeps["enqueueImportIndex"];
   readonly resolveOwnerPrincipal: PortableExportDeps["resolveOwnerPrincipal"];
@@ -93,12 +101,12 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     document: createImportDocument(deps.databankCtx),
     persona: deps.persona,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
-    wallClockZone: hostTimeZone,
     contextFor: (principal) => ({
       principal,
       characterOps: createCharacterImportOps(principal, deps.character),
       storeAsset: createImportAvatarStore(principal, deps.storeAvatar),
       attachCardTag: createImportedCardTag(principal.userId, deps.attachCardTag),
+      exportCurrentCard: deps.exportCurrentCard,
       importLorebook: deps.importLorebook,
       hasPrimaryBook: deps.hasPrimaryBook,
       linkCarriedBooks: deps.linkCarriedBooks,
@@ -112,15 +120,19 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       findPersonaByName: deps.findPersonaByName,
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,
+      importMemoryStrikes: deps.importMemoryStrikes,
       findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
+      heldChatHashes: deps.heldChatHashes,
+      exportCurrentChats: deps.exportCurrentChats,
+      ownedChatTitle: deps.ownedChatTitle,
       adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
     },
   });
   const importGallery = createImportGallery(deps.assetsCtx);
-  const importTheme = createImportTheme(deps.settingsCtx);
+  const importThemes = createImportTheme(deps.settingsCtx);
   const importUserSettings = createImportUserSettings(deps.settingsCtx);
-  const importPreset = createImportPresets(deps.presetCtx);
-  const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebook });
+  const importPresets = createImportPresets(deps.presetCtx);
+  const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebooks });
   return [
     { kind: "assets", dir: PORTABLE_DIRECTORIES.assets, ext: "", exportAll: createExportAssets(deps.assetsCtx), importFile: createImportAsset(deps.assetsCtx) },
     {
@@ -131,7 +143,13 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       importFile: (ownerId, file) => importGallery(ownerId, file),
     },
     { kind: "tag", dir: PORTABLE_DIRECTORIES.tag, ext: ".json", exportAll: exports.tag, importFile: imports.tag },
-    { kind: "theme", dir: PORTABLE_DIRECTORIES.theme, ext: ".json", exportAll: exports.theme, importFile: (ownerId, file) => importTheme(ownerId, file.bytes) },
+    {
+      kind: "theme",
+      dir: PORTABLE_DIRECTORIES.theme,
+      ext: ".json",
+      exportAll: exports.theme,
+      importFile: async (ownerId, file) => soleResult(await importThemes({ ownerId, files: [{ bytes: file.bytes }], dryRun: false, signal: NEVER_ABORTED })),
+    },
     {
       kind: "user-settings",
       dir: PORTABLE_DIRECTORIES["user-settings"],
@@ -144,7 +162,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       dir: PORTABLE_DIRECTORIES.preset,
       ext: ".json",
       exportAll: exports.preset,
-      importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }),
+      importFile: async (ownerId, file) => soleResult(await importPresets({ ownerId, files: [{ bytes: file.bytes }], dryRun: false, signal: NEVER_ABORTED })),
     },
     {
       kind: "world-info",
@@ -159,6 +177,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     { kind: "character", dir: PORTABLE_DIRECTORIES.character, ext: ".png", exportAll: exports.character, importFile: imports.character },
     { kind: "chat", dir: PORTABLE_DIRECTORIES.chat, ext: CHAT_BUNDLE_EXT, exportAll: exports.chat, importFile: imports.chat },
     { kind: "imagery", dir: PORTABLE_DIRECTORIES.imagery, ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile },
+    { kind: "spend", dir: PORTABLE_DIRECTORIES.spend, ext: ".json", exportAll: deps.spend.exportAll, importFile: deps.spend.importFile },
   ];
 }
 
@@ -177,6 +196,7 @@ export const PORTABLE_CANON_TABLES = {
   gallery: ["galleryItems"],
   assets: ["assets"],
   imagery: ["imageryGenerations", "imageryImportCalls"],
+  spend: ["spendLedger"],
 } as const satisfies Record<PortableKind, readonly SchemaTableName[]>;
 
 /** Explicit omissions retain their portability reason and end condition. */
@@ -258,10 +278,6 @@ export const NON_PORTABLE_CANON = {
   },
   modelStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
   ownerStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
-  compactionSpend: {
-    classification: "DEFERRED",
-    why: "Compaction spend history does not travel, so restored compaction spend starts at zero. Imagery execution history travels through its own descriptor. Ends when the bundle carries compaction spend history.",
-  },
   embeddingCalls: {
     classification: "DEFERRED",
     why:
@@ -376,6 +392,11 @@ export const LIFECYCLE_DOORS = {
   imagery: {
     singleExport: { ruled: "Execution history travels with its retained output assets through the backup bundle, not a generation request." },
     singleImport: { ruled: "History restores through the same bundle without resolving connections or executing paid calls." },
+    chrome: "backup-pane",
+  },
+  spend: {
+    singleExport: { ruled: "Spend history is owner-wide money already paid; it travels whole with the backup bundle, never per item." },
+    singleImport: { ruled: "A restore adds only the entries this box lacks, through the same bundle." },
     chrome: "backup-pane",
   },
 } as const satisfies Record<PortableKind, LifecycleDoors>;

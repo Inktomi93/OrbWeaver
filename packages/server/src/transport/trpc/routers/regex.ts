@@ -6,9 +6,9 @@
 //   • PROBED (owner-scoped, `principal.userId` in the WHERE): listScripts, createScript,
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
-//     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
-//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetPlacement,
-//     bulkRemove put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
+//     listForPreset, listPresetOnly, listUnattached, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
+//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetAxes,
+//     bulkRemove, removeUnattached put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
 //     is DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
 //     "you don't own it" and "it's already gone", so the list can never be probed for membership.
 //     `exportScript` collapses a foreign/absent id to `null` for the same reason (the `exportBook` posture).
@@ -21,41 +21,43 @@
 //   • PROBED via MEMBERSHIP (D18 — the chat scope has no ownerId to probe): attachToChat/detachFromChat are
 //     HOST-gated and listForChat is MEMBER-gated, all through chat's own injected guards. The scripts named
 //     in attach/detach must still be the caller's, so the room scope cannot launder a foreign script in.
-//   • MEMBER-gated by design (the D121-E host option): listRoomDisplayScripts returns the HOST's display
-//     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
+//     Membership decides only who may ask: listForChat hands a non-host member the room-tier part of their
+//     display read (nothing while the host withholds display scripts), and the host the whole tier.
+//   • MEMBER-gated by design: listDisplayScripts (chat's verb) returns the room's resolved display tiers, which
+//     are the HOST's library, to a non-host member unless the host switched sharing off (shared by default);
+//     off, a member reads their own globals alone. A non-member is refused.
 //   • EXEMPT: none.
 
+import { regexDisplayEntrySchema, regexDisplayInputSchema } from "@orb/contracts/chat";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
+  bulkAxesResultSchema,
   bulkResultSchema,
   createRegexScriptSchema,
   detachResultSchema,
   importScriptFileResultSchema,
   regexAttachScopeSchema,
+  regexAxesWriteSchema,
   regexCharacterInputSchema,
   regexChatInputSchema,
-  regexPlacementListSchema,
   regexPresetInputSchema,
   regexScriptIdInputSchema,
+  regexScriptIdsInputSchema,
   regexScriptUsageSchema,
   regexScriptViewSchema,
   reorderResultSchema,
   updateRegexScriptSchema,
 } from "@orb/contracts/regex";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-/** One portable script file is a handful of fields; the cap only fences a hostile upload. */
-const MAX_SCRIPT_FILE_CHARS = 200_000;
-/** How many scripts one bulk gesture may name — far above any real selection, low enough to bound the
- *  statement a single request can build. */
-const MAX_BULK_SCRIPTS = 500;
 const DEC = new TextDecoder();
 
-const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
+const scriptIdsInput = regexScriptIdsInputSchema;
 
 export const regexRouter = t.router({
   countScripts: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.regex.countScripts({ principal: ctx.auth })),
@@ -94,18 +96,27 @@ export const regexRouter = t.router({
     .input(z.strictObject({ scriptIds: scriptIdsInput, global: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsGlobal({ principal: ctx.auth, scriptIds: input.scriptIds, global: input.global })),
 
-  // REPLACE the placement set across the selection — the flags + depth scope are RE-DERIVED server-side from
-  // `placement` (`@orb/kit/regex`), so the wire carries no flags. `regexPlacementListSchema` is the STRICT
-  // enum-array (a garbage member is rejected, not salvaged — the card-boundary heal is the import lift's).
-  bulkSetPlacement: authedProcedure
-    .output(bulkResultSchema)
-    .input(z.strictObject({ scriptIds: scriptIdsInput, placement: regexPlacementListSchema }))
-    .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsPlacement({ principal: ctx.auth, scriptIds: input.scriptIds, placement: input.placement })),
+  // REPLACE both axes across the selection, paired as a write pairs them: `save` beside an ephemeral pass is
+  // refused here, before any row is read. A garbage member is rejected, not salvaged.
+  bulkSetAxes: authedProcedure
+    .output(bulkAxesResultSchema)
+    .input(regexAxesWriteSchema.safeExtend({ scriptIds: scriptIdsInput }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.regex.bulkSetScriptsAxes({ principal: ctx.auth, scriptIds: input.scriptIds, targets: input.targets, passes: input.passes }),
+    ),
 
   bulkRemove: authedProcedure
     .output(bulkResultSchema)
     .input(z.strictObject({ scriptIds: scriptIdsInput }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkRemoveScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
+
+  // The library's "attached nowhere" sweep: the list it offers, and the delete that keeps any script a scope took up since.
+  listUnattached: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listUnattachedScripts({ principal: ctx.auth })),
+
+  removeUnattached: authedProcedure
+    .output(bulkResultSchema)
+    .input(z.strictObject({ scriptIds: scriptIdsInput }))
+    .mutation(({ ctx, input }) => ctx.services.regex.removeUnattachedScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
 
   // ── The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`) ───────────────────────
   // Both are thin arms over the backup bundle's own verbs (the `worldInfo.exportBook`/`importFile` shape),
@@ -126,7 +137,7 @@ export const regexRouter = t.router({
   // written by a newer orbweaver no longer reads as "not a valid file". The import dialog renders it.
   importScriptFile: authedProcedure
     .output(importScriptFileResultSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_SCRIPT_FILE_CHARS) }))
+    .input(z.strictObject({ fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.importScriptFile({ principal: ctx.auth, fileText: input.fileText })),
 
   // The REVERSE rosters (REGROSTER): which presets/characters/rooms attach ONE owned script. Owner-gated on
@@ -179,6 +190,12 @@ export const regexRouter = t.router({
     .input(regexPresetInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
 
+  // What a preset delete offers to take with it: the scripts attached to that preset and to no other scope.
+  listPresetOnly: authedProcedure
+    .output(z.array(regexScriptViewSchema))
+    .input(regexPresetInputSchema)
+    .query(({ ctx, input }) => ctx.services.regex.listPresetOnlyScripts({ principal: ctx.auth, presetId: input.presetId })),
+
   attachToChat: authedProcedure
     .output(z.void())
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
@@ -194,12 +211,12 @@ export const regexRouter = t.router({
     .input(regexChatInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
-  // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
-  // a non-member is refused, and a member of a room that never opted in gets `[]`.
-  listRoomDisplayScripts: authedProcedure
-    .output(z.array(regexScriptViewSchema))
-    .input(regexChatInputSchema)
-    .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
+  // The display-pass set one viewer's transcript renders through. Chat owns it: the room's tiers resolve through
+  // the same preamble the turn and the room's Regex section use. `chatId: null` is a surface outside any room.
+  listDisplayScripts: authedProcedure
+    .output(z.array(regexDisplayEntrySchema))
+    .input(regexDisplayInputSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure
     .output(reorderResultSchema)

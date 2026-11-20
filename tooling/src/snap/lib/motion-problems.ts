@@ -15,10 +15,11 @@
 // not plumb the LoAF spec's own `renderStart` field. That is the one real collector gap; plumbing it is a
 // client-side change and is deliberately NOT done here. The exemption's printed detail names the proxy so
 // a reader of the verdict is never told a stronger claim than the instrument can compute.
-import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
+import type { MotionAllowance } from "@orb/kit/motion-allowance";
+import { motionAllowanceOf } from "@orb/kit/motion-allowance";
 import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
 import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
-import type { AuditData } from "../../motion-audit/index.ts";
+import type { AnimationRecord, AuditData } from "../../motion-audit/index.ts";
 import {
   BLOCKING_BUDGET_MS,
   CLS_BUDGET,
@@ -121,35 +122,42 @@ function budgetProblems(data: AuditData): SnapAnalyzerProblem[] {
   return problems;
 }
 
+// Each allowance names the ruling that admits it, so an excused animation reads as excused, never as clean.
+const ALLOWANCE_DETAIL: Record<MotionAllowance, string> = {
+  "library-lifecycle": "a Base UI panel-height lifecycle transition, ratified by motion guide §4.2 item 3",
+  "scroll-driven":
+    "a CSS animation on a scroll or view timeline: it advances only while its scroller scrolls, and ui-platform-rulings §8.4 adopts scroll-driven fades",
+};
+
+/** What the row says moved: the property set, else the animation's own name, else that nothing named it. */
+function observedOf(animation: AnimationRecord | undefined): string {
+  if (animation === undefined) {
+    return "unattributed";
+  }
+  if (animation.properties.length > 0) {
+    return animation.properties.join(",");
+  }
+  return animation.name ?? "unattributed";
+}
+
+function animationRow(subject: string, animation: AnimationRecord | undefined, detail: string): SnapAnalyzerProblem {
+  const allowance = animation === undefined ? null : motionAllowanceOf(animation);
+  const observed = observedOf(animation);
+  return allowance === null
+    ? { arm: "motion", kind: "threshold", metric: "dirty-animation", subject, observed, threshold: "compositor-only", detail }
+    : { arm: "motion", kind: "exemption", metric: "dirty-animation", subject, observed, threshold: allowance, detail: ALLOWANCE_DETAIL[allowance] };
+}
+
 function animationProblems(data: AuditData): SnapAnalyzerProblem[] {
   const active = data.animations
-    .filter((animation) => !(animation.compositorClean || isSanctionedLibraryAnimation(animation)))
-    .map(
-      (animation): SnapAnalyzerProblem => ({
-        arm: "motion",
-        kind: "threshold",
-        metric: "dirty-animation",
-        subject: animation.target,
-        observed: animation.properties.join(",") || "unattributed",
-        threshold: "compositor-only",
-        detail: "active animation uses a non-compositor property",
-      }),
-    );
+    .filter((animation) => !animation.compositorClean)
+    .map((animation) => animationRow(animation.target, animation, "active animation uses a non-compositor property"));
   const transient: SnapAnalyzerProblem[] = [];
   for (const flag of data.flags ?? []) {
-    const animation = flag.animation;
-    if (flag.tag !== "anim" || animation?.compositorClean === true || (animation !== undefined && isSanctionedLibraryAnimation(animation))) {
+    if (flag.tag !== "anim" || flag.animation?.compositorClean === true) {
       continue;
     }
-    transient.push({
-      arm: "motion",
-      kind: "threshold",
-      metric: "dirty-animation",
-      subject: flag.offender,
-      observed: animation === undefined || animation.properties.length === 0 ? "unattributed" : animation.properties.join(","),
-      threshold: "compositor-only",
-      detail: `${flag.detail}; transient animation finished inside the measured window`,
-    });
+    transient.push(animationRow(flag.offender, flag.animation, `${flag.detail}; transient animation finished inside the measured window`));
   }
   return [...active, ...transient];
 }

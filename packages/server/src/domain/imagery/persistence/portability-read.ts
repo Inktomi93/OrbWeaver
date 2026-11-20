@@ -38,6 +38,7 @@ function projectedCall(row: typeof imageryGenerations.$inferSelect, subjectHandl
     identityHash: source === null ? row.identityHash : source.identityHash,
     edited: row.edited,
     createdAt: row.createdAt,
+    genTimeMs: row.genTimeMs,
   };
   const image = { sourceGenerationId: source?.sourceGenerationId ?? row.id, assetId: row.assetId, assetHash };
   return { execution, images: [image] };

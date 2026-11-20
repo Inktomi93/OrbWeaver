@@ -1,4 +1,4 @@
-// The external-background MATERIALIZE op (BG-C invariant). An external URL can never paint
+// The external-background MATERIALIZE op. An external URL can never paint
 // (the CSP `img-src` is self/data/blob only, by design), so every background write path that receives a
 // `kind:"external"` source runs THIS op: fetch the URL through the SSRF-safe egress belt, verify the bytes
 // are a real image via the magic-sniff belt (never the claimed content-type — the avatar-proxy precedent),
@@ -29,8 +29,9 @@ export type MaterializeBackgroundResult =
 
 /** Fetch → magic-belt → CAS-store a user-pasted external URL under the caller's ownership. Resolves a typed
  *  result (never throws for an expected refusal — the belts' failures are data, not exceptions, so the domain
- *  branches without importing infra error classes). */
-export type MaterializeBackgroundOp = (principal: Principal, url: string) => Promise<MaterializeBackgroundResult>;
+ *  branches without importing infra error classes). `Signal` is the caller's cancel, a type parameter because this
+ *  package cannot name `AbortSignal`; the server binds it. */
+export type MaterializeBackgroundOp<Signal> = (principal: Principal, url: string, signal: Signal) => Promise<MaterializeBackgroundResult>;
 
 /** The refusal code every write path raises for an external background that could not be materialized or a
  *  background asset that is no longer available. WIRE vocabulary: the transport carries it on `data.reason`, so

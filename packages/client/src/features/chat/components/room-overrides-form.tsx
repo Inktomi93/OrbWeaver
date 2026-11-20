@@ -27,10 +27,10 @@
 
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Eraser, Icon, Info } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import type { ListRowExpand } from "@orb/ui/list-row";
+import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
@@ -38,7 +38,7 @@ import { useRef, useState } from "react";
 import { DestructiveAction, useRowDeleteFocus } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
-import { CHAT_OVERRIDE_SCENARIO_LABEL, overrideRowName, overrideStateWord } from "../lib/chat-settings-names.ts";
+import { CHAT_OVERRIDE_SCENARIO_LABEL, overrideStateWord } from "../lib/chat-settings-names.ts";
 import { OVERRIDE_CLEAR_VERB } from "../lib/chat-surface-names.ts";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model.ts";
 import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model.ts";
@@ -59,59 +59,39 @@ const RoomOverridesFormBoundary = createAutosaveEntityForm<RoomOverridesFormValu
 // row components take to subscribe/clear their field.
 type RoomOverridesFormApi = AutosaveSession<RoomOverridesFormValues>["form"];
 
-// The presentational collapse card: the field name + inherit/override status live in the trigger (so a
-// collapsed field is legible without mounting its editor), a one-line snippet + ember accent mark a SET
-// field, and the editor + Clear live in the panel. Base UI's `Collapsible.Trigger` owns `aria-expanded`.
-interface OverrideCollapseCardProps {
+// The presentational collapse row: the field name names the disclosure and its inherit/override state word describes it (so a
+// collapsed field is legible without mounting its editor), a one-line snippet + ember rail mark a SET field, and the editor +
+// Clear live in the panel.
+interface OverrideCollapseRowProps {
   readonly label: string;
   readonly isSet: boolean;
   readonly snippet: string;
   readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
+  readonly onOpenChange: ListRowExpand["onOpenChange"];
   readonly clear: ReturnType<ReturnType<typeof useRowDeleteFocus>["delete"]>;
   /** No `save` seam (member / read-only): fields render disabled and the Clear affordance is omitted. */
   readonly disabled: boolean;
   readonly children: ReactNode;
 }
 
-function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear, disabled, children }: OverrideCollapseCardProps): ReactElement {
+function OverrideCollapseRow({ label, isSet, snippet, open, onOpenChange, clear, disabled, children }: OverrideCollapseRowProps): ReactElement {
   return (
-    // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
-    // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
-    <Card padding="none" rail={isSet ? "primary" : "none"}>
-      <Collapsible open={open} onOpenChange={onOpenChange}>
-        {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
-            fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no
-            touch layer in play at all — and `elementFromPoint` ±3px outside the box resolving to something
-            else, i.e. a real 40px hit area against the 44px floor, on the tab's first three controls
-            (side-eye 2026-08-30 §5-P2, #822). The rule row's fire-log disclosure took the same arm for the
-            same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
-            it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
-            unchanged) and inside the `ui-size-via-variant` seal. */}
-        <CollapsibleTrigger inset="block" width="full" size="control" aria-label={overrideRowName(label, isSet)}>
-          <Row align="center" gap="field" justify="between" grow={true}>
-            <Text voice="label">{label}</Text>
-            {/* A text node between flex items paints nothing; it keeps the two words apart in the DOM text, which is how axe reads the visible label. */}{" "}
-            {/* Half the trigger's own name, so it takes the `label` step, not the micro gloss: the state word
-                is legible at a glance on a row that is one tap target. It recedes from the field name by ink. */}
-            <Text ink="muted" voice="label">
-              {overrideStateWord(isSet)}
-            </Text>
-          </Row>
-        </CollapsibleTrigger>
-        {isSet && !open ? (
-          // The padding lives on the WRAPPER, not on the clamped run (#847) — `line-clamp-1` clamps the
-          // CONTENT box while `overflow: hidden` clips at the PADDING box, so a `pb-block` on the clamped
-          // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
-          // into. The injections-manager site carries the full derivation.
-          <Stack paddingBlockEnd="block" paddingInline="block">
-            <Text voice="gloss" clamp={1}>
-              {snippet}
-            </Text>
-          </Stack>
-        ) : null}
-        <CollapsiblePanel>
-          <Stack gap="field" paddingBlockEnd="block" paddingInline="block">
+    <ListRow
+      title={label}
+      meta={overrideStateWord(isSet)}
+      rail={isSet ? "primary" : "none"}
+      detail={
+        isSet && !open ? (
+          <Text as="span" voice="gloss" clamp={1}>
+            {snippet}
+          </Text>
+        ) : undefined
+      }
+      expand={{
+        open,
+        onOpenChange,
+        panel: (
+          <Stack gap="field">
             {children}
             <Row align="center" gap="field">
               {disabled ? null : (
@@ -133,9 +113,9 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear
               )}
             </Row>
           </Stack>
-        </CollapsiblePanel>
-      </Collapsible>
-    </Card>
+        ),
+      }}
+    />
   );
 }
 
@@ -158,7 +138,7 @@ function OverrideRow({ form, name, label, rows, disabled }: OverrideRowProps): R
   return (
     <form.Subscribe selector={(state): string => state.values[name]}>
       {(value): ReactElement => (
-        <OverrideCollapseCard label={label} isSet={value.trim() !== ""} snippet={value} open={open} onOpenChange={setOpen} clear={clear} disabled={disabled}>
+        <OverrideCollapseRow label={label} isSet={value.trim() !== ""} snippet={value} open={open} onOpenChange={setOpen} clear={clear} disabled={disabled}>
           <form.AppField name={name}>
             {(field): ReactElement => (
               <Textarea
@@ -172,7 +152,7 @@ function OverrideRow({ form, name, label, rows, disabled }: OverrideRowProps): R
               />
             )}
           </form.AppField>
-        </OverrideCollapseCard>
+        </OverrideCollapseRow>
       )}
     </form.Subscribe>
   );

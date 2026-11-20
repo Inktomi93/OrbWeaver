@@ -13,6 +13,7 @@ import { useState } from "react";
 import { CharacterPicker, PickerDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { usePersonaFromCharacter } from "../hooks/use-persona-mutations.ts";
+import { PERSONA_FROM_CHARACTER_NAME } from "../lib/persona-copy.ts";
 
 const SWAP_LABEL = "Swap {{char}}/{{user}} in the copied description";
 
@@ -46,7 +47,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
   };
 
   return (
-    <PickerDialog title="New persona from a character" open={open} onOpenChange={onOpenChange}>
+    <PickerDialog title={PERSONA_FROM_CHARACTER_NAME} open={open} onOpenChange={onOpenChange}>
       <Row gap="row" align="center" justify="between">
         <Text voice="label">{SWAP_LABEL}</Text>
         {/* Default ON: a card's description speaks about {{char}}; as a persona the same prose must
@@ -56,7 +57,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
       <CharacterPicker
         autoFocusSearch={true}
         emptyText="No characters match."
-        label="New persona from a character"
+        label={PERSONA_FROM_CHARACTER_NAME}
         listSize="pickerWindow"
         onEscape={(): void => onOpenChange(false)}
         onSelect={onPick}

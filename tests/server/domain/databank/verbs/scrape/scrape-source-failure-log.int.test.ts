@@ -47,26 +47,32 @@ function warnings(root: Awaited<ReturnType<typeof createServerHarness>>, cause: 
 test("a wiki fetch that breaks off is a scrape failure and the log keeps the cause", async () => {
   await using root = await rootScripted([{ body: WIKI_REPLY }, { fault: UPSTREAM_FAULT }]);
   const principal = await root.principalFor(root.ownerId);
-  await root.services.databank.scrapeWiki({ principal, url: ARTICLE });
+  await root.services.databank.scrapeWiki({ signal: new AbortController().signal, principal, url: ARTICLE });
   expect(warnings(root, UPSTREAM_FAULT)).toBe(0);
-  await expect(root.services.databank.scrapeWiki({ principal, url: `${ARTICLE}_again` })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(root.services.databank.scrapeWiki({ signal: new AbortController().signal, principal, url: `${ARTICLE}_again` })).rejects.toMatchObject({
+    code: "scrape_failed",
+  });
   expect(warnings(root, UPSTREAM_FAULT)).toBe(1);
 });
 
 test("a wiki reply that cannot be read is a scrape failure and the log keeps the cause", async () => {
   await using root = await rootScripted([{ body: WIKI_REPLY }, { body: UNREADABLE_REPLY }]);
   const principal = await root.principalFor(root.ownerId);
-  await root.services.databank.scrapeWiki({ principal, url: ARTICLE });
+  await root.services.databank.scrapeWiki({ signal: new AbortController().signal, principal, url: ARTICLE });
   expect(warnings(root, "JSON")).toBe(0);
-  await expect(root.services.databank.scrapeWiki({ principal, url: `${ARTICLE}_again` })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(root.services.databank.scrapeWiki({ signal: new AbortController().signal, principal, url: `${ARTICLE}_again` })).rejects.toMatchObject({
+    code: "scrape_failed",
+  });
   expect(warnings(root, "JSON")).toBe(1);
 });
 
 test("a caption fetch that breaks off is a scrape failure and the log keeps the cause", async () => {
   await using root = await rootScripted([{ body: CAPTIONS }, { fault: UPSTREAM_FAULT }]);
   const principal = await root.principalFor(root.ownerId);
-  await root.services.databank.scrapeYoutube({ principal, url: VIDEO, lang: "en" });
+  await root.services.databank.scrapeYoutube({ signal: new AbortController().signal, principal, url: VIDEO, lang: "en" });
   expect(warnings(root, UPSTREAM_FAULT)).toBe(0);
-  await expect(root.services.databank.scrapeYoutube({ principal, url: `${VIDEO}&t=1`, lang: "en" })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(
+    root.services.databank.scrapeYoutube({ signal: new AbortController().signal, principal, url: `${VIDEO}&t=1`, lang: "en" }),
+  ).rejects.toMatchObject({ code: "scrape_failed" });
   expect(warnings(root, UPSTREAM_FAULT)).toBe(1);
 });

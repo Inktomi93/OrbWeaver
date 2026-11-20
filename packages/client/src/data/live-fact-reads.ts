@@ -1,4 +1,4 @@
-import type { SendAvailability } from "@orb/contracts/inference";
+import type { RoomSendAvailability } from "@orb/contracts/chat";
 import type { PresenceSnapshot } from "@orb/contracts/notifications";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ const PRESENCE_STALE_MS = 10_000;
 const PRESENCE_POLL_MS = 20_000;
 
 /** Engine availability changes outside the event bus, so reopening a room can refresh it. */
-export function useSendAvailabilityRead(chatId: ChatId | null): UseQueryResult<SendAvailability, TrpcReadError> {
+export function useSendAvailabilityRead(chatId: ChatId | null): UseQueryResult<RoomSendAvailability, TrpcReadError> {
   const trpc = useTRPC();
   return useGatedQuery(chatId, (id) => ({ ...trpc.chat.checkSendAvailability.queryOptions({ chatId: id }), staleTime: AVAILABILITY_STALE_MS }));
 }

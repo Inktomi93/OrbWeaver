@@ -1,8 +1,8 @@
 // The regex collection's CONTEXT arm — "Where it’s attached" for the selected script.
 //
 // IT IS ABOUT SCOPES, AND THE BAND SAYS SO. "Where it runs" would be one preposition away from the EDITOR's
-// `Runs on` field — and those two decide orthogonal things: the field picks which TEXT STREAMS a script
-// rewrites, this pane which SCOPES it is attached from. The band speaks the vocabulary this pane's own copy
+// `When it runs` field — and those two decide orthogonal things: the editor picks what text a script rewrites
+// and when, this pane which SCOPES it is attached from. The band speaks the vocabulary this pane's own copy
 // uses ("Runs in every chat", "Attached by presets · 2"); `regex-collection.tsx` records the fork.
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
@@ -39,9 +39,9 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ContextTabBody, RegexScopeOrder, SettingSwitchRow } from "#components";
+import { ContextTabBody, MutedLine, RegexScopeOrder, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
+import { deriveChatTitle, regexRunsNowhere, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 
 export function RegexContextBody({ memberId }: { readonly memberId: string }): ReactElement {
@@ -52,12 +52,14 @@ export function RegexContextBody({ memberId }: { readonly memberId: string }): R
   if (script === undefined) {
     // action={null}: the regex CONTEXT pane's GONE arm — the script was deleted while its context was open. The next step is picking another row in the sibling roster, which is on screen; the member-editor twin, same species. Ends if the context pane can be shown without its sibling roster.
     return (
-      <EmptyState
-        action={null}
-        description="This script was deleted. Pick another from the list."
-        icon={<Icon icon={Code} size="lg" />}
-        title="Script not found"
-      />
+      <ContextTabBody>
+        <EmptyState
+          action={null}
+          description="This script was deleted. Pick another from the list."
+          icon={<Icon icon={Code} size="lg" />}
+          title="Script not found"
+        />
+      </ContextTabBody>
     );
   }
   return <RegexScopePanel globals={globals} isGlobal={globals.some((row) => row.id === script.id)} script={script} />;
@@ -114,12 +116,12 @@ function RegexScopePanel({
         onChange={onGlobalChange}
       />
       {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING. This pane's entire job
-          is "where does this script run", and with `placement: []` the honest answer is nowhere — no amount
+          is "where does this script run", and with an empty axis the honest answer is nowhere — no amount
           of attaching changes that. Said here as well as on the row and in the editor, because this is the
           pane a reader opens to ask the question. */}
-      {script.placement.length === 0 ? (
+      {regexRunsNowhere(script) ? (
         <Text tone="destructive" voice="label">
-          This script has no “Runs on” stream selected, so it will not run in any of these scopes. Pick one in the editor.
+          This script has no text or no time selected, so it will not run in any of these scopes. Pick both in the editor.
         </Text>
       ) : null}
       <AttachmentList
@@ -176,13 +178,13 @@ function AttachmentList({
   return (
     <Section data-slot={`regex-usage-${noun}`} kicker={`Attached by ${noun} · ${rows.length}`}>
       {rows.length === 0 ? (
-        <Text voice="gloss">{emptyText}</Text>
+        <MutedLine>{emptyText}</MutedLine>
       ) : (
         <Stack gap="tight">
           {rows.map((row) => (
             // `min-w-0` + `truncate`: this pane is the config rail's 320px context column, and a long
             // preset name must clip inside it rather than push the list past its own edge.
-            <Row align="center" className="min-inline-0" gap="field" key={row.id}>
+            <Row align="center" minWidth="shrinks" gap="field" key={row.id}>
               <Icon icon={glyph} size="xs" />
               <Text as="span" truncate={true}>
                 {row.name}
@@ -219,7 +221,7 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
   return (
     <Section data-slot="regex-usage-rooms" kicker={`Attached by rooms · ${rooms.length}`}>
       {rooms.length === 0 ? (
-        <Text voice="gloss">No room attaches this script yet. Open a chat's This-chat panel to attach it there.</Text>
+        <MutedLine>No room attaches this script yet. Open a chat's This-chat panel to attach it there.</MutedLine>
       ) : (
         <Stack gap="tight">
           {rooms.map((room, index) => {
@@ -228,7 +230,7 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
             return (
               // The stamp is `shrink-0` and the title takes the squeeze — this pane is the config rail's
               // 320px context column, so the datum that must never wrap is the short one.
-              <Row align="center" className="min-inline-0" gap="field" key={room.id}>
+              <Row align="center" minWidth="shrinks" gap="field" key={room.id}>
                 <Icon icon={MessagesSquare} size="xs" />
                 <Text as="span" truncate={true}>
                   {title}
@@ -263,7 +265,7 @@ function GlobalOrderRow({
 }): ReactElement {
   return (
     <Row align="center" gap="field" justify="between">
-      <Row align="center" className="min-inline-0" gap="field">
+      <Row align="center" minWidth="shrinks" gap="field">
         <Text as="span" voice="datum">
           {position}
         </Text>

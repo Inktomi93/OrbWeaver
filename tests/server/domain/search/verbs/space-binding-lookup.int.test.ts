@@ -1,8 +1,8 @@
 // The active search space resolves an unrecorded owner's encoder through the owner's binding. A binding that cannot
 // resolve is the no-space refusal the retrieval degrade absorbs; any other failure of the lookup surfaces as itself and is
 // logged, never answered as that refusal.
-// @subject packages/server/src/domain/search/substrate/space.ts
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+// @subject packages/server/src/domain/search/persistence/space.ts
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { connectionBindings } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, withheldTable } from "@orb/testkit/node/composed";
@@ -26,7 +26,7 @@ test("an unbound encoder is the no-space refusal, and a failed binding lookup su
   });
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.connection.setBinding({ task: "embed", connectionId: null });
-  const query = { ownerId: root.ownerId, ...SEARCH_INPUT } as const;
+  const query = { signal: new AbortController().signal, ownerId: root.ownerId, ...SEARCH_INPUT } as const;
 
   // The control: the same wiring with no binding is the refusal the degrade answers with the ruled empty result.
   const unavailable = vi.fn();
@@ -46,7 +46,9 @@ test("an unbound encoder is the no-space refusal, and a failed binding lookup su
   });
   expect(missed).not.toHaveBeenCalled();
 
-  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`);
+  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`, {
+    headers: { [CSRF_HEADER]: "1" },
+  });
   const { error } = responseSchema.parse(await response.json());
   expect(response.status).toBe(500);
   expect(error.data.code).toBe("INTERNAL_SERVER_ERROR");
@@ -72,10 +74,13 @@ test("an encoder row whose kind drifted after it was bound reads as no space, no
   await root.services.connection.update({ principal, connectionId: encoder.id, patch: { declared: { kind: "generation" } } });
 
   const unavailable = vi.fn();
-  const result = await withRetrievalDegrade(() => root.services.search.search({ ownerId: root.ownerId, ...SEARCH_INPUT }), {
-    empty: null,
-    onIndexUnavailable: unavailable,
-  });
+  const result = await withRetrievalDegrade(
+    () => root.services.search.search({ signal: new AbortController().signal, ownerId: root.ownerId, ...SEARCH_INPUT }),
+    {
+      empty: null,
+      onIndexUnavailable: unavailable,
+    },
+  );
   expect(result).toBeNull();
   expect(unavailable).toHaveBeenCalledOnce();
 });

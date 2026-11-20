@@ -4,7 +4,7 @@
 //                       columns + CHECKs from (D34), the per-kind mode policy, and the admission-key
 //                       sentinel (the lock partition is a free-form KEY, not an axis — see below)
 //   • events.ts       — the lifecycle EVENT union + its failure shape: what the `workloads` room delivers on
-//                       the multiplexed socket (SSE-1 S5), which is why it is a wire contract and not a
+//                       the multiplexed socket, which is why it is a wire contract and not a
 //                       domain-internal one
 //   • params.ts       — the per-kind params schemas + `WorkloadParamsByKind` + the `start` wire input
 //   • result.ts       — the per-kind terminal result shapes + `WorkloadResultByKind`
@@ -14,12 +14,20 @@
 //
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
+export type { WorkloadRunAccountRefusalCode } from "./admission.ts";
 export {
   requireWorkloadFunder,
+  WORKLOAD_ASKER_NOT_OWNER,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
+  WORKLOAD_RESULT_INVALID,
+  WORKLOAD_RESULT_INVALID_REASON,
+  WORKLOAD_RUN_ACCOUNT_DISABLED,
+  WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
   WORKLOAD_RUN_ACCOUNT_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES,
 } from "./admission.ts";
 export type { IndexSource, ScheduleCadence, WireWorkloadKind, WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 export {
@@ -74,8 +82,11 @@ export type { BundleImportWorkloadResult, DeferredResult, ImportTokenUsageBackfi
 export {
   type CancelWorkloadResult,
   cancelWorkloadResultSchema,
+  type ModelCallBound,
+  type ModelCallCount,
   type ModelCallEstimate,
   modelCallEstimateSchema,
+  type PriorStageCount,
   type WorkloadRef,
   type WorkloadRowAnyKind,
   type WorkloadRunnableRow,

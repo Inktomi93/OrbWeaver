@@ -4,6 +4,7 @@
 import type { CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
+import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -14,11 +15,11 @@ import type { CardImportIdentity, ExportCardFields, ExportWorldEntry } from "@or
 import {
   buildCardV3,
   cardContentHash,
-  cardFromJson,
   cardImportHash,
   extractLorebook,
   loreEntryColumns,
   loreEntryMetadata,
+  readCardJson,
   selectBestCharacterBook,
   UNTITLED_LORE_ENTRY_TITLE,
 } from "@orb/server/primitives/serde/card";
@@ -30,7 +31,7 @@ import { z } from "zod";
 const FALLBACK = "From the filename";
 
 /** A card as a file carries it: written out as JSON text and read back through the decoder the import doors use. */
-const importCard = (card: unknown, fallbackName: string): CharacterCard => cardFromJson(present(parseJsonText(JSON.stringify(card))), fallbackName);
+const importCard = (card: unknown, fallbackName: string): CharacterCard => readCardJson(present(parseJsonText(JSON.stringify(card))), fallbackName).card;
 
 const json = (text: string): Record<string, unknown> => z.record(z.string(), z.unknown()).parse(JSON.parse(text));
 
@@ -88,7 +89,7 @@ const worldEntry = (over: Partial<ExportWorldEntry> = {}): ExportWorldEntry => (
   ...over,
 });
 
-describe("cardFromJson reads each wire spec into the canonical card", () => {
+describe("readCardJson reads each wire spec into the canonical card", () => {
   test("a V3 card flattens: first_mes leads the greetings, typed promotions land, residue keeps only unknown keys", () => {
     const card = importCard(
       wireCard(
@@ -290,6 +291,31 @@ describe("buildCardV3 emits the strict V3 wire", () => {
     expect(importCard(on, FALLBACK).regexScripts).toEqual([SCRIPT]);
   });
 
+  // SillyTavern reads only its own spelling, so the case strips the axes the way a SillyTavern-only reader ignores them.
+  test("an exported script carries SillyTavern's spelling of both axes and returns here with its author scope", () => {
+    const scoped = regexScriptCardSchema.parse({
+      id: "st-client-id",
+      name: "older replies",
+      findRegex: "a",
+      replaceString: "b",
+      targets: ["USER_INPUT", "AI_OUTPUT"],
+      passes: ["prompt"],
+      depth: { min: 1, max: 3 },
+      authors: { include: [{ by: "participant", participant: "character" }], exclude: [] },
+    });
+    const card = buildCardV3(exportFields({ regexScripts: [scoped] }), []);
+    const [wire] = z.array(z.record(z.string(), z.unknown())).parse(card.data.extensions["regex_scripts"]);
+    expect(wire).toMatchObject({ scriptName: "older replies", placement: [1, 2], markdownOnly: false, promptOnly: true, minDepth: 1, maxDepth: 3 });
+    expect(importCard(card, FALLBACK).regexScripts).toEqual([scoped]);
+    const { targets: _targets, passes: _passes, depth: _depth, authors: _authors, name: _name, enabled: _enabled, ...stOnly } = wire ?? {};
+    const { authors: _scope, ...unscoped } = scoped;
+    expect(regexScriptCardSchema.parse(stOnly)).toEqual(unscoped);
+    // Edited in SillyTavern: renamed, switched off and moved to the save pass. Its spelling wins, and the depth and
+    // author scope, which a save script cannot hold, are dropped.
+    const edited = { ...wire, scriptName: "renamed", disabled: true, promptOnly: false };
+    expect(regexScriptCardSchema.parse(edited)).toEqual({ ...unscoped, name: "renamed", enabled: false, passes: ["save"], depth: undefined });
+  });
+
   test("the embedded book appears only with entries, under its own name when it has one", () => {
     expect(buildCardV3(exportFields(), []).data).not.toHaveProperty("character_book");
     const named = buildCardV3(exportFields({ bookName: "Harbor Lore" }), [worldEntry()]);
@@ -403,6 +429,8 @@ describe("cardContentHash identifies what the card says, not who it is attribute
     for (const provenance of [{ creator: "someone" }, { creatorNotes: "notes" }, { cardVersion: "9.9" }, { extensions: { x: 1 } }, { starred: true }]) {
       expect(cardContentHash({ ...base, ...provenance })).toBe(hash);
     }
+    // The control: what the card says does move the hash, so the sameness above is a verdict.
+    expect(cardContentHash({ ...base, description: "A settled innkeeper." })).not.toBe(hash);
   });
 
   test("a change to what the card says changes the hash", () => {
@@ -425,7 +453,7 @@ describe("cardImportHash is the import identity", () => {
   const bookOf = (metadata: Record<string, unknown> | null): CardImportIdentity["book"] => ({
     name: "Harbor Lore",
     description: null,
-    entries: [{ ...entry, metadata }],
+    entries: [{ ...entry, metadata: narrowEntryMetadata(metadata) }],
   });
   const scripted = (id: string): CharacterCard => harbor(`,"extensions":{"regex_scripts":[${JSON.stringify({ ...SCRIPT, id })}]}`);
 
@@ -451,6 +479,17 @@ describe("cardImportHash is the import identity", () => {
     expect(cardImportHash(identity({ book: bookOf(defaults) }))).toBe(base);
   });
 
+  // A card book keeps the same fields in its own spelling: secondary keys at the entry, the rest under `extensions`.
+  test("a kept ST activation field in the card spelling is identity when set, and its default card spelling is not", () => {
+    const base = cardImportHash(identity({ book: bookOf(null) }));
+    const cardSpelled = [{ ["secondary_keys"]: ["moon"] }, { extensions: { probability: 50, useProbability: true } }, { extensions: { ["scan_depth"]: 4 } }];
+    for (const changed of cardSpelled) {
+      expect(cardImportHash(identity({ book: bookOf(changed) }))).not.toBe(base);
+    }
+    const defaults = { ["secondary_keys"]: [], extensions: { probability: 100, useProbability: true, sticky: null, ["exclude_recursion"]: false } };
+    expect(cardImportHash(identity({ book: bookOf(defaults) }))).toBe(base);
+  });
+
   test("art is identity, but the wire spec and key order are not", () => {
     const base = cardImportHash(identity());
     const painted = cardImportHash(identity({ artHash: "a".repeat(64) }));
@@ -467,13 +506,13 @@ describe("cardImportHash is the import identity", () => {
   test("own __proto__ keys in the leftover fields are kept, and the import identity is the one stored before", () => {
     const extensions = '{"__proto__":{"a":1},"keep":{"__proto__":{"b":2},"c":3}}';
     const text = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Harbor","description":"a port","creator_notes":"v1","__proto__":{"d":4},"extensions":${extensions}}}`;
-    const card = cardFromJson(present(parseJsonText(text)), "Harbor");
+    const card = readCardJson(present(parseJsonText(text)), "Harbor").card;
     expect(JSON.stringify(card.extensions)).toBe(extensions);
     expect(cardImportHash(identity({ card }))).toBe(PROTO_CARD_IMPORT_HASH);
   });
 
   test("a card file that is one JSON list keeps its items as leftover fields, and the import identity is the one stored before", () => {
-    const card = cardFromJson(present(parseJsonText('["a",{"b":1}]')), "Harbor");
+    const card = readCardJson(present(parseJsonText('["a",{"b":1}]')), "Harbor").card;
     expect(JSON.stringify(card.residualData)).toBe('{"0":"a","1":{"b":1}}');
     expect(cardImportHash({ card, book: null, artHash: null })).toBe(LIST_CARD_IMPORT_HASH);
   });
@@ -490,6 +529,8 @@ describe("cardImportHash is the import identity", () => {
 
   test("a script's id is provenance: the same script under another id is the same character", ({ ids }) => {
     expect(cardImportHash(identity({ card: scripted("st-client-id") }))).toBe(cardImportHash(identity({ card: scripted(ids.typeId(ID_PREFIX.regexScript)) })));
+    // The control: the script itself is identity, so the sameness above is not a hash that ignores the card.
+    expect(cardImportHash(identity({ card: scripted("st-client-id") }))).not.toBe(cardImportHash(identity()));
   });
 });
 

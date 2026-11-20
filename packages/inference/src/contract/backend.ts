@@ -61,13 +61,13 @@ export type WireCaptureSink = (entry: {
   readonly providerId: ProviderId;
   readonly model: ModelId;
   readonly body: Record<string, unknown>;
-  /** WHAT CAME BACK'S envelope (§D1): the response headers, lower-cased, secret-scrubbed by value like the
+  /** WHAT CAME BACK'S envelope: the response headers, lower-cased, secret-scrubbed by value like the
    *  body. This is where the support handle and the rate-limit budget live — Anthropic's `request-id` +
    *  `anthropic-ratelimit-*`, OpenRouter's `x-openrouter-*` routing trail — and without them a captured
    *  request cannot be correlated with anything the provider logged. Absent when the transport never
    *  produced a response (a socket failure still records the request that caused it). */
   readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
-  /** WHAT CAME BACK'S BODY (§D2/§D3), as literal wire TEXT — the SSE frame stream or the JSON body, head-capped
+  /** WHAT CAME BACK'S BODY, as literal wire TEXT — the SSE frame stream or the JSON body, head-capped
    *  and secret-scrubbed by value exactly like `body`. Rides the SAME entry as the request that produced it,
    *  so one ring row is one send. Present ONLY when the send boundary was asked for it (the reply tap is
    *  opt-in and independently off — a process-tier decision, never implied by the request capture), and absent

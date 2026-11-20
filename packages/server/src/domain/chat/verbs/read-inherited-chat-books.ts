@@ -9,10 +9,10 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import { requireParticipant } from "../guard.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadInheritedWorldBooks } from "../substrate/assembly-access.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 
 export function createReadInheritedChatBooks(input: DbAssemblyInput<Pick<ChatContext, "db" | "can" | "getCard" | "resolveUserEnabled">>) {

@@ -10,6 +10,7 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import { createCorpusProviderExecution } from "../corpus-provider.ts";
+import { failOnExportNote } from "../export-notes.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
@@ -77,14 +78,14 @@ test("equal-clock reuse returns one exact real call cohort without another provi
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const second = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const first = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const second = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
   expect(first.picture.reused).toBe(false);
   expect(second.picture.reused).toBe(false);
   expect(new Set([...first.generations, ...second.generations].map((row) => row.createdAt))).toEqual(new Set([root.clock.now()]));
   expect(new Set([...first.generations, ...second.generations].map((row) => row.callId)).size).toBe(2);
   const beforePrefer = [...wire.requests];
-  const reused = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const reused = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   expect(reused.picture.reused).toBe(true);
   expect([first.picture.images, second.picture.images]).toContainEqual(reused.picture.images);
   expect([first.generations, second.generations]).toContainEqual(reused.generations);
@@ -96,12 +97,12 @@ test("later-clock reuse returns the newest complete real cohort without another 
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const first = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
   root.clock.advance(1);
-  const newest = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const newest = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
   expect(first.generations.map((row) => row.createdAt)).not.toEqual(newest.generations.map((row) => row.createdAt));
   const beforePrefer = [...wire.requests];
-  const reused = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const reused = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   expect(reused.picture.reused).toBe(true);
   expect(reused.picture.images).toEqual(newest.picture.images);
   expect(reused.generations).toEqual(newest.generations);
@@ -113,14 +114,14 @@ test("a real native export/import records one actual call claim without duplicat
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const native = await seedImageryGenerationsRows(root, { ...params, n: 2, reuse: "never" });
+  const native = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, n: 2, reuse: "never" });
   const callId = native.generations[0]?.callId;
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   if (callId === null || callId === undefined || descriptor === undefined) {
     throw new Error("actual imagery generation or root descriptor is missing");
   }
   const files: PortableFile[] = [];
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     files.push(file);
   }
   expect(files).toHaveLength(1);

@@ -34,6 +34,7 @@ export {
 } from "./corpus.ts";
 export { CORPUS_STRUCTURED_REPLIES } from "./corpus-provider.ts";
 export { createTestEnv } from "./env.ts";
+export { failOnExportNote } from "./export-notes.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeMessageView, makeRedeemInviteResult } from "./factories/chat-view.ts";
 export { makePluginRow, makePluginScriptedPage } from "./factories/plugin-view.ts";
@@ -52,8 +53,8 @@ export { lanAddress } from "./lan-address.ts";
 export { magicBytes } from "./magic-bytes.ts";
 export { attachNativeFile } from "./native-attachments.ts";
 export { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
-export type { RecordedRequest } from "./openai-server.ts";
-export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server.ts";
+export type { OpenAiReply, OpenAiServer, RecordedRequest, ResponsesReply } from "./openai-server.ts";
+export { openAiResponsesServer, openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server.ts";
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
 export type { ProviderTape, ProviderTapeStep } from "./provider-tape.ts";

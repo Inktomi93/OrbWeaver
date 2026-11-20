@@ -24,10 +24,20 @@ updates:
     cooldown:
       default-days: 14
       semver-major-days: 30
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 4
     # Majors get their own PR: each is a migration to read on purpose, and one red major must not hold
-    # back the routine minor and patch batch.
+    # back the routine minor and patch batch. Build tooling and what ships are separate batches for the same
+    # reason: one red update fails its whole batch. A dependency takes the first group that matches it, so
+    # `npm` holds only what neither type claims.
     groups:
+      npm-tooling:
+        applies-to: version-updates
+        dependency-type: development
+        update-types: [minor, patch]
+      npm-runtime:
+        applies-to: version-updates
+        dependency-type: production
+        update-types: [minor, patch]
       npm:
         applies-to: version-updates
         patterns: ["*"]
@@ -60,6 +70,15 @@ updates:
       - dependency-name: echarts-for-react
       - dependency-name: "@stryker-mutator/core"
       - dependency-name: "@stryker-mutator/vitest-runner"
+      # A direct dependency that installs a patched package as its own dependency moves with that pin. Updated
+      # alone it brings a second, unpatched copy of the package beside the pinned one.
+      - dependency-name: "@ai-sdk/*"
+      - dependency-name: "@codemirror/*"
+      - dependency-name: codemirror
+      - dependency-name: "@libsql/client"
+      - dependency-name: "@stryker-mutator/*"
+      - dependency-name: "@tanstack/react-query"
+      - dependency-name: style-dictionary
       - dependency-name: "@ai-sdk/provider-utils"
       - dependency-name: "@ai-sdk/provider"
       - dependency-name: "@base-ui/react"
@@ -133,6 +152,15 @@ updates:
       - dependency-name: echarts-for-react
       - dependency-name: "@stryker-mutator/core"
       - dependency-name: "@stryker-mutator/vitest-runner"
+      # A direct dependency that installs a patched package as its own dependency moves with that pin. Updated
+      # alone it brings a second, unpatched copy of the package beside the pinned one.
+      - dependency-name: "@ai-sdk/*"
+      - dependency-name: "@codemirror/*"
+      - dependency-name: codemirror
+      - dependency-name: "@libsql/client"
+      - dependency-name: "@stryker-mutator/*"
+      - dependency-name: "@tanstack/react-query"
+      - dependency-name: style-dictionary
       - dependency-name: "@ai-sdk/provider-utils"
       - dependency-name: "@ai-sdk/provider"
       - dependency-name: "@base-ui/react"

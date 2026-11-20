@@ -9,6 +9,14 @@ pre-commit:
     stylelint:
       glob: "*.css"
       run: pnpm exec stylelint {staged_files}
+    # Structural rule pack: blocks only error-severity findings (credential-shaped
+    # strings, unescaped HTML). Warnings print and pass. Never runs on unstaged files.
+    sg-structural:
+      glob: "*.{ts,tsx,js,jsx,mjs,py,go,gd,rs}"
+      run: |
+        cfg="$HOME/inktomi-stack/ast-grep-review/sgconfig.yml"
+        [ -f "$cfg" ] || exit 0
+        ast-grep scan -c "$cfg" --custom-languages allow --report-style short {staged_files}
     # Hand-edited docs under the doc tool's trees get the tool's own formatting. A file the formatter
     # refuses is reported, never blocking: commits are not hard-blocked by this check, hence `|| true`.
     format-docs:
@@ -53,6 +61,11 @@ pre-push:
     github-sync-check:
       priority: 1
       run: bash scripts/github-sync.sh --check
+    # The release refuses a showcase bundle that changed since the last tag without a newer manifest version. Checking
+    # here refuses the push that carries it, before CI runs on a commit the release cannot take.
+    showcase-versions:
+      priority: 1
+      run: pnpm --filter @orb/showcase-plugins check:versions
     biome:
       priority: 2
       run: pnpm lint

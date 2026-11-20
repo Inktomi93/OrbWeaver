@@ -1,16 +1,16 @@
 // `defineVersionedConfig` — the ONE "versioned blob + lift loop" primitive shared by AppSettings,
-// UserSettings, and PromptConfig (the lift loop was copy-pasted across all three; only the schema,
-// version, default, and lifts vary). Collapsing it into one owner kills the drift risk. Boot-critical:
-// it must exist before `@orb/contracts/settings` AND `@orb/contracts/preset` can compile (shared-
-// dissolution §8 — the single most boot-fragile contracts edge).
+// UserSettings, and PromptConfig: only the schema, version, default, and lifts vary, so one owner is what
+// keeps the three from drifting. Boot-critical:
+// it must exist before `@orb/contracts/settings` AND `@orb/contracts/preset` can compile (the single most
+// boot-fragile contracts edge).
 //
 // Parse contract: ALWAYS returns a valid T. A non-object input, a corrupted blob that fails even after
 // lifts, or null/undefined → the `default` (the lenient shape; a malformed stored preset degrading to
 // its default beats a hard load failure mid-session).
 //
 // …but degrading is only correct for the CURRENT REQUEST. A read-modify-WRITE that cannot tell the
-// degraded stand-in from the real blob persists the default and destroys the user's data silently (
-// the proven cause of a real settings wipe). `parseOutcome` is that discriminator: same value as
+// degraded stand-in from the real blob persists the default and destroys the user's data silently.
+// `parseOutcome` is that discriminator: same value as
 // `parse`, plus whether it is the stored blob or a stand-in for one that could not be read. Every write
 // seam branches on it (`domain/settings/substrate/stored-config.ts`); read seams keep using `parse`.
 //
@@ -29,28 +29,27 @@
 //     `intact: true` cannot mean "the stored blob was fully read" while any `.catch()` sits below it.
 //     A whole-COLLECTION `.catch([])` therefore erases every good row with the one bad one, invisibly to
 //     the guard (`appearance.backgroundLibrary`). Collection leaves under a versioned config use
-//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED over
-//     the three tenants (`appSettingsConfig`, `userSettingsConfig`,
-//     `promptConfigConfig`) — the array leaves below, FOUR verdicts. `appearance.backgroundLibrary` +
-//     `chat.customStoppingStrings` carry user CONTENT and moved to `tolerantArray`; `appearance.blurSurfaces`
-//     KEEPS its whole-collection self-heal because an empty set is itself a meaningful stored value there
-//     (filtering would fabricate a deliberate opt-out — the reasoning is at its own leaf);
-//     `chat.autoSwipe.blacklist`
-//     (`settings/index.ts`, the `autoSwipe` object) carries NO `.catch` AT ALL — the FOURTH verdict, LOUD not
+//     {@link tolerantArray} — one bad element costs one element. The array leaves divide three ways:
+//     `appearance.backgroundLibrary` + `chat.customStoppingStrings` carry user CONTENT and use
+//     `tolerantArray`; `appearance.blurSurfaces` KEEPS its whole-collection self-heal because an empty set
+//     is itself a meaningful stored value there (filtering would fabricate a deliberate opt-out — the
+//     reasoning is at its own leaf); and `chat.autoSwipe.blacklist`
+//     (`settings/index.ts`, the `autoSwipe` object) carries NO `.catch` AT ALL — LOUD not
 //     LOSSY: one non-string element fails `z.array(z.string())`, which fails the enclosing `autoSwipe` object
 //     (its own `.prefault({})` only supplies a MISSING object, it does not cushion an internal validation
 //     failure), which fails the whole blob — every settings write for that user refuses until the blacklist
-//     is fixed, rather than silently losing an entry. Left AS-IS (not moved to `tolerantArray`): unlike
-//     `customStoppingStrings`, a blacklist entry is compared against `{{user}}`/`{{char}}`-resolved reply
-//     text at swipe time, so a SILENTLY dropped entry is a silent BEHAVIOR regression (fewer things trigger
-//     an auto-swipe) with no on-screen signal, where the loud refusal at least surfaces at the write. Ends if
-//     that tradeoff is re-judged the other way (then it takes the same `tolerantArray` move as its siblings).
+//     is fixed, rather than silently losing an entry. A blacklist entry is compared against
+//     `{{user}}`/`{{char}}`-resolved reply text at swipe time, so a SILENTLY dropped entry would be a silent
+//     BEHAVIOR regression (fewer things trigger an auto-swipe) with no on-screen signal, where the loud
+//     refusal at least surfaces at the write.
 //     The object-valued `.catch(undefined)` override groups (`memoryDefaults`, `rateLimits`, …) keep their
-//     documented whole-group self-heal — they are re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
+//     documented whole-group self-heal — they are re-enterable admin overrides, and the tradeoff is stated
+//     at each group in `settings/index.ts`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import { isPlainObject } from "@orb/kit/guards";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { z } from "zod";
 
 // Schema versions are 1-based; v1 is the floor a probe/lift walk starts from.
@@ -60,6 +59,8 @@ const INITIAL_VERSION = 1;
 export const VERSIONED_PARSE_FAILURES = {
   /** The stored value is not a plain object (null/undefined, a scalar, an array, a truncated write). */
   notAnObject: "not-an-object",
+  /** The stored text is not JSON at all; the column carries it whole as an {@link UnreadableJsonText}. */
+  notJson: "not-json",
   /** A lift in the walk returned a non-object — the migration chain broke on this blob. */
   liftBrokeShape: "lift-broke-shape",
   /** The final-version schema rejected the (possibly lifted) blob. */
@@ -195,6 +196,9 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
 
   // The ONE walk. `parse` is this minus the provenance, so the two can never disagree.
   const parseOutcome = (raw: unknown, storedVersion?: number): VersionedParseOutcome<T> => {
+    if (raw instanceof UnreadableJsonText) {
+      return degraded(VERSIONED_PARSE_FAILURES.notJson);
+    }
     if (!isPlainObject(raw)) {
       return degraded(VERSIONED_PARSE_FAILURES.notAnObject);
     }
@@ -212,14 +216,15 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
 
 /**
  * A COLLECTION leaf for a versioned config: element-wise tolerance instead of a whole-array `.catch()`.
- * One malformed element costs THAT element; every readable element survives (a single malformed
- * `backgroundLibrary` row erased the whole library, and because the array's own `.catch([])` made the
- * parse succeed, `parseOutcome` reported `intact: true` and the intact write guard persisted the erasure).
+ * One malformed element costs THAT element; every readable element survives. A whole-array `.catch([])`
+ * would let a single malformed `backgroundLibrary` row erase the whole library, and because that `.catch`
+ * makes the parse succeed, `parseOutcome` reports `intact: true` and the intact write guard persists the
+ * erasure.
  *
  * `whenNotAnArray` is the only whole-collection fallback left, and it fires ONLY when the stored value is
  * not an array at all — a shape with no element-wise reading. It exists because
  * `appearanceSettingsSchema.parse()` is contractually TOTAL (the client's device-local boot hint parses an
- * untrusted localStorage blob through it and must not throw — `client/src/state/appearance-boot-hint.ts:90`).
+ * untrusted localStorage blob through it and must not throw — `client/src/state/appearance-boot-hint.ts`).
  *
  * Lives here rather than in a schema module because it is the other half of the `intact` contract above:
  * this is what a leaf must use so `intact: true` keeps meaning "the stored blob was fully read".

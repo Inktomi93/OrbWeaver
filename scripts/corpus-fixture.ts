@@ -17,6 +17,7 @@ import {
   privateCorpusExecutionEnv,
   privateCorpusExecutionSignal,
   privateCorpusTranscriptTeardown,
+  spawnBudgetedConsumer,
 } from "./corpus-fixture-lifetime.ts";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
@@ -99,10 +100,22 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
   return result.code ?? 2;
 }
 
-async function runCorpusMatrix(directory: string | undefined, args: readonly string[]): Promise<number> {
+/** The corpus projects a native E2E argument list selects: every cell when it names none. */
+async function selectedCorpusCells(args: readonly string[]): Promise<{
+  readonly cells: readonly { readonly name: string }[];
+  readonly forwarded: readonly string[];
+}> {
   const { CORPUS_PROJECT_CELLS, parseProjectSelection } = await import("../tests/e2e/support/modes.ts");
   const { patterns, forwarded } = parseProjectSelection(args);
-  const cells = CORPUS_PROJECT_CELLS.filter(({ name }) => patterns === undefined || patterns.some((pattern) => pattern.test(name)));
+  return { cells: CORPUS_PROJECT_CELLS.filter(({ name }) => patterns === undefined || patterns.some((pattern) => pattern.test(name))), forwarded };
+}
+
+async function selectedCorpusProjects(args: readonly string[]): Promise<readonly string[]> {
+  return (await selectedCorpusCells(args)).cells.map(({ name }) => name);
+}
+
+async function runCorpusMatrix(directory: string | undefined, args: readonly string[]): Promise<number> {
+  const { cells, forwarded } = await selectedCorpusCells(args);
   if (cells.length === 0) {
     process.stderr.write("No corpus matrix projects matched the selection\n");
     return 1;
@@ -116,9 +129,11 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
     if (privateRoot !== undefined) {
       await mkdir(dirname(prefix), { recursive: true, mode: 0o700 });
     }
-    const result = await spawnNicedTranscript(
-      "pnpm",
-      [
+    // The cell's own launcher carries the same budget and starts later, so this one fires first and kills it before it
+    // can speak: the expiry line for a matrix cell comes from here.
+    const result = await spawnBudgetedConsumer({
+      cmd: "pnpm",
+      args: [
         "--config.verify-deps-before-run=false",
         "exec",
         "node",
@@ -128,7 +143,7 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
         `--project=${cell.name}`,
         ...forwarded,
       ],
-      {
+      options: {
         cwd: process.cwd(),
         env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_REPORT_PREFIX: prefix }),
         timeoutMs: budget(E2E_CELL_TIMEOUT_MS),
@@ -137,7 +152,8 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
           process[stream].write(chunk);
         },
       },
-    );
+      unfinished: () => [cell.name],
+    });
     const code = result.code ?? 2;
     completed.push({ name: cell.name, code });
     process.stdout.write(`Corpus matrix verdict: ${cell.name} exit=${String(code)}\n`);
@@ -365,25 +381,30 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
   let code = 2;
   let sweepFailed = false;
   try {
-    const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "e2e", "--grep=@smoke", ...nativeArgs], {
-      cwd: process.cwd(),
-      env: inheritedProcessEnv({
-        ...runMarkerEnv(marker),
-        E2E_CORPUS_FIXTURE: clone.layout.root,
-        E2E_CORPUS_LOCAL_FIXTURE: localClone.layout.root,
-        E2E_CORPUS_OWNER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
-        E2E_CORPUS_MEMBER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
-        E2E_ALLOW_DEV_TARGET: "0",
-        E2E_LIVE: "0",
-      }),
-      timeoutMs: budget(E2E_CELL_TIMEOUT_MS),
-      teardown: {
-        ...runMarkerTranscriptTeardown(marker),
-        afterTimeoutKill: async (): Promise<string | null> => describeRunMarkerSweep(await joinEscaped()),
+    const result = await spawnBudgetedConsumer({
+      cmd: "pnpm",
+      args: ["--config.verify-deps-before-run=false", "e2e", "--grep=@smoke", ...nativeArgs],
+      options: {
+        cwd: process.cwd(),
+        env: inheritedProcessEnv({
+          ...runMarkerEnv(marker),
+          E2E_CORPUS_FIXTURE: clone.layout.root,
+          E2E_CORPUS_LOCAL_FIXTURE: localClone.layout.root,
+          E2E_CORPUS_OWNER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
+          E2E_CORPUS_MEMBER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
+          E2E_ALLOW_DEV_TARGET: "0",
+          E2E_LIVE: "0",
+        }),
+        timeoutMs: budget(E2E_CELL_TIMEOUT_MS),
+        teardown: {
+          ...runMarkerTranscriptTeardown(marker),
+          afterTimeoutKill: async (): Promise<string | null> => describeRunMarkerSweep(await joinEscaped()),
+        },
+        onChunk: (chunk, stream) => {
+          process[stream].write(chunk);
+        },
       },
-      onChunk: (chunk, stream) => {
-        process[stream].write(chunk);
-      },
+      unfinished: () => selectedCorpusProjects(nativeArgs),
     });
     code = result.code ?? 2;
   } finally {

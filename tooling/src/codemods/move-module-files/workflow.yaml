@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    plan:
+      name: "Plan file"
+      description: "Path, relative to the target directory, of the JSON { moves: { old: new } } of target-relative file paths"
+      type: string
+      default: "codemod-module-moves.json"
+nodes:
+  - id: move-module-files
+    name: Repoint module specifiers for planned file moves
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

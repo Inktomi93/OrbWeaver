@@ -9,10 +9,11 @@ import { MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubm
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { roomRosterOptions, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { readComposerDraft, requestComposerFocus, setComposerDraft } from "#state";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
+import { RPG_ABILITY_CHECK_NAME, RPG_SCORE_UNSET_HINT } from "../lib/rpg-names.ts";
 
 function insertStamp(chatId: ChatId, stamp: string): void {
   const current = readComposerDraft(chatId);
@@ -24,7 +25,8 @@ async function rollIntoDraft(chatId: ChatId, notation: string, rollDice: ReturnT
   try {
     const result = await rollDice.mutateAsync({ chatId, notation, ...(ability === undefined ? {} : { ability }) });
     insertStamp(chatId, result.stamp);
-  } catch {
+  } catch (error) {
+    rethrowUnlessTrpcFailure(error);
     notify.error("Couldn't roll the dice.");
   }
 }
@@ -35,7 +37,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const rollDice = useRollDice({ trpc, invalidation });
-  const { data: detail } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: detail } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const engaged = isRpgEngaged(detail?.rpg ?? null);
   const { data: game } = useGatedQuery(engaged ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const ruleset = game?.publicConfig.ruleset;
@@ -68,7 +70,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
         <MenuSubmenuRoot>
           <MenuSubmenuTrigger>
             <Icon icon={Dices} size="sm" />
-            Ability check
+            {RPG_ABILITY_CHECK_NAME}
           </MenuSubmenuTrigger>
           <MenuPopup>
             <MenuGroup>
@@ -91,7 +93,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
                     </Text>
                     {modifier === null ? (
                       <Text as="span" voice="gloss" id={descriptionId}>
-                        Set your score in Status first.
+                        {RPG_SCORE_UNSET_HINT}
                       </Text>
                     ) : null}
                   </MenuItem>

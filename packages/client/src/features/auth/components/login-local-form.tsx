@@ -12,7 +12,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useRef, useState } from "react";
 import { login } from "#data";
-import { testId, useFocusOnSwap } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME, testId, useFocusOnSwap } from "#lib";
+import { SIGN_IN_NAME, signInLabel } from "../lib/pending-join-names.ts";
 
 export interface LoginLocalFormProps {
   /** The seed-handle pre-fill (`/api/auth/config`); null under discreet login → start blank. */
@@ -50,12 +51,12 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn, takeFocus = false }:
   };
 
   return (
-    <form aria-label="Sign in" onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
+    <form aria-label={SIGN_IN_NAME} onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
       <Stack gap="block">
-        <Field label="Handle">
+        <Field label={ACCOUNT_HANDLE_FIELD_NAME}>
           <Input autoComplete="username" ref={handleRef} value={handle} onValueChange={(value): void => setHandle(value)} data-testid={testId("loginHandle")} />
         </Field>
-        <Field label="Password">
+        <Field label={ACCOUNT_PASSWORD_FIELD_NAME}>
           <Input
             type="password"
             autoComplete="current-password"
@@ -73,7 +74,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn, takeFocus = false }:
           </Text>
         )}
         <Button type="submit" disabled={!canSubmit} data-testid={testId("loginSubmit")}>
-          {pending ? "Signing in…" : "Sign in"}
+          {signInLabel(pending)}
         </Button>
       </Stack>
     </form>

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapability, Task } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, builtinImageBaseUrl, declaredCapabilitySchema, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
@@ -15,6 +15,38 @@ type ConnectionFields = Omit<Parameters<ServerTestHarness["services"]["connectio
 export const RUNTIME_KEY = "synthetic-runtime-fixture-key";
 export const RUNTIME_TOKEN = "sk-ant-oat01-0123456789abcdef0123456789abcdef";
 export const RUNTIME_ENDPOINT = "http://127.0.0.1:8703/v1";
+
+const ESC = String.fromCodePoint(0x1b);
+const RIGHT_TO_LEFT_OVERRIDE = String.fromCodePoint(0x20_2e);
+const MARKUP = "<img src=x onerror=alert(1)>";
+
+/** NanoGPT 403 bodies in its live shapes. A structured `error.code` that names the key judges it; a model the account
+ *  cannot use, and words alone, judge nothing. The chat turn and the key check read each the same way. */
+export const NANOGPT_FORBIDDEN_BODIES = {
+  wrongKey: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 403 } },
+  missingKey: { error: { message: "Invalid Authentication", type: "invalid_request_error", code: "missing_api_key", status: 403 } },
+  unsupportedModel: { error: { message: "Model vendor/chat-model is not supported", type: "invalid_request_error", code: "model_not_supported" } },
+  keyWordsOnly: { error: "Invalid API key" },
+} as const;
+
+/** Each UTF-16 unit as a `\uXXXX` escape, the way an encoder that escapes everything writes it in a JSON string. */
+function jsonEscapedUnits(text: string): string {
+  return Array.from({ length: text.length }, (_, index) => `\\u${text.charCodeAt(index).toString(16).padStart(4, "0")}`).join("");
+}
+
+/** A refusal's words as they sit inside a JSON string on the wire, every hazard spelled as a `\u` escape so only a
+ *  decode reveals it: a markup tag, ESC colour codes, a right-to-left override, and the fixture key with its first
+ *  character escaped. `visible` is the text a clean message still shows; `keyTail` is what an undecoded key leaves. */
+export const ESCAPED_HAZARD_WORDS = {
+  wire: [
+    jsonEscapedUnits(MARKUP),
+    `${jsonEscapedUnits(ESC)}[31mRED${jsonEscapedUnits(ESC)}[0m`,
+    `${jsonEscapedUnits(RIGHT_TO_LEFT_OVERRIDE)}gpj.exe`,
+    `${jsonEscapedUnits(RUNTIME_KEY.slice(0, 1))}${RUNTIME_KEY.slice(1)}`,
+  ].join(" "),
+  visible: ["RED", "gpj.exe"],
+  keyTail: RUNTIME_KEY.slice(1),
+} as const;
 
 /** The `metadata.user_id` Anthropic correlates one account on. Spelled here rather than read from its producer: a
  *  control that called the producer would pass on any digest it returned, and this value must outlive a rewrite of it. */
@@ -32,7 +64,8 @@ export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<S
         if (hostname === "box.local" || hostname === new URL(RUNTIME_ENDPOINT).hostname) {
           return Promise.resolve(["127.0.0.1"]);
         }
-        if (BUILTIN_PROVIDERS.some((provider) => provider.baseUrl !== undefined && new URL(provider.baseUrl).hostname === hostname)) {
+        const hosted = BUILTIN_PROVIDERS.flatMap((provider) => [provider.baseUrl, builtinImageBaseUrl(provider.id)]);
+        if (hosted.some((url) => url !== undefined && new URL(url).hostname === hostname)) {
           return Promise.resolve([PUBLIC_PEER_ADDRESS]);
         }
         throw new Error(`unscripted runtime-fixture DNS lookup: ${hostname}`);
@@ -129,7 +162,7 @@ export async function runtimeConnection<T extends Task>(
   const principal = await root.principalFor(owner);
   const credential = key === undefined ? null : await root.services.credentials.add({ principal, provider: fields.providerId, key });
   const row = await root.services.connection.create({ ...connection, principal, credentialId: credential?.id ?? null });
-  const { resolved } = await root.app.runtime.resolve({ principal, task, connectionId: row.id, cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, task, connectionId: row.id, cachedFacts: true });
   return { ...resolved, task };
 }
 
@@ -158,6 +191,7 @@ export function wireConnection<T extends Task>(root: ServerTestHarness, input: W
     baseUrl: input.baseUrl === undefined ? defaultBaseUrl : input.baseUrl,
     allowBackground: input.allowBackground ?? true,
     ...(key === undefined && provider.auth !== "apiKey" && provider.auth !== "oauthToken" ? {} : { key: key ?? defaultKey }),
-    declared: declared ?? declaredCapabilitySchema.parse({ ...capability, features: { detectServer: false, ...declaredFeatures } }),
+    // The row states the kind its task names, as a stated capability does, so its create reads no model list either.
+    declared: declared ?? declaredCapabilitySchema.parse({ kind: taskDef(task).kind, ...capability, features: { detectServer: false, ...declaredFeatures } }),
   });
 }

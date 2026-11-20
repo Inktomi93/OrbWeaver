@@ -3,6 +3,7 @@
 export type { ImportFile } from "./contract/cards.ts";
 export type { UploadedFile } from "./contract/collection.ts";
 export type { ImportDriverDeps } from "./contract/drivers.ts";
+export type { ExportCurrentCard, ExportCurrentChats, OwnedChatTitle } from "./contract/identity.ts";
 export type { ProfileDirImportDeps } from "./contract/profile-directory.ts";
 export type {
   ImportReport,
@@ -27,4 +28,5 @@ export { createImportLibraryEmitter } from "./verbs/import-library-emitter.ts";
 export { createInstallerCharacterImport, serializeImportCard } from "./verbs/installer-character.ts";
 export { createPortableImports } from "./verbs/portable-imports.ts";
 export { createSettleImportMemory } from "./verbs/settle-import-memory.ts";
+export { createSettleImportStats } from "./verbs/settle-import-stats.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";

@@ -177,7 +177,7 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 | `character.ingest` | `character.ingest(card)` | Import a V2/V3 card (plain JSON) into the installer's OWN library. Byte-identical re-ingests dedupe (`created: false`). |
 | `character.card_state` | `character.setCardData()`, `getCardData()`, `findCardData()` | Your plugin's OWN portable blob on one of the installer's OWN characters (`data.extensions.plugin_<slug>` — host-stamped, unforgeable, survives export→import). `findCardData(values)` finds the distinct blobs on the installer's characters that hold any of up to 64 strings, with one holder each. Imported cards carry blobs too, so treat a match as data, not proof. |
 | `events.subscribe` | `events.on(type, handler)` | The closed trigger taxonomy (`messageCommitted`, `chatOpened`, `turnCompleted`, …). Installed plugins only. |
-| `plugin_events` | `pubsub.emit()`, `pubsub.on()` | The PRIVATE plane between YOUR OWN plugins: `plugin:<slug>:<name>` channels, installer-scoped, never a domain event, never automation. See oracle-deck (emit) + scene-chips (listen). |
+| `plugin_events` | `pubsub.emit()`, `pubsub.on()` | The PRIVATE plane between YOUR OWN plugins: `plugin:<slug>:<name>` channels, installer-scoped, never a domain event, never automation. 360 emits/hour per plugin. See oracle-deck (emit) + scene-chips (listen). |
 | `tools.register` | `tools.register()` | Into the one tool registry the model already uses. |
 | `net.fetch` | `net.fetch()` | Requires `netHosts`. 360 calls/hour per plugin, 5 s deadline, 1 MiB response cap, SSRF-guarded, GET/POST. |
 | `net.fetch_asset` | `net.fetchAsset()` | Requires `netHosts`. Downloads a validated remote image into your OWN asset storage and returns its id. Separate 1200 calls/hour per plugin; shares the allowlist and SSRF guard with `net.fetch`, not its rate budget. |
@@ -277,6 +277,9 @@ state is honest. Two BOUND-COLLECTION arms make cardinality data instead of stru
 `tilesFrom: { $state }` (an array of `{id, title, subtitle?, badge?, assetId?, alt?}`, validated and clamped
 at resolve) with one grid-level `tileAction`, and an image's `assetFrom: { $state }`. State-sourced asset ids
 pass the same format wall and the same owner-scoped resolve as declared ones — a foreign id paints nothing.
+Any node below the root may carry `when: true | false | { $state }` to drop out of the layout: a bound
+`when` hides the node only while its path holds `false`, so a missing path shows it (card-atlas hides its
+pager on a one-page result). A grid's `empty` line may bind too, so it can say why the grid is empty.
 
 **Commands** (`ui.registerCommand`) ride `/plugin <your-slug> <name> …` and the command palette. Declare typed `args` (string/number/enum/boolean, required?) and the platform collects,
 autocompletes and validates them on both surfaces before `onRun` sees the typed `values` bag; the raw `args`

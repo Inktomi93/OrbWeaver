@@ -2,6 +2,7 @@
 // room's message_assets links, the owner's generated CAS assets and the durable chat_events log.
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { assets, chatEvents, messageAssets, messages, messageVariants } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
@@ -33,7 +34,7 @@ export function inlineImageRows(h: ChatRoot): {
       await h.root.db
         .select()
         .from(assets)
-        .where(and(eq(assets.ownerId, h.owner.userId), eq(assets.kind, "generated"))),
+        .where(and(eq(assets.ownerId, h.owner.userId), assetUsedAs(h.root.db, ["generated"]))),
     events: async () => await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)),
   };
 }

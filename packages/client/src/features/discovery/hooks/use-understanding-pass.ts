@@ -53,6 +53,7 @@ import type { ModelRunConfirmDialogProps } from "#components";
 import { useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useBusRoom, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 
 type WorkloadRow = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -224,8 +225,8 @@ export function useUnderstandingPass(): UnderstandingPassView {
     if (run !== null || startRun.isPending) {
       return;
     }
-    // THE WHOLE CHAIN IS ONE YES. Its size is every stage it will enqueue, counted before any row exists; the
-    // themes stage is counted over today's digests, since the backfill that adds more has not run yet.
+    // THE WHOLE CHAIN IS ONE YES. Its size is every stage it will enqueue, counted before any row exists. Each stage
+    // names the stages ahead of it, so the themes stage is counted at its ceiling when the backfill will add digests.
     // the only rejection left is a chain mutateAsync, owned by the
     // errorToast on useStartUnderstandingRun above; a failed count is toasted inside useModelRunConfirm.confirmThen.
     // Ends if either drops its toast.
@@ -233,10 +234,14 @@ export function useUnderstandingPass(): UnderstandingPassView {
       .confirmThen({
         title: "Sort your characters?",
         confirmLabel: RUN_PASS_LABEL,
-        estimates: (memoryDisabled ? PASS_KINDS.slice(0, 1) : PASS_KINDS).map((kind) => ({ input: { kind, params: {} }, mode: "singular" as const })),
+        estimates: (memoryDisabled ? PASS_KINDS.slice(0, 1) : PASS_KINDS).map((kind, stage) => ({
+          input: { kind, params: {} },
+          mode: "singular" as const,
+          ...(stage === 0 ? {} : { after: PASS_KINDS.slice(0, stage).map((prior) => ({ kind: prior, params: {} })) }),
+        })),
         run: enqueueChain,
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   // The LIVE tail wins while it is connected; with no frame yet (a reload mid-pass) the row's DURABLE

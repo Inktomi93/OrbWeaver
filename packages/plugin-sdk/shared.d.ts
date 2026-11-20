@@ -23,10 +23,13 @@
 //     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
 //     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
 //     invocations auto-disable the plugin.
-//   - A host call the host could not serve rejects with `name` `"PluginHostUnavailable"`, never a strike, and
-//     both kinds are retryable. With `code` `"channel_full"` (`PluginHostRefusalCode`), a channel inside the host
-//     was full and only this call was refused: retry it soon. With no `code`, the host itself was lost or
-//     restarting: retry later.
+//   - A host call the host could not serve fails with `name` `"PluginHostUnavailable"`: an async call rejects, and a
+//     synchronous seam (the clock, entropy, ids) throws. Both kinds are retryable. With `code` `"channel_full"`
+//     (`PluginHostRefusalCode`), a channel inside the host was full and only this call was refused: retry it soon.
+//     With no `code`, the host itself was lost or restarting: retry later. Left uncaught, it is never a strike: the
+//     invocation fails as that refusal.
+//   - A host call that reaches your installer's account rejects with `name` `"PluginInstallerDisabledError"` while
+//     that account is disabled, never a strike, even uncaught.
 //   - Handlers must never throw: wrap, log, return.
 
 // ── capabilities (the manifest's closed axis — declaring is ASKING; `host.grants` is what was ANSWERED) ─────
@@ -61,6 +64,50 @@ type PluginCapability =
 
 /** The `code` a `"PluginHostUnavailable"` rejection carries when the host can say why; absent otherwise. */
 type PluginHostRefusalCode = "channel_full";
+
+/** The `code` a rejected `orb.ui(1).host` call carries when the host refused it as that call's own mistake: the
+ *  plugin is not enabled, the function is not callable from a UI or not granted, the arguments are not JSON or do
+ *  not match, a room-scoped call has no room, the result is over its cap, or `storage.kv` is full. */
+type PluginUiHostCallCode =
+  | "plugin_ui_not_enabled"
+  | "plugin_ui_not_proxyable"
+  | "plugin_ui_not_granted"
+  | "plugin_ui_args_not_json"
+  | "plugin_ui_args_invalid"
+  | "plugin_ui_scope_required"
+  | "plugin_ui_result_too_large"
+  | "plugin_storage_cap";
+
+/** What a rejected `orb.ui(1).host` call rejects with. `code` is present only for a {@link PluginUiHostCallCode}
+ *  refusal; any other failure has no `code`, and its `message` is one fixed sentence. Key on `code`, never on
+ *  `message`. An isolated frame gets none of this: its refusals are the bare `"refused"`. */
+interface PluginUiHostCallError extends Error {
+  readonly name: "Error";
+  readonly code?: PluginUiHostCallCode;
+}
+
+/** Why a server guest's `llm.quiet` failed: the provider failure's kind, with no upstream text. */
+type PluginLlmFailureKind =
+  | "rate_limit"
+  | "auth_failed"
+  | "billing"
+  | "moderation"
+  | "refused"
+  | "forbidden"
+  | "invalid"
+  | "model_unavailable"
+  | "server"
+  | "max_output"
+  | "aborted"
+  | "unknown";
+
+/** What a failed `llm.quiet` rejects with: one fixed `message`, the failure's `kind`, and whether a retry may succeed.
+ *  Key on `kind` and `retryable`, never on `message`; the provider, the model and the upstream reply never cross. */
+interface PluginLlmFailure extends Error {
+  readonly name: "Error";
+  readonly kind: PluginLlmFailureKind;
+  readonly retryable: boolean;
+}
 
 /** An OPAQUE room token, minted per invocation by the host (`chat.current()`), valid only inside the
  *  invocation that minted it. Pass it back to room-scoped calls; never store, compare across calls, or
@@ -291,6 +338,12 @@ interface PluginStateBinding {
 type PluginBoundString = string | PluginStateBinding;
 type PluginBoundNumber = number | PluginStateBinding;
 type PluginBoundBoolean = boolean | PluginStateBinding;
+/** Whether a node renders, on every node kind. Absent shows it. A literal decides; a `{ $state }` binding hides
+ *  the node only when the path holds `false`, so a missing path or a non-boolean shows it. A hidden node takes
+ *  no space and no focus. Your spec's ROOT takes no `when`: publish nothing for a surface you want gone. */
+interface PluginNodeVisibility {
+  readonly when?: PluginBoundBoolean | undefined;
+}
 /** The curated glyph vocabulary an `icon` node may name. Chrome-identity, consent/trust and identity glyphs
  *  are deliberately absent — a plugin cannot dress its content in the app's own trust iconography. */
 type PluginIconName =
@@ -536,7 +589,9 @@ type PluginGridNode = PluginOneSource<
     readonly tilesFrom?: PluginStateBinding | undefined;
     readonly tileAction?: string | undefined;
     readonly aspect?: PluginImageAspect | undefined;
-    readonly empty?: string | undefined;
+    /** What the grid says with no tiles. Bind it to say WHY it is empty ("search first" vs "nothing matched");
+     *  absent, or a binding that resolves to no text, shows the host's neutral line. */
+    readonly empty?: PluginBoundString | undefined;
     /** TRUE ⇒ the grid renders a shape- and aspect-matched SKELETON instead of tiles or the empty line. Publish
      *  `true` before you float the wire work and `false` with the results — the loading arm outranks both. */
     readonly loading?: PluginBoundBoolean | undefined;
@@ -581,31 +636,34 @@ interface PluginSearchBarNode {
 
 /** The closed node union. Global caps per spec: 32 KiB serialized, 256 nodes, depth 8, every string bounded.
  *  What it deliberately CANNOT express: HTML/CSS, host chrome, modals, focus theft, any write channel. */
-type PluginSurfaceNode =
-  | PluginStackNode
-  | PluginRowNode
-  | PluginSectionNode
-  | PluginTextNode
-  | PluginBadgeNode
-  | PluginMeterNode
-  | PluginKeyValueNode
-  | PluginListNode
-  | PluginImageNode
-  | PluginMarkdownNode
-  | PluginTextFieldNode
-  | PluginNumberFieldNode
-  | PluginToggleNode
-  | PluginSelectNode
-  | PluginSliderNode
-  | PluginButtonNode
-  | PluginConfirmButtonNode
-  | PluginGridNode
-  | PluginMasterDetailNode
-  | PluginSearchBarNode
-  | PluginIconNode
-  | PluginTabsNode;
+type PluginSurfaceNode = PluginNodeVisibility &
+  (
+    | PluginStackNode
+    | PluginRowNode
+    | PluginSectionNode
+    | PluginTextNode
+    | PluginBadgeNode
+    | PluginMeterNode
+    | PluginKeyValueNode
+    | PluginListNode
+    | PluginImageNode
+    | PluginMarkdownNode
+    | PluginTextFieldNode
+    | PluginNumberFieldNode
+    | PluginToggleNode
+    | PluginSelectNode
+    | PluginSliderNode
+    | PluginButtonNode
+    | PluginConfirmButtonNode
+    | PluginGridNode
+    | PluginMasterDetailNode
+    | PluginSearchBarNode
+    | PluginIconNode
+    | PluginTabsNode
+  );
 
-type PluginSurfaceSpec = PluginSurfaceNode;
+/** A whole surface's tree: any node, except that its root takes no `when`. */
+type PluginSurfaceSpec = PluginSurfaceNode & { readonly when?: undefined };
 
 /** A host-owned target for a registered command. A command may name each target at most once;
  *  the host validates the bounded label and curated icon before exposing the affordance. */
@@ -659,7 +717,7 @@ type PluginCommandValuesFor<TArgs extends readonly PluginCommandArgSpecBase[]> =
 
 /** The action ids a static spec can fire: every literal `actionId` and `tileAction` in the tree. A spec typed
  *  as the open node union, or any id widened to `string`, answers `string`. */
-type PluginActionIdsOf<TSpec> = [PluginSurfaceNode] extends [TSpec]
+type PluginActionIdsOf<TSpec> = [PluginSurfaceSpec] extends [TSpec]
   ? string
   : TSpec extends readonly (infer TChild)[]
     ? PluginActionIdsOf<TChild>
@@ -821,7 +879,8 @@ interface PluginHostV1 {
   readonly llm: {
     /** SPEND — one bounded, non-canon generation on the installer's own connection (30/hour per plugin).
      *  No chat scope needed; writes nothing; you get a string. `opts.schema` = structured output;
-     *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. capability: llm.quiet */
+     *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. A provider failure rejects with a
+     *  {@link PluginLlmFailure}. capability: llm.quiet */
     quiet: (prompt: string, opts?: PluginQuietOptions) => Promise<string>;
   };
 
@@ -857,15 +916,21 @@ interface PluginHostV1 {
 
   readonly events: {
     /** Subscribe to the closed trigger taxonomy. Delivery is pre-filtered to what the INSTALLER may see, and
-     *  to human-caused (depth-0) facts unless the manifest opts into `matchAutomationEvents`.
-     *  capability: events.subscribe */
+     *  to human-caused (depth-0) facts unless the manifest opts into `matchAutomationEvents`. A fact your own
+     *  plugins raised (a character one ingested, an entry one wrote) runs its handler one step deeper than the run
+     *  that raised it, as a pubsub delivery does. A chain of such handlers stops after two steps: the next fact is
+     *  not delivered. capability: events.subscribe */
     on: (type: ChatTriggerType | DomainTriggerType, handler: (fact: PluginTriggerFact) => void | Promise<void>) => void;
   };
 
   /** The PRIVATE event plane between the SAME installer's plugins — `plugin:<slug>:<name>` channels. Never a
    *  domain event, never automation, never another user. capability: plugin_events */
   readonly pubsub: {
-    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. */
+    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
+     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. A handler may
+     *  answer an announcement with one of its own, but an emit from inside that answer's own delivery rejects with
+     *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. The same chain counts a
+     *  trigger fact your plugins raised (see `events.on`), so a loop through either plane stops at the same depth. */
     emit: (name: string, data: Record<string, unknown>) => Promise<void>;
     /** Listen to one of the installer's plugins by slug. A slug not installed simply never fires. The
      *  handler runs with NO chat scope — put everything it needs in the payload. */
@@ -1012,7 +1077,8 @@ interface PluginUiV1 {
   render: (surfaceId: string, tree: PluginSurfaceSpec) => void;
   /** ONE handler per guest; a second call replaces the first. Events arrive locally — no network. */
   onEvent: (handler: (event: PluginUiEvent) => void | Promise<void>) => void;
-  /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. */
+  /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. A refused or
+   *  failed call rejects with a {@link PluginUiHostCallError}. */
   readonly host: {
     /** Room reads use the surface's mounting room; no guest-supplied room handle is accepted. */
     readonly chat: {

@@ -107,19 +107,12 @@ export function checkoutName(root: string): string {
   }
 }
 
-const runIds = new Map<string, string>();
-
-/** This process's run id for `root` — `<checkout>-<pid>-<timestamp>`, minted ONCE per (process, root) so
- *  every artifact one invocation writes carries the same identity. */
-export function runId(root: string): string {
-  const existing = runIds.get(root);
-  if (existing !== undefined) {
-    return existing;
-  }
+/** A run id for one slot of `root` — `<checkout>-<pid>-<timestamp>`. Minted per slot, never cached per process:
+ *  a host that runs several invocations in one process (an in-process snap host) opens one slot each, and every
+ *  artifact of one invocation still carries one identity because it is written into that invocation's slot. */
+function runId(root: string): string {
   const stamp = new Date().toISOString().replaceAll(RUN_ID_UNSAFE_RE, "-");
-  const id = `${checkoutName(root).replaceAll(RUN_ID_UNSAFE_RE, "-")}-${process.pid}-${stamp}`;
-  runIds.set(root, id);
-  return id;
+  return `${checkoutName(root).replaceAll(RUN_ID_UNSAFE_RE, "-")}-${process.pid}-${stamp}`;
 }
 
 /** One invocation's private artifact directory, plus who else is writing this instrument right now. */

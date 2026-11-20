@@ -1,20 +1,15 @@
-// @orb/contracts/rpg/tracker — THE tracked-field unification (D113,
-// owner-approved; noun = TRACKER). ONE def replaces the four names the panel used to carry for
-// the same concept — pool (`sheet.poolDefs`), meter/npc field (`features.castFields`), band orb
-// (`features.pinnedOrbs`), HUD widget (the dropped `rpg_hud_widgets` table). They were never siblings; they
-// were ONE def read along four AXES:
-//   • `subject` — actor (per-carrier) vs game (one value on the snapshot; the old widgets)
-//   • `shape`   — meter (value/max) · text · list (the old widget `items[]`)
+// @orb/contracts/rpg/tracker — THE tracked-field home (D113; noun = TRACKER). ONE def carries every
+// tracked thing in a game, read along four AXES:
+//   • `subject` — actor (per-carrier) vs game (one value on the snapshot)
+//   • `shape`   — meter (value/max) · text · list
 //   • `write`   — delta (a resource you spend/restore) vs set (a state you observe) — this drives the TOOL
 //                 ARM the model gets, its mental model, and the panel read (a bar you drain vs a gauge)
 //   • carriers  — `appliesTo` class or explicit actor list, ± per-actor grants/revokes off the SHEET
 //
-// NO LEGACY (owner ruling, "we haven't launched — there shouldn't be legacy anything"): the old
-// shapes are REPLACED outright. There is no lift-at-parse, no dual read, no compat wire arm.
+// NO COMPAT ARMS: no lift-at-parse, no dual read, no compat wire arm. The shapes are replaced outright.
 //
-// ADDRESSING IS BY `key`, ALWAYS. The old surfaces addressed by NAME/LABEL (`pools[].name`, `widgetValues`
-// keyed by widget label), so a rename orphaned every stored value. A tracker's `key` is minted once and never
-// re-spelled; `label` is free to change.
+// ADDRESSING IS BY `key`, ALWAYS. A label-keyed address orphans every stored value on a rename. A tracker's
+// `key` is minted once and never re-spelled; `label` is free to change.
 //
 // CARRIER RESOLUTION IS ONE PURE FUNCTION ({@link carriesTracker}) — the effective carrier set is
 // `resolve(appliesTo) + grants − revokes`, and every consumer (the panel read, the reminder, the per-actor
@@ -26,13 +21,13 @@ import type { RpgTrackerCarrierClass } from "./enums.ts";
 import { rpgTrackerCarrierClassSchema, rpgTrackerShapeSchema, rpgTrackerSubjectSchema, rpgTrackerWriteSchema } from "./enums.ts";
 
 /** The steering-HINT cap — a short prose gloss. ONE home for every host-authored gloss in the game (the
- *  tracker `hint`, the custom-relationship hints, the R4c custom-journal-type hints); homed HERE because
- *  the tracker hint is the load-bearing one (R4b: the gloss is what makes a tracked value steer at all) and
+ *  tracker `hint`, the custom-relationship hints, the custom-journal-type hints); homed HERE because
+ *  the tracker hint is the load-bearing one (the gloss is what makes a tracked value steer at all) and
  *  because `config.ts` imports THIS module, not the other way round. */
 export const RPG_HINT_MAX = 120;
 
-/** The strict tracker-color grammar (owner-ruled FREE HEX, inherited verbatim from the retired pool-color
- *  home): a 3/6-digit hex or a numeric `oklch(L C H)` (optional `deg` hue + `/ alpha`) — a COLOR literal,
+/** The strict tracker-color grammar (FREE HEX by ruling): a 3/6-digit hex or a numeric `oklch(L C H)`
+ *  (optional `deg` hue + `/ alpha`) — a COLOR literal,
  *  never raw CSS (no `var()`, no `color-mix()`, no url/expression vector). Free hex deliberately does NOT
  *  theme-adapt — accepted: the bar/orb geometry is decorative (aria-hidden), the value TEXT rides theme
  *  tokens. ASCII match, no `u`. */
@@ -41,9 +36,8 @@ export const RPG_TRACKER_COLOR_RE =
 
 // Who an actor-subject tracker applies to BEFORE per-actor exceptions: a carrier CLASS (`party` = the
 //  participants' character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
-//  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters). The
-//  classes are honest to what the old surfaces actually were: pool defs were per-party-member, npc fields
-//  were per-NPC. Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
+//  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters).
+//  Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
 //
 //  The explicit arm holds ACTOR-REF KEYS (`actorRefKey`'s `character:<id>`/`user:<id>`/`npc:<name>` — the ONE
 //  string projection every map/lock/find already keys on), not embedded ref objects: it keeps this module free
@@ -53,17 +47,16 @@ const rpgTrackerAppliesToSchema = z.union([rpgTrackerCarrierClassSchema, z.array
 type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
 
 /** THE unified tracked-field definition. Lives in `RpgGameConfig.trackers[]` — ONE home for every tracker in
- *  a game, whatever its subject (the old per-actor `sheet.poolDefs` split was exactly the thing that forced
- *  the three-tab define/value/pin dance the unification kills).
+ *  a game, whatever its subject.
  *
- *  `max` is a meter's DEFAULT ceiling (owner amendment): what a carrier gets when it has no
+ *  `max` is a meter's DEFAULT ceiling: what a carrier gets when it has no
  *  override, what the reminder teaches, and what the Game-tab editor edits. A carrier MAY deliberately differ
  *  (two characters with different Vitality ceilings — the d20 max-HP reality), which rides `RpgTrackerValue.max`
  *  and resolves through the ONE {@link trackerCeiling} home. `hint` is THE steering lever: a bare tracked number measurably does NOT move
- *  narration where a one-clause gloss does (R4b, Δ −0.12 vs −1.00), so it rides every model-facing surface —
+ *  narration where a one-clause gloss does, so it rides every model-facing surface —
  *  the reminder gloss, the delta line, and the write-surface tool description.
  *
- *  `locked` is R6 prevent-at-schema: a locked tracker is ABSENT from the write schema the model is handed
+ *  `locked` is prevent-at-schema: a locked tracker is ABSENT from the write schema the model is handed
  *  (the apply-time lock strip stays as the backstop, never the primary gate). `pinned` is the band. */
 export const rpgTrackerDefSchema = z
   .object({
@@ -84,21 +77,21 @@ export const rpgTrackerDefSchema = z
   .strip();
 export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
 
-/** ONE tracker's stored value, TOTAL by construction (every field always present — the weather-label lesson:
- *  the snapshot merge recurses into objects, so an omitted key would strand the PREVIOUS value on the new
+/** ONE tracker's stored value, TOTAL by construction (every field always present — the snapshot merge recurses
+ *  into objects, so an omitted key would strand the PREVIOUS value on the new
  *  one). Which field carries the datum is decided by the def's `shape`:
  *    • `meter` ⇒ `value` is a number
  *    • `text`  ⇒ `value` is a string
  *    • `list`  ⇒ `items` carries the lines (`value` null)
  *  A null across the board is an EXISTING-but-unset tracker (the carrier has it, the story hasn't moved it).
  *
- *  `max` is the PER-CARRIER CEILING OVERRIDE (owner amendment, restoring §5.2): `null` = this
+ *  `max` is the PER-CARRIER CEILING OVERRIDE: `null` = this
  *  carrier uses the def's default ceiling; a number = this carrier is DELIBERATELY different (Kael's Vitality
  *  tops out at 34 where the party default is 30 — the d20 max-HP reality, which `hp` has always modelled this
- *  way). The old drift class it was cut to kill is killed by an ANTI-DRIFT WRITE RULE instead of by absence:
- *  the override is written ONLY when it differs from the def's max, and a UI/tool edit that sets it back equal
- *  CLEARS it to null ({@link resolveTrackerMaxOverride}). So the two numbers can never quietly disagree about
- *  the same fact — a stored override always MEANS "different on purpose". Max stays HOST-AUTHORED: the model's
+ *  way). An ANTI-DRIFT WRITE RULE keeps the two numbers from quietly disagreeing: the override is written ONLY
+ *  when it differs from the def's max, and a UI/tool edit that sets it back equal
+ *  CLEARS it to null ({@link resolveTrackerMaxOverride}) — a stored override always MEANS "different on
+ *  purpose". Max stays HOST-AUTHORED: the model's
  *  write surface carries no max arm. Every read of a ceiling goes through {@link trackerCeiling}. */
 export const rpgTrackerValueSchema = z
   .object({
@@ -139,7 +132,7 @@ export function resolveTrackerMaxOverride(def: RpgTrackerDef, requested: number 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // The CLASS a concrete carrier belongs to — the `everyone` member is a def-side wildcard, never a carrier's
-//  own class, so it is excluded by derivation (never re-declared — spine §5.5). The caller classifies, because
+//  own class, so it is excluded by derivation (never re-declared). The caller classifies, because
 //  the caller is the one holding the `RpgActorRef`: participant identities (character/user) are `party`, scene
 //  `npc` actors are `npcs`.
 type RpgTrackerCarrierKind = Exclude<RpgTrackerCarrierClass, "everyone">;
@@ -179,24 +172,24 @@ function carriesTracker(def: RpgTrackerDef, carrier: RpgTrackerCarrier): boolean
 }
 
 /** The ONE tracker ordering: `sort` ascending, ties broken by `key` so the order is total + stable across
- *  reads (a set-order-dependent render is exactly the kind of drift the panel used to show). */
+ *  reads. */
 export function sortTrackers(defs: readonly RpgTrackerDef[]): readonly RpgTrackerDef[] {
   return defs.toSorted((a, b) => (a.sort !== b.sort ? a.sort - b.sort : a.key.localeCompare(b.key)));
 }
 
 /** Every tracker ONE actor effectively carries, in `sort` then declaration order (the actor-side read — "what
- *  does Kael have?"). This is what the panel renders per row AND what the R6 per-actor write schema offers. */
+ *  does Kael have?"). This is what the panel renders per row AND what the per-actor write schema offers. */
 export function trackersForCarrier(defs: readonly RpgTrackerDef[], carrier: RpgTrackerCarrier): readonly RpgTrackerDef[] {
   return sortTrackers(defs.filter((def) => carriesTracker(def, carrier)));
 }
 
-/** The game-subject trackers (the old custom widgets), in render order. */
+/** The game-subject trackers, in render order. */
 export function gameTrackers(defs: readonly RpgTrackerDef[]): readonly RpgTrackerDef[] {
   return sortTrackers(defs.filter((def) => def.subject === "game"));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// R6 — the WRITE surface: per-actor-aware tool assembly inputs.
+// THE WRITE surface: per-actor-aware tool assembly inputs.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // "The reminder is the model's knowledge; the tools are its permissions." The READ surface always shows every
 // tracker (incl. locked ones — the model narrates around them); the WRITE surface offers, PER TARGET ACTOR,
@@ -205,7 +198,7 @@ export function gameTrackers(defs: readonly RpgTrackerDef[]): readonly RpgTracke
 //
 // The mechanism is a GROUPED schema, not one branch per actor: actors whose writable-tracker sets are
 // IDENTICAL (the overwhelmingly common case — one `everyone` class) collapse into ONE group, so a plain game
-// projects to exactly the flat schema it had before, and only a game with genuinely divergent carrier sets
+// projects to a flat schema, and only a game with genuinely divergent carrier sets
 // pays for a `oneOf` branch per distinct set. Grammar cost tracks real divergence, never headcount.
 
 /** One write-surface group: the actor NAMES that share a writable-tracker set, plus that set split by the
@@ -217,12 +210,12 @@ export interface RpgTrackerWriteGroup {
   readonly setKeys: readonly string[];
 }
 
-/** The writable trackers for one carrier: carried AND not `locked` (R6 prevent-at-schema). */
+/** The writable trackers for one carrier: carried AND not `locked` (prevent-at-schema). */
 function writableTrackersFor(defs: readonly RpgTrackerDef[], carrier: RpgTrackerCarrier): readonly RpgTrackerDef[] {
   return trackersForCarrier(defs, carrier).filter((def) => !def.locked);
 }
 
-/** Build the per-call write-surface groups (R6). Carriers whose writable sets are identical collapse into one
+/** Build the per-call write-surface groups. Carriers whose writable sets are identical collapse into one
  *  group (keyed by the ordered key signature), preserving first-seen order so the projected schema is stable
  *  across calls — a per-call schema that reshuffles is a prompt-cache and xgrammar-compile miss for nothing. */
 export function buildTrackerWriteGroups(defs: readonly RpgTrackerDef[], carriers: readonly RpgTrackerCarrier[]): readonly RpgTrackerWriteGroup[] {
@@ -255,8 +248,7 @@ export function actorTrackerWriteKeys(defs: readonly RpgTrackerDef[]): { readonl
   };
 }
 
-/** The game-subject write surface: the unlocked game trackers split by the `write` axis (the retired
- *  `set_widget_value` arm, now `set_tracker`). */
+/** The game-subject write surface: the unlocked game trackers split by the `write` axis. */
 export function gameTrackerWriteKeys(defs: readonly RpgTrackerDef[]): { readonly deltaKeys: readonly string[]; readonly setKeys: readonly string[] } {
   const writable = gameTrackers(defs).filter((def) => !def.locked);
   return {
@@ -293,8 +285,7 @@ export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | unde
  *  The `attributeGloss` twin (same `label (hint)` grammar, same reason): the MEANING is taught ONCE per turn,
  *  and each carrier's line then carries only the `label value/max` {@link trackerReading}. Teaching the hint
  *  per carrier multiplied the host's prose by the party size, and — worse — a carrier with no reading yet
- *  glossed to nothing at all, so a freshly-defined tracker reached the model NOWHERE (the live-turn bug: a
- *  pinned `Corruption 0/100` visible on every Status card, absent from the whole reminder). */
+ *  glossed to nothing at all, so a freshly-defined tracker reached the model NOWHERE. */
 export function trackerVocabulary(def: RpgTrackerDef): string {
   return def.hint === "" ? def.label : `${def.label} (${def.hint})`;
 }
@@ -309,13 +300,13 @@ export function trackerNumber(value: RpgTrackerValue | undefined): number | null
     return Number.isFinite(raw) ? raw : null;
   }
   if (typeof raw === "string") {
-    // WHOLLY-NUMERIC OR NOTHING (and the contract this function always meant). It used to
-    // run `parseInt`, which is lenient in the two directions that are actually WRONG here:
+    // WHOLLY-NUMERIC OR NOTHING (and the contract this function always meant). A lenient read is wrong in the
+    // two directions that matter here:
     //   • PREFIX-STOP — `"5garbage"` read as `5`. That is fabrication, not leniency: the reading is
     //     indistinguishable from a meter the model genuinely set to 5, and it then feeds the delta
     //     applier. A value we cannot read is `null`, which every caller already handles ("no reading").
     //   • TRUNCATION — `"1.9"` read as `1`. The stored union is `number | string` and nothing downstream
-    //     needs an integer, so discarding the fraction threw away what the model actually said.
+    //     needs an integer, so discarding the fraction throws away what the model actually said.
     // A decimal literal only — no hex (`parseInt`'s `0x` arm), no exponent, no whitespace-only. `"5"`,
     // the case this function exists for (a model writing a number as text), still reads 5.
     return NUMERIC_LITERAL.test(raw.trim()) ? Number(raw.trim()) : null;

@@ -17,7 +17,7 @@ import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerArbiter, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
-import { isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../substrate/participant-actor.ts";
 import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
 /** Each candidate's "who is this" line in the prompt. */
@@ -65,7 +65,7 @@ interface SmartArbitrateParams {
   readonly sampling: RolePresetParams;
   /** The TURN's abort signal, threaded into the call so a box that never answers can be cut loose. No deadline
    *  rides alongside it ON PURPOSE: a slow local arbiter can legitimately take tens of seconds. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** A candidate as the model sees it, under its round `label`. */
@@ -134,7 +134,7 @@ const picked = (speakers: readonly SpeakerRef[]): SmartArbitrationResult => ({ s
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SmartArbitrationResult> {
   // Read the signal through a CALL: `signal.aborted` flips asynchronously, so a narrowed read would go stale.
-  const cancelled = (): boolean => params.signal?.aborted === true;
+  const cancelled = (): boolean => params.signal.aborted;
   if (cancelled()) {
     return CANCELLED;
   }
@@ -215,17 +215,17 @@ async function askArbiter(
   const responders = z.array(z.enum([choices[0].label, ...choices.slice(1).map((c) => c.label)]));
   const responseFormat: ResponseFormat = {
     name: RESPONSE_NAME,
-    schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) })),
+    schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) }).strip()),
   };
   const systemPrompt = resolveProseText("chat.arbiter.system", params.prose);
   const userPrompt = buildArbiterPrompt(params, choices, roster, arbiter.contextTokens);
   const reply = await runStructuredTurn({
-    payloadSchema: z.object({ responders }),
+    payloadSchema: z.object({ responders }).strip(),
     run: async (correction) => {
       const result = await arbiter.structured([{ systemPrompt, userPrompt: correction === undefined ? userPrompt : `${userPrompt}\n\n${correction}` }], {
         ...params.sampling,
         responseFormat,
-        ...(params.signal !== undefined ? { signal: params.signal } : {}),
+        signal: params.signal,
       });
       return result.items[0]?.text ?? "";
     },

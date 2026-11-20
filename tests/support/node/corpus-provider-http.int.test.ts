@@ -147,9 +147,9 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   expect(search.hits.map((hit) => hit.characterId).toSorted()).toEqual(pair.map((card) => card.id).toSorted());
   const generation = await root.app.embeddings.resolveGeneration(root.ownerId, "embed");
   const inputs = [query, "An unrelated cobalt ferry leaves the estuary."];
-  const batch = await generation.connection.embed(inputs, { inputType: "document" });
-  const single = await generation.connection.embed(query, { inputType: "query" });
-  const reordered = await generation.connection.embed(inputs.toReversed());
+  const batch = await generation.connection.embed(inputs, { signal: new AbortController().signal, inputType: "document" });
+  const single = await generation.connection.embed(query, { signal: new AbortController().signal, inputType: "query" });
+  const reordered = await generation.connection.embed(inputs.toReversed(), { signal: new AbortController().signal });
   expect(batch.vectors[0]).toEqual(single.vectors[0]);
   expect(reordered.vectors).toEqual(batch.vectors.toReversed());
   expect(batch.vectors[0]).not.toEqual(batch.vectors[1]);

@@ -18,6 +18,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
+import { REFINERY_BACK_TO_LATEST_NAME } from "../lib/refinery-names.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 export interface LaneBandProps {
@@ -71,7 +72,7 @@ export function LaneNotes({ viewingBack, iteration, behind, onBackToLatest }: La
         <>
           <RefineryChip tone="warn">Viewing round {iteration ?? 0} · superseded</RefineryChip>
           <Button variant="ghost" onClick={onBackToLatest} size="sm">
-            Back to latest
+            {REFINERY_BACK_TO_LATEST_NAME}
           </Button>
         </>
       ) : null}

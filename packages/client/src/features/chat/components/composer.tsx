@@ -9,18 +9,18 @@ import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
 import type { ComposerDraftWrite } from "#state";
-import { openImagine, setComposerDraft, useComposerDraft } from "#state";
+import { notePendingAttachments, openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
-import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
+import { useReplyFailureLine } from "../hooks/use-reply-failure-line.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
@@ -40,8 +40,10 @@ import { ComposerDropTarget } from "./composer-drop-target.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
+import { ComposerReplyFailureLine } from "./composer-reply-failure-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
+import { ComposerTailLine } from "./composer-tail-line.tsx";
 
 // Keep the transcript readable while a long draft scrolls inside the field.
 const COMPOSER_MAX_ROWS = 4;
@@ -104,17 +106,27 @@ export function Composer({
   const [slashHighlight, setSlashHighlight] = useState<number>(-1);
   const stopTurn = useStopTurn(chatId);
   const behaviorPrefs = useChatBehaviorPrefs();
-  const continueOnEmpty = useContinueTurn();
   // The honest-refusal pre-send gate (#54): when the chat's resolved connection can't deterministically serve
   // a turn, SEND + the guided fire actions disable with the cause-specific reason (never a doomed late-failing
   // turn). It reaches EVERY room now: the gate used to be structurally blind on the one surface where it
   // mattered most (a fresh chat had no row to check against, §2.6 #1) — the room has a row from frame one.
   const sendAvailability = useSendAvailability(chatId);
+  const stopping = stopTurn.phase === "stopping";
+  // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
+  const showStop = stopTurn.canStop || stopping;
+  const replyFailure = useReplyFailureLine({ chatId, refused: sendAvailability.unavailable, generating: showStop });
+  const { continueOnEmpty } = replyFailure;
+  const replyFailureId = useId();
   // While the next-turn line states the refusal it is the room's one statement of it: the band's own refusal
   // line stands down and every disabled control is described by the line.
   const nextTurnId = useId();
   const refusalStatedBy = nextTurnStatesRefusal(sendAvailability.cause) ? nextTurnId : undefined;
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
+  // A room deleted under this composer says whether staged files went with it, and only this count can tell it.
+  const attachmentCount = attachments.length;
+  useEffect(() => {
+    notePendingAttachments(chatId, attachmentCount);
+  }, [chatId, attachmentCount]);
 
   // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
   // and bumps this room's focus nonce; the hook focuses the textarea on every bump so the reader lands in
@@ -158,17 +170,13 @@ export function Composer({
   // extends the tail assistant reply; `generate` (W-E) prompts a fresh reply on a committed non-assistant
   // tail. Both are the keyboard equivalents of the ▷ Response icon.
   const emptySend = resolveEmptySendAction({
-    continueOnSend: behaviorPrefs.continueOnSend,
-    generateOnEmptySend: behaviorPrefs.generateOnEmptySend,
+    emptyEnterReplies: behaviorPrefs.emptyEnterReplies,
     tailRole,
     hasText: canSubmitText,
     chatId,
     tailAssistantMessageId,
   });
   const canEmptySend = emptySend !== null && !continueOnEmpty.isPending;
-  const stopping = stopTurn.phase === "stopping";
-  // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
-  const showStop = stopTurn.canStop || stopping;
 
   const placeholder = resolvePlaceholder(emptySend === null ? null : emptySend.kind);
 
@@ -415,7 +423,12 @@ export function Composer({
           }
         />
       </ComposerDropTarget>
+      <ComposerReplyFailureLine chatId={chatId} failure={replyFailure.failure} onRetry={replyFailure.retry} id={replyFailureId} />
       <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
+      <ComposerTailLine
+        chatId={chatId}
+        idle={!(showStop || sendMessage.isPending || continueOnEmpty.isPending || sendAvailability.unavailable || replyFailure.failure !== undefined)}
+      />
     </Stack>
   );
 }

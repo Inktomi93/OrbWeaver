@@ -7,6 +7,7 @@ import { CircleAlert, Icon, Info, TriangleAlert } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
 import { LENGTH_BASE_PX } from "#tokens";
+import { UNNAMED_LOG_NAME } from "./log-viewer-names.ts";
 import { logViewerBoxVariants, logViewerVariants } from "./variants.ts";
 
 const LOG_LINE_LEVELS = ["info", "warn", "error"] as const;
@@ -74,8 +75,7 @@ const NEAR_BOTTOM_SLACK_PX = 4;
 // being flushed first.
 const VIRTUAL_TAIL_SLACK_PX = 80;
 
-// A log that states no subject keeps the generic pair; one that does is named by it.
-const UNNAMED_LOG_NAME = "Log entries";
+// A log that states no subject keeps the generic pair with UNNAMED_LOG_NAME; one that does is named by it.
 const UNNAMED_LOG_SUBJECT = "log";
 
 export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants> {

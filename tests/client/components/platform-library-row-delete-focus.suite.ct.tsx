@@ -1,6 +1,8 @@
-import { ROW_DELETE_NAME } from "@orb/client/lib";
+import { ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RemovableRowsStory } from "./_library-list-rows-focus-stories.tsx";
 
 const STORY = "tests/client/components/_library-list-rows-focus-stories/RemovableRowsStory";
@@ -9,7 +11,7 @@ const IDS = ["a", "b", "c", "d"];
 async function confirmDelete(page: Page, id: string): Promise<void> {
   const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: `Row ${id}` });
   await row.hover();
-  await row.getByRole("button", { name: /^Actions for/u }).click();
+  await row.getByRole("button", { name: nameShape(rowActionsName) }).click();
   await page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
 }
 
@@ -27,12 +29,12 @@ test("confirming a delete in a virtualized list hands focus to the next row, the
 test("a cancelled delete returns focus to its own trigger", async ({ page, mount }) => {
   await mount<typeof RemovableRowsStory>(STORY, { ids: IDS });
   await confirmDelete(page, "b");
-  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(
     page
       .locator('[data-slot="list-row-root"]')
       .filter({ hasText: "Row b" })
-      .getByRole("button", { name: /^Actions for/u }),
+      .getByRole("button", { name: nameShape(rowActionsName) }),
   ).toBeFocused();
 });
 

@@ -27,6 +27,7 @@
 
 import type { BrowseSort } from "@orb/contracts/discovery";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Library } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -39,10 +40,19 @@ import { useId, useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
-import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, testId } from "#lib";
+import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, NO_MATCHES_TITLE, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
-import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
+import {
+  CORPUS_CLEAR_FILTERS_NAME,
+  CORPUS_DISTILLED_CATALOG_NAME,
+  CORPUS_FILTERED_MISS_TEXT,
+  CORPUS_NOT_DISTILLED_TEXT,
+  CORPUS_PARAM_NAMES,
+  CORPUS_READ_LABELS,
+  CORPUS_SORTING_DOOR_NAME,
+  corpusFacetOptionLabel,
+} from "../lib/corpus-control-names.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -95,7 +105,7 @@ export function CorpusBrowseView(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your catalog filters" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.catalogFilters} onRetry={retry} />}
       resetKeys={[]}
     >
       <CorpusBrowseBody />
@@ -111,6 +121,13 @@ function CorpusBrowseBody(): ReactElement {
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
   const noChoiceNoteId = useId();
+  // The four facets narrow the catalog; the sort only orders it, so it stays through a clear.
+  const clearFilters = (): void => {
+    setGenre(ANY_VALUE);
+    setTone(ANY_VALUE);
+    setSetting(ANY_VALUE);
+    setTag(ANY_VALUE);
+  };
   const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
   const [{ data: facets }, { data: catalog }] = useSuspenseQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
@@ -130,11 +147,17 @@ function CorpusBrowseBody(): ReactElement {
   return (
     <Stack minHeight="shrinks" grow={true} data-testid={testId("corpusBrowseView")} gap="block">
       <Row align="center" gap="field" wrap={true}>
-        <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} unavailableNote={noChoice(genreItems)} />
+        <ParamSelect label={CORPUS_PARAM_NAMES.genre} value={genre} items={genreItems} onValueChange={setGenre} unavailableNote={noChoice(genreItems)} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} unavailableNote={noChoice(toneItems)} />
-        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} unavailableNote={noChoice(settingItems)} />
+        <ParamSelect
+          label={CORPUS_PARAM_NAMES.setting}
+          value={setting}
+          items={settingItems}
+          onValueChange={setSetting}
+          unavailableNote={noChoice(settingItems)}
+        />
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} unavailableNote={noChoice(tagItems)} />
-        <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
+        <ParamSelect label={CORPUS_PARAM_NAMES.sort} value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
       {anyFacetEmpty ? (
         <Text id={noChoiceNoteId} voice="gloss">
@@ -143,6 +166,7 @@ function CorpusBrowseBody(): ReactElement {
       ) : null}
       <BrowseRows
         collection={collection}
+        onClearFilters={clearFilters}
         // An UNDISTILLED library and an over-narrow filter both produce zero rows and used to read the same
         // ("No characters match — distill your library, or loosen the filters"), which asks a first-run user
         // to loosen filters they never set (side-eye 2026-08-08 P1-2). `catalog.totalDistilled` is the
@@ -156,9 +180,11 @@ function CorpusBrowseBody(): ReactElement {
 function BrowseRows({
   collection,
   distilled,
+  onClearFilters,
 }: {
   readonly collection: ReturnType<typeof useCorpusBrowseCollection>;
   readonly distilled: boolean;
+  readonly onClearFilters: () => void;
 }): ReactElement {
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -168,10 +194,16 @@ function BrowseRows({
   }
   if (collection.items.length === 0) {
     return distilled ? (
-      <Stack align="center" padding="block" gap="field">
-        <Icon icon={Library} size="lg" />
-        <Text>No characters match: loosen the filters.</Text>
-      </Stack>
+      <EmptyState
+        action={
+          <Button variant="outline" size="sm" onClick={onClearFilters}>
+            {CORPUS_CLEAR_FILTERS_NAME}
+          </Button>
+        }
+        description={CORPUS_FILTERED_MISS_TEXT}
+        icon={<Icon icon={Library} size="lg" />}
+        title={NO_MATCHES_TITLE}
+      />
     ) : (
       // The overview owns the run control; this door reaches it when the finder is the phone screen.
       <Stack gap="field" align="center">
@@ -206,7 +238,7 @@ function BrowseRows({
 
 function BrowseCharacterRow({ row, titleQualifier }: { readonly row: BrowseRow; readonly titleQualifier: string | undefined }): ReactElement {
   const facet = characterFacetLine(row.genre, row.tone, row.setting);
-  const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
+  const subtitle = row.elevatorPitch ?? (facet === "" ? CORPUS_NOT_DISTILLED_TEXT : facet);
   return (
     <ListRow
       clickable={true}
@@ -221,5 +253,5 @@ function BrowseCharacterRow({ row, titleQualifier }: { readonly row: BrowseRow; 
 }
 
 function toSelectItems(allLabel: string, values: readonly { readonly value: string; readonly count: number }[]): SelectItems {
-  return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: `${v.value} (${v.count})` }))];
+  return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: corpusFacetOptionLabel(v.value, v.count) }))];
 }

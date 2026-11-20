@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-09
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-From the cb-reach-audit code review report under reports/code-reviewer: a singular and a bulk workload schedule of one kind, cadence and owner share every name; a foreign schedule row carries no owner handle until admin.listUsers resolves; ButtonWrapContext crosses portals, so a dialog opened from an EmptyState action would wrap its Buttons; the coarse-pointer gap change and the text-columns test wording; the ink-end probe branch is not pinned by a fixture; an isVisible filter in the walker change is not stated in its commit. The shared-owner branch also changes visible schedule and empty-state copy and layout, which needs one ux-reviewer look.
+From the reach and audit code review, still open after the schedule name collision was fixed: a foreign schedule row carries no owner handle until the admin user list resolves; `ButtonWrapContext` crosses portals, so a dialog opened from an `EmptyState` action wraps its Buttons, and the RPG Journal composer and the New quest row now sit in such an action slot; the coarse-pointer gap change and the text-columns test wording; the ink-end probe branch is not pinned by a fixture. The schedule and empty-state copy and layout from the shared-owner work need one rendered look.
 
 ## Why
 
@@ -19,7 +19,7 @@ Each leaves a name collision, a leak path or an unpinned detector branch that th
 
 ## Done when
 
-Each finding is fixed with a CT or fixture, or answered with a cited reason in this item's Evidence, and the schedule and empty-state changes get one rendered ux-reviewer pass.
+Each finding is fixed with a component test or a fixture, or answered with a cited reason in this item's Evidence, and the schedule rows and the RPG empty states get one rendered ux-reviewer pass.
 
 ## Evidence
 

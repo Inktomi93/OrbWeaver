@@ -9,6 +9,7 @@
 // One resolve feeding both halves is the fix; these cases are its lens.
 
 import { expect, test } from "@orb/testkit/tooling";
+import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {
@@ -70,6 +71,22 @@ test("resolveFixtureTarget keeps the default port when the override URL is unpar
   const target = resolveFixtureTarget({ serverUrl: "not-a-url" }, {});
   expect(target.serverUrl).toBe("not-a-url");
   expect(target.serverPort).toBe(FIXTURE_PORTS.server);
+});
+
+// The refusal is the credential door's, which the flags already pass: userinfo on an env origin would reach the
+// probe's URL and the browser's navigation, so it never resolves into a target.
+test.each([
+  ["SNAP_FIXTURE_SERVER_URL", "http://operator:hunter2@127.0.0.1:9001", "http://localhost:9002"],
+  ["SNAP_FIXTURE_BASE_URL", "http://127.0.0.1:9001", "http://operator:hunter2@localhost:9002"],
+])("resolveFixtureTarget refuses userinfo in %s and quotes none of it", (variable, serverUrl, baseUrl) => {
+  const refusal = (): unknown => resolveFixtureTarget({}, fixtureEnv(serverUrl, baseUrl));
+  expect(refusal).toThrow(UsageError);
+  expect(refusal).toThrow(variable);
+  for (const secret of ["operator", "hunter2", "b3BlcmF0b3I6aHVudGVyMg"]) {
+    expect(refusal).not.toThrow(secret);
+  }
+  // Positive control: the same pair without userinfo resolves.
+  expect(resolveFixtureTarget({}, fixtureEnv("http://127.0.0.1:9001", "http://localhost:9002")).serverUrl).toBe("http://127.0.0.1:9001");
 });
 
 // ── the recipe this door probes is the stack tool's own ──────────────────────────────────────────────────

@@ -17,7 +17,7 @@ import { Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { Tip } from "#components";
+import { MutedLine, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -25,7 +25,6 @@ import { useDismissActor, useEditSnapshot, usePatchActor, usePromoteActor, useRe
 import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgChoiceEcho } from "./rpg-choice-echo.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgSceneCards } from "./rpg-scene-cards.tsx";
@@ -275,9 +274,9 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
     return null;
   }
   return (
-    <RpgDoorwayLine actionLabel={resync.isPending ? "Resyncing…" : "Resync from story →"} onAction={(): void => resync.mutate({ chatId: state.chatId })}>
+    <MutedLine action={{ label: resync.isPending ? "Resyncing…" : "Resync from story →", onAction: (): void => resync.mutate({ chatId: state.chatId }) }}>
       Panel out of sync with the story?
-    </RpgDoorwayLine>
+    </MutedLine>
   );
 }
 

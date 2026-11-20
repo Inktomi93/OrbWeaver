@@ -3,6 +3,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { homeResumeChatName } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { HomeGridRefStory } from "./_grid-ref-stories.tsx";
 
 const NAMES = [
@@ -37,7 +38,7 @@ for (const device of [
           },
         });
         await mount<typeof HomeGridRefStory>("tests/client/features/home/surfaces/_grid-ref-stories/HomeGridRefStory", { width: device.width });
-        const resume = page.getByRole("button", { name: `Resume ${name.title}`, exact: true });
+        const resume = page.getByRole("button", { name: homeResumeChatName(name.title), exact: true });
         await expect(resume).toBeVisible();
         const title = resume.getByText(name.title, { exact: true });
         await expect(title).toBeVisible();

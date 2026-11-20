@@ -8,7 +8,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
  * is not), and this pair is their ONE home.
  *
  * Every entry into the dispatch engine derives its key here rather than spelling the string: the bus door
- * (`substrate/handle-event.ts`), the host's "Run now" and the S4 invitation confirm (`substrate/run-now.ts`),
+ * (`engine/handle-event.ts`), the host's "Run now" and the S4 invitation confirm (`substrate/run-now.ts`),
  * and the stashed-arm confirm (`verbs/confirm-suggestion.ts`). A re-spelling is how two of those four end up
  * on lanes that only LOOK like the same lane — which is exactly the shape of the defect they exist to close
  * (a host's Run-now read-modify-writing the chat variable plane beside a bus fire).

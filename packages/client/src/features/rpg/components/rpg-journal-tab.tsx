@@ -30,25 +30,43 @@ import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, Pin } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { EmptyState } from "@orb/ui/empty-state";
+import { BookOpen, Icon, Pin } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DestructiveAction, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
+import {
+  QueryErrorState,
+  roomRosterOptions,
+  roomTailOptions,
+  SkeletonRows,
+  useInvalidation,
+  useRenderPolicyFloor,
+  useSuspenseQueries,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { collectArchivedCards } from "../lib/archived-cards.ts";
 import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
+import {
+  RPG_CARD_ARCHIVE_READ_LABEL,
+  RPG_JOURNAL_ADD_ENTRY_NAME,
+  RPG_JOURNAL_EMPTY_DESCRIPTION,
+  RPG_JOURNAL_EMPTY_TITLE,
+  RPG_JOURNAL_NO_CARDS_LINE,
+  RPG_JOURNAL_SCOPE_LABELS,
+} from "../lib/rpg-names.ts";
 import type { BeatEdit } from "./rpg-beat-row.tsx";
 import { BeatRow } from "./rpg-beat-row.tsx";
 import { RpgCardRow } from "./rpg-card-row.tsx";
@@ -102,7 +120,7 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
           floor="third"
         />
       }
-      actions={[{ key: "entry", label: "Add entry", onAdd: (title: string): void => onCreate({ type, title }) }]}
+      actions={[{ key: "entry", label: RPG_JOURNAL_ADD_ENTRY_NAME, onAdd: (title: string): void => onCreate({ type, title }) }]}
     />
   );
 }
@@ -138,12 +156,14 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     : undefined;
 
   if (entries.length === 0 && cards.length === 0) {
-    // No dead end: the empty chronicle still offers the host the first page.
+    // No dead end: the empty chronicle still offers the host the first page. A member has no verb that writes one.
     return (
-      <Stack gap="section">
-        <Text>Nothing chronicled yet: {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}</Text>
-        {composer}
-      </Stack>
+      <EmptyState
+        action={composer}
+        description={state.isHost ? RPG_JOURNAL_EMPTY_DESCRIPTION.host : RPG_JOURNAL_EMPTY_DESCRIPTION.member}
+        icon={<Icon icon={BookOpen} size="lg" />}
+        title={RPG_JOURNAL_EMPTY_TITLE}
+      />
     );
   }
 
@@ -188,7 +208,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
-    return <Text>No cards yet: the story crafts them.</Text>;
+    return <MutedLine>{RPG_JOURNAL_NO_CARDS_LINE}</MutedLine>;
   }
   const newestFirst = cards.toSorted((a, b) => b.createdAt - a.createdAt);
   return (
@@ -213,9 +233,17 @@ function ArchivedCards({
 }): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
-    queries: [trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), trpc.chat.getChat.queryOptions({ chatId: state.chatId })],
+    queries: [roomTailOptions(trpc, { chatId: state.chatId }), roomRosterOptions(trpc, { chatId: state.chatId })],
   });
-  return children(collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: state.viewerUserId }));
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
+  return children(
+    collectArchivedCards(messages.messages, {
+      participants: chat.participants,
+      narrator: chat.narratorRender,
+      viewerUserId: state.viewerUserId,
+      installForbidsExternalMedia,
+    }),
+  );
 }
 
 function CardArchive({
@@ -229,11 +257,17 @@ function CardArchive({
     <QueryBoundary
       resetKeys={[state.chatId]}
       fallback={<SkeletonRows count={JOURNAL_CARDS_PENDING_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={RPG_CARD_ARCHIVE_READ_LABEL} onRetry={retry} />}
     >
       <ArchivedCards state={state}>{children}</ArchivedCards>
     </QueryBoundary>
   );
+}
+
+/** A mark's scent: when it was made, then how, when it was not made by hand. */
+function markSubtitle(createdAt: number, trigger: string | null): string {
+  const date = timeLib.formatDate(createdAt);
+  return trigger === null ? date : `${date} · ${trigger}`;
 }
 
 function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElement {
@@ -257,29 +291,17 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : null}
 
       {sorted.length === 0 ? (
-        <Text>No marks yet{state.isHost ? ". Mark a moment to bookmark this point in the story." : "."}</Text>
+        <MutedLine>{`No marks yet${state.isHost ? ". Mark a moment to bookmark this point in the story." : "."}`}</MutedLine>
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (
-            <Card key={mark.id}>
-              <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
-                <Icon icon={Pin} size="xs" ink="muted" />
-                <Stack gap="field" className="min-inline-0" grow={true}>
-                  <Text as="span" voice="label" truncate={true}>
-                    {mark.label}
-                  </Text>
-                  <Row gap="field" align="baseline">
-                    <Text as="span" voice="gloss">
-                      {timeLib.formatDate(mark.createdAt)}
-                    </Text>
-                    {CHECKPOINT_TRIGGER_LABELS[mark.trigger] === null ? null : (
-                      <Text as="span" voice="gloss" data-slot="rpg-mark-trigger">
-                        {CHECKPOINT_TRIGGER_LABELS[mark.trigger]}
-                      </Text>
-                    )}
-                  </Row>
-                </Stack>
-                {state.isHost ? (
+            <ListRow
+              key={mark.id}
+              leading={<Icon icon={Pin} size="xs" ink="muted" />}
+              title={mark.label}
+              subtitle={markSubtitle(mark.createdAt, CHECKPOINT_TRIGGER_LABELS[mark.trigger])}
+              actions={
+                state.isHost ? (
                   <DestructiveAction
                     confirm={{
                       title: `Restore "${mark.label}"?`,
@@ -297,9 +319,9 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                       </Button>
                     }
                   />
-                ) : null}
-              </Row>
-            </Card>
+                ) : undefined
+              }
+            />
           ))}
         </Stack>
       )}
@@ -317,12 +339,18 @@ const NO_CARDS: readonly ArchivedCard[] = [];
  *  both reads settle, so the entries and the host's composer never wait on, or blank for, the transcript. */
 function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: RpgPanelState; readonly cardsEnabled: boolean }): ReactElement {
   const trpc = useTRPC();
-  const messages = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  const chat = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const messages = useQuery({ ...roomTailOptions(trpc, { chatId: state.chatId }), enabled: cardsEnabled });
+  const chat = useQuery({ ...roomRosterOptions(trpc, { chatId: state.chatId }), enabled: cardsEnabled });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const cards =
     messages.data === undefined || chat.data === undefined
       ? NO_CARDS
-      : collectArchivedCards(messages.data.messages, { participants: chat.data.participants, viewerUserId: state.viewerUserId });
+      : collectArchivedCards(messages.data.messages, {
+          participants: chat.data.participants,
+          narrator: chat.data.narratorRender,
+          viewerUserId: state.viewerUserId,
+          installForbidsExternalMedia,
+        });
   return <JournalEntries state={state} cards={cards} />;
 }
 
@@ -352,10 +380,10 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
           }
         }}
       >
-        <Toggle value="all">All</Toggle>
-        <Toggle value="marks">Marks</Toggle>
+        <Toggle value="all">{RPG_JOURNAL_SCOPE_LABELS.all}</Toggle>
+        <Toggle value="marks">{RPG_JOURNAL_SCOPE_LABELS.marks}</Toggle>
         {/* APPLICABILITY-omit: a game without immersive cards has no Cards scope (never a disabled twin). */}
-        {cardsEnabled ? <Toggle value="cards">Cards</Toggle> : null}
+        {cardsEnabled ? <Toggle value="cards">{RPG_JOURNAL_SCOPE_LABELS.cards}</Toggle> : null}
       </ToggleGroup>
       {SCOPE_BODY[effectiveScope](state, cardsEnabled)}
     </Stack>

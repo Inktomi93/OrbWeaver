@@ -43,12 +43,6 @@ export const useUpdateDatabank = createEntityMutation<SectionPatchVars<"databank
   errorToast: "Couldn't save your databank settings.",
 });
 
-export const useUpdateImagery = createEntityMutation<SectionPatchVars<"imagery">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your image-prompt templates.",
-});
-
 export const useUpdateProse = createEntityMutation<SectionPatchVars<"prose">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.

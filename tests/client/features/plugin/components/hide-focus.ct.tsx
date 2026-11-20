@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
+import { CHAT_PLUGINS_TAB_LABEL, contentRegionName } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -53,5 +53,5 @@ test("hiding the final plugin panel returns focus to the shell Chats main region
   await expect(page.getByText("Focus panel content", { exact: true })).toBeVisible();
   await hide.click();
   await expect(hide).toHaveCount(0);
-  await expect(page.getByRole("main", { name: `${SECTION_LABELS.chats} content`, exact: true })).toBeFocused();
+  await expect(page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true })).toBeFocused();
 });

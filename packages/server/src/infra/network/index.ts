@@ -6,7 +6,7 @@
 // trust precedence, anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
 // the transport seam. The IP certificate's https listener (`tls-terminator.ts`) forwards to the app as a loopback hop.
 
-export type { SafeFetch, SafeFetchResult, ScopedEgress, ScopedEgressOptions } from "./contract/egress.ts";
+export type { EgressAllowlistWarning, SafeFetch, SafeFetchResult, ScopedEgress, ScopedEgressOptions } from "./contract/egress.ts";
 export type { NativeHttpBindings } from "./contract/http-server.ts";
 export type { PhysicalPeerRead } from "./contract/ingress.ts";
 export type { PluginGitSource } from "./contract/plugin-git.ts";
@@ -15,6 +15,7 @@ export {
   ANY_HOST,
   createScopedEgress,
   EgressBlockedError,
+  egressAllowlistWarnings,
   installEgressFirewall,
   isRecordedEgressBlock,
   systemConnector,
@@ -31,7 +32,6 @@ export {
   isTrustedHop,
   parseAllowlist,
   peerIp,
-  trustedProxiesOf,
 } from "./ingress.ts";
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
 export { createNetworkPluginGitSource } from "./plugin-git.ts";

@@ -20,16 +20,20 @@ import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { loadResultPairs } from "../../floor/host/load-budget.ts";
 import { printVerdictReceipt } from "../../floor/verdict/evidence.ts";
 import type { SnapAppearanceContract, SnapAppearanceMatrix, SnapMatrixVariant } from "../contract/matrix.ts";
-import type { SnapDetailedResult, SnapRunReceipt } from "../contract/run.ts";
+import type { SnapDetailedPlan, SnapDetailedResult, SnapRunReceipt } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import type { AppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { aggregateAppearance, reconcileAppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { shouldProduceShot, variantOut } from "../lib/out-names.ts";
 import { sameAppearanceReceiptPopulation } from "./appearance-invariants.ts";
+import { contextsIn } from "./browser-source.ts";
 import { navigate, settlePage } from "./drive.ts";
 import { snapDestination } from "./guards.ts";
 import { appearancePolicyIdForRequirement, historicalRowsForCell, planSnapAppearanceMatrix, snapMatrixVariant } from "./matrix-contract.ts";
 import { runMotionMatrix } from "./matrix-motion.ts";
+import type { MatrixRoom } from "./matrix-room.ts";
+import { provisionMatrixRoom } from "./matrix-room.ts";
 import type { ScenarioMatrixAggregate } from "./matrix-scenario.ts";
 import { reconcileScenarioMatrixEvidence, scenarioMatrixCellEvidence } from "./matrix-scenario.ts";
 import { runOnSession, runSnapDetailed } from "./run.ts";
@@ -96,7 +100,7 @@ async function discoverMatrixInputs(opts: Args, baseName: string, host: ProbeSes
   const args = discoveryArgs(opts);
   if (host !== null) {
     const name = `${baseName}-matrix-discovery`;
-    const opened = await openSnapMatrixContext(host, args);
+    const opened = await openSnapMatrixContext(host, args, "owner");
     try {
       return await readMatrixDiscovery(opened.session, args);
     } finally {
@@ -126,19 +130,17 @@ async function runMatrixSessionCell(
   host: ProbeSession,
   runArgs: Args,
   variant: SnapMatrixVariant,
-  appearanceRows: SnapAppearanceMatrix["historicalRows"],
+  detailedPlan: SnapDetailedPlan,
 ): Promise<SnapDetailedResult> {
-  const opened = await openSnapMatrixContext(host, runArgs);
+  // The daemon launched its browser with every provision a cell may ask for, so a cell never asks for more here.
+  const cell = await contextsIn(host, "owner").open(runArgs, { requireCascadeRuntime: false });
   const destination = snapDestination(runArgs);
   try {
     if (runArgs.scenario !== null) {
-      return await runScenarioDetailed(runArgs, {
-        session: opened.session,
-        finish: async (red, name, enabled) => await finishSnapContext(opened.context, red, name, enabled),
-      });
+      return await runScenarioDetailed(runArgs, cell);
     }
     return await runOnSession(
-      opened.session,
+      cell.session,
       runArgs,
       {
         url: destination.url,
@@ -150,13 +152,12 @@ async function runMatrixSessionCell(
       },
       {
         window: null,
-        detailedPlan: { appearanceRows },
-        finish: async (red) => await finishSnapContext(opened.context, red, variant.id, runArgs.failureEvidence),
+        detailedPlan,
+        finish: async (red) => await cell.finish(red, variant.id, runArgs.failureEvidence),
       },
     );
   } catch (error) {
-    await opened.context.context.close();
-    throw error;
+    return await cell.abandon(error);
   }
 }
 
@@ -167,21 +168,30 @@ function describeVariantArm(variant: SnapMatrixVariant): string {
   return `${environment}\n  appearance  : ${JSON.stringify(variant.appearance)}`;
 }
 
-async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearanceMatrix, host: ProbeSession | null): Promise<readonly MatrixCellResult[]> {
+interface MatrixCellsInput {
+  readonly opts: Args;
+  readonly baseName: string;
+  readonly matrix: SnapAppearanceMatrix;
+  readonly host: ProbeSession | null;
+  readonly chatRoom: string | null;
+}
+
+async function runMatrixCells({ opts, baseName, matrix, host, chatRoom }: MatrixCellsInput): Promise<readonly MatrixCellResult[]> {
   const results: MatrixCellResult[] = [];
   for (const [index, cell] of matrix.plan.cells.entries()) {
     const variant = snapMatrixVariant(matrix, cell, index);
     const runArgs = runArgsForVariant(opts, baseName, variant);
     print(`\n========== MATRIX ${variant.id} ==========`);
     const appearanceRows = runArgs.scenario === null ? historicalRowsForCell(matrix, cell.id) : [];
+    const detailedPlan: SnapDetailedPlan = { appearanceRows, chatRoom };
     let result: SnapDetailedResult;
     try {
       if (host !== null) {
-        result = await runMatrixSessionCell(host, runArgs, variant, appearanceRows);
+        result = await runMatrixSessionCell(host, runArgs, variant, detailedPlan);
       } else if (runArgs.scenario !== null) {
         result = await runScenarioDetailed(runArgs);
       } else {
-        result = await runSnapDetailed(runArgs, { appearanceRows });
+        result = await runSnapDetailed(runArgs, detailedPlan);
       }
     } catch (error) {
       // A CELL THAT DIES NAMES THE ARM IT WAS ASKED TO RENDER (#2437). The id `v05-7a703524b79e` is a
@@ -292,9 +302,15 @@ async function finishScenarioMatrix({ opts, baseName, discovery, matrix, cells }
   return terminal.exit;
 }
 
-async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry, ThemeEntry] | null, host: ProbeSession | null): Promise<number> {
+/** What the stage fixtures gave the run: the two rated custom themes and the room the chat rows open. */
+interface MatrixStageFixtures {
+  readonly preferredCustom: readonly [ThemeEntry, ThemeEntry] | null;
+  readonly chatRoom: string | null;
+}
+
+async function runRatedMatrix(opts: Args, { preferredCustom, chatRoom }: MatrixStageFixtures, host: ProbeSession | null): Promise<number> {
   const destination = snapDestination(opts);
-  const baseName = opts.out ?? (opts.scenario === null ? routeSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
+  const baseName = opts.out ?? (opts.scenario === null ? routeArtifactSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
   const discovery = await discoverMatrixInputs(opts, baseName, host);
   if (opts.motion) {
     return await runMotionMatrix(opts, baseName, discovery, host);
@@ -308,12 +324,12 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
     return instrumentRefusal("matrix discovery found no background-library asset to paint the `asset` Appearance arm with");
   }
   const matrix = planSnapAppearanceMatrix(discovery.contract, discovery.themes, preferredCustom, background);
-  print(`MATRIX PLAN  target=${destination.url} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
+  print(`MATRIX PLAN  target=${diskSafeUrl(destination.url)} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
   print(
     `MATRIX INPUT declared=${discovery.contract.declared} executable=${discovery.contract.executable} dependencies=${discovery.contract.dependencies} ` +
       `reached-rows=${discovery.reachedRows} reached-subjects=${discovery.reachedSubjects} themes=${discovery.themes.length}`,
   );
-  const cells = await runMatrixCells(opts, baseName, matrix, host);
+  const cells = await runMatrixCells({ opts, baseName, matrix, host, chatRoom });
   if (opts.scenario !== null) {
     return await finishScenarioMatrix({ opts, baseName, discovery, matrix, cells });
   }
@@ -397,22 +413,32 @@ export async function snapMatrix(opts: Args): Promise<number> {
  *  aggregate output stay byte-for-byte on the ordinary matrix path. */
 export async function snapMatrixOnSession(opts: Args, host: ProbeSession | null): Promise<number> {
   let fixture: Awaited<ReturnType<typeof provisionRatedStageThemes>> = null;
+  let room: MatrixRoom | null = null;
   let verdict: number = EXIT.toolError;
-  // the failure is printed as INSTRUMENT ERROR and `verdict` keeps its EXIT.toolError initializer (matrix.ts:400), which snapMatrixOnSession returns at :417. Ends if `verdict` stops starting at toolError or the print goes.
+  // the failure is printed as INSTRUMENT ERROR and `verdict` keeps its EXIT.toolError initializer, which snapMatrixOnSession returns below. Ends if `verdict` stops starting at toolError or the print goes.
   try {
     fixture = opts.motion ? null : await provisionRatedStageThemes(opts.base, opts.isolated);
-    verdict = await runRatedMatrix(opts, fixture?.entries ?? null, host);
+    room = opts.motion ? null : await provisionMatrixRoom(opts.base, opts.isolated);
+    verdict = await runRatedMatrix(opts, { preferredCustom: fixture?.entries ?? null, chatRoom: room?.chatId ?? null }, host);
   } catch (error) {
     print(`INSTRUMENT ERROR  snap matrix discovery/planning failed: ${errorMessage(error)}`);
   }
-  if (fixture !== null) {
-    // the cleanup failure is printed as INSTRUMENT ERROR and the catch assigns `verdict = EXIT.toolError` (matrix.ts:414), returned at :417. Ends if that assignment or the print goes.
-    try {
-      await fixture.cleanup();
-    } catch (error) {
-      print(`INSTRUMENT ERROR  snap matrix rated-theme cleanup failed: ${errorMessage(error)}`);
-      verdict = EXIT.toolError;
-    }
+  const themesCleaned = await cleanUpStageFixture("rated-theme", fixture);
+  const roomCleaned = await cleanUpStageFixture("matrix room", room);
+  return themesCleaned && roomCleaned ? verdict : EXIT.toolError;
+}
+
+/** Run one stage fixture's cleanup. False means it failed, and the INSTRUMENT ERROR line names which one. */
+async function cleanUpStageFixture(label: string, owned: { readonly cleanup: () => Promise<void> } | null): Promise<boolean> {
+  if (owned === null) {
+    return true;
   }
-  return verdict;
+  // the cleanup failure is printed as INSTRUMENT ERROR and the false return turns the matrix verdict into EXIT.toolError. Ends if the caller stops reading the return.
+  try {
+    await owned.cleanup();
+    return true;
+  } catch (error) {
+    print(`INSTRUMENT ERROR  snap matrix ${label} cleanup failed: ${errorMessage(error)}`);
+    return false;
+  }
 }

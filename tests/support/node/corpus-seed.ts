@@ -17,6 +17,7 @@ import { corpusReadInput } from "../iso/corpus.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import { captureCorpusRead } from "./corpus-capture.ts";
 import { settleActiveWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -154,6 +155,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   const world = await captureWorldBookRows(root.db, book.id);
   await settleActiveWorkloads(root);
   const document = await seedDocumentRows(root, {
+    signal: new AbortController().signal,
     principal,
     name: "Orbital ledger source",
     text: "The orbital ledger preserves the witness names and the completed loom scenes.",
@@ -202,19 +204,19 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   if (descriptor === undefined) {
     throw new Error("native library corpus has no preset export descriptor");
   }
-  let fileText: string | undefined;
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  let exported: { readonly fileText: string; readonly fileName: string } | undefined;
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === branchedPreset.view.name) {
-      fileText = text;
+      exported = { fileText: text, fileName: file.filename };
       break;
     }
   }
-  if (fileText === undefined) {
+  if (exported === undefined) {
     throw new Error("native preset export omitted the produced library branch");
   }
-  const importedPreset = await seedImportedPresetRows(root, root.ownerId, { fileText });
+  const importedPreset = await seedImportedPresetRows(root, root.ownerId, exported);
   const roster = await seedRosterPresetRows(root, {
     principal,
     input: createRosterPresetSchema.parse({

@@ -17,13 +17,14 @@ import type {
   MessageAssetOrigin,
   MessageKind,
   MessageView,
+  RoomClaim,
   TokenProvenance,
   ToolCallRecord,
   TurnInitiator,
   UserMacroDraws,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
@@ -48,12 +49,13 @@ export function isRetainedParentFenceViolation(error: unknown): boolean {
   return violation?.kind === "not-null" && violation.statementIndex === 0;
 }
 
-/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. */
-export function retainedChatFenceStatement(db: Db, selection: SQL): BatchStmt {
+/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. The
+ *  stamps are the insert's required values only: the conflict arm keeps the existing row, so they are never stored. */
+export function retainedChatFenceStatement(db: Db, selection: SQL, now: number): BatchStmt {
   return batchStmt(
     db
       .insert(chats)
-      .values({ id: sql`(${selection})` })
+      .values({ id: sql`(${selection})`, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: chats.id, set: { id: sql`excluded.id` } }),
   );
 }
@@ -208,7 +210,7 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
   const connectionId = v.connectionId ?? null;
   return {
     content: v.content,
-    reasoning: v.reasoning ?? null,
+    reasoning: checkedText("reasoning", v.reasoning ?? null),
     model: v.model ?? null,
     provider: v.provider ?? null,
     connectionId,
@@ -254,19 +256,47 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
 
 type CanonBodyColumns = Pick<typeof messageVariants.$inferSelect, "content" | "rawContent" | "macroFreezes">;
 
+// ── THE TEXT CAP ─────────────────────────────────────────────────────────────────────────────────────────
+// Every text column a builder below writes passes `checkedText`, so every live canon writer (a send, a reply, a
+// continue, an edit, a freeze, a narrator or image post, a greeting seed) meets one cap on the final stored bytes,
+// after every macro and regex pass. A refusal throws while the statements are built, so the batch never runs and
+// nothing is stored. The two writers outside this file: `import-write.ts` checks each imported row itself, and
+// `verbs/fork.ts` copies rows that already passed (its member strips only remove spans).
+type CappedTextColumn = keyof Pick<
+  typeof messageVariants.$inferSelect,
+  "content" | "rawContent" | "reasoning" | "preContinueContent" | "preContinueReasoning" | "lastContinuationContent" | "lastContinuationReasoning"
+>;
+
+/** The one refusal for a text over `MESSAGE_TEXT_MAX_CHARS`, shared by the builders here and the turn engine's
+ *  stream stop, so a caller meets the same code and detail whichever one fired. */
+export function messageTooLongError(column: CappedTextColumn, chars: number): ChatOperationError {
+  return new ChatOperationError(
+    CHAT_OP_CODES.messageTooLong,
+    `the message ${column} is ${String(chars)} characters; one message holds at most ${String(MESSAGE_TEXT_MAX_CHARS)}`,
+    { field: column, chars, limit: MESSAGE_TEXT_MAX_CHARS },
+  );
+}
+
+function checkedText<T extends string | null>(column: CappedTextColumn, text: T): T {
+  if (text !== null && text.length > MESSAGE_TEXT_MAX_CHARS) {
+    throw messageTooLongError(column, text.length);
+  }
+  return text;
+}
+
 /** Normalize the complete transformed body to rule 1 above. A caller that hands over a raw equal to the content,
  *  or an empty record, cannot violate the invariant from here. */
 function transformedBodyColumns(content: string, rawContent: string | null | undefined, macroFreezes: MacroFreezeRecord | null | undefined): CanonBodyColumns {
   return {
-    content,
-    rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : rawContent,
+    content: checkedText("content", content),
+    rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : checkedText("rawContent", rawContent),
     macroFreezes: macroFreezes === null || macroFreezes === undefined || macroFreezes.length === 0 ? null : macroFreezes,
   };
 }
 
 /** An authored replacement cannot retain provenance describing the previous body. */
 function authoredBodyColumns(content: string): CanonBodyColumns {
-  return { content, rawContent: null, macroFreezes: null };
+  return { content: checkedText("content", content), rawContent: null, macroFreezes: null };
 }
 
 /** `reasoning_parts` is NULL when there is nothing replayable — an empty list would make the column's "has
@@ -418,7 +448,7 @@ export function appendVariantStatements(
 }
 
 // How many head allocations one append may lose before it refuses. Not a contention budget — see
-//  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `substrate/variable-ops.ts`
+//  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `verbs/apply-standalone-variable-ops.ts`
 //  carries the same number for the same reason.
 const MAX_CANON_APPEND_ATTEMPTS = 8;
 
@@ -445,14 +475,14 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
  * MAX_CANON_APPEND_ATTEMPTS} times in a row is a defect somewhere else — a caller re-aiming at a fixed seq,
  * a head advancing faster than any writer can land — and an unbounded retry answers that by spinning until
  * the process dies rather than saying so. Same posture, same shape as the standalone variable plane's CAS
- * loop (`substrate/variable-ops.ts`), so the two cannot drift into disagreeing about it.
+ * loop (`verbs/apply-standalone-variable-ops.ts`), so the two cannot drift into disagreeing about it.
  */
 export async function commitCanonAppend<T>(
   db: Db,
-  chatId: ChatId,
+  claim: RoomClaim,
   build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
 ): Promise<T> {
-  return await retryLostCanonHead(db, chatId, async (seq) => {
+  return await retryLostCanonHead(db, claim, async (seq) => {
     const { statements, result } = build(seq);
     await db.batch(batchMany(statements));
     return result;
@@ -463,9 +493,11 @@ export async function commitCanonAppend<T>(
  * The head-allocation retry itself, for an append whose commit carries more than a plain batch (the retained-canon
  * stats fence). `attempt` is called with the allocated seq and must build its statements and ids afresh; it is
  * re-called only when it fails on a UNIQUE violation the canon head explains (a sibling took this seq). Any other
- * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud.
+ * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud. Both append
+ * doors take the room's claim, because an append is canon the claim's stats replay must not already have counted.
  */
-export async function retryLostCanonHead<T>(db: Db, chatId: ChatId, attempt: (seq: number) => Promise<T>): Promise<T> {
+export async function retryLostCanonHead<T>(db: Db, claim: RoomClaim, attempt: (seq: number) => Promise<T>): Promise<T> {
+  const { chatId } = claim;
   for (let tries = 0; tries < MAX_CANON_APPEND_ATTEMPTS; tries += 1) {
     const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
     try {
@@ -574,10 +606,10 @@ export function continueVariantStatements(
           // The merged body is not what this variant's freeze produced (a frozen greeting is continuable), so
           // its provenance is dropped rather than left describing a bake these bytes no longer contain.
           ...authoredBodyColumns(params.variant.content),
-          preContinueContent: params.preContinueContent,
-          preContinueReasoning: params.preContinueReasoning,
-          lastContinuationContent: params.lastContinuationContent,
-          lastContinuationReasoning: params.lastContinuationReasoning,
+          preContinueContent: checkedText("preContinueContent", params.preContinueContent),
+          preContinueReasoning: checkedText("preContinueReasoning", params.preContinueReasoning),
+          lastContinuationContent: checkedText("lastContinuationContent", params.lastContinuationContent),
+          lastContinuationReasoning: checkedText("lastContinuationReasoning", params.lastContinuationReasoning),
         })
         .where(eq(messageVariants.id, params.variantId)),
     ),
@@ -630,7 +662,7 @@ export function setVariantContentStatement(
       .update(messageVariants)
       .set({
         ...authoredBodyColumns(content),
-        reasoning,
+        reasoning: checkedText("reasoning", reasoning),
         ...(undoContinuation === undefined
           ? {}
           : {
@@ -654,9 +686,10 @@ export function prepareContinueRestore(
     readonly role: ParticipantRole;
     readonly snapshot: ContinueSnapshot;
     readonly restored: Parameters<typeof setVariantContentStatement>[2];
+    readonly now: number;
   },
 ): ContinueRestorePlan {
-  const { chatId, messageId, userId, role, snapshot, restored } = args;
+  const { chatId, messageId, userId, role, snapshot, restored, now } = args;
   const selection = sql`select ${messages.chatId} from ${messages}
     inner join ${messageVariants} on ${messageVariants.id} = ${messages.selectedVariantId}
     where ${messages.chatId} = ${chatId} and ${messages.id} = ${messageId}
@@ -672,7 +705,7 @@ export function prepareContinueRestore(
           and ${chatParticipants.leftSeq} is null and ${chatParticipants.role} = ${role})`;
   return {
     selection,
-    statements: [retainedChatFenceStatement(db, selection), setVariantContentStatement(db, snapshot.variantId, restored)],
+    statements: [retainedChatFenceStatement(db, selection, now), setVariantContentStatement(db, snapshot.variantId, restored)],
   };
 }
 
@@ -735,7 +768,12 @@ export function editReasoningStatements(
   },
 ): BatchStmt[] {
   return [
-    batchStmt(db.update(messageVariants).set({ reasoning: params.reasoning }).where(eq(messageVariants.id, params.variantId))),
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({ reasoning: checkedText("reasoning", params.reasoning) })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
     batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),
   ];
 }

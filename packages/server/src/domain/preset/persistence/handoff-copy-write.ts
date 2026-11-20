@@ -22,7 +22,7 @@ import { presets } from "@orb/db";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import type { PresetHandoffCopyAssemblyContext, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
 import { findOwnedForkOf, insertConvergedPresetForkIfAbsent } from "./queries.ts";
 
@@ -46,7 +46,11 @@ export function createCopyPresetToUser(input: PresetHandoffCopyAssemblyContext):
     if (source === undefined) {
       return null;
     }
-    const config = requireIntactStoredConfig(promptConfigConfig.parseOutcome(source.config, source.schemaVersion), `presets.config for ${presetId}`);
+    const config = requireIntactStoredConfig(
+      promptConfigConfig.parseOutcome(source.config, source.schemaVersion),
+      `presets.config for ${presetId}`,
+      STORED_CONFIG_REFUSALS.overwrite,
+    );
     const id = ctx.newPresetId();
     const at = ctx.now();
     const admitted = await insertConvergedPresetForkIfAbsent(db, {

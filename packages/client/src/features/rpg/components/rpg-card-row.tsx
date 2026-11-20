@@ -11,6 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel } from "../lib/archived-cards.ts";
+import { openCardName } from "../lib/rpg-names.ts";
 import { turnStamp } from "../lib/turn-stamp.ts";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
@@ -32,7 +33,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       type="button"
       variant="outline"
       size="sm"
-      aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}${card.origin === "lenient" ? `, ${LENIENT_NOTE}` : ""}`}
+      aria-label={openCardName(label, turnStamp(card.createdAt), card.origin === "lenient" ? LENIENT_NOTE : null)}
       onClick={(): void => onOpen(card.key)}
       stretch="line"
       data-slot="rpg-card-row"

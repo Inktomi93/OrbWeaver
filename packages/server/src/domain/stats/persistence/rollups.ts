@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/stats";
 import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, characters, chats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import { escapeLikeTerm } from "@orb/db/query";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
@@ -207,13 +207,15 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
     .orderBy(desc(modelStats.generations))
     .limit(Math.min(opts.limit ?? DEFAULT_LIMIT, STATS_LIST_MAX_LIMIT));
   // Distinct-characters-per-model ("reach") — the rollup is character-less, so one owner-scoped GROUP BY
-  // over assistant selected variants, keyed by (model, provider).
+  // over assistant selected variants, keyed by (model, provider). It reads by character, not membership, so it
+  // leaves out a room an import is still landing.
   const reachRows = await db.all<{ model: string; provider: string | null; chars: number }>(sql`
     SELECT v.model AS model, v.provider AS provider, COUNT(DISTINCT m.character_id) AS chars
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND v.model IS NOT NULL
+      AND m.chat_id NOT IN (SELECT ${chats.id} FROM ${chats} WHERE ${chats.landingAt} IS NOT NULL)
     GROUP BY v.model, v.provider
   `);
   // Plain Record (not a Map — persistence holds no in-memory state; this is a query-local lookup).
@@ -261,7 +263,8 @@ export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFresh
  *  `opts.characterId` narrows the CHAT SET to the chats that character takes part in — the CONTEXT panel's
  *  drilled state, which used to render these LIBRARY numbers under the drilled character's face. The narrow
  *  rides `persona_chats` (both usage arms at once) rather than the outer WHERE, so a persona with no chats
- *  WITH that character still appears at zero rather than vanishing from the roster. */
+ *  WITH that character still appears at zero rather than vanishing from the roster. The anchor arm reads the room
+ *  row, not membership, so it leaves out a room an import is still landing. */
 export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsageOpts = {}): Promise<PersonaUsageRow[]> {
   const characterId = opts.characterId;
   // Ownership is NOT delegated to this predicate — `personas.owner_id` already scopes every row, and the
@@ -281,6 +284,7 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
       SELECT p.id AS persona_id, ch.id AS chat_id, ch.updated_at AS updated_at
       FROM personas p JOIN chats ch ON ch.anchor_persona_id = p.id
       WHERE p.owner_id = ${ownerId} ${narrow}
+        AND ch.id NOT IN (SELECT ${chats.id} FROM ${chats} WHERE ${chats.landingAt} IS NOT NULL)
       UNION
       SELECT p.id AS persona_id, cp.chat_id AS chat_id, ch.updated_at AS updated_at
       FROM personas p

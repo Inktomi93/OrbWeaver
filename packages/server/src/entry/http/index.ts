@@ -13,6 +13,7 @@ export { ownerClaimLoginUrl, registerAuthRoutes, serializeSessionCookie } from "
 export type { BlobAssetsPort, BlobCasPort } from "./blob.ts";
 export { registerBlob } from "./blob.ts";
 
+export type { CardFrameDeps } from "./card-frame.ts";
 export { registerCardFrame } from "./card-frame.ts";
 export type { PrincipalEnv } from "./contract/request-env.ts";
 
@@ -28,6 +29,7 @@ export { registerImportBundle } from "./import.ts";
 export { registerImportChat } from "./import-chat.ts";
 
 export { registerImportTree } from "./import-tree.ts";
+export { registerImportTreeZip } from "./import-tree-zip.ts";
 
 export { registerJoin } from "./join.ts";
 

@@ -25,9 +25,11 @@ import {
   imageEmbeddings,
   themeClusters,
 } from "@orb/db";
+import { readableJson } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
@@ -847,7 +849,8 @@ async function captionRows(db: Db, ownerId: UserId, extra?: SQL): Promise<Captio
       and(ownedRealCharacters(ownerId), eq(assets.ownerId, ownerId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS), excludeShared(shared), currentImage, extra),
     )
     .orderBy(asc(characters.name));
-  return rows;
+  // Stored caption metadata that is not JSON is a lost analysis: the row keeps its caption and reads no metadata.
+  return rows.map((row) => ({ ...row, captionMeta: row.captionMeta instanceof UnreadableJsonText ? null : row.captionMeta }));
 }
 
 /** Every non-synthetic owner character's captioned-avatar row (the `imageFacets` tally + visual labels). */
@@ -862,8 +865,8 @@ export async function readCaptionRowsByFacet(
   sel: { readonly path: string; readonly isList: boolean; readonly value: string },
 ): Promise<CaptionRow[]> {
   const predicate = sel.isList
-    ? sql`EXISTS (SELECT 1 FROM json_each(${imageAnalyses.captionMeta}, ${sel.path}) je WHERE je.value = ${sel.value})`
-    : sql`json_extract(${imageAnalyses.captionMeta}, ${sel.path}) = ${sel.value}`;
+    ? sql`EXISTS (SELECT 1 FROM json_each(${readableJson(imageAnalyses.captionMeta)}, ${sel.path}) je WHERE je.value = ${sel.value})`
+    : sql`json_extract(${readableJson(imageAnalyses.captionMeta)}, ${sel.path}) = ${sel.value}`;
   return await captionRows(db, ownerId, predicate);
 }
 

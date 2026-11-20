@@ -35,5 +35,17 @@ export async function beginReading(page: Page, scrollport: Locator): Promise<voi
   const before = await scrollport.evaluate((element) => element.scrollTop);
   await scrollport.hover();
   await page.mouse.wheel(0, -PIN_SCROLL_PX);
-  await expect.poll(() => scrollport.evaluate((element) => element.scrollTop)).toBeLessThan(before);
+  // The wheel can land mid sticky-pin relayout — scrollIntoReadingMessage flips the pin a beat earlier,
+  // and scroll anchoring has been measured cancelling the first wheel under parallel workers (the tide
+  // skins, any viewport). Re-wheel each poll tick until the axis actually moves; the assertion (a wheel
+  // scrolled the port) is unchanged, only the input is driven to it.
+  await expect
+    .poll(async () => {
+      if ((await scrollport.evaluate((element) => element.scrollTop)) < before) {
+        return true;
+      }
+      await page.mouse.wheel(0, -PIN_SCROLL_PX);
+      return false;
+    })
+    .toBe(true);
 }

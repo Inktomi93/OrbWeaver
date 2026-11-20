@@ -4,9 +4,8 @@
 // wire capture and the "Test endpoint" inspector scrub SERIALIZED bodies (`@orb/kit/secret-redaction` owns
 // the both-spellings rule).
 //
-// The hand-rolled RAW builders that used to live here — the sampler slice and the `tools`/`tool_choice`/
-// `response_format` spellings — were deleted 2026-09-20 with their last consumers: the SDK writes those
-// fields now, and `backends/openai-compat/body.ts` edits the converted object afterwards (§8.1).
+// The SDK writes the sampler and `tools`/`tool_choice`/`response_format` fields now; `backends/openai-compat/body.ts`
+// edits the converted object afterwards.
 
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
 
@@ -58,14 +57,14 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * header value) straight back into the body, so the raw body is a secret sink.
  *
  * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — in its raw AND its
- * JSON-escaped spelling, since most callers hand this a SERIALIZED document (`#primitives/secret-redaction` owns
+ * JSON-escaped spelling, since most callers hand this a SERIALIZED document (`@orb/kit/secret-redaction` owns
  * that rule) — so an endpoint cannot leak a secret we scrubbed by its exact value, regardless of framing.
  * DEFENSE-IN-DEPTH: `Bearer …` and `sk-…`-shaped substrings are also masked in case the token is
  * re-encoded/reshaped on the way back. Empty values are skipped; every non-empty configured credential is
  * scrubbed even when short. A custom auth header defines the value's secret semantics — collision-driven
  * over-redaction is safer than leakage.
  *
- * ORDER IS LOAD-BEARING (#1785): the by-value belt runs FIRST, on intact text. The shape sweep's token class
+ * ORDER IS LOAD-BEARING: the by-value belt runs FIRST, on intact text. The shape sweep's token class
  * stops at a `\`, so on an ESCAPED credential inside a `Bearer …` frame it used to bite the literal in half
  * (masking `Bearer byo`, leaving the rest of the key standing) — and with the literal now fragmented, both
  * spellings were absent and nothing else could catch it. Running the primary belt first cannot be undone by
@@ -83,7 +82,7 @@ export function redactSecretsFromText(text: string, secrets: readonly string[]):
 
 /**
  * How far PAST a display cut a truncating reader must read before it may hand the bytes to
- * {@link redactSecretsFromText} (#1820).
+ * {@link redactSecretsFromText}.
  *
  * A reader that truncates FIRST and scrubs SECOND cannot be saved by any later belt: a secret straddling
  * the cut is only half present, so neither of its spellings matches, and the surviving PREFIX is real key
@@ -111,8 +110,8 @@ export function secretScrubOverhang(secrets: readonly string[]): number {
 /**
  * Apply a user's per-endpoint body transforms: merge `includeBody` over the base (user wins), then strip
  * `excludeBody` keys (applied LAST so a user can remove a field the endpoint rejects even if `includeBody`
- * re-added it). Shallow by design (matches ST's flat merge). Rebuilds the object rather than `delete`-ing
- * (delete is banned + deopts the shape).
+ * re-added it). Shallow by design. Rebuilds the object rather than `delete`-ing (delete is banned + deopts
+ * the shape).
  */
 export function applyIncludeExclude(
   base: Readonly<Record<string, unknown>>,

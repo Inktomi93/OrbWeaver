@@ -14,7 +14,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { absenceWindow, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness, createServerHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { cardImportFailedDetail, cardImportRefusalLine } from "#client/lib/card-import-copy.ts";
@@ -171,7 +171,11 @@ for (const reason of FAILED_CARD_REASONS) {
         button.focus({ preventScroll: true });
       }
     });
+    // The route above answers once the real server has judged the file, so the report is awaited from that answer on the import's own
+    // deadline, not from the press.
+    const answered = page.waitForResponse((response) => new URL(response.url()).pathname === PORTABILITY_ROUTES.importCards, { timeout: WORKLOAD_DEADLINE_MS });
     await page.keyboard.press("Enter");
+    await answered;
 
     const report = page.getByTestId(testId("importReport"));
     await expect(report).toBeVisible();

@@ -1,4 +1,4 @@
-import { QueryBoundary } from "@orb/client/components";
+import { ContentPane, QueryBoundary } from "@orb/client/components";
 import { worldInfoGroup } from "@orb/client/features/world-info";
 import { sectionBackName } from "@orb/client/lib";
 import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, setMobileViewport, useMobileViewport } from "@orb/client/state";
@@ -37,15 +37,15 @@ function Member({ bookId, entryId, context, phone = false }: MemberProps): React
   if (context && collection.context.kind !== "body") {
     throw new Error("World Info must expose its production attachment context");
   }
-  return (
-    <Container data-testid={storyTestId("widthProbe")}>
-      <QueryBoundary resetKeys={[]} fallback={<Stack role="status">Loading book</Stack>}>
-        {context && collection.context.kind === "body"
-          ? collection.context.render({ memberId: bookId })
-          : collection.detail({ memberId: bookId, back: { label: sectionBackName(worldInfoGroup.label), onClick: clearCollectionSelection } })}
-      </QueryBoundary>
-    </Container>
+  const member = (
+    <QueryBoundary resetKeys={[]} fallback={<Stack role="status">Loading book</Stack>}>
+      {context && collection.context.kind === "body"
+        ? collection.context.render({ memberId: bookId })
+        : collection.detail({ memberId: bookId, back: { label: sectionBackName(worldInfoGroup.label), onClick: clearCollectionSelection } })}
+    </QueryBoundary>
   );
+  // The member detail renders on the settings content pane's column, as the config surface hosts it; the context body has no pane.
+  return <Container data-testid={storyTestId("widthProbe")}>{context ? member : <ContentPane>{member}</ContentPane>}</Container>;
 }
 
 /** The real collection member or attachment context without mounting the shell's unrelated regions. */

@@ -8,8 +8,16 @@ import { jsonValueSchema } from "@orb/kit/json";
 import type { PluginHostSeamDeps } from "@orb/server/infra/plugin-host";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle } from "@orb/testkit/node/composed";
+import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 
-export const PLUGIN_PROCESS_OPERATIONS = { mint: "seam.mintId", read: "storage.get", write: "storage.set", variableWrite: "variables.set" } as const;
+export const PLUGIN_PROCESS_OPERATIONS = {
+  mint: "seam.mintId",
+  now: "seam.nowEpochMs",
+  draw: "seam.nextRandom",
+  read: "storage.get",
+  write: "storage.set",
+  variableWrite: "variables.set",
+} as const;
 
 function objectValue(value: JsonValue): value is Extract<JsonValue, Record<string, JsonValue>> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -59,18 +67,55 @@ interface ChildMessageHold {
   readonly capture: (value: unknown, deliver: (replacement?: JsonValue) => void) => void;
 }
 
-/** Return real children unchanged except for one explicitly held inbound message. */
+interface OutboundRefusal {
+  readonly matches: (value: unknown) => boolean;
+  readonly refused: PromiseWithResolvers<unknown>;
+}
+
+// A routed frame, replaced by its route's refusal: what a hop passes on in its place when the next hop is full.
+function routeRefusal(message: unknown): { readonly kind: "frame"; readonly generation: string; readonly frame: string } {
+  const envelope = parsePluginIpcMessage(message);
+  if (envelope?.kind !== "frame" || envelope.route?.refusal === undefined) {
+    throw new Error("the refused message carries no route refusal");
+  }
+  return { kind: "frame", generation: envelope.generation, frame: envelope.route.refusal.frame };
+}
+
+/** The frame that reaches the app in place of a routed frame the broker sent it, when a hop on the way is full: the
+ *  route's own refusal, which the broker sends when its hop to the watchdog is full and the watchdog passes on when its
+ *  hop to the app is. Release a held inbound message with it. */
+export function refusedInPlaceOf(message: unknown): JsonValue {
+  return routeRefusal(message);
+}
+
+/** Return real children unchanged except for one explicitly held inbound message, and one outbound frame refused as a
+ *  full hop past the watchdog would refuse it. */
 export function createPluginProcessEdge(): {
   readonly spawn: NonNullable<PluginHostSeamDeps["spawn"]>;
   readonly children: readonly ChildProcess[];
   readonly delivered: readonly unknown[];
   readonly holdNext: (matches: (value: unknown) => boolean, event?: string) => HeldMessage;
+  readonly refuseNextSent: (matches: (value: unknown) => boolean) => Promise<unknown>;
 } {
   const children: ChildProcess[] = [];
   const delivered: unknown[] = [];
   let hold: ChildMessageHold | undefined;
+  let refusal: OutboundRefusal | undefined;
+  const outbound = (message: unknown): unknown => {
+    const current = refusal;
+    if (current === undefined || !current.matches(message)) {
+      return message;
+    }
+    refusal = undefined;
+    current.refused.resolve(message);
+    return routeRefusal(message);
+  };
   const execute: NonNullable<PluginHostSeamDeps["spawn"]> = (...args) => {
     const child = spawn(...args);
+    const send = child.send.bind(child);
+    Object.defineProperty(child, "send", {
+      value: (message: unknown, ...rest: unknown[]): boolean => Reflect.apply(send, undefined, [outbound(message), ...rest]) === true,
+    });
     const emit = child.emit.bind(child);
     child.emit = (event: string | symbol, ...values: unknown[]): boolean => {
       const value = values[0];
@@ -128,6 +173,14 @@ export function createPluginProcessEdge(): {
       };
       hold = pending;
       return { reached: reached.promise, release, [Symbol.dispose]: () => release() };
+    },
+    refuseNextSent: (matches): Promise<unknown> => {
+      if (refusal !== undefined) {
+        throw new Error("an outbound plugin frame is already set to be refused");
+      }
+      const refused = Promise.withResolvers<unknown>();
+      refusal = { matches, refused };
+      return refused.promise;
     },
   };
 }

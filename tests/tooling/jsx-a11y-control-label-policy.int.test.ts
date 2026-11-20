@@ -32,6 +32,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
+import "./_eslint-config.ts";
 
 const LABEL_RULE = "jsx-a11y/control-has-associated-label";
 const ARIA_PROPS_RULE = "jsx-a11y/role-supports-aria-props";

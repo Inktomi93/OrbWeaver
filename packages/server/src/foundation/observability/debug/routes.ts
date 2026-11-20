@@ -95,12 +95,14 @@ const BUG_REPORT_MAX_BODY_BYTES = BUG_REPORT_MAX_BODY_MIB * BYTES_PER_MIB;
 /** The bug-report POST body. `client` is deliberately `unknown`: the page owns its own bundle shape and this
  *  tier must not re-spell it (a field allowlist here would be a guess that goes stale silently). It is opaque
  *  data that gets value-scrubbed with everything else before the write. */
-const bugReportInput = z.object({
-  note: z.string().trim().min(1).max(BUG_REPORT_NOTE_MAX),
-  /** The owner's "~N minutes ago", or null for "everything the rings still hold". */
-  windowMinutes: z.number().positive().max(BUG_REPORT_WINDOW_MAX_MINUTES).nullable().default(null),
-  client: z.unknown().optional(),
-});
+const bugReportInput = z
+  .object({
+    note: z.string().trim().min(1).max(BUG_REPORT_NOTE_MAX),
+    /** The owner's "~N minutes ago", or null for "everything the rings still hold". */
+    windowMinutes: z.number().positive().max(BUG_REPORT_WINDOW_MAX_MINUTES).nullable().default(null),
+    client: z.unknown().optional(),
+  })
+  .strip();
 
 /**
  * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (the CORS-simple CSRF class,
@@ -332,7 +334,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
         id: mintBugReportId(),
         version: versionIdentity(),
         capturedAt: capturedAt.toISOString(),
-        build: readBuildIdentity(repoRoot),
+        build: readBuildIdentity(repoRoot, options.childProcessEnv),
         window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
         note: parsed.data.note,
         client: parsed.data.client ?? null,
@@ -474,7 +476,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
         return null;
       }
       const cfg = effectiveConfig();
-      return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
+      return { defaultHtmlStep: cfg.defaultHtmlStep, forbidExternalMedia: cfg.forbidExternalMedia };
     };
 
     app.get("/api/_debug/config/user", async (c) => {
@@ -535,7 +537,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     });
   }
   if (assets !== undefined) {
-    app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));
+    app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck({ signal: c.req.raw.signal })));
   }
   if (rpgTrace !== undefined) {
     // The rpg flight recorder: the per-turn trace stream, filterable by `chatId` (a chat's events) or

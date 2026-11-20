@@ -1,4 +1,5 @@
 import type { PortabilityRegistry, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
+import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive, ZipSource } from "#infra/storage";
 
@@ -12,9 +13,10 @@ export type BundleImportFileOutcome =
 /** The per-bundle report the route returns (or the workload records). */
 export interface BundleImportReport {
   readonly outcomes: readonly BundleImportFileOutcome[];
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
+  readonly imported: BundleImportWorkloadResult["imported"];
+  readonly inLibrary: BundleImportWorkloadResult["inLibrary"];
+  readonly skipped: BundleImportWorkloadResult["skipped"];
+  readonly failed: BundleImportWorkloadResult["failed"];
 }
 
 export interface BundleImportDeps {
@@ -24,7 +26,7 @@ export interface BundleImportDeps {
   /** The staging extractor the root wires from `infra/storage` (it writes the staging tree to disk). */
   readonly extractArchive: (archive: BundleImportDeps["archive"], options?: ExtractOptions) => Promise<StagedArchive>;
   readonly extractOptions?: ExtractOptions;
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** What {@link importStagedArchive} needs: an already-staged tree (from `extractZip` OR `stageDirectory`)
@@ -33,5 +35,5 @@ export interface StagedBundleImportDeps {
   readonly registry: PortabilityRegistry;
   readonly ownerId: UserId;
   readonly staged: StagedArchive;
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }

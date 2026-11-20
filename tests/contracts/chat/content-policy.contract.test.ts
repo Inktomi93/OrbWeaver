@@ -36,6 +36,14 @@ test("hidden bodies and unknown directives disappear without breaking adjacent t
   expect(contentSpansToBlocks(tokenizeContent(body))).toEqual([{ kind: "markdown", md: `Before ${CLASS_BODIES.dice} after.` }]);
 });
 
+test("a frame document keeps a reply's self-closing markup as text, and a hidden body stays hidden there too", () => {
+  const shape = '<svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5"/></svg>';
+  const body = `Before ${CLASS_BODIES.hidden}${shape}${CLASS_BODIES["unknown-directive"]} after.`;
+  expect(contentSpansToBlocks(tokenizeContent(body), { keepUnknownDirectives: true })).toEqual([
+    { kind: "markdown", md: `Before ${shape}${CLASS_BODIES["unknown-directive"]} after.` },
+  ]);
+});
+
 test("cards keep their body, provenance and caller trust while choices keep their options", () => {
   const spans = tokenizeContent(`${CLASS_BODIES.card}\n${CLASS_BODIES.choices}`);
   expect(contentSpansToBlocks(spans)).toEqual([

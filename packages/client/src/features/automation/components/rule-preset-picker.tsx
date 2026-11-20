@@ -49,6 +49,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
+import { RULE_ADD_NAME } from "../lib/automation-names.ts";
 import { useCreateRuleFromPreset } from "../lib/rule-mutations.ts";
 import { defaultKnobValues, knobIssue, mintKnobOverrides } from "../lib/rule-preset-knob-model.ts";
 import { KnobBlockingLine, KnobField } from "./rule-preset-knob-field.tsx";
@@ -241,7 +242,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
         render={
           <Button size="sm">
             <Icon icon={Plus} size="sm" />
-            Add a rule
+            {RULE_ADD_NAME}
           </Button>
         }
       />
@@ -259,7 +260,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
         {/* ONE heading, and it names the STEP. Step 2 used to render a second title inside the body while
             this one still said "Add a rule" — so the dialog's accessible name never changed and a sighted
             host read two titles in reversed order. */}
-        <PopoverTitle>{selected === null ? "Add a rule" : selected.title}</PopoverTitle>
+        <PopoverTitle>{selected === null ? RULE_ADD_NAME : selected.title}</PopoverTitle>
         <QueryBoundary
           resetKeys={[chatId]}
           fallback={<SkeletonRows count={3} shape="line" />}

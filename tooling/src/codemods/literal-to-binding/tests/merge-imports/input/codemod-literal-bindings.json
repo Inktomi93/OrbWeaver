@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "literal": "Rename row", "expression": "RENAME_ROW_NAME", "binding": "RENAME_ROW_NAME", "from": "#client/names.ts", "files": ["c.ts"] },
+    { "literal": "Remove row", "expression": "REMOVE_ROW_NAME", "binding": "REMOVE_ROW_NAME", "from": "#client/other.ts", "files": ["c.ts"] }
+  ]
+}

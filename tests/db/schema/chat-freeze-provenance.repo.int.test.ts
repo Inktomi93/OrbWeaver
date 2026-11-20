@@ -40,7 +40,7 @@ test("the shipped database rejects incoherent provenance on insert, update and u
       db.update(messageVariants).set({ reasoning: "must roll back" }).where(eq(messageVariants.id, row.variantId)),
       db
         .insert(messageVariants)
-        .values({ id: row.variantId, messageId: row.id, idx: 0, content: "new" })
+        .values({ id: row.variantId, messageId: row.id, idx: 0, content: "new", createdAt: row.createdAt })
         .onConflictDoUpdate({
           target: messageVariants.id,
           set: { content: "same", rawContent: "same", macroFreezes: RECORD },

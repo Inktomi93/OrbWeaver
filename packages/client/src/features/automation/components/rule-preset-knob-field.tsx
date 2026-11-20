@@ -18,7 +18,7 @@
 // types a TypeID from memory. Its three non-pickable states are SAID rather than rendered as an empty
 // dropdown: loading, a failed read (the shared boundary's skeleton and error), and — the honest one — a room with no world books attached, which no
 // picker can invent. The mint's own refusal stays reachable behind all of it: attachment is a LIVE fact
-// (`domain/automation/substrate/validate.ts`), so a book listed at render can stop qualifying before the
+// (`domain/automation/persistence/validate.ts`), so a book listed at render can stop qualifying before the
 // press, and that refusal rides `mintFailureToast`.
 
 import type {
@@ -41,8 +41,9 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { RULE_ROOM_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
 import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset-knob-model.ts";
 
@@ -172,7 +173,7 @@ function ChoiceKnobField({
 }
 
 /** The lorebook chooser — the ONE `entityRef` entity that ships (#630). Reads the books attached to THIS
- *  chat, which is the same set `substrate/validate.ts` will accept at mint, so a listed option is a book
+ *  chat, which is the same set `persistence/validate.ts` will accept at mint, so a listed option is a book
  *  the mint can take.
  *
  *  The read suspends under the knob's own `QueryBoundary`, so the row says loading or failed in place and
@@ -181,7 +182,7 @@ function ChoiceKnobField({
  *  THE EMPTY ARM NOW POINTS SOMEWHERE (#640). It used to prescribe nothing on purpose — no client affordance
  *  attached a book to a chat, so a "go attach one" line would have pointed at a door that was not there. The
  *  door exists now: the "This chat" tab's World books section (`features/chat/chat-books-section.tsx`), which
- *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
+ *  is the SAME attachment `persistence/validate.ts` gates the mint on, so the sentence names the one place
  *  that makes this card completable. */
 function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElement {
   // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs a suspending read, so the chat-less arm
@@ -214,7 +215,7 @@ function ChatWorldInfoBookKnobField(props: KnobFieldProps & { readonly chatId: C
       }
       renderError={(_error, retry): ReactElement => (
         <KnobRow knob={props.knob} issue={props.showIssue ? knobIssue(props.knob, props.value) : null}>
-          <QueryErrorState label="this room's world books" onRetry={retry} />
+          <QueryErrorState label={RULE_ROOM_WORLD_BOOKS_READ_LABEL} onRetry={retry} />
         </KnobRow>
       )}
     >
@@ -233,10 +234,10 @@ function ChatWorldInfoBookKnobBody({ knob, chatId, value, onChange, showIssue }:
   if (items.length === 0) {
     return (
       <KnobRow knob={knob} issue={null}>
-        <Text voice="gloss">
+        <MutedLine>
           This room has no world books attached yet, so there is nothing for this rule to write into. Attach one under World books, higher up this tab, and it
           can be picked here.
-        </Text>
+        </MutedLine>
       </KnobRow>
     );
   }

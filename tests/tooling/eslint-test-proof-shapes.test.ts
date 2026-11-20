@@ -15,6 +15,7 @@ const ALIAS = "orb/owned-root-alias";
 const SUITE = "tests/server/domain/probe/probe.int.test.ts";
 const TOOL_SUITE = "tests/tooling/snap/probe.test.ts";
 const SPEC = "tests/client/features/probe/probe.ct.tsx";
+const E2E_SPEC = "tests/e2e/probe.spec.ts";
 const TOOL_SOURCE = "tooling/src/snap/lib/probe.ts";
 const ADAPTER = "tooling/src/floor/host/platform.ts";
 const MINT = "tooling/src/snap/ops/session.ts";
@@ -59,6 +60,10 @@ test.for([
   }
 });
 
+const WIRE_HOME = 'import { wireOf } from "../scenario-physical.ts";\n';
+const APPENDED_HOME = 'import { appendedBy } from "@orb/testkit/iso";\n';
+const WIRE_READ = "const { bodies } = await wireOf(h, act);\nbodies.at(-1);";
+
 test.for([
   ["at(-1)", "h.requests.at(-1);", 1],
   ["a bracketed key", 'h["requests"].at(-1);', 1],
@@ -70,6 +75,11 @@ test.for([
   ["a const alias", "const sent = h.requests;\nsent.at(-1);", 1],
   ["a destructured rename", "const { requests: sent } = h;\nsent.at(-1);", 1],
   ["a recorder under another name", "wire.funders.at(-1);", 1],
+  ["a CT-local asked recorder", "const asked = [];\nasked.at(-1);", 1],
+  ["a CT-local sent recorder", "const sent = [];\nsent.at(-1)?.query;", 1],
+  ["a CT-local saved recorder", "const saved = [];\nsaved[saved.length - 1];", 1],
+  ["a held sent recorder", "thrown.sent.at(-1);", 1],
+  ["a CT-local recorder read whole", "const asked = [];\nexpect.poll(() => asked).toContain(true);\nconst sent = [];\nsent.map((search) => search.query);", 0],
   ["a mock's calls", "run.mock.calls.at(-1);", 1],
   ["a recorder read through its accessor", "room.prompts().at(-1);", 1],
   ["a mapped and filtered history", "bodies.map((body) => body.text).filter(Boolean).at(-1);", 1],
@@ -80,17 +90,36 @@ test.for([
   ["a nested destructure", "const { wire: { requests } } = h;\nrequests.at(-1);", 1],
   ["a nested destructured rename", "const { wire: { requests: sent } } = h;\nsent.at(-1);", 1],
   ["a recorder parameter", "function last(requests) { return requests.at(-1); }", 1],
-  ["a view over an act bracket", "const { bodies } = await wireOf(h, act);\nconst prompts = bodies.map(String).filter(Boolean);\nprompts.at(-1);", 0],
+  [
+    "a view over an act bracket",
+    `${WIRE_HOME}const { bodies } = await wireOf(h, act);\nconst prompts = bodies.map(String).filter(Boolean);\nprompts.at(-1);`,
+    0,
+  ],
   ["a recorder bound by slice(0)", "const requests = h.requests.slice(0);\nrequests.at(-1);", 1],
   ["a recorder bound by a literal slice then a view", "const bodies = h.bodies.slice(1).filter(Boolean);\nbodies.at(-1);", 1],
   ["a recorder bound by slice(length - 1)", "const requests = h.requests.slice(h.requests.length - 1);\nrequests.at(-1);", 1],
   ["a destructure from a literal slice", "const { requests } = (await rootFor(b)).wire.slice(0);\nrequests.at(-1);", 1],
   ["a field of a slice result", "const requests = h.log.slice(0).requests;\nrequests.at(-1);", 1],
   ["a literal slice of a destructured recorder", "const { requests } = await rootFor(b);\nconst bodies = requests.slice(0);\nbodies.at(-1);", 1],
-  ["a field of an act bracket's result", "const bodies = (await wireOf(h, act)).bodies;\nbodies.at(-1);", 0],
-  ["an appended bracket", "const { entries: requests } = await appendedBy(h.requests, act);\nrequests.at(-1);", 0],
+  ["a field of an act bracket's result", `${WIRE_HOME}const bodies = (await wireOf(h, act)).bodies;\nbodies.at(-1);`, 0],
+  ["an appended bracket", `${APPENDED_HOME}const { entries: requests } = await appendedBy(h.requests, act);\nrequests.at(-1);`, 0],
   ["a bracketed act", "h.requests.slice(mark).at(-1);", 0],
-  ["an act bracket's own entries", "const { bodies } = await wireOf(h, act);\nbodies.map((body) => body.text).at(-1);", 0],
+  ["an act bracket's own entries", `${WIRE_HOME}const { bodies } = await wireOf(h, act);\nbodies.map((body) => body.text).at(-1);`, 0],
+  [
+    "a bracket imported under another name",
+    `import { wireOf as sentBy } from "./scenario-physical.ts";\nconst { bodies } = await sentBy(h, act);\nbodies.at(-1);`,
+    0,
+  ],
+  [
+    "a bracket from inside the testkit",
+    `import { appendedBy } from "../iso/non-empty.ts";\nconst { entries: requests } = await appendedBy(log, act);\nrequests.at(-1);`,
+    0,
+  ],
+  ["a file-local function under a bracket's name", `async function wireOf(h) {\n  return { bodies: h.bodies };\n}\n${WIRE_READ}`, 1],
+  ["a file-local arrow under a bracket's name", `const wireOf = async (h) => ({ bodies: h.bodies });\n${WIRE_READ}`, 1],
+  ["a bracket's name imported from another module", `import { wireOf } from "./helpers.ts";\n${WIRE_READ}`, 1],
+  ["another export of the home renamed to a bracket", `import { sentBodies as wireOf } from "../scenario-physical.ts";\n${WIRE_READ}`, 1],
+  ["a bracket's name that nothing binds", WIRE_READ, 1],
   ["a const holding a bracket", "const sent = h.requests.slice(mark);\nsent.at(-1);", 0],
   ["the first entry", "h.requests.at(0);", 0],
   ["a list that records nothing", "rows.at(-1);\nlines.pop();", 0],
@@ -109,14 +138,22 @@ test.for([
   ["another role", 'page.getByRole("status").first();', 0],
   ["a scoped alert read whole", 'list.getByRole("alert");\nlist.locator(\'[role="alert"]:not([data-before-retry])\');', 0],
 ] as const)("a first-alert read: %s", CONFIG_LOAD, async ([, source, expected], { repoRoot }) => {
-  expect(await count(repoRoot, SYNTAX, source, SPEC)).toBe(expected);
+  for (const path of [SPEC, E2E_SPEC]) {
+    expect(await count(repoRoot, SYNTAX, source, path), path).toBe(expected);
+  }
 });
 
 test.for([
   ["a cast of a literal", "export const a = {} as AppliedLoadEmulation;", 1],
   ["a cast through unknown", "export const b = value as unknown as AppliedLoadEmulation;", 1],
   ["an angle-bracket assertion", "export const c = <AppliedLoadEmulation>value;", 1],
+  ["a qualified name", "export const e = value as loadEmulation.AppliedLoadEmulation;", 1],
+  ["an import type", 'export const f = value as import("../contract/load-emulation.ts").AppliedLoadEmulation;', 1],
+  ["a local alias of the brand", "type Mint = AppliedLoadEmulation;\nexport const g = {} as Mint;", 1],
+  ["an import renamed to hide the brand", 'import type { AppliedLoadEmulation as Mint } from "../contract/load-emulation.ts";', 1],
+  ["an import under its own name", 'import type { AppliedLoadEmulation } from "../contract/load-emulation.ts";', 0],
   ["another type", "export const d = value as DriveBudgets;", 0],
+  ["another type behind a qualified name", "export const h = value as loadEmulation.DriveBudgets;", 0],
 ] as const)("a forged load emulation: %s", CONFIG_LOAD, async ([, source, expected], { repoRoot }) => {
   for (const path of [TOOL_SOURCE, TOOL_SUITE, ADAPTER]) {
     expect(await count(repoRoot, SYNTAX, source, path), path).toBe(expected);

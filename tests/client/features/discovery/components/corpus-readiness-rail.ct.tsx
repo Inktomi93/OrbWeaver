@@ -6,15 +6,25 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { absenceWindow, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, seedTranscript } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { READINESS_PASSES } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
+import {
+  CORPUS_BOX_OWNER_RUNS_PASS_TEXT,
+  CORPUS_PASS_RUNNING_TEXT,
+  CORPUS_READINESS_RAIL_NAME,
+  CORPUS_STAGE_LABELS,
+  CORPUS_TURN_ON_MEMORY_NAME,
+} from "#client/features/discovery/lib/corpus-control-names.ts";
+import { READINESS_PASSES, readinessEstimates } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusCoverageStory } from "../surfaces/_coverage-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_coverage-stories/CorpusCoverageStory";
 const MEMBER_HANDLE = "companion";
 // A start the Cancel wrongly fired reaches the queue within one round trip; this holds well past it.
 const ENQUEUE_WINDOW_MS = 500;
+// Enough imported rows to clear any memory verbatim window and fill whole digest blocks.
+const UNDIGESTED_ROWS = 80;
 
 test.use({ hasTouch: false, isMobile: false });
 
@@ -51,7 +61,7 @@ async function serveOverview(page: Page, caller: Caller, intercept?: Parameters<
 }
 
 async function visibleRail(page: Page): Promise<Locator> {
-  const rail = page.getByRole("list", { name: "Analysis passes", exact: true });
+  const rail = page.getByRole("list", { name: CORPUS_READINESS_RAIL_NAME, exact: true });
   await expect(rail).toBeVisible();
   return rail;
 }
@@ -81,11 +91,11 @@ test("with memory on and a helper model ready, every row states its prerequisite
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
   const rows = [
-    ["Visual families", READINESS_PASSES.families],
-    ["Distilled: genre, tone, pitch", READINESS_PASSES.distilled],
-    ["Story themes", READINESS_PASSES.storyThemes],
-    ["Keywords", READINESS_PASSES.keywords],
-    ["Near-duplicates", READINESS_PASSES.duplicates],
+    [CORPUS_STAGE_LABELS.families, READINESS_PASSES.families],
+    [CORPUS_STAGE_LABELS.distilled, READINESS_PASSES.distilled],
+    [CORPUS_STAGE_LABELS.storyThemes, READINESS_PASSES.storyThemes],
+    [CORPUS_STAGE_LABELS.keywords, READINESS_PASSES.keywords],
+    [CORPUS_STAGE_LABELS.duplicates, READINESS_PASSES.duplicates],
   ] as const;
   for (const [label, pass] of rows) {
     const line = passLine(rail, label);
@@ -103,7 +113,7 @@ test("a pass that calls no model starts at once, and its row reads the queued ru
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
 
-  await passLine(rail, "Near-duplicates").getByRole("button", { name: READINESS_PASSES.duplicates.runLabel, exact: true }).click();
+  await passLine(rail, CORPUS_STAGE_LABELS.duplicates).getByRole("button", { name: READINESS_PASSES.duplicates.runLabel, exact: true }).click();
 
   await expect.poll(async () => (await owner.workloads.list({})).filter((run) => run.kind === "find-duplicates").length).toBe(before + 1);
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
@@ -112,21 +122,34 @@ test("a pass that calls no model starts at once, and its row reads the queued ru
 test("a pass that calls the helper model confirms its estimated calls, then enqueues its chain", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
-  const estimate = await Promise.all([
-    owner.workloads.estimateModelCalls({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
-    owner.workloads.estimateModelCalls({ input: { kind: "compute-themes", params: {} }, mode: "singular" }),
-  ]);
+  // The corpus's chats are already digested; an imported history gives the backfill ahead of the themes run work to do.
+  const [card] = (await owner.character.list({})).items;
+  if (card === undefined) {
+    throw new Error("The corpus needs a character to seat in the imported room");
+  }
+  await seedTranscript(root, {
+    ownerId: root.ownerId,
+    characterHandles: [card.handle],
+    lines: Array.from({ length: UNDIGESTED_ROWS }, (_, index) => ({
+      ...(index % 2 === 0 ? { role: "assistant", speakerHandle: card.handle } : { role: "user" }),
+      content: `Undigested history ${index + 1}. The ferryman counts the lanterns on the far bank.`,
+    })),
+  });
+  const estimate = await Promise.all(readinessEstimates("storyThemes").map((request) => owner.workloads.estimateModelCalls(request)));
+  expect(estimate[0]?.calls).toBeGreaterThan(0);
   const calls = estimate.reduce((sum, answer) => sum + (answer.calls ?? 0), 0);
-  expect(calls).toBeGreaterThan(0);
+  // The backfill will add digests before the themes run clusters them, so the themes run is counted at its ceiling.
+  expect(estimate.map((answer) => answer.bound)).toEqual(["exact", "ceiling"]);
   const before = new Set((await owner.workloads.list({})).map((run) => run.id));
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
 
-  await passLine(rail, "Story themes").getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true }).click();
+  await passLine(rail, CORPUS_STAGE_LABELS.storyThemes).getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true }).click();
 
   const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.storyThemes.confirmTitle, exact: true });
-  await expect(dialog).toContainText(`about ${calls} model calls`);
+  await expect(dialog).toContainText(`up to ${calls} model calls`);
+  await expect(dialog).not.toContainText("about");
   await dialog.getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true }).click();
   // The harness clock is frozen, so both rows share a createdAt; the chain is read off the ids instead.
   await expect
@@ -155,11 +178,11 @@ test("a queued run of a row's pass holds that row at running instead of offering
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  const line = passLine(rail, "Near-duplicates");
+  const line = passLine(rail, CORPUS_STAGE_LABELS.duplicates);
   await expect(line).toHaveAttribute("data-pass-action", "running");
-  await expect(line).toContainText("Running");
+  await expect(line).toContainText(CORPUS_PASS_RUNNING_TEXT);
   await expect(line.getByRole("button")).toHaveCount(0);
-  await expect(passLine(rail, "Distilled: genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, CORPUS_STAGE_LABELS.distilled)).toHaveAttribute("data-pass-action", "run");
 });
 
 test("with memory off, the rows that read chat summaries say so and offer to turn memory on", async ({ mount, page }) => {
@@ -169,13 +192,13 @@ test("with memory off, the rows that read chat summaries say so and offer to tur
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  for (const label of ["Story themes", "Keywords"]) {
+  for (const label of [CORPUS_STAGE_LABELS.storyThemes, CORPUS_STAGE_LABELS.keywords]) {
     const line = passLine(rail, label);
     await expect(line).toHaveAttribute("data-pass-action", "turn-on-memory");
     await expect(line).toContainText(READINESS_PASSES.keywords.needs);
-    await expect(line.getByRole("button", { name: "Turn on chat memory", exact: true })).toBeVisible();
+    await expect(line.getByRole("button", { name: CORPUS_TURN_ON_MEMORY_NAME, exact: true })).toBeVisible();
   }
-  await expect(passLine(rail, "Distilled: genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, CORPUS_STAGE_LABELS.distilled)).toHaveAttribute("data-pass-action", "run");
 });
 
 test("with no helper model, the passes that call one send the reader to Model roles instead of running", async ({ mount, page }) => {
@@ -185,7 +208,7 @@ test("with no helper model, the passes that call one send the reader to Model ro
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  for (const label of ["Distilled: genre, tone, pitch", "Story themes"]) {
+  for (const label of [CORPUS_STAGE_LABELS.distilled, CORPUS_STAGE_LABELS.storyThemes]) {
     const line = passLine(rail, label);
     await expect(line).toHaveAttribute("data-pass-action", "pick-helper-model");
     await expect(line.getByRole("button", { name: "Open Model roles", exact: true })).toBeVisible();
@@ -196,8 +219,8 @@ test("with no helper model, the passes that call one send the reader to Model ro
   const reading = await note.evaluate((node) => ({ cap: getComputedStyle(node.firstElementChild ?? node).maxWidth }));
   expect(reading.cap).not.toBe("none");
   // The near-duplicate and keyword passes call no model, so a missing one does not hold them.
-  await expect(passLine(rail, "Near-duplicates")).toHaveAttribute("data-pass-action", "run");
-  await expect(passLine(rail, "Keywords")).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, CORPUS_STAGE_LABELS.duplicates)).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, CORPUS_STAGE_LABELS.keywords)).toHaveAttribute("data-pass-action", "run");
 });
 
 test("a member's keywords row names the box owner instead of offering a run the transport refuses", async ({ mount, page }) => {
@@ -207,9 +230,9 @@ test("a member's keywords row names the box owner instead of offering a run the 
   await serveOverview(page, member);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  const line = passLine(rail, "Keywords");
+  const line = passLine(rail, CORPUS_STAGE_LABELS.keywords);
   await expect(line).toHaveAttribute("data-pass-action", "box-owner-only");
-  await expect(line).toContainText("The box owner runs this pass");
+  await expect(line).toContainText(CORPUS_BOX_OWNER_RUNS_PASS_TEXT);
   await expect(line.getByRole("button")).toHaveCount(0);
 });
 
@@ -223,7 +246,7 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   await serveOverview(page, owner, (request) => (typeof request === "object" && "mode" in request ? counting : undefined));
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  const door = passLine(rail, "Story themes").getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true });
+  const door = passLine(rail, CORPUS_STAGE_LABELS.storyThemes).getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true });
 
   await door.click();
   await counting.requested;
@@ -234,9 +257,27 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   counting.release();
   const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.storyThemes.confirmTitle, exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.cancel }).click();
   await expect(door).not.toHaveAttribute("aria-busy", "true");
   await expect(door).toBeEnabled();
   await absenceWindow(page, ENQUEUE_WINDOW_MS);
   expect(await queuedRuns()).toEqual(before);
+});
+
+test("a pass whose every run is counted exactly confirms its calls as an estimate, never as a ceiling", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const [estimate] = await Promise.all(readinessEstimates("distilled").map((request) => owner.workloads.estimateModelCalls(request)));
+  expect(estimate).toMatchObject({ bound: "exact" });
+  const calls = estimate?.calls ?? 0;
+  expect(calls).toBeGreaterThan(0);
+  await serveOverview(page, owner);
+  await mount<typeof CorpusCoverageStory>(STORY, {});
+  const rail = await visibleRail(page);
+
+  await passLine(rail, CORPUS_STAGE_LABELS.distilled).getByRole("button", { name: READINESS_PASSES.distilled.runLabel, exact: true }).click();
+
+  const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.distilled.confirmTitle, exact: true });
+  await expect(dialog).toContainText(`about ${calls} model ${calls === 1 ? "call" : "calls"}`);
+  await expect(dialog).not.toContainText("up to");
 });

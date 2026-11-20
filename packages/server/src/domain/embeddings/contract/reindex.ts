@@ -1,5 +1,6 @@
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GetEffectiveConfigOp } from "@orb/contracts/settings";
 import type { StartWorkloadOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
@@ -33,6 +34,8 @@ export interface EmbeddingReindexTriggers {
 }
 
 export interface VacuousMemoryReceiptDeps {
+  /** The sessions enabled read: a disabled owner gets no receipt, so nothing resolves their generation. */
+  readonly isAccountEnabled: ResolveUserEnabled;
   readonly isMemoryEnabled: IsMemoryEnabledOp;
   readonly emptyMemoryScope: (ownerId: UserId) => Promise<SQL | null>;
   readonly embeddings: Pick<EmbeddingsService, "resolveGeneration">;

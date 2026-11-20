@@ -18,9 +18,10 @@
 // on screen and disposed on unmount/disable. `dispose()` is idempotent and safe to call from a React cleanup.
 
 import type { PluginLogLevel, PluginSurfaceNode } from "@orb/contracts/plugin";
-import { pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
+import { isPluginUiHostCallCode, PLUGIN_UI_HOST_CALL_FAILED, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
+import { parseJsonText } from "@orb/kit/json";
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
-import { timeLib, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
+import { timeLib, trpcErrorReason, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
 
 /** What the host reports OUT to its React owner. Every arm is a rendered outcome, not an internal event: the
  *  component maps them straight to what a person sees. */
@@ -38,9 +39,10 @@ interface PluginUiGuestEvents {
   readonly onUnavailable: (reason: string) => void;
   /** A guest log line — surfaced through the plugin log affordance, never the console. */
   readonly onLog: (level: PluginLogLevel, message: string) => void;
-  /** Relay a proxied host call. Resolves with the server's inert JSON result; rejects with a message the guest
-   *  sees. The caller wires this to `trpc.plugin.uiHostCall` — this module never touches the network itself,
-   *  which is what keeps the tRPC client out of a module that also owns an untrusted worker. */
+  /** Relay a proxied host call. Resolves with the server's inert JSON result; rejects with the transport's error,
+   *  of which this module passes the guest only what {@link guestRefusal} allows. The caller wires this to
+   *  `trpc.plugin.uiHostCall` — this module never touches the network itself, which is what keeps the tRPC client
+   *  out of a module that also owns an untrusted worker. */
   readonly onHostCall: (fn: string, argsJson: string) => Promise<string>;
 }
 
@@ -65,6 +67,16 @@ export interface PluginUiGuest {
   ) => void;
   /** Terminate and release. Idempotent. */
   readonly dispose: () => void;
+}
+
+/** What a failed relay tells the guest. Only a refusal whose `data.reason` is in the contracts allowlist keeps its
+ *  code and the server's sentence for it. Every other failure, a fault, a leak-free not-found, a rate limit or a
+ *  network error, reaches plugin code as one fixed sentence with no code, so no server text crosses into it. */
+function guestRefusal(callId: number, err: unknown): UiGuestInbound {
+  const reason = trpcErrorReason(err);
+  return isPluginUiHostCallCode(reason) && err instanceof Error
+    ? { kind: "hostResult", callId, ok: false, message: err.message, code: reason }
+    : { kind: "hostResult", callId, ok: false, message: PLUGIN_UI_HOST_CALL_FAILED };
 }
 
 /** Build the worker. A separate function so the CT can see exactly one construction site, and so the
@@ -118,12 +130,10 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     if (published.get(surfaceId) === treeJson) {
       return;
     }
-    let parsed: unknown;
-    // `kill` terminates the worker and calls options.events.onCrash, which collapses
-    // the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx). Ends if this catch stops calling `kill`.
-    try {
-      parsed = JSON.parse(treeJson);
-    } catch {
+    // A publish that is not JSON calls `kill`, which terminates the worker and calls options.events.onCrash, which
+    // collapses the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx).
+    const parsed = parseJsonText(treeJson);
+    if (parsed === undefined) {
       kill("the plugin's interface published something that was not a valid tree");
       return;
     }
@@ -143,13 +153,13 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // The relay. Note what is NOT here: any decision about whether the call is allowed. The server re-gates
     // every one against the caller's own row, and duplicating that judgment here would create a second,
     // divergeable copy of the rule — the client's view of its grants is display-only by design.
-    // the failure goes to the guest as an `ok: false` hostResult carrying the
-    // error's message; the worker's settleHostCall rejects the guest's pending promise with it. Ends if the send drops the message.
+    // the failure goes to the guest as an `ok: false` hostResult built by guestRefusal; the worker's
+    // settleHostCall rejects the guest's pending promise with it. Ends if the send drops the message.
     try {
       const resultJson = await options.events.onHostCall(fn, argsJson);
       send({ kind: "hostResult", callId, ok: true, resultJson });
     } catch (err) {
-      send({ kind: "hostResult", callId, ok: false, message: err instanceof Error ? err.message : String(err) });
+      send(guestRefusal(callId, err));
     }
   }
 
@@ -188,14 +198,17 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     if (message.kind === "hostCall") {
-      // handleHostCall already catches its
-      // own await internally and always resolves (it sends a rejected hostResult instead of throwing) — this
-      // outer catch is belt-and-suspenders. Ends if handleHostCall stops catching internally.
-      void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);
+      // handleHostCall catches its own await and answers a failure as a rejected hostResult, so a rejection here is a
+      // fault in that answer itself, reported to the window's error ring.
+      void handleHostCall(message.callId, message.fn, message.argsJson).catch(globalThis.reportError);
       return;
     }
     if (message.kind === "ready" || message.kind === "unavailable") {
       handleBootOutcome(message);
+      return;
+    }
+    if (message.kind === "stopped") {
+      kill("the plugin's interface ran past its CPU budget while it received a host result");
       return;
     }
     const settled: UiGuestSettledMessage = message;

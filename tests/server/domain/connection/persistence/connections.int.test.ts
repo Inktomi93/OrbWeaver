@@ -49,6 +49,17 @@ test("owned invalid shapes and malformed bytes refuse before a read-derived upda
   expect(await db.all(sql`select id from user_connections where id = ${row.id}`)).toHaveLength(0);
 });
 
+test("a chat read with nothing bound for chat refuses with the coded no-model reason, through both doors the editor reads", async ({ ownerCaller }) => {
+  const preset = await ownerCaller.preset.create({ name: "No chat model", kind: "generation" });
+  const noModel = { code: "BAD_REQUEST", cause: { code: CONNECTION_OP_CODES.roleModelUnset } };
+  await expect(ownerCaller.connection.resolveChatCapability()).rejects.toMatchObject(noModel);
+  await expect(ownerCaller.preset.resolveEffective({ id: preset.id })).rejects.toMatchObject(noModel);
+  // Positive control: once a model is bound, the same read answers.
+  const own = await ownerCaller.connection.create(CONNECTION_INPUT);
+  await ownerCaller.connection.setBinding({ task: "chat", connectionId: own.id });
+  await expect(ownerCaller.connection.resolveChatCapability()).resolves.toMatchObject({ capability: { kind: "generation" } });
+});
+
 test("foreign malformed bytes still reach the mismatch event, never decoding or exposing the foreign row", async ({
   db,
   app,
@@ -70,7 +81,10 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   await db.run(sql`update user_connections set transport = '{' where id = ${foreign.id}`);
 
   using security = vi.spyOn(harness.logger, "warn");
-  await expect(ownerCaller.connection.resolveChatCapability()).rejects.toThrow(`connection ${foreign.id} not found`);
+  // A role read names no row, so a binding to a stranger's row answers as a role with no model, naming no id at all.
+  const roleRefusal: unknown = await ownerCaller.connection.resolveChatCapability().catch((error: unknown) => error);
+  expect(roleRefusal).toMatchObject({ code: "BAD_REQUEST", cause: { code: CONNECTION_OP_CODES.roleModelUnset } });
+  expect(roleRefusal).not.toMatchObject({ message: expect.stringContaining(foreign.id) });
   const mismatchEvents = (): (readonly unknown[])[] =>
     security.mock.calls.filter((call: readonly unknown[]) => {
       const fields = call[0];
@@ -83,7 +97,9 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   expect(mismatchEvents()).toEqual([expectedEvent]);
 
   const principal = await harness.principalFor(harness.ownerId);
-  await expect(app.runtime.capabilities.for({ connectionId: foreign.id, principal })).rejects.toThrow(`connection ${foreign.id} not found`);
+  await expect(app.runtime.capabilities.for({ signal: new AbortController().signal, connectionId: foreign.id, principal })).rejects.toThrow(
+    `connection ${foreign.id} not found`,
+  );
   await expect(ownerCaller.connection.get({ connectionId: foreign.id })).rejects.toMatchObject(foreignRefusal);
   await expect(ownerCaller.connection.remove({ connectionId: foreign.id })).toThrowTRPCError("BAD_REQUEST");
   expect((await ownerCaller.connection.get({ connectionId: own.id })).id).toBe(own.id);

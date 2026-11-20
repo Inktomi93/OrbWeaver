@@ -8,14 +8,15 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { timeLib } from "#lib";
-import { APPROX_DATES_MARK } from "../lib/analytics-copy.ts";
+import { ANALYTICS_BUSIEST_DAY_LEAD, APPROX_DATES_MARK } from "../lib/analytics-copy.ts";
+import { ANALYTICS_RHYTHM_HEADING } from "../lib/analytics-names.ts";
 import { formatCompact } from "../lib/analytics-view-model.ts";
 import type { Rhythm } from "../lib/local-calendar-folds.ts";
 
 export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactElement {
   const busiest = rhythm.busiestDay;
   return (
-    <Section heading="Rhythm">
+    <Section heading={ANALYTICS_RHYTHM_HEADING}>
       <Stack gap="block">
         <Row gap="block" wrap={true}>
           <StatFigure label="Active days" value={formatCompact(rhythm.activeDays)} />
@@ -29,7 +30,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
         <Text voice="gloss">
           {busiest === null
             ? "A day counts as active once you exchange a turn or open a chat in it."
-            : `Your busiest day was ${busiest.approx ? APPROX_DATES_MARK : ""}${timeLib.formatDate(busiest.start)}: activity counts turns exchanged plus chats opened.`}
+            : `${ANALYTICS_BUSIEST_DAY_LEAD} ${busiest.approx ? APPROX_DATES_MARK : ""}${timeLib.formatDate(busiest.start)}: activity counts turns exchanged plus chats opened.`}
         </Text>
       </Stack>
     </Section>

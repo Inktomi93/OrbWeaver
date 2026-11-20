@@ -8,7 +8,7 @@
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { BackgroundJob } from "#lib";
-import { BACKGROUND_JOB_LOGS, notify, trpcErrorCode } from "#lib";
+import { BACKGROUND_JOB_LOGS, isFinalRefusal, notify, trpcErrorCode } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
 
 // Per-query/mutation meta — the sanctioned v5 carrier for global-handler config.
@@ -37,10 +37,13 @@ declare module "@tanstack/react-query" {
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
 
-/** The default query retry: repeating refused input cannot recover, and other failures keep the shared schedule. A read that adds
- *  its own refusal composes with it rather than restating the count. */
-export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
-  return trpcErrorCode(error) !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
+/** Answers a retry cannot change: refused input, and an entity that is not there (deleted, reaped or never existed). Both settle at once. */
+const FINAL_ANSWER_CODES: ReadonlySet<string | undefined> = new Set(["BAD_REQUEST", "NOT_FOUND"]);
+
+/** The default query retry: a final answer, and an edge refusal that repeating cannot change, are not repeated; other
+ *  failures, including an unreachable server and a rate limit, keep the shared schedule. */
+function retryUnlessRefused(failureCount: number, error: unknown): boolean {
+  return !(FINAL_ANSWER_CODES.has(trpcErrorCode(error)) || isFinalRefusal(error)) && failureCount < QUERY_RETRIES;
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
@@ -64,7 +67,7 @@ export function createAppQueryClient(): QueryClient {
       queries: {
         staleTime: Number.POSITIVE_INFINITY, // Infinity, NOT 'static' — see header
         gcTime: GC_TIME_MS,
-        retry: retryUnlessBadRequest,
+        retry: retryUnlessRefused,
         refetchOnWindowFocus: false,
         refetchOnReconnect: true, // the SSE-gap closer — do not flip
         refetchOnMount: true,

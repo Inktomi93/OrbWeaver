@@ -45,9 +45,13 @@ export class DomainConflictError extends DomainError {
  * the action is gated. Maps to tRPC FORBIDDEN.
  */
 export class DomainForbiddenError extends DomainError {
-  constructor(message: string) {
+  /** A fixed code a client keys on instead of the message, for a refusal it says in its own words. Absent for every
+   *  other refusal, which stays codeless on the wire. */
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
     super(message);
     this.name = this.constructor.name;
+    this.code = code;
   }
 }
 
@@ -119,9 +123,12 @@ export class DomainInternalFaultError extends DomainError {
  */
 export class DomainNoCredentialError extends DomainError {
   readonly provider: string;
-  constructor(provider: string) {
+  /** The stored reason a revoked key carries; `null` for a key that is not the caller's. */
+  readonly revokedReason: string | null;
+  constructor(provider: string, revokedReason: string | null = null) {
     super(`No ${provider} credential — add a key in settings.`);
     this.name = this.constructor.name;
     this.provider = provider;
+    this.revokedReason = revokedReason;
   }
 }

@@ -5,30 +5,29 @@
 //
 // Layout (D132): the slot SHAPE + the closed id tuple live in `#prose-slot`; the per-domain slot
 // TABLES live beside the vocabulary they teach —
-//   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose (census 38-48) + the one-click steer
-//                                       vocabulary the Rewrite modal / greeting studio compose (53-73)
-//   • `#imagery`                      — per-USER image-prompt + negative-base prose (census 82-88)
-//   • `#chat` (chat/prose.ts)         — per-USER app-tier side-generation prose (census 74-81) + the
-//                                       per-PRESET group-round / injection FRAMING prose (the framings home on
-//                                       the preset — the injection frames + the F4 group re-home)
-//   • `#automation` (automation/prose.ts) — per-USER quiet-pick prose (census 91)
+//   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose + the one-click steer vocabulary the
+//                                       Rewrite modal / greeting studio compose
+//   • `#imagery`                      — per-USER image-prompt + negative-base prose
+//   • `#chat` (chat/prose.ts)         — per-USER app-tier side-generation prose + the per-PRESET
+//                                       group-round / injection FRAMING prose
+//   • `#automation` (automation/prose.ts) — per-USER quiet-pick prose
 //   • `#discovery` (discovery/prose.ts)   — per-USER library-semantics system prompts
-// …and THIS file composes them into `PROSE_SLOTS` and owns the resolver. Later stages graft the per-game
-// teaches (`#rpg`) and the extraction templates onto the SAME tuple. This module re-exports the shared
-// prose shapes and operations needed by consumers through `@orb/contracts/prose`.
+// …and THIS file composes them into `PROSE_SLOTS` and owns the resolver. The per-game teaches (`#rpg`) and
+// the extraction templates compose onto the SAME tuple. This module re-exports the shared prose shapes and
+// operations needed by consumers through `@orb/contracts/prose`.
 //
 // `PROSE_SLOT_IDS` is the ONE closed id vocabulary (§5.5 string-union dispatch): `PROSE_SLOTS` is annotated
 // `Record<ProseSlotId, ProseSlotDef>` so a missing row fails `tsc`, and each table `satisfies
 // Partial<Record<ProseSlotId, ProseSlotDef>>` so an unlisted id fails `tsc`. Both directions, no drift.
 //
-// Default-identity discipline (the imagery posture): an ABSENT override MUST produce bytes identical to the
-// pre-PROSE-1 constant. That is what makes every migration stage a no-op until a host actually types
+// Default-identity discipline (the imagery posture): an ABSENT override MUST produce the shipped default's
+// bytes exactly. That is what makes an untouched host a no-op: nothing changes until a host actually types
 // something.
 
 import { AUTOMATION_PROSE_SLOTS } from "#automation";
 import { CHAT_PROSE_SLOTS } from "#chat";
 import { DISCOVERY_PROSE_SLOTS } from "#discovery";
-import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { IMAGERY_PROSE_SLOTS } from "#imagery";
 import { PRESET_GREETING_TRANSFORM_PROSE_SLOTS, PRESET_PROSE_SLOTS, PRESET_REWRITE_TOGGLE_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { hasProseToken, isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -59,25 +58,15 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...RPG_PROSE_SLOTS,
 };
 
-/** The legacy-adapted user slots: their override is the pre-PROSE-1 `UserSettings.imagery.*` string
- *  field, NOT a `UserSettings.prose` row, and their editor is the Image-prompts section. Adapted, never
- *  duplicated — so the prose editor must not offer them a second door into a storage they don't use. */
-const LEGACY_ADAPTED_USER_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>([
-  ...Object.values(IMAGERY_TEMPLATE_SLOT_IDS),
-  ...Object.values(IMAGERY_CAPTION_SLOT_IDS),
-]);
+/** The slots a host edits in the Prose settings section — every `home:"user"` slot, each stored in
+ *  `UserSettings.prose`, the image-prompt instructions included. DERIVED from the registry, never hand-listed: a
+ *  new user-home slot table row reaches the editor the same commit it lands, so a slot can never be authored but
+ *  unreachable from the client. */
+export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "user");
 
-/** The slots a host edits in the Prose settings section — every `home:"user"` slot whose override is stored
- *  in `UserSettings.prose`. DERIVED from the registry, never hand-listed: a new user-home slot table row
- *  reaches the editor the same commit it lands, so the "authored but unreachable" class (the row-27 disease
- *  this program exists to kill) cannot re-form on the client side either. */
-export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
-  (id) => PROSE_SLOTS[id].home === "user" && !LEGACY_ADAPTED_USER_SLOT_IDS.has(id),
-);
-
-/** The preset-home slots whose override is the pre-PROSE-1 `promptConfig.guidedActions.*.prompt` /
- *  `formatStrings.*` field (adapted, never re-homed). They are edited in the preset Templates
- *  tab through those fields, so the `promptConfig.prose` blob must not offer them a second door. */
+/** The preset-home slots whose override is the `promptConfig.guidedActions.*.prompt` / `formatStrings.*`
+ *  field (adapted, never re-homed). They are edited in the preset Templates tab through those fields, so
+ *  the `promptConfig.prose` blob must not offer them a second door. */
 const LEGACY_ADAPTED_PRESET_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>(Object.keys(PRESET_PROSE_SLOTS) as ProseSlotId[]);
 
 // The slots a host edits as `promptConfig.prose` — every `home:"preset"` slot that is NOT one of the
@@ -97,8 +86,7 @@ export function isPresetProseSlotId(id: string): id is ProseSlotId {
  *  Each source is FILTERED TO THE SLOTS THAT ACTUALLY HOME THERE, which is what makes this a merge and not a
  *  cascade (D132 clause D): a key can only survive from its own storage, so two homes carrying the same id cannot
  *  produce a precedence question — the wrong one is dropped, never "loses". That also means a stale key left
- *  in a blob by a RE-HOME (the two injection frames moved user → preset) is inert rather than
- *  quietly authoritative from the storage it no longer belongs to.
+ *  in a blob by a re-home is inert rather than quietly authoritative from the storage it no longer belongs to.
  *
  *  Absent/`{}` sources contribute nothing, so a caller that threads none of them gets the shipped defaults
  *  byte-for-byte — the default-identity discipline, unchanged. */
@@ -118,10 +106,10 @@ export function composeProse(sources: Readonly<Partial<Record<ProseHome, ProseOv
 }
 
 /** Host edit BEATS shipped default, two rungs, no cascade (D132 clause A) — the REGISTRY-KEYED door onto the
- *  primitive in `#prose-slot`. The precedence rule itself moved down there when the rpg extraction templates
- *  landed: a domain TABLE resolving its own slots cannot import this module without closing the
- *  `#prose → #<domain> → #prose` cycle. This adds the id lookup and NOTHING else, so there is still exactly
- *  one place "which text wins" (and the blank-override heal, and staleness) is decided. */
+ *  primitive in `#prose-slot`. The precedence rule lives down there because a domain TABLE resolving its own
+ *  slots cannot import this module without closing the `#prose → #<domain> → #prose` cycle. This adds the id
+ *  lookup and NOTHING else, so there is still exactly one place "which text wins" (and the blank-override
+ *  heal, and staleness) is decided. */
 export function resolveProse(id: ProseSlotId, overrides: ProseOverrides): ProseResolution {
   return resolveProseFrom(PROSE_SLOTS[id], overrides[id]);
 }
@@ -146,8 +134,8 @@ export interface SteerCatalogEntry {
 }
 
 /**
- * The picked one-click steer ids → their resolved fragment sentences, in CATALOG ORDER (census 53-73, the
- * templating fork's ARM B). The ONE home for that resolution: both seams that compose a steer — chat's
+ * The picked one-click steer ids → their resolved fragment sentences, in CATALOG ORDER. The ONE home for that
+ * resolution: both seams that compose a steer — chat's
  * guided assembly (`REWRITE_TOGGLES`) and the greeting studio's two verbs (`GREETING_TRANSFORMS`) — walk the
  * CATALOG and keep what was picked, so the composed steer is deterministic regardless of the order the host
  * clicked the chips in, and neither seam can re-spell either the ordering rule or the two-rung resolution.
@@ -180,8 +168,8 @@ export interface ProseFooterState {
    * decision about advice. This is not advice: `proseOverridesSchema`'s per-key `.catch(undefined)` heals
    * an over-cap override to ABSENT, so a save at `over > 0` does not fail loudly, it silently deletes the
    * host's text and lets the shipped default ride. The editors cap typing at the limit, so `over > 0` is
-   * reachable only from text that predates the cap (an import, a direct API write, a blob from before this
-   * fix) — which is exactly why it must be SHOWN rather than truncated away, and why the save is refused
+   * reachable only from text that never passed through the editors (an import, a direct API write) — which
+   * is exactly why it must be SHOWN rather than truncated away, and why the save is refused
    * until the author trims it themselves.
    */
   readonly over: number;

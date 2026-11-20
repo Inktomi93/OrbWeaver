@@ -4,7 +4,15 @@ import { holdServed } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_SEARCH_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_LIBRARY_READ_LABEL,
+  PRESET_LIST_NAME,
+  PRESET_SEARCH_NAME,
+  presetActivateRowName,
+} from "#client/features/preset/lib/preset-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type { ModalShellStory, SectionShellStory } from "./_surface-stories.tsx";
@@ -38,7 +46,7 @@ test("a quiet held subject cannot complete the census, and the loaded subject ex
   if (preset === undefined) {
     throw new Error("The corpus has no preset row to audit");
   }
-  const radio = page.getByRole("radio", { name: `Activate ${preset.name} for generation`, exact: true });
+  const radio = page.getByRole("radio", { name: presetActivateRowName(preset.name), exact: true });
   await expect(radio).toBeVisible();
   await radio.evaluate((node) => {
     node.removeAttribute("aria-label");
@@ -65,12 +73,15 @@ test("an intentional read failure requires the actual error and recovery control
   await mount<typeof SectionShellStory>(STORY, { section: "presets" });
   await held.requested;
   held.fail();
-  const failure = page.getByRole("region", { name: "Presets list", exact: true });
+  const failure = page.getByRole("region", { name: PRESET_LIST_NAME, exact: true });
   const report = await auditSurface({
     name: "failed preset list",
     scope: failure,
     state: "error",
-    witnesses: [failure.getByText("Couldn't load your presets.", { exact: true }), failure.getByRole("button", { name: "Retry", exact: true })],
+    witnesses: [
+      failure.getByText(queryFailedLabel(PRESET_LIBRARY_READ_LABEL), { exact: true }),
+      failure.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }),
+    ],
     checks: ["names", "forms", "density"],
   });
   expect(report).toEqual({ names: [], forms: [], density: [] });

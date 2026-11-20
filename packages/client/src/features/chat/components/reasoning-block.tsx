@@ -22,6 +22,8 @@
 // shows is whatever the SERVER handed this viewer: the §3.6 reasoning strip nulls the field for a member of a
 // deception-active game, so a stripped row simply has nothing to mount (this component never gates access).
 
+import { SMOOTH_STREAM_OFF } from "@orb/contracts/settings";
+import { stripStyleElements } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -34,11 +36,6 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useElapsedSeconds } from "#lib";
 
-// Fallback pace when smooth-streaming is on but no explicit cps was passed (matches the contract default,
-// same as the ghost body's DEFAULT_SMOOTH_STREAM_CPS). The `UserSettings.chat.smoothStreamCps` pref
-// overrides it via the `smoothStreamCps` prop; `smoothStream` off ⇒ pacing is skipped entirely.
-const DEFAULT_SMOOTH_STREAM_CPS = 80;
-
 export interface ReasoningBlockProps {
   readonly reasoning: string;
   /** True while the turn has reasoning but no answer token yet; flips false on the auto-collapse trigger. */
@@ -47,12 +44,9 @@ export interface ReasoningBlockProps {
    *  because a canon-rehydrated row never measured the think window and must not invent one. */
   readonly label?: string | undefined;
   readonly showIcon?: boolean | undefined;
-  /** The `UserSettings.chat.smoothStream` pref: pace the reasoning reveal. The PREF ships ON
-   *  (owner ruling 2026-08-09); the prop's own fallback stays OFF because an ABSENT prop means "this mount
-   *  never resolved the pref" (a story/anchor), not "the user wants pacing" — the surface always passes the
-   *  resolved value, so the contract keeps the ONE home of the default. */
-  readonly smoothStream?: boolean | undefined;
-  /** The `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
+  /** The `UserSettings.chat.smoothStreamCps` pref: the reasoning reveal rate, 0 for none. The prop's own fallback
+   *  is off, because an ABSENT prop means "this mount never resolved the pref" (a story/anchor), not "the user wants
+   *  pacing" — the surface always passes the resolved value, so the contract keeps the ONE home of the default. */
   readonly smoothStreamCps?: number | undefined;
   /** The `UserSettings.chat.reasoningAutoCollapse` pref — fold the trace on the first answer token. Default
    *  ON (today's behavior). Off ⇒ the trace stays open after the answer until the reader closes it, so the
@@ -67,8 +61,7 @@ export function ReasoningBlock({
   thinking,
   label: labelOverride,
   showIcon = false,
-  smoothStream = false,
-  smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
+  smoothStreamCps = SMOOTH_STREAM_OFF,
   autoCollapse = true,
 }: ReasoningBlockProps): ReactElement {
   const elapsedSeconds = useElapsedSeconds(thinking);
@@ -85,13 +78,13 @@ export function ReasoningBlock({
   // the user has clicked, `override` is non-null and the smooth Base UI fold returns.
   const instant = override === null;
   const label = labelOverride ?? (thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`);
-  const paced = useSmoothText(reasoning, { enabled: thinking && smoothStream, cps: smoothStreamCps });
+  const paced = useSmoothText(reasoning, { enabled: thinking && smoothStreamCps !== SMOOTH_STREAM_OFF, cps: smoothStreamCps });
   const held = speakerTagsToPlain(thinking ? holdTornSpeaker(paced) : paced);
 
   return (
     <Collapsible open={expanded} onOpenChange={(next): void => setOverride(next)}>
       <CollapsibleTrigger chevron={false}>
-        <Row gap="field" align="center">
+        <Row gap="field" align="center" cap="fit" wrap={true}>
           <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
           {/* Decorative — the adjacent label text already names the disclosure. */}
           {showIcon ? <Icon icon={BrainCircuit} size="sm" /> : null}
@@ -105,7 +98,7 @@ export function ReasoningBlock({
           <StreamShimmer label="Reading the reasoning trace…" />
         ) : (
           <Markdown trust="untrusted" mode={thinking ? "streaming" : "static"}>
-            {held}
+            {stripStyleElements(held)}
           </Markdown>
         )}
       </CollapsiblePanel>

@@ -17,7 +17,7 @@
 // strict payload subset): every twin below is a BARE-verb affordance on another plane, and this hook is the
 // only door that can carry a `guided` steer.
 //   • generate / continueTurn ← `use-continue-turn.ts`: a settings-gated EMPTY-Enter keyboard gesture
-//     (`continueOnSend` / `generateOnEmptySend`), no steer, no speaker, no `afterAssistant`.
+//     (`emptyEnterReplies`), no steer, no speaker, no `afterAssistant`.
 //   • swipe ← `swipe-strip.tsx`: the transcript row's variant PAGER, whose right chevron generates only at
 //     the tip and which owns the ‹/› keyboard nav (`use-swipe-keyboard-nav`) — a reader-side control on the
 //     message, not a composer control on the draft.
@@ -31,7 +31,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useEffect, useState } from "react";
 import type { Trpc, TrpcClient } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { createEntityMutation, roomTailOptions, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
 import type { ComposerDraftWrite } from "#state";
 import { pushFiredSteer } from "#state";
@@ -174,7 +174,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     };
   };
 
-  const tailQuery = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  const tailQuery = useQuery(roomTailOptions(trpc, { chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now — the rpg
   // state-anchor slot this used to skip no longer exists).
   const tailMessage = tailQuery.data?.messages.at(-1);

@@ -2,17 +2,19 @@
 // A message's avatar button keeps its painted size and reaches the coarse-pointer touch floor with a layout-neutral
 // hit area, for the speaker on either side of the row.
 
+import { viewImageActionName } from "@orb/client/lib";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROLES = ["user", "assistant"] as const;
-const IMAGE_ACTION = /^View .+'s image$/;
+const IMAGE_ACTION = nameShape(viewImageActionName);
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 

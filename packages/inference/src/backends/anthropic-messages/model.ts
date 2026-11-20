@@ -1,6 +1,17 @@
 // The `anthropic-messages` model factory — one `LanguageModelV4` per CALL over `@ai-sdk/anthropic`
-// (`createAnthropic({ apiKey, baseURL, fetch })`, §8.5). Per call so the wrapped fetch closes over this
+// (`createAnthropic({ apiKey, baseURL, fetch })`). Per call so the wrapped fetch closes over this
 // call's capture context. The row's `baseUrl` is the API ORIGIN; the SDK wants the `/v1` prefix.
+//
+// FORBIDDEN: `name:` on `createAnthropic` (neither factory in this package takes it, and no call site sets
+// it — ruled in `ai-sdk-surface.md`). The SDK derives the options/metadata key from the factory name,
+// `providerOptionsName = provider.split(".")[0]` — the chat path's `getProviderOptionsName` applies the same
+// rule, and the default name `"anthropic.messages"` splits to `"anthropic"` (`@ai-sdk/anthropic@4.0.85`) —
+// and that key re-keys BOTH the `providerOptions` it reads (`customProviderOptions`) and the `providerMetadata`
+// it re-emits (`providerMetadata[providerOptionsName]`, gated on `usedCustomProviderKey`). Our readers key on
+// `anthropic` — the thinking-drop alarm (`prefixBindingDropsOf` in
+// `packages/inference/src/backends/wire/provider-metadata.ts`) and the refusal taxonomy
+// (`packages/inference/src/backends/anthropic-messages/refusal.ts`) — so a renamed factory silently zeroes
+// them.
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV4 } from "@ai-sdk/provider";

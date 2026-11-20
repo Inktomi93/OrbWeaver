@@ -8,12 +8,13 @@ import { Table } from "@orb/ui/table";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { EditableTagChip, QueryBoundary, useAcceptSuggestion, useRejectSuggestion } from "#components";
+import { EditableTagChip, MutedLine, QueryBoundary, useAcceptSuggestion, useRejectSuggestion } from "#components";
 import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
 import { groupSuggestions } from "../lib/label-suggestion-groups.ts";
+import { TAG_REJECT_NAME, TAG_SUGGESTIONS_EMPTY_TEXT, tagSuggestionGroupName, tagSuggestionRowName } from "../lib/tag-list-name.ts";
 
 export function LabelsSuggestions(): ReactElement {
   return (
@@ -63,9 +64,9 @@ function SuggestionsBody(): ReactElement {
   const groups = groupSuggestions(suggestions);
   if (groups.length === 0) {
     return (
-      <Text role="status" ref={empty} tabIndex={-1} voice="gloss">
-        No suggested tags awaiting review.
-      </Text>
+      <MutedLine announce={true} ref={empty} tabIndex={-1}>
+        {TAG_SUGGESTIONS_EMPTY_TEXT}
+      </MutedLine>
     );
   }
   const ordered = groups.flatMap((group) => group.rows);
@@ -130,7 +131,7 @@ function SuggestionGroupBlock({
     return null;
   }
   return (
-    <Stack gap="field" role="group" aria-label={`Suggested ${group.name}`}>
+    <Stack gap="field" role="group" aria-label={tagSuggestionGroupName(group.name)}>
       <Row align="center" wrap={true} gap="field">
         <EditableTagChip tag={first} />
         <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
@@ -182,7 +183,7 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
     <Row align="center" wrap={true} gap="field">
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
-        className="min-inline-0"
+        minWidth="shrinks"
         justify="start"
         variant="ghost"
         size="sm"
@@ -229,7 +230,7 @@ function SuggestionRow({
   }, [pending]);
   return (
     // No wrap: Apply and Reject are one pair, and the table gives this cell its own width.
-    <Row align="center" gap="field" justify="end" role="group" aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}>
+    <Row align="center" gap="field" justify="end" role="group" aria-label={tagSuggestionRowName(suggestion.name, suggestion.characterName)}>
       <Button
         data-slot="label-review-apply"
         ref={applyRef}
@@ -281,7 +282,7 @@ function SuggestionRow({
           });
         }}
       >
-        Reject
+        {TAG_REJECT_NAME}
       </Button>
     </Row>
   );

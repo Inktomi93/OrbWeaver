@@ -12,10 +12,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
-  migrationsBefore,
+  migrationsHolding,
   ownDb,
   plantLegacyCheckpoint,
-  SHIPPED_MIGRATIONS,
   seedCorpusActors,
   seedRecallRoom,
 } from "@orb/testkit/node/composed";
@@ -40,11 +39,11 @@ interface LegacyRoom {
   readonly migrate: () => Promise<void>;
 }
 
-/** A composed root over a database on the chain cut before 0006; `migrate` runs the shipped chain over it. */
+/** A composed root over a database that holds every migration but 0006; `migrate` then applies 0006. */
 async function legacyRoom(ownership: AsyncDisposableStack): Promise<LegacyRoom> {
-  const previousChain = ownership.use(await migrationsBefore(MIGRATION)).path;
+  const { rest, held } = ownership.use(await migrationsHolding(MIGRATION)).paths;
   const db = ownership.use(ownDb(await createDb(":memory:"))).db;
-  await runMigrations(db, previousChain);
+  await runMigrations(db, rest);
   const wire = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -65,7 +64,7 @@ async function legacyRoom(ownership: AsyncDisposableStack): Promise<LegacyRoom> 
     return assistant;
   };
   const migrate = async (): Promise<void> => {
-    await runMigrations(db, SHIPPED_MIGRATIONS);
+    await runMigrations(db, held);
     await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
   };
   return { root, params, send, migrate };

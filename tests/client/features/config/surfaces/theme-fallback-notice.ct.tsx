@@ -3,7 +3,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_NEW_THEME_LEAD, CONFIG_THEME_ACCENT_FIELD_NAME, CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { COLOR_HEX_FIELD_NAME, colorPickerName } from "#ui/primitives/color-field/color-field-names.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // The theme editor names the contrast bound its theme's own colours made the app relax, reached the way an author edits
@@ -31,7 +32,7 @@ test.beforeEach(async ({ mount, page }) => {
     phone: false,
     width: 900,
   });
-  await page.getByRole("button", { name: /^New theme/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONFIG_NEW_THEME_LEAD)}`, "u") }).click();
 });
 
 test.afterEach(async () => {
@@ -41,8 +42,8 @@ test.afterEach(async () => {
 async function pickColor(page: Page, field: string, value: string): Promise<void> {
   await page.getByRole("button", { name: field, exact: true }).click();
   await page
-    .getByRole("dialog", { name: `${field} color picker` })
-    .getByRole("textbox", { name: "Hex" })
+    .getByRole("dialog", { name: colorPickerName(field), exact: true })
+    .getByRole("textbox", { name: COLOR_HEX_FIELD_NAME })
     .fill(value);
   await page.keyboard.press("Escape");
 }
@@ -55,7 +56,7 @@ test("a theme whose accent shares no ink with its solid steps names the relaxed 
   await expect(notice(page)).toHaveAttribute("role", "status");
   await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);
   await pickColor(page, CONFIG_THEME_BACKGROUND_FIELD_NAME, TONE_FALLBACK_SCOPE.toneBackground);
-  await pickColor(page, "Accent", TONE_FALLBACK_SCOPE.toneAccent);
+  await pickColor(page, CONFIG_THEME_ACCENT_FIELD_NAME, TONE_FALLBACK_SCOPE.toneAccent);
   await expect(notice(page).locator('[data-fallback="tone"]')).toHaveCount(1);
   await pickColor(page, CONFIG_THEME_BACKGROUND_FIELD_NAME, "oklch(0.98 0.004 75)");
   await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);

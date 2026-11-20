@@ -14,8 +14,9 @@ export class AssetFileMissingError extends DomainUnavailableError {
   }
 }
 
-/** The stored file of an asset row is not an image: its bytes carry no known image signature (truncated or
- *  corrupt). The sweep fails that asset alone, like {@link AssetFileMissingError}. */
+/** The stored file of an asset row is not a readable image: its bytes carry no known image signature, or the
+ *  format they carry ends past the last byte (cut short). The sweep fails that asset alone, like
+ *  {@link AssetFileMissingError}. */
 export class AssetFileCorruptError extends DomainOperationError {
   readonly assetId: AssetId;
   constructor(assetId: AssetId) {

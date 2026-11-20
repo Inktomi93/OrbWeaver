@@ -5,7 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
-import type { PresetId, UserId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 export interface CreatePresetParams {
   readonly userId: UserId;
@@ -58,6 +58,8 @@ export interface UpdatePresetParams {
 export interface RemovePresetParams {
   readonly userId: UserId;
   readonly id: PresetId;
+  /** Scripts the owner chose to delete with the preset. Only those the delete leaves attached to nothing go. */
+  readonly scriptIds: readonly RegexScriptId[];
 }
 
 export interface ResetToDefaultParams {
@@ -74,6 +76,7 @@ export interface ResolveEffectiveParams {
   readonly id: PresetId;
   /** Which of the caller's connections to project against; absent ⇒ the chat role. */
   readonly target?: CapabilityTarget | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Read one readable preset's BACKWARD bindings. Carries the whole `Principal` for the same reason
@@ -84,10 +87,11 @@ export interface ListPresetUsageParams {
   readonly id: PresetId;
 }
 
-/** Import ONE orb-native preset FILE into the caller's library. `fileText` is the file's UTF-8 JSON text —
- *  an `orb.preset` file IS text, so the door hands the verb exactly what the user picked (the verb's own
- *  first act is a UTF-8 decode; base64 would only round-trip the same bytes). */
+/** Import, or preview importing, ONE preset file into the caller's library: an `orb.preset` export or a SillyTavern
+ *  chat-completion preset. `fileText` is the file's UTF-8 JSON text, exactly what the user picked; `fileName` names a
+ *  SillyTavern preset, which carries no name SillyTavern itself reads. */
 export interface ImportPresetFileParams {
   readonly userId: UserId;
   readonly fileText: string;
+  readonly fileName: string;
 }

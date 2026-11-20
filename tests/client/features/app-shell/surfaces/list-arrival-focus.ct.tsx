@@ -2,7 +2,7 @@
 // A LIST surface under a band lands on the band's first control, so a forward Tab runs the band's New (inline in every pane
 // width: a band folds its other actions first), then the search field, then the rows. Each case arrives through the rail the
 // way a keyboard user does, on the production section registry.
-import { LIST_PANEL_NOUN, panelEdgeName } from "@orb/client/lib";
+import { LIST_PANEL_NOUN, panelEdgeName, YOU_TAB_LABEL } from "@orb/client/lib";
 import type { SectionId } from "@orb/client/state";
 import { SECTION_IDS } from "@orb/client/state";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -232,7 +232,7 @@ const PHONE_LANDINGS = {
 
 /** Opens a section from the You sheet, where the phone's bar sends the sections it has no tab for. */
 async function openFromYouSheet(page: Page, label: string): Promise<void> {
-  await page.locator(RAIL).getByRole("button", { name: "You", exact: true }).click();
+  await page.locator(RAIL).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.locator(SHEET).getByRole("button", { name: label, exact: true }).click();
   await expect(page.locator(SHEET)).toHaveCount(0);
 }

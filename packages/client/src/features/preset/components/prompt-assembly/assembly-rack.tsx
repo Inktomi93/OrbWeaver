@@ -16,17 +16,18 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { Stack, Surface } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { Notice } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { isPivotSection } from "#src/features/preset/lib/assembly-model.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
+import { PRESET_CACHE_BUSTERS_SHOW_NAME, presetCacheBustersLine } from "#src/features/preset/lib/preset-names.ts";
 import { cacheInvalidatingSections } from "#src/features/preset/lib/prompt-cache-warning.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
@@ -49,6 +50,9 @@ export interface AssemblyRackProps {
   /** The section whose chevron should take focus on this mount — the drill-in's focus RESTORE (F-04).
    *  `null` on a plain rack render (nothing to restore), so a first paint never steals focus. */
   readonly restoreFocusSectionId: string | null;
+  /** The chat connection reuses a cached prompt prefix on this preset's turns (`cachesPrompts`); the cache line
+   *  speaks only then. */
+  readonly promptCaching: boolean;
 }
 
 /** The row's own NAME — the rack's labels, so the grip reads "Reorder Main" instead of N identical
@@ -69,6 +73,7 @@ export function AssemblyRack({
   onSelectSection,
   onDrillSection,
   onAddChatHistory,
+  promptCaching,
   restoreFocusSectionId,
 }: AssemblyRackProps): ReactElement {
   const afterRackRef = useRef<HTMLDivElement>(null);
@@ -78,7 +83,7 @@ export function AssemblyRack({
         const sections = config.sections;
         const zones = deriveZones(sections);
         const duplicateSet = new Set(zones.duplicatePivotIndexes);
-        const cacheBusters = cacheInvalidatingSections(config, presetId);
+        const cacheBusters = promptCaching ? cacheInvalidatingSections(config, presetId) : [];
 
         const onReorder = (orderedKeys: SortableItemKey[]): void => {
           const before = sections.map((s) => s.id as SortableItemKey);
@@ -105,32 +110,29 @@ export function AssemblyRack({
                   the revealed control lost its control height and its side padding. Same posture, one
                   spelling, both skip links. */}
               <Button hiddenAt="focusInFlow" variant="outline" onClick={(): void => afterRackRef.current?.focus()} size="sm" type="button">
-                Skip the section list
+                Skip the prompt list
               </Button>
               {zones.missingPivot ? (
-                <Card tone="warning" variant="soft">
-                  <Row align="center" gap="row">
-                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                    <Text grow={true} voice="label">
-                      No chat history marker. The conversation has nowhere to splice in.
-                    </Text>
+                <Notice
+                  action={
                     <Button variant="outline" onClick={onAddChatHistory} size="sm" type="button">
                       Add chat history
                     </Button>
-                  </Row>
-                </Card>
+                  }
+                  title="No chat history marker. The conversation has nowhere to splice in."
+                  tone="warning"
+                />
               ) : null}
+              {/* ONE QUIET LINE, NOT A BAND. An imported preset can hold dozens of such entries by its author's
+                  design, and a band naming them all filled a phone's first screen before any entry showed. */}
               {cacheBusters.length > 0 ? (
-                <Card tone="warning" variant="soft">
-                  <Row align="center" gap="row">
-                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                    <Text data-slot="prompt-cache-warning" voice="label">
-                      {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
-                        .map(sectionName)
-                        .join(", ")} below Chat History to keep the cache.`}
-                    </Text>
-                  </Row>
-                </Card>
+                <Collapsible>
+                  <Text voice="gloss">{presetCacheBustersLine(cacheBusters.length)}</Text>
+                  <CollapsibleTrigger>{PRESET_CACHE_BUSTERS_SHOW_NAME}</CollapsibleTrigger>
+                  <CollapsiblePanel offset="row">
+                    <Text voice="gloss">{cacheBusters.map(sectionName).join(", ")}</Text>
+                  </CollapsiblePanel>
+                </Collapsible>
               ) : null}
 
               <SortableList

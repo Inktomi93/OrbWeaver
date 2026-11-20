@@ -1,6 +1,8 @@
 // The one projection from raw process arguments to what a file may hold. Selectors, routes and flag names stay, so a
 // report still reads what the run did; the value an operator typed does not. The session socket and the parser keep
 // the raw argv: those are the operation, and neither reaches a file.
+import { routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { maskSecretPathSegments, URL_SECRET_PAIR_NAMES, URL_SECRET_PATH_NAMES, URL_WORD_PAIR_NAMES } from "../../floor/browser/url-secret-names.ts";
 import { splitFirstEq, splitPageSuffix, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import type { DiskSafeArgv, DiskSafeOp, DiskSafeUrl, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
@@ -11,21 +13,24 @@ type ValueMask = (value: string) => string;
 
 const maskWhole: ValueMask = () => PRIVATE_MASK;
 
-const SCHEME_AUTHORITY = /^[a-z][a-z0-9+.-]*:\/\//iu;
-// The last `@` before the path ends the userinfo, as the URL parser reads it.
-const USERINFO = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/iu;
-
-// Private only as whole URL pair names: `?key=` is the usual API-key spelling and `?code=` an OAuth code. The shared
-// predicate stays without them, because it also judges JSON keys, where `code` and `key` are ordinary fields.
-const URL_ONLY_SENSITIVE_NAMES: ReadonlySet<string> = new Set(["key", "code"]);
+// The schemes whose authority the URL parser reads after any run of `/` and `\`, so `http:\h` and `http:h` are `http://h/`.
+const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["ftp:", "file:", "http:", "https:", "ws:", "wss:"]);
+// The URL parser drops these anywhere in its input, so `ht<TAB>tp:` is `http:` and `to<TAB>ken` is `token`.
+const PARSER_DROPPED = /[\t\n\r]/gu;
 
 function sensitiveUrlPairName(name: string): boolean {
-  return URL_ONLY_SENSITIVE_NAMES.has(name.toLowerCase()) || isSensitiveEvidenceName(name);
+  const lower = name.toLowerCase();
+  return URL_WORD_PAIR_NAMES.has(lower) || URL_SECRET_PAIR_NAMES.has(lower) || isSensitiveEvidenceName(name);
+}
+
+// URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
+function decodedUrlName(encoded: string): string {
+  const name = encoded.replace(PARSER_DROPPED, "");
+  return [...new URLSearchParams(`${name}=`).keys()][0] ?? name;
 }
 
 function sensitivePairName(encoded: string): boolean {
-  // URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
-  return sensitiveUrlPairName([...new URLSearchParams(`${encoded}=`).keys()][0] ?? encoded);
+  return sensitiveUrlPairName(decodedUrlName(encoded));
 }
 
 function maskPairs(section: string): string {
@@ -38,13 +43,16 @@ function maskPairs(section: string): string {
     .join("&");
 }
 
-/** The query and the fragment (`#access_token=…`), each sensitive pair's value masked and every other byte kept. */
-function maskQueryAndFragment(url: string): string {
+/** The path, the query and the fragment (`#access_token=…`), each secret segment and sensitive pair's value masked and
+ *  every other byte kept. */
+function maskPathQueryAndFragment(url: string): string {
   const hash = url.indexOf("#");
   const beforeHash = hash < 0 ? url : url.slice(0, hash);
   const fragment = hash < 0 ? "" : `#${maskPairs(url.slice(hash + 1))}`;
   const query = beforeHash.indexOf("?");
-  return query < 0 ? `${beforeHash}${fragment}` : `${beforeHash.slice(0, query + 1)}${maskPairs(beforeHash.slice(query + 1))}${fragment}`;
+  const path = query < 0 ? beforeHash : beforeHash.slice(0, query);
+  const search = query < 0 ? "" : `?${maskPairs(beforeHash.slice(query + 1))}`;
+  return `${maskSecretPathSegments(path, PRIVATE_MASK)}${search}${fragment}`;
 }
 
 const LAST_STRIPPED_CODE = 0x20;
@@ -74,12 +82,44 @@ function decodedUserinfo(encoded: string): string {
  */
 export function diskSafeUrl(raw: string): DiskSafeUrl {
   const lead = strippedLeadLength(raw);
-  const url = raw.slice(lead);
-  // A file path has no authority, so nothing in it is userinfo; an `@` in a package path stays.
-  if (!SCHEME_AUTHORITY.test(url)) {
-    return raw as DiskSafeUrl;
+  // The query is masked even where the parser reads `raw` only against a base: navigation resolves it, token and all.
+  return `${raw.slice(0, lead)}${maskPathQueryAndFragment(maskUserinfo(raw.slice(lead)))}` as DiskSafeUrl;
+}
+
+/** The default artifact base for a route, built from the masked route: it becomes a file name, a batch id and a printed line. */
+export function routeArtifactSlug(route: string): string {
+  return routeSlug(diskSafeUrl(route));
+}
+
+// What the parser skips between a scheme and its authority, and what ends the authority, per scheme kind.
+const SPECIAL_SKIPPED = "/\\\t\n\r";
+const PLAIN_SKIPPED = "/\t\n\r";
+const SPECIAL_AUTHORITY_END = "/\\?#";
+const PLAIN_AUTHORITY_END = "/?#";
+
+/**
+ * Mask the userinfo the URL parser reads in `url`, in the operator's spelling. A value the parser cannot read alone, a
+ * file path among them, has no authority, so an `@` in a package path stays.
+ */
+function maskUserinfo(url: string): string {
+  const parsed = URL.parse(url);
+  if (parsed === null || (parsed.username === "" && parsed.password === "")) {
+    return url;
   }
-  return `${raw.slice(0, lead)}${maskQueryAndFragment(url.replace(USERINFO, `$1${PRIVATE_MASK}@`))}` as DiskSafeUrl;
+  const special = SPECIAL_SCHEMES.has(parsed.protocol);
+  const skipped = special ? SPECIAL_SKIPPED : PLAIN_SKIPPED;
+  const authorityEnd = special ? SPECIAL_AUTHORITY_END : PLAIN_AUTHORITY_END;
+  let start = url.indexOf(":") + 1;
+  while (start < url.length && skipped.includes(url.charAt(start))) {
+    start += 1;
+  }
+  let end = start;
+  while (end < url.length && !authorityEnd.includes(url.charAt(end))) {
+    end += 1;
+  }
+  // The last `@` before the path ends the userinfo, as the URL parser reads it.
+  const at = url.lastIndexOf("@", end - 1);
+  return at < start ? url : `${url.slice(0, start)}${PRIVATE_MASK}${url.slice(at)}`;
 }
 
 /** Whether `raw` names userinfo the URL parser would send: snap refuses it, so a credential is never an argument. */
@@ -104,7 +144,13 @@ export function noteUrlSecrets(url: string): void {
   }
   for (const [name, value] of [...parsed.searchParams, ...new URLSearchParams(parsed.hash.slice(1))]) {
     if (sensitiveUrlPairName(name)) {
-      privateText(value).reveal();
+      privateText(value, URL_WORD_PAIR_NAMES.has(name.toLowerCase()) ? "urlWord" : "secret").reveal();
+    }
+  }
+  const segments = parsed.pathname.split("/").map(decodedUserinfo);
+  for (const [index, segment] of segments.entries()) {
+    if (segment !== "" && URL_SECRET_PATH_NAMES.has((segments[index - 1] ?? "").toLowerCase())) {
+      privateText(segment).reveal();
     }
   }
 }
@@ -140,10 +186,14 @@ const PRIVATE_VALUE_FLAGS: ReadonlyMap<string, ValueMask> = new Map([
   ["--local-storage", maskTail(splitFirstEq)],
 ]);
 
-/** A spelled `--flag=value` is an unknown flag the parser refuses, but a refused run still writes its index. */
-function maskInlineValue(token: string): string {
+/**
+ * A spelled `--flag=value` is an unknown flag the parser refuses, but a refused run still writes its index. Every other
+ * argument takes the URL mask: the route positional navigates with its query, token and all, and this projection has
+ * no arity table to tell the route from another flag's value. An argument with no sensitive pair is kept as written.
+ */
+function maskArgument(token: string): string {
   const flag = [...PRIVATE_VALUE_FLAGS.keys()].find((name) => token.startsWith(`${name}=`));
-  return flag === undefined ? token : `${flag}=${PRIVATE_MASK}`;
+  return flag === undefined ? diskSafeUrl(token) : `${flag}=${PRIVATE_MASK}`;
 }
 
 /** Mask every private value in `argv`. Idempotent, so a stored argv can be read back through it. */
@@ -151,7 +201,7 @@ export function diskSafeArgv(argv: readonly string[]): DiskSafeArgv {
   const projected: string[] = [];
   let mask: ValueMask | undefined;
   for (const token of argv) {
-    projected.push(mask === undefined ? maskInlineValue(token) : mask(token));
+    projected.push(mask === undefined ? maskArgument(token) : mask(token));
     mask = mask === undefined ? PRIVATE_VALUE_FLAGS.get(splitPageSuffix(token).flag) : undefined;
   }
   return projected as unknown as DiskSafeArgv;

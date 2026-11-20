@@ -17,7 +17,7 @@
 // Each check RE-FETCHES the remote manifest through the SAME egress guard the install rode (`ctx.fetchBundle` →
 // `safeFetch` ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap) and
 // parses it through the SAME `parseBundle` funnel — no bare fetch, no second code path. Any failure — an SSRF
-// block, a non-2xx, a network error (`fetchBundleThroughGuard` → `PluginBundleFetchError`) OR a remote that
+// block, a non-2xx, a network error (`ctx.fetchBundle` → `PluginBundleFetchError`) OR a remote that
 // served un-parseable bytes (`parseBundle` → `ManifestInvalidError`) — collapses to the ONE leak-free
 // `unreachable` arm: distinguishing "blocked" from "404" from "garbage" would re-open the SSRF oracle the
 // install funnel closed. Nothing is persisted; this verb reads the version and exact-byte identity needed by
@@ -32,7 +32,7 @@ import type { CheckForUpdatesParams } from "../contract/params.ts";
 import type { PluginUpdateCheck } from "../contract/results.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
-import { fetchBundleThroughGuard, hashPluginBundle, isVersionNewer, parseBundle } from "../substrate/manifest.ts";
+import { hashPluginBundle, isVersionNewer, parseBundle } from "../substrate/manifest.ts";
 
 export function createCheckForUpdates(ctx: PluginContext): PluginService["checkForUpdates"] {
   /** The URL arm — re-fetch the remembered source through the egress guard and read its version + identity. */
@@ -40,7 +40,7 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
     let remoteVersion: string;
     let bundleHash: ReturnType<typeof hashPluginBundle>;
     try {
-      const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, sourceUrl, ctx.logger);
+      const bytes = await ctx.fetchBundle(sourceUrl);
       remoteVersion = parseBundle(bytes).manifest.version;
       bundleHash = hashPluginBundle(bytes);
     } catch {

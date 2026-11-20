@@ -1,31 +1,12 @@
 // @orb/contracts/rpg — the front-door for the RPG lite substrate wire contracts. The
-// shapes are split across sibling modules by concern (D15's directory-module law: internals flat, this
-// index re-exports, consumer-invisible):
-//   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db
-//   • profile.ts  — `statProfile` as data + live ruleset profile defaults (D281)
-//   • ruleset.ts  — the RULESET axis: the host setting that picks a game's vocabulary + dice, and the
-//                   ADDITIVE apply the write door commits (owner ruling)
-//   • sheet.ts    — the per-actor identity sheet (§4.3)
-//   • actor.ts    — THE actor: ref + `actorRefKey` + the cast SLUG + the identity half + the volatile half
-//                   (wallet/inventory first-class, §2.6; the R2 one-row reshape)
-//   • ambient.ts  — clock/weather/time-of-day, engine-shaped, born nullable (§2.7)
-//   • snapshot.ts — quest/objective/plot/presence + the swipe-volatile snapshot state (§2.4-2.5)
-//   • tracker.ts  — THE unified tracked-field def + value + carrier resolution + the R6 write surface
-//                   (replaces pools/cast-fields/orbs/widgets)
-//   • config.ts   — the `rpg_games.config` blob (statProfile + lite dials, §4.1)
-//   • pointer.ts  — the opaque `chats.metadata.rpg` sync pointer, mode-free `{gameId}` (§2.1)
-//   • views.ts    — the CP read-view projections (getGame/getTrackerView/getConfigView, §4.8)
-//   • inputs.ts   — the transport WIRE input schemas for the `rpg.*` verb procs (derived, chatId-scoped)
-//   • tools.ts    — the 7 cheap-mode D48 tool ARG schemas (projection-clean, §4.5)
-//   • extraction.ts — the structured-output extraction schema, DERIVED from the tool args (§4.6)
-//   • extraction-prompt.ts — the per-plane PROMPT-FRAGMENT REGISTRY both system prompts compose from (§1.6)
-//   • bus.ts      — the feature-root rpg bus event union + its `RPG_BUS_EVENT_TYPES` coverage belt (§4.9)
+// shapes are split across sibling modules by concern (D15): internals stay flat, this index re-exports,
+// consumer-invisible.
 //
 // LAWS honored across these modules:
 //   • No `ownerId` (D23): every rpg shape is authority-derived through the chat FK chain; no wire shape
 //     stamps an rpg owner.
-//   • One home per axis (§5.5): every string union is a tuple here; the db CHECK derives from it, no re-spell.
-//   • Tool args are PROJECTION-CLEAN (tools.ts): no `.transform()`/branded ids (z.toJSONSchema throws on them).
+//   • One home per axis: every string union is a tuple here; the db CHECK derives from it, no re-spell.
+//   • Tool args are PROJECTION-CLEAN (`tools.ts`): no `.transform()`/branded ids (z.toJSONSchema throws on them).
 
 export type {
   RpgActorEntry,
@@ -244,11 +225,7 @@ export {
 } from "./snapshot.ts";
 export { describePatchFields, patchChangesToToolCalls, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
-export {
-  RPG_STRUCTURED_ROUND_SHAPES,
-  stateRoundChangesSchema,
-  structuredChangesToToolCalls,
-} from "./structured-round.ts";
+export { RPG_STRUCTURED_ROUND_SHAPES, stateRoundChangesSchema, structuredChangesToToolCalls } from "./structured-round.ts";
 export type {
   AddJournalEntryArgs,
   RollDiceToolResult,

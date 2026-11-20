@@ -43,6 +43,8 @@ test.for([
   ["a plain text column", table('text("value")')],
   ["a plain text column with modifiers", table('text("value").notNull().default("")')],
   ["a text column with an option that is neither mode nor enum", table('text("value", { length: 4 })')],
+  ["a text column that names the text mode", table('text("value", { mode: "text" }).notNull()')],
+  ["a text column that names the text mode beside a length", table('text("value", { length: 4, mode: "text" })')],
   ["an aliased text import", 'import { text as column } from "drizzle-orm/sqlite-core";\nexport const value = column;'],
 ] as const)("%s in a schema file is a finding", async ([, source]) => {
   expect(await findings(source, SCHEMA_PROBE)).toHaveLength(1);
@@ -52,6 +54,7 @@ test.for([
   ["a nulFreeText column", table('nulFreeText("value").notNull()')],
   ["a json text column", table('text("value", { mode: "json" }).$type<readonly string[]>()')],
   ["an enum text column", table('text("value", { enum: ["a", "b"] }).notNull()')],
+  ["an enum text column that names the text mode", table('text("value", { mode: "text", enum: ["a", "b"] })')],
 ] as const)("%s in a schema file is not a finding", async ([, source]) => {
   expect(await findings(source, SCHEMA_PROBE)).toEqual([]);
 });

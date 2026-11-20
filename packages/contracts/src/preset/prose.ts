@@ -1,4 +1,4 @@
-// @orb/contracts/preset — the per-PRESET prose slot table (D132, census rows 38-49). The ONE home
+// @orb/contracts/preset — the per-PRESET prose slot table (D132). The ONE home
 // for the BYTES of every guided-action template, format string, and the compaction steering: `index.ts`
 // DERIVES `guidedActionsSchema`'s defaults, `DEFAULT_GUIDED_ACTIONS`, `DEFAULT_FORMAT_STRINGS` and
 // `DEFAULT_COMPACT_INSTRUCTIONS` from these rows, so a default is authored exactly once and the registry can
@@ -7,8 +7,8 @@
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
 //
-// TWO MORE TABLES live below (census 53-73, the templating fork's ARM B): the Rewrite modal's toggle
-// fragments and the greeting studio's transform fragments. They are NOT adapted — their override is a
+// TWO MORE TABLES live below (the templating fork's ARM B): the Rewrite modal's toggle
+// fragments and the greeting studio's transform fragments. Their override is a
 // `promptConfig.prose` row like any other preset-homed slot — which is exactly why they are separate consts
 // (see their own header for what that separation buys).
 //
@@ -19,8 +19,8 @@
 
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
-/** `response` and `swipe` are ONE slot: they ship byte-identical text and always have (census row 40 is a
- *  single constant serving both kinds). Forking them is a product decision, not a migration. */
+/** `response` and `swipe` are ONE slot: they ship byte-identical text, one constant serving both kinds.
+ *  Forking them is a product decision, not a migration. */
 export const PRESET_PROSE_SLOTS = {
   "preset.guided.opening": {
     home: "preset",
@@ -153,16 +153,15 @@ export const PRESET_PROSE_SLOTS = {
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE ONE-CLICK STEER VOCABULARY (PROSE-1 census 53-73) — the templating fork, ruled ARM B by the owner
-// (D172). The 21 fragment strings the Rewrite modal and
-// the greeting studio compose into a steer used to be `as const` DATA on the two catalogs in `./index.ts`
-// and were joined IN THE BROWSER. Now they are slots: the bytes live here, the composition runs SERVER-side
-// at the two seams that already hold the preset's prose blob, and the wire carries only the picked KINDS
-// (the `gameSteer` doctrine — "the wire carries only the kind, never template text", `chat/metadata.ts`).
+// THE ONE-CLICK STEER VOCABULARY (PROSE-1) — the templating fork, ruled ARM B by the owner
+// (D172). The fragment strings the Rewrite modal and the greeting studio compose into a steer are slots:
+// the bytes live here, the composition runs SERVER-side at the two seams that already hold the preset's
+// prose blob, and the wire carries only the picked KINDS (the `gameSteer` doctrine — "the wire carries only
+// the kind, never template text", `chat/metadata.ts`).
 //
 // A SEPARATE table from {@link PRESET_PROSE_SLOTS} above, and that separation is load-bearing: `#prose`
 // treats every key of that table as LEGACY-ADAPTED (its override is a pre-PROSE-1 `promptConfig` field, so
-// it is excluded from the `promptConfig.prose` editable set). These 21 have no legacy field — their storage
+// it is excluded from the `promptConfig.prose` editable set). These have no legacy field — their storage
 // IS `promptConfig.prose` — so they must land in `PRESET_PROSE_SLOT_IDS`, which is what opens their
 // Templates-tab door the same commit they land (each has a `TEMPLATE_DEFS` row; two-sided coverage is
 // asserted in `tests/contracts/prose/preset-storage.contract.test.ts`).
@@ -172,7 +171,7 @@ export const PRESET_PROSE_SLOTS = {
 // one of these would reach the model as literal braces. The catalogs spell "the user" / "the character" in
 // plain words; the guided template's OWN macros resolve the names.
 
-/** The Rewrite modal's toggle fragments (census 53-59) — keyed by `REWRITE_TOGGLES[].slot`. */
+/** The Rewrite modal's toggle fragments — keyed by `REWRITE_TOGGLES[].slot`. */
 export const PRESET_REWRITE_TOGGLE_PROSE_SLOTS = {
   "preset.rewriteToggle.concise": {
     home: "preset",
@@ -239,7 +238,7 @@ export const PRESET_REWRITE_TOGGLE_PROSE_SLOTS = {
   },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
 
-/** The greeting studio's transform fragments (census 60-73) — keyed by `GREETING_TRANSFORMS[].slot`. Four
+/** The greeting studio's transform fragments — keyed by `GREETING_TRANSFORMS[].slot`. Four
  *  axes (perspective / tense / style / gender); the axis lives on the CATALOG row (it groups the chips),
  *  never here — a slot knows its bytes, not the studio's layout. */
 export const PRESET_GREETING_TRANSFORM_PROSE_SLOTS = {

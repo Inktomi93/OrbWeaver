@@ -7,8 +7,9 @@ import { confirmedActionMintRule } from "./confirmed-action-mint.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
+import { dialogFailureViaOwnerRule } from "./dialog-failure.ts";
 import { enforcementClaimRule } from "./enforcement-claim.ts";
-import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
+import { assumesSingleReplicaRule, commentedCodeRule, disableDirectiveReasonRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
@@ -20,6 +21,8 @@ import { ownedTableRule } from "./owned-table.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
+import { roleComparisonRule } from "./role-comparison.ts";
+import { roomTokenMintRule } from "./room-token-mint.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
   IDENTITY_WRITER_RESTRICTIONS,
@@ -44,6 +47,7 @@ import {
   noSpreadCorpusCaptureRule,
   noUnseededTypeIdRule,
 } from "./test-derivation.ts";
+import { noSubjectDerivedExpectedRule } from "./test-expected.ts";
 import type { ExportedLabel } from "./test-labels.ts";
 import { handCopiedLabelRule } from "./test-labels.ts";
 import { ownedRootAliasRule } from "./test-owners.ts";
@@ -55,6 +59,8 @@ import {
   TEST_FABRICATION_RESTRICTIONS,
 } from "./test-policy.ts";
 import { noTailRecorderReadRule } from "./test-recorders.ts";
+import type { ProductionRoster } from "./test-rosters.ts";
+import { restatedRosterRule } from "./test-rosters.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
@@ -96,6 +102,7 @@ import {
 import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
 import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeOverrideRule } from "./ui-styles.ts";
 import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
+import { viewerVisibilityParameterRule } from "./viewer-visibility.ts";
 
 export { BrandTable, type NameMatch } from "./brand-names.ts";
 export type { CustomPropertyUses } from "./css/custom-properties.ts";
@@ -146,10 +153,12 @@ export {
   tierRank,
 } from "./port-ownership/restated-port.ts";
 export { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "./port-ownership/ruled-ops.ts";
+export { lazy, productionModules } from "./production-modules.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
-export { homeReasons, homes, memberNamed } from "./syntax.ts";
+export { homeReasons, homes, memberNamed, posixPath } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { OWNED_ROOT_ACQUISITIONS } from "./test-owners.ts";
+export { exportedRosters } from "./test-rosters.ts";
 export { conflicts, survives } from "./ui-classes/class-conflict.ts";
 export type { ClassExpression } from "./ui-classes/class-expression.ts";
 export { classesIn, classesWhen, guardsIn, opaqueIn } from "./ui-classes/class-expression.ts";
@@ -231,9 +240,12 @@ export function createOrbPlugin(options: {
   floorlessControls: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   shellSlots: ReadonlySet<string>;
-  exportedLabels: ReadonlyMap<string, ExportedLabel>;
+  /** Read on the rule's first file, as are the two indexes below: a config resolved for another file builds none. */
+  exportedLabels: () => ReadonlyMap<string, ExportedLabel>;
   /** The strings `exportedLabels` leaves out; `no-hand-copied-label` reads them under scope `all`. */
-  exportedProductionValues: ReadonlyMap<string, ExportedLabel>;
+  exportedProductionValues: () => ReadonlyMap<string, ExportedLabel>;
+  /** Every exported production string tuple; `no-restated-roster` reads it. */
+  exportedRosters: () => readonly ProductionRoster[];
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
@@ -262,6 +274,7 @@ export function createOrbPlugin(options: {
       ...Object.fromEntries(OWNED_TABLE_RESTRICTIONS.map((row) => [row.id, ownedTableRule(row)] as const)),
       "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "confirmed-action-mint": confirmedActionMintRule(CONFIRMED_ACTION_MINT_HOMES),
+      "room-token-mint": roomTokenMintRule,
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
@@ -297,8 +310,10 @@ export function createOrbPlugin(options: {
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
       "prefer-to-sorted": preferToSortedRule,
+      "dialog-failure-via-owner": dialogFailureViaOwnerRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
+      "no-role-comparison": roleComparisonRule,
       "no-query-state-ladder": queryStateLadderRule,
       "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
@@ -322,10 +337,12 @@ export function createOrbPlugin(options: {
       "no-bare-throw-assertion": noBareThrowAssertionRule,
       "no-unseeded-type-id": noUnseededTypeIdRule,
       "no-filtered-case-table": noFilteredCaseTableRule,
+      "no-subject-derived-expected": noSubjectDerivedExpectedRule,
       "no-spread-corpus-capture": noSpreadCorpusCaptureRule,
       "no-tail-recorder-read": noTailRecorderReadRule,
       "owned-root-alias": ownedRootAliasRule,
       "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels, options.exportedProductionValues),
+      "no-restated-roster": restatedRosterRule(options.exportedRosters),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
@@ -335,11 +352,13 @@ export function createOrbPlugin(options: {
       "trpc-output-declared-keys": trpcOutputKeysRule,
       "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES, BRAND_MINT_HOMES),
       "narrowed-json-brand": narrowedJsonBrandRule,
+      "viewer-visibility-parameter-checked": viewerVisibilityParameterRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,
       "no-blind-catch": blindCatchRule,
       "commented-code": commentedCodeRule,
+      "disable-directive-reason": disableDirectiveReasonRule,
       "enforcement-claim-cites-checker": enforcementClaimRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),

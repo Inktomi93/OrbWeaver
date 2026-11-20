@@ -5,6 +5,9 @@ inputs:
   browsers:
     description: Install Playwright Chromium and its system libraries.
     default: "false"
+  cache:
+    description: Restore and save the Actions caches. A publishing job passes "false" so its install comes from the registry alone.
+    default: "true"
 
 runs:
   using: composite
@@ -17,9 +20,13 @@ runs:
         cache: false
     # PR caches cannot warm main or release. One explicit owner restores for every trigger but only
     # trusted push, manual and scheduled runs write the store and lockfile-verification metadata.
+    # Scheduled runs build main into the default branch's cache scope, so a job that publishes opts out
+    # of the caches entirely: what it ships never comes from a store another run wrote.
     - id: pnpm
       name: Resolve pnpm cache paths and trusted write policy
       shell: bash
+      env:
+        USE_CACHE: ${{ inputs.cache }}
       run: |
         echo "version=$(pnpm --version)" >> "$GITHUB_OUTPUT"
         {
@@ -28,11 +35,12 @@ runs:
           pnpm cache path --silent
           echo EOF
         } >> "$GITHUB_OUTPUT"
-        case "$GITHUB_EVENT_NAME" in
-          push|workflow_dispatch|schedule) echo 'save=true' >> "$GITHUB_OUTPUT" ;;
+        case "$USE_CACHE:$GITHUB_EVENT_NAME" in
+          true:push|true:workflow_dispatch|true:schedule) echo 'save=true' >> "$GITHUB_OUTPUT" ;;
           *) echo 'save=false' >> "$GITHUB_OUTPUT" ;;
         esac
     - id: pnpm-cache
+      if: inputs.cache == 'true'
       name: Restore the pnpm store and lockfile verification cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -56,7 +64,7 @@ runs:
       if: inputs.browsers == 'true'
       shell: bash
       run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-    - if: inputs.browsers == 'true'
+    - if: inputs.browsers == 'true' && inputs.cache == 'true'
       id: browser-cache
       name: Restore the Playwright browser cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

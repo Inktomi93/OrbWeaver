@@ -14,9 +14,11 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
 const SESSION_RATE = "2";
-/** The fastest of several fixed loops, in ms: CPU work the throttle scales and nothing else does. */
+/** The fastest of several fixed loops, in ms: CPU work the throttle scales and nothing else does. The loops are spread
+ *  out in time, because a burst of load on a shared box can slow every loop of a back-to-back set, and then the
+ *  unthrottled baseline reads as slow as the throttled run. */
 const LOOP_MS =
-  "()=>{let best=Infinity;for(let r=0;r<5;r++){const t=performance.now();let x=0;for(let i=0;i<60000000;i++)x+=i;best=Math.min(best,performance.now()-t);}return Math.round(best)}";
+  "async()=>{let best=Infinity;for(let r=0;r<9;r++){const t=performance.now();let x=0;for(let i=0;i<60000000;i++)x+=i;best=Math.min(best,performance.now()-t);await new Promise((done)=>setTimeout(done,40));}return Math.round(best)}";
 /** Held rate: after/before near 1. A rate dropped to 1x halves it. */
 const HELD_RATIO_FLOOR = 0.75;
 /** The positive control: the session rate must visibly slow the loop against an unthrottled run. */

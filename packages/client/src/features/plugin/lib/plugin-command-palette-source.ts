@@ -19,10 +19,7 @@
 import { Blocks } from "@orb/ui/icons";
 import type { CommandPaletteSource, PaletteCommandRow, SlashCommandContext } from "#lib";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution } from "./plugin-command-copy.ts";
-
-/** The heading the plugin command rows render under in the palette. */
-const HEADING = "Plugin commands";
+import { PLUGIN_COMMANDS_HEADING, pluginCommandActionLabel, pluginCommandAttribution } from "./plugin-command-copy.ts";
 
 /** The caller's registered plugin commands as palette rows — one per command, plugin-labelled. A HOOK: it
  *  reads the caller's own commands and binds each to the shared runner, both in the source's own fiber (the
@@ -50,7 +47,7 @@ function usePluginPaletteRows(context: SlashCommandContext): readonly PaletteCom
 
 export const pluginCommandPaletteSource: CommandPaletteSource = {
   id: "plugin-commands",
-  heading: HEADING,
+  heading: PLUGIN_COMMANDS_HEADING,
   icon: Blocks,
   useRows: usePluginPaletteRows,
 };

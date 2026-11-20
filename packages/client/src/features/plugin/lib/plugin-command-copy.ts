@@ -1,6 +1,7 @@
 // Host-owned copy for plugin command chrome. A display name is not an identity: two installed plugins may
 // choose the same name, while the admitted slug remains the human-readable disambiguator on every host surface.
 
+import type { PluginCommandView } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 
 /** A guest-chosen identifier read as words: `inkSketch`, `ink_sketch` and `ink-sketch` all read "Ink sketch". */
@@ -23,6 +24,17 @@ export function pluginCommandActionLabel(label: string): string {
 
 /** The composer's plugin command menu trigger. */
 export const PLUGIN_ACTIONS_NAME = "Plugin actions";
+
+/** A placed command's menu item: who it comes from, its group, and the label shown at that placement. */
+export function placedItemLabel(item: { readonly shownName: string; readonly label: string; readonly command: Pick<PluginCommandView, "group"> }): string {
+  return `${item.shownName} · ${item.command.group ?? "Commands"} · ${item.label}`;
+}
+
+/** The argument dialog's body before a command is chosen. */
+export const PLUGIN_NO_COMMAND_SELECTED_TEXT = "No command selected.";
+
+/** The heading the plugin command rows render under in the palette. */
+export const PLUGIN_COMMANDS_HEADING = "Plugin commands";
 
 /** The argument dialog's title. */
 export const PLUGIN_COMMAND_ARGS_TITLE = "Run command";

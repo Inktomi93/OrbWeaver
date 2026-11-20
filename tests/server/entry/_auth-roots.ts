@@ -35,7 +35,7 @@ export async function wireViewer(root: Root, headers: Record<string, string> = {
     links: [
       httpBatchLink({
         url: "http://localhost/api/trpc",
-        headers,
+        headers: { ...headers, [CSRF_HEADER]: "1" },
         fetch: async (url, init) => await root.http.request(requestAddress(url), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
       }),
     ],

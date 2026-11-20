@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 import { z } from "zod";
+import "./_eslint-config.ts";
 
 const SURFACE_RULE = "orb/surface-consumes-container";
 const ANCHOR_RULE = "orb/anchor-provides-container";

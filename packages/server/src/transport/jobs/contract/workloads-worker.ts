@@ -3,7 +3,7 @@ import type { WorkloadLane, WorkloadRowAnyKind, WorkloadRunnableRow } from "@orb
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, WorkloadId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
-import type { ReapWorkloadsAssemblyArgs, WorkloadContributions, WorkloadProgressBus, WorkloadRunnerAssemblyDeps } from "#domain/workloads";
+import type { ReapWorkloadsAssemblyArgs, WorkloadContributions, WorkloadProgressBus, WorkloadReads, WorkloadRunnerAssemblyDeps } from "#domain/workloads";
 import type { DetachedSupervision, Logger } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -15,7 +15,7 @@ type RunWorkloadOp = (deps: WorkloadRunnerAssemblyDeps, row: WorkloadRunnableRow
 // domain's (`ReapWorkloadsArgs`) rather than re-spelled here, so its REQUIRED `reason` reaches this driver.
 type ReapOp = (args: ReapWorkloadsAssemblyArgs) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
-type LoadWorkloadOp = (db: DatabaseHandle, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
+type LoadWorkloadOp = (db: DatabaseHandle, reads: WorkloadReads, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
 
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {

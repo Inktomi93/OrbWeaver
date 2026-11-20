@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { AuthModeSource } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_GROUP_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
@@ -20,7 +21,7 @@ interface Resolved {
   readonly ownerGroup: unknown;
 }
 
-const outcomeSchema = z.union([z.object({ env: z.record(z.string(), z.unknown()) }), z.object({ error: z.string() })]);
+const outcomeSchema = z.union([z.object({ env: z.record(z.string(), z.unknown()), authModeSource: z.string() }), z.object({ error: z.string() })]);
 
 /** A fresh working directory holding no `.env` unless `dotenv` writes one. */
 function launchDir(parent: string, name: string, dotenv: string | undefined): string {
@@ -111,6 +112,32 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
     expect(boot(importStagingDir, "launched", "AUTH_MODE=single-user\n", { [key]: value })).toMatchObject({ env: { [key]: expect.anything() } });
   },
 );
+
+// Windows reads `auth_mode` as AUTH_MODE, so the loader and the parse do on every platform, and the share panel still
+// names where the value came from. Only the loader's own name matching needs a process; the parse's refusals have their
+// cases in `env-name-case.test.ts`. Each case below starts one.
+const LOWER_AUTH_MODE = AUTH_MODE_KEY.toLowerCase();
+
+test("a lower-case key in .env sets its schema key, and the file stays its source", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "lower", `${LOWER_AUTH_MODE}=local\n`)).toMatchObject({
+    env: { [AUTH_MODE_KEY]: "local" },
+    authModeSource: "env-file" satisfies AuthModeSource,
+  });
+});
+
+test("a lower-case key from the launch sets its schema key, and the launch stays its source", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "launched", undefined, { [LOWER_AUTH_MODE]: "local" })).toMatchObject({
+    env: { [AUTH_MODE_KEY]: "local" },
+    authModeSource: "process-env" satisfies AuthModeSource,
+  });
+});
+
+// A file holds both lines on every platform, where a launch environment on Windows would merge them into one.
+test("a .env that sets one key in two spellings refuses the boot and names both", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "spellings", `${AUTH_MODE_KEY}=local\n${LOWER_AUTH_MODE}=single-user\n`)).toEqual({
+    error: expect.stringContaining(`${AUTH_MODE_KEY} and ${LOWER_AUTH_MODE}`),
+  });
+});
 
 // The session cookie's transport is decided per request; the deleted knob must stay inert, never fatal and never
 // carried into the record, wherever an old line still sets it.

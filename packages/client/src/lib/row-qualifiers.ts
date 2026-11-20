@@ -42,6 +42,9 @@ export function rowActionsName(subject: string): string {
   return `Actions for ${subject}`;
 }
 
+/** The words an inline chat door's name opens with, before the subject it names. */
+export const CHAT_WITH_ACTION_LEAD = "Chat with";
+
 /**
  * The accessible name of a row's INLINE chat door — `Chat with <subject>`.
  *
@@ -52,8 +55,11 @@ export function rowActionsName(subject: string): string {
  * `duplicate-action-door` finding that row was written for.
  */
 export function chatWithActionName(subject: string): string {
-  return `Chat with ${subject}`;
+  return `${CHAT_WITH_ACTION_LEAD} ${subject}`;
 }
+
+/** The words a row menu trigger's name opens with, before the subject it names and the items it holds. */
+export const ROW_MORE_LEAD = "More for";
 
 /** The accessible name of a speaker's art in the transcript, which opens it full size — `View <subject>'s image`. */
 export function viewImageActionName(subject: string): string {

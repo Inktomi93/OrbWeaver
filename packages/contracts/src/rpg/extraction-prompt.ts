@@ -1,40 +1,37 @@
-// @orb/contracts/rpg/extraction-prompt — the PER-PLANE PROMPT-FRAGMENT REGISTRY (the crunchy-cluster
-// redesign §1.6). Pure data + pure fragment builders (no I/O, no domain) — homed WITH the extraction shapes
+// @orb/contracts/rpg/extraction-prompt — the PER-PLANE PROMPT-FRAGMENT REGISTRY. Pure data + pure fragment
+// builders (no I/O, no domain) — homed WITH the extraction shapes
 // they teach, beside the schema they enforce (`./extraction`, `./config`, `./tools`).
 //
-// WHY A REGISTRY, NOT TWO TEMPLATE LITERALS: the plane-under-service class (§1.6 audit) — `plot`, `widgets`,
+// WHY A REGISTRY, NOT TWO TEMPLATE LITERALS: `plot`, `widgets`,
 // per-npc `customFields`/`emoji`, the structured `day` counter were renderable + schema-writable planes the
 // model was NEVER PROMPTED for, because the plane prose was hand-composed in two monolithic system-prompt
 // strings (the structured extraction + the cheap tool round) that drifted from the schema. Home the teaching fragment
 // WITH its plane: BOTH system prompts COMPOSE from this ONE table, so a plane can't be schema-writable but
-// prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
+// prompt-silent — and a NEW plane is a ROW.
 //
-// THE RULE (the D50 producer-coverage ratchet discipline): every top-level
-// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyPlane` makes a missing
-// row a `tsc` error. The registry is the standing anti-drift mechanism the audit's "prompt-drift, not model failure"
-// diagnosis demanded.
+// THE RULE: every top-level
+// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyRow` makes a missing
+// row a `tsc` error.
 //
-// THE DECEPTION CLAUSE (recommendation A, §1.6): on a DECEPTION-ACTIVE game every fragment is prefixed with
+// THE DECEPTION CLAUSE: on a DECEPTION-ACTIVE game every fragment is prefixed with
 // the surface-only standing clause — the tracker records the players' SURFACE reality, never a hidden truth,
 // so the hidden layer lives only in the reasoning channel + the host's reveal-eye (member-safe by
-// construction; the fork-strip §3.2 leak vector evaporates). Deception-gated — a non-deception game composes
-// byte-identically to the pre-registry per-plane prose.
+// construction). Deception-gated — a non-deception game composes
+// byte-identically to the ungated per-plane prose.
 //
-// THE BYTES ARE DATA (PROSE-1 S4, census 11-26). Every model-facing string of this module is a slot row in `./prose.ts`, resolved against `ExtractionPromptContext.prose` — the GM PRESET's
+// THE BYTES ARE DATA. Every model-facing string of this module is a slot row in `./prose.ts`, resolved against `ExtractionPromptContext.prose` — the GM PRESET's
 // `promptConfig.prose`, authored in the preset Templates tab. What stays here is the ASSEMBLY: which clause
 // fires for which config, what the per-game tokens expand to, and the composition order. An ABSENT override
 // resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the
-// pre-PROSE-1 prompt.
+// unedited prompt.
 //
-// CENSUS 27 IS WIRED (owner ruling on spec §11 decision 6: WIRE it and measure). The state-tracking
-// GUIDE — Appendix A's "be thorough, the panel should reflect the FULL richness of the narration" addendum, the
-// measured per-turn coverage lifter — spent its whole life as `RPG_STATE_TRACKING_GUIDE`, an exported const
-// composed onto nothing. It is now the `rpg.extract.stateTrackingGuide` slot, pushed by
+// THE STATE-TRACKING GUIDE — the "be thorough, the panel should reflect the FULL richness of the narration"
+// addendum, the per-turn coverage lifter — is the `rpg.extract.stateTrackingGuide` slot, pushed by
 // `composePlaneTeaching` — so it rides BOTH write surfaces (the structured extraction + the cheap tool round,
-// and with them the host resync) and NEITHER narration prompt, which is exactly what its own doc-comment always
-// claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement
-// against reworded text measures the rewording.
+// and with them the host resync) and NEITHER narration prompt. Its bytes are FROZEN: a measurement against
+// reworded text measures the rewording, not the guide.
 
+import { everyRow } from "@orb/kit/guards";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { ProseOverrides } from "#prose-slot";
 import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -54,10 +51,10 @@ import { gameTrackers, sortTrackers } from "./tracker.ts";
 export interface ExtractionPromptContext {
   readonly config: RpgGameConfig;
   readonly refs: ExtractionRefs;
-  /** Census 11-26 — the GM PRESET's model-facing overrides for the extraction seam, threaded
+  /** The GM PRESET's model-facing overrides for the extraction seam, threaded
    *  whole exactly as `LiteReminderInput.prose` is. Every string below resolves through it, so a host edit in
    *  the preset Templates tab lands on the write surface. ABSENT ⇒ `{}` ⇒ every fragment is byte-identical to
-   *  the pre-PROSE-1 constant, which is what keeps `RPG_BASELINE_TOOL_DESCRIPTIONS` (built at module load,
+   *  the shipped default, which is what keeps `RPG_BASELINE_TOOL_DESCRIPTIONS` (built at module load,
    *  with no game and therefore no preset in scope) and every hand-built test context honest. */
   readonly prose?: ProseOverrides | undefined;
 }
@@ -86,9 +83,9 @@ interface ExtractionPlanePrompt {
 }
 
 /** ONE tracker's model-facing catalogue line — a bulleted label, its key + range, then an em-dash gloss.
- *  THE R2/R6 interpolation unit: a host-defined tracker reaches the write surface BY NAME AND GLOSS,
- *  which is the difference between a tracked value steering the story and decorating the panel (R4b measured
- *  the gap: Δ −0.12 bare vs −1.00 glossed). The `key` is spelled because the wire arg is key-addressed. */
+ *  A host-defined tracker reaches the write surface BY NAME AND GLOSS,
+ *  which is the difference between a tracked value steering the story and decorating the panel: a bare
+ *  key with no gloss measured as the weaker steer. The `key` is spelled because the wire arg is key-addressed. */
 function trackerCatalogueLine(def: RpgTrackerDef): string {
   const range = def.shape === "meter" && def.max !== null ? `, 0-${def.max}` : "";
   const hint = def.hint !== "" ? ` — ${def.hint}` : "";
@@ -124,41 +121,34 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-/** Returns the rows as given, and fails `tsc` while a schema key has no row; the error shows the key as `planeWithNoRow`. */
-function everyPlane<const Rows extends readonly ExtractionPlanePrompt[]>(
-  rows: Rows &
-    ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never]
-      ? unknown
-      : { readonly planeWithNoRow: Exclude<ExtractionPlane, Rows[number]["plane"]> }),
-): Rows {
-  return rows;
-}
-
-// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyPlane` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
-//  prompted on the structured arm (the audit's "never mentioned" gap).
-const EXTRACTION_PLANE_PROMPTS = everyPlane([
+// The plane-prompt registry. One row per top-level `rpgExtractionSchema` key, which `everyRow` enforces.
+//  Every writable plane is prompted: `scene` folds the ambient/cast/day/emoji/plot planes, and `widgets` is
+//  prompted on the structured arm.
+// Each `fragment` names its parameter type: an unannotated arrow makes the table infer as a plain array, which
+// `everyRow` refuses because an array proves no coverage.
+const EXTRACTION_PLANE_PROMPTS = everyRow<ExtractionPlanePrompt, "plane">()([
   {
     plane: "scene",
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const lines: string[] = [];
       lines.push(rpgProse(ctx, "rpg.extract.scene.core", { timeOfDayValues: [...TIME_OF_DAY].join("/") }));
-      // RV-9 — WHEN to move the clock/weather. The panel's Waystone reads these two fields as a live clock, so a
-      // story that runs for pages at one timeOfDay reads as a stopped clock. Terse, one clause per field: the
-      // R4b lesson is that a gloss saying WHEN measurably changes whether a small model writes the field at all.
+      // WHEN to move the clock/weather. The panel's Waystone reads these two fields as a live clock, so a
+      // story that runs for pages at one timeOfDay reads as a stopped clock. Terse, one clause per field: a
+      // gloss saying WHEN measurably changes whether a small model writes the field at all.
       lines.push(rpgProse(ctx, "rpg.extract.scene.clock"));
       lines.push(rpgProse(ctx, "rpg.extract.scene.weather", { weatherTypes: [...RPG_WEATHER_TYPES].join("/") }));
-      // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
+      // The structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
       // TWO SLOTS, not one slot with a mode token: the two clauses say different things, so burying either in a
       // token VALUE would put un-editable model prose back in the code — the disease this program exists to kill.
       lines.push(rpgProse(ctx, ctx.config.dateMode === "structured" ? "rpg.extract.scene.dayStructured" : "rpg.extract.scene.dayNarrated"));
       lines.push(rpgProse(ctx, "rpg.extract.scene.present"));
-      // The mood-prose steer (owner report): models write a whole sentence into `mood`, which the npc row
+      // The mood-prose steer: models write a whole sentence into `mood`, which the npc row
       // renders as a wall of text. Taught in PROSE, never a schema max/pattern — a hard constraint would make
-      // the whole call unemittable on a non-enforcing wire and cost the beat, the exact class EXT-4 is fixing.
+      // the whole call unemittable on a non-enforcing wire and cost the beat.
       lines.push(rpgProse(ctx, "rpg.extract.scene.mood"));
-      // §1.6 gap — the portrait-fallback emoji, one clause.
+      // The portrait-fallback emoji, one clause.
       lines.push(rpgProse(ctx, "rpg.extract.scene.emoji"));
-      // §1.6 gap — the plot act rail, gated on plotProgression.
+      // The plot act rail, gated on plotProgression.
       if (ctx.config.features.plotProgression) {
         lines.push(rpgProse(ctx, "rpg.extract.scene.plot"));
       }
@@ -167,9 +157,9 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
   },
   {
     plane: "party",
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const base = rpgProse(ctx, "rpg.extract.plane.party");
-      // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
+      // The game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
       // this game may not have and omit the one it does.
       const trackers = actorTrackerFragment(ctx);
       return trackers === null ? base : `${base}\n${trackers}`;
@@ -177,13 +167,13 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
   },
   {
     plane: "inventory",
-    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.inventory"),
+    fragment: (ctx: ExtractionPromptContext) => rpgProse(ctx, "rpg.extract.plane.inventory"),
   },
   {
     plane: "trackers",
-    // The GAME-subject trackers (the retired widget plane) — enumerated by name + host gloss, never as bare
+    // The GAME-subject trackers — enumerated by name + host gloss, never as bare
     // keys. `null` when the game defines none, in which case the schema drops the plane entirely.
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const defs = gameTrackers(ctx.config.trackers).filter((def) => !def.locked);
       if (defs.length === 0) {
         return null;
@@ -193,16 +183,16 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
   },
   {
     plane: "quests",
-    // EXT-4c — the slot carries the two objective gestures in prose (never extra schema): the model has to
+    // The slot carries the two objective gestures in prose (never extra schema): the model has to
     // learn that ticking one objective off is `completeObjectives`, not a re-listing, or it restates the list
     // on every beat.
-    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.quests"),
+    fragment: (ctx: ExtractionPromptContext) => rpgProse(ctx, "rpg.extract.plane.quests"),
   },
   {
     plane: "journal",
-    // R4c — teach the `custom` escape + the host's own type glosses. The seven built-ins are combat-flavoured
-    // on a plane that fires on 79% of turns; a host who defines "ritual" or "gossip" gets it taught by name.
-    fragment: (ctx) => {
+    // Teach the `custom` escape + the host's own type glosses. The built-in kinds cannot cover every beat
+    // kind, so a host who defines "ritual" or "gossip" gets it taught by name.
+    fragment: (ctx: ExtractionPromptContext) => {
       const base = rpgProse(ctx, "rpg.extract.plane.journal");
       const hints = Object.entries(ctx.config.features.journalTypeHints);
       if (hints.length === 0) {
@@ -215,9 +205,9 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
 ]);
 
 /** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the structured
- *  extraction and the cheap tool round walk (§1.6). Drops disabled planes (null fragments), and on a
+ *  extraction and the cheap tool round walk. Drops disabled planes (null fragments), and on a
  *  DECEPTION-ACTIVE game prefixes the surface-only standing clause. The two CROSS-PLANE
- *  doctrines ride here so both arms teach them identically: the state-tracking GUIDE (be thorough — census 27) and the RECONCILE rule (fix a contradicted plane). */
+ *  doctrines ride here so both arms teach them identically: the state-tracking GUIDE (be thorough) and the RECONCILE rule (fix a contradicted plane). */
 export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
   if (isDeceptionActive(ctx.config.features)) {
@@ -229,9 +219,9 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
       blocks.push(fragment);
     }
   }
-  // Census 27. It rides HERE rather than in the two system builders for the same reason the
-  // RECONCILE doctrine does: a cross-plane doctrine composed once cannot drift between the two arms, which is
-  // the §1.6 thesis. Position is deliberate — it lands AFTER the per-plane teaching (it is a summary of the
+  // The state-tracking guide. It rides HERE rather than in the two system builders for the same reason the
+  // RECONCILE doctrine does: a cross-plane doctrine composed once cannot drift between the two arms.
+  // Position is deliberate — it lands AFTER the per-plane teaching (it is a summary of the
   // planes above, not a preamble) and BEFORE the reconcile rule, so the "never fabricate numbers, items, or
   // events the story does not show" clause is what CLOSES the be-thorough push rather than being buried above it.
   blocks.push(rpgProse(ctx, "rpg.extract.stateTrackingGuide"));
@@ -250,8 +240,7 @@ const POPULATE_PLANES: ReadonlySet<keyof RpgExtraction> = new Set<keyof RpgExtra
  *  planes, the identity-sheet clause (the one plane no turn round may write), and the invent-nothing doctrine.
  *  One home with the extraction teaching, so a plane taught two ways stays impossible.
  *
- *  Every block here is a SLOT — the identity clause and the doctrine were the last two source constants in
- *  this module (populate census rows 2-3) and became `rpg.populate.*` rows, so the born-state prompt is
+ *  Every block here is a SLOT — the identity clause and the doctrine included — so the born-state prompt is
  *  host-editable end to end rather than half-editable. */
 export function composePopulateTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
@@ -273,20 +262,19 @@ export function composePopulateTeaching(ctx: ExtractionPromptContext): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// R2 — the enriched TOOL DESCRIPTIONS, as TEMPLATES (the spike's Appendix A, un-frozen).
+// The enriched TOOL DESCRIPTIONS, as TEMPLATES.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// The spike measured the enrichment lifting coverage 33→37/43 distinct fields (+27 field-writes, +$0.008/game),
-// and R6 then ruled the strings must be TEMPLATES: a static "poolDeltas: spend/restore named pools like
+// The strings must be TEMPLATES: a static "poolDeltas: spend/restore named pools like
 // Mana/Stamina" teaches a vocabulary this game may not have and stays silent about the one it does. So each
 // description is BUILT per game, interpolating that game's own tracker defs BY NAME AND HOST GLOSS.
 //
-// ONE HOME, two consumers: the per-call WIRE tools (the tool round + the R1 folded turn, which build against a
+// ONE HOME, two consumers: the per-call WIRE tools (the tool round + the folded turn, which build against a
 // resolved game) and the tool-use REGISTRY defs (which have no game in scope and take the empty-config
-// baseline). A drift between "what the tool says" and "what the plane teaching says" is the §1.6 class this
+// baseline). A drift between "what the tool says" and "what the plane teaching says" is the class this
 // registry exists to make impossible.
 
-/** A worked EXAMPLE for `update_party`, written in THIS game's tracker vocabulary (the spike's examples were
- *  its strongest lever — a model copies the shape it is shown). Falls back to the tracker-free shape when the
+/** A worked EXAMPLE for `update_party`, written in THIS game's tracker vocabulary (an example is the
+ *  strongest lever — a model copies the shape it is shown). Falls back to the tracker-free shape when the
  *  game defines no writable actor trackers. */
 function partyExample(ctx: ExtractionPromptContext): string {
   const defs = writableActorTrackers(ctx.config);
@@ -300,7 +288,7 @@ function partyExample(ctx: ExtractionPromptContext): string {
   });
 }
 
-// Build the per-game model-facing tool DESCRIPTIONS (R2 templates), keyed by WIRE TOOL NAME. A `Map` (not an
+// Build the per-game model-facing tool DESCRIPTIONS (templates), keyed by WIRE TOOL NAME. A `Map` (not an
 //  object) because the keys are snake_case wire VALUES, not JS property identifiers — the same reason
 //  `TOOL_ROUND_ARRAY_ARMS` is a Map in `./extraction`. The assembly layer pairs each with that tool's
 //  per-call constrained parameter schema.
@@ -318,8 +306,8 @@ function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<str
       }),
     ],
     ["update_inventory", rpgProse(ctx, "rpg.extract.tool.updateInventory")],
-    // RV-9: time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a field
-    // the model never advances renders as a stopped clock (the R4b gloss lesson).
+    // Time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a field
+    // the model never advances renders as a stopped clock.
     ["update_scene", rpgProse(ctx, "rpg.extract.tool.updateScene", { weatherTypes: [...RPG_WEATHER_TYPES].join("/") })],
     [
       "set_tracker",
@@ -342,7 +330,7 @@ function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<str
  *  the static registry and the per-call wire tools can never say two different things about the same tool.
  *  A per-call assembly ALWAYS re-renders through {@link buildRpgToolDescriptions} with the real game.
  *
- *  NO PROSE, and that is the invariant rather than an omission (PROSE-1): this is built at MODULE LOAD, where
+ *  NO PROSE, and that is the invariant rather than an omission: this is built at MODULE LOAD, where
  *  there is no game and therefore no GM preset in scope, so a host override has nothing to be an override OF.
  *  The baseline consumer reads shipped DEFAULTS, always — an extraction override is a per-call fact. */
 export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = buildRpgToolDescriptions({
@@ -393,10 +381,10 @@ export function withStateToolExamples(tools: readonly RpgStateRoundTool[]): RpgS
   return tools.map((tool) => (tool.name === "update_scene" ? { ...tool, inputExamples: UPDATE_SCENE_INPUT_EXAMPLES } : tool));
 }
 
-/** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
+/** Build the per-game, per-actor wire tools for a state round / a folded turn. The parameters come
  *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
  *  offers EXACTLY the trackers each target actually carries, minus the locked ones (prevent-at-schema; the
- *  apply-time lock strip stays a backstop). The descriptions are the R2 TEMPLATES rendered against THIS game,
+ *  apply-time lock strip stays a backstop). The descriptions are the TEMPLATES rendered against THIS game,
  *  so a host's `Grit ("resolve you spend to push through danger")` reaches the write surface by name + gloss.
  *
  *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
@@ -423,8 +411,8 @@ export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameCon
     { name: "update_inventory", description: describeTool("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
     { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema },
   ];
-  // The game-subject tracker tool — present ONLY when this game defines one (R6 "a disabled feature's tool is
-  // omitted entirely"). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.
+  // The game-subject tracker tool — present ONLY when this game defines one (a disabled feature's tool is
+  // omitted entirely). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.
   const trackerParams = itemSchemaOf("trackers");
   if (trackerParams !== undefined) {
     tools.push({ name: "set_tracker", description: describeTool("set_tracker"), parameters: trackerParams });

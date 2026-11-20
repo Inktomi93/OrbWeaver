@@ -10,7 +10,34 @@
 // The CLOCK RULING: time macros read the zone the viewer's browser reported with the request, and a send's
 // follow-ups inherit it. A turn with no viewer reads its caller's ruled zone (an automation rule's own clock)
 // or UTC; a deferred drain reads the zone its sender reported at defer time. The server's zone is no user's.
+//
+// WAIT FOR EVERYONE (`GroupConfig.waitForEveryone`). In that mode a send commits its line and starts the round only
+// when `humansYetToWrite` is empty, so the reply comes once every present human has written since the last reply.
+// - Present is the consent set `loadRoom` reads: seated (leftSeq null) and enabled. Online and idle do not count:
+//   presence drops on a tab switch or a sleeping phone, and skipping a person for that fires the reply without the
+//   very person the mode waits for. A member who stepped away is waited on until someone releases early.
+// - When two last lines land together, only the send whose line is still the canon tail runs the round, so the
+//   room gets one reply.
+// - Any present member releases early through `replyToTail`, the action of the line under the composer.
+// - A leave or a kick recounts: when the remaining humans have all written, `createReleaseWaitingRound` runs the
+//   round as the last writer's, through the deferred-round path, and a dark host defers it as a send would.
+//
+// ONE OWED ROUND PER TAIL. Every member is offered the release at once, so two presses, or a press racing the last
+// writer's send, must not answer one line twice. The release and the leave recount take the room's reply claim
+// (`TurnDeps.replyClaims`) before they read the tail, a wait-mode send takes it once its tail check says it fires, and
+// whoever finds it taken stands down: the holder's round answers the room. Under the claim a release re-reads canon and runs only on a user tail with no
+// reply queued (`pending_turns`) and no turn in flight (`activeTurns`), so a press after the reply landed is a no-op.
+// A member's release while the host is dark defers exactly as that member's send would, so it never spends the dark
+// host's connection; the queued row then makes every later press a no-op until the drain answers the line once.
+// A Stop on that queued reply settles the debt, with or without kept text (D332): nothing is queued again, billed or
+// failed at a host handoff. A fault, a stale abort or a shutdown before any text is not a Stop and leaves the row
+// queued; a shutdown after text keeps the text as the reply, which settles the debt (D332).
+// `generate` stays lock-free and unclaimed: the wand and the empty send ask for an extra reply on purpose.
+// - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
+//   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.
+// - The policy and output still decide who speaks once a round starts. The mode decides only when it starts.
 
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type {
   AssembleContext,
   ChatMetadata,
@@ -25,8 +52,11 @@ import type {
   PlainChatWarningCode,
   RequestTurnOp,
   RequestTurnParams,
+  RoomAdmission,
+  RoomClaim,
   SmartPicker,
   SpeakerRef,
+  TurnGlobalVariables,
   TurnKind,
   UserMacroDraws,
 } from "@orb/contracts/chat";
@@ -36,6 +66,7 @@ import {
   composeSendBody,
   DEFAULT_GROUP_CONFIG,
   fillSendPictures,
+  humansYetToWrite,
   isAiDriven,
   picturesPlaceExactlyOnce,
   placeSendPictures,
@@ -44,15 +75,16 @@ import {
   speakerKey,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
-import type { BindingActor } from "@orb/contracts/inference";
+import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling } from "@orb/inference";
+import { tokenizeContent } from "@orb/kit/content";
 import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
@@ -63,9 +95,9 @@ import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import type { TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
-import type { ChatContext, ChatRpgGatherResult } from "../contract/context.ts";
+import type { ChatContext, ChatRpgGatherResult, ChatServiceDeps } from "../contract/context.ts";
 import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatHostWithoutConsentError, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
@@ -77,12 +109,13 @@ import type {
   ForceCharacterTurnParams,
   GenerateParams,
   ImpersonateStreamParams,
+  ReplyToTailParams,
   RevertContinueParams,
   SendParams,
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params.ts";
-import type { DrainDeferredTurnsScope, DrainReport, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
+import type { DrainDeferredTurnsScope, DrainReport, RegexNoticeEpisode, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
@@ -94,10 +127,11 @@ import {
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
+import { loadGlobalPlaneGate } from "../persistence/global-plane-gate.ts";
+import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { loadTailIsUserMessage } from "../persistence/message-window.ts";
-import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
@@ -107,21 +141,23 @@ import {
   loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMessageView,
+  loadPendingUserText,
   loadSlotTarget,
   loadStoredUserMacroValues,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
-import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
+import { abortSettlesOwedReply, registryAbortReason } from "../substrate/abort-cause.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
-import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
-import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
+import { refuseClosedAdmission } from "../substrate/handoff-barrier.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { classifyParticipant, isArbiterEligible } from "../substrate/participant-actor.ts";
+import { hostConsentOf, humanSeatPersonasOf, lorePersonaIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { createRegexNoticeEpisode } from "../substrate/regex-notice-episode.ts";
+import { mintClaimExempt, mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
@@ -161,11 +197,8 @@ interface TurnDeps {
   readonly emit: EmitDurableChatEventOp;
   readonly prng: RandomSource;
   readonly delay: DelayOp;
-  readonly resolveConnection: (args: {
-    readonly funderUserId: UserId;
-    readonly chatId: ChatId;
-    readonly actor?: BindingActor | undefined;
-  }) => Promise<Resolved<"chat">>;
+  /** The service binds the background signal: a turn resolves its connection before its Stop handle exists. */
+  readonly resolveConnection: (args: Omit<Parameters<ChatServiceDeps["resolveConnection"]>[0], "signal">) => ReturnType<ChatServiceDeps["resolveConnection"]>;
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -174,6 +207,23 @@ interface TurnDeps {
    *  rounds that pass neither: `forceCharacterTurn` (after its host and seat gates) and `resolveRequestTurn`
    *  (after its origin, presence and forced-speaker refusals). */
   readonly claimChat: ClaimChatOp;
+  /** The rooms whose owed reply is being started (the file header's one-round-per-tail ruling).
+   *  ASSUMES(single-replica): the claim is this process's, as the handoff barrier and the active-turns registry are. */
+  readonly replyClaims: Set<ChatId>;
+}
+
+/** Take the room's reply claim, or null when a release or a wait-mode send already holds it. Disposal frees it on
+ *  every exit of the holder's scope, a throw included. */
+function claimReply(claims: Set<ChatId>, chatId: ChatId): Disposable | null {
+  if (claims.has(chatId)) {
+    return null;
+  }
+  claims.add(chatId);
+  return {
+    [Symbol.dispose]: (): void => {
+      claims.delete(chatId);
+    },
+  };
 }
 
 /** The turn-running slice of `ChatService` this grouped file owns. */
@@ -187,6 +237,7 @@ type TurnVerbs = Pick<
   | "continueTurn"
   | "impersonateStream"
   | "generate"
+  | "replyToTail"
   | "undoContinue"
   | "revertContinue"
   | "drainDeferredTurns"
@@ -239,7 +290,7 @@ const nudgeOf = (
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
  *  their display names, the seated-character ids (WI/memory), and the present personas. */
 interface Room {
-  readonly hostUserId: UserId;
+  readonly hostUserId: ConsentingHostId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly speakerCandidates: readonly SpeakerCandidate[];
   /** Each seated character's "who is this" line (macros rendered, uncapped) — what both Smart pickers read. */
@@ -286,15 +337,22 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
   return await resolveReasoningHostOnlyFor(ctx, chatId);
 }
 
-/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). A deferred turn
- *  supplies its already-frozen host so cards, assembly, tools, and funding retain one identity across replay. */
+/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND), and so is a room
+ *  whose turn host is outside its consent set: a disabled host is treated exactly like a departed one, so no turn
+ *  runs on that account's connection. A deferred turn supplies its already-frozen host so cards, assembly, tools,
+ *  and funding retain one identity across replay; that host must still consent at drain time. */
 async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: PersonaId | null, frozenHostUserId?: UserId): Promise<Room> {
   const participants = await loadParticipants(ctx.db, chatId);
-  const currentHostUserId = hostUserIdOf(participants);
-  if (currentHostUserId === null) {
+  const consent = await hostConsentOf(ctx, participants, frozenHostUserId);
+  if (consent.kind === "hostless") {
     throw new ChatNotFoundError(chatId);
   }
-  const hostUserId = frozenHostUserId ?? currentHostUserId;
+  if (consent.kind === "withheld") {
+    throw new ChatHostWithoutConsentError(chatId);
+  }
+  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), narrowed by the
+  // disabled-account containment gate (owner-ruled) the host check above read.
+  const { hostUserId, consentSet: presentHumanUserIds } = consent;
   const aiRows = participants.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => {
     const actor = classifyParticipant(r);
@@ -308,10 +366,6 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
     ),
   ]);
 
-  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
-  // disabled-account containment gate (owner-ruled) — see `presentAndEnabledHumanUserIdsOf`'s own
-  // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
@@ -410,6 +464,8 @@ interface BuiltTurnContext {
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
    *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
   readonly memoryRecall: MemoryRecallInputs | null;
+  /** The round's record of host regex scripts its passes did not apply (see `TurnPrep.regexNotices`). */
+  readonly regexNotices: RegexNoticeEpisode;
   /** The host's resolved turn-behavior arm — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
@@ -465,6 +521,7 @@ type SharedTurnPrepFields = Pick<
   | "extraStopSequences"
   | "memoryConfig"
   | "memoryRecall"
+  | "regexNotices"
   | "attachedToolNames"
   | "terminalTools"
   | "cardKeepLastX"
@@ -477,8 +534,8 @@ function sharedTurnPrepFields(env: {
   readonly built: BuiltTurnContext;
   /** The turn's resolved identity pair — taken WHOLE (never as two fields) so the call stays one line: the
    *  multi-line argument literal an unpacked signature forces is itself a duplicated block, which is this
-   *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred-drain `row` both satisfy it. */
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+   *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred drain's consented triple both satisfy it. */
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
   readonly connection: Resolved<"chat">;
   readonly intent: UserIntent | undefined;
   readonly toolRecurseLimit: number | undefined;
@@ -495,6 +552,7 @@ function sharedTurnPrepFields(env: {
     attachmentQuality: built.chatBehavior.attachmentQuality,
     memoryConfig: built.memoryConfig,
     ...(built.memoryRecall !== null ? { memoryRecall: built.memoryRecall } : {}),
+    regexNotices: built.regexNotices,
     attachedToolNames: built.attachedToolNames,
     terminalTools: built.terminalTools,
     cardKeepLastX: built.cardKeepLastX,
@@ -665,9 +723,9 @@ async function buildTurnContext(
   deps: TurnDeps,
   args: {
     readonly chatId: ChatId;
-    readonly runAsUserId: UserId;
+    readonly runAsUserId: ConsentingHostId;
     /** The turn's FUNDER (whose connection it runs on) — the rpg gather's delivery verdict reads it. */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly model: ModelId;
     readonly kind: TurnKind;
     readonly characterIds: readonly CharacterId[];
@@ -689,6 +747,9 @@ async function buildTurnContext(
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
+    /** The text of the user message a deferred drain answers, for the rpg gather only: the message is canon, so it
+     *  never rides the assembly's pending text. Absent ⇒ the gather reads the room's latest user message. */
+    readonly answeredUserText?: string | undefined;
     readonly guided?: GuidedSteer | undefined;
     /** The Ruling-B `{{char}}` for a HOST-authored / null-speaker context (Chat-Macro-Resolution.md ruling B):
      *  the JOINED CANDIDATE names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
@@ -759,7 +820,7 @@ async function buildTurnContext(
   const gatherArgs: GatherTurnContextArgs = {
     chatId: args.chatId,
     funderUserId: args.funderUserId,
-    pendingUserText: args.pendingUserText,
+    pendingUserText: args.pendingUserText ?? args.answeredUserText,
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
     steerIdentity: teachIdentity,
     // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
@@ -805,10 +866,15 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const regexNotices = createRegexNoticeEpisode();
+  const globalVariables = await stageTurnGlobalVariables(ctx, args);
+  const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      retrieval: "strict",
+      // The gather runs before the turn registers the Stop handle that cancels it, so only shutdown can end its
+      // retrieval.
+      signal: ctx.backgroundSignal,
       runAsUserId: args.runAsUserId,
       model: args.model,
       characterIds: args.characterIds,
@@ -817,10 +883,12 @@ async function buildTurnContext(
       // The pending row's author for the recall query. `none` ⇒ null (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
+      globalVariables,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       choicePicks: "random",
       timeZone: args.timeZone,
+      regexNotices,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.sendDraft !== undefined ? { sendDraft: args.sendDraft } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
@@ -843,6 +911,7 @@ async function buildTurnContext(
     chainAssembleContext: reminder.chain,
     memoryConfig: foreign.memoryConfig,
     memoryRecall: sink.memoryRecall ?? null,
+    regexNotices,
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     // R2 — the wire attach set is the UNION over the teaching contributions' `toolNames` (teach and attach
     // travel together). Today every contributor pins `[]`, so this is byte-identical to the old
@@ -855,6 +924,16 @@ async function buildTurnContext(
     cardKeepLastX: rpg?.cardKeepLastX,
     ...userMacroFields(userMacros),
   };
+}
+
+// The host's global plane (D46) loads only in a room no other human has ever held a seat in, here or in a room it was
+// copied from, and only when the room's pin is absent or the host's own: room text has no reliable author.
+async function stageTurnGlobalVariables(ctx: ChatContext, args: { readonly chatId: ChatId; readonly runAsUserId: UserId }): Promise<TurnGlobalVariables> {
+  const gate = await loadGlobalPlaneGate(ctx.db, args.chatId);
+  if (gate !== undefined && !gate.everShared && (gate.pinOwnerId === null || gate.pinOwnerId === args.runAsUserId)) {
+    return { mode: "staged", values: await ctx.loadGlobalVariables(args.runAsUserId), writes: [], heldReads: [] };
+  }
+  return { mode: "held", values: {}, writes: [], heldReads: [] };
 }
 
 /** Settles the game's reminder against the line the player's message became, and splits out the form an auto-mode beat
@@ -893,7 +972,7 @@ async function persistUserMessage(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
   args: {
-    readonly chatId: ChatId;
+    readonly claim: RoomClaim;
     readonly content: string;
     readonly authorUserId: UserId;
     readonly personaId: PersonaId | null;
@@ -908,13 +987,14 @@ async function persistUserMessage(
     readonly macroFreezes: MacroFreezeRecord;
   },
 ): Promise<MessageView> {
+  const { chatId } = args.claim;
   const now = ctx.now();
   const attempt = async (): Promise<MessageView> => {
     const params = {
       messageId: ctx.newMessageId(),
       variantId: ctx.newMessageVariantId(),
-      chatId: args.chatId,
-      seq: (await loadMaxMessageSeq(ctx.db, args.chatId)) + 1,
+      chatId,
+      seq: (await loadMaxMessageSeq(ctx.db, chatId)) + 1,
       role: "user" as const,
       authorUserId: args.authorUserId,
       personaId: args.personaId,
@@ -935,7 +1015,7 @@ async function persistUserMessage(
       }),
     );
     // characterId null — the stats rebuild's per-char grain is assistant-only.
-    await commitRetainedCanonStats(ctx, args.chatId, statements, {
+    await commitRetainedCanonStats(ctx, args.claim, statements, {
       deltas: [userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now })],
       sources: [],
       contributions: [],
@@ -948,8 +1028,8 @@ async function persistUserMessage(
     }
     throw err;
   });
-  await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
-  await ctx.emitChatChanged(args.chatId);
+  await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+  await ctx.emitChatChanged(chatId);
   return view;
 }
 
@@ -979,7 +1059,7 @@ async function arbitrate(
   args: {
     readonly chatId: ChatId;
     /** The round's trigger — whose `summarize` connection the smart arbiter spends (§8.5b). */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
@@ -1000,8 +1080,8 @@ async function arbitrate(
     readonly recentRows: readonly MessageView[];
     readonly maxSpeakers?: number | undefined;
     /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive arbiter box
-     *  can't hang the turn. Absent on the paths that never reach the side-LLM. */
-    readonly signal?: AbortSignal | undefined;
+     *  can't hang the turn. */
+    readonly signal: AbortSignal;
   },
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
@@ -1081,12 +1161,12 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
     ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
     mentionedIds: args.mentionedIds,
     rng: deps.prng,
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal: args.signal,
   };
   if (args.group.smartPicker === "reranker") {
     return await rerankPickVia({
       ...shared,
-      reranker: () => ctx.resolveSpeakerReranker(args.funderUserId),
+      reranker: () => ctx.resolveSpeakerReranker(args.funderUserId, args.signal),
       lastLine: transcript.at(-1) ?? null,
     });
   }
@@ -1095,7 +1175,7 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
   const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveUtilityPresetParams(args.funderUserId));
   return await smartArbitrateVia({
     ...shared,
-    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId, args.chatId),
+    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId, args.chatId, args.signal),
     transcript,
     room: args.assembled,
     sampling: arbiterSampling,
@@ -1132,6 +1212,7 @@ function asPerSpeaker(group: GroupConfig): GroupConfig {
     autoModeDelayMs: group.autoModeDelayMs,
     allowSelfResponses: group.allowSelfResponses,
     memberCardVisibility: group.memberCardVisibility,
+    waitForEveryone: group.waitForEveryone,
   };
 }
 
@@ -1208,7 +1289,7 @@ async function runChain(
           chatId: args.base.chatId,
           turnId,
           intent: chainIntent,
-          reason: "user",
+          reason: registryAbortReason(args.signal),
           automationDepth: args.base.automationDepth ?? 0,
         });
         return null;
@@ -1304,15 +1385,16 @@ async function runAiRound(
   });
   // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
   // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
-  // outcome is the bare aborted shape ("user": the only pre-engine abort source is `activeTurns`, i.e. the
-  // caller's own Stop or the host's room-gone sweep — the heartbeat's "stale" lock abort lives INSIDE the
+  // outcome is the bare aborted shape (the only pre-engine abort source is `activeTurns`: the caller's own Stop
+  // or the host's room-gone sweep read "user", the registry's shutdown dispose reads "shutdown" — the heartbeat's "stale" lock abort lives INSIDE the
   // engine and cannot fire before a turn starts). The `turnAborted` bus emit — deliberately WITHHELD before
   // `turnAccepted` existed (the slot was idle, nothing listened) — now CLOSES the slot this abort left open.
   // Depth rides `automationDepth` off the base (0 for a human turn) so an automation cascade gates the same as
   // the engine's own `turnAborted`.
   if (arbitration.aborted) {
-    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, turnId, intent, reason: "user", automationDepth: args.base.automationDepth ?? 0 });
-    return { messages: [], aborted: true, abortReason: "user" };
+    const reason = registryAbortReason(args.signal);
+    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, turnId, intent, reason, automationDepth: args.base.automationDepth ?? 0 });
+    return { messages: [], aborted: true, abortReason: reason };
   }
   const speakers = arbitration.speakers;
   // THE THIRD FORCED DOOR (F7): `forceCharacterTurn` and `requestTurn` both coerce a narrator room to a
@@ -1382,6 +1464,8 @@ async function deferIfHostOffline(
     readonly triggeredBy: UserId;
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
+    /** The user message the owed reply answers, so the drain reads that send's own text. */
+    readonly messageId: MessageId;
     readonly timeZone: SendParams["timeZone"];
   },
 ): Promise<boolean> {
@@ -1394,6 +1478,7 @@ async function deferIfHostOffline(
     triggeredBy: args.triggeredBy,
     runAsUserId: args.runAsUserId,
     timeZone: args.timeZone ?? null,
+    messageId: args.messageId,
     createdAt: ctx.now(),
   });
   return true;
@@ -1416,9 +1501,14 @@ async function deferIfHostOffline(
 async function freezeGreetingVolatiles(
   ctx: ChatContext,
   deps: TurnDeps,
-  args: { readonly assembleContext: AssembleContext; readonly priorCanon: readonly MessageView[]; readonly freezeRegistry: MacroRegistry | null },
+  args: {
+    readonly claim: RoomClaim;
+    readonly assembleContext: AssembleContext;
+    readonly priorCanon: readonly MessageView[];
+    readonly freezeRegistry: MacroRegistry | null;
+  },
 ): Promise<void> {
-  const { assembleContext, priorCanon, freezeRegistry } = args;
+  const { claim, assembleContext, priorCanon, freezeRegistry } = args;
   const stmts = priorCanon.flatMap((m) => {
     if (m.role !== "assistant") {
       return [];
@@ -1433,9 +1523,10 @@ async function freezeGreetingVolatiles(
       freezes,
       ...(freezeRegistry !== null ? { registry: freezeRegistry } : {}),
     });
-    return frozen === m.content
+    // A degraded freeze is empty or partial text: the greeting keeps its unbaked body rather than lose it.
+    return frozen.degraded || frozen.text === m.content
       ? []
-      : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen, rawContent: m.content, macroFreezes: freezes })];
+      : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen.text, rawContent: m.content, macroFreezes: freezes })];
   });
   if (stmts.length > 0) {
     const chatId = priorCanon[0]?.chatId;
@@ -1444,7 +1535,7 @@ async function freezeGreetingVolatiles(
     if (chatId === undefined) {
       await ctx.db.batch(batchMany(stmts));
     } else {
-      await commitHostFencedWrite(ctx, chatId, stmts);
+      await commitHostFencedWrite(ctx, claim, stmts);
     }
   }
 }
@@ -1478,6 +1569,16 @@ async function placeBlockPictures(
     throw new ChatOperationError(CHAT_OP_CODES.blockPictureLost, `chat ${chatId}: a block picture would not place exactly once`);
   }
   return body;
+}
+
+/** A user body may show at most {@link ASSET_LIST_LIMIT_MAX} pictures, however each one was written: attached,
+ *  sent as a block or typed as a ref into the text. It counts every occurrence in the final body, because each
+ *  one is a part on the model wire, and it runs before the ownership read so that read stays bounded too. */
+function assertPictureCountWithinLimit(chatId: ChatId, body: string): void {
+  const pictures = tokenizeContent(body, { committed: true }).filter((span) => span.kind === "image" && span.ref.kind === "asset").length;
+  if (pictures > ASSET_LIST_LIMIT_MAX) {
+    throw new ChatOperationError(CHAT_OP_CODES.tooManyPictures, `chat ${chatId}: ${pictures} pictures in one message, the limit is ${ASSET_LIST_LIMIT_MAX}`);
+  }
 }
 
 /** Trust boundary: every claimed attachment id must be owned by the actor. A foreign/gone id is absent from
@@ -1517,15 +1618,12 @@ async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: U
 // ── Post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
 // neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
 // server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
-// continueOnSend has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn on an
-// empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
-// server-read field stays inert BY DESIGN.
+// emptyEnterReplies has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn or
+// chat.generate on an empty send).
 
-// The bound on each auto-behavior is now the host's knob (`UserSettings.chat.autoContinueRounds` /
-// `autoSwipe.maxRetries`, default 1 — the neo-parity ONE-follow-up floor, byte-identical), threaded via
-// `ChatBehaviorInputs` and read in the loops below. A model that keeps hitting the length cap wants a bigger
-// `maxOutputTokens`, and one that keeps producing rejects wants a different prompt — the ceiling (5) caps a
-// pathological spend.
+// The auto-continue bound is the host's knob (`UserSettings.chat.autoContinueRounds`, 0 off, ceiling 5), threaded
+// via `ChatBehaviorInputs`. The auto-swipe bound is the constant `AUTO_SWIPE_ROUNDS`: a model that keeps producing
+// rejects wants a different prompt, not more rerolls, so no reader would change it.
 
 /** The auxiliary verbs the send's post-round auto-behaviors re-enter (built once at {@link createTurn}). Each
  *  re-runs the full member gate under the SAME principal + registers its OWN abort handle, so a user abort
@@ -1581,13 +1679,16 @@ interface AutoFrame {
   readonly logger: ChatContext["logger"];
 }
 
+/** One send regenerates a rejected reply at most this many times: each regeneration is a full generation. */
+const AUTO_SWIPE_ROUNDS = 1;
+
 /** The bounded auto-swipe loop: regenerate the rejected reply, re-checking each fresh variant, up to the
  *  bound. `tip` enters rejected (the caller's precedence gate proved it); stops when a variant passes, the
  *  bound is hit, a swipe fails, or abort fires. */
 async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView, cfg: ChatBehaviorInputs["autoSwipe"]): Promise<MessageView[]> {
   const rows: MessageView[] = [];
   let current = tip;
-  for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
+  for (let i = 0; i < AUTO_SWIPE_ROUNDS && !frame.signal.aborted; i += 1) {
     const target = current;
     const next = await runAutoFollowUp(frame, "auto-swipe", target, () =>
       auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }),
@@ -1648,7 +1749,7 @@ async function runAutoBehaviors(
   if (args.behavior.autoSwipe.enabled && isAutoSwipeRejected(tip.content, args.behavior.autoSwipe)) {
     return await runAutoSwipe(auto, frame, tip, args.behavior.autoSwipe);
   }
-  if (args.behavior.autoContinue) {
+  if (args.behavior.autoContinueRounds > 0) {
     return await runAutoContinue(auto, frame, tip, args.behavior.autoContinueRounds);
   }
   return [];
@@ -1703,7 +1804,7 @@ function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageI
     const rpg = ctx.rpg;
     const settled = withRequestSpan({ traces: ctx.traces, requestId: rpgUserCommitRequestId(messageId) }, RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
       rpg.onUserCommit(chatId, messageId),
-    ).catch(() => undefined);
+    ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId, messageId }, "rpg: user-commit failed (message already committed)"));
     ctx.trackBackground(settled, chatId);
   }
 }
@@ -1736,9 +1837,6 @@ async function commitUserTurn(
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, blocks, guided } = args;
   const membership = await requireParticipant(ctx, principal, chatId);
-  // A committed user line is THE claim (R0 F4(a)). Before the row, per the ordering invariant: the
-  // claim replays the creation stats over the canon present at claim, and this row is about to join it.
-  await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
   await assertAttachmentsOwned(ctx.filterOwnedAssetIds, principal.userId, chatId, attachments);
   // Unlike a picture typed into text, a block names its asset as a claim, so a foreign, gone or non-image one refuses.
@@ -1748,10 +1846,11 @@ async function commitUserTurn(
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is the
-  // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
-  // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
-  // whose name cannot carry it, which is the ordering bug this file has paid for before.
+  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is where the
+  // claim sits — that path claims right after the room load (D166: a generated turn claims the room), before
+  // the identity and connection resolves; this one claims only after the block-picture refusal, just before the
+  // user row. Folding the trio would put the claim decision behind a helper whose name cannot carry it, which is
+  // the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
@@ -1809,10 +1908,15 @@ async function commitUserTurn(
       ? transformed
       : await placeBlockPictures(ctx, { chatId, blocks, text: transformed, personaId: stampedPersonaId, assembleContext: built.assembleContext });
   const body = composeBodyWithAttachments(composed, attachments);
+  assertPictureCountWithinLimit(chatId, body);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
+  // The first user message claims the room (D166). After every refusal above, because the claim is one-way and
+  // a refused send must leave the room unclaimed; before the row, because retained accounting refuses a husk's
+  // canon write and the claim replays the creation stats over the canon present at claim.
+  const claim = await deps.claimChat(membership.admission);
   const userView = await persistUserMessage(ctx, deps.emit, {
-    chatId,
+    claim,
     content: body,
     // D129-F provenance: `content` above is the draft after the freeze, the `user_input` transform, the
     // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
@@ -1827,7 +1931,7 @@ async function commitUserTurn(
   });
 
   if (isFirstUserTurn) {
-    await freezeGreetingVolatiles(ctx, deps, { assembleContext: built.assembleContext, priorCanon, freezeRegistry: built.freezeMacroRegistry });
+    await freezeGreetingVolatiles(ctx, deps, { claim, assembleContext: built.assembleContext, priorCanon, freezeRegistry: built.freezeMacroRegistry });
   }
 
   fireRpgUserCommit(ctx, chatId, userView.id);
@@ -1835,9 +1939,16 @@ async function commitUserTurn(
   return { membership, room, identity, connection, group, userView, built };
 }
 
+/** Whether a wait-for-everyone room holds the reply to `userView`: a present human has not written since the last
+ *  reply, or a later line already landed, whose send owns the round (see the file header). */
+async function holdsForOthers(ctx: ChatContext, chatId: ChatId, presentHumanUserIds: readonly UserId[], userView: MessageView): Promise<boolean> {
+  const canon = await loadCanonHistory(ctx.db, chatId);
+  return canon.at(-1)?.id !== userView.id || humansYetToWrite(presentHumanUserIds, canon).length > 0;
+}
+
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
  *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
- *  Member-gated; AI turns run as the host. */
+ *  Member-gated; AI turns run as the host. A wait-for-everyone room may hold the round (see the file header). */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({
     principal,
@@ -1865,6 +1976,13 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // Only what this body still reads on its own — the shared prep block comes off `built` itself now.
     const { chatBehavior, respondsToLatestUserTurn, macroRegistry, userMacroDraws } = built;
 
+    // A release that holds the claim is already answering this room, this line included.
+    using replyClaim =
+      group.waitForEveryone && !(await holdsForOthers(ctx, chatId, room.presentHumanUserIds, userView)) ? claimReply(deps.replyClaims, chatId) : null;
+    if (group.waitForEveryone && replyClaim === null) {
+      return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
+    }
+
     // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
     // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
     if (
@@ -1873,6 +1991,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         triggeredBy: identity.triggeredBy,
         runAsUserId: identity.runAsUserId,
         chatId,
+        messageId: userView.id,
         timeZone,
       })
     ) {
@@ -1966,9 +2085,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
-    // A forced reply is a generated turn and claims like one (R0 F4(a)): after the host and seat gates, so a
+    // A forced reply is a generated turn and claims like one (D166): after the host and seat gates, so a
     // refused force never claims, and before any engine write, which retained accounting refuses on a husk.
-    await deps.claimChat(chatId);
+    await deps.claimChat(membership.admission);
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
@@ -2063,13 +2182,14 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
 /** The resolved single-turn substrate — assumes `requireParticipant`/`requireHost` already ran. */
 interface TurnBase {
   readonly room: Room;
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
   readonly connection: Resolved<"chat">;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
    *  auxiliary prep. `null` ⇒ no per-speaker recall (round-level `memory` stands). */
   readonly memoryRecall: MemoryRecallInputs | null;
+  readonly regexNotices: RegexNoticeEpisode;
   /** The host's resolved turn-behavior arm — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
@@ -2123,14 +2243,20 @@ async function resolveTurnBase(
      *  re-generation resolves the identical draw. Absent (generate) ⇒ a fresh draw. */
     readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
     readonly timeZone: IanaTimeZone | undefined;
+    /** The caller's own refusal over the loaded room (generate's named speaker), run before the claim. */
+    readonly admitRoom?: ((room: Room) => void) | undefined;
+    /** The caller's membership gate's proof, which the claim spends. */
+    readonly admission: RoomAdmission;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
-  // Every generated turn claims (R0 F4(a)) -- the four callers (swipe / continue / impersonate /
-  // generate) share this base, so the claim cannot be forgotten on one of them. Each caller has
-  // already run its own membership guard; this is before any engine write.
-  await deps.claimChat(chatId);
   const room = await loadRoom(ctx, chatId, args.anchorPersonaId);
+  args.admitRoom?.(room);
+  // Every generated turn claims (D166) -- the four callers (swipe / continue / impersonate / generate) share
+  // this base, so the claim cannot be forgotten on one of them. After every refusal of the request: each caller
+  // ran its own guards, and the room and its speaker check passed above. The connection resolve and the engine
+  // may still refuse on room state after it. Before any engine write.
+  await deps.claimChat(args.admission);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
@@ -2140,6 +2266,7 @@ async function resolveTurnBase(
     assembleContext,
     memoryConfig,
     memoryRecall,
+    regexNotices,
     chatBehavior,
     attachedToolNames,
     terminalTools,
@@ -2178,6 +2305,7 @@ async function resolveTurnBase(
     assembleContext,
     memoryConfig,
     memoryRecall,
+    regexNotices,
     chatBehavior,
     attachedToolNames,
     terminalTools,
@@ -2334,6 +2462,9 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
+    if (guided?.action === "rewrite" && (guided.input ?? "").trim() === "" && (guided.rewriteToggles ?? []).length === 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.emptyRewriteSteer, `message ${messageId}: a rewrite needs a steer or a picked toggle`);
+    }
     // D58: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
@@ -2344,6 +2475,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     const turnId = ctx.newChatTurnId();
     const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "swipe",
@@ -2397,6 +2529,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     const turnId = ctx.newChatTurnId();
     const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "continue",
@@ -2439,12 +2572,9 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
  *  The law's one home is `infra/providers/backends/http/abort-flatten.ts` (sealed to domain — this is the same
  *  fold spelled locally, as `domain/rpg/flush-barrier.ts` does). An ALREADY-aborted source aborts
  *  synchronously, so a call entered post-cancel never reaches the wire. */
-function foldCancellation(controller: AbortController, sources: readonly (AbortSignal | undefined)[]): () => void {
+function foldCancellation(controller: AbortController, sources: readonly AbortSignal[]): () => void {
   const onAbort = (): void => controller.abort();
   const attached = sources.flatMap((source) => {
-    if (source === undefined) {
-      return [];
-    }
     if (source.aborted) {
       controller.abort();
       return [];
@@ -2557,6 +2687,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       userMacroDraws,
       cardKeepLastX,
     } = await resolveTurnBase(ctx, deps, {
+      admission: membership.admission,
       principal,
       chatId,
       kind: "impersonate",
@@ -2688,7 +2819,7 @@ async function arbitrateGenerateSpeaker(
     readonly room: Room;
     readonly assembled: AssembleContext;
     readonly group: GroupConfig;
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly signal: AbortSignal;
   },
 ): Promise<{ readonly speaker: CharacterId | null; readonly aborted: boolean }> {
@@ -2723,8 +2854,9 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
     // `turnStarted` carries the validated speaker. The speaker resolve lives INSIDE the accepted region so its
     // NOT_FOUND closes the slot it opened.
-    const base = await withAcceptedSlot(deps, slot, async () => {
-      const resolved = await resolveTurnBase(ctx, deps, {
+    const base = await withAcceptedSlot(deps, slot, () =>
+      resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "generate",
@@ -2734,12 +2866,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         respondsToLatestUserTurn,
         guided,
         timeZone,
-      });
-      if (speakerCharacterId !== undefined && speakerCharacterId !== null) {
-        requirePresentGenerateSpeaker(resolved.room, chatId, speakerCharacterId);
-      }
-      return resolved;
-    });
+        ...(speakerCharacterId === undefined || speakerCharacterId === null
+          ? {}
+          : { admitRoom: (loaded: Room): void => requirePresentGenerateSpeaker(loaded, chatId, speakerCharacterId) }),
+      }),
+    );
     const { room, identity, connection, assembleContext, macroRegistry, userMacroDraws } = base;
     // Registered BEFORE the arbitration, so the user's Stop reaches a smart side-LLM pick, not only the engine.
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
@@ -2758,8 +2889,9 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         : { speaker: speakerCharacterId, aborted: false };
     // The two speakerless exits close the accepted slot exactly as a send round's do (`runAiRound`).
     if (pick.aborted) {
-      await deps.emit({ type: "turnAborted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, reason: "user", automationDepth: 0 });
-      return { messages: [], aborted: true, abortReason: "user" };
+      const reason = registryAbortReason(handle.signal);
+      await deps.emit({ type: "turnAborted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, reason, automationDepth: 0 });
+      return { messages: [], aborted: true, abortReason: reason };
     }
     if (pick.speaker === null) {
       await deps.emit({ type: "turnCompleted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, messageId: null });
@@ -2820,9 +2952,10 @@ async function restoreContinue(
     role,
     snapshot: snap,
     restored: { content, reasoning, undoContinuation: direction === "undo" },
+    now: ctx.now(),
   });
   try {
-    await commitHostFencedWrite(ctx, chatId, plan.statements);
+    await commitHostFencedWrite(ctx, mintClaimExempt(chatId), plan.statements);
   } catch (error) {
     if (isRetainedParentFenceViolation(error) && (await ctx.db.all(plan.selection)).length === 0) {
       await requireParticipant(ctx, principal, chatId);
@@ -2864,15 +2997,20 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
 
 // ── pending_turns drain — the host-offline deferred-turn reclaim (Part III §5) ──
 
-/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued). Exactly
- *  ONE verdict is permanent today: `ChatNotFoundError` — the chat row, or its host participant, is gone, so
- *  there is nothing left to run and no later edge can change that. (The separate owner-consent verdict and
- *  per-member turn budget were retired; neither belt has a raiser on the tree.)
- *  Everything else RE-QUEUES: a transient fault (a provider outage) is "not now", not "never", so the
- *  member's owed reply waits for the next drain edge. Drains fire only at boot + host-return edges, so a
- *  re-queued row can't hot-loop. */
-function isDrainVerdictDrop(err: unknown): boolean {
-  return err instanceof ChatNotFoundError;
+type DeferredTurnDropReason = Extract<NotificationEvent, { readonly type: "deferred-turn-dropped" }>["reason"];
+
+/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued), and the
+ *  reason the member is told. `ChatHostWithoutConsentError` (the frozen host is disabled or gone from the room,
+ *  read at drain time) drops as `consent`: a disabled host is treated exactly like a departed one, so the turn
+ *  never runs on that account even after a later re-enable. Any other `ChatNotFoundError` (the chat row, or its
+ *  host participant, is gone) drops as `chat-gone`. Everything else RE-QUEUES: a transient fault (a provider
+ *  outage) is "not now", not "never", so the member's owed reply waits for the next drain edge. Drains fire
+ *  only at boot + host-return edges, so a re-queued row can't hot-loop. */
+function drainDropReason(err: unknown): DeferredTurnDropReason | null {
+  if (err instanceof ChatHostWithoutConsentError) {
+    return "consent";
+  }
+  return err instanceof ChatNotFoundError ? "chat-gone" : null;
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
@@ -2884,14 +3022,27 @@ function isDrainVerdictDrop(err: unknown): boolean {
 async function runDeferredRound(
   ctx: ChatContext,
   deps: TurnDeps,
-  row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId; readonly timeZone: IanaTimeZone | null },
+  row: {
+    readonly chatId: ChatId;
+    readonly triggeredBy: UserId;
+    readonly runAsUserId: UserId;
+    readonly timeZone: IanaTimeZone | null;
+    readonly messageId: MessageId | null;
+  },
 ): Promise<TurnOutcome> {
+  // Registered first: from here a release sees this round in flight (the file header's one-round-per-tail ruling).
+  using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const chat = await loadChatRow(ctx.db, row.chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
-  const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // current hostless/gone → ChatNotFoundError (a drop)
-  const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
+  // Two queued sends drain in turn after the room has moved past both, so each reply reads its own send's text. A send
+  // that was deleted (its id cleared by the FK) or hidden is off the wire: its turn answers no player message, so it
+  // is told about no roll and never borrows a later send's.
+  const answeredUserText = row.messageId === null ? null : await loadPendingUserText(ctx.db, row.chatId, row.messageId);
+  const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
+  // The consent read proved the row's frozen host, so the triple funds that same id with its proof attached.
+  const identity = { triggeredBy: row.triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
   const built = await buildTurnContext(ctx, deps, {
@@ -2911,14 +3062,14 @@ async function runDeferredRound(
     trigger: { kind: "none" },
     // A deferred drain is the FIRST AI response to the offline-host's committed user send (D58) —
     // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
-    respondsToLatestUserTurn: true,
+    respondsToLatestUserTurn: answeredUserText !== null,
+    ...(answeredUserText !== null ? { answeredUserText } : {}),
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: chat.metadata,
     // The zone the sender reported when the turn deferred; a row without one reads the no-viewer clock.
     timeZone: row.timeZone ?? UTC_TIME_ZONE,
   });
-  using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   // Persistence carries the initiator plus the frozen host. Reconstitute the triple once and pass it whole.
   const base: RoundBase = {
     chatId: row.chatId,
@@ -2945,19 +3096,18 @@ async function drainOne(
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
-  // both arms report: the permanent verdict (`ChatNotFoundError` only,
-  // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
-  // error re-inserts the row and `getLog(ctx.logger).warn`s it with `err`. Ends if a third fault class needs its own handling.
+  // both arms report: a permanent verdict (`drainDropReason`) notifies the member via `notifyDeferredTurnDropped`
+  // and logs at info; every other error re-inserts the row and `getLog(ctx.logger).warn`s it with `err`. Ends if a
+  // third fault class needs its own handling.
   try {
     await run(claimed);
     return "ran";
   } catch (err) {
-    if (isDrainVerdictDrop(err)) {
-      // `isDrainVerdictDrop` admits exactly one class, so the reason is not a dispatch: the notification's
-      // `consent` arm survives in the contract for the belt's own sake, but nothing raises it here.
-      await notifyDeferredTurnDropped(ctx, claimed, "chat-gone");
+    const reason = drainDropReason(err);
+    if (reason !== null) {
+      await notifyDeferredTurnDropped(ctx, claimed, reason);
       getLog(ctx.logger).info(
-        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason: "chat-gone", dropped: true },
+        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true },
         "chat: deferred turn DROPPED at drain (permanent verdict)",
       );
       return "dropped";
@@ -2971,6 +3121,7 @@ async function drainOne(
       triggeredBy: claimed.triggeredBy,
       runAsUserId: claimed.runAsUserId,
       timeZone: claimed.timeZone,
+      messageId: claimed.messageId,
       createdAt: claimed.createdAt,
     });
     getLog(ctx.logger).warn(
@@ -2988,7 +3139,7 @@ async function drainOne(
 async function notifyDeferredTurnDropped(
   ctx: ChatContext,
   row: { readonly chatId: ChatId; readonly triggeredBy: UserId },
-  reason: "consent" | "chat-gone",
+  reason: DeferredTurnDropReason,
 ): Promise<void> {
   await ctx
     .emitNotification({
@@ -3053,9 +3204,90 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
   };
   return async (claimed): Promise<void> => {
     const completed = await runDeferredRound(ctx, settlementDeps, claimed);
-    if (completed.aborted) {
+    // A reply that committed before the abort (a Stop's kept text, or the speakers who finished before it) has
+    // answered the send, so the debt is settled; re-running it would generate and bill a second reply on top.
+    // A Stop that kept nothing settles it too: the member does not want that reply (D332). Any other abort
+    // (a stale lock, a shutdown) is not the member's call, so the debt stays owed.
+    const stopped = completed.abortReason !== undefined && abortSettlesOwedReply(completed.abortReason);
+    if (completed.aborted && completed.messages.length === 0 && !stopped) {
       throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
     }
+  };
+}
+
+/** What a release answers: `tail` is any unanswered user line (`replyToTail`); `everyone-wrote` is a
+ *  wait-for-everyone room's leave recount, which runs only once every remaining present human has written. */
+type OwedRoundRelease = "tail" | "everyone-wrote";
+
+/** Start the round the room's user tail is owed, at most once per tail (the file header's one-round-per-tail ruling).
+ *  `actorUserId` is who released it: the host's own act never defers, a member's defers while the host is dark.
+ *  Null when nothing ran: the tail is answered or already owed, another release holds the claim, or the round deferred. */
+async function releaseOwedRound(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  release: { readonly chatId: ChatId; readonly actorUserId: UserId; readonly timeZone: IanaTimeZone | undefined; readonly owes: OwedRoundRelease },
+): Promise<TurnOutcome | null> {
+  const { chatId, actorUserId, owes } = release;
+  using claim = claimReply(deps.replyClaims, chatId);
+  const chat = claim === null ? undefined : await loadChatRow(ctx.db, chatId);
+  if (chat === undefined || (owes === "everyone-wrote" && chat.metadata.group?.waitForEveryone !== true)) {
+    return null;
+  }
+  const room = await loadRoom(ctx, chatId, chat.anchorPersonaId);
+  const canon = await loadCanonHistory(ctx.db, chatId);
+  const tail = canon.at(-1);
+  if (tail?.role !== "user" || (owes === "everyone-wrote" && humansYetToWrite(room.presentHumanUserIds, canon).length > 0)) {
+    return null;
+  }
+  // A queued reply or a turn already running answers this tail, so a second round would answer it again.
+  if ((await loadPendingTurns(ctx.db, chatId)).length > 0 || deps.activeTurns.countActive(chatId) > 0) {
+    return null;
+  }
+  const owed = { chatId, triggeredBy: owedTrigger(room, tail.authorUserId, release), runAsUserId: room.hostUserId, messageId: tail.id };
+  if (await deferIfHostOffline(ctx, { ...owed, principalUserId: actorUserId, timeZone: release.timeZone })) {
+    return null;
+  }
+  // A recount has no viewer, so it reads the no-viewer clock (the file header's clock ruling); a press reads its presser's.
+  return await runDeferredRound(ctx, deps, { ...owed, timeZone: release.timeZone ?? null });
+}
+
+// A press is its presser's request; a recount runs as the last writer's send would have, or as the host's once they left.
+function owedTrigger(room: Room, lastWriter: UserId | null, release: { readonly actorUserId: UserId; readonly owes: OwedRoundRelease }): UserId {
+  if (release.owes === "tail") {
+    return release.actorUserId;
+  }
+  return lastWriter !== null && room.presentHumanUserIds.includes(lastWriter) ? lastWriter : room.hostUserId;
+}
+
+async function releaseWaitingRound(ctx: ChatContext, deps: TurnDeps, chatId: ChatId, actorUserId: UserId): Promise<void> {
+  using custody = deps.admission.tryEnter(chatId);
+  if (custody !== null) {
+    await releaseOwedRound(ctx, deps, { chatId, actorUserId, timeZone: undefined, owes: "everyone-wrote" });
+  }
+}
+
+/** `replyToTail` — member-gated as `generate` is; the outcome is the started round's, empty when nothing ran. */
+function createReplyToTail(ctx: ChatContext, deps: TurnDeps): ChatService["replyToTail"] {
+  return async ({ principal, chatId, timeZone }: ReplyToTailParams): Promise<TurnOutcome> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const outcome = await releaseOwedRound(ctx, deps, { chatId, actorUserId: principal.userId, timeZone, owes: "tail" });
+    if (outcome === null) {
+      return { messages: [], aborted: false, abortReason: undefined };
+    }
+    return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
+  };
+}
+
+/** The leave-side recount of a wait-for-everyone room, run in the background so the leave returns at once. A room
+ *  the leave left without a consenting host has nobody to fund a reply, so its refusal is the expected end. */
+export function createReleaseWaitingRound(ctx: ChatContext, deps: TurnDeps): (args: { readonly chatId: ChatId; readonly actorUserId: UserId }) => void {
+  return ({ chatId, actorUserId }): void => {
+    const settled = releaseWaitingRound(ctx, deps, chatId, actorUserId).catch((err: unknown) => {
+      if (!(err instanceof ChatNotFoundError || err instanceof ChatHostWithoutConsentError)) {
+        getLog(ctx.logger).warn({ err, chatId }, "chat: the wait-for-everyone reply after a leave failed");
+      }
+    });
+    ctx.trackBackground(settled, chatId);
   };
 }
 
@@ -3099,13 +3331,13 @@ interface RequestTurnResolved {
   readonly chat: NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
   readonly room: Room;
   readonly connection: Resolved<"chat">;
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
 }
 
 /** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
-  await requireRequestTurn(ctx, params);
+  const admission = await requireRequestTurn(ctx, params);
   const { chatId, triggeredBy, speakerCharacterId } = params;
   const chat = await loadChatRow(ctx.db, chatId);
   if (chat === undefined) {
@@ -3118,9 +3350,9 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   if (speakerCharacterId !== undefined && !room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null)) {
     throw new ChatNotFoundError(chatId);
   }
-  // A requested turn is a generated turn and claims like one (R0 F4(a)): after every refusal above, so a refused
+  // A requested turn is a generated turn and claims like one (D166): after every refusal above, so a refused
   // request never claims, and before any engine write, which retained accounting refuses on a husk.
-  await deps.claimChat(chatId);
+  await deps.claimChat(admission);
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
   const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({
@@ -3131,7 +3363,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   return { chat, room, connection, identity };
 }
 
-async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): Promise<void> {
+async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): Promise<RoomAdmission> {
   const { chatId, initiator, triggeredBy, automationDepth } = params;
   // WALL 1 (write side). `"human"` is never a requestTurn origin (it would forge a human turn); refuse it.
   if (initiator === "human") {
@@ -3148,6 +3380,7 @@ async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): 
   if ((await loadPresentRole(ctx.db, chatId, triggeredBy)) === null) {
     throw new ChatNotFoundError(chatId);
   }
+  return mintRoomAdmission(chatId);
 }
 
 export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurnOp {
@@ -3155,8 +3388,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     const { chatId, initiator, automationDepth, speakerCharacterId, guided, timeZone } = params;
     using custody = deps.admission.tryEnter(chatId);
     if (custody === null) {
-      await requireRequestTurn(ctx, params);
-      refuseHandoffAdmission();
+      await refuseClosedAdmission(deps.admission, chatId, () => requireRequestTurn(ctx, params));
     }
     const { chat, room, connection, identity } = await resolveRequestTurn(ctx, deps, params);
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
@@ -3224,6 +3456,7 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     continueTurn,
     impersonateStream: createImpersonateStream(ctx, deps),
     generate: createGenerate(ctx, deps),
+    replyToTail: createReplyToTail(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),
     revertContinue: createRevertContinue(ctx, deps),
     drainDeferredTurns: createDrainDeferredTurns(ctx, deps),

@@ -22,6 +22,7 @@ import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry, MobileCuration } from "#state";
 import { closeModal, mobileBarCuration, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry } from "#state";
+import { YOU_SHEET_ACCOUNT_NAME, YOU_SHEET_MORE_HEADING } from "../lib/app-shell-names.ts";
 
 /** The overflow group's heading id — the group points its `aria-labelledby` at it, so the heading names the
  *  block once instead of the group restating the word. Static: this sheet renders exactly one. */
@@ -93,7 +94,7 @@ export function YouSheet(): ReactElement {
 
   return (
     <Stack data-slot="you-sheet" gap="section">
-      <Stack gap="row" aria-label="Account and settings" role="group">
+      <Stack gap="row" aria-label={YOU_SHEET_ACCOUNT_NAME} role="group">
         {overflowRows.map((entry) => (
           <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile="sheet" />
         ))}
@@ -114,7 +115,7 @@ export function YouSheet(): ReactElement {
         // micro-caps title uses, so the paint is unchanged; h3 because the drawer's Title is the h2.
         <Stack aria-labelledby={MORE_HEADING_ID} gap="row" role="group">
           <Heading id={MORE_HEADING_ID} level={3} voice="kicker">
-            More
+            {YOU_SHEET_MORE_HEADING}
           </Heading>
           {overflowSections.map(({ id, label, behavior }) => (
             <ListRow

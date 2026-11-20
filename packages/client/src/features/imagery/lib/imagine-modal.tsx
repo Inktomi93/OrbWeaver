@@ -3,10 +3,9 @@
 // seed), never a rail/topbar affordance. onClose drops the seed.
 
 import { ImagePlus } from "@orb/ui/icons";
-import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearImagineSeed } from "#state";
-import { ImagineBody } from "../components/imagine-body.tsx";
+import { useImagineCommit } from "../hooks/use-imagine-commit.tsx";
 import { IMAGINE_DIALOG_TITLE } from "./imagine-names.ts";
 
 export const imagineModal: ModalDefinition = {
@@ -15,5 +14,5 @@ export const imagineModal: ModalDefinition = {
   size: "md",
   trigger: { placement: "surface", label: "Imagine", icon: ImagePlus },
   onClose: clearImagineSeed,
-  body: (): ReactElement => <ImagineBody />,
+  body: { useCommit: useImagineCommit },
 };

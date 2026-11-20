@@ -4,15 +4,19 @@
 
 export type { RegexService } from "./contract/service.ts";
 
-export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";
+export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts, createDetachHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";
 export {
   createExportCardScripts,
+  createExportPresetScripts,
   createExportRegexScripts,
   createImportCardScripts,
   createImportGlobalScripts,
   createImportPresetScripts,
   createImportRegexScript,
+  createListPresetScriptKeys,
+  createPlanPresetScripts,
 } from "./persistence/portability-write.ts";
 export { createResolveRegexSources } from "./persistence/resolve-sources.ts";
 export { createRegexRoomReach } from "./persistence/room-reach.ts";
 export { createRegexService } from "./service.ts";
+export { createRemoveUnattachedScripts } from "./verbs/scripts/remove-unattached.ts";

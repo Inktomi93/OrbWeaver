@@ -1,3 +1,4 @@
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
@@ -13,7 +14,9 @@ export function createTrpcClient(baseUrl: string, headers: Readonly<Record<strin
       httpBatchLink({
         url: `${baseUrl}/api/trpc`,
         maxItems: TRPC_BATCH_MAX_ITEMS,
-        headers: ({ opList }) => (opList[0].type === "mutation" ? { ...headers, "content-type": "application/json" } : headers),
+        // A query travels over GET, which the mount refuses without the CSRF header on every credential path. A
+        // mutation keeps exactly the caller's headers, so a gate probe can still send one without it.
+        headers: ({ opList }) => (opList[0].type === "mutation" ? { ...headers, "content-type": "application/json" } : { ...headers, [CSRF_HEADER]: "1" }),
         fetch: async (url, init) => {
           const response = await fetch(url, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
           if (!response.ok) {

@@ -3,11 +3,11 @@
 // <MacroTextarea> indexes by identity survives a re-render, and a game's editor learns the preset by name only.
 
 import type { MacroPlane } from "@orb/client/lib";
-import { macroCatalog, pluginMacroPlanes, presetNamesPlane } from "@orb/client/lib";
+import { macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "@orb/client/lib";
 import type { PluginMacroView } from "@orb/contracts/plugin";
 import { userMacroSchema } from "@orb/contracts/preset";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import type { UserMacroDef } from "@orb/kit/macro";
+import type { MacroSourceKind, MacroSourceOf, MacroSourceRef, UserMacroDef } from "@orb/kit/macro";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
@@ -39,6 +39,24 @@ test("a completion row names the plane its macro lives in, and a builtin names n
   expect(byName.get("plugin_oracle_omen")?.source).toBe("Plugin: Oracle Deck");
   expect(byName.get("plugin_ledger_tally")?.source).toBe("Plugin: Ledger");
   expect(byName.get("char")).not.toHaveProperty("source");
+});
+
+test("a source label says This and the kind for the plane being edited, the kind alone for an unnamed home, and kind and name for a named one", () => {
+  const refs: { readonly [K in MacroSourceKind]: MacroSourceOf<K> } = {
+    preset: { kind: "preset", id: presetId },
+    game: { kind: "game", id: chatId },
+    plugin: { kind: "plugin", id: oracleId },
+  };
+  const labels = (source: MacroSourceRef): readonly string[] => [
+    macroSourceLabel({ source, current: true, defs: [] }),
+    macroSourceLabel({ source, defs: [] }),
+    macroSourceLabel({ source, defs: [], name: "Omen" }),
+  ];
+  expect({ preset: labels(refs.preset), game: labels(refs.game), plugin: labels(refs.plugin) } satisfies Record<MacroSourceKind, readonly string[]>).toEqual({
+    preset: ["This preset", "Preset", "Preset: Omen"],
+    game: ["This game", "Game", "Game: Omen"],
+    plugin: ["This plugin", "Plugin", "Plugin: Omen"],
+  });
 });
 
 test("each catalog macro points at the plane that registered it, so the browser links the right editor", () => {

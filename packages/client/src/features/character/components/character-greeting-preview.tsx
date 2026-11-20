@@ -6,6 +6,7 @@
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -56,6 +57,9 @@ export interface CharacterGreetingPreviewProps {
   /** The greeting the hero is previewing (drives the §6.5 total token count — lifted to the body). */
   readonly activeIndex: number;
   readonly onActiveIndexChange: (index: number) => void;
+  /** The greeting studio's generated text under review, or `null`. The hero band owns it. */
+  readonly studioPreview: string | null;
+  readonly onStudioPreviewChange: (preview: string | null) => void;
 }
 
 /** The greeting-TEXT field path for the active alternate — the array-element key the TanStack Field binds. */
@@ -91,6 +95,8 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
               trusted={props.trusted}
               allowExternalMedia={props.allowExternalMedia}
               onActiveIndexChange={onActiveIndexChange}
+              studioPreview={props.studioPreview}
+              onStudioPreviewChange={props.onStudioPreviewChange}
               onToggleEdit={(): void => setEditing((e) => !e)}
               onStartAlternate={(nextIndex): void => {
                 onActiveIndexChange(nextIndex);
@@ -218,7 +224,7 @@ function GreetingBody({
                   <Text voice="quiet">No first message yet.</Text>
                 ) : (
                   <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-                    {active}
+                    {stripStyleElements(active)}
                   </Markdown>
                 )}
               </Spoiler>
@@ -243,6 +249,8 @@ function GreetingActions({
   onActiveIndexChange,
   onToggleEdit,
   onStartAlternate,
+  studioPreview,
+  onStudioPreviewChange,
 }: {
   readonly characterId: CharacterId;
   readonly form: CardForm;
@@ -255,6 +263,8 @@ function GreetingActions({
   readonly onActiveIndexChange: (index: number) => void;
   readonly onToggleEdit: () => void;
   readonly onStartAlternate: (nextIndex: number) => void;
+  readonly studioPreview: string | null;
+  readonly onStudioPreviewChange: (preview: string | null) => void;
 }): ReactElement {
   const [studioOpen, setStudioOpen] = useState(false);
   const addOpeningRef = useRef<HTMLButtonElement>(null);
@@ -309,7 +319,18 @@ function GreetingActions({
           <Icon icon={Pencil} size="sm" />
           {editLabel}
         </Toggle>
-        <Toggle size="sm" wrap={true} pressed={studioOpen} onPressedChange={setStudioOpen}>
+        <Toggle
+          size="sm"
+          wrap={true}
+          pressed={studioOpen}
+          onPressedChange={(open): void => {
+            setStudioOpen(open);
+            // Closing the studio takes a preview still under review with it.
+            if (!open) {
+              onStudioPreviewChange(null);
+            }
+          }}
+        >
           <Icon icon={WandSparkles} size="sm" />
           {GREETING_STUDIO_NAME}
         </Toggle>
@@ -329,6 +350,8 @@ function GreetingActions({
           <GreetingStudio
             characterId={characterId}
             baseGreeting={baseGreeting}
+            preview={studioPreview}
+            onPreviewChange={onStudioPreviewChange}
             trusted={trusted}
             allowExternalMedia={allowExternalMedia}
             onAccept={(text): void => {

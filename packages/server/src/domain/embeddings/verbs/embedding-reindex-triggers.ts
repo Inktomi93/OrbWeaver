@@ -18,7 +18,8 @@ interface EmbedSweep {
 export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): EmbeddingReindexTriggers {
   const { superviseDetached, superviseSettled } = createDetachedSupervision(deps.logger, deps.traces);
   const supervise = deps.supervise ?? superviseDetached;
-  // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse.
+  // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse. A disabled owner gets
+  // no receipt, so their run is refused at admission like this owner's other sweeps, and nothing reaches their encoder.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await deps.vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
@@ -115,6 +116,8 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     const starts = enabled && !autoindexEnabled;
     autoindexEnabled = enabled;
     if (starts) {
+      // No account asks for the catch-up, so the run-account check has no account to refuse. The guard is per row:
+      // every bulk sweep skips the rows of a disabled owner, whose encoder each row would spend.
       supervise("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
         deps.startWorkload({ input: { kind: "index", params: { source: "all" } }, caller: null, funderUserId: null, mode: "bulk", ownerId: null }),
       );

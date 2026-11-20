@@ -1,5 +1,7 @@
 import { other, ROWS } from "./other.ts";
 import { contextToggleLabel } from "#client/toggle.ts";
+import { queryFailedLabel } from "#client/query.ts";
+import { READ_LABELS } from "#client/reads.ts";
 import { channelName } from "#client/channel.ts";
 import { renameChatName } from "#client/rename.ts";
 
@@ -11,3 +13,4 @@ export const property = channelName("fontScale");
 export const unrelated = ROWS.find((row) => row.key === "density")?.name ?? "";
 export const renamed = (room: { cast: string; title: string }): string => renameChatName(room.cast, room.title);
 export const otherTemplate = (room: { cast: string }): string => `Archive chat — ${room.cast}`;
+export const failed = queryFailedLabel(READ_LABELS.things);

@@ -1,4 +1,4 @@
-// The theme editor — edits one owned themes row. Token-override pickers, font/radius/density selects, a
+// The theme editor — edits one owned themes row. Token-override pickers, font/radius selects, a
 // custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a scoped live
 // <ThemeScope> preview (authoring never restyles the real app), non-blocking WCAG AA badges on the
 // picked text colors, and a notice naming any contrast bound the theme's colours made the app relax. AUTOSAVE through `updateTheme` (the house pattern — north-star §7 / D66 A4, the
@@ -20,6 +20,7 @@ import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
@@ -36,12 +37,13 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
-import { DENSITY_ITEMS, THEME_RADIUS_LABELS } from "#lib";
+import { THEME_RADIUS_LABELS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import {
   CONFIG_ADVANCED_THEME_TOOLS_NAME,
   CONFIG_CUSTOM_CSS_NAME,
+  CONFIG_THEME_ACCENT_FIELD_NAME,
   CONFIG_THEME_BACKGROUND_FIELD_NAME,
   CONFIG_THEME_NAME_FIELD_NAME,
   CONFIG_THEME_PREVIEW_NAME,
@@ -127,7 +129,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
               />
             )}
           </boundForm.AppField>
-          <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</boundForm.AppField>
+          <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label={CONFIG_THEME_ACCENT_FIELD_NAME} />}</boundForm.AppField>
           <boundForm.AppField name="borderColor">
             {(field): ReactElement => <field.ColorField label="Border" description="Leave as-is to derive a subtle border from the surface." />}
           </boundForm.AppField>
@@ -159,7 +161,6 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <boundForm.AppField name="radius">
             {(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}
           </boundForm.AppField>
-          <boundForm.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</boundForm.AppField>
         </Section>
       </Grid>
 
@@ -168,7 +169,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <Section heading={CONFIG_CUSTOM_CSS_NAME}>
             <boundForm.AppField name="css">
               {(field): ReactElement => (
-                <Suspense fallback={null}>
+                <Suspense fallback={<CodeEditorFallback value={field.state.value} />}>
                   <ThemeCssField value={field.state.value} onChange={(next): void => field.handleChange(next)} />
                 </Suspense>
               )}
@@ -257,7 +258,7 @@ function ContrastReport({ values }: { readonly values: ThemeFormValues }): React
     ["Narration", values.narrationColor, values.aiBubbleBg],
     ["Body", values.bodyColor, values.aiBubbleBg],
     ["Speaker", values.speaker, values.background],
-    ["Accent", values.accent, values.background],
+    [CONFIG_THEME_ACCENT_FIELD_NAME, values.accent, values.background],
   ];
   return (
     <Stack gap="field">

@@ -1,9 +1,12 @@
 import { spawn } from "node:child_process";
 import {
   CHAT_PLUGINS_TAB_LABEL,
+  contextPaneLabel,
   contextToggleLabel,
   DETAILS_PANEL_NOUN,
+  DIALOG_VERBS,
   MESSAGE_TOOLS_LABEL,
+  panelCloseName,
   SIDECAR_PANELS_LABEL,
   SIDECAR_PANELS_NOUN,
 } from "@orb/client/lib";
@@ -14,6 +17,7 @@ import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { CHAT_PANEL_HIDE_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
@@ -90,6 +94,13 @@ async function preparePanels(root: PanelRoot, page: Page, corpus: Parameters<typ
     ]),
   });
   return { caller, room, installed, routes };
+}
+
+/** Opens the sidecar sheet from Message tools; a panel must already be selected for it. */
+async function openSidecarSheet(page: Page): Promise<Locator> {
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
+  await page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true }).click();
+  return page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
 }
 
 test("ordinary plugin panels share Context, collapse independently, and move individually to the sidecar", async ({ corpus, page, mount }) => {
@@ -236,10 +247,8 @@ test.describe("touch placement", () => {
     await page.screenshot({ path: "reports/plugin-context-mobile.png" });
     await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
     await expect(context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", false), exact: true })).toBeVisible();
-    await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
-    await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
-    await page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true }).click();
-    const sheet = page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
+    await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
+    const sheet = await openSidecarSheet(page);
     await expect(sheet.getByText("First panel content", { exact: true })).toBeVisible();
     await expect(sheet.getByText("Second panel content", { exact: true })).toHaveCount(0);
     await expect(page.getByText("First panel content", { exact: true })).toHaveCount(1);
@@ -248,6 +257,26 @@ test.describe("touch placement", () => {
     await expect(context.getByText("First panel content", { exact: true })).toBeVisible();
     await expect(context.getByText("Second panel content", { exact: true })).toBeVisible();
     await expect(context.getByRole("button", { name: "Context witness: First", exact: true })).toBeFocused();
+  });
+
+  test("the sidecar sheet draws the sticky dialog header, with its title and Close inside it", async ({ corpus, page, mount }) => {
+    await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+    const { room } = await preparePanels(root, page, corpus);
+    await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+    await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
+    await page
+      .getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })
+      .getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true })
+      .click();
+    await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
+    const sheet = await openSidecarSheet(page);
+    const header = sheet.locator('[data-slot="dialog-header"]');
+    await expect(header).toHaveCSS("position", "sticky");
+    await expect(header).toHaveCSS("z-index", TOKENS["z.raised"].value);
+    await expect(header.getByText(SIDECAR_PANELS_LABEL, { exact: true })).toBeVisible();
+    await header.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
+    await expect(sheet).toHaveCount(0);
   });
 
   test("the sidecar door in Message tools wears a different glyph than the Plugin actions button", async ({ corpus, page, mount }) => {
@@ -260,7 +289,7 @@ test.describe("touch placement", () => {
       .getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })
       .getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true })
       .click();
-    await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
+    await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
     const glyphs = (locator: Locator): Promise<string[]> =>
       locator.locator("svg").evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
     const actions = await glyphs(page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true }));

@@ -64,7 +64,7 @@ import { useRef, useState } from "react";
 import { CountText, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
-import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
+import { CLEAR_FILTER_NAME, DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
 import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle, collectionFilterName } from "../lib/config-control-names.ts";
@@ -161,7 +161,7 @@ function CollectionControlRow({
     <Container width="full">
       <Row align="center" wrap={true} data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
-        <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
+        <Row align="center" minWidth="shrinks" floor="field" grow={true} cap="fit">
           <Input
             ref={filterRef}
             aria-label={collectionFilterName(label)}
@@ -180,7 +180,7 @@ function CollectionControlRow({
               filterRef.current?.focus();
             }}
           >
-            Clear filter
+            {CLEAR_FILTER_NAME}
           </Button>
         )}
         <CollectionBulkToggle collection={collection} />
@@ -222,7 +222,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack cap="fit" className="min-inline-0" floor={inBand ? "line" : undefined} order={inBand ? "lastUntilWide" : undefined}>
+    <Stack cap="fit" minWidth="shrinks" floor={inBand ? "line" : undefined} order={inBand ? "lastUntilWide" : undefined}>
       <form
         aria-label={label}
         noValidate={true}
@@ -347,8 +347,8 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
   return (
     <Stack data-slot="config-library-insights" gap="field" order="lastWhenShort">
       {insights.map((insight, at) => (
-        <Row align="center" className="min-inline-0" wrap={true} gap="field" key={insight.id}>
-          <Row align="center" className="min-inline-0" wrap={true} cap="fit" gap="field">
+        <Row align="center" minWidth="shrinks" wrap={true} gap="field" key={insight.id}>
+          <Row align="center" minWidth="shrinks" wrap={true} cap="fit" gap="field">
             <Text as="span" voice="kicker">
               {insight.label}
             </Text>

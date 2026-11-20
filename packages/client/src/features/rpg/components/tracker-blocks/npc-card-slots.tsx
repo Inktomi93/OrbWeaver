@@ -12,6 +12,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { npcMoodName } from "#src/features/rpg/lib/rpg-names.ts";
 import { RelationshipBadge } from "./relationship-badge.tsx";
 import { TrackerChip } from "./tracker-blocks.tsx";
 import { TrackerValue } from "./tracker-value.tsx";
@@ -116,7 +117,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
   return (
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
-        <Row key={field} gap="field" align="baseline" className="min-inline-0">
+        <Row key={field} gap="field" align="baseline" minWidth="shrinks">
           <Text as="span" ink="muted" className="shrink-0" voice="gloss">
             {field}
           </Text>
@@ -159,13 +160,13 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // width first (`grow="content"`), because a zero-basis box beside a wide name is squeezed to no width at all, and
     // justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="min-inline-0" grow="content" justify="end">
+      <Row gap="field" align="baseline" minWidth="shrinks" grow="content" justify="end">
         <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
         <TrackerValue
           ariaLabel={`${name} mood`}
-          restAriaLabel={`${name} mood: ${moodLabel === "" ? NO_VALUE_NAME : moodLabel}`}
+          restAriaLabel={npcMoodName(name, moodLabel === "" ? NO_VALUE_NAME : moodLabel)}
           display={mood ?? ""}
           placeholder={NO_VALUE}
           onEdit={onEditMood}
@@ -251,7 +252,7 @@ export function NpcCard({
     <Card>
       <Stack gap="block" data-slot="npc-card">
         <Row justify="between" align="baseline" gap="block" wrap={true}>
-          <Row gap="field" align="center" className="min-inline-0">
+          <Row gap="field" align="center" minWidth="shrinks">
             {emoji === undefined || emoji === "" ? null : (
               <Text as="span" aria-hidden={true} className="shrink-0" voice="label">
                 {emoji}

@@ -1,4 +1,4 @@
-import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, FOCUS_RING_NONE, GROW, tv, WIDTH } from "#lib";
+import { DISABLED_FIELD_NATIVE, DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, FOCUS_RING_NONE, GROW, tv, WIDTH } from "#lib";
 
 // The textarea skin — the shared FIELD_CONTROL box, multi-line: a min-height on the control-lg scale
 // and native `field-sizing: content` autosize (the 2026 CSS way — D54), measured in script only where the browser lacks it.
@@ -9,7 +9,6 @@ export const textareaVariants = tv({
     "placeholder:text-muted-foreground",
     "outline-none",
     FOCUS_RING,
-    DISABLED_STATE_NATIVE,
     // A plain <textarea> needs the explicit Field.Control wrap (above) to register with an
     // enclosing <Field> at all — unlike Input/Checkbox/Switch/RadioGroup/Slider/NumberField, whose
     // OWN Roots extend Base UI's FieldRootState and register directly. Once registered, every one
@@ -26,7 +25,8 @@ export const textareaVariants = tv({
     },
     // A field that sits inside a box which already draws the field (the composer card): no edge, no fill and no ring
     // of its own, because the host carries the focus state.
-    chrome: { field: "", bare: `border-0 bg-transparent px-0 ${FOCUS_RING_NONE}` },
+    // A bare field has no edge or fill of its own, so a disabled one takes the fill-less state.
+    chrome: { field: DISABLED_FIELD_NATIVE, bare: `border-0 bg-transparent px-0 ${FOCUS_RING_NONE} ${DISABLED_STATE_NATIVE}` },
     // Code typed into the field (a snippet, a script): the mono face.
     face: { text: "", code: "font-mono" },
   },

@@ -4,7 +4,7 @@
 import type { ReapAssetsOp } from "@orb/contracts/assets";
 import type {
   CharacterAvatarNames,
-  CharacterBulkTagResult,
+  CharacterBulkResult,
   CharacterDetail,
   CharacterRef,
   CreateCharacterOp,
@@ -23,7 +23,7 @@ import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, PrepareCanonRetirement } from "@orb/contracts/stats";
 import type { AttachCardTagByNameOp, DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -35,6 +35,7 @@ import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type {
+  AdmitsImportedArtParams,
   AttachImportedArtParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
@@ -74,13 +75,14 @@ type ResolveGreetingTemplateOp = (args: {
  *  the caller's Utility-role preset over the `greeting_studio` posture —
  *  the same for BOTH studio kinds, so the op carries no `kind` (per-template sampling is deleted, owner
  *  ruling; `kind` still selects the TEMPLATE, on `resolveGreetingTemplate`). */
-type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;
+type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string; readonly signal: AbortSignal }) => Promise<GeneratedGreeting>;
 
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
   readonly logger: Logger;
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>;
   readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
@@ -98,15 +100,16 @@ export interface CharacterContext {
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset —
    *  `update` runs it for a `kind:"external"` `backgroundOverride` so the persisted card background is always
    *  same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** Reads the caller's preset greeting-studio template; character never imports preset. */
   readonly resolveGreetingTemplate: ResolveGreetingTemplateOp;
   /** Runs the bounded side-LLM completion the greeting-studio verbs await (the summarize lane at compose). */
   readonly generateGreetingText: GenerateGreetingTextOp;
 }
 
-export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion"> & {
+export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion" | "prepareCanonRetirement"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchHandle, DatabaseHandle>;
 };
 
 export interface CharacterService {
@@ -119,17 +122,17 @@ export interface CharacterService {
   /** The GROUP-BY-TAG census over the SAME lens `list` pages — see `verbs/list-tag-groups.ts`. */
   readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
   /** Edits the live card in place (no CAS/COW); recomputes contentHash. */
-  readonly update: UpdateCharacterOp;
+  readonly update: UpdateCharacterOp<AbortSignal>;
   /** Cascades snapshots/personas; best-effort reaps the avatar asset. */
   readonly remove: (params: RemoveCharacterParams) => Promise<void>;
   readonly duplicate: DuplicateCharacterOp;
   /** Missing/foreign ids are skipped, not thrown. */
-  readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
+  readonly bulkRemove: (params: BulkRemoveParams) => Promise<CharacterBulkResult>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
   /** Per-item outcome — the honest wire for a partial batch. */
-  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;
+  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkResult>;
   /** Per-item outcome — the honest wire for a partial batch. */
-  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
+  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkResult>;
 
   readonly snapshot: SnapshotCharacterOp;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;
@@ -150,6 +153,8 @@ export interface CharacterService {
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
    *  True when the row took the art; false when it already had one (nothing written). */
   readonly attachImportedArt: (params: AttachImportedArtParams) => Promise<boolean>;
+  /** Whether {@link CharacterService.attachImportedArt} would give the character art now, asked without writing. */
+  readonly admitsImportedArt: (params: AdmitsImportedArtParams) => Promise<boolean>;
   /** Give a seeded card the import identity its own export carries, so restoring that export onto a box that
    *  seeded the same card dedups. True when written; false when the row already carries an identity. */
   readonly stampImportIdentity: (params: StampImportIdentityParams) => Promise<boolean>;

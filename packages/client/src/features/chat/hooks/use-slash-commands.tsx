@@ -14,7 +14,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
 import { use, useRef } from "react";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashCommandContribution, SlashCommandRunner, SlashCommandUnavailableFor } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
@@ -39,7 +39,7 @@ export function useSlashCommands(chatId: ChatId | null): {
   const commands = registry?.list() ?? [];
   const trpc = useTRPC();
   // Cache-first: the room in view has already read its detail.
-  const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: chat } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const context: SlashCommandContext = { chatId, viewerGalleryCharacterId: chat?.viewerGalleryCharacterId ?? null };
   const runnersRef = useRef<Map<string, SlashCommandRunner>>(new Map());
   // The #791 arg completers, published by the same mounts (a command with a declared arg grammar publishes one),

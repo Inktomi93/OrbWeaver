@@ -3,8 +3,8 @@
 //
 // This component is the whole user-visible payoff of the reshape. Before, a preset's Regex tab and a
 // character's regex facet each held their OWN array of scripts: the same rule written twice ran twice, the
-// character editor exposed four of the ten fields (so an in-app card script had `placement: []` and could
-// never fire), and there was no way to say "this preset and that character share this one rule". Now every
+// character editor exposed four of the ten fields (so an in-app card script could run nowhere and never
+// fire), and there was no way to say "this preset and that character share this one rule". Now every
 // surface picks from the ONE library the settings pane authors, and the row runs exactly once per turn even
 // when two scopes both claim it (the resolver dedupes on the row id, earliest tier wins).
 //
@@ -19,7 +19,6 @@
 import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -28,7 +27,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, rethrowUnlessTrpcFailure, timeLib } from "#lib";
+import { MutedLine } from "./muted-line.tsx";
 import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-mutations.ts";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
@@ -155,11 +155,7 @@ function PickerBody({
           <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
         </Row>
       ) : null}
-      {nothingMatches ? (
-        <Text aria-live="polite" role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      ) : null}
+      {nothingMatches ? <MutedLine announce={true}>No scripts match that filter.</MutedLine> : null}
       {/* Nothing attached ⇒ NO split: two group headings over one undifferentiated library is noise, and
           the ordered slice would be empty. This is the pre-REGORDER rendering, unchanged. */}
       {library.data.length > 0 && attached.length === 0 ? looseRows : null}
@@ -211,28 +207,21 @@ function PickerBody({
  *  Regex", which is a navigation instruction printed next to a surface that can navigate. An empty state
  *  carries the thing it is telling you to do. */
 function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) | undefined }): ReactElement {
-  return (
-    <Stack gap="field" align="start">
-      <Text voice="gloss">
-        {onOpenLibrary === undefined
-          ? "You haven't written any regex scripts yet. Add one in Settings → Regex, then attach it here."
-          : "You haven't written any regex scripts yet. Write one in your library, then attach it here."}
-      </Text>
-      {onOpenLibrary === undefined ? null : (
-        <Button variant="outline" onClick={onOpenLibrary} size="sm" type="button">
-          Open your script library
-        </Button>
-      )}
-    </Stack>
+  return onOpenLibrary === undefined ? (
+    <MutedLine>You haven't written any regex scripts yet. Add one in Settings → Regex, then attach it here.</MutedLine>
+  ) : (
+    <MutedLine action={{ label: "Open your script library", onAction: onOpenLibrary }}>
+      You haven't written any regex scripts yet. Write one in your library, then attach it here.
+    </MutedLine>
   );
 }
 
 /** One library row + its attach switch.
  *
  *  THE SUBTITLE IS THE SHARED SCENT, WHOLE (side-eye X-15, then 2026-08-03 P2). This row used to append the
- *  pipeline stages after the scent; the scent now LEADS with those same stages (one home, `regexScriptScent`),
+ *  pipeline stages after the scent; the scent now LEADS with the script's two axes (one home, `regexScriptScent`),
  *  so the append became the line saying its first fact twice. Both halves of X-15's finding survive inside
- *  the shared function: the F-23 stage vocabulary, then the find pattern that tells two "New script" rows
+ *  the shared function: the axes in words, then the find pattern that tells two "New script" rows
  *  apart. */
 function PickerRow({
   scope,
@@ -269,11 +258,11 @@ function PickerRow({
           fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
-      <Row align="center" className="min-inline-0" receded={attached && !script.enabled} gap="field">
+      <Row align="center" minWidth="shrinks" receded={attached && !script.enabled} gap="field">
         {reserveGrip ? <Row aria-hidden={true} className="shrink-0" width="control" height="control" /> : null}
         <RankCell position={position} reserve={reserveRank} />
-        <Stack gap="tight" className="min-inline-0">
-          <Row align="center" className="min-inline-0" gap="field">
+        <Stack gap="tight" minWidth="shrinks">
+          <Row align="center" minWidth="shrinks" gap="field">
             <Text truncate={true}>{name}</Text>
             {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
@@ -292,7 +281,7 @@ function PickerRow({
         checked={attached}
         onCheckedChange={(next): void => {
           // `toggle` returns the `mutateAsync` promise of one of the six `createEntityMutation` hooks at the end of this file, each with failure-copy `errorToast` that the MutationCache toasts. Ends if any of those hooks loses its errorToast.
-          toggle(script.id, next).catch(() => undefined); // The selected mutation's errorToast owns failure.
+          toggle(script.id, next).catch(rethrowUnlessTrpcFailure); // The selected mutation's errorToast owns failure.
         }}
       />
     </Row>

@@ -23,8 +23,9 @@ import { NumberField } from "@orb/ui/number-field";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_EMPTY_LINE, OWNER_RULES_INTRO } from "../lib/automation-names.ts";
 import { AUTOMATION_BUDGET_SUBCATEGORY, AUTOMATION_RULES_SUBCATEGORY } from "../lib/automation-nav.ts";
 import { useSetOwnerBudgets } from "../lib/owner-budget-mutations.ts";
 import { RuleManager } from "./rule-manager.tsx";
@@ -83,8 +84,8 @@ function OwnerBudgetBody(): ReactElement {
           knob in settings follows. */}
       <SettingRowGroup>
         <SettingTrackRow>
-          <Field label="Runs per hour" orientation="horizontal" description="Across every library-wide rule you have.">
-            <Stack className="min-inline-0" width="controlCol" cap="fit">
+          <Field label={OWNER_RULE_RATE_FIELD_NAME} orientation="horizontal" description="Across every library-wide rule you have.">
+            <Stack minWidth="shrinks" width="controlCol" cap="fit">
               <NumberField
                 min={OWNER_CAP_MIN}
                 max={OWNER_CAP_MAX}
@@ -143,13 +144,9 @@ function OwnerRulesBody(): ReactElement {
       {/* The one-line gloss both rule surfaces open with, saying what is DIFFERENT here: these rules watch
           the library, not a room. */}
       <Text voice="gloss" prose={true} cap="prose">
-        These rules watch your library and act on their own. No chat has to be open.
+        {OWNER_RULES_INTRO}
       </Text>
-      {rules.length === 0 ? (
-        <Text voice="gloss" prose={true} cap="prose">
-          Nothing is watching your library yet. Add a rule (illustrate a character when its card changes, for instance) and it starts off until you enable it.
-        </Text>
-      ) : null}
+      {rules.length === 0 ? <MutedLine>{OWNER_RULES_EMPTY_LINE}</MutedLine> : null}
       <RuleManager chatId={null} rules={rules} />
     </Stack>
   );

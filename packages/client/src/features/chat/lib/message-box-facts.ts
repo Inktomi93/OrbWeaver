@@ -19,6 +19,8 @@ interface MessageBoxShared {
   readonly corners: RowSkin["corners"];
   /** The transcript's last row of a skin with a floor (`RowSkin.lastRowFloor`). */
   readonly lastRowFloor: boolean;
+  /** An actions-only bar overlays the page's first line instead of taking a line of its own (`HeaderShape.ownLine`). */
+  readonly headerOverlaid: boolean;
   /** EDIT mode: the box stops hugging and fills the column the row holds open (`MessageRow`'s reservation). */
   readonly editing: boolean;
   /** Hide-from-AI: the row stays visible and recedes, because the toggle holds it out of assembly only. */
@@ -50,7 +52,7 @@ export type MessageBoxFacts = RowBoxFacts<BubbleBoxProps> | RowBoxFacts<ReadingB
 export function messageBoxFacts(
   skin: RowSkin,
   decoration: BubbleDecoration | null,
-  row: Pick<MessageBoxShared, "role" | "lastRowFloor" | "editing" | "receded">,
+  row: Pick<MessageBoxShared, "role" | "lastRowFloor" | "headerOverlaid" | "editing" | "receded">,
 ): MessageBoxFacts {
   const shared = { ...row, phoneCap: skin.phoneCap, corners: skin.corners };
   return skin.box === "bubble" ? { ...shared, box: skin.box, artDecoration: decoration?.treatment } : { ...shared, box: skin.box };

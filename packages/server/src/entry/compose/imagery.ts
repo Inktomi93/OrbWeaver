@@ -21,7 +21,7 @@ import type { ScopedEgress } from "#infra/network";
 import { minter } from "./minter.ts";
 
 // The chat room reads and the settings read are their owners' own members, picked so a call through them resolves there.
-export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolveChatHostUserId" | "isCharacterSeated">, ImageryInstructionDeps {
+export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolveConsentingHostUserId" | "isCharacterSeated">, ImageryInstructionDeps {
   readonly fetchImageBytes: ScopedEgress["fetchImageBytes"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
@@ -54,6 +54,7 @@ export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolve
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
   const fetchImage = deps.fetchImageBytes;
+  const stats = createStatsBatchWiring(deps.idSource, deps.now);
   const imagery = createImageryService({
     db,
     now,
@@ -62,7 +63,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     ...createImageProviderOps({ resolve: (params) => connection.resolve(params), generateImage: (req) => executor.generateImage(req) }),
     ...createImageryRoomAccess(deps),
     ...createImageryInstructions(deps),
-    fetchImage: (url) => fetchImage(url, deps.maxImageBytes()),
+    fetchImage: (url, signal) => fetchImage(url, signal, deps.maxImageBytes()),
     resolveRunAs: deps.resolveHostPrincipal,
     storeAsset: createGeneratedAssetStore((params) => assets.store(params)),
     extractQuiet: createVisibleExtractQuiet({
@@ -80,7 +81,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
     ownsCharacter: deps.characterOwned,
     addToGallery: createImageryGalleryAdd((params) => assets.addToGallery(params)),
-    applyStatsDelta: createStatsBatchWiring(deps.idSource).applyStatsDelta,
+    applyStatsDelta: stats.applyStatsDelta,
+    recordLedgerSpend: stats.recordLedgerSpend,
   });
   for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
     deps.toolUse.register(def);

@@ -18,18 +18,17 @@
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
+import { CommitFooter, DialogFailure, DismissDialog, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
 import { CHAT_ATTACH_SCRIPTS_COMMIT_NAME, CHAT_ATTACH_SCRIPTS_FAILURE, chatAttachItemName } from "../lib/chat-attach-names.ts";
 
@@ -127,7 +126,8 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
       }
       setPicked([]);
       onClose();
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       setFailure(CHAT_ATTACH_SCRIPTS_FAILURE);
     } finally {
       ownedRef.current = false;
@@ -140,11 +140,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
         <Icon ink="muted" icon={Search} size="sm" />
         <Input aria-label="Filter your scripts" onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
       </Row>
-      {matches.length === 0 ? (
-        <Text aria-live="polite" role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      ) : null}
+      {matches.length === 0 ? <MutedLine announce={true}>No scripts match that filter.</MutedLine> : null}
       <Stack gap="tight">
         {matches.map((script) => {
           const already = attachedIds.includes(script.id);
@@ -175,17 +171,16 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
           );
         })}
       </Stack>
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">
-          {CHAT_ATTACH_SCRIPTS_COMMIT_NAME}
-        </Button>
-      </DialogFooter>
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
+      <CommitFooter
+        exitHeld={attach.isPending}
+        submit={{
+          label: CHAT_ATTACH_SCRIPTS_COMMIT_NAME,
+          onSubmit: (): void => void commit().catch(globalThis.reportError),
+          disabled: picked.length === 0,
+          loading: attach.isPending,
+        }}
+      />
     </Stack>
   );
 }

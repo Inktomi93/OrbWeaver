@@ -47,6 +47,7 @@ test("pidfile cleanup ignores absence only and surfaces an unlink failure", ({ s
   removePidfile();
   expect(existsSync(path)).toBe(false);
   mkdirSync(path);
-  expect(() => removePidfile()).toThrow(expect.objectContaining({ code: "EISDIR" }));
-  expect(existsSync(path)).toBe(true);
+  // unlink(2) on a directory answers EISDIR on Linux and EPERM on macOS and Windows; the refusal is the unlink of this path.
+  expect(() => removePidfile()).toThrow(expect.objectContaining({ syscall: "unlink", path, code: expect.not.stringMatching(/^ENOENT$/u) }));
+  expect(statSync(path).isDirectory()).toBe(true);
 });

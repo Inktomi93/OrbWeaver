@@ -1,5 +1,5 @@
 // THE ONE NARROWING SEAM between a vendor SDK's per-provider metadata bag and the closed sidecar the record
-// stores (`VariantProviderMetadata`, §5.3c class 3 — "a parsed JSON sidecar with a zod schema at the read seam
+// stores (`VariantProviderMetadata` — "a parsed JSON sidecar with a zod schema at the read seam
 // AND a producer-side parse on write"). This file is the producer-side half: every backend that finishes a
 // `ChatResult` narrows here, so the SDK's `Record<string, unknown>` never crosses the package boundary and a
 // reader downstream (the OpenRouter cost pill) names a typed field or does not compile.
@@ -8,13 +8,16 @@
 // the bag: an arm carries ONLY what the normalized core cannot. Cache read/write totals, the `gen-…` handle
 // and the turn cost are `message_variants` COLUMNS — putting them here too would be two homes for one number.
 //
-// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs, 2026-09-20):
+// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs):
 //   • openrouter → `providerMetadata.openrouter = { provider, reasoning_details?, usage: OpenRouterUsageAccounting }`
-//     (`@openrouter/ai-sdk-provider/dist/index.d.ts:457,575`). Its `provider` is the UPSTREAM vendor name, which
-//     collides by spelling with our discriminator — hence the explicit field-by-field build below, never a spread.
+//     (`@openrouter/ai-sdk-provider@3.1.0`, whose `doGenerate` result declares that bag and whose
+//     `OpenRouterUsageAccounting` is the `usage` type). Its `provider` is
+//     the UPSTREAM vendor name, which collides by spelling with our discriminator — hence the explicit
+//     field-by-field build below, never a spread.
 //   • anthropic  → `providerMetadata.anthropic = { usage: <RAW snake_cased usage>, stopSequence, … }`
-//     (`@ai-sdk/anthropic/dist/index.d.ts:46`, built at `index.js:5857`). `usage` is a LOOSE object, so the
-//     ephemeral TTL split rides through untyped and is read here by its wire spelling.
+//     (`@ai-sdk/anthropic@4.0.85`'s `AnthropicMessageMetadata`, built field by field off the stream's
+//     `message_stop`). `usage` is a LOOSE
+//     object, so the ephemeral TTL split rides through untyped and is read here by its wire spelling.
 //   • claude-sub → no SDK bag at all: the agent-sdk runner accumulates typed frames, so that arm is built from
 //     a typed input and needs no parse (`agentSdkVariantMetadata`).
 //   • a PLUGIN provider → an unenumerable id and an unknown payload, so its arm is PARSED through the
@@ -37,24 +40,32 @@ const CLAUDE_SUB = "claude-sub";
 
 /** OpenRouter's bag, narrowed to the two facts no column holds. `nullish` throughout: the SDK omits the whole
  *  `usage` block on an endpoint with accounting off. */
-const openRouterBagSchema = z.object({
-  provider: z.string().nullish(),
-  usage: z.object({ costDetails: z.object({ upstreamInferenceCost: z.number().nullish() }).nullish() }).nullish(),
-});
+const openRouterBagSchema = z
+  .object({
+    provider: z.string().nullish(),
+    usage: z
+      .object({ costDetails: z.object({ upstreamInferenceCost: z.number().nullish() }).strip().nullish() })
+      .strip()
+      .nullish(),
+  })
+  .strip();
 
 /** The `reason` the API gives for a thinking block it dropped because the prefix before it changed. */
 const PREFIX_BINDING_MISMATCH = "prefix_binding_mismatch";
 
 /** Anthropic's bag. `usage` keeps the WIRE's own snake_cased keys (the SDK passes it through raw and loose), which
  *  is why they are spelled here and nowhere else in this package; `inputTransformations` is the SDK's own key. */
-const anthropicBagSchema = z.object({
-  usage: z
-    .object({
-      cache_creation: z.object({ ephemeral_5m_input_tokens: z.number().nullish(), ephemeral_1h_input_tokens: z.number().nullish() }).nullish(),
-    })
-    .nullish(),
-  inputTransformations: z.array(z.object({ type: z.string(), path: z.string(), reason: z.string() })).nullish(),
-});
+const anthropicBagSchema = z
+  .object({
+    usage: z
+      .object({
+        cache_creation: z.object({ ephemeral_5m_input_tokens: z.number().nullish(), ephemeral_1h_input_tokens: z.number().nullish() }).strip().nullish(),
+      })
+      .strip()
+      .nullish(),
+    inputTransformations: z.array(z.object({ type: z.string(), path: z.string(), reason: z.string() }).strip()).nullish(),
+  })
+  .strip();
 
 /** The request paths of the thinking blocks the API dropped for a prefix mismatch (`thinking.block_binding` set
  *  to `drop_block`). `undefined` when the response carried no `input_transformations` list: absence, never a
@@ -106,7 +117,7 @@ function anthropicArm(bag: unknown): VariantProviderMetadata | undefined {
 
 /** The plugin arm is the one shape this file cannot CONSTRUCT and have `tsc` check: both halves are runtime
  *  data (an unenumerable id, an unknown payload). So it is PARSED through the contract's own schema — the
- *  producer-side parse §5.3c class 3 names — which validates the `plugin:<ns>/<id>` pattern and the payload's
+ *  producer-side parse the header names — which validates the `plugin:<ns>/<id>` pattern and the payload's
  *  JSON-ness in one step and yields a value already inside the union. The caller's `isPluginProviderId` guard
  *  stays: without it a named id would parse as its own (empty) arm and record provenance about nothing. */
 function pluginArm(providerId: string, bag: unknown): VariantProviderMetadata | undefined {
@@ -131,6 +142,17 @@ export function variantProviderMetadataOf(providerId: string, bag: unknown): Var
     default:
       return isPluginProviderId(providerId) ? pluginArm(providerId, bag) : undefined;
   }
+}
+
+/** The extractor's own bag member (`backends/openai-compat/system-fingerprint`): the key it was filed under is
+ *  the caller's, so this reads only the field. */
+const systemFingerprintBagSchema = z.object({ systemFingerprint: z.string().min(1) }).strip();
+
+/** The vendor's per-generation fingerprint out of a compatible SDK bag. `null` means the bag carries none — the
+ *  record's spelling for a wire that reported no fingerprint, distinct from a turn whose bag never existed. */
+export function systemFingerprintOf(bag: unknown): string | null {
+  const parsed = systemFingerprintBagSchema.safeParse(bag);
+  return parsed.success ? parsed.data.systemFingerprint : null;
 }
 
 /**

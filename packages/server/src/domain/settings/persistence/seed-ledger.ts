@@ -15,15 +15,15 @@ async function listSeededItemKeys(handle: DatabaseHandle, userId: UserId): Promi
   return rows.map((row) => row.itemKey);
 }
 
-/** Record that this account has been given these keys. A key already recorded keeps its first time. */
-export async function recordSeededItemKeys(handle: DatabaseHandle, userId: UserId, itemKeys: readonly string[], at: number): Promise<void> {
+/** Record that this account has been given these keys; a key already recorded keeps its record. */
+export async function recordSeededItemKeys(handle: DatabaseHandle, userId: UserId, itemKeys: readonly string[]): Promise<void> {
   const db = databaseForOwner(handle);
   if (itemKeys.length === 0) {
     return;
   }
   await db
     .insert(userSeedLedger)
-    .values(itemKeys.map((itemKey) => ({ userId, itemKey, seededAt: at })))
+    .values(itemKeys.map((itemKey) => ({ userId, itemKey })))
     .onConflictDoNothing();
 }
 

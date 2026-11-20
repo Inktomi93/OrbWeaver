@@ -23,11 +23,13 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { AvatarUploadParts } from "#components";
 import { QueryBoundary, useAvatarUpload } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation } from "#data";
 import type { AppFormInstance } from "#forms/editor";
+import { CHARACTER_NEW_CHAT_NAME } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -91,13 +93,15 @@ export function CharacterHeroBand({
   // override), not the raw override column — see use-preview-render-policy.ts.
   const previewPolicy = usePreviewRenderPolicy(detail);
   const portrait = useHeroPortrait(detail, trpc);
+  // The greeting studio's generated text under review: while it is open, its Accept is the band's one primary control.
+  const [studioPreview, setStudioPreview] = useState<string | null>(null);
   return (
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" wrap={true}>
         {portrait.control}
-        <Stack className="min-inline-0" floor="field" grow={true} cap="fit" gap="field">
+        <Stack minWidth="shrinks" floor="field" grow={true} cap="fit" gap="field">
           <Row align="center" gap="row" wrap={true}>
-            <Stack className="min-inline-0" grow={true} gap="field">
+            <Stack minWidth="shrinks" grow={true} gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label={CHARACTER_HERO_NAME_FIELD_NAME} />}</form.AppField>
               <Text voice="datumMono" className={HERO_ECHO_CLASS} truncate={true}>
                 @{detail.handle}
@@ -107,7 +111,7 @@ export function CharacterHeroBand({
               <OwnLookMark themeOverride={detail.themeOverride} />
             </Row>
           </Row>
-          <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
+          <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} previewOpen={studioPreview !== null} />
         </Stack>
       </Row>
       {portrait.failureLine}
@@ -136,6 +140,8 @@ export function CharacterHeroBand({
         spoilerBlur={spoilerBlur}
         activeIndex={activeGreetingIndex}
         onActiveIndexChange={onActiveGreetingIndexChange}
+        studioPreview={studioPreview}
+        onStudioPreviewChange={setStudioPreview}
       />
     </Stack>
   );
@@ -229,23 +235,26 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
   );
 }
 
-/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). */
+/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). While a greeting preview is open its
+ *  Accept finishes the step, so "New chat" takes the outline and the region keeps one primary control. */
 function HeroActions({
   spoilerBlur,
   onNewChat,
   onViewChats,
   chatCount,
+  previewOpen,
 }: {
   readonly spoilerBlur: boolean;
   readonly onNewChat: () => void;
   readonly onViewChats: () => void;
   readonly chatCount: number;
+  readonly previewOpen: boolean;
 }): ReactElement {
   return (
     <Row gap="row" align="center" wrap={true}>
-      <Button type="button" onClick={onNewChat}>
+      <Button type="button" variant={previewOpen ? "outline" : "solid"} onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
-        New chat
+        {CHARACTER_NEW_CHAT_NAME}
       </Button>
       {chatCount > 0 ? (
         // The chat-count DOOR is a glance echo of the band's `N chats` chip and of the rail's own Chats

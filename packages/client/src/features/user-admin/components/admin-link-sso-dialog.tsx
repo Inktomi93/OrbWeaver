@@ -9,12 +9,11 @@ import { externalIdSchema } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId } from "#lib";
+import { notify, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { useLinkSsoIdentity } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 
@@ -38,12 +37,17 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
     if (trimmed.length === 0) {
       return;
     }
+    const externalId = externalIdSchema.safeParse(trimmed);
+    if (!externalId.success) {
+      return;
+    }
     // The failure is rendered by the `link.error !== null` line in this component, which its hook call declares, and
-    // the dialog stays open. Ends if the line stops rendering it.
+    // the dialog stays open.
     try {
-      await link.mutateAsync({ userId, externalId: externalIdSchema.parse(trimmed) });
-    } catch {
+      await link.mutateAsync({ userId, externalId: externalId.data });
+    } catch (error) {
       // The sticky mutation error renders below — stay open.
+      rethrowUnlessTrpcFailure(error);
       return;
     }
     notify.success("SSO identity linked: their next single sign-on will use this account.");
@@ -66,9 +70,7 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
       {link.error !== null ? (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't link that identity. The subject may already be linked to another account, or this row is already bound.
-        </Text>
+        <DialogFailure>Couldn't link that identity. The subject may already be linked to another account, or this row is already bound.</DialogFailure>
       ) : null}
     </FormDialogPopup>
   );

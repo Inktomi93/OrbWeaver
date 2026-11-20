@@ -1,26 +1,6 @@
 // @orb/contracts/chat — the front-door for the chat wire contracts. The shapes are split across sibling
-// modules by concern (D15's directory-module law: internals flat, this index re-exports, consumer-invisible):
-//   • participants.ts   — participant kinds + drive/identity axes + the AI-speaker ref + `messageRoleSchema`
-//                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
-//   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
-//   • messages.ts       — the D26 message/variant wire (`MessageView`, tool/var records)
-//   • member-projection.ts — the pure §3.6 member projection of a `MessageView` (hidden-span and reasoning strip)
-//   • producers.ts      — the member-gated kind-polymorphic CHAT IDENTITY producer (D137) + its two projections
-//   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
-//   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
-//   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
-//   • detail.ts         — the full chat read (`ChatDetail`) + the invite join result that carries it
-//   • content-blocks.ts — the D294, UI-Theming-and-Content §12.4 render blocks + `contentSpansToBlocks`
-//   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
-//   • content-classes.ts — the content-class visibility registry (`CONTENT_CLASS_POLICY`)
-//   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
-//   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
-//   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
-//   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
-//   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
-//                         `ResolveVisibleRoomsOp`, D18)
-//   • regex-tiers.ts    — the room's REGEX TIER vocabulary: the tier key, the per-chat allow blob,
-//                         the per-seat character slice, and the `chat.listEffectiveRegex` view
+// modules by concern and re-exported here (D15's directory-module law: internals flat, this index
+// re-exports, consumer-invisible).
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -60,11 +40,13 @@ export type {
   MemoryRecallCandidate,
   MemoryRecallSlice,
   MemoryRecallVerdict,
+  SaveCorrectionInput,
   ShapeBreakpointDecision,
   ShapeFoldReason,
   ShapeRowSource,
   ShapeTrace,
   ShapeTraceRow,
+  TurnGlobalVariables,
   VariantWireView,
 } from "./assemble.ts";
 export {
@@ -73,6 +55,8 @@ export {
   chatInjectionInputSchema,
   contextFitAnswerSchema,
   MEMORY_RECALL_REJECTS_SHOWN,
+  NEW_CHAT_INJECTION_PLACEMENT,
+  saveCorrectionInputSchema,
   sentPromptSchema,
   shapeTraceSchema,
   storedMacroSliceSchema,
@@ -88,6 +72,7 @@ export type {
   BulkImportChatsResult,
   BulkImportInjectionInput,
   BulkImportMessageInput,
+  BulkImportRefusedRow,
   BulkImportSeatKnobs,
   BulkImportVariantInput,
   FindImportedChatHashes,
@@ -100,6 +85,8 @@ export type {
   ChatBusEvent,
   ChatContentPart,
   ChatDeltaEvent,
+  ChatRegexNotAppliedOverflowWarning,
+  ChatRegexNotAppliedWarning,
   ChatSettingsAdjustedWarning,
   ChatWarning,
   ChatWarningCode,
@@ -113,6 +100,11 @@ export type {
   PromptTransformOutcome,
   PromptTransformPoint,
   PromptTransformResult,
+  ProviderFailureReason,
+  ProviderWaitBusEvent,
+  ProviderWaitPhase,
+  RegexNotAppliedCause,
+  RegexServerPass,
   RoomEntityKind,
   TurnAbortReason,
   TurnInitiator,
@@ -122,20 +114,37 @@ export type {
 export {
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
+  CHAT_NOT_HOST_OP_CODE,
+  CONNECTION_FIXABLE_FAILURE_REASONS,
   DEADLINE_ABORT_REASON,
   fansWhenDropped,
   HIDDEN_TAG_BROKEN_CODE,
   LIVE_ONLY_CHAT_EVENT_TYPES,
   PROMPT_TRANSFORM_ABORT_REASON_MAX,
   PROMPT_TRANSFORM_POINTS,
+  PROVIDER_FAILURE_REASON_PREFIX,
+  REGEX_NOT_APPLIED_NAMED_MAX,
+  REGEX_NOT_APPLIED_OVERFLOW_CODE,
+  REGEX_SCRIPT_NOT_APPLIED_CODE,
   ROOM_ENTITY_KINDS,
   TURN_ABORTED_OP_CODE,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
   TURN_INITIATORS,
   TURN_LOCKED_OP_CODE,
+  TURN_ROOM_CLOSING_OP_CODE,
   USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
-export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
+export {
+  CARD_FRAME_CARRIED_AUTHORS_MAX,
+  CARD_FRAME_HTML_MAX_CHARS,
+  CARD_FRAME_MINT_BODY_MAX_BYTES,
+  CARD_FRAME_MINTS_IN_FLIGHT,
+  CARD_FRAME_ROUTE,
+  cardFrameMintRequestSchema,
+  cardFrameMintResponseSchema,
+  cardFrameUrl,
+} from "./card-frame.ts";
 export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, SendContentBlock } from "./content-blocks.ts";
 export {
   composeSendBody,
@@ -148,7 +157,6 @@ export {
   sendContentBlocksSchema,
   stripSendPlaceholders,
 } from "./content-blocks.ts";
-
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { BeginGenerationObservationOp, GenerationObservationParent } from "./generation-observation.ts";
@@ -161,12 +169,34 @@ export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, HOME_RECENT_CHATS_LIMIT } from "./listing.ts";
 export { memberToolCalls, projectViewForMember } from "./member-projection.ts";
+export type {
+  ImportedMemoryStrike,
+  ImportMemoryStrikesOp,
+  MemoryItemKey,
+  MemoryItemStrikeView,
+  MemoryItemView,
+  MemoryView,
+  RestoreMemoryInput,
+  StrikeMemoryInput,
+  StrikeMemoryResult,
+  UnmatchedStrikeView,
+} from "./memory-view.ts";
+export {
+  MEMORY_ITEM_STALE_OP_CODE,
+  memoryOffReason,
+  memoryViewSchema,
+  memoryViewStatus,
+  restoreMemoryInputSchema,
+  strikeMemoryInputSchema,
+  strikeMemoryResultSchema,
+} from "./memory-view.ts";
 export type { HistoryPage, MessageWindow } from "./message-pages.ts";
 export { historyPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
   ChatReasoningPart,
+  ChatSource,
   ConnectionAttributionProvenance,
   ContentSignatures,
   CueRole,
@@ -196,6 +226,9 @@ export {
   isSeededGreetingRow,
   legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
+  MESSAGE_MACRO_BUDGET_OP_CODE,
+  MESSAGE_TEXT_MAX_CHARS,
+  MESSAGE_TOO_LONG_OP_CODE,
   macroFreezeRecordSchema,
   messageViewSchema,
   mintToolCallId,
@@ -208,6 +241,7 @@ export {
   toolCallRecordSchema,
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variableDeltaSchema,
   variablePreconditionsSchema,
@@ -236,10 +270,12 @@ export {
   groupConfigInputSchema,
   groupConfigSchema,
   guidedSteerSchema,
+  humansYetToWrite,
   MEMBER_CARD_VISIBILITY_LEVELS,
   narratorPolicyOf,
   openingPolicySchema,
   resolveCharactersCanReact,
+  resolveHostDisplayScripts,
   resolveOfferChoices,
   resolveReactionsEnabled,
   roomOverridesSchema,
@@ -247,8 +283,8 @@ export {
   SMART_UTILITY_SWITCH_LABEL,
   storedGroupConfigSchema,
 } from "./metadata.ts";
-export type { NextTurnConnectionView } from "./next-turn-connection.ts";
-export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
+export type { NextTurnConnectionView, RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
+export { nextTurnConnectionViewSchema, roomSendAvailabilitySchema } from "./next-turn-connection.ts";
 export type {
   CallerInChatOp,
   ChatLivePublish,
@@ -264,20 +300,22 @@ export type {
   RequireHostOp,
   RequireParticipantOp,
   ResolveCharacterTagsOp,
+  ResolveChatHostOp,
   ResolveRegexSources,
   ResolveRoomRunAsOp,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   ResolveViewerVisibility,
+  RoomTierForMemberOp,
   SignupMinterCheckOp,
   StoreSegmentParams,
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
-export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
-// B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
-// the client picker must gate the plain-label span grammar identically).
+export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
+// The narrator-voice predicate — the server's segment-anchor validation and the client picker must gate the
+// plain-label span grammar identically.
 export {
   DEFAULT_MESSAGE_KIND,
   isAiDriven,
@@ -289,6 +327,7 @@ export {
   messageKindSchema,
   messageRoleSchema,
   PARTICIPANT_KINDS,
+  PROMPT_KINDS,
   participantKindSchema,
   speakerKey,
 } from "./participants.ts";
@@ -303,10 +342,10 @@ export {
   CHAT_IDENTITY_KIND_POLICY,
   identityKey,
 } from "./producers.ts";
-// The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
+// The app-tier slot table — `#prose` imports it to compose `PROSE_SLOTS`.
 export { CHAT_PROSE_SLOTS, CHAT_REACT_TOOL_DESCRIPTION } from "./prose.ts";
-// B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2); B7 adds the segment
-// anchor, the `react` tool name and the attribution caps.
+// The message-reaction vocabulary + the grouped read projection, plus the segment anchor, the `react` tool
+// name and the attribution caps.
 export type {
   ChatReactionsView,
   MessageReactionGroup,
@@ -332,6 +371,8 @@ export type {
   CharacterRegexSlice,
   EffectiveRegexEntry,
   EffectiveRegexView,
+  RegexDisplayEntry,
+  RegexDisplaySource,
   RegexTierGroupView,
   RegexTierKey,
   RegexTierRowView,
@@ -344,6 +385,9 @@ export {
   isRegexEnabledInChat,
   isRegexTierAllowed,
   parseCharacterRegexTierKey,
+  REGEX_VIEWER_SOURCE,
+  regexDisplayEntrySchema,
+  regexDisplayInputSchema,
   regexTierAllowSchema,
   regexTierKeySchema,
 } from "./regex-tiers.ts";
@@ -361,6 +405,7 @@ export type {
   InviteView,
   JoinHistoryVisibility,
   MemberCardView,
+  NarratorRenderPolicy,
   ParticipantView,
   PendingJoinConfirmRequest,
   PendingJoinErrorCode,
@@ -368,6 +413,7 @@ export type {
   RedeemInviteInput,
   RenderPolicy,
   RenderPolicyOverride,
+  RenderPolicySource,
   SeatKnobs,
   SignedOutInvitePreview,
   SignupErrorCode,
@@ -376,7 +422,7 @@ export type {
 } from "./roster.ts";
 export {
   acceptInviteSchema,
-  allowsInteractiveCards,
+  cardScriptsNeedViewerConsent,
   carriedAppearanceFromParticipants,
   characterMemberSpecSchema,
   createInviteResultSchema,
@@ -385,6 +431,7 @@ export {
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,
+  INVITE_TARGET_UNKNOWN_CODE,
   invitePreviewSchema,
   inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,
@@ -402,10 +449,14 @@ export {
   redeemInviteSchema,
   renderPolicyOverrideForStep,
   rendersTrustedHtml,
+  resolveCardMediaVerdict,
+  resolveCardScriptVerdict,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,
   resolveCarriedTheme,
+  resolveNarratorRenderPolicy,
   resolveRenderPolicy,
+  resolveSeatRenderPolicy,
   SIGNUP_ERROR_CODES,
   SIGNUP_HANDLE_MAX_CHARS,
   SIGNUP_HANDLE_MIN_CHARS,
@@ -444,6 +495,8 @@ export type {
   ResolveReasoningHostOnlyOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
+  RoomAdmission,
+  RoomClaim,
   RpgCardCorpus,
   RpgGatherWithTools,
   RpgTurnAbortedOp,

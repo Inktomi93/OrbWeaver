@@ -72,6 +72,8 @@
 // `trpc.unhandled` error trace firing for exactly the failures an operator most needs to see, and costs
 // nothing on the wire: they collapse to the same fixed sentence every other unclassified throw gets.
 
+import type { ProviderFailureReason } from "@orb/contracts/chat";
+import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { DomainOperationDetail } from "@orb/kit/errors";
@@ -165,11 +167,6 @@ function assertNeverKind(kind: never): never {
   throw new Error(`providerWireArm: unhandled ProviderErrorKind ${JSON.stringify(kind)}`);
 }
 
-/** The `data.reason` prefix every provider failure rides, so a client can discriminate the whole class with
- *  one test and a specific kind by the full literal (`provider_rate_limit`). The vocabulary after the
- *  prefix is `PROVIDER_ERROR_KINDS` verbatim — a closed union in `@orb/inference`, never a free string. */
-const PROVIDER_REASON_PREFIX = "provider_";
-
 /** The mapped `TRPCError` for a provider failure, or `null` for a kind this boundary does not model. */
 function classifyProviderError(err: ProviderError): TRPCError | null {
   const arm = providerWireArm(err.kind);
@@ -237,7 +234,8 @@ export function classifyDomainError(err: unknown): TRPCError | null {
 /**
  * The honest, leak-free reason for a mapped error — the discriminator the error formatter rides on
  * `data.reason` so the client keys on a structured field, never message text. Two producers, both closed
- * vocabularies: a `DomainOperationError`'s `.code` (e.g. `owner_not_present`/`agent_disabled`) and a
+ * vocabularies: a `DomainOperationError`'s `.code` (e.g. `owner_not_present`/`agent_disabled`; a
+ * `DomainForbiddenError`'s optional `.code` rides the same way, when its thrower names the refusal) and a
  * `ProviderError`'s `kind` under the `provider_` prefix. Every other mapped error — including the leak-free
  * NOT_FOUND collapse — is intentionally codeless, so nothing beyond the reason string ever reaches the wire
  * (no cause chain, no internals). `undefined` ⇒ the formatter emits no `reason` field (JSON drops the key).
@@ -247,10 +245,14 @@ export function classifyDomainError(err: unknown): TRPCError | null {
  * is the lazy version of this change rather than the intended one.
  */
 export function domainReason(error: { cause?: unknown }): string | undefined {
-  if (error.cause instanceof DomainOperationError) {
+  // A forbidden refusal carries a code only when its thrower set one, a fixed constant naming the refusal. Every other
+  // forbidden answer stays codeless, so a refused caller learns nothing beyond the status and its own sentence.
+  if (error.cause instanceof DomainOperationError || error.cause instanceof DomainForbiddenError) {
     return error.cause.code;
   }
-  return error.cause instanceof ProviderError ? `${PROVIDER_REASON_PREFIX}${error.cause.kind}` : undefined;
+  // The vocabulary after the prefix is `PROVIDER_ERROR_KINDS` verbatim, a closed union, never a free string. The client
+  // keys its Connections door on three of these reasons (`CONNECTION_FIXABLE_FAILURE_REASONS`): renaming a kind renames it.
+  return error.cause instanceof ProviderError ? (`${PROVIDER_FAILURE_REASON_PREFIX}${error.cause.kind}` satisfies ProviderFailureReason) : undefined;
 }
 
 /** The facts a coded refusal states beside its `reason` (`DomainOperationError.detail`), for a client that says them in

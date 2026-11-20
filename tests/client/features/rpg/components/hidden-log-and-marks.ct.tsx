@@ -7,6 +7,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { RPG_JOURNAL_SCOPE_LABELS, veiledFieldLine, veiledReasonLabel, veiledTruthLabel } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -70,7 +71,7 @@ test("the hidden log stays shut and each span's fields stay unmounted until the 
   await expect(row).not.toContainText(TRUTH);
 
   await row.getByRole("button").click();
-  await expect(row).toContainText(`truth: ${TRUTH}`);
+  await expect(row).toContainText(veiledFieldLine("truth", TRUTH));
 });
 
 test("a room with no standing lie still shows what was concealed, and a span with nothing to read says so", async ({ mount, page }) => {
@@ -85,11 +86,11 @@ test("a room with no standing lie still shows what was concealed, and a span wit
 
   const unseen = rows.filter({ hasText: revealLabel("ofilter") });
   await unseen.getByRole("button").click();
-  await expect(unseen).toContainText(`event: ${UNSEEN}`);
+  await expect(unseen).toContainText(veiledFieldLine("event", UNSEEN));
 
   const unreadable = rows.filter({ hasText: revealLabel("lie") });
   await expect(unreadable.getByRole("button")).toHaveCount(0);
-  await expect(unreadable.locator('[data-slot="rpg-veiled-log-unreadable"]')).toBeVisible();
+  await expect(unreadable.locator('[data-slot="muted-line"]')).toBeVisible();
 });
 
 test("the ledger holds a lie's motive and truth behind one gate until the host asks", async ({ mount, page }) => {
@@ -103,8 +104,8 @@ test("the ledger holds a lie's motive and truth behind one gate until the host a
   await expect(section).not.toContainText(TRUTH);
 
   await section.getByRole("button", { name: /^Reveal the truth for Warden/ }).click();
-  await expect(section).toContainText(`reason: ${MOTIVE}`);
-  await expect(section).toContainText(`truth: ${TRUTH}`);
+  await expect(section).toContainText(veiledReasonLabel(MOTIVE));
+  await expect(section).toContainText(veiledTruthLabel(TRUTH));
 });
 
 test("one unbroken value wraps inside its row instead of widening it", async ({ mount, page }) => {
@@ -131,7 +132,12 @@ test("a hand-made mark says nothing about how it was made", async ({ mount, page
   const chatId = await mountRoom(root, page, LIE_GREETING);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
 
-  await page.getByText("Marks", { exact: true }).click();
-  await expect(page.locator('[data-slot="rpg-mark-row"]')).toHaveCount(1);
-  await expect(page.locator('[data-slot="rpg-mark-trigger"]')).toHaveCount(0);
+  await page.getByText(RPG_JOURNAL_SCOPE_LABELS.marks, { exact: true }).click();
+  const marks = page.locator('[data-slot="list-row-subtitle"]');
+  await expect(marks).toHaveCount(1);
+  const scent = await marks.textContent();
+  // Positive control: the scent is read; it is the date alone, with no way-it-was-made after it.
+  expect(scent ?? "").not.toBe("");
+  // A mark made another way names it after the date, past the scent's separator.
+  expect(scent).not.toContain(" · ");
 });

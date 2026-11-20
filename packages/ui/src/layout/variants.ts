@@ -9,10 +9,14 @@ import {
   CARD_CORNERS,
   CENTRED,
   CORNER,
+  DISABLED_FIELD,
+  DISABLED_FIELD_NATIVE,
+  DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
   FLOOR,
   FOCUS_RING,
+  FOCUS_RING_LANDING,
   GROUND,
   GROW,
   HEIGHT,
@@ -59,18 +63,21 @@ const GAP = {
   // Between glyph buttons: pointer-conditional and density-proof, so their touch-floor hit areas never overlap.
   glyph: "gap-glyph-gap",
 } as const;
+// The `block` and `section` insets are held to a share of the screen on their inline sides, so a phone at enlarged text keeps the width
+// between them for the text; at the default size they are the steps. Every prop that pads an inline side at those steps writes the held
+// token (`padding`, `paddingInline`, `paddingInlineStart` and `paddingInlineEnd`), so two boxes at one step never disagree. The all-sides arm
+// keeps the step on the block axis and lets its inline sides override the shorthand.
 const PADDING = {
   tight: "p-tight",
   field: "p-field",
   row: "p-row",
-  block: "p-block",
-  section: "p-section",
+  block: "p-block px-inset-block",
+  section: "p-section px-inset-section",
   gutter: "p-gutter",
 } as const;
 // One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` is the atom inset
 // of a small island (a diagram's margin, a divider's side room); the narrow arms below step a roomy inset down for a pane
-// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it. The `block` and `section` insets are held to a share
-// of the screen, so a phone at enlarged text keeps the width between them for the text; at the default size they are the steps.
+// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
 const PADDING_INLINE = {
   tight: "px-tight",
   field: "px-field",
@@ -109,8 +116,8 @@ const PADDING_INLINE_START = {
   tight: "ps-tight",
   field: "ps-field",
   row: "ps-row",
-  block: "ps-block",
-  section: "ps-section",
+  block: "ps-inset-block",
+  section: "ps-inset-section",
   gutter: "ps-gutter",
 } as const;
 const PADDING_INLINE_END = {
@@ -120,23 +127,24 @@ const PADDING_INLINE_END = {
   // The room the room's plugin column takes beside the transcript, kept clear by what shares the transcript's axis.
   flank: "pe-(--dimension-room-flank)",
   row: "pe-row",
-  block: "pe-block",
-  section: "pe-section",
+  block: "pe-inset-block",
+  section: "pe-inset-section",
   gutter: "pe-gutter",
 } as const;
 // The inline inset a box gives up below the `cq-28` container step (a phone-width pane), on both sides. It only ever steps down,
-// so `tight` is a member here and a full ramp is not.
+// so `tight` is a member here and a full ramp is not. Each step writes its held inset token, as the wide arms do, so a phone at
+// enlarged text keeps the width between the sides for the text.
 const PADDING_INLINE_NARROW = {
-  tight: "@max-cq-28:px-tight",
-  row: "@max-cq-28:px-row",
-  block: "@max-cq-28:px-block",
+  tight: "@max-cq-28:px-inset-tight",
+  row: "@max-cq-28:px-inset-row",
+  block: "@max-cq-28:px-inset-block",
   avatarReach: AVATAR_REACH_PADDING,
 } as const;
 // The same, on the inline-end edge alone: a box whose start edge holds what sits beside it keeps that inset at every width.
 const PADDING_INLINE_END_NARROW = {
-  tight: "@max-cq-28:pe-tight",
-  row: "@max-cq-28:pe-row",
-  block: "@max-cq-28:pe-block",
+  tight: "@max-cq-28:pe-inset-tight",
+  row: "@max-cq-28:pe-inset-row",
+  block: "@max-cq-28:pe-inset-block",
 } as const;
 // The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to none, a small atom or a
 // related-control gap, so the larger steps are no member, except `avatarReach`: a transcript chip needs a touch reach clear of its bubble,
@@ -269,8 +277,9 @@ const FADE = {
 const FADE_FROM = { raised: "from-surface-raised", sidebar: "from-sidebar" } as const;
 
 // A surface the router or a list hands focus to (`tabIndex={-1}`) draws no outline of its own: arrival is announced, not
-// painted, and the controls inside draw their own rings.
-const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
+// painted, and the controls inside draw their own rings. A hand-off that lands on the target because no control inside can take
+// focus marks it (`FOCUS_LANDING_ATTRIBUTE`), and the target draws the ring for that landing.
+const FOCUS_TARGET = { true: `outline-none ${FOCUS_RING_LANDING}`, false: "" } as const;
 
 // The edge-fade recipe for a box that scrolls on one axis (`globals.css`); the `useScrollFadeX`/`useScrollFadeY` hooks
 // mark which edges are hiding content, and the fade shows only there.
@@ -316,6 +325,9 @@ export const stackVariants = tv({
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
+    // The inline inset a box gives back under a 20rem pane, the width an enlarged root leaves a phone, so a control row of its own
+    // width still fits.
+    paddingInlineCramped: { block: "@max-cq-20:px-inset-block" },
     // The block-start inset a box gives up at a phone-width pane.
     paddingBlockStartNarrow: { none: "@max-cq-32:pbs-0" },
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
@@ -398,8 +410,7 @@ export const stackVariants = tv({
     cap: CAP,
     width: WIDTH,
     centred: CENTRED,
-    // `bandHead` is the solid head of a feathered art band, above where the feather starts.
-    height: { ...HEIGHT, bandHead: "block-3/5" },
+    height: HEIGHT,
     grow: GROW,
     floor: FLOOR,
     push: PUSH,
@@ -428,6 +439,13 @@ const DIALOG_SCROLL_CLASS =
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
   variants: { grow: { true: GROW.true, false: GROW.false } },
+});
+
+// A vertical list of short lines under a marker. The text of every item starts one `indent` in, the nested level of what hangs under
+// a heading (UI-Density-Law.md §2.2), and the marker hangs in that indent outside the text, so a wrapped line runs back to the text's
+// edge and never under the marker. The marker takes the muted ink; the items keep the `tight` step between them.
+export const bulletListVariants = tv({
+  base: "m-0 list-outside list-disc ps-indent *:not-first:mbs-tight marker:text-muted-foreground",
 });
 
 export const rowVariants = tv({
@@ -587,6 +605,7 @@ export const gridVariants = tv({
     scrollInset: { section: "scroll-px-inset-section" },
     cap: CAP,
     width: WIDTH,
+    minWidth: { shrinks: MIN_WIDTH.shrinks },
     paddingInline: PADDING_INLINE,
     reach: REACH,
     cols: {
@@ -850,6 +869,7 @@ export const containerVariants = tv({
     cap: CAP,
     scroll: SCROLL,
     width: WIDTH,
+    minWidth: { shrinks: MIN_WIDTH.shrinks },
     centred: CENTRED,
     grow: GROW,
     height: { fill: HEIGHT.fill },
@@ -870,6 +890,7 @@ export const toolbarButtonVariants = tv({
     hover:bg-accent
     focus-visible:outline-none
     ${DISABLED_STATE_NATIVE}
+    ${DISABLED_STATE}
     ${FOCUS_RING}
   `,
 });
@@ -880,9 +901,9 @@ export const toolbarSeparatorVariants = tv({
 
 // A Group is a LAYOUT + SEMANTICS box inside the strip (Base UI gives it the group role wiring and a
 // `disabled` that cascades to its items): tighter than the strip's own `gap-row` so a related cluster
-// reads as one unit against its neighbours.
+// reads as one unit against its neighbours. It paints no disabled state of its own: each item it disables paints it, so the group never dims twice.
 export const toolbarGroupVariants = tv({
-  base: "flex flex-row items-center gap-field data-disabled:opacity-disabled",
+  base: "flex flex-row items-center gap-field",
 });
 
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
@@ -904,7 +925,8 @@ export const toolbarInputVariants = tv({
     rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground block-(--size-control-sm) min-inline-0
     placeholder:text-muted-foreground
     focus-visible:outline-none
-    ${DISABLED_STATE_NATIVE}
+    ${DISABLED_FIELD_NATIVE}
+    ${DISABLED_FIELD}
     ${FOCUS_RING}
   `,
 });

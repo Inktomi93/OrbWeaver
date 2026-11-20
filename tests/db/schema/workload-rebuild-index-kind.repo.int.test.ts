@@ -6,7 +6,7 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
-import { sql } from "drizzle-orm";
+import { getTableColumns, sql } from "drizzle-orm";
 
 const REBUILD_KIND_MIGRATION = "0009_assets-rebuild-index-kind-checks";
 const REBUILD_KIND = "assets-rebuild-index";
@@ -27,8 +27,10 @@ test("the kind migration keeps every stored workload and schedule, and admits th
     (${activeId}, 'assets-fsck', ${owner.id}, ${owner.id}, 0, 'running', 'bulk')`);
   await db.run(sql`insert into workload_schedules (id, owner_id, kind, mode, cadence, next_run_at) values
     (${scheduleId}, ${owner.id}, 'assets-gc', 'bulk', 'weekly', 1000)`);
+  // Only the columns the chain this case starts from has: a later migration adds `transient`.
+  const { transient: _addedLater, ...chainColumns } = getTableColumns(workloads);
   const stored = async (): Promise<readonly unknown[]> => [
-    await db.select().from(workloads).orderBy(workloads.id),
+    await db.select(chainColumns).from(workloads).orderBy(workloads.id),
     await db.select().from(workloadSchedules).orderBy(workloadSchedules.id),
   ];
   const before = await stored();

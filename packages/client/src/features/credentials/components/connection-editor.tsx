@@ -1,6 +1,8 @@
 // Saved providers stay read-only because changing one invalidates credential, URL, model and kind.
 // Disclosure tiers keep advanced controls collapsed; layout follows the settings container width.
 // Capability and cache readback describe the resolved connection, not upstream acceptance or hits.
+// The Purpose tier's background switch is the one control for `allowBackground`; the list row and the Model-roles
+// repair show its state and open this editor, so no surface carries a second toggle for the same flag.
 
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -18,19 +20,20 @@ import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
-import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
+import { capabilityFactRows, imageInputSwitch, VECTOR_WIDTH_FACT_PATH, withImageInput } from "../lib/connection-capability-fact-model.ts";
 import {
-  capabilityBadges,
   credentialReadout,
   declaredOverrideCount,
   diagnosticsSetCount,
   hostLabel,
   inferredKindOf,
   purposeNotes,
+  servableRoles,
 } from "../lib/connection-editor-model.ts";
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
+import { API_KEY_FIELD_NAME, CONNECTION_EDITOR_TIER_TITLES, CONNECTION_NAME_FIELD_NAME } from "../lib/credentials-names.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
@@ -42,6 +45,7 @@ import { TopEmbedderNote } from "./connection-editor-refusal.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
+import { ConnectionImageSwitch } from "./connection-image-switch.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
 import { ConnectionReachability } from "./connection-reachability.tsx";
@@ -154,6 +158,7 @@ function AvailableConnectionEditorBody({
   const quirkFeatures = detected === undefined ? provider.features : { ...provider.features, ...detected.features };
   const quirkLabel = detected === undefined ? providerLabel : providerDisplayLabel(detected);
   const declared = connection.declared;
+  const imageSwitch = imageInputSwitch(capabilityView.capability, declared, capabilityView.baseline);
   const busy = update.isPending;
 
   // A patch to an identity field of the user's embedder can rebuild their index, so the server is asked first; any other
@@ -200,7 +205,7 @@ function AvailableConnectionEditorBody({
         {reindex.dialog}
         <TopEmbedderNote checking={checking} refused={embedRefusal} />
 
-        <EditorTier defaultOpen={true} title="Essential">
+        <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.essential}>
           <Stack gap="row">
             <Field
               description="Change it by adding another connection. A provider change would invalidate this row's key, URL and model at once."
@@ -216,7 +221,7 @@ function AvailableConnectionEditorBody({
               )}
             </Field>
             {connection.baseUrl === null ? (
-              <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label="API key">
+              <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label={API_KEY_FIELD_NAME}>
                 <Text voice="datum">{credentialReadout(provider.auth, connection.credentialId)}</Text>
               </Field>
             ) : (
@@ -244,14 +249,14 @@ function AvailableConnectionEditorBody({
             <SavedTextField
               busy={busy}
               description="Auto-named from the provider and the model. Rename it if you keep several on one server."
-              label="Name"
+              label={CONNECTION_NAME_FIELD_NAME}
               onCommit={(next): void => patch({ label: next })}
               value={connection.label}
             />
           </Stack>
         </EditorTier>
 
-        <EditorTier defaultOpen={true} title="Purpose">
+        <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.purpose}>
           <Stack gap="row">
             <KindVerdict
               busy={busy}
@@ -261,12 +266,20 @@ function AvailableConnectionEditorBody({
             />
             <Stack gap="tight">
               <Text voice="label">What it can be used for</Text>
-              <CapabilityRail badges={capabilityBadges(capabilityView.capability, capabilityView.tasks)} />
-              <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the same reason.</Text>
+              <CapabilityRail roles={servableRoles(capabilityView.capability, capabilityView.tasks)} />
+              <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the reason.</Text>
             </Stack>
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
+            {imageSwitch === undefined ? null : (
+              <ConnectionImageSwitch
+                answer={imageSwitch}
+                checked={imageSwitch.on}
+                disabled={busy}
+                onCheckedChange={(checked): void => patch({ declared: withImageInput(declared, imageSwitch, checked) }, imageSwitch.row.path)}
+              />
+            )}
             <Row align="start" gap="field" justify="between">
-              <Stack className="min-inline-0" grow="fill" gap="tight">
+              <Stack minWidth="shrinks" grow="fill" gap="tight">
                 <Text voice="label">{ALLOW_BACKGROUND_SETTING}</Text>
                 <Text voice="gloss">
                   Summaries, extraction, captions, embeddings and reranking run unattended on this connection. Leave it off for anything you pay per call, or
@@ -289,7 +302,7 @@ function AvailableConnectionEditorBody({
             badge={overrideBadge(promptCacheChangedCount(connection.promptCache, capabilityView.capability))}
             defaultOpen={false}
             kicker="On or off · system prompt · depth · how long it lasts"
-            title="Prompt caching"
+            title={CONNECTION_EDITOR_TIER_TITLES.promptCache}
           >
             <ConnectionPromptCache
               generation={capabilityView.capability.kind === "generation" ? capabilityView.capability.generation : null}
@@ -313,7 +326,7 @@ function AvailableConnectionEditorBody({
           badge={overrideBadge(declaredOverrideCount(declared))}
           defaultOpen={advancedOpen === true}
           kicker="What this server accepts · Endpoint quirks"
-          title="Advanced"
+          title={CONNECTION_EDITOR_TIER_TITLES.advanced}
         >
           <Stack gap="block">
             <Stack gap="tight">
@@ -349,7 +362,7 @@ function AvailableConnectionEditorBody({
           badge={setBadge(diagnosticsSetCount(connection.extras, connection.transport))}
           defaultOpen={false}
           kicker="Extra request fields · Request & response shaping · reachability"
-          title="Diagnostics"
+          title={CONNECTION_EDITOR_TIER_TITLES.diagnostics}
         >
           <Stack gap="block">
             <ConnectionExtrasBlock busy={busy} extras={connection.extras} onCommit={(next): void => patch({ extras: next })} />

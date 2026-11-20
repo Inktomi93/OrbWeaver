@@ -24,6 +24,11 @@ const WASM_MAX_MEBIBYTES = 48;
  *  host-call entry check, comparing REAL monotonic time against the open window (`cpu-guard.ts`, D346). */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
+/** How long a synchronous seam call may wait on the parent and still be the guest's own charge (D346). A healthy round
+ *  trip takes about a millisecond, so only a wait past this is an app that stalled, and only that part leaves the CPU
+ *  window. Below it every round trip stays charged, so a guest that loops seam calls meets its window as any loop does. */
+export const PLUGIN_SYNC_WAIT_STALL_MS = 50;
+
 /** An inline snippet's guest CPU account — the whole snippet, not per call. Its wall is this plus
  *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
@@ -63,6 +68,10 @@ export const PLUGIN_BROKER_HEARTBEAT_MISSES_MAX = Math.ceil(
 );
 /** How long a broker that stops answering keeps serving before its watchdog ends it. */
 export const PLUGIN_BROKER_LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_MISSES_MAX * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+/** How long the app waits for its watchdog to exit after closing their channel before it ends the watchdog (D347). A
+ *  working watchdog ends a broker still running the liveness bound after the stop; the second is the watchdog's own
+ *  exit. */
+export const PLUGIN_WATCHDOG_STOP_GRACE_MS = PLUGIN_BROKER_LIVENESS_BOUND_MS + MS_PER_SECOND;
 
 /** How long the host remembers a broker loss: losses further apart than this never add up (D347). */
 export const PLUGIN_BROKER_LOSS_WINDOW_MS = 10 * MS_PER_MINUTE;
@@ -253,6 +262,15 @@ export const PLUGIN_DUMP_NODE_GUARD = 65_536;
  *  32 MiB single line would be an unbounded per-instance allocation. Accounting is in UTF-16 code units (a JS
  *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. The numbers
  *  live in `@orb/contracts/plugin` (`PLUGIN_LOG_LINES_MAX` / `PLUGIN_LOG_CHARS_MAX`), shared with the client guest. */
+
+/** The window over which one plugin instance's server-log share resets: per window it writes at most one drain's
+ *  volume ({@link PLUGIN_LOG_LINES_MAX} lines, {@link PLUGIN_LOG_CHARS_MAX} UTF-16 units) and counts the rest as dropped. */
+export const PLUGIN_SERVER_LOG_WINDOW_MS = MS_PER_MINUTE;
+
+/** The host-fault share of one plugin instance's server-log window, in lines: a failed bridge operation's warning draws
+ *  on it and never on the guest's own share, so a guest that fills its window cannot hide a real host fault. A guest can
+ *  provoke a fault, so the share is small and has its own cap; a fault past it is dropped and counted like a guest line. */
+export const PLUGIN_SERVER_LOG_FAULT_LINES = 16;
 
 /** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
  *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a

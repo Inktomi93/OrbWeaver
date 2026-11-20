@@ -1,8 +1,8 @@
 // @orb/contracts/rpg/views — the READ-view projections the CP client consumes. Data
-// contract only (the CP spec owns the components). Minted NOW as the mode-discriminated homes full's GM
-// arms extend: `RpgGameView` is the member arm today; full's `RpgGmView` grafts as a SIBLING arm (never
-// widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
-// resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
+// contract only; components live in the client. Mode-discriminated homes: `RpgGameView` is the member arm,
+// and a future `RpgGmView` grafts as a SIBLING arm (never widening the member type). The panel is
+// swipe-consistent BY CONSTRUCTION — every tab reads the SAME resolved-current snapshot, so a swipe
+// re-resolves everything at once.
 
 import type {
   ChatId,
@@ -36,11 +36,10 @@ import { rpgPlotSchema } from "./snapshot.ts";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
 import { rpgTrackerDefSchema, rpgTrackerValueSchema } from "./tracker.ts";
 
-/** EFF-3 — the EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
- *  it (D112 (4)'s KNOWN GAP: a `folded` game whose wire cannot fold was still showing "Live" while it rounded a
- *  beat behind). It is NOT a prediction of model behavior: `path` is the same capability verdict the gather uses
- *  PRE-COMMIT to decide whether to mount the terminal tools, read off the SAME one connection resolve — so it
- *  states what this room's connection does, and it changes only when the connection does.
+/** The EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
+ *  it (D112 (4)). It is NOT a prediction of model behavior: `path` is the same capability verdict the gather
+ *  uses PRE-COMMIT to decide whether to mount the terminal tools, read off the SAME one connection resolve —
+ *  so it states what this room's connection does, and it changes only when the connection does.
  *
  *  The one thing it CANNOT see is a fold that was eligible and failed at runtime (an unbuildable mount, a hook
  *  miss — `no-terminal-channel`): that verdict exists only after a turn completes and is not persisted, so it
@@ -68,7 +67,7 @@ export interface RpgStateRoundOverflow {
 }
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
- *  lite/full trim decision (§2.1). `publicConfig` is the member-safe config slice (never the host-only
+ *  lite/full trim decision. `publicConfig` is the member-safe config slice (never the host-only
  *  `steeringNote`). */
 export interface RpgGameView {
   readonly id: RpgGameId;
@@ -83,25 +82,24 @@ export interface RpgGameView {
   readonly canPopulate: boolean;
   /** The delivery-model knob (not host-secret — it governs the WHOLE game's freshness posture, so the
    *  panel needs it to render the state-freshness indicator honestly). `cheap` ⇒ the tracker lags one beat by
-   *  construction (a dedicated round runs AFTER the character turn commits — §4.9 amendment); `folded` ⇒ the
+   *  construction (a dedicated round runs AFTER the character turn commits); `folded` ⇒ the
    *  tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
   readonly extractionMode: RpgGameConfig["extractionMode"];
-  /** EFF-3 — what the knob above actually RESOLVES to on this room's connection. The freshness surface renders
+  /** What the knob above actually RESOLVES to on this room's connection. The freshness surface renders
    *  THIS (never the bare mode): a `folded` game on a wire that cannot fold reads "as of last beat, because …",
    *  not "Live". Member-safe for the same reason `extractionMode` is — it governs the whole room's freshness. */
   readonly effectiveDelivery: RpgEffectiveDelivery;
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
-   *  `immersiveHtml` lets the reading surface gate the lenient naked-HTML wrap +
-   *  the card-archive section per game (member-safe — a play-style option, never a secret). */
-  /** `cyoa`/`cyoaChoiceBehavior`/`plotProgression` (§5.4/§6.4) gate the composer wand's game
-   *  affordances (the Plot submenu + the choices mode) and shape the choice-CLICK behavior — member-safe
-   *  play-style options, never secrets. `cyoaChoiceBehavior` drives the reading-surface click handler
-   *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
+   *  `immersiveHtml` lets the reading surface gate the lenient naked-HTML wrap + the card-archive section per
+   *  game. `cyoa`/`cyoaChoiceBehavior`/`plotProgression` gate the composer wand's game affordances (the Plot
+   *  submenu + the choices mode) and shape the choice-CLICK behavior. `cyoaChoiceBehavior` drives the
+   *  reading-surface click handler (`compose` = draft the composer; `send` = fire the turn), so it rides the
+   *  MEMBER slice. Play-style options, never secrets. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
     /** The RULESET setting — member-safe, and member-NEEDED: the dice in the Message tools menu
      *  publishes `RPG_RULESET_DICE[ruleset]`, so without it on the member slice the setting would have no
-     *  visible consequence for anyone but the host (the dead-toggle finding). */
+     *  visible consequence for anyone but the host. */
     readonly ruleset: RpgGameConfig["ruleset"];
     /** The ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
      *  Member-safe display knob: the band + Scene ambient render the date arm by it. */
@@ -113,23 +111,20 @@ export interface RpgGameView {
   };
 }
 
-/** An actor row in the tracker view — the ONE actor shape, for EVERY actor (R2): participants ∪ sheets ∪ every
+/** An actor row in the tracker view — the ONE actor shape, for EVERY actor: participants ∪ sheets ∪ every
  *  tracked `npc` actor, on stage or off. A participant without a sheet row renders the DEFAULT sheet;
  *  `volatile` is null until a snapshot carries this actor's state.
  *
- *  It replaced THREE bolted-on npc projections (`castVolatile` · `castTrackers` · the `cast` identity array).
- *  Those existed because the NPC was not an actor in the view model, and the split was load-bearing for two
- *  measured defect classes: an npc's model-written hp/status/conditions/inventory/wallet rendered in NO
- *  client surface (`castVolatile` had zero consumers), and carrier CLASSES partitioned ROWS rather than PEOPLE,
- *  so a participant character standing in the scene was taught an `npcs`-classed tracker the write surface never
- *  offered her. Both are unrepresentable now: one row per person, and `carrierKind` derives from
+ *  One row per PERSON, never one per carrier class: a participant character standing in the scene must not be
+ *  taught an `npcs`-classed tracker the write surface never offers her, and an npc's model-written
+ *  hp/status/conditions/inventory/wallet must land in a surface someone reads. `carrierKind` derives from
  *  `actorRef.kind`. */
 export interface RpgActorView {
   readonly actorRef: RpgActorRef;
   readonly name: string;
   readonly avatar?: string;
   /** Does this actor stand in the scene RIGHT NOW (the presence plane)? An offstage actor keeps every other
-   *  field on this row — that IS the R2 retention guarantee, and the panel's "Known characters" disclosure. */
+   *  field on this row — the retention guarantee, and the panel's "Known characters" disclosure. */
   readonly presence: boolean;
   /** The npc's own identity half (name/emoji/mood/relationship/guides); `null` for a participant actor,
    *  whose identity is chat's and whose standing prose is the sheet's. */
@@ -137,10 +132,10 @@ export interface RpgActorView {
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    /** The sheet's free FLAVOR prose (RV-11) — written through `patchSheet` and, until the takeover grew a
-     *  gloss line for it, projected to no reader at all. `""` = nothing written (the line is omitted). */
+    /** The sheet's free FLAVOR prose — written through `patchSheet`, projected on the takeover's gloss line.
+     *  `""` = nothing written (the line is omitted). */
     readonly flavor: string;
-    /** The hand-only progression level (§2.6) — null renders nothing (nullable-honesty, no phantom "Level 0"). */
+    /** The hand-only progression level — null renders nothing (nullable-honesty, no phantom "Level 0"). */
     readonly level: number | null;
     /** The per-actor tracker exceptions (the applicability model) — surfaced so the editor can show WHY this
      *  actor carries (or doesn't carry) a tracker its class would otherwise decide. */
@@ -165,7 +160,7 @@ export interface RpgTrackerEntry {
 }
 
 /** A quest in the tracker view — the goal line + its `n/m` objective completion (served from the RESOLVED
- *  snapshot's array, §2.5 — swipe-consistent by construction). */
+ *  snapshot's array — swipe-consistent by construction). */
 export interface RpgQuestView {
   readonly id: RpgQuestId;
   readonly name: string;
@@ -174,9 +169,9 @@ export interface RpgQuestView {
   readonly objectives: readonly { readonly id: string; readonly text: string; readonly completed: boolean }[];
 }
 
-/** A band orb — a PINNED tracker with a numeric reading, derived server-side (the banner/orbs). The old
- *  "first 3 pools auto + extra pins" rule is gone with the unification: the band renders exactly what the host
- *  pinned (`def.pinned`), so the band is a decision, not a coincidence of def order. */
+/** A band orb — a PINNED tracker with a numeric reading, derived server-side (the banner/orbs). The band
+ *  renders exactly what the host pinned (`def.pinned`), so the band is a decision, not a coincidence of def
+ *  order. */
 export interface RpgTrackerOrb {
   readonly key: string;
   readonly label: string;
@@ -194,7 +189,7 @@ export interface RpgTrackerView {
     readonly clock: RpgClockTime | null;
     readonly weather: RpgWeather | null;
   } | null;
-  /** EVERY actor — participants ∪ tracked npcs, present and offstage — in ONE shape (R2). */
+  /** EVERY actor — participants ∪ tracked npcs, present and offstage — in ONE shape. */
   readonly actors: readonly RpgActorView[];
   /** The presence echo: the `actorRefKey`s standing in the scene, in presence order. A THIN derivation of
    *  `actors[].presence`, carried so a consumer that only needs "who is on stage" (the scene card order, the
@@ -203,35 +198,35 @@ export interface RpgTrackerView {
   /** The whole game's tracker DEFS (`config.trackers`) — the ONE def home, surfaced once so every consumer
    *  (participant rows, scene npc rows, the band, the editor) reads the same list instead of four shapes. */
   readonly trackerDefs: readonly RpgTrackerDef[];
-  /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
+  /** The GAME-subject trackers paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];
   readonly quests: readonly RpgQuestView[];
-  /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one (the rail
+  /** The snapshot-resident plot plane (act rail data) — null until the story authors one (the rail
    *  renders nothing; no client-invented acts, ever). Swipe-consistent like every other plane here. */
   readonly plot: RpgPlot | null;
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
   readonly trackerOrbs: readonly RpgTrackerOrb[];
-  /** The manual-edit-wins LOCK paths (§12.3 the-lock-consequence-is-visible) — the dotted top-level/keyed
+  /** The manual-edit-wins LOCK paths — the dotted top-level/keyed
    *  paths a hand edit auto-stamped (`editSnapshot` writes them; tools honor them). The panel renders a pin
    *  glyph on a locked field ("the story won't change this") + a Release affordance. A `[]` = nothing pinned.
    *  Surfaced as an ARRAY of paths (not the record) — the client only needs presence, never the `true` value. */
   readonly lockedPaths: readonly string[];
 }
 
-/** A single journal entry in the paged `listJournal` view — lineage-filtered server-side (§2.5). */
+/** A single journal entry in the paged `listJournal` view — lineage-filtered server-side. */
 export interface RpgJournalEntryView {
   readonly id: RpgJournalId;
   readonly type: string;
-  /** R4c — the free gloss on a `custom`-typed entry (""/absent on the seven built-ins). */
+  /** The free gloss on a `custom`-typed entry (""/absent on the built-ins). */
   readonly label: string;
   readonly title: string;
   readonly content: string;
   readonly createdAt: number;
 }
 
-/** `listTurnToolCalls` — ONE folded turn's recorded tool calls, keyed to the variant that produced them
- *  (TOOLCALLS-INVISIBLE, arm A). The read is per-CHAT and returns a window of these rather than one query per
+/** `listTurnToolCalls` — ONE folded turn's recorded tool calls, keyed to the variant that produced them.
+ *  The read is per-CHAT and returns a window of these rather than one query per
  *  message: a transcript renders many rows, and a per-row query would be a query storm against a surface most
  *  people never open.
  *
@@ -239,7 +234,7 @@ export interface RpgJournalEntryView {
  *  is CURRENTLY showing — the same keying `rpg_snapshots`/`rpg_journal` use for the same reason. `messageId`
  *  is the slot, for a client that wants to group without walking its own variant map. */
 // WHY a call's args are not the model's verbatim bytes for this viewer. Declared as a tuple and
-//  DERIVED (§5.5): a second reason is a member here and a `tsc` failure at every reader, never a free string.
+//  DERIVED: a second reason is a member here and a `tsc` failure at every reader, never a free string.
 //  One member today — the args did not parse as JSON, so the hidden-span belt cannot be applied to them and
 //  the fail-closed answer is to serve none of them.
 const RPG_TOOL_CALL_WITHHOLD_REASONS = ["unparseable"] as const;
@@ -254,9 +249,9 @@ export type RpgToolCallWithholdReason = (typeof RPG_TOOL_CALL_WITHHOLD_REASONS)[
  * WHAT THE PROJECTION DOES for a viewer who does not read hidden (`viewerReadsHidden` — every present role
  * but the host): `args` is PARSED and every leaf string has its hidden spans stripped, and each `issues` line
  * keeps its `<path>: <message>` half while its model-SENT value is re-rendered through the same belt. The
- * host reads both verbatim. The record's own header calls the args "never prose", which was false — the state
- * tools write ambient `location`, actor mood, item and quest text, so an extractor that quoted a `<lie …/>`
- * into a scene field put a GM secret in this payload.
+ * host reads both verbatim. The filter matters because the args CAN be prose: the state tools write ambient
+ * `location`, actor mood, item and quest text, so an extractor that quoted a `<lie …/>` into a scene field
+ * would put a GM secret in this payload.
  */
 export interface RpgToolCallDisclosure {
   readonly name: string;
@@ -301,7 +296,7 @@ export interface RpgConfigView {
   readonly steeringNote: string;
   readonly gmPresetId: PresetId | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];
-  /** The §1.3 extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
+  /** The extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
    *  token budget, and the reconcile cadence (0 = off). */
   readonly extractionContext: RpgGameConfig["extractionContext"];
   /** How the dedicated state round asks for the beat's changes (host editor). */
@@ -310,10 +305,9 @@ export interface RpgConfigView {
   readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
   /** The ambient-date mode knob (host editor). */
   readonly dateMode: RpgGameConfig["dateMode"];
-  /** THE TRACKERS (the tracked-field unification) — the host's whole tracker set, the single surface that
-   *  replaced the Sheet-tab pool defs, the Game-tab npc fields, and the band-pin section. */
+  /** THE TRACKERS — the host's whole tracker set, the single def home. */
   readonly trackers: RpgGameConfig["trackers"];
-  /** The per-custom-kind steering hints — relationship kinds + R4c custom journal types. */
+  /** The per-custom-kind steering hints — relationship kinds + custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
   readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
   /** The game half of the two-home macro rule (D345) — the GAME's authored user macros, the host editor's list. Written
@@ -324,7 +318,7 @@ export interface RpgConfigView {
    *  macro whose name is in this set SHADOWS the preset def at turn time (`shadowPresetUserMacros`), and the
    *  editor says so rather than letting the host discover it in a prompt. */
   readonly presetMacroNames: readonly string[];
-  /** The hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
+  /** The hidden-channel knobs surfaced to the host editor: `deception`/`omniscience` gate the
    *  teaching + the member reasoning-strip; `hiddenContentReveal` governs the host's reveal eye;
    *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice. */
   readonly deception: boolean;
@@ -335,7 +329,7 @@ export interface RpgConfigView {
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;
   readonly cardKeepLastX: number;
-  /** The play-style knobs (§5.4/§6.4) — CYOA standing mode, the choice-CLICK behavior (`compose`/`send`),
+  /** The play-style knobs — CYOA standing mode, the choice-CLICK behavior (`compose`/`send`),
    *  and the wand Plot submenu gate. */
   readonly cyoa: boolean;
   readonly cyoaChoiceBehavior: RpgGameConfig["features"]["cyoaChoiceBehavior"];
@@ -352,7 +346,7 @@ export interface RpgRevealedSpan {
   readonly fields: readonly { readonly key: string; readonly value: string }[];
 }
 
-/** The per-message reveal payload (§3.6 the "eye") — the hidden spans tokenized out of ONE assistant slot's
+/** The per-message reveal payload (the host's "eye") — the hidden spans tokenized out of ONE assistant slot's
  *  stored (selected-variant) body, in emission order. Host-gated server-side; a member never receives this. */
 export interface RpgRevealedMessage {
   readonly messageId: MessageId;
@@ -361,7 +355,7 @@ export interface RpgRevealedMessage {
   readonly spans: readonly RpgRevealedSpan[];
 }
 
-/** ONE character's STANDING lie in the inventory (§3.6, BEYOND marinara) — the most-recent lie per
+/** ONE character's STANDING lie in the inventory — the most-recent lie per
  *  (character, truth) across the visible selected-variant transcript. `messageId` anchors where it was told so
  *  the host can jump to it. */
 export interface RpgStandingLie {
@@ -372,7 +366,7 @@ export interface RpgStandingLie {
   readonly messageId: MessageId;
 }
 
-/** `revealHidden` (HOST-gated, §3.6) — the whole host-reveal read for a game: the per-message parsed hidden
+/** `revealHidden` (HOST-gated) — the whole host-reveal read for a game: the per-message parsed hidden
  *  content (the eye's data) PLUS the standing-lie inventory grouped by character. A READ over the stored bodies
  *  (no new table); a member never reaches this verb (leak-free NOT_FOUND). Empty (`messages: []`,
  *  `standingLies: []`) when the game has no hidden content — a clean host-plane read. */

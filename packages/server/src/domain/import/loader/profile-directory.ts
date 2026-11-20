@@ -1,13 +1,15 @@
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportDirectory, ImportFsPort, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
-import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
+import { clipImportText, IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
+import type { ImportCardScriptsResult, ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import { hostTimeZone } from "@orb/kit/time";
-import { inertActivationFields } from "@orb/kit/world-info";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
+import { inertFieldCounts } from "@orb/kit/world-info";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -18,23 +20,24 @@ import type {
   CollectedWorld,
   CollectResult,
 } from "../contract/collection.ts";
-import { ProfileImportLimitError } from "../contract/errors.ts";
+import { importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
-import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
-import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
+import type { CollectedProfile, ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
+import type {
+  ImportCardBookNote,
+  ImportCharacterResult,
+  ImportReport,
+  ImportSkippedCard,
+  ImportSkippedCardTag,
+  ImportUnresolvedPinnedPersona,
+  ImportWorldNote,
+} from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
+import { seatsOf } from "../substrate/group.ts";
 import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
-
-const AVATAR_MIME = "image/png";
-
-/** The ST wall-clock zone for this run: the caller's pin, else the host's. ONE resolver so the collect pass
- *  and the per-file import verbs can never disagree about which clock a snapshot's dates were written on. */
-function stWallClockZone(deps: ProfileDirImportDeps): string {
-  return deps.stWallClockZone ?? hostTimeZone();
-}
 
 /** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
  *  post-read check closes a file-growth race. Repeated reads of one path count only its largest observed
@@ -85,18 +88,10 @@ function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
   return { ...fs, openTree: async (): Promise<ImportDirectory | null> => limited(await fs.openTree()) };
 }
 
-/** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
- *  dirs, so the tag lists merge rather than overwrite. */
-function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readonly string[]>): void {
-  for (const [key, names] of from) {
-    const merged = into.get(key) ?? [];
-    for (const name of names) {
-      if (!merged.includes(name)) {
-        merged.push(name);
-      }
-    }
-    into.set(key, merged);
-  }
+/** Every collected card with the profile result that holds it, in run order. A card's library tags and extra books
+ *  belong to its own profile: two profiles can keep different cards under one filename. */
+function cardsWithProfile(profiles: readonly CollectedProfile[]): { readonly bundle: CollectedCard; readonly result: CollectResult }[] {
+  return profiles.flatMap(({ result }) => result.bundles.map((bundle) => ({ bundle, result })));
 }
 
 /** Append one profile dir's "not imported" records onto the run-wide set. Split out of the collect loop so the
@@ -104,6 +99,7 @@ function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readon
  *  the loop the file's most complex function. */
 function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<typeof collectBundlesFromDir>>): void {
   into.unreadableCards.push(...from.unreadableCards);
+  into.invalidCards.push(...from.invalidCards);
   into.unreadableWorlds.push(...from.unreadableWorlds);
   into.unreadablePresets.push(...from.unreadablePresets);
   into.refusedThemes.push(...from.refusedThemes);
@@ -127,6 +123,8 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
  *  whose target is gone, may have been a profile, so the report names it. */
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCollected> {
   const { fs, signal } = deps;
+  const profiles: CollectedProfile[] = [];
+  const rootUnhandled: string[] = [];
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
@@ -137,18 +135,15 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   // FIRST profile dir carrying a `power_user` section wins: an ST snapshot is one box's preferences, and
   // letting a later dir's `fontScale` overwrite an earlier one would make the outcome depend on readdir order.
   let appearance: Record<string, unknown> = {};
-  // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
-  const tagsByEntityKey = new Map<string, string[]>();
   const orphanBundles: CollectResult["orphanBundles"] = [];
-  // Global regex scripts CONCAT across dirs (the lift content-dedups repeats); charLore bindings union
-  // through the same mergeTags rule (a card filename stem can recur across profiles).
+  // Global regex scripts CONCAT across dirs (the lift content-dedups repeats).
   const globalRegexScripts: RegexScriptCard[] = [];
-  let malformedGlobalRegexScripts = 0;
-  const extraBooksByCardStem = new Map<string, string[]>();
+  const globalRegexScriptNotes: { readonly field: string; readonly reason: string }[] = [];
   let databankFileCount = 0;
   let galleryImageCount = 0;
   const r: ProfileCollectRecords = {
     unreadableCards: [],
+    invalidCards: [],
     unreadableWorlds: [],
     unreadablePresets: [],
     refusedThemes: [],
@@ -170,12 +165,14 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     }
     if (ent.kind === "other") {
       r.unhandled.push(ent.name);
+      rootUnhandled.push(ent.name);
     }
     await using profile = ent.kind === "directory" ? ((await root?.openDirectory(ent.name)) ?? null) : null;
     if (profile === null) {
       continue;
     }
-    const result = await collectBundlesFromDir(fs, profile, [], stWallClockZone(deps));
+    const result = await collectBundlesFromDir(fs, profile, []);
+    profiles.push({ name: ent.name, result });
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);
@@ -186,11 +183,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     if (Object.keys(appearance).length === 0) {
       appearance = result.appearance;
     }
-    mergeTags(tagsByEntityKey, result.tagsByEntityKey);
     orphanBundles.push(...result.orphanBundles);
     globalRegexScripts.push(...result.globalRegexScripts);
-    malformedGlobalRegexScripts += result.malformedGlobalRegexScripts;
-    mergeTags(extraBooksByCardStem, result.extraBooksByCardStem);
+    globalRegexScriptNotes.push(...result.globalRegexScriptNotes);
     databankFileCount += result.databankFileCount;
     galleryImageCount += result.galleryImageCount;
     mergeRecords(r, result);
@@ -214,14 +209,14 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     backgrounds,
     appearance,
     groups,
-    tagsByEntityKey,
     orphanBundles,
     globalRegexScripts,
-    malformedGlobalRegexScripts,
-    extraBooksByCardStem,
+    globalRegexScriptNotes,
     databankFileCount,
     galleryImageCount,
     skipped,
+    profiles,
+    rootUnhandled,
     ...r,
   };
 }
@@ -233,27 +228,42 @@ function tallyScanned(found: ImportKindCounts, collected: ProfileCollected): num
   return Object.values(found).reduce((sum, count) => sum + count, collected.skipped + refusedGroups(collected).length);
 }
 
-/** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
-async function toPersonaInput(store: StoreAvatarAsset, principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
-  let avatarAssetId: AssetId | null = null;
-  if (p.avatarBytes !== undefined) {
+/** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. An avatar the
+ *  store refuses (not a picture, over the cap) costs only the picture: the persona imports without art and the file is
+ *  named with the refusal. Any other failure still fails the run. */
+async function toPersonaInput(
+  store: StoreAvatarAsset,
+  principal: Principal,
+  p: CollectedPersona,
+): Promise<{ readonly input: ImportPersonaInput; readonly skipped?: ImportSkippedCard }> {
+  if (p.avatarBytes === undefined) {
+    return { input: { parsed: p.parsed, avatarAssetId: null } };
+  }
+  try {
     const stored = await store({
       principal,
       bytes: p.avatarBytes,
       kind: "avatar",
-      mime: AVATAR_MIME,
+      // ST names an avatar file by its persona key, not its format, so the type comes from the bytes.
+      mime: sniffMime(p.avatarBytes),
+      enforceMagic: true,
       // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
       maxBytes: ASSET_UPLOAD_MAX_BYTES,
     });
-    avatarAssetId = stored.assetId;
+    return { input: { parsed: p.parsed, avatarAssetId: stored.assetId } };
+  } catch (err) {
+    if (err instanceof DomainOperationError) {
+      return { input: { parsed: p.parsed, avatarAssetId: null }, skipped: { file: p.parsed.avatarFile, reason: importFailureReason(err) } };
+    }
+    throw err;
   }
-  return { parsed: p.parsed, avatarAssetId };
 }
 
 /** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`,
- *  maxBytes-capped, magic-verified because the mime is only extension-derived) and turn it into a ready
- *  `BackgroundLibraryEntry`. PER-FILE ISOLATION — a background the store refuses (a `.jpg` that is not a JPEG,
- *  an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
+ *  maxBytes-capped, magic-verified) and turn it into a ready `BackgroundLibraryEntry`. A picture is stored under the
+ *  type its bytes are, as a persona avatar is, so a JPEG named `.png` lands as a JPEG; any other file keeps its
+ *  extension's type for the signature check. PER-FILE ISOLATION — a background the store refuses (a `.png` that is
+ *  no picture, an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
  *
  *  The entries are APPENDED to `appearance.backgroundLibrary` by the settings op below, which is what makes
  *  them (a) GC-rooted — an unreferenced blob is reclaimed an hour after the import — and (b) pickable in the
@@ -280,19 +290,20 @@ async function storeCollectedBackgrounds(
     // the catch pushes `{ file, reason }` onto `skipped`, which
     // `storeCollectedBackgrounds` returns and `reportFrom` lists as the report's `skippedBackgrounds`.
     // Ends if `skipped` stops reaching the report.
+    const sniffed = sniffMime(background.bytes);
+    const mime = SNIFFED_IMAGE_MIMES.some((image) => image === sniffed) ? sniffed : background.mime;
     try {
       const stored = await store({
         principal: deps.principal,
         bytes: background.bytes,
-        mime: background.mime,
+        mime,
         // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
         maxBytes: ASSET_UPLOAD_MAX_BYTES,
       });
-      entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime: background.mime, name: background.name });
+      entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime, name: background.name });
       storedFiles.push(background.filename);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      skipped.push({ file: background.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+      skipped.push({ file: background.filename, reason: importFailureReason(err) });
     }
   }
   return { entries, storedFiles, skipped };
@@ -309,6 +320,8 @@ async function landBackgroundsAndAppearance(
   collected: ProfileCollected,
 ): Promise<{
   readonly backgroundsImported: number;
+  /** Stored backgrounds the library already carried, or an earlier background of the upload added. */
+  readonly backgroundsReused: number;
   readonly appearanceKeysApplied: readonly string[];
   /** The store's own refusals PLUS the stored-but-unattached rows. */
   readonly skippedBackgrounds: readonly ImportSkippedCard[];
@@ -320,22 +333,16 @@ async function landBackgroundsAndAppearance(
       file,
       reason: "stored in your media library but NOT attached to the background picker — the appearance applier is not wired into this composition",
     }));
-    return { backgroundsImported: 0, appearanceKeysApplied: [], skippedBackgrounds: [...stored.skipped, ...unattached] };
+    return { backgroundsImported: 0, backgroundsReused: 0, appearanceKeysApplied: [], skippedBackgrounds: [...stored.skipped, ...unattached] };
   }
   const outcome = await apply(deps.principal.userId, { patch: collected.appearance, backgroundLibrary: stored.entries });
-  return { backgroundsImported: outcome.backgroundsAdded, appearanceKeysApplied: outcome.patchedKeys, skippedBackgrounds: stored.skipped };
-}
-
-/** The inert SillyTavern activation fields a book's entries carry, each with the count of entries carrying
- *  it — the report's "kept but not active yet" line per book (owner ruling). */
-function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertFields"] {
-  const counts = new Map<string, number>();
-  for (const entry of book.entries) {
-    for (const { field } of inertActivationFields(entry.metadata)) {
-      counts.set(field, (counts.get(field) ?? 0) + 1);
-    }
-  }
-  return [...counts].map(([field, entries]) => ({ field, entries }));
+  return {
+    backgroundsImported: outcome.backgroundsAdded,
+    // The applier appends each stored entry whose image the library does not carry yet; every other one was held.
+    backgroundsReused: stored.entries.length - outcome.backgroundsAdded,
+    appearanceKeysApplied: outcome.patchedKeys,
+    skippedBackgrounds: stored.skipped,
+  };
 }
 
 /** Import the collected standalone ST worlds as UNATTACHED owner library books, additively: an equal book is
@@ -345,17 +352,27 @@ function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertF
 async function importCollectedWorlds(
   deps: ProfileDirImportDeps,
   worlds: readonly CollectedWorld[],
-): Promise<{ readonly created: number; readonly notes: ImportWorldNote[]; readonly landed: ReadonlyMap<string, WorldBookId> }> {
+): Promise<{ readonly created: number; readonly reused: number; readonly notes: ImportWorldNote[]; readonly landed: ReadonlyMap<string, WorldBookId> }> {
   let created = 0;
+  let reused = 0;
   const notes: ImportWorldNote[] = [];
   const landed = new Map<string, WorldBookId>();
-  for (const world of worlds) {
-    if (deps.signal.aborted) {
+  const results = await deps.importStandaloneLorebooks({
+    ownerId: deps.principal.userId,
+    books: worlds.map(({ book }) => book),
+    dryRun: false,
+    signal: deps.signal,
+  });
+  for (const [i, world] of worlds.entries()) {
+    const bookResult = results[i];
+    // An aborted batch stops short; the books after it were never attempted.
+    if (bookResult === undefined) {
       break;
     }
-    const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
     if (bookResult.created) {
       created += 1;
+    } else {
+      reused += 1;
     }
     // A multi-profile upload can carry one name twice; the first profile's book keeps it, as personas do.
     if (!landed.has(world.book.name)) {
@@ -366,10 +383,10 @@ async function importCollectedWorlds(
       renamedFrom: bookResult.renamedFrom,
       created: bookResult.created,
       entries: world.book.entries.length,
-      inertFields: inertFieldCounts(world.book),
+      inertFields: inertFieldCounts(world.book.entries),
     });
   }
-  return { created, notes, landed };
+  return { created, reused, notes, landed };
 }
 
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
@@ -390,7 +407,10 @@ const NO_WAVES: ProfileWaveOutcomes = {
   worldNotes: [],
   backgroundsImported: 0,
   skippedBackgrounds: [],
+  skippedPersonaAvatars: [],
   skippedCardTags: [],
+  cardNotes: [],
+  cardBookNotes: [],
   appearanceKeysApplied: [],
   groupsImported: 0,
   groupChatsImported: 0,
@@ -400,6 +420,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  skippedChatRows: [],
   personasMergedKeys: [],
   memoryChatIds: [],
   globalRegexScriptsLifted: 0,
@@ -426,16 +447,19 @@ interface ReportArgs {
   readonly found: ImportKindCounts;
   /** Present ONLY on a dryRun — the names behind the counts. */
   readonly preview?: ImportPreview;
+  /** Present ONLY on a real run. */
+  readonly held?: ImportReport["held"];
 }
 
-function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview }: ReportArgs): ImportReport {
+function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview, held }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
     dryRun,
+    ...(held === undefined ? {} : { held }),
     found,
     preview: preview ?? null,
-    skippedCards,
+    skippedCards: [...collected.invalidCards, ...skippedCards],
     unreadableCards: collected.unreadableCards,
     unreadableWorlds: collected.unreadableWorlds,
     unreadablePresets: collected.unreadablePresets,
@@ -457,7 +481,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves, found, d
     // The silent-gap sweep's counts: the FOUND halves are collect-time facts (real on a dryRun too); the
     // lifted/attached halves ride `waves` above and are zero on a dryRun, like every other write outcome.
     globalRegexScriptsFound: collected.globalRegexScripts.length,
-    malformedGlobalRegexScripts: collected.malformedGlobalRegexScripts,
+    globalRegexScriptNotes: collected.globalRegexScriptNotes,
     databankFileCount: collected.databankFileCount,
     galleryImageCount: collected.galleryImageCount,
   };
@@ -471,6 +495,13 @@ const CARD_PNG_EXT = /\.png$/i;
  *  thenable lens even though the op's contract returns a Promise). */
 function liftGlobalScripts(lift: ImportGlobalScripts, ownerId: UserId, scripts: readonly RegexScriptCard[]): ReturnType<ImportGlobalScripts> {
   return lift({ ownerId, scripts });
+}
+
+/** The report's one line for the global plane's scripts refused at the write door, each named; null when none. */
+function refusedScriptsLine(refused: ImportCardScriptsResult["refused"]): string | null {
+  return refused.length === 0
+    ? null
+    : refused.map((refusal) => `script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`).join("; ");
 }
 
 /** One character's world name-links, attached through the injected world-info op. `primary` is the card's
@@ -506,23 +537,23 @@ async function attachWorldLinksFor(args: {
 async function attachCollectedWorldLinks(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
-  characterIdByCardFilename: ReadonlyMap<string, CharacterId>,
+  characterIdByCard: ReadonlyMap<CollectedCard, CharacterId>,
   landed: ReadonlyMap<string, WorldBookId>,
 ): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[]; readonly skippedReason: string | null }> {
   const attach = deps.attachBooksByName;
   const missing: { character: string; book: string }[] = [];
   let attached = 0;
   let anyLinks = false;
-  for (const bundle of collected.bundles) {
+  for (const { bundle, result: profile } of cardsWithProfile(collected.profiles)) {
     if (deps.signal.aborted) {
       break;
     }
-    const extras = collected.extraBooksByCardStem.get(bundle.filename.replace(CARD_PNG_EXT, "")) ?? [];
+    const extras = profile.extraBooksByCardStem.get(bundle.filename.replace(CARD_PNG_EXT, "")) ?? [];
     if (bundle.worldName === null && extras.length === 0) {
       continue;
     }
     anyLinks = true;
-    const characterId = characterIdByCardFilename.get(bundle.filename);
+    const characterId = characterIdByCard.get(bundle);
     if (attach === undefined || characterId === undefined) {
       continue;
     }
@@ -547,15 +578,22 @@ async function importOrphanBundles(
   orphans: ProfileCollected["orphanBundles"],
 ): Promise<{
   readonly changed: number;
+  /** Placeholders that already existed or an earlier directory of the upload minted, and the transcripts held. */
+  readonly orphansReused: number;
+  readonly chatsReused: number;
   readonly orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[];
   readonly orphanSkipped: { dir: string; reason: string }[];
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   readonly chatsPersonaHealed: number;
   readonly memoryChatIds: ChatId[];
+  readonly skippedChatRows: ImportSkippedCard[];
 }> {
   let changed = 0;
+  let orphansReused = 0;
+  let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
+  const skippedChatRows: ImportSkippedCard[] = [];
   const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
   const orphanSkipped: { dir: string; reason: string }[] = [];
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
@@ -581,19 +619,23 @@ async function importOrphanBundles(
           source: "manual",
           status: "accepted",
         });
+      } else {
+        orphansReused += 1;
       }
       const chatResult = await service.importChats({ characterId: mint.characterId, chats: orphan.chats });
       changed += chatResult.chatsImported;
+      chatsReused += chatResult.chatsReused;
       chatsPersonaHealed += chatResult.chatsPersonaHealed;
       memoryChatIds.push(...chatResult.memoryChatIds);
       unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
+      skippedChatRows.push(...chatResult.skippedChatRows);
       orphanImports.push({ dir: orphan.dirName, characterName: mint.name, created: mint.created, chatsImported: chatResult.chatsImported });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds };
+  return { changed, orphansReused, chatsReused, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds, skippedChatRows };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -605,32 +647,47 @@ async function importOneBundle(
 ): Promise<{
   readonly changed: number;
   readonly characterId: CharacterId;
+  /** Whether the card reused a held character, and how many of its chats the write found already landed. */
+  readonly cardReused: boolean;
+  readonly chatsReused: number;
   readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms of THIS card whose persona attribution this run back-filled (the dedup-skip HEAL). */
   readonly chatsPersonaHealed: number;
   /** The card's written real conversations (the memory-build offer's scope). */
   readonly memoryChatIds: readonly ChatId[];
+  readonly skippedChatRows: readonly ImportSkippedCard[];
   /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
   readonly scriptsLifted: number;
   readonly scriptsReused: number;
+  /** What the card did not land, as the Characters dialog names it. */
+  readonly notes: readonly string[];
+  readonly embeddedBook: ImportCharacterResult["embeddedBook"];
 }> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
   if (cardResult.created) {
     changed += 1;
   }
-  const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
+  const card = { characterId: cardResult.characterId, cardReused: !cardResult.created };
+  const scripts = {
+    scriptsLifted: cardResult.regexScriptsLifted,
+    scriptsReused: cardResult.regexScriptsReused,
+    notes: cardResult.skippedOverlays,
+    embeddedBook: cardResult.embeddedBook,
+  };
   if (bundle.chats.length === 0) {
-    return { changed, characterId: cardResult.characterId, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], ...scripts };
+    return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], skippedChatRows: [], ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
   return {
     changed,
-    characterId: cardResult.characterId,
+    ...card,
+    chatsReused: chatResult.chatsReused,
     unresolvedPins: chatResult.unresolvedPinnedPersonas,
     chatsPersonaHealed: chatResult.chatsPersonaHealed,
     memoryChatIds: chatResult.memoryChatIds,
+    skippedChatRows: chatResult.skippedChatRows,
     ...scripts,
   };
 }
@@ -671,38 +728,47 @@ async function attachBundleTags(
 async function importCollectedBundles(
   deps: ProfileDirImportDeps,
   service: ReturnType<typeof createImportService>,
-  bundles: readonly CollectedCard[],
-  tagsByEntityKey: ReadonlyMap<string, readonly string[]>,
+  profiles: readonly CollectedProfile[],
 ): Promise<{
   readonly changed: number;
+  /** Cards that reused a held character, and their chats the write found already landed. */
+  readonly cardsReused: number;
+  readonly chatsReused: number;
   readonly skippedCards: ImportSkippedCard[];
-  /** Card FILENAME → the character it resolved to (created OR matched). The ST group wave's ONLY member key —
-   *  see `verbs/import-group-chats.ts` for why a handle or a display name cannot substitute. */
-  readonly characterIdByCardFilename: Map<string, CharacterId>;
-  readonly characterNameByCardFilename: Map<string, string>;
+  /** Each imported card → the character it resolved to (created OR matched). Keyed by the card itself, not its
+   *  filename: two profiles can keep different cards under one filename. */
+  readonly characterIdByCard: Map<CollectedCard, CharacterId>;
   /** §5.7 — the solo wave's half of the unresolved chat-bound persona picks. */
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   /** The solo wave's half of the dedup-skip HEAL count. */
   readonly chatsPersonaHealed: number;
   /** The solo wave's written real conversations. */
   readonly memoryChatIds: ChatId[];
+  readonly skippedChatRows: ImportSkippedCard[];
   /** The card-lift halves of the regex accounting, summed across every imported card. */
   readonly cardScriptsLifted: number;
   readonly cardScriptsReused: number;
   /** Library tags that did NOT attach to an imported card, with the reason (per-tag isolation, never silent). */
   readonly skippedCardTags: ImportSkippedCardTag[];
+  /** What each imported card did not land, by card file. */
+  readonly cardNotes: ImportSkippedCard[];
+  readonly cardBookNotes: ImportCardBookNote[];
 }> {
   let changed = 0;
+  let cardsReused = 0;
+  let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
+  const skippedChatRows: ImportSkippedCard[] = [];
   const skippedCards: ImportSkippedCard[] = [];
-  const characterIdByCardFilename = new Map<string, CharacterId>();
-  const characterNameByCardFilename = new Map<string, string>();
+  const characterIdByCard = new Map<CollectedCard, CharacterId>();
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
   let cardScriptsLifted = 0;
   const skippedCardTags: ImportSkippedCardTag[] = [];
+  const cardNotes: ImportSkippedCard[] = [];
+  const cardBookNotes: ImportCardBookNote[] = [];
   let cardScriptsReused = 0;
-  for (const bundle of bundles) {
+  for (const { bundle, result: profile } of cardsWithProfile(profiles)) {
     if (deps.signal.aborted) {
       break;
     }
@@ -712,35 +778,42 @@ async function importCollectedBundles(
     try {
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
+      cardsReused += result.cardReused ? 1 : 0;
+      chatsReused += result.chatsReused;
       chatsPersonaHealed += result.chatsPersonaHealed;
       memoryChatIds.push(...result.memoryChatIds);
+      skippedChatRows.push(...result.skippedChatRows);
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
-      characterIdByCardFilename.set(bundle.filename, result.characterId);
-      characterNameByCardFilename.set(bundle.filename, bundle.cardName);
-      const tagNames = tagsByEntityKey.get(bundle.filename);
+      cardNotes.push(...result.notes.map((reason) => ({ file: bundle.filename, reason })));
+      if (result.embeddedBook !== null) {
+        cardBookNotes.push({ file: bundle.filename, ...result.embeddedBook });
+      }
+      characterIdByCard.set(bundle, result.characterId);
+      const tagNames = profile.tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
         skippedCardTags.push(...(await attachBundleTags(deps, bundle, result.characterId, tagNames)));
       }
     } catch (err) {
-      // The concise refusal reason for the report — the last line of a ZodError prettify is the actionable
-      // one ("Too big: expected string to have <=200 characters → at cardVersion").
-      const message = err instanceof Error ? err.message : String(err);
-      skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+      skippedCards.push({ file: bundle.filename, reason: importFailureReason(err) });
     }
   }
   return {
     changed,
+    cardsReused,
+    chatsReused,
     skippedCards,
-    characterIdByCardFilename,
-    characterNameByCardFilename,
+    characterIdByCard,
     unresolvedPins,
     chatsPersonaHealed,
     memoryChatIds,
+    skippedChatRows,
     cardScriptsLifted,
     cardScriptsReused,
     skippedCardTags,
+    cardNotes,
+    cardBookNotes,
   };
 }
 
@@ -760,14 +833,16 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
     ...(deps.importCardScripts !== undefined ? { importCardScripts: deps.importCardScripts } : {}),
     profile: {
       now: deps.now,
-      stWallClockZone: stWallClockZone(deps),
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
       // NO-OP (see the header): the driver owns the one enqueue, so this per-chat call enqueues nothing.
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
-      ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
-      ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
+      heldChatHashes: deps.heldChatHashes,
+      exportCurrentChats: deps.exportCurrentChats,
+      ownedChatTitle: deps.ownedChatTitle,
+      importPresets: deps.importPresets,
+      importThemes: deps.importThemes,
       adoptDefaultPersona: deps.adoptDefaultPersona,
       ...(deps.importPresetScripts !== undefined ? { importPresetScripts: deps.importPresetScripts } : {}),
     },
@@ -788,7 +863,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     return reportFrom({
       collected,
       scanned,
-      changed: collected.bundles.length - owned.characters.size,
+      changed: [...owned.characters.values()].filter(({ reuse }) => reuse === null).length,
       dryRun: true,
       skippedCards: [],
       // Every WRITE outcome is zero because nothing was written; `found` beside it says what the folder holds,
@@ -805,19 +880,26 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
 
   let changed = 0;
   let personasMergedKeys: readonly string[] = [];
+  let personasReused = 0;
 
   // Personas FIRST — populates personaByUserName so the chat importers can attribute their user_names.
   const personaInputs: ImportPersonaInput[] = [];
+  const skippedPersonaAvatars: ImportSkippedCard[] = [];
   for (const p of collected.personas) {
     if (deps.signal.aborted) {
       break;
     }
-    personaInputs.push(await toPersonaInput(store, deps.principal, p));
+    const { input, skipped } = await toPersonaInput(store, deps.principal, p);
+    personaInputs.push(input);
+    if (skipped !== undefined) {
+      skippedPersonaAvatars.push(skipped);
+    }
   }
   if (personaInputs.length > 0) {
     const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
     changed += personaResult.personasCreated;
     personasMergedKeys = personaResult.mergedKeys;
+    personasReused = personaResult.personasReused;
   }
 
   // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (additive by content).
@@ -827,7 +909,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
 
   // ST chat-completion presets — independent of every other plane (a preset references no character), so the
   // wave runs before the characters and its `changed` counts as new canon like a world book does.
-  const presetResult = await service.importPresets({ presets: collected.presets });
+  const presetResult = await service.importPresets({ presets: collected.presets, signal: deps.signal });
   // Only CREATES are net-new canon — a merged preset is the idempotent re-run path (see ImportPresetsResult),
   // exactly as `importCollectedWorlds` counts only a book it did not replace.
   changed += presetResult.presetsCreated;
@@ -835,7 +917,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // ST UI THEMES — independent of every other plane (a palette references nothing), so the wave runs beside
   // the presets. Each was already converted (and safety-gated) by the collector; the settings domain owns the
   // write and the (ownerId, name) merge rule. Only CREATES count as new canon, like every other wave.
-  const themeResult = await service.importThemes({ themes: collected.themes });
+  const themeResult = await service.importThemes({ themes: collected.themes, signal: deps.signal });
   changed += themeResult.themesCreated;
 
   // ST GLOBAL regex scripts (`extension_settings.regex`) → the library + `global_regex_scripts` (orb's
@@ -850,6 +932,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       globalRegexScriptsLifted = lift.created;
       globalRegexScriptsReused = lift.reused;
       changed += lift.created;
+      globalRegexSkippedReason = refusedScriptsLine(lift.refused);
     } else {
       globalRegexSkippedReason = "global regex-script import is not wired into this composition";
     }
@@ -864,7 +947,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   const appearanceKeysApplied = appearanceWave.appearanceKeysApplied;
   changed += backgroundsImported;
 
-  const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
+  const bundleResult = await importCollectedBundles(deps, service, collected.profiles);
   changed += bundleResult.changed;
 
   // The ST world NAME-LINKS, strictly AFTER both the standalone-world wave (the books the names resolve
@@ -873,7 +956,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // `charLore` names per-character EXTRA books (`auxiliary`). A name the worlds wave landed binds the row it
   // landed or was reused as (an import is additive, so changed lore sits beside the stale book under a
   // numbered name); any other name resolves by exact name. A dangling name is a report row, never a near-match.
-  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCardFilename, worldResult.landed);
+  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCard, worldResult.landed);
 
   // The ORPHAN wave — transcripts whose card is absent get a minted placeholder (evidence-only, tagged
   // `orphan import`) and then ride the ORDINARY chats verb. Runs after the card wave so a same-slug card
@@ -882,12 +965,17 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   changed += orphanResult.changed;
 
   // ST GROUPS strictly AFTER the character wave: a group's members are card FILENAMES, and the filename →
-  // characterId map only exists once every card has been imported (or matched). A member card that is not in
-  // the import set is skipped WITH a report note — the room still forms around the members that resolved.
+  // characterId map only exists once every card has been imported (or matched). Each profile's groups seat from its
+  // own cards. A member card its profile does not carry is skipped WITH a report note — the room still forms around
+  // the members that resolved.
   const groupResult = await service.importGroupChats({
-    groups: deps.signal.aborted ? [] : collected.groups,
-    characterIdByCardFilename: bundleResult.characterIdByCardFilename,
-    characterNameByCardFilename: bundleResult.characterNameByCardFilename,
+    profiles: deps.signal.aborted
+      ? []
+      : collected.profiles.map(({ result }) => ({
+          groups: result.groups,
+          characterIdByCardFilename: seatsOf(result.bundles, bundleResult.characterIdByCard),
+          characterNameByCardFilename: new Map(result.bundles.map((bundle) => [bundle.filename, bundle.cardName])),
+        })),
   });
   changed += groupResult.groupChatsImported;
 
@@ -898,12 +986,26 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     await deps.enqueueImportIndex({ ownerId: deps.principal.userId });
   }
 
+  // What each wave reused, in `found`'s units: the run's own record of the entries it wrote nothing for.
+  const reused: ImportKindCounts = {
+    characters: bundleResult.cardsReused,
+    chats: bundleResult.chatsReused + orphanResult.chatsReused + groupResult.groupChatsReused,
+    personas: personasReused,
+    worlds: worldResult.reused,
+    presets: presetResult.presetsImported - presetResult.presetsCreated,
+    themes: themeResult.themesImported - themeResult.themesCreated,
+    backgrounds: appearanceWave.backgroundsReused,
+    groups: groupResult.groupsReused,
+    orphans: orphanResult.orphansReused,
+  };
+  const heldEntries = IMPORT_PREVIEW_KINDS.reduce((sum, kind) => sum + reused[kind], 0);
   return reportFrom({
     collected,
     scanned,
     changed,
     dryRun: false,
     found,
+    held: { inLibrary: heldEntries, skipped: collected.skipped + refusedGroups(collected).length },
     skippedCards: bundleResult.skippedCards,
     waves: {
       presetsImported: presetResult.presetsImported,
@@ -917,12 +1019,15 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       worldNotes: worldResult.notes,
       backgroundsImported,
       skippedBackgrounds: appearanceWave.skippedBackgrounds,
+      skippedPersonaAvatars,
       appearanceKeysApplied,
       groupsImported: groupResult.groupsImported,
       groupChatsImported: groupResult.groupChatsImported,
       skippedGroups: groupResult.skippedGroups,
       skippedGroupMembers: groupResult.skippedMembers,
       skippedCardTags: bundleResult.skippedCardTags,
+      cardNotes: bundleResult.cardNotes,
+      cardBookNotes: bundleResult.cardBookNotes,
       ambiguousSpeakerNames: groupResult.ambiguousSpeakerNames,
       seatedDisabledMembers: groupResult.seatedDisabledMembers,
       // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.
@@ -930,6 +1035,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
       // corpus gain the persona attribution its first import could not resolve.
       chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
+      skippedChatRows: [...bundleResult.skippedChatRows, ...groupResult.skippedChatRows, ...orphanResult.skippedChatRows],
       personasMergedKeys,
       memoryChatIds: [...bundleResult.memoryChatIds, ...groupResult.memoryChatIds, ...orphanResult.memoryChatIds],
       globalRegexScriptsLifted,

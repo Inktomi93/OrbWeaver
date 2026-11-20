@@ -4,6 +4,7 @@
 // host's override, the game's own copy) and the react tool's attachment. Knob precedence for the choices teach has
 // its own cases in turn-offer-choices.suite.int.test.ts.
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
@@ -12,7 +13,8 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { connectDevice } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, connectDevice } from "@orb/testkit/node/composed";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaRoom, seatPersona } from "../persona-cache-physical.ts";
@@ -186,11 +188,67 @@ test("a hidden stamped message is off the wire, so a swipe is not told its roll"
   expect([...sent, ...swiped]).toEqual([true, false]);
 });
 
+// Each queued send is a moment apart, so the drain takes them in the order they were sent.
+const QUEUE_STEP_MS = 1000;
+
+test("two sends queued while the host is away drain into replies that each answer their own send's stamp", async () => {
+  await using h = await turnRpgRoom(replies(4));
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  const queue = async (content: string): Promise<void> => {
+    h.root.clock.advance(QUEUE_STEP_MS);
+    const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content });
+    expect(outcome.messages.map(({ role }) => role)).toEqual(["user"]);
+  };
+  const drain = async (): Promise<void> => {
+    expect(await h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId })).toEqual({ ran: 2, dropped: 0 });
+    await h.root.settleBackground();
+  };
+
+  await queue(`I leap. ${STAMP}`);
+  await queue("I walk on.");
+  const stampedFirst = await rollNotes(h, drain);
+  await queue("I walk on.");
+  await queue(`I leap. ${STAMP}`);
+  const stampedLast = await rollNotes(h, drain);
+
+  expect({ stampedFirst, stampedLast }).toEqual({ stampedFirst: [true, false], stampedLast: [false, true] });
+});
+
+test("a queued send hidden before the drain is told about no roll, not a later send's", async () => {
+  await using h = await turnRpgRoom(replies(2));
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  for (const content of ["I walk on.", `I leap. ${STAMP}`]) {
+    h.root.clock.advance(QUEUE_STEP_MS);
+    await h.root.services.chat.send({ principal: member, chatId: h.chatId, content });
+  }
+  const [plain] = (await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages.filter(({ role }) => role === "user");
+  if (plain === undefined) {
+    throw new Error("the queued sends wrote no user rows");
+  }
+  await h.root.services.chat.setMessageHidden({ principal: h.owner, chatId: h.chatId, messageId: plain.id, hidden: true });
+
+  const notes = await rollNotes(h, async () => {
+    expect(await h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId })).toEqual({ ran: 2, dropped: 0 });
+    await h.root.settleBackground();
+  });
+  expect(notes).toEqual([false, true]);
+});
+
 test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
   await using h = await turnRpgRoom(replies(1));
   const script = await h.root.services.regex.createScript({
     principal: h.owner,
-    input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({
+      name: "Strip dice",
+      findRegex: "/\\[dice:[^\\]]*\\]/g",
+      replaceString: "",
+      targets: ["USER_INPUT"],
+      passes: ["save"],
+    }),
   });
   await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
   const wire = await newestWire(h, async () => {
@@ -241,7 +299,7 @@ test("a host's rewrite of the teach is the one teach on a game turn that also ha
 
 test("a game's state block is accounted under its own budget source and reaches the model, and a plain chat has none", async () => {
   await using game = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
-  const preview = await game.root.services.chat.previewAssembly({ principal: game.owner, chatId: game.chatId });
+  const preview = await game.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: game.owner, chatId: game.chatId });
   const state = preview.budget.sources.find((source) => source.source === "game-state");
   expect(state?.tokens).toBeGreaterThan(0);
   // The wire stubs a stored card, so the block's own opening line is the needle that survives to the provider.
@@ -251,8 +309,184 @@ test("a game's state block is accounted under its own budget source and reaches 
   expect(wire).toContain(opening);
 
   await using plain = await textRoom([]);
-  const plainPreview = await plain.root.services.chat.previewAssembly({ principal: plain.owner, chatId: plain.chatId });
+  const plainPreview = await plain.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: plain.owner, chatId: plain.chatId });
   expect(nonEmpty(plainPreview.budget.sources).some((source) => source.source === "game-state")).toBe(false);
+});
+
+// The game-state note and a preset's tail-prefill assistant both claim the depth-0 slot, and only one row can
+// end the array. The continuation row owns the tail — the model needs an assistant row to continue, and the
+// vendor accepts the fixed order unchanged (a system note above a `prefix` continue row: continuation 3/3,
+// seed steering undamaged, `docs/law/deepseek-api-surface.md`). Red-proof: drop the tail tie-break from
+// `spliceOrder` (`assembly/injections.ts`) and the note merges last, the array ends on the note, and the
+// first assertion fails on both role and stamp.
+test("the game-state note is taught ABOVE a tail-prefill assistant, leaving the model a row to continue", async () => {
+  // The cheap game's DEDICATED post-commit tool round is the plan's second reply; the assertions read the
+  // narrator request, which is what the splice ordering acts on.
+  await using game = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    {},
+    "cheap",
+  );
+  // The capability half: a row that continues a trailing assistant and carries mid-conversation system rows.
+  const prefillRow = await game.root.services.connection.create({
+    principal: game.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await game.caller.connection.setBinding({ task: "chat", connectionId: prefillRow.id });
+  const tailOpen = "The keeper's hand stops halfway to the bell.";
+  await game.root.services.chat.setChatInjection({
+    principal: game.owner,
+    chatId: game.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: tailOpen,
+  });
+  const preview = await game.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: game.owner, chatId: game.chatId });
+  const stateOpening = preview.budget.sources.find((source) => source.source === "game-state")?.text.split("\n")[0] ?? "";
+  expect(stateOpening).not.toBe("");
+  const messages = inputMessages((await wireOf(game, () => send(game))).bodies[0]);
+  // The whole chain in the last row: the preset's own text, assistant-role, and stamped to continue.
+  expect(messages.at(-1)).toMatchObject({ role: "assistant", prefix: true });
+  expect(JSON.stringify(messages.at(-1))).toContain(tailOpen);
+  // And the note is still taught — above the tail, not behind it.
+  expect(messages.slice(0, -1).some((row) => JSON.stringify(row).includes(stateOpening))).toBe(true);
+
+  // Positive control: with no prefill row authored, the note keeps the tail slot it holds today; the
+  // tie-break is conditional on the continuation row, not a blanket reorder.
+  await using plain = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    {},
+    "cheap",
+  );
+  const plainMessages = inputMessages((await wireOf(plain, () => send(plain))).bodies[0]);
+  expect(JSON.stringify(plainMessages.at(-1))).toContain(stateOpening);
+});
+
+// The other half of the prefill verdict: TOOLS suppress a tail prefill outright — "continue this row" and
+// "stop and emit a call" are incompatible instructions at one turn end, and the tools win (`honorsAssistantPrefill`,
+// the ST `hasAnyTools` shape). The authored row still rides, normalized to a plain message; the CONTINUATION
+// intent drops, and the author is told — the same no-silent-vanish ruling as `prefill_reasoning_dropped`.
+// Red-proof: lift the suppression notice out of the pipeline (`engine/pipeline.ts`, the
+// `prefillSuppressedByTools` block) and the folded room sends the codes list without it.
+test("a folded turn that carries tools stands the tail prefill down and says so", async () => {
+  // Folded mode: the terminal state tools ride the narrator request, which is the suppression condition.
+  await using game = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
+  const prefillRow = await game.root.services.connection.create({
+    principal: game.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await game.caller.connection.setBinding({ task: "chat", connectionId: prefillRow.id });
+  await game.root.services.chat.setChatInjection({
+    principal: game.owner,
+    chatId: game.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: "The keeper's hand stops halfway to the bell.",
+  });
+  const adjustments: string[] = [];
+  const unsubscribe = game.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+    if (event.type === "warning" && event.chatId === game.chatId && event.code === SETTINGS_ADJUSTED_CODE) {
+      adjustments.push(event.adjustment);
+    }
+  });
+  try {
+    const { bodies } = await wireOf(game, () => send(game));
+    await game.root.settleBackground();
+    // The row itself still rides the request, un-stamped: the tools get the turn end, the words get heard.
+    const messages = inputMessages(bodies[0]);
+    expect(nonEmpty(messages).some((row) => JSON.stringify(row).includes("prefix"))).toBe(false);
+  } finally {
+    unsubscribe();
+  }
+  expect(adjustments).toContain(WARNING_CODE.prefillSuppressedByTools);
+
+  // Positive control: the SAME room in cheap mode honors the prefill (the case above) and carries no notice —
+  // the suppression is made of tools on the turn, not of the game mode's name.
+  const cheapAdjustments: string[] = [];
+  // The preset states the authored chain of thought (`params.reasoningSeed`): the domain forwards it to the
+  // transport, which stamps it on the continue row the tail injection produces. Seed-marked text is the
+  // needle; it rides only if the whole preset→pipeline→bridge→transport hop holds.
+  const seedPreset = {
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, reasoningSeed: "SEED-MARKER the sky is blue, so the answer is short." },
+  };
+  await using cheap = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    { promptConfig: seedPreset },
+    "cheap",
+  );
+  const cheapRow = await cheap.root.services.connection.create({
+    principal: cheap.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+        // A seed has a chain of thought to seed only on a model that reasons (D68).
+        reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await cheap.caller.connection.setBinding({ task: "chat", connectionId: cheapRow.id });
+  await cheap.root.services.chat.setChatInjection({
+    principal: cheap.owner,
+    chatId: cheap.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: "The keeper's hand stops halfway to the bell.",
+  });
+  const cheapUnsubscribe = cheap.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+    if (event.type === "warning" && event.chatId === cheap.chatId && event.code === SETTINGS_ADJUSTED_CODE) {
+      cheapAdjustments.push(event.adjustment);
+    }
+  });
+  try {
+    const { bodies } = await wireOf(cheap, () => send(cheap));
+    await cheap.root.settleBackground();
+    // The seed rode the request: the continue row carries it and the stamped thinking is the model's own.
+    const rows = JSON.stringify(inputMessages(bodies[0]));
+    expect(rows).toContain("SEED-MARKER the sky is blue, so the answer is short.");
+    expect(rows).toContain('"prefix":true');
+    expect(cheapAdjustments).not.toContain(WARNING_CODE.prefillSuppressedByTools);
+  } finally {
+    cheapUnsubscribe();
+  }
 });
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */

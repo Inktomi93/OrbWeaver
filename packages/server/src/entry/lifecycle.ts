@@ -19,7 +19,7 @@ import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { ServerRestartPort } from "#domain/admin";
 
-import { createSessionsRolePolicy } from "#domain/sessions";
+import { createResolveUserEnabled, createSessionsRolePolicy } from "#domain/sessions";
 import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#domain/share";
 
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
@@ -38,7 +38,7 @@ import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlCl
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES, serveHttpServer, trustedProxiesOf } from "#infra/network";
+import { drainHttpServer, egressAllowlistWarnings, installEgressFirewall, SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES, serveHttpServer } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
@@ -224,6 +224,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const { superviseDetached } = createDetachedSupervision(log, seams.rings.traces);
 
   let isShuttingDown = false;
+  // A signal during boot stops a boot repair between owners, so the drain never closes the DB under a rebuild.
+  const bootAbort = new AbortController();
   let shutdownCompletion: Promise<void> | undefined;
   let credentialsKeyOk = false;
   let db: Db | null = null;
@@ -346,7 +348,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await repairStaleJoinSeqOnBoot({ logger: seams.logger, db: bootDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
-    await rebuildStatsTimelineOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource });
+    await rebuildStatsTimelineOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource, signal: bootAbort.signal });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -448,6 +450,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       buildConnector: seams.buildConnector,
       networkExecution: seams.networkExecution,
       env: seams.env,
+      childEnv: seams.childProcessEnv,
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;
@@ -530,6 +533,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         db: bootDb,
         setEnabled: built.services.plugin.setEnabled,
         resolvePrincipal: createHostPrincipalResolver(bootSessions),
+        isOwnerEnabled: createResolveUserEnabled(bootSessions),
       });
       // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
       // ungranted, so the owner's first act on the Plugins pane is a real consent.
@@ -615,11 +619,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerPeers,
       ownerPeerWarnings: ownerFallbackPeerWarnings(ownerPeers),
       diagnosticsWarnings: diagnosticsPostureWarnings(diagnostics),
-      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && trustedProxiesOf(env).length === 0,
+      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && env.FORWARD_AUTH_TRUSTED_PROXIES.length === 0,
       forwardHeaderSignedClosed: env.AUTH_MODE === "forward-header" && env.FORWARD_AUTH_VERIFY_JWT && env.FORWARD_AUTH_JWKS === undefined,
+      egressAllowlistWarnings: egressAllowlistWarnings(env.EGRESS_ALLOWLIST),
       secrets: bootSecretProvenance({ ...secretLocation, sessionSecret: env.SESSION_SECRET, credentialsKey: env.CREDENTIALS_KEY }),
     })) {
-      const fields = { bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
+      const fields = { ...line.fields, bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
       if (line.level === "warn") {
         log.warn(fields, `boot: ${line.text}`);
       } else {
@@ -673,6 +678,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
           resolve: built.runtime.resolve,
           principals: [principal],
           enabled: env.LOCAL_LIGHT_PREFETCH === "on",
+          signal: bootAbort.signal,
         });
         stopLocalLightPrefetch = built.runtime.localLight.prefetch.start(targets);
       });
@@ -690,6 +696,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   async function drain(request: { readonly drainMs?: number }): Promise<void> {
     const httpDrainMs = request.drainMs ?? SHUTDOWN_DRAIN_MS;
     isShuttingDown = true;
+    bootAbort.abort();
     log.info(SHUTDOWN_MESSAGES.draining);
     let shareFailure: Error | undefined;
     if (sharing !== null) {

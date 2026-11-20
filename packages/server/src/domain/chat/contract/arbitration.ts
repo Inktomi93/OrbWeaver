@@ -8,8 +8,6 @@
 // import them straight from the contract.
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { RerankCapability } from "@orb/contracts/inference";
-import type { RerankResult } from "@orb/contracts/providers";
-import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 
@@ -35,10 +33,11 @@ export interface SpeakerCandidate {
 }
 
 /** The funder's bound rerank role as Smart's default pick reads it: the bound model's own capability (its
- *  window sizes the query and persona documents) and the role call itself. Whatever the user bound runs. */
+ *  window sizes the query and persona documents) and the role call itself, which takes the turn's signal so a
+ *  Stop ends the provider call. Whatever the user bound runs. */
 export interface SpeakerReranker {
   readonly capability: RerankCapability;
-  readonly rerank: (query: string, documents: RerankDocument[], opts?: { readonly instruction: string }) => Promise<RerankResult>;
+  readonly rerank: RoleClientsWithSignal["rerank"];
 }
 
 /** The funder's Utility role as Smart's arbiter reads it: a schema-constrained call. Resolved only when the bound

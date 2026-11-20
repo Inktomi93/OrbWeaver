@@ -164,6 +164,112 @@ test("a component-tier composer cannot reach the raw dialog either; the composit
   expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/content-dialog.tsx")).toEqual([]);
 });
 
+test("a feature builds no dialog footer or exit of its own; an empty state's action may close its dialog", async () => {
+  const footer = "export const A = () => <DialogFooter><Button>Add</Button></DialogFooter>;";
+  const exit = "export const A = () => <Stack><DialogClose render={<Button>Cancel</Button>} /></Stack>;";
+  const emptyAction = 'export const A = () => <EmptyState title="None" action={<DialogClose render={<Button>Close</Button>} />} />;';
+  expect(await findings("orb/dialog-via-composite", footer)).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", exit)).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", emptyAction)).toEqual([]);
+  // A close inside some other prop of an empty state is still a hand-built exit.
+  expect(await findings("orb/dialog-via-composite", emptyAction.replace("action=", "icon="))).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", footer, "packages/client/src/components/commit-row.tsx")).toEqual([]);
+});
+
+// Each way a feature can bind a dialog footer or close part under a name the JSX selectors do not read.
+const REBOUND_DIALOG_PARTS = [
+  ["a renamed footer import", 'import { DialogFooter as Foot } from "@orb/ui/dialog";\nexport const A = () => <Foot />;'],
+  ["a renamed close import", 'import { DialogClose as Shut } from "@orb/ui/dialog";\nexport const A = () => <Shut />;'],
+  ["a namespace import", 'import * as Parts from "@orb/ui/dialog";\nexport const A = () => <Parts.DialogFooter />;'],
+  ["a re-export of the footer", 'export { DialogFooter as Foot } from "@orb/ui/dialog";'],
+  ["a re-export of the close part", 'import { DialogClose } from "@orb/ui/dialog";\nexport { DialogClose as Shut };'],
+  ["the close part held in a local", 'import { DialogClose } from "@orb/ui/dialog";\nconst Shut = DialogClose;\nexport const A = () => <Shut />;'],
+] as const;
+
+test.for(REBOUND_DIALOG_PARTS)("a feature cannot rebind a dialog part: %s", async ([, source]) => {
+  expect(await findings("orb/dialog-via-composite", source)).toHaveLength(1);
+});
+
+test("an empty state's action may still close its dialog through the imported close part", async () => {
+  const source =
+    'import { DialogClose } from "@orb/ui/dialog";\nexport const A = () => <EmptyState title="None" action={<DialogClose render={<Button>Close</Button>} />} />;';
+  expect(await findings("orb/dialog-via-composite", source)).toEqual([]);
+});
+
+const DIALOG_FAILURE = "orb/dialog-failure-via-owner";
+
+// The shapes of the hand-spelled failure lines `DialogFailure` replaced, each reduced to the dialog and the local components between
+// it and its alert: the line sits in the function that renders the dialog, or one or two local components below it.
+const HAND_SPELLED_DIALOG_FAILURES = {
+  "character create, in the dialog's own function": `import { FormDialog } from "#components";
+export function NewCharacterDialog() { return <FormDialog><Text tone="destructive" role="alert">Refused.</Text></FormDialog>; }`,
+  "admin link SSO, in a body under FormDialogRoot": `import { FormDialogPopup, FormDialogRoot } from "#components";
+export function AdminLinkSsoDialog() { return <FormDialogRoot><LinkSsoBody /></FormDialogRoot>; }
+function LinkSsoBody() { return <FormDialogPopup><Text role="alert" tone="destructive">Refused.</Text></FormDialogPopup>; }`,
+  "run workload, in a form body under FormDialogRoot": `import { FormDialogRoot, ModelRunConfirmDialog } from "#components";
+export function RunWorkloadDialog() { return <FormDialogRoot><RunWorkloadFormBody /></FormDialogRoot>; }
+function RunWorkloadFormBody() { return <>{failed ? <Text role="alert" tone="destructive">Refused.</Text> : null}<ModelRunConfirmDialog nested={true} /></>; }`,
+  "create schedule, in a form body two dialogs share": `import { FormDialogRoot } from "#components";
+export function CreateScheduleDialog() { return <FormDialogRoot><ScheduleFormBody /></FormDialogRoot>; }
+export function EditScheduleDialog() { return <FormDialogRoot><ScheduleFormBody /></FormDialogRoot>; }
+function ScheduleFormBody() { return <Text role="alert" tone="destructive">Refused.</Text>; }`,
+  "add chat book, two local components below the dialog": `import { DismissDialog, QueryBoundary } from "#components";
+export function AddChatBookDialog() { return <DismissDialog><PickerBody /></DismissDialog>; }
+function PickerBody() { return <QueryBoundary><PickerList /></QueryBoundary>; }
+function PickerList() { return failure === null ? null : <Text tone="destructive" role="alert">Refused.</Text>; }`,
+  "saved replies, an untoned line in the picker's body": `import { PickerDialog } from "#components";
+function SavedRepliesBody() { return error !== null ? <Text role="alert">Couldn't switch.</Text> : null; }
+export function SavedRepliesPicker() { return <PickerDialog><SavedRepliesBody /></PickerDialog>; }`,
+  "invite, deep in a mint form's conditional rows": `import { DismissDialog } from "#components";
+export function InviteDialog() { return <DismissDialog><InviteMintForm /></DismissDialog>; }
+function InviteMintForm() { return <Stack>{rows.map((row) => (row.error ? <Text key={row.id} role="alert">Refused.</Text> : null))}</Stack>; }`,
+  "gallery add picker, in the owned-asset list": `import { PickerDialog } from "#components";
+export function GalleryAddPicker() { return <PickerDialog><OwnedAssetPicker /></PickerDialog>; }
+function OwnedAssetPicker() { return <Text tone="destructive" role="alert">Refused.</Text>; }`,
+  "a commit hook's content, through an arm typed by a local alias": `import type { ModalCommit } from "#state";
+type ArmCommit = Pick<ModalCommit, "content">;
+function useLinkArm(): ArmCommit { return { content: <LinkFields /> }; }
+function LinkFields() { return <Stack role="alert" />; }
+export function useAddCommit(): ModalCommit { const arm = useLinkArm(); return { content: arm.content, submit }; }`,
+} as const;
+
+test.for(Object.entries(HAND_SPELLED_DIALOG_FAILURES))("a hand-spelled dialog failure line is a finding: %s", async ([, source]) => {
+  expect(await findings(DIALOG_FAILURE, source)).toHaveLength(1);
+});
+
+test("the shared failure line, an alert no dialog draws, and an alert beside a door's local dialog pass", async () => {
+  expect(
+    await findings(
+      DIALOG_FAILURE,
+      'import { FormDialog } from "#components";\nexport const A = () => <FormDialog><DialogFailure>Refused.</DialogFailure></FormDialog>;',
+    ),
+  ).toEqual([]);
+  expect(await findings(DIALOG_FAILURE, 'export const A = () => <Text role="alert">Refused.</Text>;')).toEqual([]);
+  // A commit file's other component that its commit never renders is not the dialog's.
+  const commitFile = `import type { ModalCommit } from "#state";
+export function useACommit(): ModalCommit { return { content: <Stack />, submit }; }
+export function OfflineBanner() { return <Text role="alert">Offline.</Text>; }`;
+  expect(await findings(DIALOG_FAILURE, commitFile)).toEqual([]);
+  // The door renders its own local dialog, not a composite, so its banner sits outside the dialog; the dialog's own line is found.
+  const doorFile = `import { FormDialog } from "#components";
+function NewThingDialog() { return <FormDialog><Text role="alert">Refused.</Text></FormDialog>; }
+export function NewThingDoor() { return <><Text role="alert">Offline.</Text><NewThingDialog /></>; }`;
+  expect((await findings(DIALOG_FAILURE, doorFile)).map(({ line }) => line)).toEqual([2]);
+  // A refusal shown instead of the dialog, and a retry rendered beside it, are the surface's lines, not the dialog's.
+  const besideFile = `import { ConfirmDialog, PickerDialog } from "#components";
+export function Reindex() { return refused ? <Text role="alert">Refused.</Text> : <ConfirmDialog title="Reindex" />; }
+function MutationRetry() { return <Text role="alert">Couldn't attach.</Text>; }
+export function Attachments() { return <Stack><MutationRetry /><PickerDialog><Stack /></PickerDialog></Stack>; }`;
+  expect(await findings(DIALOG_FAILURE, besideFile)).toEqual([]);
+});
+
+test("a feature or a component-tier composer cannot reach the drawer primitive; the sheet composite can", async () => {
+  const raw = 'import { Drawer, DrawerPopup } from "@orb/ui/drawer";';
+  expect(await findings("orb/sheet-via-composite", raw)).toHaveLength(1);
+  expect(await findings("orb/sheet-via-composite", raw, "packages/client/src/components/relation-manager-section.tsx")).toHaveLength(1);
+  expect(await findings("orb/sheet-via-composite", raw, "packages/client/src/components/sheet-dialog.tsx")).toEqual([]);
+});
+
 const REQUIRED_DIALOG = 'import { RequiredFormDialog } from "#components";';
 
 test("the forced dialog is the first-run ask's alone", async () => {
@@ -176,9 +282,11 @@ const LIBRARY_ROW = "orb/library-surface-row";
 const LIST_SLOT_SURFACE = "packages/client/src/features/plugin/surfaces/extensions-switcher-surface.tsx";
 const TRANSCRIPT_SURFACE = "packages/client/src/features/chat/surfaces/message-list-surface.tsx";
 const RAW_ROW = "export const A = () => <ListRow title='a' />;";
+// Read once at import: the scan parses every client source.
+const LIST_SLOT_SURFACES = listSlotSurfacePaths(ROOT);
 
 test("a raw ListRow in a list-slot surface is a finding; LibraryRow, the transcript and other files pass", async () => {
-  expect(listSlotSurfacePaths(ROOT)).toContain(LIST_SLOT_SURFACE);
+  expect(LIST_SLOT_SURFACES).toContain(LIST_SLOT_SURFACE);
   expect(await findings(LIBRARY_ROW, RAW_ROW, LIST_SLOT_SURFACE)).toHaveLength(1);
   expect(await findings(LIBRARY_ROW, "export const A = () => <LibraryRow title='a' />;", LIST_SLOT_SURFACE)).toEqual([]);
   expect(await findings(LIBRARY_ROW, RAW_ROW, TRANSCRIPT_SURFACE)).toEqual([]);

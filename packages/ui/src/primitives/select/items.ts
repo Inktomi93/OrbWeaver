@@ -14,7 +14,7 @@ export interface SelectOption<Value = string> {
    *
    * It sits OUTSIDE `Select.ItemText` on purpose: `Select.Value` mirrors the selected option's
    * `ItemText` onto the closed trigger, so a gloss folded into that node would paint on the trigger too
-   * and break the app-wide single-line-trigger convention (`value: min-w-0 truncate`).
+   * and grow the closed trigger with copy that is not its value.
    *
    * The slot exists because a legend living in the Field's `description` is OCCLUDED by the popup the
    * moment the select opens — the reader cannot see the explanation while making the choice it explains

@@ -9,7 +9,7 @@ import { useRef } from "react";
 import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "#components";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { TagSortMode } from "#lib";
-import { COLLECTION_LARGE_GROUP, NEW_LABEL_NAME, notify, tagSortItems, USAGE_KIND_TITLES } from "#lib";
+import { COLLECTION_LARGE_GROUP, NEW_LABEL_NAME, notify, rethrowUnlessTrpcFailure, tagSortItems, USAGE_KIND_TITLES } from "#lib";
 import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
 
 // Case-folded names include writes and conflicts the cached library has not observed yet.
@@ -136,7 +136,7 @@ export function useCreateLabel(active = true): { readonly run: () => void; reado
         .finally(() => {
           inFlight.current = false;
         })
-        .catch(() => undefined);
+        .catch(rethrowUnlessTrpcFailure);
     },
     pending: create.isPending,
   };

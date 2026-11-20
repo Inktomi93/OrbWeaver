@@ -12,6 +12,7 @@ import {
   storedAssetSchema,
 } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,7 +55,7 @@ async function ownerRoot(): Promise<NativeServerTestHarness> {
 async function upload(root: NativeServerTestHarness, kind: AssetKind, media: AssetMedia): Promise<Response> {
   const sample = SAMPLES[media];
   const form = new FormData();
-  form.set("file", new File([Uint8Array.from(sample.bytes)], sample.name, { type: sample.type }));
+  form.set(UPLOAD_FILE_FIELD, new File([Uint8Array.from(sample.bytes)], sample.name, { type: sample.type }));
   form.set("kind", kind);
   return await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
 }
@@ -93,6 +94,30 @@ test.for(ASSET_UPLOAD_KINDS)("the upload route stores a file of kind %s of a med
   const acceptedResponse = await upload(root, kind, accepted);
   expect(acceptedResponse.status).toBe(OK);
   storedAssetSchema.parse(await acceptedResponse.json());
+});
+
+test("the upload route stores a picture only under one bare type, never a type list or a type with a parameter", async () => {
+  await using root = await ownerRoot();
+  const picture = SAMPLES.image;
+  const send = async (type: string): Promise<{ readonly status: number; readonly reason: string | undefined }> => {
+    const form = new FormData();
+    form.set(UPLOAD_FILE_FIELD, new File([Uint8Array.from(picture.bytes)], picture.name, { type }));
+    form.set("kind", "attachment");
+    const response = await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
+    if (response.status === OK) {
+      storedAssetSchema.parse(await response.json());
+      return { status: response.status, reason: undefined };
+    }
+    return { status: response.status, reason: assetUploadRefusalSchema.parse(await response.json()).reason };
+  };
+  const refused = { status: UNSUPPORTED_MEDIA_TYPE, reason: ASSET_UPLOAD_REFUSAL_CODES.contentRejected };
+
+  expect({
+    typeList: await send(`${picture.type}, text/plain`),
+    parameterThenList: await send(`${picture.type};x=1, text/plain`),
+    parameter: await send(`${picture.type}; name=x`),
+    bare: await send(picture.type),
+  }).toEqual({ typeList: refused, parameterThenList: refused, parameter: refused, bare: { status: OK, reason: undefined } });
 });
 
 forEachNonEmpty(

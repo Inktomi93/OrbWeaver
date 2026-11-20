@@ -55,10 +55,8 @@ const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
  *
  * It lives here because both ends need it and neither may import the other: the default-card pack stamps it
  * (`domain/character/seeder/cards.ts`, `AUTHORED_CARD_DEFAULTS.creator`) and the client's provenance readout
- * reads it (`character-overview-card.tsx`). It used to be a bare `"orbweaver"` literal in the pack with no
- * reader, so the Origin card told a first-time user their ten shipped example characters were `Made here` —
- * provenance that is false about every row in a fresh library, on the one card whose whole job is provenance
- * That is why the Origin readout derives from the server's projection.
+ * reads it (`character-overview-card.tsx`). The Origin readout derives from the server's projection, so a
+ * fresh library's shipped cards are not reported as the owner's own work.
  *
  * It is a card-content field, so it is a HEURISTIC by construction: an imported card whose author wrote
  * `orbweaver` in its creator field reads as shipped too. That is the honest limit of a claim derived from
@@ -73,7 +71,7 @@ export const AUTHORED_CARD_CREATOR = "orbweaver";
 // over every row: the Characters landing shelves a fresh install by this, and a row with no answer is a row
 // with no shelf.
 //
-// NOT to be confused with the CARD's own `source` field, which is the ST V3 `data.source` provenance-URL
+// NOT to be confused with the CARD's own `source` field, which is the V3 card's `data.source` provenance-URL
 // list carried verbatim through the serde — a different fact under a name the wire already owns.
 const CHARACTER_PROVENANCES = ["shipped", "imported", "authored"] as const;
 export type CharacterProvenance = (typeof CHARACTER_PROVENANCES)[number];
@@ -151,7 +149,7 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 // consuming it is outside this parser. URI fetches must use the network egress guard: a card is untrusted,
 // so a URI fetch is an SSRF surface. The serde stays
 // pure parse-and-validate (kit is isomorphic, zero I/O). `z.looseObject` keeps unknown asset keys; the fields are
-// lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
+// lenient (a real-world asset with a missing `type`/`name` never throws — the card spec defaults them to `""`).
 const cardAssetText = z.string().catch("");
 const cardAssetSchema = z.looseObject({
   type: cardAssetText,
@@ -172,11 +170,8 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // signals object is a CARD field (this file's home turf, like depthPrompt); the analysis half is the
 // refinery pipeline's TYPED analyze payload (per-run verdict/soul-check shape — `#refinery` owns it).
 // The analysis validators live below both public roots in refinery's private core leaf.
-// The read seam's whole-object `.catch(null)` (character persistence) heals any pre-tightening loose
-// blob to null — the pre-launch bargain, no migration mechanics.
-// `score` holds the pipeline's 1-10 rubric (a score run's `overallScore`) — tightened IN THE SAME CHANGE
-// as the read seam's field-level heal split (the ordering condition: tightening
-// under the old whole-object catch would have wiped BOTH halves on any legacy out-of-range value).
+// The read seam heals a malformed blob to null. `score` holds the pipeline's 1-10 rubric (a score run's
+// `overallScore`); the read seam's field-level heal nulls only the half that fails, never both.
 export const refinerySignalsSchema = z
   .object({
     score: z.number().min(1).max(10).nullable(),
@@ -198,7 +193,7 @@ export const attachedBookRefSchema = z
   .strip();
 export type AttachedBookRef = z.infer<typeof attachedBookRefSchema>;
 
-// The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`
+// The V3-wire key the references ride under (orbweaver-namespaced so it never collides with a card-spec `data.*`
 // field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here.
 export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
 
@@ -211,16 +206,16 @@ export const CHARACTER_HANDLE_WIRE_KEY = "orbweaver_handle";
 export const CHARACTER_BACKGROUND_WIRE_KEY = "orbweaver_background";
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-// ── Greeting (V3 promotion Phase B) ─────────────────────────────────────────────────────────────────────
-// ONE greetings array folds the former three ST wire fields: `first_mes` (greetings[0].text), the
+// ── Greeting ─────────────────────────────────────────────────────────────────────────────────────────────
+// ONE greetings array folds the three V2 card-wire fields: `first_mes` (greetings[0].text), the
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
 // offered only in group chats. The serde re-splits them on export (`buildCardV3`) so the round-trip is lossless.
-// The owner-decided lock-the-extensible-shape call (the parallel-column alternative was rejected).
+// The extensible-shape call is settled: one array, not a parallel column.
 const greetingSchema = z
   .object({
     /** The greeting text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at read. */
     text: z.string().max(TEXT_MAX),
-    /** True ⇒ offered ONLY in group chats (ST `data.group_only_greetings`). Absent ⇒ a normal greeting. Never
+    /** True ⇒ offered ONLY in group chats (`data.group_only_greetings`). Absent ⇒ a normal greeting. Never
      *  set on greetings[0] (the first message is always solo-eligible). */
     groupOnly: z.boolean().optional(),
   })
@@ -243,7 +238,7 @@ const characterCardSchema = z
     personality: z.string().max(TEXT_MAX).nullable(),
     scenario: z.string().max(TEXT_MAX).nullable(),
     /** Ordered greetings — `[0]` is the first message, the rest are alternates; `groupOnly` marks a
-     *  group-chat-only greeting (the folded ST `group_only_greetings`). */
+     *  group-chat-only greeting (the folded `group_only_greetings`). */
     greetings: z.array(greetingSchema).max(GREETINGS_MAX),
     exampleMessages: z.string().max(TEXT_MAX).nullable(),
     systemPrompt: z.string().max(TEXT_MAX).nullable(),
@@ -251,32 +246,32 @@ const characterCardSchema = z
     /** Character's Note \@ Depth, or null (no/empty note). */
     depthPrompt: cardDepthPromptSchema.nullable(),
     creatorNotes: z.string().max(TEXT_MAX).nullable(),
-    // ── Typed promotions (D28): the fields neo leaked through `raw`, now first-class columns ──
-    /** Card-author handle (ST `data.creator`). */
+    // ── Typed card fields (D28): first-class columns, never residue ──
+    /** Card-author handle (`data.creator`). */
     creator: z.string().max(CREATOR_MAX).nullable(),
-    /** Card author's freeform version STRING (ST `data.character_version`, e.g. "1.2") — NEVER an int counter. */
+    /** Card author's freeform version STRING (`data.character_version`, e.g. "1.2") — NEVER an int counter. */
     cardVersion: z.string().max(CARD_VERSION_MAX).nullable(),
-    // ── V3 content promotions: the four `data.*` fields that had a residual home, now first-class columns.
-    //    Absent on a V2 / app-authored card ⇒ null (the V2-omits-them-cleanly property export relies on). ──
-    /** Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`). */
+    // ── V3 content fields: the four `data.*` fields with a home of their own. Absent on a V2 / app-authored
+    //    card ⇒ null (the V2-omits-them-cleanly property export relies on). ──
+    /** Prompt-facing display name overriding `{{char}}` (V3 `data.nickname`). */
     nickname: z.string().max(NICKNAME_MAX).nullable(),
-    /** Provenance URLs / ids the card was sourced from (ST V3 `data.source`). */
+    /** Provenance URLs / ids the card was sourced from (V3 `data.source`). */
     source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable(),
-    /** Unix-seconds authorship timestamp (ST V3 `data.creation_date`). */
+    /** Unix-seconds authorship timestamp (V3 `data.creation_date`). */
     creationDate: z.int().nullable(),
-    /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
+    /** Unix-seconds last-modification timestamp (V3 `data.modification_date`). */
     modificationDate: z.int().nullable(),
-    /** ST's favorite flag (`data.extensions.fav`) promoted onto `characters.starred` — the
+    /** The card spec's favorite flag (`data.extensions.fav`) landing on `characters.starred` — the
      *  promote-out-of-residue pattern of `depth_prompt`/`regex_scripts` (D28): the IN-adapter reads it, the
      *  residue drops the key, and the OUT-emitter writes it back FROM THE LIVE ROW (so a star toggled in orb
      *  exports truthfully instead of replaying the imported byte). OPTIONAL on the `regexScripts` precedent:
      *  present at the serde boundary; the domain's card projection omits it (the row column is the home). */
     starred: z.boolean().optional(),
-    /** The ST card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
+    /** The card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
      *  the LIFT/RE-EMBED slot, present ONLY at the serde boundary: the importer hands these to the regex
      *  domain to mint library rows + a `character_regex_scripts` attachment, and the exporter fills it by
-     *  walking that junction back out (byte-shape-identical ST wire). The DOMAIN's card projection OMITS it
-     *  — a character does not carry scripts by value any more (D121-E). */
+     *  walking that junction back out (byte-shape-identical card wire). The DOMAIN's card projection OMITS it
+     *  — a character does not carry scripts by value (D121-E). */
     regexScripts: z.array(regexScriptCardSchema).max(REGEX_SCRIPTS_MAX).optional(),
     /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
     extensions: jsonObjectSchema.nullable(),
@@ -287,7 +282,7 @@ const characterCardSchema = z
     refinery: refinerySignalsSchema.nullable(),
     /** The wire spec this card was READ from (`chara_card_v2`/`chara_card_v3`) so export round-trips it (V2→V2,
      *  V3→V3). Absent for app-authored / V1 / Pygmalion cards — export then defaults to V3. Serde-boundary only
-     *  today (no backing `characters` column yet — the residual-first pattern), so a DB round-trip normalizes
+     *  (no backing `characters` column), so a DB round-trip normalizes
      *  to V3; V3-native content (`assets`/`nickname`/…) still survives the DB via the `residualData` column. */
     spec: cardSpecSchema.optional(),
   })
@@ -412,7 +407,7 @@ export const createCharacterSchema = z
     extensions: jsonObjectSchema.nullable().optional(),
     residualData: jsonObjectSchema.nullable().optional(),
     avatarAssetId: cardFaceFields.avatarAssetId.optional(),
-    /** The owner's star; an imported card lands with the star its file carries (ST `extensions.fav`). */
+    /** The owner's star; an imported card lands with the star its file carries (`extensions.fav`). */
     starred: cardFaceFields.starred.optional(),
     /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
     depthPrompt: cardDepthPromptSchema.nullable().optional(),
@@ -466,7 +461,7 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
    *  under the `interactive` frame posture (and render its HTML trusted, which the rung implies);
    *  `null`/`false`/absent = not interactive (no deployment tier inherits here). A caller that writes this
    *  pair should go through `renderPolicyOverrideForStep` rather than picking two booleans. Selecting the
-   *  posture is all the top rung does today: card-authored scripts stay CSP-refused on both arms until the
+   *  posture is all the top rung does: card-authored scripts stay CSP-refused on both arms until the
    *  leg-3 security pass grants them. */
   interactiveHtml: z.boolean().nullable().optional(),
   /** `undefined` = leave unchanged; `null` = clear (inherit global theme); a value = set it. */
@@ -481,17 +476,11 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 // The library-list page bounds — ONE home, because the transport enforces the ceiling and the verb applies
 // the default, and a second spelling of either lets the two disagree.
 //
-// THE CEILING IS LOUD, NOT SILENT. It used to be a `Math.min` inside the verb: four callers
-// asked for 200-500 rows to build id→name/portrait LOOKUP MAPS, silently got 100, and quietly under-covered
-// a large library — the chats list simply stopped resolving portraits past the loaded page, with
-// nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
-// the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
-// 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE: the shape
-// this comment prescribed — a read that carries the seats it is about — is what `ChatSummary` now does
-// (`participantPortraits`, resolved by the roster read the list projection already runs), and the chats
-// list, the character projection and both home tiles stopped fetching a whole-library map to decorate six
-// rows. Any REMAINING caller asking for 500 is on the same clock: a lookup map is the wrong shape, and the
-// row it decorates is where the datum belongs.
+// THE CEILING IS LOUD, NOT SILENT. The router REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
+// the bound), so an ask that cannot be served fails where it is written instead of being answered with a
+// silently smaller page. 500 is the ceiling the id→name/portrait LOOKUP MAP callers need. A lookup map is
+// still the wrong shape to decorate a row with: the read that carries the datum is where it belongs
+// (`ChatSummary.participantPortraits`, resolved by the roster read the list projection already runs).
 export const CHARACTER_LIST_DEFAULT_LIMIT = 50;
 export const CHARACTER_LIST_MAX_LIMIT = 500;
 /** The most faces Home's shelf reads; it shows as many as fit one row beside the door. Homed here so the test corpus
@@ -591,7 +580,7 @@ const characterListCursorSchema = z.discriminatedUnion("sort", [
 ]);
 export type CharacterListCursor = z.infer<typeof characterListCursorSchema>;
 
-// The ST card wire object — a V2/V3 SUPERSET (`spec` accepts either; V3-additive fields are optional so a
+// The card wire object — a V2/V3 SUPERSET (`spec` accepts either; V3-additive fields are optional so a
 // V2 card validates as "V3 with the extras absent"). `z.looseObject` keeps unknown vendor keys riding through.
 const characterBookEntrySchema = z.looseObject({
   keys: z.array(z.string()),
@@ -651,13 +640,13 @@ const characterCardV3DataSchema = z.looseObject({
 });
 
 export const characterCardV3Schema = z.looseObject({
-  // A V2/V3 superset: accept either spec marker (`spec_version` stays a free string — ST V3 allows 3.x).
+  // A V2/V3 superset: accept either spec marker (`spec_version` stays a free string — the V3 spec allows 3.x).
   spec: cardSpecSchema,
   spec_version: z.string(),
   data: characterCardV3DataSchema,
 });
 
-/** The ST V3 card object the serde emits/parses (the shape `buildCardV3` returns + `writeCardChunk` writes). */
+/** The V3 card object the serde emits/parses (the shape `buildCardV3` returns + `writeCardChunk` writes). */
 export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;
 
 // ── Character operation reason codes — the WIRE vocabulary a refusal is keyed on ─────────────────────────
@@ -665,9 +654,8 @@ export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;
 // mechanism: the transport's error formatter rides a `DomainOperationError.code` on `data.reason`
 // (`transport/trpc/error-mapping.ts`), so a client that wants to say something HONEST about a refusal keys
 // on that structured field and never on message text — and the code therefore has to live BELOW both
-// packages, not inside `domain/character/contract/errors.ts` where the client cannot reach it. That is
-// exactly how `character.create` came to answer a `handle_conflict` with "Couldn't create the character."
-//: the server's refusal was already typed and already on the wire; nothing downstream could read it.
+// packages, not inside `domain/character/contract/errors.ts` where the client cannot reach it. A typed
+// refusal that no downstream reader can reach costs the user the reason it happened.
 // The server's own constants derive from these.
 
 /** A per-owner handle collision — the `characters` unique index fired on a create, or on a rename. The
@@ -688,28 +676,26 @@ export const CHARACTER_HANDLE_RESERVED_OP_CODE = "handle_reserved" as const;
 export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 
 // ── Bulk card-tag per-item result — the honest wire for a PARTIAL batch ────────────────────────
-// `bulkAddCardTag`/`bulkRemoveCardTag` used to `allSettled` the per-character writes, audit + announce the
-// siblings that committed, then RETHROW the first rejection unchanged — so the caller saw one typed error
-// for a batch that had, in fact, partially landed. The honest shape is a per-item result: which characters
-// kept the write, and how many refused and why. `error.message` is wire-safe text, never a raw `Error`
-// serialized onto the wire.
+// A bulk write reports per item: which characters kept the write, and which refused and why. One typed
+// error for a batch that partially landed tells the caller nothing true about the rows it touched.
+// `error.message` is wire-safe text, never a raw `Error` serialized onto the wire.
 
-const characterBulkTagFailureSchema = z.strictObject({
+const characterBulkFailureSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
   error: z.strictObject({
     message: z.string(),
   }),
 });
-export type CharacterBulkTagFailure = z.infer<typeof characterBulkTagFailureSchema>;
+export type CharacterBulkFailure = z.infer<typeof characterBulkFailureSchema>;
 
-/** The per-item batch result both bulk card-tag verbs return: `applied` names every character the write
- *  actually landed on; `failed` names every one it did not, and why. A character in neither array was
- *  skipped as a silent no-op exactly as before this row (unowned/missing, or the tag was already in the
- *  target state) — that degrade is unchanged, only the REJECTED half is now legible. */
-export const characterBulkTagResultSchema = z.strictObject({
+/** The per-item batch result the bulk card-tag verbs and the bulk remove return: `applied` names every character
+ *  the write actually landed on; `failed` names every one it did not, and why. A character in neither array was
+ *  skipped as a silent no-op (unowned or missing, or the tag was already in the target state). */
+export const characterBulkResultSchema = z.strictObject({
   applied: z.array(typeIdSchema(ID_PREFIX.character)),
-  failed: z.array(characterBulkTagFailureSchema),
+  failed: z.array(characterBulkFailureSchema),
 });
-export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;
+export type CharacterBulkResult = z.infer<typeof characterBulkResultSchema>;
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
@@ -741,7 +727,7 @@ export interface CharacterDetail extends CharacterCard {
   /** The CLOSED where-it-came-from verdict, derived ONCE at the read seam (`characterProvenanceOf`)
    *  from `importedFrom` + `creator`. The Origin readout DISPATCHES on this rather than re-deriving it, so
    *  the detail and the library row can never disagree about a card's origin. Distinct from the card's own
-   *  `source` (the ST V3 provenance-URL list this view inherits from `CharacterCard`). */
+   *  `source` (the V3 provenance-URL list this view inherits from `CharacterCard`). */
   readonly provenance: CharacterProvenance;
   readonly contentHash: string;
   readonly createdAt: number;
@@ -773,8 +759,7 @@ interface CharacterSummaryFields {
    *
    * IT IS NOT `character_stats.chats`. That counter is bumped only for a room's FIRST founding
    * character (`chatCreatedDelta`, `domain/chat/verbs/claim-chat.ts`); a character seated second — or
-   * joined into a running room — contributes message deltas and never a chat, so the rollup read `0` for a
-   * character the rest of the app said had one.
+   * joined into a running room — contributes message deltas and never a chat.
    *
    * NOT NULLABLE: a character with no rooms counts zero, and the face prints a NUMBER — a nullable field
    * would push a three-state decision onto every consumer for a distinction the product does not make. The
@@ -813,8 +798,8 @@ export type CharacterSummary = CharacterSummaryFields &
  * WHOLE library: printing a lens-blind census beside lens-filtered members is the second-wrong-answer this
  * verb exists to avoid (the refusal recorded in `character-categorized-list.tsx` — see the verb).
  *
- * `folderType` rides along because the grouped view's FIRST paint is decided by it (C9-1d,
- * `groupStartsOpen`), and a header the client renders from a census it did not previously have must carry
+ * `folderType` rides along because the grouped view's FIRST paint is decided by it
+ * (`groupStartsOpen`), and a header the client renders from a census it did not previously have must carry
  * everything that header needs — otherwise the client is back to reading it off a loaded row, i.e. off the
  * window.
  */
@@ -866,8 +851,8 @@ export interface ListCharactersResult {
    *  back (no further row remains in this sort's order). Its `sort` matches the request's. */
   readonly nextCursor: CharacterListCursor | null;
   /** A real server `COUNT` over the SAME scope this page windows (search + chips included), never
-   *  `items.length` — the `ChatListPage.totalCount` precedent. The band printed no count at all while the
-   *  only number available was "loaded so far"; this is the honest one, so it can print again. */
+   *  `items.length` — the `ChatListPage.totalCount` precedent. The band prints a real count, never
+   *  "loaded so far". */
   readonly totalCount: number;
 }
 
@@ -877,8 +862,7 @@ export interface ListCharactersResult {
  *
  * `uncategorized` is a FIRST-CLASS member rather than a derivation: it is the biggest bucket on a real
  * library and it cannot be computed from `groups` (a character with two tags is counted in both, so the
- * group counts do not sum to the matched total). It is also precisely the number the prior arm could not
- * source at all, which is the reason that arm refused a census outright.
+ * group counts do not sum to the matched total).
  */
 export interface ListCharacterTagGroupsResult {
   /** One bucket per VISIBLE tag that at least one matching character carries — most-populated first, ties
@@ -1001,6 +985,11 @@ export interface PluginCardDataTarget {
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+
+/** What a per-card plugin-state write did: `absent` when the caller owns no such character, `unwritable` when the
+ *  character's stored extensions nest past what the database's JSON functions accept, so one key cannot be set in place. */
+export const PLUGIN_CARD_DATA_WRITES = ["written", "absent", "unwritable"] as const;
+export type PluginCardDataWrite = (typeof PLUGIN_CARD_DATA_WRITES)[number];
 /** One plugin's stamp lookup over one owner's characters: `ownerId` and `slug` are host-stamped, `values` is guest text. */
 export interface PluginCardDataLookup {
   readonly ownerId: UserId;
@@ -1137,7 +1126,9 @@ export interface FindByHandleParams {
 
 export type CreateCharacterOp = (params: CreateCharacterParams) => Promise<CharacterDetail>;
 export type GetCharacterOp = (params: GetCharacterParams) => Promise<CharacterDetail>;
-export type UpdateCharacterOp = (params: UpdateCharacterParams) => Promise<CharacterDetail>;
+/** `Signal` cancels the external background fetch an update may run; a type parameter because this package cannot
+ *  name `AbortSignal`. */
+export type UpdateCharacterOp<Signal> = (params: UpdateCharacterParams & { readonly signal: Signal }) => Promise<CharacterDetail>;
 export type DuplicateCharacterOp = (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
 export type SnapshotCharacterOp = (params: SnapshotParams) => Promise<SnapshotRef>;
 export type FindCharacterByHandleOp = (params: FindByHandleParams) => Promise<CharacterRef | null>;

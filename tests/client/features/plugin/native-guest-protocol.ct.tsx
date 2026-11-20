@@ -1,18 +1,31 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
-import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import type { UiProxyableHostFunction } from "@orb/contracts/plugin";
+import {
+  HOST_FUNCTION_CAPABILITY,
+  PLUGIN_CHANNEL_FULL_CODE,
+  PLUGIN_LOG_CHARS_MAX,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_LOG_LINES_MAX,
+  PLUGIN_UI_HOST_CALL_CODES,
+  PLUGIN_UI_HOST_CALL_FAILED,
+  PLUGIN_UI_ROUTE,
+} from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { watchToastMounts } from "@orb/testkit/browser/spec";
-import { noticeToast, routeTrpc, trpcError } from "@orb/testkit/ct";
+import { noticeToast, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
+import { createCorpusReadResponder, createCorpusViewerReadResponder, present } from "@orb/testkit/iso";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { UI_GUEST_BUDGETS } from "#client/lib/plugin-ui-guest-protocol.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -174,12 +187,14 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   await page.getByRole("button", { name: "Read ledger", exact: true }).click();
   await expect(page.getByText('Read: Native ledger; entry: "Native field"', { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Refused ledger", exact: true }).click();
-  await expect(page.getByText(`Refused: ${RELAY_FAILURE_MESSAGE}`, { exact: true })).toBeVisible();
+  // A refusal with no allowlisted reason reaches plugin code as the fixed sentence, never the server's text.
+  await expect(page.getByText(`Refused: ${PLUGIN_UI_HOST_CALL_FAILED}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(RELAY_FAILURE_MESSAGE)).toHaveCount(0);
   expect(trpc.count("plugin.reportUiCrash")).toBe(0);
   expect(page.workers()).toHaveLength(1);
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Crash guest", exact: true }).click();
-  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   await Promise.all(retired);
   expect(retired).toHaveLength(1);
@@ -216,7 +231,10 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   expect(page.workers()).toHaveLength(1);
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   const settledFailure = { kind: "settled", ok: false, message: `TypeError: ${EVENT_FAILURE_MESSAGE}` } satisfies UiGuestSettledMessage;
-  const refusedResult = { kind: "hostResult", callId: 2, ok: false, message: RELAY_FAILURE_MESSAGE } satisfies Extract<UiGuestInbound, { kind: "hostResult" }>;
+  const refusedResult = { kind: "hostResult", callId: 2, ok: false, message: PLUGIN_UI_HOST_CALL_FAILED } satisfies Extract<
+    UiGuestInbound,
+    { kind: "hostResult" }
+  >;
   const expectedResults = {
     inbound: [
       { kind: "hostResult", callId: 1, ok: true, resultJson: '"Native ledger"' },
@@ -242,6 +260,81 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   expect(page.workers()).toHaveLength(0);
 });
 
+const REFUSAL_SURFACE_READY = "Refusal guest ready";
+const NO_CODE = "no code";
+// The text a server fault might carry; it must never reach plugin code.
+const SERVER_FAULT_TEXT = "SQLITE_BUSY: database is locked at /app/data/db/orbweaver.db";
+const REFUSAL_SOURCE = `const ui = orb.ui(1);
+const render = (value) => ui.render("protocol", { kind: "stack", children: [
+  { kind: "text", value },
+  { kind: "button", label: "Read a variable", actionId: "variable" },
+  { kind: "button", label: "Read a numeric key", actionId: "numeric" },
+  { kind: "button", label: "Read through a fault", actionId: "fault" }
+] });
+render(${JSON.stringify(REFUSAL_SURFACE_READY)});
+ui.onEvent(async ({ event }) => {
+  try {
+    if (event.actionId === "variable") await ui.host.variables.get("anything");
+    else if (event.actionId === "numeric") await ui.host.storage.get(42);
+    else await ui.host.storage.get("fault");
+    render("resolved");
+  } catch (error) {
+    render(error.name + "|" + (error.code === undefined ? ${JSON.stringify(NO_CODE)} : error.code) + "|" + error.message);
+  }
+});`;
+
+test("a scripted guest's refused host call carries the server's allowlisted code, and any other failure reaches it codeless and generic", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  const stage = root.corpus.wire.pluginLibrary?.recipientActive;
+  if (stage === undefined) {
+    throw new Error("The committed corpus has no recipient plugin stage");
+  }
+  const { pluginId } = stage.ids;
+  const caller = await root.internalCallerFor(stage.viewerUserId);
+  const plugin = (await caller.plugin.list()).find(({ id }) => id === pluginId);
+  // The relay re-gates against this stored row: enabled, holding storage.kv and not global_vars.
+  expect(plugin).toMatchObject({ status: "enabled", grantedCapabilities: expect.arrayContaining(["storage.kv"]) });
+  expect(present(plugin).grantedCapabilities).not.toContain(HOST_FUNCTION_CAPABILITY["variables.get"]);
+  const serverRefusal = async (fn: UiProxyableHostFunction, argsJson: string): Promise<string> =>
+    await caller.plugin.uiHostCall({ pluginId, fn, argsJson }).then(
+      () => {
+        throw new Error(`${fn} was not refused`);
+      },
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+  const trpc = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "plugin.list", "plugin.uiHostCall"], (input) =>
+      // A coded refusal outside the allowlist, carrying text a fault could hold.
+      typeof input === "object" && "argsJson" in input && input.argsJson === '["fault"]'
+        ? trpcError({ code: "CONFLICT", message: SERVER_FAULT_TEXT, reason: PLUGIN_CHANNEL_FULL_CODE })
+        : undefined,
+    ),
+    "plugin.listSurfaces": () => [makePluginScriptedPage(pluginId)],
+    "plugin.getSurfaceState": knownPlugin(pluginId, null),
+    "plugin.reportUiCrash": knownPlugin(pluginId, undefined),
+  });
+  await page.route(`${PLUGIN_UI_ROUTE}/${pluginId}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: REFUSAL_SOURCE }));
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId });
+  await expect(page.getByText(REFUSAL_SURFACE_READY, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Read a variable", exact: true }).click();
+  const notGranted = await serverRefusal("variables.get", '["anything"]');
+  await expect(page.getByText(`Error|${PLUGIN_UI_HOST_CALL_CODES.notGranted}|${notGranted}`, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Read a numeric key", exact: true }).click();
+  const argsInvalid = await serverRefusal("storage.get", "[42]");
+  await expect(page.getByText(`Error|${PLUGIN_UI_HOST_CALL_CODES.argsInvalid}|${argsInvalid}`, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Read through a fault", exact: true }).click();
+  await expect(page.getByText(`Error|${NO_CODE}|${PLUGIN_UI_HOST_CALL_FAILED}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(SERVER_FAULT_TEXT)).toHaveCount(0);
+  expect(trpc.count("plugin.uiHostCall")).toBe(3);
+  expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+});
+
 test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({
   corpus,
   corpusViewer,
@@ -263,7 +356,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
   const component = await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await expect
     .poll(() => trpc.lastInput("plugin.reportUiCrash"))
     .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: expect.stringContaining(BOOT_FAILURE_MESSAGE) });
@@ -276,7 +369,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   source = UI_SOURCE;
   const nextWorker = page.waitForEvent("worker");
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await nextWorker;
   await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
   expect(retired).toHaveLength(2);
@@ -295,6 +388,205 @@ test("a native guest boot failure publishes ready:false and reports the original
   await component.unmount();
   await Promise.all(retired);
   expect(page.workers()).toHaveLength(0);
+});
+
+/** A guest whose boot-time host call settles after boot, outside every event, into a `then` getter it put on
+ *  `Object.prototype`: a resolve reads that getter, so a looping one runs wherever the settle runs. */
+function thenGetterSource(loops: boolean): string {
+  return `const ui = orb.ui(1);
+let armed = false;
+Object.defineProperty(Object.prototype, "then", { configurable: true, get() { if (armed) { for (;;) {} } return undefined; } });
+ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Settle guest booted" }] });
+armed = ${String(loops)};
+ui.host.storage.get("ledger").then((result) => {
+  ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Settled: " + result.entry }] });
+});
+undefined;`;
+}
+
+test("a host result whose then getter loops stops the guest past its CPU budget and reports the crash", async ({ corpus, corpusViewer, mount, page }) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && input.argsJson === '["ledger"]'
+        ? { resultJson: JSON.stringify({ entry: "Native ledger" }) }
+        : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  let source = thenGetterSource(true);
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
+  const retired: Promise<void>[] = [];
+  page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
+  await observeProtocol(page);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+  await expect(retry).toBeVisible();
+  await Promise.all(retired);
+  expect(page.workers()).toHaveLength(0);
+  await expect.poll(() => trpc.lastInput("plugin.reportUiCrash")).toMatchObject({ pluginId: plugin.id, surfaceId: "protocol" });
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  const stopped = { kind: "stopped" } satisfies Extract<UiGuestOutbound, { kind: "stopped" }>;
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)).toContain(JSON.stringify(stopped));
+
+  // Control: the same guest with its getter disarmed settles the result and renders it, and reports nothing more.
+  source = thenGetterSource(false);
+  const nextWorker = page.waitForEvent("worker");
+  await retry.click();
+  await nextWorker;
+  await expect(page.getByText("Settled: Native ledger", { exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+});
+
+// An event that awaits a host call and then rejects with an object whose `message` getter loops. The worker reads the
+// rejection after the host call's settle and pump ran, so the read runs guest code under whatever deadline they left.
+const LOOPING_REJECTION_SOURCE = `const ui = orb.ui(1);
+ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Rejection guest ready" }, { kind: "button", label: "Read then reject", actionId: "reject" }] });
+ui.onEvent(async () => {
+  await ui.host.storage.get("ledger");
+  throw { get message() { for (;;) {} } };
+});`;
+
+test("an event that rejects after a host call is read under the event's own deadline, so the worker settles it as a failure", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) => (input.fn === "storage.get" ? { resultJson: '"Native ledger"' } : trpcError({ code: "NOT_FOUND" })),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: LOOPING_REJECTION_SOURCE }));
+  await observeProtocol(page);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  await page.getByRole("button", { name: "Read then reject", exact: true }).click();
+
+  // A worker that lost the event's deadline wedges in that read, posts nothing, and only the host wall ends it.
+  const failed = { kind: "settled", ok: false } satisfies Partial<UiGuestSettledMessage>;
+  await expect.poll(async () => (await readProtocolResults(page)).outbound).toContainEqual(expect.objectContaining(failed));
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+});
+
+// An event that waits on a host call past its CPU budget and then throws its own error, and one that spins. The error
+// builds its message in a getter, which the worker runs when it reads the error, with enough work that the engine polls
+// its interrupt during the read and well inside one event's budget.
+const SLOW_HOST_FAILURE_MESSAGE = "Native failure after a slow host call";
+const MESSAGE_WORK_ITERATIONS = 1_000_000;
+const UI_HOST_CALL_PATH = "plugin.uiHostCall";
+const SLOW_HOST_SOURCE = `const ui = orb.ui(1);
+ui.render("protocol", { kind: "stack", children: [
+  { kind: "text", value: "Slow host guest ready" },
+  { kind: "button", label: "Wait then fail", actionId: "wait" },
+  { kind: "button", label: "Spin", actionId: "spin" },
+  { kind: "button", label: "Linger", actionId: "linger" }
+] });
+ui.onEvent(async ({ event }) => {
+  if (event.actionId === "spin") { for (;;) {} }
+  if (event.actionId === "linger") { await ui.host.storage.get("lingering"); return; }
+  await ui.host.storage.get("ledger");
+  throw new (class extends Error {
+    get message() { let n = 0; for (let i = 0; i < ${MESSAGE_WORK_ITERATIONS}; i++) { n += i; } return ${JSON.stringify(SLOW_HOST_FAILURE_MESSAGE)}; }
+  })();
+});`;
+
+// Wall time is the subject: the host call is held until the page's monotonic clock shows one event's CPU budget gone.
+test("an event that waits past its CPU budget on a host call and then throws reports its own error, and a spin reports the interrupt", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && input.argsJson === '["ledger"]' ? { resultJson: '"Native ledger"' } : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  await page.route(
+    (url) => url.pathname.includes(UI_HOST_CALL_PATH),
+    async (route) => {
+      const arrivedAt = await page.evaluate(() => performance.now());
+      await page.waitForFunction(({ since, budgetMs }) => performance.now() - since > budgetMs, { since: arrivedAt, budgetMs: UI_GUEST_BUDGETS.eventCpuMs });
+      await route.fallback();
+    },
+  );
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: SLOW_HOST_SOURCE }));
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+
+  await page.getByRole("button", { name: "Wait then fail", exact: true }).click();
+  await expect(retry).toBeVisible();
+  expect(trpc.count("plugin.uiHostCall")).toBe(1);
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(1);
+  expect(trpc.requireLastInput("plugin.reportUiCrash").reason).toContain(SLOW_HOST_FAILURE_MESSAGE);
+
+  // Control: guest code that keeps running past the budget is still stopped, and its report names the interrupt.
+  await retry.click();
+  await page.getByRole("button", { name: "Spin", exact: true }).click();
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(2);
+  const spin = trpc.requireLastInput("plugin.reportUiCrash").reason;
+  expect(spin).toContain("InternalError");
+  expect(spin).not.toContain(SLOW_HOST_FAILURE_MESSAGE);
+});
+
+// The host sends an event without waiting for the last one to settle, so a later event can be waiting on its own host
+// call when an earlier one reads its error. Wall time is the subject here too.
+test("an event that fails while a later event still waits on a host call reports its own error", async ({ corpus, corpusViewer, mount, page }) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && (input.argsJson === '["ledger"]' || input.argsJson === '["lingering"]')
+        ? { resultJson: '"Native ledger"' }
+        : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  let arrivals = 0;
+  const { promise: lingering, resolve: releaseLingering } = Promise.withResolvers<void>();
+  await page.route(
+    (url) => url.pathname.includes(UI_HOST_CALL_PATH),
+    async (route) => {
+      arrivals += 1;
+      if (arrivals === 1) {
+        const arrivedAt = await page.evaluate(() => performance.now());
+        await page.waitForFunction(({ since, budgetMs }) => performance.now() - since > budgetMs, { since: arrivedAt, budgetMs: UI_GUEST_BUDGETS.eventCpuMs });
+      } else {
+        await lingering;
+      }
+      await route.fallback();
+    },
+  );
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: SLOW_HOST_SOURCE }));
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+
+  await page.getByRole("button", { name: "Wait then fail", exact: true }).click();
+  await expect.poll(() => arrivals).toBe(1);
+  await page.getByRole("button", { name: "Linger", exact: true }).click();
+  await expect.poll(() => arrivals).toBe(2);
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(1);
+  releaseLingering();
+  expect(trpc.requireLastInput("plugin.reportUiCrash").reason).toContain(SLOW_HOST_FAILURE_MESSAGE);
 });
 
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {
@@ -318,7 +610,7 @@ test("a crash report that fails writes its log and raises no toast, because the 
     pluginId: plugin.id,
     controlNotice: CONTROL_NOTICE,
   });
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await logged;
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   await page.getByRole("button", { name: CONTROL_NOTICE, exact: true }).click();
@@ -413,7 +705,7 @@ memoryTest(
     page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
     await observeProtocol(page);
     await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
-    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     const unavailable = expect.objectContaining({
       kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
       message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),

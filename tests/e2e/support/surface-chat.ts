@@ -4,10 +4,12 @@ import { ASSET_LIST_LIMIT_MAX, blobUrl } from "@orb/contracts/assets";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { ChatSummary, MessageView } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, forkResultSchema, listMessagesInputSchema, REACTION_EMOJIS } from "@orb/contracts/chat";
-import type { PluginCommandView, PluginView } from "@orb/contracts/plugin";
+import type { PluginCommandView, PluginConfirmButtonNode, PluginSurfaceNode, PluginView } from "@orb/contracts/plugin";
+import { pluginChildNodes } from "@orb/contracts/plugin";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
@@ -42,10 +44,8 @@ import {
   CHAT_SAVED_REPLY_NAME,
   CHAT_SEARCH_NAME,
   CHAT_SEND_NAME,
-  CHAT_STAR_NAME,
   CHAT_STOP_NAME,
   CHAT_STOPPING_NAME,
-  CHAT_UNSTAR_NAME,
   chatRowActionsName,
   reactionChoiceName,
   reactionPillName,
@@ -55,6 +55,7 @@ import {
   WIRE_STATIC_PREFIX_HEADING,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
+import { bodyDisplayRow, displayDepthsOf } from "#client/features/chat/lib/display-row.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_COPY_NAME,
@@ -67,7 +68,6 @@ import {
   MESSAGE_UNDO_CONTINUATION_NAME,
   MESSAGE_UNHIDE_FROM_AI_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
-  messageArticleName,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
@@ -75,12 +75,13 @@ import {
   humanizeId,
   PLUGIN_ACTIONS_NAME,
   PLUGIN_COMMAND_ARGS_TITLE,
+  placedItemLabel,
   pluginCommandActionLabel,
   pluginCommandShownName,
   pluginUndoName,
   sharedPluginNames,
 } from "#client/features/plugin/lib/plugin-command-copy.ts";
-import { CHAT_PLUGINS_OPEN_LABEL, movePluginPanelLabel, PLUGIN_DIALOG_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { CHAT_PLUGINS_OPEN_LABEL, movePluginPanelLabel, PLUGIN_DIALOG_TITLE, pluginSurfaceName } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME } from "#client/lib/chat-rename-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { COPIED_TO_CLIPBOARD_NOTICE } from "#client/lib/clipboard-names.ts";
@@ -89,7 +90,7 @@ import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "#client/lib/flank-names.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
-import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME, ROW_STAR_NAME, ROW_UNSTAR_NAME } from "#client/lib/row-menu-names.ts";
 import { NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "../../../packages/ui/src/primitives/selection-bar/selection-bar-names.ts";
 import { TOAST_CLOSE_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
@@ -788,7 +789,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
 
 async function inspectSidecarColumn(flow: Journey, room: ChatSummary): Promise<void> {
   const column = flow.page.locator('[data-slot="chat-thread-flank"]');
-  const edge = flow.page.getByRole("button", { name: new RegExp(`^(?:Show|Hide) ${SIDECAR_PANELS_NOUN}$`, "u") });
+  const edge = flow.page.getByRole("button", { name: namePattern(panelEdgeName(SIDECAR_PANELS_NOUN, false), panelEdgeName(SIDECAR_PANELS_NOUN, true)) });
   await expect(edge).toHaveCount(1);
   await settledBox(edge);
   const initiallyOpen = (await edge.getAttribute("aria-expanded")) === "true";
@@ -1519,8 +1520,8 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     });
     observe(flow, "commands/lifecycle/Rename", "visited", "Native rename Save persisted and repainted the disposable subject");
     for (const [label, starred] of [
-      [CHAT_STAR_NAME, true],
-      [CHAT_UNSTAR_NAME, false],
+      [ROW_STAR_NAME, true],
+      [ROW_UNSTAR_NAME, false],
     ] as const) {
       room = await commandRoom(flow, chat.id, title);
       const starMenu = await chatRowMenu(flow, room);
@@ -1538,7 +1539,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
             .filter({ has: flow.page.getByRole("button", { name: renamed, exact: true }) });
           await row.hover();
           await row.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) }).click();
-          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? CHAT_UNSTAR_NAME : CHAT_STAR_NAME, exact: true })).toBeVisible();
+          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? ROW_UNSTAR_NAME : ROW_STAR_NAME, exact: true })).toBeVisible();
           await flow.page.getByRole("menu").press("Escape");
         },
       });
@@ -1940,7 +1941,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
       const restamped = present((await readCanon(flow, room.id)).find(({ id }) => id === user.id));
-      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(present(messageArticleName(persona.name, restamped.position)));
+      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(`${persona.name} · #${String(restamped.position)}`);
       await messageOperationDone(
         flow,
         user,
@@ -1969,7 +1970,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       }
       observe(
         flow,
-        `message-operations/assistant/${assistant.id}/Saved replies…`,
+        `message-operations/assistant/${assistant.id}/${CHAT_SAVED_REPLIES_DOOR_NAME}`,
         "not-applicable",
         "Generated assistant row has no card-opening binding; actual menu snapshot has no Saved replies door",
       );
@@ -2037,15 +2038,28 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
   return messageOperations;
 }
 
-/** The text the transcript paints for plain authored prose: the production display pipeline over the viewer's own
- *  library scripts. The disposable room broadcasts none, which this asserts rather than composing the two tiers. */
-async function displayedText(flow: Journey, chatId: ChatId, text: string): Promise<string> {
-  expect(await flow.client.regex.listRoomDisplayScripts.query({ chatId })).toEqual([]);
-  return renderMessageForDisplay(text, {
-    characterNamesById: new Map<CharacterId, RowCharacterName>(),
-    personaNamesById: new Map<PersonaId, RowPersonaName>(),
-    displayScripts: await flow.client.regex.listScripts.query(),
-  });
+/** The text the transcript paints for a row of plain authored prose: the production display pipeline over the display
+ *  set the server resolves for this viewer in this room, with the row's own stamps, its depth in `canon` and the
+ *  room's standing. */
+async function displayedText(flow: Journey, message: MessageView, canon: readonly MessageView[]): Promise<string> {
+  const [scripts, chat] = await Promise.all([
+    flow.client.regex.listDisplayScripts.query({ chatId: message.chatId }),
+    flow.client.chat.getChat.query({ chatId: message.chatId }),
+  ]);
+  const depths = displayDepthsOf(
+    canon.map((view) => ({ kind: "message" as const, view })),
+    { later: false, settling: false },
+  );
+  return renderMessageForDisplay(
+    message.content,
+    {
+      characterNamesById: new Map<CharacterId, RowCharacterName>(),
+      personaNamesById: new Map<PersonaId, RowPersonaName>(),
+      displayScripts: scripts.map(({ script }) => script),
+      room: roomStandingOf(chat.participants),
+    },
+    bodyDisplayRow(message, depths.rows.get(message.id)),
+  );
 }
 
 async function disposableRoom(
@@ -2114,13 +2128,12 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
           await expect(textbox).toHaveValue("");
         },
       });
-      const completed = (await readCanon(flow, room.id)).find(
-        (message) => message.role === "assistant" && message.content === flow.run.generation.completionText,
-      );
+      const canon = await readCanon(flow, room.id);
+      const completed = canon.find((message) => message.role === "assistant" && message.content === flow.run.generation.completionText);
       if (completed === undefined) {
         throw new Error("The completed native turn has no durable assistant message");
       }
-      await expect(messageRow(flow.page, completed.id)).toContainText(await displayedText(flow, room.id, flow.run.generation.completionText));
+      await expect(messageRow(flow.page, completed.id)).toContainText(await displayedText(flow, completed, canon));
       observe(
         flow,
         "generation/completion",
@@ -2200,6 +2213,16 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
   }
 }
 
+/** The first confirm button a guest's registered spec declares: its label and confirm title are the guest's own words. */
+function specConfirmButton(node: PluginSurfaceNode | undefined): PluginConfirmButtonNode | undefined {
+  if (node === undefined || node.kind === "confirmButton") {
+    return node;
+  }
+  return pluginChildNodes(node)
+    .map(specConfirmButton)
+    .find((found) => found !== undefined);
+}
+
 /** A showcase bundle installs disabled and ungranted, so a journey over one consents and enables it, then restores that. */
 async function withEnabledPlugin(flow: Journey, slug: ShowcaseSlug, id: string, run: (plugin: PluginView) => Promise<void>): Promise<void> {
   const installed = (await flow.client.plugin.list.query()).find((row) => row.slug === slug);
@@ -2247,23 +2270,25 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
           .click();
         await pluginContextReady(flow);
         const frame = activeContext(flow).locator("iframe").filter({ visible: true });
-        const titles = [plugin.name, `${plugin.name}: ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
+        const titles = [plugin.name, pluginSurfaceName(plugin.name, surface.title)].map((title) => `[title=${JSON.stringify(title)}]`);
         const arcade = frame.and(flow.page.locator(titles.join(", ")));
         await expect(arcade).toHaveCount(1);
         await expect(arcade).toBeVisible();
         const guest = arcade.contentFrame();
         const board = guest.locator("#board");
         const cells = board.locator(".cell");
-        await expect(guest.getByRole("button", { name: "New game", exact: true })).toBeVisible();
+        // Guest source cannot import, so its copy has no production home; its own markup ids are the stable handles.
+        const newGame = guest.locator("button#new");
+        await expect(newGame).toBeVisible();
         await expect.poll(async () => await cells.count()).toBeGreaterThan(0);
-        await guest.getByRole("button", { name: "New game", exact: true }).click();
+        await newGame.click();
         const before = await cells.allTextContents();
         await flow.action("arcade/native-pad", {
           action: async () => {
-            await guest.getByRole("button", { name: "▲", exact: true }).click();
-            await guest.getByRole("button", { name: "◀", exact: true }).click();
-            await guest.getByRole("button", { name: "▼", exact: true }).click();
-            await guest.getByRole("button", { name: "▶", exact: true }).click();
+            await guest.locator('button[data-d="up"]').click();
+            await guest.locator('button[data-d="left"]').click();
+            await guest.locator('button[data-d="down"]').click();
+            await guest.locator('button[data-d="right"]').click();
           },
           ready: async () => {
             await expect.poll(async () => await cells.allTextContents()).not.toEqual(before);
@@ -2300,9 +2325,7 @@ async function runPlacedCommand(flow: Journey, command: PluginCommandView): Prom
   const trigger = flow.page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
   await trigger.click();
   const menu = await controlledPanel(trigger);
-  const item = menu.getByRole("menuitem", {
-    name: new RegExp(`^${RegExp.escape(shownName)} · .+ · ${RegExp.escape(placement.label)}$`, "u"),
-  });
+  const item = menu.getByRole("menuitem", { name: placedItemLabel({ shownName, command, label: placement.label }), exact: true });
   await expect(item).toHaveCount(1);
   await item.click();
 }
@@ -2318,7 +2341,8 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
       const surfaces = (await flow.client.plugin.listSurfaces.query()).filter(({ pluginId }) => pluginId === plugin.id);
       const deck = surfaces.find(({ anchor }) => anchor === "page");
       const revealSurface = surfaces.find(({ anchor }) => anchor === "dialog");
-      if (draw === undefined || reveal === undefined || deck === undefined || revealSurface === undefined) {
+      const retire = specConfirmButton(revealSurface?.spec);
+      if (draw === undefined || reveal === undefined || deck === undefined || revealSurface === undefined || retire === undefined) {
         throw new Error("The enabled maintained deck is missing its real Draw/Reveal registrations");
       }
       await disposableRoom(flow, { name: "oracle", content: "A disposable room for maintained local plugin commands.", attachments: [] }, async (room) => {
@@ -2326,10 +2350,10 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
         await dismissContext(flow);
         const dialog = flow.page.getByRole("dialog", { name: PLUGIN_DIALOG_TITLE, exact: true });
         await runPlacedCommand(flow, reveal);
-        await expect(dialog.getByRole("button", { name: "Retire this deck", exact: true })).toBeVisible();
-        await dialog.getByRole("button", { name: "Retire this deck", exact: true }).click();
-        const confirmation = flow.page.getByRole("alertdialog", { name: "Retire the deck?", exact: true });
-        await confirmation.getByRole("button", { name: "Retire this deck", exact: true }).click();
+        await expect(dialog.getByRole("button", { name: retire.label, exact: true })).toBeVisible();
+        await dialog.getByRole("button", { name: retire.label, exact: true }).click();
+        const confirmation = flow.page.getByRole("alertdialog", { name: retire.confirmTitle, exact: true });
+        await confirmation.getByRole("button", { name: retire.label, exact: true }).click();
         await expect(confirmation).toBeHidden();
         await expect.poll(async () => (await flow.client.plugin.getSurfaceState.query({ pluginId: plugin.id, surfaceId: deck.id }))?.["dealt"]).toBe(0);
         await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
@@ -2356,7 +2380,7 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
           },
           ready: async () => {
             await expect(dialog).toBeVisible();
-            await expect(dialog.getByRole("group", { name: `${plugin.name}: ${revealSurface.title}`, exact: true })).toBeVisible();
+            await expect(dialog.getByRole("group", { name: pluginSurfaceName(plugin.name, revealSurface.title), exact: true })).toBeVisible();
             await expect
               .poll(async () => (await flow.client.plugin.getSurfaceState.query({ pluginId: plugin.id, surfaceId: revealSurface.id }))?.["seed"])
               .toEqual(expect.any(String));
@@ -2370,7 +2394,7 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
           throw new Error("The native Reveal command has no published session seed");
         }
         await expect(dialog).toContainText(seed);
-        await checkpoint(flow, "oracle-command-result", dialog, dialog.getByRole("button", { name: "Retire this deck", exact: true }));
+        await checkpoint(flow, "oracle-command-result", dialog, dialog.getByRole("button", { name: retire.label, exact: true }));
         await attachNativeFile(flow.info, flow.info, "oracle-command-publication", {
           body: JSON.stringify(
             {
@@ -2623,7 +2647,8 @@ export async function walkChatMedia(input: SurfaceFlow): Promise<void> {
     }
     const asset = selected;
     const anchorText = "The native reading anchor immediately after the delayed original image.";
-    const content = `![Original snapshot image](asset:${asset.assetId})\n\n${anchorText}\n\n${Array.from({ length: 32 }, (_, index) => `Reading continuation ${String(index + 1)}. This explicitly disposable prose keeps a real non-tail reading window open.`).join("\n\n")}`;
+    const imageAlt = "Original snapshot image";
+    const content = `![${imageAlt}](asset:${asset.assetId})\n\n${anchorText}\n\n${Array.from({ length: 32 }, (_, index) => `Reading continuation ${String(index + 1)}. This explicitly disposable prose keeps a real non-tail reading window open.`).join("\n\n")}`;
     await disposableRoom(flow, { name: "media", content, attachments: [] }, async (room, messages) => {
       const message = messages.at(0);
       if (message === undefined) {
@@ -2643,7 +2668,7 @@ export async function walkChatMedia(input: SurfaceFlow): Promise<void> {
         }
       };
       const row = messageRow(flow.page, message.id);
-      const image = row.getByRole("img", { name: "Original snapshot image", exact: true });
+      const image = row.getByRole("img", { name: imageAlt, exact: true });
       const anchor = row.getByText(anchorText, { exact: true });
       const port = flow.page.locator('[data-slot="message-list-scroll"]');
       let pending: Awaited<ReturnType<typeof mediaNativeFacts>> | undefined;

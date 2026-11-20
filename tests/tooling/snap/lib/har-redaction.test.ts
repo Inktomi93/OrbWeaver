@@ -7,7 +7,7 @@ import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-ar
 import type { RawNetworkEvidence } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { REDACTED } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { redactNetworkEvidence, redactNetworkUrl } from "../../../../tooling/src/snap/lib/har-redaction.ts";
-import { __resetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
+import { forgetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 
 test("redacts every credential carrier while ordinary evidence remains useful", () => {
   const canaries = {
@@ -358,6 +358,6 @@ test("a revealed value under a plain name leaves a URL, its pairs and every body
     );
     expect(present(cut.response.content).text).not.toContain("pl");
   } finally {
-    __resetPrivateValues();
+    forgetPrivateValues();
   }
 });

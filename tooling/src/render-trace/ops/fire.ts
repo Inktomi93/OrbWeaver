@@ -26,6 +26,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { errorMessage } from "@orb/kit/error-message";
 import type { EnvKey } from "@orb/server/foundation/env/record";
@@ -144,7 +145,8 @@ async function fireRequests(baseUrl: string, requests: readonly FireRequest[]): 
   for (const req of requests) {
     const url = `${baseUrl}${req.path}`;
     try {
-      const res = await fetch(url, { method: req.method });
+      // A tRPC GET is refused without the CSRF header; every other route ignores it.
+      const res = await fetch(url, { method: req.method, headers: { [CSRF_HEADER]: "1" } });
       fired += 1;
       const rid = res.headers.get("x-request-id");
       process.stderr.write(`trace:fire — ${req.method} ${req.path} → ${res.status} (rid=${rid ?? "?"})\n`);

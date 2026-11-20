@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { WorkloadRunValues } from "../lib/workloads-model.ts";
 import { ASSET_KIND_ITEMS, INDEX_SOURCE_ITEMS, isStartableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
+import { WORKLOAD_REBUILD_KIND_NAME } from "../lib/workloads-names.ts";
 
 /** The active kind's param controls, shared byte-for-byte between the run and schedule dialogs. */
 export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: WorkloadKind }>({
@@ -54,7 +55,7 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
         if (shape === "assetKind") {
           return (
             <form.AppField name="assetKind">
-              {(field): ReactElement => <field.SelectField label="What to rebuild" items={ASSET_KIND_ITEMS} placeholder="Choose what to rebuild…" />}
+              {(field): ReactElement => <field.SelectField label={WORKLOAD_REBUILD_KIND_NAME} items={ASSET_KIND_ITEMS} placeholder="Choose what to rebuild…" />}
             </form.AppField>
           );
         }

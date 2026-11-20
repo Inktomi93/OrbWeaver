@@ -32,12 +32,13 @@ import { nonEmpty, present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
-import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
+import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_COVER_CONTROL_NAME, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type {
   SurfaceCodeEditorStory,
   SurfaceDesignStory,
   SurfaceLeavingCoverStory,
+  SurfacePaneInkStory,
   SurfaceTextContainedOverlayStory,
   SurfaceTextDisclosureStory,
   SurfaceTextGeometryStory,
@@ -376,6 +377,28 @@ test("cohort geometry compares the same declared variant rather than every butto
   expect(broken.audit.findings.some(({ rule, selector }) => rule === "cohort-anatomy" && selector.includes("Small control three"))).toBe(true);
 });
 
+const PANE_INK_STORY = "tests/support/browser/surface-design-fixtures/SurfacePaneInkStory";
+
+test("a tall region that ends in its member rows is sized by its data and is no pane-ink finding", async ({ mount, page }, info) => {
+  await mount<typeof SurfacePaneInkStory>(PANE_INK_STORY, { ending: "members" });
+  await expect(page.getByRole("button", { name: "Cinder", exact: true })).toBeVisible();
+  const design = await readSurfaceDesignAudit(page);
+  await attachNativeFile(info, info, "pane-ink-members", { body: JSON.stringify(design.audit, null, 2), contentType: "application/json" });
+  expect(design.audit.populationAccounting["pane-ink"]).toMatchObject({ candidates: 1, judged: 0, excluded: { memberList: 1 } });
+  expect(design.audit.findings.filter(({ rule }) => rule === "pane-ink")).toEqual([]);
+});
+
+for (const ending of ["prose", "bullets"] as const) {
+  test(`a tall region that ends in short ${ending} still does not earn its height`, async ({ mount, page }, info) => {
+    await mount<typeof SurfacePaneInkStory>(PANE_INK_STORY, { ending });
+    await expect(page.getByRole("region", { name: "Planted pane", exact: true })).toBeVisible();
+    const design = await readSurfaceDesignAudit(page);
+    await attachNativeFile(info, info, `pane-ink-${ending}`, { body: JSON.stringify(design.audit, null, 2), contentType: "application/json" });
+    expect(design.audit.populationAccounting["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, excluded: {} });
+    expect(design.audit.findings.filter(({ rule }) => rule === "pane-ink")).toEqual([expect.objectContaining({ selector: expect.any(String) })]);
+  });
+}
+
 // WCAG 1.4.4 text resize: the browser's default font size doubled.
 const ENLARGED_TEXT_SCALE = 2;
 
@@ -594,7 +617,7 @@ test("enlarged-text geometry refuses a closed dialog's backdrop that never leave
   await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
   // The close is held until the test releases it, so the backdrop is still leaving through readiness and the whole probe.
   await expect(page.locator(LEAVING_BACKDROP)).toHaveCount(1);
-  const witness = page.getByRole("button", { name: "Restore", exact: true });
+  const witness = page.getByRole("button", { name: LEAVING_COVER_CONTROL_NAME, exact: true });
   const name = "text-geometry-leaving-backdrop";
   page.setDefaultTimeout(HELD_LEAVING_TIMEOUT_MS);
   const checkpoint = surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {

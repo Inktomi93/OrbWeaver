@@ -42,6 +42,8 @@ test("the supervisor's pin verdict travels to the leader, where every pin arrive
   const leader = devStackPins(ctx.ambient);
   expect(leader.sources).toEqual(supervisor.sources);
   expect(leader.env).toEqual(supervisor.env);
+  expect(leader.env.AUTH_MODE).toBe("local");
+  expect(leader.sources.SESSION_SECRET).toBe("host");
   expect(printablePins(leader)).toEqual(
     Object.fromEntries([
       [AUTH_FALLBACK_KEY, "owner"],

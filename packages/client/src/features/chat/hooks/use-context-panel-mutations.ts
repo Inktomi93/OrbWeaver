@@ -29,7 +29,7 @@ export const useSetRoomOverrides = createEntityMutation<inferInput<Trpc["chat"][
   errorToast: "Couldn't save the chat overrides.",
 });
 
-/** `chat.setHostDisplayScripts` (D121-E) — the host's per-room display-tier broadcast option. */
+/** `chat.setHostDisplayScripts` (D121-E) — the host's per-room display-tier sharing switch, on until switched off. */
 export const useSetHostDisplayScripts = createEntityMutation<inferInput<Trpc["chat"]["setHostDisplayScripts"]>, unknown>({
   options: (trpc) => trpc.chat.setHostDisplayScripts.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the flag
@@ -163,6 +163,14 @@ export const useSetChatInjection = createEntityMutation<SetChatInjectionVars, un
   options: (trpc) => trpc.chat.setChatInjection.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.chat.listChatInjections.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the injection.",
+});
+
+/** `chat.saveCorrection` — keep the Rewrite dialog's correction as a chat injection. It lands in the same list
+ *  read, so it keeps that read's invalidation. */
+export const useSaveCorrection = createEntityMutation<inferInput<Trpc["chat"]["saveCorrection"]>, unknown>({
+  options: (trpc) => trpc.chat.saveCorrection.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.listChatInjections.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't keep the correction for this chat.",
 });
 
 /** `chat.deleteChatInjection` — the host-only drop of one positional injection. */

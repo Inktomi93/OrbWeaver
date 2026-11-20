@@ -10,6 +10,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { connectionRolePickerName } from "#client/components/shared-control-names.ts";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_model-roles-stories/ModelRolesStory";
@@ -51,7 +52,7 @@ async function placementOf(page: Page): Promise<readonly Placement[]> {
       heading: await boxOf(group.getByText(row.heading, { exact: true })),
       hint: await boxOf(group.locator(HINT).first()),
       dot: await boxOf(group.getByRole("img").first()),
-      picker: await boxOf(group.getByRole("combobox", { name: `${row.label} connection`, exact: true })),
+      picker: await boxOf(group.getByRole("combobox", { name: connectionRolePickerName(row.label), exact: true })),
     });
   }
   return placed;
@@ -194,17 +195,24 @@ test.describe("desktop width", () => {
     await serveRoles(page, corpus, root);
     await mount<typeof ModelRolesStory>(STORY, {});
     const chat = page.getByRole("group", { name: roleOf("chat").heading, exact: true });
-    const picker = await chat.getByRole("combobox").boundingBox();
-    const hint = await chat.locator(HINT).first().boundingBox();
-    if (picker === null || hint === null) {
-      throw new Error("The Chat role painted no picker or hint");
-    }
-    const group = await chat.boundingBox();
-    if (group === null) {
-      throw new Error("The Chat role painted no box");
-    }
-    expect(picker.y).toBeLessThan(hint.y + hint.height);
-    expect(picker.width).toBeLessThan(group.width * HUG_SHARE);
+    // The picker takes its width from the value the role's binding read gives it, after the box is first drawn, so both facts are polled
+    // from one reading of the three boxes until the picker has taken its place.
+    await expect
+      .poll(
+        async () => {
+          const [picker, hint, group] = await Promise.all([
+            chat.getByRole("combobox").boundingBox(),
+            chat.locator(HINT).first().boundingBox(),
+            chat.boundingBox(),
+          ]);
+          if (picker === null || hint === null || group === null) {
+            return { painted: false, sharesHeadingRow: false, hugsValue: false };
+          }
+          return { painted: true, sharesHeadingRow: picker.y < hint.y + hint.height, hugsValue: picker.width < group.width * HUG_SHARE };
+        },
+        { message: "the Chat role's picker, hint and group" },
+      )
+      .toEqual({ painted: true, sharesHeadingRow: true, hugsValue: true });
   });
 });
 
@@ -230,7 +238,7 @@ test.describe("phone at 300% layout", () => {
     // The line count is not asserted: a value at 300% text wraps by the room a phone leaves it, so the bound is the room, not a count of lines.
     for (const row of ROLE_ROWS_ORDERED) {
       const group = page.getByRole("group", { name: row.heading, exact: true });
-      const picker = group.getByRole("combobox", { name: `${row.label} connection`, exact: true });
+      const picker = group.getByRole("combobox", { name: connectionRolePickerName(row.label), exact: true });
       const [groupBox, pickerBox, valueBox, iconBox] = await Promise.all([
         boxOf(group),
         boxOf(picker),

@@ -2,7 +2,7 @@
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import { wireCapturesResponseSchema } from "@orb/contracts/debug";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { Capability, GenerationCapability, Task, Wire } from "@orb/contracts/inference";
+import type { Capability, ChatApi, GenerationCapability, Task, Wire } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, EMBEDDING_FLOOR, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -14,12 +14,14 @@ import type {
   EmbedRequest,
   OpenAiCompatChatRequest,
   ProviderExecutor,
+  ResponsesChatRequest,
   StructuredRequest,
   WireTool,
 } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { ControlledTimers } from "@orb/testkit/iso";
 import { createSeededIds, DEFAULT_EMBED_MODEL, forged } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,17 +56,46 @@ type SkipReason = (typeof SKIP_REASONS)[number];
 
 export const CONFORMANCE_WIRES = WIRES;
 
-function providerForWire(wire: Wire): string {
-  const row = BUILTIN_PROVIDERS.find((provider) => provider.wire === wire);
-  if (row === undefined) {
-    throw new Error(`conformance: no built-in provider row for the "${wire}" wire`);
-  }
-  return row.id;
+/** One chat protocol on one wire. The chat cells run per route, so every api a wire speaks meets the same
+ *  rulings, not only the wire's first. */
+export interface ChatRoute {
+  readonly wire: Wire;
+  readonly api: ChatApi;
 }
 
-export function meteredForWire(wire: Wire): boolean {
-  const row = BUILTIN_PROVIDERS.find((provider) => provider.wire === wire);
-  return row?.metered === true;
+export const CONFORMANCE_CHAT_ROUTES: readonly ChatRoute[] = WIRES.flatMap((wire) => WIRE_DEFS[wire].apis.map((api) => ({ wire, api })));
+
+/** A bare wire names its first api, the route every wire-keyed caller drove before routes existed. */
+function routeOf(cell: Wire | ChatRoute): ChatRoute {
+  if (typeof cell !== "string") {
+    return cell;
+  }
+  const [api] = WIRE_DEFS[cell].apis;
+  if (api === undefined) {
+    throw new Error(`conformance: the "${cell}" wire speaks no chat api`);
+  }
+  return { wire: cell, api };
+}
+
+/** The cell label: the bare wire for its first api, `wire/api` for every other. */
+function routeLabel(route: ChatRoute): string {
+  return route.api === routeOf(route.wire).api ? route.wire : `${route.wire}/${route.api}`;
+}
+
+function providerRowFor(wire: Wire, api?: ChatApi): (typeof BUILTIN_PROVIDERS)[number] {
+  const row = BUILTIN_PROVIDERS.find((provider) => provider.wire === wire && (api === undefined || provider.apis.includes(api)));
+  if (row === undefined) {
+    throw new Error(`conformance: no built-in provider row for the "${wire}" wire${api === undefined ? "" : ` and the "${api}" api`}`);
+  }
+  return row;
+}
+
+function providerForWire(wire: Wire): string {
+  return providerRowFor(wire).id;
+}
+
+export function meteredFor(route: ChatRoute): boolean {
+  return providerRowFor(route.wire, route.api).metered;
 }
 
 function servesConformanceTask(wire: Wire, task: ConformanceTask): boolean {
@@ -143,11 +174,47 @@ function googleScript(script: ChatScript): SseEvent[] {
   return events;
 }
 
-function hostedScript(wire: Wire, script: ChatScript): SseEvent[] {
-  if (wire === "google-generative-ai") {
+function responsesFrame(type: string, payload: Record<string, unknown>): SseEvent {
+  return { event: type, data: { type, ...payload } };
+}
+
+/** The `/responses` stream: `stop` is the protocol's `incomplete_details.reason`, and its normal finish
+ *  (`"stop"` here) is a `response.completed` frame that carries no reason at all. */
+function responsesScript(script: ChatScript): SseEvent[] {
+  const response = { id: "resp-conformance", ["created_at"]: 1, model: "m" };
+  const out = [
+    responsesFrame("response.created", { response }),
+    responsesFrame("response.output_item.added", { ["output_index"]: 0, item: { type: "message", id: "msg-1" } }),
+    ...script.deltas.map((delta) => responsesFrame("response.output_text.delta", { ["item_id"]: "msg-1", ["output_index"]: 0, delta })),
+  ];
+  if (script.stop === null) {
+    return out;
+  }
+  const text = script.deltas.join("");
+  const usage = {
+    ["input_tokens"]: script.tokensIn,
+    ["output_tokens"]: script.tokensOut,
+    ...(script.cacheRead !== undefined ? { ["input_tokens_details"]: { ["cached_tokens"]: script.cacheRead } } : {}),
+  };
+  const terminal =
+    script.stop === "stop"
+      ? responsesFrame("response.completed", { response: { ...response, status: "completed", usage } })
+      : responsesFrame("response.incomplete", { response: { ...response, status: "incomplete", ["incomplete_details"]: { reason: script.stop }, usage } });
+  return [
+    ...out,
+    responsesFrame("response.output_item.done", { ["output_index"]: 0, item: { type: "message", id: "msg-1", content: [{ type: "output_text", text }] } }),
+    terminal,
+  ];
+}
+
+function hostedScript(route: ChatRoute, script: ChatScript): SseEvent[] {
+  if (route.api === "responses") {
+    return responsesScript(script);
+  }
+  if (route.wire === "google-generative-ai") {
     return googleScript(script);
   }
-  return wire === "anthropic-messages" ? anthropicScript(script).map((event) => ({ event: event.type, data: { ...event } })) : openAiCompatScript(script);
+  return route.wire === "anthropic-messages" ? anthropicScript(script).map((event) => ({ event: event.type, data: { ...event } })) : openAiCompatScript(script);
 }
 
 function agentSdkFrames(script: ChatScript, model: string): Record<string, unknown>[] {
@@ -229,6 +296,8 @@ export interface ChatArmResult {
   readonly events: readonly ChatEvent[];
   readonly captured: readonly Record<string, unknown>[];
   readonly turn: Awaited<ReturnType<ProviderExecutor["runChatTurn"]>>;
+  /** The root ring's log lines at turn end — the `provider.*` receipts ride them at debug level. */
+  readonly receipts: readonly string[];
 }
 
 export interface ChatArmOptions {
@@ -243,6 +312,17 @@ export interface ChatArmOptions {
   readonly omitChatIdAtRuntime?: true | undefined;
   /** Tools the agent-sdk turn carries (its terminal-tool channel). Ignored on the hosted wires. */
   readonly terminalTools?: readonly WireTool[] | undefined;
+  /** The authored chain of thought (`prefillReasoning`): the seed the model continues FROM. Rides only a wire
+   *  that stamps a continue row; every other route must announce the drop. */
+  readonly prefillReasoning?: string | undefined;
+  /** Hosted wires only: replies sent before the scripted stream (a refused attempt the turn retries). */
+  readonly refusals?: readonly (() => Response)[] | undefined;
+  /** Hosted wires only: the root's timers, so a case can observe and fire the retry's wait. */
+  readonly timers?: ControlledTimers | undefined;
+  /** The connection's idle window, so a case can tell it apart from the retry's wait. */
+  readonly requestTimeoutMs?: number | undefined;
+  /** The built-in row the turn runs on; absent ⇒ the wire's first row. */
+  readonly providerId?: string | undefined;
 }
 
 interface ChatEventSink {
@@ -251,14 +331,19 @@ interface ChatEventSink {
   readonly events: ChatEvent[];
 }
 
-async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: ChatArmOptions, sink: ChatEventSink): Promise<ChatRequest> {
+async function chatRequestFor(root: ServerTestHarness, route: ChatRoute, options: ChatArmOptions, sink: ChatEventSink): Promise<ChatRequest> {
+  const { wire, api } = route;
   const capability = options.capability ?? chatCapability();
   const connection = await wireConnection(root, {
     task: "chat",
-    providerId: providerForWire(wire),
+    providerId: options.providerId ?? providerRowFor(wire, api).id,
     model: modelForWire(wire),
+    api,
     capability,
-    ...(options.pricing === true ? { declaredFeatures: { pricing: PRICING } } : {}),
+    declaredFeatures: {
+      ...(options.pricing === true ? { pricing: PRICING } : {}),
+      ...(options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: options.requestTimeoutMs }),
+    },
   });
   const common = {
     connection,
@@ -273,7 +358,8 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
     onEvent: (event: ChatEvent): void => {
       sink.events.push(event);
     },
-    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+    signal: options.signal ?? new AbortController().signal,
+    ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
   };
   const history = [{ role: "user" as const, content: [{ type: "text" as const, text: "Say something." }] }];
   if (wire === "agent-sdk") {
@@ -290,6 +376,9 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
   if (wire === "google-generative-ai") {
     return { ...common, api: "google-generative-ai", history };
   }
+  if (api === "responses") {
+    return { ...common, api: "responses", history } satisfies ResponsesChatRequest;
+  }
   return { ...common, api: "chat-completions", history } satisfies OpenAiCompatChatRequest;
 }
 
@@ -299,24 +388,31 @@ export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0]
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     wireCapture: true,
+    // The `provider.*` receipts ride the ring at debug level; the suites reading `receipts` need them held.
+    logLevel: "debug",
     ...options,
   });
 }
 
-export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<ChatArmResult> {
+/** One chat turn on a route; a bare wire drives its first api. */
+export async function driveChat(cell: Wire | ChatRoute, options: ChatArmOptions): Promise<ChatArmResult> {
+  const route = routeOf(cell);
+  const { wire } = route;
   const model = modelForWire(wire);
   using plans = new DisposableStack();
   await using root = await conformanceRoot(
     wire === "agent-sdk"
       ? { sdkSpawn: physicalSdkScenario({ frames: agentSdkFrames(options.script, model) }).spawn }
       : {
-          providerFetch: plans.use(scriptedResponses(options.signal?.aborted === true ? [] : [() => eventResponse(hostedScript(wire, options.script))]))
-            .execute,
+          providerFetch: plans.use(
+            scriptedResponses(options.signal?.aborted === true ? [] : [...(options.refusals ?? []), () => eventResponse(hostedScript(route, options.script))]),
+          ).execute,
+          ...(options.timers === undefined ? {} : { timers: options.timers }),
         },
   );
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
   const sink: ChatEventSink = { chatId, deltas: [], events: [] };
-  const request = await chatRequestFor(root, wire, options, sink);
+  const request = await chatRequestFor(root, route, options, sink);
   const executor = root.app.runtime.executor;
   const turn =
     options.omitChatIdAtRuntime === true
@@ -336,7 +432,7 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
   if (!capture.enabled) {
     throw new Error("the real root's wire capture was not installed");
   }
-  return { deltas: sink.deltas, events: sink.events, captured: capture.captures.map((entry) => entry.body), turn };
+  return { deltas: sink.deltas, events: sink.events, captured: capture.captures.map((entry) => entry.body), turn, receipts: root.observability.logLines(1000) };
 }
 
 const CONFORMANCE_RESPONSE_FORMAT: ResponseFormat = {
@@ -388,6 +484,7 @@ export async function driveStructuredMalformed(wire: Wire): Promise<unknown> {
     }),
     inputs: [{ systemPrompt: "Answer in JSON.", userPrompt: "What is the answer?" }],
     responseFormat: CONFORMANCE_RESPONSE_FORMAT,
+    signal: new AbortController().signal,
   };
   return await root.app.runtime.executor.structured(request);
 }
@@ -428,7 +525,7 @@ async function driveEmbed(wire: Wire, signal?: AbortSignal): Promise<unknown> {
         : { capability: { kind: "embedding" as const, embedding: { ...EMBEDDING_FLOOR, dims: EMBED_DIMS, input: ["text" as const] } } }),
     }),
     input: ["conformance"],
-    ...(signal !== undefined ? { signal } : {}),
+    signal: signal ?? new AbortController().signal,
   };
   return await root.app.runtime.executor.embed(request);
 }
@@ -448,12 +545,14 @@ export function warningCodesOf(events: readonly ChatEvent[]): string[] {
   return events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
 }
 
-export function cellTest(wire: Wire, task: ConformanceTask, title: string, body: () => Promise<void>): void {
+export function cellTest(cell: Wire | ChatRoute, task: ConformanceTask, title: string, body: () => Promise<void>): void {
+  const wire = typeof cell === "string" ? cell : cell.wire;
+  const label = typeof cell === "string" ? cell : routeLabel(cell);
   const skip = skipReasonFor(wire, task);
   if (skip === "no-driver") {
-    throw new Error(`conformance: the served ${wire}/${task} cell has no physical driver`);
+    throw new Error(`conformance: the served ${label}/${task} cell has no physical driver`);
   }
-  const name = skip === null ? `${wire} — ${title}` : `${wire} — ${title} [SKIPPED: ${skip}]`;
+  const name = skip === null ? `${label} — ${title}` : `${label} — ${title} [SKIPPED: ${skip}]`;
   test.skipIf(skip === "unserved")(name, body);
 }
 

@@ -1,32 +1,35 @@
 // @orb/contracts/plugin — the guest↔host wire vocabulary for the D46 code sandbox. The
 // membrane a guest sees (`PluginHostV1` + opaque handles + supporting projections — host-v1.ts), the
 // install-time manifest + capability axis (manifest.ts), the capability→function completeness map, and
-// the two guest-observable membrane errors (errors.ts). The runtime lives in `infra/plugin-host`
-// (landed); the registry/lifecycle/grants lives in `domain/plugin`. This node imports nothing above
+// the two guest-observable membrane errors (errors.ts). The runtime lives in `infra/plugin-host`,
+// the registry/lifecycle/grants in `domain/plugin`. This node imports nothing above
 // contracts (the package cake) and is the ONE home for these shapes — the domain derives, never re-spells.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { pluginSurfaceIdSchema } from "./ui.ts";
+
 /** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
  *  BAD_REQUEST rather than an unbounded log fetch. */
-
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export type { PluginCommandView } from "./command-view.ts";
 export { pluginCommandViewSchema } from "./command-view.ts";
-export type { PluginHostRefusalCode } from "./errors.ts";
+export type { PluginHostRefusalCode, PluginLlmFailureKind } from "./errors.ts";
 export {
   HostVersionError,
   PLUGIN_CHANNEL_FULL_CODE,
   PLUGIN_HOST_REFUSAL_CODES,
+  PLUGIN_LLM_FAILURE_KINDS,
   PluginCapabilityError,
   PluginHostDeadlineError,
+  PluginInstallerDisabledError,
+  PluginPubsubDepthError,
   PluginSuggestedError,
 } from "./errors.ts";
-export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
+export type { PluginFrameCall, PluginFrameMintRequest } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,
   PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX,
@@ -133,6 +136,7 @@ export type {
   PluginTransformRegistration,
 } from "./registrations.ts";
 export {
+  PLUGIN_CASCADE_DEPTH_MAX,
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
@@ -227,10 +231,18 @@ export {
   resolvePluginBoundSelectOptions,
   resolvePluginBoundTabOptions,
   resolvePluginBoundTiles,
+  resolvePluginNodeShown,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
 export type { PluginUiHostCallCode } from "./ui-host.ts";
-export { PLUGIN_UI_HOST_CALL_CODES, pluginKvKeySchema, pluginKvValueSchema, pluginUiHostArgsSchemas } from "./ui-host.ts";
+export {
+  isPluginUiHostCallCode,
+  PLUGIN_UI_HOST_CALL_CODES,
+  PLUGIN_UI_HOST_CALL_FAILED,
+  pluginKvKeySchema,
+  pluginKvValueSchema,
+  pluginUiHostArgsSchemas,
+} from "./ui-host.ts";
 export type {
   DistributedPluginView,
   PluginBundleAssetView,

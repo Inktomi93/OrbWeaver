@@ -49,7 +49,7 @@ export interface SafeFetchOptions {
   /** Total request deadline (connect + headers + redirects). Default 15_000 ms — S5. */
   readonly deadlineMs?: number;
   /** Caller cancellation, composed with the deadline. */
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** The guarded fetch signature a caller takes as an injected op; the composition root binds the scoped egress. */
@@ -81,6 +81,17 @@ export interface PinnedDownloadLimits {
 
 export type EgressResolver = (host: string) => Promise<readonly string[]>;
 
+/** One boot warning for an `EGRESS_ALLOWLIST` entry: `admits-nothing` for one no request host can equal, `trailing-dot`
+ *  for a name that matches only a URL spelling the host with that dot. */
+export interface EgressAllowlistWarning {
+  /** The entry as written, with URL userinfo cut; a fixed placeholder when a credential cannot be ruled out. */
+  readonly entry: string;
+  /** 1-based, among the list's non-empty entries, so a placeholder still says which entry it is. */
+  readonly position: number;
+  readonly reason: "admits-nothing" | "trailing-dot";
+  readonly text: string;
+}
+
 export interface ScopedEgressOptions {
   /** The physical request; a composition root passes `systemFetch`, a test passes a scripted one. */
   readonly fetch: typeof fetch;
@@ -89,7 +100,10 @@ export interface ScopedEgressOptions {
   /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and receives the firewall's lookup and must dial only what it returns. */
   readonly buildConnector: typeof buildConnector;
   readonly timers: TimerScheduler;
-  /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES`, and the OIDC issuer and `FORWARD_AUTH_JWKS` hosts. */
+  /** The parsed env record: `EGRESS_FIREWALL`, `TRUSTED_PRIVATE_RANGES` and the env egress belt. The belt is each
+   *  `EGRESS_ALLOWLIST` entry, a bare host that admits every port or a `host:port` that admits only that port, plus
+   *  the OIDC issuer and `FORWARD_AUTH_JWKS` URLs, each of which adds only its own port to its host. A host the
+   *  allowlist writes both ways admits only its ports. */
   readonly env: Env;
   /** The root's logger every egress line falls back to outside a request. */
   readonly log: Logger;
@@ -99,11 +113,14 @@ export interface ScopedEgressOptions {
 
 export interface ScopedEgress extends AsyncDisposable {
   readonly cancel: () => void;
+  /** Replace the private-endpoint allowlist. An entry is a host, an IP address or a CIDR range; a host or an address
+   *  may add `:port` to admit only that port, and one without a port admits every port. A host written both ways
+   *  admits only its ports. */
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
   readonly resolvedEndpointAdmission: (baseUrl: string) => Promise<(typeof ENDPOINT_ADMISSIONS)[number]>;
   readonly safeFetch: (url: string | URL, options: SafeFetchOptions) => Promise<SafeFetchResult>;
-  readonly fetchImageBytes: (url: string, maxBytes?: number, signal?: AbortSignal) => Promise<Uint8Array | null>;
-  readonly fetchWebDocument: (url: string) => Promise<Uint8Array>;
+  readonly fetchImageBytes: (url: string, signal: AbortSignal, maxBytes?: number) => Promise<Uint8Array | null>;
+  readonly fetchWebDocument: (url: string, signal: AbortSignal) => Promise<Uint8Array>;
   readonly fetchPluginBundle: (url: string) => Promise<Uint8Array>;
   readonly fetchPinnedDownload: (url: string, limits: PinnedDownloadLimits) => Promise<Response>;
   readonly configuredEndpointFetch: typeof fetch;

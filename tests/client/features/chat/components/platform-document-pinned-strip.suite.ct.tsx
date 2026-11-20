@@ -94,19 +94,8 @@ async function expectNamedRest(row: Locator): Promise<void> {
   await expect(row.locator('[data-slot="message-attribution"]')).toBeVisible();
 }
 
-async function expectQuietDocumentBand(row: Locator): Promise<void> {
-  const header = row.locator('[data-slot="message-name-row"]');
-  const menu = header.locator(MENU_TRIGGER);
-  const height = await row.evaluate((node) => node.getBoundingClientRect().height);
-  await menu.evaluate((node: HTMLButtonElement) => node.blur());
-  await row.page().mouse.move(0, 0);
-  await expect(header).toHaveCSS("opacity", "0");
-  await menu.focus();
-  await expect(header).toHaveCSS("opacity", "1");
-  expect(await row.evaluate((node) => node.getBoundingClientRect().height)).toBe(height);
-}
-
-async function expectNamedBand(row: Locator): Promise<void> {
+// At a touch pointer every style shows its row's actions, document included, so the pinned strip carries them with no reveal.
+async function expectActionsShown(row: Locator): Promise<void> {
   await expect(row.locator('[data-slot="message-name-row"]')).toHaveCSS("opacity", "1");
 }
 
@@ -211,7 +200,7 @@ async function exerciseReadingRow(row: Locator, scrollport: Locator, style: Them
       }
       port.scrollTop += paragraph.getBoundingClientRect().top - port.getBoundingClientRect().top + 2;
     });
-  const alpha = await expectPinnedStrip(row, scrollport, style === "document" ? expectQuietDocumentBand : expectNamedBand);
+  const alpha = await expectPinnedStrip(row, scrollport, expectActionsShown);
   const expectPaint = style === "bubble" ? expectExistingCard : expectOpaqueBand;
   expectPaint(alpha);
   await expect(row.locator('[data-slot="message-attribution"]')).toHaveCount(identityCount);

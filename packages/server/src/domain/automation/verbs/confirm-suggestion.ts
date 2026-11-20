@@ -22,7 +22,7 @@
 //      raised to still hosts, and its INSTALLER holds the same membership. Here that host's yes IS the
 //      authority, so the installer need not host (owner ruling; the one exception to the rule origin's
 //      actor-must-host check). On a handoff both die fail-closed: no re-mint, no transfer.
-//      `substrate/authority.ts::askActorStillStands` owns both answers.
+//      `persistence/authority.ts::askActorStillStands` owns both answers.
 //   4. EXECUTE by ORIGIN, then by class. A rule's `confirm` runs the STASHED arm through the injected
 //      dispatcher with `confirmFirst` cleared, in the STORED frame, and records a `fired` row stamped with
 //      the confirmer; its `invitation` has no stored payload by construction (`budget_refused` precedes
@@ -48,11 +48,10 @@ import { SuggestionNotFoundError, SuggestionRefusedError } from "../contract/err
 import type { ArmOutcome, PendingSuggestion, RuleRow } from "../contract/ops.ts";
 import type { ConfirmSuggestionParams } from "../contract/params.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { askActorStillStands } from "../persistence/authority.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 import { insertFireWithRuleStamp } from "../persistence/fires.ts";
 import { selectRuleRow } from "../persistence/rules.ts";
-import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
-import { askActorStillStands } from "../substrate/authority.ts";
 import type { ArmsResult } from "../substrate/run-now.ts";
 import { dispatchRuleNow, runStashedContinuation } from "../substrate/run-now.ts";
 import { automationChatLaneKey } from "../substrate/serial-lanes.ts";
@@ -153,7 +152,7 @@ async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, 
 
 /** Execute a CONFIRMED analysis act (the `{via:"analysis"}` payload — S5's confirm-routed outputs) and
  *  record the confirmed fire, stamped with who authorized it. The act executes through the analysis
- *  engine's OWN confirm executor (`substrate/analysis-confirm.ts`), NOT `ctx.runArm`: a re-synthesized arm
+ *  engine's OWN confirm executor (`ctx.runAnalysisConfirm`, `engine/analysis-confirm.ts`), NOT `ctx.runArm`: a re-synthesized arm
  *  would macro-render the model's bytes (§2 law 6) and could not advance the settled-span watermark on
  *  apply — the enforcement set still has one home (the lore act rides the same `applyRuleLoreWrite` belt
  *  the arm does, re-checked at confirm time). A failed act records its `action_error` fire, then refuses
@@ -170,7 +169,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   // message into `insertFireWithRuleStamp`'s `detail.error`, and `ctx.notify` raises `ruleErrored` for the
   // `action_error` outcome the verb refuses with. Ends if the `error` detail or the `ruleErrored` notify is dropped.
   try {
-    await runAnalysisConfirm(
+    await ctx.runAnalysisConfirm(
       { db: ctx.db, ops: ctx.ops, serialLanes: ctx.serialLanes, nowMs, applyProseRewrite: ctx.applyProseRewrite },
       pending,
       rule,

@@ -68,11 +68,11 @@ function readingFlowOf(weld: boolean, overlayPage: boolean): "weld" | "page" | u
 }
 
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
-function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, children }: ReadingBoxProps): ReactElement {
+function ReadingBox({ box, role, shape, lastRowFloor, headerOverlaid, receded, positioned, children }: ReadingBoxProps): ReactElement {
   const page = box === "page";
   const inset = shape === "stack";
   const floor = page && lastRowFloor;
-  const overlayPage = page && !lastRowFloor;
+  const overlayPage = page && headerOverlaid;
   const weld = shape === "weld";
   const boxInset = inset ? READING_INSET[box].inset : undefined;
   return (

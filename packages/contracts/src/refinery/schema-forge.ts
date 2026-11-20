@@ -1,15 +1,14 @@
 // @orb/contracts/refinery/schema-forge — the NL→schema forge's WIRE GRAMMAR (the owner's
-// structured-output VETO of the shipped beg-for-JSON draft: "asking the model to pretty-please
-// output proper JSON is fragile as fuck… the prompt describes the task, the grammar owns the shape").
+// structured-output VETO: "asking the model to pretty-please output proper JSON is fragile as fuck… the
+// prompt describes the task, the grammar owns the shape").
 //
 // WHAT THIS IS: a flat DESIGN LANGUAGE for payload schemas, plus the total transpiler that turns one into
 // the JSON Schema the library stores. The model emits a LEAF LIST — one row per field, nesting carried in a
 // `path` string (`issues[].severity`) — and every part of a row that can be a closed vocabulary IS one
 // (`type`, `role`, `chart`, tone words). Projected through the ONE projection rule (`projectJsonSchema`,
 // D79) the language becomes the `ResponseFormat.schema` every forge call rides, so a constrained backend
-// cannot emit a row outside it. The shipped R3 envelope was `{name, schema: z.record(z.string(),
-// z.unknown())}` — the grammar constrained the ENVELOPE and nothing inside it, which is the fragility the
-// veto names.
+// cannot emit a row outside it. An envelope of `{name, schema: z.record(z.string(), z.unknown())}` would
+// constrain the ENVELOPE and nothing inside it — the fragility the veto names.
 //
 // WHY A LEAF LIST AND NOT "A JSON SCHEMA CONSTRAINING JSON SCHEMAS" — MEASURED, 23 live
 // OpenRouter calls with the owner's key. The obvious design (a meta-schema whose `properties` is an open
@@ -21,13 +20,14 @@
 //     key in properties", and under the all-required shape "11 levels of nesting exceeds limit of 10".
 //   • google/gemini-3.6-flash — 400 INVALID_ARGUMENT.
 //   • the forced-tool vehicle collapses the same map on OpenAI and Gemini (`"properties":{}` again).
-//   • `provider.require_parameters` changed NO cell of that matrix — but OR's
-//     routing changed and `require_parameters:true` now 404s every hosted `response_format` call,
-//     so it is OMITTED on the structured wire (`backends/openrouter/index.ts`). Still orthogonal to the SHAPE
+//   • `provider.require_parameters` changed NO cell of that matrix, and OpenRouter now 404s every hosted
+//     `response_format` call that sets it, so the structured wire omits it
+//     (`backends/openrouter/index.ts`). Still orthogonal to the SHAPE
 //     variable this note is about — the leaf-list grammar below is what makes the schema servable.
 // The leaf list is arrays of CLOSED objects and nothing else: 200 on all three families under
-// `scrubWireSchema(…, "strict-compatible")` + `strict:true` (require_parameters is NO LONGER sent — see above),
-// (`issues[].severity` + per-member tones on all of them). It is also 1.4 KB of grammar instead of 34 KB.
+// `scrubWireSchema(…, "strict-compatible")` + `strict:true` (require_parameters is not sent — see above),
+// (`issues[].severity` + per-member tones on all of them). It is also 1.4 KB of grammar, against 34 KB for
+// the meta-schema.
 //
 // THE MIRROR OBLIGATION (owner: "mirror the existing belt exactly so enforcement and validation agree"):
 // every document {@link transpileForgeDesign} can produce MUST pass `refinerySchemaDocumentSchema`
@@ -35,12 +35,11 @@
 // what the belt accepts, never a superset — because the belt also guards the raw-paste door and
 // hand-authored library rows.
 //
-// WHAT THE GRAMMAR CANNOT OWN (the residue the lift-refusal retry bridge SHRANK to — it used to carry
-// the WHOLE belt): the document NAME's identifier grammar and a field `path`'s segment grammar. Both are
-// free strings; `pattern` is deliberately never sent to a grammar compiler. Everything else the belt used
-// to refuse — a `$ref`, a `oneOf`, a `pattern` inside the schema, a bad hint role, an over-deep nest, a
-// missing well-known core — is now UNCONSTRUCTABLE. The belt stays the FINAL authority on every arm and
-// every backend: enforcement is an optimization, the belt is the contract.
+// WHAT THE GRAMMAR CANNOT OWN: the document NAME's identifier grammar and a field `path`'s segment
+// grammar. Both are free strings; `pattern` is deliberately never sent to a grammar compiler. Everything
+// else the belt refuses — a `$ref`, a `oneOf`, a `pattern` inside the schema, a bad hint role, an over-deep
+// nest, a missing well-known core — is UNCONSTRUCTABLE through the forge. The belt stays the FINAL authority
+// on every arm and every backend: enforcement is an optimization, the belt is the contract.
 //
 // THE WELL-KNOWN CORE IS SPLICED, NOT ASKED FOR. A custom score schema must carry the exact 1-10
 // `overallScore` node and a custom analyze the exact three-spelling `verdict` enum (./schema-authoring.ts's
@@ -133,20 +132,19 @@ const forgeFieldRowSchema = z
     group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
     label: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
     chart: z.enum(["bars", "radar"]).optional(),
-    /** Enum MEMBER → tone word. A PAIR LIST, not a map: an open key map is the exact construct the live probe
-     *  showed hosted grammars collapse to "no keys permitted" (header). */
+    /** Enum MEMBER → tone word. A PAIR LIST, not a map: an open key map is the exact construct hosted
+     *  grammars collapse to "no keys permitted" (header). */
     tones: z
       .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }).strip())
       .max(REFINERY_SCHEMA_MAX_ENUM)
       .optional(),
   })
   .strip()
-  // `minimum`/`maximum` were independent optionals with no pairing check, and
-  // `writeNumericBounds` wrote both VERBATIM, so a design carrying `minimum: 10, maximum: 5` transpiled to
-  // `{"type":"number","minimum":10,"maximum":5}` with an empty `dropped` list. That output becomes
-  // `ResponseFormat.schema` for provider-constrained decoding, where an UNSATISFIABLE range leaves a
-  // guided-decoding backend with no legal token for the field — a stall or a 500 — or, on a loosely
-  // validating provider, a value that fails every strict validator downstream.
+  // `minimum` and `maximum` are paired here because a design carrying `minimum: 10, maximum: 5` would
+  // otherwise transpile VERBATIM to `{"type":"number","minimum":10,"maximum":5}` with an empty `dropped`
+  // list. That output becomes `ResponseFormat.schema` for provider-constrained decoding, where an
+  // UNSATISFIABLE range leaves a guided-decoding backend with no legal token for the field — a stall or a
+  // 500 — or, on a loosely validating provider, a value that fails every strict validator downstream.
   //
   // REJECT, never swap: swapping the two would silently rewrite the author's stated intent, and this
   // schema is also what the AUTHORING belt validates through, so the author is the one who should hear
@@ -229,9 +227,6 @@ export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSch
 
 // ── the spliced well-known cores ─────────────────────────────────────────────────────────────────────────
 
-/** The stage's canonical core NODE + its property name — injected into every transpiled design so the
- *  belt's well-known-core refusal is unreachable from the forge (header). Byte-compatible with what
- *  `coreIssueOf` (./schema-authoring.ts) demands. */
 /** The verdict banner's tints. Built from `REFINERY_VERDICTS` by INDEX rather than written as an object
  *  literal: the keys are the enum's own uppercase member spellings, and spelling them as identifiers would
  *  both re-declare the vocabulary and read as a naming-convention violation to every linter. */
@@ -240,6 +235,9 @@ const VERDICT_TONES: Readonly<Record<string, string>> = Object.fromEntries(
   REFINERY_VERDICTS.map((verdict, i) => [verdict, VERDICT_TONE_WORDS[i] ?? "neutral"]),
 );
 
+/** The stage's canonical core NODE + its property name — injected into every transpiled design so the
+ *  belt's well-known-core refusal is unreachable from the forge (header). Byte-compatible with what
+ *  `coreIssueOf` (./schema-authoring.ts) demands. */
 const REFINERY_FORGE_CORE_NODES: Readonly<Record<RefinerySchemaStage, { readonly name: string; readonly node: Readonly<Record<string, unknown>> }>> = {
   score: {
     name: "overallScore",
@@ -326,9 +324,8 @@ function hintOf(row: ForgeFieldRow | ForgeHintRow): Record<string, unknown> | nu
   // one scale, so the transpiler splices it as `role:"hero"` unconditionally, below). An author row that
   // also claims `role:"hero"` is RE-ROLED here — the hero elevation is dropped, the field itself survives
   // as a plain bounded gauge — so a design never carries two headline numbers and the renderer's
-  // order-dependent "first hero wins" can never demote the canonical `overallScore`. (Live custom-schema
-  // drive: the model designed its own 1-10 rating AND got the spliced core, both hinted hero,
-  // and the demoted one was the canonical score.) Every other role (verdict/axis/prose/…) passes through.
+  // order-dependent "first hero wins" can never demote the canonical `overallScore`.
+  // Every other role (verdict/axis/prose/…) passes through.
   if (row.role !== undefined && row.role !== "hero") {
     hint["role"] = row.role;
   }
@@ -472,7 +469,7 @@ function propagateRequired(root: Record<string, unknown>): void {
  * OPEN BY CONSTRUCTION — DELIBERATE: the object nodes minted here carry NO `additionalProperties`.
  * The `additionalProperties:false` pin has ONE home — `projectJsonSchema` (`@orb/kit/json-schema`) — which
  * every refinery WIRE send-site re-applies to this stored blob before it reaches a provider
- * (`domain/refinery/substrate/stage-resolution.ts` and `verbs/test-schema.ts` both do
+ * (`domain/refinery/persistence/stage-resolution.ts` and `verbs/test-schema.ts` both do
  * `projectJsonSchema(liftJsonSchema(schema))`). Stamping the pin here too would be a SECOND source of truth
  * for the same invariant and would MASK a future send-site that forgot to project (the stored blob would be
  * incidentally-closed) — so wire-closure is proven at the projection choke point, not duplicated here. A

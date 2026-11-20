@@ -1,7 +1,7 @@
 import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
-import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RecorderFilter } from "#foundation/observability";
 
@@ -140,11 +140,11 @@ export interface TurnRetrievalWarningEpisode {
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the
  *  fixed-width index within the chat; the rows are the block's messages oldest→newest. */
-export interface BlockSpan {
+export interface BlockSpan<R extends Pick<MsgRow, "seq"> = MsgRow> {
   readonly blockIdx: number;
   readonly seqStart: number;
   readonly seqEnd: number;
-  readonly rows: readonly MsgRow[];
+  readonly rows: readonly R[];
 }
 
 /** The three token quantities the summarizer token-guard fits a block against (`generate/substrate/token-guard`
@@ -311,7 +311,7 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The corpus-sweep counts (`substrate/backfill.ts`) use `BackfillPassResult` and `MemoryBackfillResult` from
+// ── The corpus-sweep counts (`memory/backfill/backfill.ts`) use `BackfillPassResult` and `MemoryBackfillResult` from
 //    `@orb/contracts/chat` directly: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts`
 //    returns the value the sweep produced straight through as the contract type, and it lands verbatim in the
 //    durable workload result JSON. One home for that shape (contracts, which cannot import a domain). ──
@@ -336,6 +336,7 @@ export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<Memory
  *  solo/merged, so the union dedupes to one read). `recent` (oldest→newest) is the mixB/mixC query window. */
 export interface RecallMemoryArgs {
   readonly scope: MemoryScope;
+  readonly signal: AbortSignal;
   readonly groupCharacterId: CharacterId;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly liveWindowCutoffSeq?: number | undefined;
@@ -348,8 +349,8 @@ export interface RecallMemoryArgs {
 /** Composition-bound memory input preserves the turn's separate funding and execution identities. */
 export interface BuildTurnMemoryArgs {
   readonly chatId: ChatId;
-  readonly funderUserId: UserId;
-  readonly runAsUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
+  readonly runAsUserId: ConsentingHostId;
   readonly config: MemoryConfig | null | undefined;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }

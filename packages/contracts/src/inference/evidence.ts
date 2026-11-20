@@ -7,7 +7,7 @@
 //   measured      — a probe receipt: dated, named script.
 //   advertised    — a catalog row / daemon row / `/v1/models` window.
 //   curated       — the shipped JSON rows, cited.
-//   family-floor  — code, OR semantics only (today's `synthesizeToolAxes`: OR's catalog omits
+//   family-floor  — code, OR semantics only (as in `synthesizeToolAxes`: OR's catalog omits
 //                   `structured_outputs` for Claude, so a Claude id gets tools/structured OR-ed in).
 //   kind-floor    — the canonical per-kind capability floor used by synthesis.
 

@@ -94,6 +94,7 @@ export interface RewriteGreetingParams extends CharacterActorParams {
   readonly transforms?: readonly GreetingTransformId[];
   /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface GenerateGreetingParams extends CharacterActorParams {
@@ -104,6 +105,7 @@ export interface GenerateGreetingParams extends CharacterActorParams {
   readonly transforms?: readonly GreetingTransformId[];
   /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The JSON-then-PNG exception of the import identity (import-injected, internal): the owner's character that
@@ -114,6 +116,10 @@ export interface AttachImportedArtParams {
   readonly avatarAssetId: AssetId;
   readonly importHash: string;
 }
+
+/** The read-only twin of {@link AttachImportedArtParams}'s write (import-injected, internal): asks, without writing,
+ *  whether the owner's character would take a PNG's art now. */
+export type AdmitsImportedArtParams = Pick<AttachImportedArtParams, "ownerId" | "characterId">;
 
 /** A shipped card's own export identity (seeder-injected, internal), written only onto a row that has none. */
 export interface StampImportIdentityParams {

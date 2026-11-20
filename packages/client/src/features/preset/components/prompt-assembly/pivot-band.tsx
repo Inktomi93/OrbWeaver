@@ -11,12 +11,15 @@
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { ChevronRight, Icon, MessagesSquare, TriangleAlert } from "@orb/ui/icons";
+import { ChevronRight, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { Notice } from "#components";
 import { useFocusOnSwap } from "#lib";
+import { PRESET_AFTER_HISTORY_LABEL, PRESET_BEFORE_HISTORY_LABEL, PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
 export interface PivotBandProps {
   /** This is a DUPLICATE pivot (2nd+ `chat_history`) — render an inert warning band, no zone boundary. */
@@ -32,16 +35,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
   const chevronRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(chevronRef, restoreFocus && !duplicate);
   if (duplicate) {
-    return (
-      <Card tone="warning" variant="soft">
-        <Row align="center" gap="row">
-          <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Text grow={true} voice="label">
-            Duplicate chat history: only the first one splits the conversation. Remove this one.
-          </Text>
-        </Row>
-      </Card>
-    );
+    return <Notice title="Duplicate chat history: only the first one splits the conversation. Remove this one." tone="warning" />;
   }
 
   // THE LEGENDS ARE KICKERS, NOT PILLS (side-eye F-18): filled Badges straddled the band's own border and
@@ -51,7 +45,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
     <Card variant="soft" dashed={true}>
       <Stack gap="tight">
         <Text tone="info" voice="kicker">
-          setup · before the conversation
+          {PRESET_BEFORE_HISTORY_LABEL}
         </Text>
         <Row align="center" gap="row">
           <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
@@ -59,18 +53,26 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
           <Button stretch="row" variant="ghost" onClick={onSelect} size="sm" type="button">
             <Text ink="inherit" as="span" className="shrink-0" voice="label">
-              Chat history
+              {PRESET_CHAT_HISTORY_LABEL}
             </Text>
             <Text as="span" truncate={true} voice="gloss">
               your conversation splices in here: always on, always placed
             </Text>
           </Button>
-          <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} square={true} type="button">
+          <Button
+            aria-label={editActionName(PRESET_CHAT_HISTORY_LABEL)}
+            className="shrink-0"
+            variant="ghost"
+            onClick={onDrill}
+            ref={chevronRef}
+            square={true}
+            type="button"
+          >
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>
         <Text tone="warning" voice="kicker">
-          post · after your last message
+          {PRESET_AFTER_HISTORY_LABEL}
         </Text>
       </Stack>
     </Card>

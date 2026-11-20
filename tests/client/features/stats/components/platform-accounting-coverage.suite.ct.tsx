@@ -7,20 +7,36 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import {
+  ACCOUNTING_AVERAGES_TEXT,
+  ACCOUNTING_CHARACTER_TEXT,
+  ACCOUNTING_COVERAGE_NAME,
+  ACCOUNTING_IDENTITY_TEXT,
+  ACCOUNTING_LIBRARY_TEXT,
+  ACCOUNTING_OMITTED_TEXT,
+  ACCOUNTING_PRICES_TEXT,
+  ACCOUNTING_RETENTION_TEXT,
+  ACCOUNTING_SUMMARY_TEXT,
+} from "#client/features/stats/lib/analytics-copy.ts";
+import {
+  ANALYTICS_ACTIVITY_HEADING,
+  ANALYTICS_ALL_TIME_HEADING,
+  ANALYTICS_GENERATIONS_HEADING,
+  ANALYTICS_MODELS_SCOPE_REASON,
+  ANALYTICS_REPLY_SPEED_HEADING,
+  libraryScopeNotice,
+} from "#client/features/stats/lib/analytics-names.ts";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
 const STORY = "tests/client/features/stats/components/_accounting-coverage-stories/AccountingCoverageStory";
-const IDENTITY = "Partial accounting: not your provider bill";
-const SUMMARY = "Missing prices are omitted; some costs are estimates.";
-const PRICES =
-  "Costs sum available compatible prices and omit missing prices. They may include provider-reported prices, configured-rate estimates or subscription-notional estimates, not invoice charges.";
-const OMITTED = "Prompt extraction and captioning costs are omitted. Background-work accounting is incomplete.";
-const RETENTION =
-  "Deleted images can lose their cost records on Recompute. Image-generation history is included in backup and restore; embedding and compaction spend history are not.";
-const LIBRARY =
-  "Figures use retained message generations, image-generation records, observed embedding batches and compaction spend. Image costs may lack counted samples.";
-const CHARACTER = "Character costs cover recorded message generations only; image generation and compaction are library-level activity.";
-const AVERAGES = "Generation averages do not cover every operation. Last active can include chat-setting changes, not just replies.";
+const IDENTITY = ACCOUNTING_IDENTITY_TEXT;
+const SUMMARY = ACCOUNTING_SUMMARY_TEXT;
+const PRICES = ACCOUNTING_PRICES_TEXT;
+const OMITTED = ACCOUNTING_OMITTED_TEXT;
+const RETENTION = ACCOUNTING_RETENTION_TEXT;
+const LIBRARY = ACCOUNTING_LIBRARY_TEXT;
+const CHARACTER = ACCOUNTING_CHARACTER_TEXT;
+const AVERAGES = ACCOUNTING_AVERAGES_TEXT;
 
 // Compare actual content positions independently of native focus scrolling within each production scroller.
 async function contentPosition(scroller: Locator, target: Locator): Promise<number> {
@@ -41,7 +57,7 @@ function readingSubjects(page: Page, view: "paired" | "content" | "models", char
     const pane = page.locator('[data-slot="accounting-content-subject"]');
     subjects.push({
       pane,
-      following: pane.getByRole("heading", { name: characterOnly ? "Activity" : "All-time totals", exact: true }),
+      following: pane.getByRole("heading", { name: characterOnly ? ANALYTICS_ACTIVITY_HEADING : ANALYTICS_ALL_TIME_HEADING, exact: true }),
       scroller: pane.locator('[data-slot="analytics-content"]'),
       characterOnly,
     });
@@ -50,7 +66,7 @@ function readingSubjects(page: Page, view: "paired" | "content" | "models", char
     const pane = page.locator('[data-slot="accounting-models-subject"]');
     subjects.push({
       pane,
-      following: pane.getByRole("heading", { name: characterOnly ? "Generations" : "Reply speed (all models)", exact: true }),
+      following: pane.getByRole("heading", { name: characterOnly ? ANALYTICS_GENERATIONS_HEADING : ANALYTICS_REPLY_SPEED_HEADING, exact: true }),
       scroller: pane.getByTestId(testId("analyticsModelsTab")),
       characterOnly: false,
     });
@@ -62,7 +78,7 @@ async function expectIndependentDisclosure(subject: ReadingSubject, others: read
   const { pane, following, scroller, characterOnly } = subject;
   const page = pane.page();
   const notice = pane.locator('[data-slot="accounting-coverage"]');
-  const trigger = notice.getByRole("button", { name: "Accounting coverage", exact: true });
+  const trigger = notice.getByRole("button", { name: ACCOUNTING_COVERAGE_NAME, exact: true });
   await expect(notice.getByText(IDENTITY, { exact: true })).toBeVisible();
   await expect(following).toBeVisible();
   await trigger.focus();
@@ -108,10 +124,7 @@ for (const regime of REGIMES) {
       const characterOnly = subject === "character";
       const singleView = subject === "models" ? "models" : "content";
       const view = regime.mobile ? singleView : "paired";
-      const expectedScope =
-        characterOnly && !regime.mobile
-          ? ["Whole library: not just the character you opened. Model usage is rolled up per model, with no per-character breakdown to narrow to."]
-          : [];
+      const expectedScope = characterOnly && !regime.mobile ? [libraryScopeNotice(ANALYTICS_MODELS_SCOPE_REASON)] : [];
       test(`${subject} retains its own full accounting explanation behind the concise notice`, async ({ mount, page }, testInfo) => {
         await using root = await createCorpusHarness(undefined, { startJobs: false });
         const caller = await root.internalCallerFor(root.ownerId);
@@ -149,7 +162,7 @@ for (const regime of REGIMES) {
         const panes = readingSubjects(page, view, characterOnly);
         const coverage = page.locator('[data-slot="accounting-coverage"]');
         await expect(coverage).toHaveCount(panes.length);
-        const triggers = await coverage.getByRole("button", { name: "Accounting coverage", exact: true }).all();
+        const triggers = await coverage.getByRole("button", { name: ACCOUNTING_COVERAGE_NAME, exact: true }).all();
         for (const trigger of triggers) {
           await expect(trigger).toHaveAttribute("aria-expanded", "false");
         }

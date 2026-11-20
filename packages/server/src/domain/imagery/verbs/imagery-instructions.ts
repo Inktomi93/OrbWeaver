@@ -5,8 +5,8 @@ import type { ImageryInstructionDeps, ImageryInstructionOps } from "../contract/
 
 export function createImageryInstructions(deps: ImageryInstructionDeps): ImageryInstructionOps {
   return {
-    resolvePromptTemplate: async (runAs, mode) => resolveImageryTemplate((await deps.loadUserSettings(runAs.userId)).imagery, mode),
-    resolveCaptionInstruction: async (runAs, mode) => resolveImageryCaption((await deps.loadUserSettings(runAs.userId)).imagery, mode),
+    resolvePromptTemplate: async (runAs, mode) => resolveImageryTemplate((await deps.loadUserSettings(runAs.userId)).prose, mode),
+    resolveCaptionInstruction: async (runAs, mode) => resolveImageryCaption((await deps.loadUserSettings(runAs.userId)).prose, mode),
     resolveNegativeBase: async (runAs) => resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, (await deps.loadUserSettings(runAs.userId)).prose),
   };
 }

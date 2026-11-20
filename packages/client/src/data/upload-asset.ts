@@ -5,10 +5,11 @@
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { throwHttpError } from "./http-error.ts";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
+import { parseJsonText } from "@orb/kit/json";
+import { HttpError, isHttpFailure, throwHttpError } from "./http-error.ts";
 
 const UPLOAD_URL = "/api/assets/upload";
-const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
@@ -25,13 +26,19 @@ export class UploadRefusedError extends Error {
   }
 }
 
+/** Whether an upload failed as a request (the network, a refusal, or a non-OK or malformed answer) rather than as a
+ *  fault in the caller's own code. */
+export function isUploadFailure(error: unknown): boolean {
+  return error instanceof UploadRefusedError || isHttpFailure(error);
+}
+
 /** POST a picked `File` to the asset-upload route, parse + validate the response against
- *  {@link storedAssetSchema}. Throws {@link UploadRefusedError} for a refusal carrying a reason, else a
- *  plain error on a non-OK response or a malformed body — the caller (an upload component/mutation) owns the
+ *  {@link storedAssetSchema}. Throws {@link UploadRefusedError} for a refusal carrying a reason, else an
+ *  {@link HttpError} on a non-OK response or a malformed body — the caller (an upload component/mutation) owns the
  *  try/catch + loading-state UI (the `FileDropzone` `loading`/`success` 8-state contract, `@orb/ui`). */
 export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAsset> {
   const form = new FormData();
-  form.set(UPLOAD_FIELD, file);
+  form.set(UPLOAD_FILE_FIELD, file);
   form.set(KIND_FIELD, kind);
   const response = await fetch(UPLOAD_URL, {
     method: "POST",
@@ -39,13 +46,9 @@ export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAs
     headers: { [CSRF_HEADER]: "1" },
   });
   if (REFUSAL_STATUSES.has(response.status)) {
-    // a non-JSON refusal body leaves `refusal.success` false, and 413/415 are never `response.ok`, so `await throwHttpError("uploadAsset", response)` at upload-asset.ts:55 always throws with the status. Ends if that throw stops being reachable for REFUSAL_STATUSES.
-    const refusal = assetUploadRefusalSchema.safeParse(
-      await response
-        .clone()
-        .json()
-        .catch(() => null),
-    );
+    // A refusal body that is not JSON leaves `refusal.success` false, and 413/415 are never `response.ok`, so the
+    // status-line `throwHttpError` below always throws.
+    const refusal = assetUploadRefusalSchema.safeParse(parseJsonText(await response.clone().text()));
     if (refusal.success) {
       throw new UploadRefusedError(refusal.data.error);
     }
@@ -53,5 +56,9 @@ export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAs
   if (!response.ok) {
     await throwHttpError("uploadAsset", response);
   }
-  return storedAssetSchema.parse(await response.json());
+  const stored = storedAssetSchema.safeParse(parseJsonText(await response.text()));
+  if (!stored.success) {
+    throw new HttpError("uploadAsset: the answer was not a stored asset", response.status);
+  }
+  return stored.data;
 }

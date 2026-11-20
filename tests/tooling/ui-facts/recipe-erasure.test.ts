@@ -35,7 +35,7 @@ const TOGGLE = "primitives/toggle/variants#toggleVariants";
 const WEAVE_GLYPH = "art/web-weave/variants#weaveGlyphVariants";
 
 /**
- * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `TextPaint`, `PictureReach`, `CardReservation`, or the arm is `Omit`ted from the named component.
+ * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `TextPaint`, `PictureReach`, `PictureCue`, `CardReservation`, or the arm is `Omit`ted from the named component.
  * `ToneInkSelection` pairs `tone` with `ink` only as `ink="toneForeground"`, the tone's own ink on the fill it names.
  */
 const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
@@ -43,6 +43,7 @@ const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
   "clamp > lines": [TEXT],
   "minHeight > size+stacked": [BUTTON],
   "minHeight > size+wrap": [BUTTON],
+  "placed > cue": [PICTURE_BUTTON],
   "placed > reach": [PICTURE_BUTTON],
   "receded > unpainted": [TEXT],
   "square > grow": [BUTTON],
@@ -81,6 +82,7 @@ type ArmsByTable = Readonly<Record<string, readonly string[]>>;
 const INSET_SPENT: Readonly<Record<string, ArmsByTable>> = {
   "indent > artDecoration": { [STACK]: ["true"] },
   "indent > reach": { [ROW]: ["true"], [STACK]: ["true"] },
+  "padding > reach": { [ROW]: ["block", "section"], [STACK]: ["block", "section"] },
   "paddingInline > reach": {
     [GRID]: ["block", "field", "gutter", "row", "section", "tight"],
     [ROW]: ["block", "field", "gutter", "row", "section", "tight"],
@@ -134,10 +136,9 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "layout > typeStep": { [INPUT]: ["field", "inline"] },
   "layout > width": { [INPUT]: ["field", "inline"] },
   "lines > whitespace": { [TEXT]: ["2"] },
+  "padding > paddingInline": { [ROW]: ["block", "section"], [STACK]: ["block", "section"] },
   "pinned > layer": { [ROW]: ["header", "headerOutside"] },
   "pinned > paddingBlockShort": { [ROW]: ["dialogFooter"] },
-  "prose > artScale": { [TEXT]: ["true"] },
-  "prose > solidLine": { [TEXT]: ["true"] },
   "rail > nested": { [CARD]: ["primary"] },
   "receded > arrival": { [STACK]: ["false", "true"] },
   "receded > artDim": { [STACK]: ["true"] },
@@ -153,7 +154,6 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "shape > padding": { [MESSAGE_BUBBLE]: ["bubble", "island"], [THEME_PREVIEW]: ["inset", "island", "row"] },
   "shape > share": { [MESSAGE_BUBBLE]: ["bubble"] },
   "shape > width": { [MESSAGE_BUBBLE]: ["bubble"] },
-  "size > artScale": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > cap": { [CONTAINER]: ["lg", "md", "sm"] },
   "size > face": { [BADGE]: ["compact"] },
   "size > flush": { [BADGE]: ["compact", "sm"] },
@@ -162,7 +162,6 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "size > layout": { [INPUT]: ["chip", "lg", "md", "sm"] },
   "size > minHeight": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > prose": { [TEXT]: ["body", "headline", "label", "title"] },
-  "size > solidLine": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > square": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > stacked": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > step": { [INLINE_ACTION]: ["chip", "lg", "md", "sm"] },
@@ -175,33 +174,15 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "stretch > grow": { [BUTTON]: ["row"] },
   "stretch > minWidth": { [BUTTON]: ["row"] },
   "textAlign > caption": { [PICTURE_BUTTON]: ["center", "end"] },
+  "truncate > cap": { [TEXT]: ["inline"] },
   "truncate > grow": { [TEXT]: ["fill"] },
+  "truncate > width": { [TEXT]: ["inline"] },
   "underline > selection": { [BUTTON]: ["dotted"] },
   "variant > ink": { [BUTTON]: ["ghost", "link", "outline", "solid"], [TOGGLE]: ["ghost", "outline"] },
   "variant > painted": { [PICTURE_BUTTON]: ["ghost", "link", "outline", "solid"] },
   "variant > reserveEdge": { [BUTTON]: ["outline"] },
   "variant > selection": { [BUTTON]: ["ghost", "link", "outline", "solid"] },
   "variant > width": { [SKELETON]: ["text"] },
-  "voice > artScale": {
-    [TEXT]: [
-      "code",
-      "credit",
-      "datum",
-      "datumMono",
-      "focal",
-      "gloss",
-      "hero",
-      "interactiveKicker",
-      "kicker",
-      "label",
-      "lead",
-      "masthead",
-      "monogram",
-      "promoted",
-      "quiet",
-      "reading",
-    ],
-  },
   "voice > ink": {
     [TEXT]: [
       "code",
@@ -242,26 +223,6 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
     ],
   },
   "voice > push": { [TEXT]: ["interactiveKicker"] },
-  "voice > solidLine": {
-    [TEXT]: [
-      "code",
-      "credit",
-      "datum",
-      "datumMono",
-      "focal",
-      "gloss",
-      "hero",
-      "interactiveKicker",
-      "kicker",
-      "label",
-      "lead",
-      "masthead",
-      "monogram",
-      "promoted",
-      "quiet",
-      "reading",
-    ],
-  },
   "voice > tone": {
     [TEXT]: [
       "code",
@@ -289,7 +250,9 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
 const TABLES_BY_RULE = { ...CLOSED_BY_TYPE, ...HIDDEN_WINS, ...ONE_PLACE };
 const ARMS_BY_TABLE = { ...INSET_SPENT, ...REFINES };
 
-const flat = (arms: ArmClasses): boolean => [...arms.values()].every((arm: Arm) => arm.slots.length === 0);
+// `base` is the slot a `tv()` recipe with slots writes on the element itself, so an arm that writes that slot alone is as flat as a class string.
+const ELEMENT_SLOT = "base";
+const flat = (arms: ArmClasses): boolean => [...arms.values()].every((arm: Arm) => arm.slots.every((slot) => slot === ELEMENT_SLOT));
 
 /** The tokens of `earlier` that a later write evicts, none of which that write repeats. */
 const erases = (earlier: readonly string[], later: readonly string[]): boolean =>

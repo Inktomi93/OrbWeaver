@@ -29,38 +29,59 @@ import {
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const databankRouter = t.router({
   createFromText: authedProcedure
     .output(uploadResultSchema)
     .input(databankTextDocumentSchema.extend({ destination: documentDestinationSchema.optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text, destination: input.destination }),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.databank.createFromText({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        name: input.name,
+        text: input.text,
+        destination: input.destination,
+      }),
     ),
 
   scrapeWeb: authedProcedure
     .output(uploadResultSchema)
     .input(z.strictObject({ url: z.url(), destination: documentDestinationSchema.optional() }))
-    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWeb({ principal: ctx.auth, url: input.url, destination: input.destination })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.databank.scrapeWeb({ principal: ctx.auth, signal: procedureSignal(signal), url: input.url, destination: input.destination }),
+    ),
 
   scrapeYoutube: authedProcedure
     .output(uploadResultSchema)
     .input(z.strictObject({ url: z.url(), lang: z.string().default("en"), destination: documentDestinationSchema.optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.databank.scrapeYoutube({ principal: ctx.auth, url: input.url, lang: input.lang, destination: input.destination }),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.databank.scrapeYoutube({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        url: input.url,
+        lang: input.lang,
+        destination: input.destination,
+      }),
     ),
 
   scrapeWiki: authedProcedure
     .output(uploadResultSchema)
     .input(z.strictObject({ url: z.url(), destination: documentDestinationSchema.optional() }))
-    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url, destination: input.destination })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.databank.scrapeWiki({ principal: ctx.auth, signal: procedureSignal(signal), url: input.url, destination: input.destination }),
+    ),
 
   get: authedProcedure
     .output(documentDetailViewSchema)
     .input(getDocumentInputSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.databank.get({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        id: input.id,
+        ...(input.includeText !== undefined ? { includeText: input.includeText } : {}),
+      }),
     ),
 
   // Keyset-paged, and EVERY lens is an input here (owner ruling — a paged list's filters are the
@@ -72,9 +93,10 @@ export const databankRouter = t.router({
   list: authedProcedure
     .output(listDocumentsResultSchema)
     .input(listDocumentsInputSchema)
-    .query(({ ctx, input }) =>
+    .query(({ ctx, input, signal }) =>
       ctx.services.databank.list({
         principal: ctx.auth,
+        signal: procedureSignal(signal),
         ...(input.origin !== undefined ? { origin: input.origin } : {}),
         ...(input.search !== undefined ? { search: input.search } : {}),
         ...(input.phase !== undefined ? { phase: input.phase } : {}),
@@ -85,12 +107,16 @@ export const databankRouter = t.router({
 
   // The home tile's D-7 census (owner-wide counts + passage sums). Its own read, never a field on `list`:
   // resolving it costs a bank-wide chunk read that the paging library must not pay per page (verbs/bank-health.ts).
-  bankHealth: authedProcedure.output(bankHealthViewSchema).query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
+  bankHealth: authedProcedure
+    .output(bankHealthViewSchema)
+    .query(({ ctx, signal }) => ctx.services.databank.bankHealth({ principal: ctx.auth, signal: procedureSignal(signal) })),
 
   rename: authedProcedure
     .output(documentViewSchema)
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(DATABANK_NAME_MAX) }))
-    .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.databank.rename({ principal: ctx.auth, signal: procedureSignal(signal), id: input.id, name: input.name }),
+    ),
 
   remove: authedProcedure
     .output(z.void())
@@ -145,10 +171,10 @@ export const databankRouter = t.router({
   listAttachments: authedProcedure
     .output(documentAttachmentsViewSchema)
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document) }))
-    .query(({ ctx, input }) => ctx.services.databank.listAttachments({ principal: ctx.auth, id: input.id })),
+    .query(({ ctx, input, signal }) => ctx.services.databank.listAttachments({ principal: ctx.auth, signal: procedureSignal(signal), id: input.id })),
 
   listActiveForChat: authedProcedure
     .output(z.array(activeChatDocumentViewSchema))
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) }))
-    .query(({ ctx, input }) => ctx.services.databank.listActiveForChat({ principal: ctx.auth, chatId: input.chatId })),
+    .query(({ ctx, input, signal }) => ctx.services.databank.listActiveForChat({ principal: ctx.auth, signal: procedureSignal(signal), chatId: input.chatId })),
 });

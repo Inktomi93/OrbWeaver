@@ -15,6 +15,7 @@
 import type { StProfileHandledEntry, TreeLayoutDeclaration } from "@orb/contracts/import";
 import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
+import { parseJsonText } from "@orb/kit/json";
 import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { relativePathOf } from "./import-tree.ts";
@@ -97,21 +98,18 @@ interface GroupShape {
 }
 
 // Only the two lists the plan reads, each optional like the server's parse; a non-object definition fails the parse and plans as an empty group.
-const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() });
+const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() }).strip();
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
 async function readGroupShape(file: File): Promise<GroupShape> {
-  // the group definition is still packed and sent (`planTreeImport`'s `packer.add`), and the server parse
-  // (`collectGroups` in loader/collect.ts) lists it in `unreadableGroups`, which the import report prints. Ends if the server stops reporting unreadable groups.
-  try {
-    const record = GROUP_DEFINITION.parse(JSON.parse(await file.text()));
-    return { members: stringList(record.members), chats: stringList(record.chats) };
-  } catch {
-    return { members: [], chats: [] };
-  }
+  // A definition that is not a JSON object plans as an empty group; it is still packed and sent (`planTreeImport`'s
+  // `packer.add`), and the server parse (`collectGroups` in loader/collect.ts) lists it in `unreadableGroups`, which
+  // the import report prints.
+  const record = GROUP_DEFINITION.safeParse(parseJsonText(await file.text()));
+  return record.success ? { members: stringList(record.data.members), chats: stringList(record.data.chats) } : { members: [], chats: [] };
 }
 
 /** The single leading path segment every path shares (the browser's picked-folder wrapper), else null. */

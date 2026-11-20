@@ -6,8 +6,7 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { warn } from "@orb/tooling/floor/cli/log";
 import { budget, loadKillError } from "@orb/tooling/floor/host/load-budget";
 import type { CDPSession, Page } from "@playwright/test";
-import { defaultConfig, traceCategories } from "lighthouse";
-import { TraceEngineResult } from "lighthouse/core/computed/trace-engine-result.js";
+import type { TraceEngineResult } from "lighthouse/core/computed/trace-engine-result.js";
 import type { BootTraceReceipt, BootTraceRetention, BootTraceRetentionContext } from "../contract/types.ts";
 import { summarizeBootTrace } from "../lib/boot-trace.ts";
 
@@ -212,6 +211,8 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
 
   try {
     observerScript = await installBootLcpObserver(cdp);
+    // Lighthouse is loaded where a trace runs: every instrument that links this module would otherwise pay its graph at start.
+    const { traceCategories } = await import("lighthouse");
     await cdp.send("Tracing.start", {
       transferMode: "ReportEvents",
       traceConfig: { recordMode: "recordUntilFull", includedCategories: traceCategories },
@@ -273,11 +274,12 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
           throw new Error("boot trace reached its post-load presentation boundary without a positive LCP candidate");
         }
         const hostDpr = await page.evaluate(() => (globalThis as unknown as { readonly devicePixelRatio: number }).devicePixelRatio);
+        const [{ defaultConfig }, engine] = await Promise.all([import("lighthouse"), import("lighthouse/core/computed/trace-engine-result.js")]);
         const settings = defaultConfig.settings as Parameters<typeof TraceEngineResult.runTraceEngine>[1] | undefined;
         if (settings === undefined) {
           throw new Error("Lighthouse default config omitted trace-engine settings");
         }
-        const analyzed = await TraceEngineResult.runTraceEngine(events as Parameters<typeof TraceEngineResult.runTraceEngine>[0], settings, [], hostDpr);
+        const analyzed = await engine.TraceEngineResult.runTraceEngine(events as Parameters<typeof TraceEngineResult.runTraceEngine>[0], settings, [], hostDpr);
         return summarizeBootTrace(analyzed, events.length, rawTracePath);
       } finally {
         await detachReported();

@@ -94,9 +94,14 @@ test.each([
   expect(await replayedWarnings(room, room.host)).toEqual([]);
 });
 
-test("a broken tag warns even on a reply the output limit cut off", async () => {
+// Only a tag the cut left unfinished is the cut itself; each of these has bytes after it that members lose.
+test.each([
+  ["a broken tag", BROKEN],
+  ["a tag past the hidden scan bound", [`Opening. <lie truth="${OVER_HIDDEN_BOUND}"/> Three paragraphs members lose.`]],
+  ["a nest past the pass bound", [`Opening. ${"<l".repeat(12)}<lie a="1"/>${'ie a="1"/>'.repeat(12)} Three paragraphs members lose.`]],
+])("%s warns even on a reply the output limit cut off", async (_name, chunks) => {
   await using room = await openRoom();
-  room.answerInChunks(BROKEN, "length");
+  room.answerInChunks(chunks, "length");
   await room.send();
   expect(await replayedWarnings(room, room.host)).toHaveLength(1);
 });

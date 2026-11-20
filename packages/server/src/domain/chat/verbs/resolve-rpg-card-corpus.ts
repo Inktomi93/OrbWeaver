@@ -17,9 +17,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import { createChatContext } from "../context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 
 /** The card sections the round reads, in the order a human reads a card. A section with no prose is OMITTED

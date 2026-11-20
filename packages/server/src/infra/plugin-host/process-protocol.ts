@@ -1,7 +1,14 @@
-import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
-import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_HOST_REFUSAL_CODES, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLlmFailureKind, PluginLogLevel } from "@orb/contracts/plugin";
+import {
+  PLUGIN_CHANNEL_FULL_CODE,
+  PLUGIN_HOST_REFUSAL_CODES,
+  PLUGIN_LLM_FAILURE_KINDS,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_UI_HOST_CALL_FAILED,
+} from "@orb/contracts/plugin";
 import type {
   BrokerParentMessage,
+  CommandResponse,
   ParentBrokerMessage,
   PluginBridgeOperation,
   PluginCommandOperation,
@@ -22,7 +29,8 @@ export const PLUGIN_CHANNEL_FULL = "plugin host: a channel between the plugin ho
 /** What a command for a runtime the host already ended or retired is refused with, under {@link PLUGIN_HOST_UNAVAILABLE}:
  *  the host's own lifecycle, not the plugin's doing. */
 export const PLUGIN_STALE_RUNTIME = "plugin host: stale or unknown runtime id";
-/** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
+/** The error name of an invocation the host ended: at its settlement wall, at its CPU window, or by terminating its
+ *  stuck Worker. */
 export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 /** The Int32 slots a Worker shares with its broker to report its guest work: the open span's sequence number (0 while
  *  no span is open), that span's CPU window in ms, and the running total of closed spans in ms, which wraps. */
@@ -31,21 +39,27 @@ export const SPAN_WINDOW_SLOT = 1;
 export const SPAN_CLOSED_TOTAL_SLOT = 2;
 export const SPAN_SLOTS_BYTES = (SPAN_CLOSED_TOTAL_SLOT + 1) * Int32Array.BYTES_PER_ELEMENT;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
-/** The broker's file descriptor for its heartbeat pipe to the watchdog, apart from the IPC channel, so a beat never
- *  waits behind a large frame in that channel's queue (D347). Index 4 of the watchdog's spawn `stdio`. */
-export const PLUGIN_BROKER_BEAT_FD = 4;
-/** The longest heartbeat line the watchdog reads; a longer one is a malformed beat. */
+/** The longest line the watchdog reads as a heartbeat; a longer line on the broker's stderr is passed on as text. */
 export const PLUGIN_BROKER_BEAT_MAX_BYTES = 8192;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
 
-function parseWorkerResponse(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
+// A command's answer, from the Worker to the broker or from the broker to the parent. Only a host-unavailable refusal
+// may ride as its recorded refusal.
+function parseCommandResponse(value: Readonly<Record<string, unknown>>): CommandResponse | null {
   if (typeof value["id"] !== "string") {
     return null;
   }
   const result = parseRpcResult(value);
-  return result === null ? null : { kind: "response", id: value["id"], ...result };
+  if (result === null) {
+    return null;
+  }
+  if (value["refusal"] === undefined) {
+    return { kind: "response", id: value["id"], ...result };
+  }
+  const refusal = parseRpcError(value["refusal"]);
+  return refusal?.name === PLUGIN_HOST_UNAVAILABLE ? { kind: "response", id: value["id"], refusal, ...result } : null;
 }
 
 function parseWorkerBridge(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
@@ -107,7 +121,7 @@ export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage 
   if (message["kind"] === "authority-released") {
     return typeof message["authorityId"] === "string" ? { kind: "authority-released", authorityId: message["authorityId"] } : null;
   }
-  return message["kind"] === "response" ? parseWorkerResponse(message) : null;
+  return message["kind"] === "response" ? parseCommandResponse(message) : null;
 }
 
 /** A {@link PLUGIN_HOST_UNAVAILABLE} refusal that says why in its code, which crosses every hop and reaches the guest
@@ -121,9 +135,24 @@ export class CodedHostUnavailableError extends Error {
   }
 }
 
+/** A failed model call as the guest reads it: the fixed sentence under the name `Error`, with the failure's kind and
+ *  whether a retry may succeed. The upstream text, the reset time, the provider and the model stay in the server. */
+export class PluginLlmFailureError extends Error {
+  readonly kind: PluginLlmFailureKind;
+  readonly retryable: boolean;
+  constructor(kind: PluginLlmFailureKind, retryable: boolean) {
+    super(PLUGIN_UI_HOST_CALL_FAILED);
+    this.kind = kind;
+    this.retryable = retryable;
+  }
+}
+
 export function rpcError(error: unknown): RpcError {
   if (error instanceof CodedHostUnavailableError) {
     return { name: error.name, message: error.message, code: error.code };
+  }
+  if (error instanceof PluginLlmFailureError) {
+    return { name: error.name, message: error.message, llmFailure: { kind: error.kind, retryable: error.retryable } };
   }
   if (error instanceof Error) {
     return { name: error.name, message: error.message };
@@ -138,9 +167,24 @@ export function fromRpcError(error: RpcError | undefined, fallback: string): Err
   if (error.code !== undefined) {
     return new CodedHostUnavailableError(error.code, error.message);
   }
+  if (error.llmFailure !== undefined) {
+    return new PluginLlmFailureError(error.llmFailure.kind, error.llmFailure.retryable);
+  }
   const restored = new Error(error.message);
   restored.name = error.name;
   return restored;
+}
+
+// A model-call failure off the wire: a known kind and a boolean, or nothing; anything else refuses the whole error.
+function parseLlmFailure(value: unknown): RpcError["llmFailure"] | null {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value) || typeof value["retryable"] !== "boolean") {
+    return null;
+  }
+  const kind = PLUGIN_LLM_FAILURE_KINDS.find((known) => known === value["kind"]);
+  return kind === undefined ? null : { kind, retryable: value["retryable"] };
 }
 
 // A refusal code off the wire: only a host-unavailable refusal carries one, and only a code the host mints.
@@ -223,14 +267,6 @@ export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage 
       : null;
   }
   return message["kind"] === "command" ? parseParentCommand(message) : null;
-}
-
-function parseBrokerResponse(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
-  if (typeof value["id"] !== "string") {
-    return null;
-  }
-  const result = parseRpcResult(value);
-  return result === null ? null : { kind: "response", id: value["id"], ...result };
 }
 
 function parseRpcResult(value: Readonly<Record<string, unknown>>): RpcResult | null {
@@ -323,7 +359,7 @@ export function parseBrokerParentMessage(message: unknown): BrokerParentMessage 
     return null;
   }
   if (message["kind"] === "response") {
-    return parseBrokerResponse(message);
+    return parseCommandResponse(message);
   }
   if (message["kind"] === "bridge") {
     return parseBrokerBridge(message);
@@ -340,10 +376,16 @@ export function parseRpcError(errorValue: unknown): RpcError | undefined {
     return;
   }
   const code = parseRefusalCode(errorValue["name"], errorValue["code"]);
-  if (code === null) {
+  const llmFailure = parseLlmFailure(errorValue["llmFailure"]);
+  if (code === null || llmFailure === null) {
     return;
   }
-  return code === undefined ? { name: errorValue["name"], message: errorValue["message"] } : { name: errorValue["name"], message: errorValue["message"], code };
+  return {
+    name: errorValue["name"],
+    message: errorValue["message"],
+    ...(code === undefined ? {} : { code }),
+    ...(llmFailure === undefined ? {} : { llmFailure }),
+  };
 }
 
 const BYTE_TAG = "$orbBytes";

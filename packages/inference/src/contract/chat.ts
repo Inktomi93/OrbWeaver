@@ -2,8 +2,9 @@
 // the runtime handed it and calls the executor; it never sees sessions, seed frames, child env or transport
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
-import type { ChatContentPart, ChatDeltaEvent, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
-import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId } from "@orb/contracts/inference";
+import type { ChatContentPart, ChatDeltaEvent, ChatSource, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
+import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId, ResolvedWarning } from "@orb/contracts/inference";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -42,7 +43,7 @@ export interface WireTool {
   readonly name: string;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
-  /** STRICT tool-input mode (audit C1): the provider constrains generation so the input ALWAYS validates,
+  /** STRICT tool-input mode: the provider constrains generation so the input ALWAYS validates,
    *  at the cost of a narrower supported schema subset. CALLER-SET, and only ever an override — what the
    *  ENDPOINT can do is `features.strictJson` (`default-on` ⇒ strict unless this says otherwise ·
    *  `declared-only` ⇒ strict only where this says so · `never` ⇒ the row has no strict mode and the ask
@@ -105,7 +106,7 @@ export interface ChatTurnTools {
 }
 
 /** The content a seed frame may carry — DERIVED from `ChatContentPart`, never re-spelled. Media is excluded
- *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE (#1605). */
+ *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE. */
 export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
 
 /** The model's own thinking as a content part — DERIVED from `ChatContentPart`, never re-spelled. The turn
@@ -123,7 +124,7 @@ export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
 
 /** THE CONTINUATION STUB — the one `prompt` an agent-sdk turn sends when the transcript has no trailing USER
  *  row. Host-authored, session-only, never persisted; it carries NO role label so content cannot imitate a
- *  turn boundary (#1593/#1607). */
+ *  turn boundary. */
 export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
 /** The resolved attribution of one completed call, without credential or transport secrets. */
@@ -150,7 +151,7 @@ export interface ChatRequestBase {
   readonly posture?: ChatPosture | undefined;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
 }
 
@@ -187,6 +188,11 @@ type HistoryChatRequest = ChatRequestCommon & {
   readonly reasoningTags?: ReasoningTagPair | undefined;
   /** `tools` carries TERMINAL declarations (D112 R1), so the turn must co-emit prose and state calls. */
   readonly terminalToolsAttached?: boolean | undefined;
+  /** The authored chain of thought (`prefillReasoning`) the model continues FROM: rule 5a (`body.ts`) stamps it
+   *  on the `prefix-flag` continue row beside the flag, and the model treats it as its own reasoning. Dropped
+   *  with `prefill_reasoning_dropped` on a turn that stamps no continue row; routes without a continuation
+   *  never carry it. Measured on the `prefix-flag` row: `docs/law/deepseek-api-surface.md`. */
+  readonly prefillReasoning?: string | undefined;
 };
 
 /**
@@ -213,6 +219,9 @@ export type ChatRequest =
       /** TERMINAL tools (D112 R1): declared on THIS completion, denied at `PreToolUse`, the co-emitted calls
        *  handed back on {@link ChatResult.toolCalls}. */
       readonly terminalTools?: readonly WireTool[] | undefined;
+      /** Rides here ONLY so the runner can name its own drop: the SDK owns the prompt and its wire expresses
+       *  no continuation row, so a stated seed can never land. Dropped with `prefill_reasoning_dropped`. */
+      readonly prefillReasoning?: string | undefined;
     })
   | (HistoryChatRequest & { readonly api: Exclude<ChatApi, "agent-sdk"> });
 
@@ -229,6 +238,9 @@ export type ChatTurnInput = ChatRequestCommon & {
   readonly responseFormat?: ResponseFormat | undefined;
   readonly cacheBreakpointDepth?: number | undefined;
   readonly reasoningTags?: ReasoningTagPair | undefined;
+  /** The authored chain of thought (see the {@link HistoryChatRequest} field of the same name). The
+   *  array-wire arms stamp it on the continue row; every other backend drops it with its own notice. */
+  readonly prefillReasoning?: string | undefined;
 };
 
 /**
@@ -243,7 +255,7 @@ export interface StructuredChatInput {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly responseFormat: ResponseFormat;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /**
@@ -258,11 +270,13 @@ export interface ForcedToolRoundInput {
   readonly systemPrompt: string;
   readonly history: readonly ChatHistoryMessage[];
   readonly tools: readonly WireTool[];
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };
+/** The `/responses` protocol arm of the same wire (`responses.ts` is its runner). */
+export type ResponsesChatRequest = ChatRequest & { readonly api: "responses" };
 export type GoogleChatRequest = ChatRequest & { readonly api: "google-generative-ai" };
 export type AnthropicChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 
@@ -299,6 +313,16 @@ export function normalizeFinishReason(raw: string | null | undefined): Normalize
   return FINISH_REASON_MAP.get(raw.toLowerCase()) ?? "other";
 }
 
+/** The authored chain of thought (`prefillReasoning`) has no channel on a wire without a continue row: the
+ *  seed can only ride a row the model is told to extend. One home for the drop, read by every runner whose
+ *  protocol models no continuation — a stated seed never vanishes silently. */
+export function prefillSeedDrop(channel: string, route: string): ResolvedWarning {
+  return {
+    code: WARNING_CODE.prefillReasoningDropped,
+    message: `prefill reasoning dropped: ${channel} on ${route} has no continue row to seed`,
+  };
+}
+
 /** "How full is my context window" after one turn — present only when the backend supports the control call. */
 export interface ContextUsage {
   readonly totalTokens: number;
@@ -311,6 +335,14 @@ export interface ContextUsage {
 export interface ChatResult {
   readonly reply: string;
   readonly textSignatures?: readonly TextSignature[] | undefined;
+  /** The web sources the model cited this turn, in arrival order and WITHOUT deduplication — one URL cited for
+   *  two spans is two facts, and a consumer that wants a distinct URL set collapses it itself.
+   *
+   *  ONE OFFSET FRAME, TWO ARRIVAL FORMS: a source part (OpenRouter's `url_citation` annotations) and a text
+   *  block's `citations` (Anthropic's `text-end`) both land here, and every entry's `atChars`/`endChars` are
+   *  offsets into {@link reply} — the fold adds the block's own arrival point, so a reader never has to know
+   *  which wire produced an entry. Absent when the turn cited nothing. */
+  readonly sources?: readonly ChatSource[] | undefined;
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
   readonly reasoning: string;
   /** The model's thinking as REPLAYABLE parts, in stream order, each carrying the wire's own opaque
@@ -333,11 +365,16 @@ export interface ChatResult {
   /** The provider's response id for this generation — OpenRouter's `gen-…` (the cost-settlement key), Anthropic's
    *  `msg_…` (the support handle); null where a wire reports none (agent-sdk). Opaque provenance (§5.3c class 4). */
   readonly generationId?: ProviderGenerationId | null | undefined;
+  /** The vendor's per-generation `system_fingerprint` — the backend's own model-mix identity for this
+   *  generation, read off the raw body where the SDK's schema does not model it. `null` where the wire reports
+   *  none or the route models no such field; absent on a backend that never reads one (agent-sdk). Opaque
+   *  provenance (§5.3c class 4): recorded, never compared. */
+  readonly systemFingerprint?: string | null | undefined;
   /** The reasoning effort the wire ACTUALLY CARRIED, in the preset's 7-member vocabulary (the `reasoning_effort`
    *  column's CHECK): `"none"` when the transport spelled thinking OFF, the wire word when it spelled a level,
    *  `null` when it spelled no effort field at all (a row with `features.effort: "none"`, a budget-mode turn, an
    *  SDK vocabulary drop, a mandatory-reasoning replay) — the model then reasoned at ITS default, which we do not
-   *  know. The REQUESTED intent stays in `params`; this field is what the record stores (inference audit B1).
+   *  know. The REQUESTED intent stays in `params`; this field is what the record stores.
    *  Read back from the options the transport built, never recomputed from the knobs. */
   readonly appliedEffort: EffortLevel | null;
   readonly usage: ChatUsage;
@@ -349,7 +386,7 @@ export interface ChatResult {
    *  by the vendor's own name, and only the BACKEND knows which keys that vendor spells. Typing this field
    *  as the bag would push per-provider shape knowledge up into the server's compose seam — the exact
    *  inversion `Tier-3b-Providers` forbids in the other direction — and would leave an open bag crossing a
-   *  package boundary with a closed union sitting one hop away (the #164 defect this record exists to end).
+   *  package boundary with a closed union sitting one hop away.
    *  So the untyped bag never leaves `backends/**`: `backends/wire/provider-metadata.ts` is its ONE reader,
    *  and what crosses this contract is a value a reader narrows by `provider` or does not compile. */
   readonly providerMetadata?: VariantProviderMetadata | undefined;

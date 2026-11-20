@@ -60,16 +60,18 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   });
   const backgroundBytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   payload = backgroundBytes;
-  const background = await root.services.settings.addExternalBackground({ principal: owner, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal: owner, url: PUBLIC_URL });
   const backgroundRead = await root.services.assets.readOwnedAssetBytes(owner, background.assetId);
   expect(backgroundRead.mime).toBe(MIME);
   expect(Buffer.from(backgroundRead.bytes).equals(Buffer.from(backgroundBytes))).toBe(true);
   expect(await root.services.assets.listOwned({ principal: owner, limit: 10 })).toMatchObject([
-    { assetId: background.assetId, kind: "background", mime: MIME },
+    { assetId: background.assetId, kinds: ["background"], mime: MIME },
   ]);
   await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow(DomainNotFoundError);
   const before = await root.db.select().from(assets).orderBy(assets.id);
-  await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
+  await expect(
+    root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal: owner, url: PRIVATE_URL }),
+  ).rejects.toMatchObject({
     code: CHAT_OP_CODES.backgroundUnavailable,
     message: backgroundMaterializeMessage("unreachable"),
   });
@@ -91,7 +93,7 @@ test("live download caps and raster dimensions refuse without changing the actua
   payload = new Uint8Array(PAYLOAD_SIZE);
   payload.set(raster);
   await root.services.settings.updateAppSettings({ principal, partial: { maxImageBytes: HIGH_CAP } });
-  const background = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   const stored = await root.services.assets.readOwnedAssetBytes(principal, background.assetId);
   expect(stored.mime).toBe(MIME);
   expect(Buffer.from(stored.bytes).equals(Buffer.from(payload))).toBe(true);
@@ -106,7 +108,7 @@ test("live download caps and raster dimensions refuse without changing the actua
     ["over the pixel cap", overPixels(raster)],
   ] as const) {
     payload = bytes;
-    outcomes[name] = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL }).then(
+    outcomes[name] = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL }).then(
       () => "stored",
       (err: unknown) => (err instanceof Error ? err.message : String(err)),
     );
@@ -135,7 +137,7 @@ test("native inline images read the live cap and refuse excessive dimensions whi
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: HIGH_CAP } });
   expect((await fixture.turn()).aborted).toBe(false);
   const before = await inlineImageRows(fixture.h).generated();
-  expect(before).toMatchObject([{ ownerId: fixture.h.owner.userId, kind: "generated", size: PAYLOAD_SIZE, mime: MIME }]);
+  expect(before).toMatchObject([{ ownerId: fixture.h.owner.userId, size: PAYLOAD_SIZE, mime: MIME }]);
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: LOW_CAP } });
   // The turns spend the reply plan in order; each records whether its picture was stored, so one run names every cap.
   const pictures: Record<string, number> = {};
@@ -190,12 +192,12 @@ test("failed downloads cancel unread bodies and conceal physical errors without 
   });
   const principal = await root.principalFor(root.ownerId);
   raster = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const background = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   expect((await root.services.assets.readOwnedAssetBytes(principal, background.assetId)).mime).toBe(MIME);
   const before = await root.db.select().from(assets).orderBy(assets.id);
   for (const failure of ["non-success", "throw"]) {
     mode = failure;
-    await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
+    await expect(root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL })).rejects.toMatchObject({
       code: CHAT_OP_CODES.backgroundUnavailable,
       message: backgroundMaterializeMessage("unreachable"),
     });

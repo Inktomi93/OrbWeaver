@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-10
+updated: 2026-11-13
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ Two live editors for one field on one screen can show diverging drafts and doubl
 
 ## Done when
 
-Provenance is edited in one place and shown read-only or not at all in the other, with a production-mounted CT asserting a single editable input per provenance field, and the duplicate-action-door finding is gone from the character editor evidence case.
+The duplicate-field finding is gone from the character editor evidence case of a design-audit run. Already merged: Provenance is edited in the facet editor and read-only in the detail panel, with `tests/client/features/app-shell/surfaces/character-provenance-single-editor.ct.tsx`. Both panes still render the import and refinery tail; that is ruled out of this item or filed.
 
 ## Evidence
 

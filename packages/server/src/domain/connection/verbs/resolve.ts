@@ -5,8 +5,8 @@
 
 import type { CapabilityTarget, ResolveChatCapabilityParams, ResolvedConnectionView, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
-import { cachePolicyContextOf, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
-import { ConnectionNotFoundError } from "../contract/errors.ts";
+import { cachePolicyContextOf, NoConnectionError, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
+import { ConnectionNotFoundError, RoleModelUnsetError } from "../contract/errors.ts";
 import type { TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
@@ -26,19 +26,31 @@ const CHAT_ROLE: CapabilityTarget = { kind: "role", task: "chat" };
 
 /** The caller's own connection a capability target names: a role through the caller's bindings, a connection
  *  id only after the owner check that every id-taking verb here runs first (see `createCapabilities`). */
-async function resolveChatTarget(ctx: ConnectionContext, params: ResolveChatCapabilityParams): Promise<ResolveOutcome["resolved"]> {
+async function resolveChatTarget(
+  ctx: ConnectionContext,
+  params: ResolveChatCapabilityParams & { readonly signal: AbortSignal },
+): Promise<ResolveOutcome["resolved"]> {
   const target = params.target ?? CHAT_ROLE;
   if (target.kind === "role") {
-    return (await ctx.runtime.resolve({ task: target.task, principal: params.principal })).resolved;
+    try {
+      return (await ctx.runtime.resolve({ task: target.task, principal: params.principal, signal: params.signal })).resolved;
+    } catch (error) {
+      // A role read names no row, so its only no-row outcomes are an unbound role or a binding to a row that is gone; both
+      // mean the role has no model, which the client says in its own words.
+      if (error instanceof NoConnectionError) {
+        throw new RoleModelUnsetError(target.task, { cause: error });
+      }
+      throw error;
+    }
   }
   if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
     throw new ConnectionNotFoundError(target.connectionId);
   }
-  return (await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId })).resolved;
+  return (await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId, signal: params.signal })).resolved;
 }
 
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
-  return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
+  return async (params): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
 }
 
 export function createResolveChatCacheContext(ctx: ConnectionContext): ConnectionService["resolveChatCacheContext"] {
@@ -51,7 +63,8 @@ export function createResolveChatCacheContext(ctx: ConnectionContext): Connectio
 /** What each word tokenizes to on the targeted connection's server (the logit-bias editor's live display),
  *  through the runtime's cache. Only the token ids and pieces cross; never the credential. */
 export function createTokenizeWords(ctx: ConnectionContext): ConnectionService["tokenizeWords"] {
-  return async (params: TokenizeWordsParams): Promise<TokenizeResult> => ctx.runtime.catalogs.tokenize(await resolveChatTarget(ctx, params), params.words);
+  return async (params: TokenizeWordsParams): Promise<TokenizeResult> =>
+    ctx.runtime.catalogs.tokenize(await resolveChatTarget(ctx, params), params.words, params.signal);
 }
 
 export function createCapabilities(ctx: ConnectionContext): ConnectionService["capabilities"] {
@@ -68,7 +81,12 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
+    const read = await ctx.runtime.capabilities.for({
+      connectionId: params.connectionId,
+      principal: params.principal,
+      signal: params.signal,
+      listFacts: params.listFacts,
+    });
     const cache = resolveCachePolicy({
       context: read.cacheContext,
       ...(read.capability.kind === "generation" ? { generation: read.capability.generation } : {}),

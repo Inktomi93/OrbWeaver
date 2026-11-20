@@ -1,27 +1,30 @@
 // The OUTBOUND-BODY shaper — the one place the converted wire object is edited after every SDK write and
-// before serialisation (§8.1). Applied through `transformRequestBody` on the `openai-compatible` transport
+// before serialisation. Applied through `transformRequestBody` on the `openai-compatible` transport
 // and inside `wrapFetch` on the `openrouter` transport (the OR provider exposes no post-convert hook, so its
 // body is parsed once there); the RULES are identical, only the hook differs:
 //   1. `extras` merge, USER WINS: every key merges over the SDK's body, a modelled param or a preset knob
 //      included, except a belt-owned key (`BELT_OWNED_BODY_KEYS`), which is DROPPED with
 //      `custom_parameters_ignored{key}`; the openrouter transport reads only its modelled keys off extras
 //      and drops the rest loudly.
-//   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras (§8.1).
+//   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras.
 //   2b. a sampler the row spells several ways (`features.samplerAliases`): where the user's body set or excluded one
 //      spelling, ours on the others are removed, since the server keeps the largest and would outvote theirs.
-//   3. the assistant-image re-attachment (§8.0, verify4 H1): both converters drop an assistant `file` part.
+//   3. the assistant-image re-attachment: both converters drop an assistant `file` part.
 //   4. the per-participant `name` (neither converter forwards it).
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
+//   5a. the `prefix-flag` spelling of the same decision: `prefix: true` stamped on the converted trailing-assistant
+//      message with the turn's authored chain of thought beside it (`prefillReasoning`, stamped as the row's
+//      `reasoning_content`), the row's beta route under `features.betaChatPath` for that call (`model.ts` reads
+//      the same gate); a seed on a turn that stamps no continue row drops with `prefill_reasoning_dropped`.
 //   5b. `chat_template_kwargs.enable_thinking` set to the turn's template thinking state when `features.thinkingOff`
 //      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
 //   5d. the row's `reasoningBudgetField` at 0 on a turn the template must not think on, where the row names a switch.
-//   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
+//   6. `modalities: ["text","image"]` when the funnel resolved `replyImages`.
 //   7. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
-//      (OpenAI's reasoning models 400 on the old word — inference audit H2, measured 2026-09-20). Never on the
-//      openrouter dialect, which speaks OR's own body.
+//      (OpenAI's reasoning models 400 on the old word). Never on the openrouter dialect, which speaks OR's own body.
 //   8. the cache-marker spelling (openrouter only): a message-level `cache_control` moves onto the row's last
 //      text part. OpenRouter forwards a marker to Anthropic only from a content part and drops a message-level
 //      one (measured: gen-1790134941-TdEvy3D9exFNfO6cf830 read only the system block; the content-part A/B,
@@ -39,7 +42,7 @@
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { ImageDetail, ResolvedWarning } from "@orb/contracts/inference";
-import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
+import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey, WARNING_CODE } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 
 import type { ShapeArgs } from "#src/contract/openai-backend.ts";
@@ -51,6 +54,8 @@ const MAX_TOKENS_KEY = "max_tokens";
 const MAX_COMPLETION_TOKENS_KEY = "max_completion_tokens";
 const CONTINUE_FINAL_MESSAGE_KEY = "continue_final_message";
 const ADD_GENERATION_PROMPT_KEY = "add_generation_prompt";
+const PREFIX_FLAG_KEY = "prefix";
+const PREFILL_REASONING_KEY = "reasoning_content";
 const MODALITIES_KEY = "modalities";
 const REPLY_MODALITIES = ["text", "image"] as const;
 const CHAT_TEMPLATE_KWARGS_KEY = "chat_template_kwargs";
@@ -70,9 +75,8 @@ const MESSAGES_KEY = "messages";
  *  `mergePlugins`, `webSearchOptions`, `debugOptions`), which is why none of them is merged from here: the
  *  raw user value would overwrite the validated copy the chat surface already put on the body. The list's
  *  only job is deciding whether a key gets the "ignored" WARNING — and a key this transport DOES send must
- *  not claim it was dropped. `plugins`/`web_search_options` were missing when their doors landed (audit C3),
- *  so a user who declared either got a `settings_adjusted` notice about a field that rode the wire
- *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
+ *  not claim it was dropped, or the user gets a `settings_adjusted` notice about a field that rode the wire
+ *  perfectly. A new extras door adds its key HERE in the same commit. */
 const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug", "session_id", "prompt_cache_key"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -163,7 +167,7 @@ function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: R
   return { ...body, messages: messages.map((message: unknown, index: number) => patchRow(message, plan.names.get(index), plan.assistantMedia.get(index))) };
 }
 
-/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
+/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`). A key the
  *  user's own body set stays theirs, the interlock's thinking switch included. A `messages` array the user set
  *  replaced the plan this rule reads, and a prefill key the user set or excluded is their prefill decision, so
  *  in either case neither the pair nor the interlock runs. */
@@ -195,6 +199,37 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
     return { ...kept, [CHAT_TEMPLATE_KWARGS_KEY]: { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false } };
   }
   return out;
+}
+
+/** Rule 5a: the `prefix-flag` spelling of the same decision — DeepSeek's beta-route continue stamps the converted
+ *  trailing-assistant message with `prefix: true` instead of a body-level pair (the flag
+ *  continues mid-word, and the seeded `reasoning_content` of that row rides as the model's own chain). A
+ *  `messages` array the user set is theirs, and the same capability and array gates as rule 5 decide the turn;
+ *  a converter that reshaped the tail into a non-assistant row gets nothing stamped. The turn's authored chain
+ *  of thought (`args.prefillReasoning`) rides the stamped row as its `reasoning_content` (measured: the model
+ *  answers FROM it and writes no reasoning of its own); a seed on an unstampeable turn drops with
+ *  `prefill_reasoning_dropped` rather than riding some other row. */
+function applyPrefixFlag(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  const gate = args.plan !== null && !owned.has(MESSAGES_KEY) && args.features.prefill === "prefix-flag" && args.prefillAllowed && args.plan.endsOnAssistant;
+  const messages = body[MESSAGES_KEY];
+  const rows = gate && Array.isArray(messages) ? messages : [];
+  const last = rows.at(-1);
+  if (!isRecord(last) || last["role"] !== "assistant") {
+    if (args.prefillReasoning !== undefined) {
+      args.warnings.push({
+        code: WARNING_CODE.prefillReasoningDropped,
+        message:
+          "prefill reasoning dropped: this turn stamps no continue row (the array must end on the assistant, the prefill must be allowed, and the messages must be ours)",
+      });
+    }
+    return body;
+  }
+  const stamped: Record<string, unknown> = {
+    ...last,
+    [PREFIX_FLAG_KEY]: true,
+    ...(args.prefillReasoning === undefined ? {} : { [PREFILL_REASONING_KEY]: args.prefillReasoning }),
+  };
+  return { ...body, [MESSAGES_KEY]: [...rows.slice(0, -1), stamped] };
 }
 
 /** Rule 5b: the template-level thinking switch, beside the user's own kwargs and never over them. A switch the
@@ -393,6 +428,14 @@ export function userOwnedKeys(args: ShapeArgs): ReadonlySet<string> {
   return owned;
 }
 
+/** The two row-body rules that carry on EVERY OpenAI-shaped route: the admitted `extras` merge and the
+ *  endpoint's final word through `includeBody`/`excludeBody`. The chat shaper layers its chat-body rules
+ *  (rows, prefill, cache markers) on top of these two; the `/responses` route runs THESE and only these —
+ *  its body shape belongs to the SDK, and a chat-shaped rule would corrupt it. */
+export function applyRowExtras(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  return applyIncludeExclude(mergeExtras(raw, args), args.transport?.includeBody ?? null, args.transport?.excludeBody ?? null);
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   const owned = userOwnedKeys(args);
@@ -409,6 +452,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   // Read before any rule writes a kwarg, so the switch our own rules set is never mistaken for the user's.
   const userThinking = userDecidesKwarg(body, args, owned, ENABLE_THINKING_KEY);
   body = applyTemplateThinking(applyPrefill(body, args, owned, userThinking), args, userThinking);
+  body = applyPrefixFlag(body, args, owned);
   body = applyBudgetOff(applyPreserveReasoning(body, args, owned), args, owned, userThinking);
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };

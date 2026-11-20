@@ -2,7 +2,7 @@ import process from "node:process";
 import type { CtCorpusOptions } from "@orb/testkit/ct-corpus";
 import { nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { budget, expectBudget } from "@orb/tooling/floor/host/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/floor/host/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { PlaywrightTestConfig } from "@playwright/test";
@@ -45,7 +45,7 @@ export default defineConfig<CtCorpusOptions>({
   fullyParallel: true,
   workers: concurrency.ctWorkers,
   timeout: budget(BASE_TEST_TIMEOUT_MS),
-  expect: { timeout: budget(BASE_EXPECT_TIMEOUT_MS) },
+  expect: expectBudget(BASE_EXPECT_TIMEOUT_MS),
   forbidOnly: process.env["CI"] !== undefined,
   retries: 0,
   reporter: [
@@ -79,6 +79,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/platform-*.suite.ct.tsx",
         "**/features/chat/components/appearance-message-style-section.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
+        "**/features/chat/components/context-tab-strip-fade.ct.tsx",
         "**/features/app-shell/surfaces/context-rail-focus.ct.tsx",
         "**/features/app-shell/surfaces/new-chat-picker-keystroke.ct.tsx",
         "**/content/theme-scope/emitted-contrast.ct.tsx",

@@ -2,7 +2,7 @@
 // `@orb/contracts/inference` (`CONNECTION_OP_CODES`), because the client keys on them (no inline re-spell,
 // §7.5); every reader imports them from there.
 
-import type { EmbedWidthRefusalDetail, ProviderId } from "@orb/contracts/inference";
+import type { EmbedWidthRefusalDetail, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { LookupText, UserConnectionId } from "@orb/kit/ids";
@@ -46,6 +46,16 @@ export class EmbedUnreachableError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.embedUnreachable;
   constructor() {
     super(CONNECTION_OP_CODES.embedUnreachable, "Couldn't reach this embedder to check its vector width. Try again.");
+  }
+}
+
+/** A role's capability read found no connection to read: nothing is bound for the role, or the bound row is gone. A
+ *  coded refusal, so a client names the missing model instead of printing the runtime's sentence. */
+export class RoleModelUnsetError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.roleModelUnset;
+  constructor(task: RoutableTask, options: { readonly cause: unknown }) {
+    super(CONNECTION_OP_CODES.roleModelUnset, `No model is set for the ${task} role.`);
+    this.cause = options.cause;
   }
 }
 

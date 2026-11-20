@@ -3,12 +3,24 @@ import type { ImportContextWiring } from "../contract/build-context.ts";
 import type { ImportContext } from "../contract/service.ts";
 
 export function buildImportContext(wiring: ImportContextWiring): ImportContext {
-  const { principal, characterOps, storeAsset, attachCardTag, importLorebook, hasPrimaryBook, linkCarriedBooks, importCardScripts, profile } = wiring;
+  const {
+    principal,
+    characterOps,
+    storeAsset,
+    attachCardTag,
+    exportCurrentCard,
+    importLorebook,
+    hasPrimaryBook,
+    linkCarriedBooks,
+    importCardScripts,
+    profile,
+  } = wiring;
   return {
     ownerId: principal.userId,
     ...characterOps,
     storeAsset,
     attachCardTag,
+    exportCurrentCard,
     ...(importLorebook !== undefined ? { importLorebook } : {}),
     ...(hasPrimaryBook !== undefined ? { hasPrimaryBook } : {}),
     ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),

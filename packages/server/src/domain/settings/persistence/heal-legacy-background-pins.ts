@@ -28,12 +28,14 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { and, eq, inArray } from "drizzle-orm";
-import { isStoredConfigUnreadable, requireIntactStoredConfig } from "#primitives/stored-config";
+import { isStoredConfigUnreadable, requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
 
 /** The healed config: the current-selection pointer clears to "none" if it names a stale id; the library
@@ -55,8 +57,12 @@ function clearStaleBackgroundPins(config: UserSettings, validIds: ReadonlySet<As
 /** Heal one user's row; returns whether it was rewritten. `requireIntactStoredConfig`'s own top-level
  *  statement precedes the write below in this body — an
  *  unreadable row throws here and the caller skips it (see the header: not this heal's job). */
-async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: UserSettings, schemaVersion: number): Promise<boolean> {
-  const config = requireIntactStoredConfig(userSettingsConfig.parseOutcome(storedConfig, schemaVersion), `user_settings for ${userId}`);
+async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: UserSettings | UnreadableJsonText, schemaVersion: number): Promise<boolean> {
+  const config = requireIntactStoredConfig(
+    userSettingsConfig.parseOutcome(storedConfig, schemaVersion),
+    `user_settings for ${userId}`,
+    STORED_CONFIG_REFUSALS.overwrite,
+  );
   const ids = pinnedBackgroundAssetIds(config);
   if (ids.length === 0) {
     return false;
@@ -64,7 +70,7 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
   const owned = await db
     .select({ id: assets.id })
     .from(assets)
-    .where(and(eq(assets.ownerId, userId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
+    .where(and(eq(assets.ownerId, userId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]), inArray(assets.id, [...ids])));
   // query-local lookup over THIS call's own SELECT result (a membership test for the ids just read), not module state — discarded when the function returns. Ends if it outlives the call.
   const validIds = new Set<AssetId>(owned.map((row) => row.id));
   if (ids.every((id) => validIds.has(id))) {

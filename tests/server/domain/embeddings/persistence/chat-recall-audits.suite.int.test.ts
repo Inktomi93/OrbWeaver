@@ -1,5 +1,5 @@
 // A recall turn whose embed or chat role fails records one credential strike audit_logs row for that role.
-// @subject packages/server/src/domain/chat/substrate/assemble-gather.ts
+// @subject packages/server/src/domain/chat/assembly/gather.ts
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
 // @subject packages/server/src/domain/search/verbs/digests.ts
 // @subject packages/inference/src/roles/executor.ts

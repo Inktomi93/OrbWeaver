@@ -37,10 +37,11 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 import { qualityMappingGloss } from "#src/features/preset/lib/effective-knobs.ts";
+import { PRESET_ACTIVE_STATUS, PRESET_READOUT_ACTIVE_LABEL, PRESET_READOUT_READ_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import type { PresetEditorView } from "#src/features/preset/lib/preset-nav.ts";
 import { PRESET_EDITOR_VIEWS } from "#src/features/preset/lib/preset-nav.ts";
 import { templateStoredText } from "#src/features/preset/lib/template-rows.ts";
@@ -58,21 +59,15 @@ const READOUT_SKELETON_ROWS = 4;
 export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();
   return (
-    <QueryBoundary
-      resetKeys={[presetId]}
-      fallback={
-        <Stack padding="block">
-          <SkeletonRows count={READOUT_SKELETON_ROWS} shape="datum" />
-        </Stack>
-      }
-      renderError={(_error, retry): ReactElement => (
-        <Stack padding="block">
-          <QueryErrorState label="the readout" onRetry={retry} />
-        </Stack>
-      )}
-    >
-      {presetId === null ? <ActivePresetReadout /> : <OpenPresetReadout presetId={presetId} />}
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[presetId]}
+        fallback={<SkeletonRows count={READOUT_SKELETON_ROWS} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={PRESET_READOUT_READ_LABEL} onRetry={retry} />}
+      >
+        {presetId === null ? <ActivePresetReadout /> : <OpenPresetReadout presetId={presetId} />}
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -108,13 +103,13 @@ function ActiveProfile({
   readonly isSystemDefault: boolean;
 }): ReactElement {
   return (
-    <Stack gap="section" padding="block">
-      <Section kicker="Active preset">
+    <Stack gap="section">
+      <Section kicker={PRESET_READOUT_ACTIVE_LABEL}>
         <Row align="center" gap="field">
           <Text voice="label">{name}</Text>
           {/* The SAME chip the LIST row and the editor header wear — one state, one reading (F-07). */}
           <Badge tone="primary" size="sm">
-            Active
+            {PRESET_ACTIVE_STATUS}
           </Badge>
         </Row>
         {isSystemDefault ? <Text voice="gloss">The built-in preset runs generation until you activate one of your own.</Text> : null}
@@ -156,7 +151,7 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const { config } = preset;
   return (
-    <Stack gap="section" padding="block">
+    <Stack gap="section">
       {/* THE BINDING (D8 / §7.1) sits above the projected panel — the readout's own header row, exactly where
           the mock draws it, and only on the views that CONSUME it (the `BINDING_VIEWS` table above states, per
           view, whether a resolution actually happens there). */}

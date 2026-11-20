@@ -6,7 +6,7 @@
 import type { Db } from "@orb/db";
 import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params.ts";
@@ -127,10 +127,10 @@ async function replaceOwner(db: Db, ownerId: UserId, coocRows: readonly CoocInse
       .delete(characterKeywordProfiles)
       .where(inArray(characterKeywordProfiles.characterId, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId)))),
   ];
-  for (const chunk of chunkRows(coocRows, rowsPerInsert(COOC_COLS))) {
+  for (const chunk of chunkRows(coocRows, COOC_COLS)) {
     stmts.push(db.insert(keywordCooccurrence).values(chunk));
   }
-  for (const chunk of chunkRows(profileRows, rowsPerInsert(PROFILE_COLS))) {
+  for (const chunk of chunkRows(profileRows, PROFILE_COLS)) {
     stmts.push(db.insert(characterKeywordProfiles).values(chunk));
   }
   await db.batch(batchMany(stmts));
@@ -158,7 +158,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
   const hubFraction = opts.hubFraction ?? DEFAULT_HUB_FRACTION;
   const { signal } = opts;
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   const now = deps.now();
   const all = await readRunDigestKeywords(db, opts);
   // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS. A group digest is scoped to the synthetic
@@ -172,7 +172,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   let pairsWritten = 0;
   let charKeywordsWritten = 0;
   for (const [ownerId, digests] of byOwner) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const { reps } = collapseByHash(
       digests,
       (d) => d.contentHash,

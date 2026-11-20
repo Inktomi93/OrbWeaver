@@ -245,94 +245,124 @@ const LABEL_IN_NAME_ROLES: ReadonlySet<string> = new Set([
   "treeitem",
 ]);
 
+/** What the Label-in-Name judge found on one governed control: its name, its visible label and the shown words the name lacks. */
+interface LabelInNameVerdict {
+  readonly label: string;
+  readonly visible: string;
+  /** How many words the visible label holds once its descriptions are stripped. */
+  readonly shown: number;
+  readonly missing: readonly string[];
+}
+
 /**
- * WCAG 2.5.3 Label in Name, as a mechanical probe: every alphabetic word of a control's VISIBLE text must
- * appear in its accessible name. Scoped to elements with an explicit `aria-label` (the only way the two
- * can diverge — with no `aria-label` the name IS the content), further scoped to `LABEL_IN_NAME_ROLES`,
- * and stripping the `aria-describedby` target (a description is not a label — the Members row's
- * "responding" chip is the founding case) plus any `aria-hidden` subtree.
+ * WCAG 2.5.3 Label in Name, as a mechanical judge run in the page: every alphabetic word of a control's VISIBLE text must
+ * appear in its accessible name. It judges only elements with an explicit `aria-label` (the only way the two
+ * can diverge — with no `aria-label` the name IS the content) in `LABEL_IN_NAME_ROLES`, and strips the
+ * `aria-describedby` target (a description is not a label — the Members row's "responding" chip is the
+ * founding case) plus any `aria-hidden` subtree. With `selectors` it judges the element each one names, in
+ * order; without, every `[aria-label]` element under `el`. An element it does not govern is `null`.
  *
  * Numeric / symbol tokens are exempt by construction (the word regex is alphabetic, ≥2 letters): a live
  * value inside a control is governed by §13.10's stable-prefix rule, not by this one — and it is why a
  * `⌘K` glyph never trips it.
  */
+function judgeLabelInName(
+  el: Element,
+  { roles, selectors }: { readonly roles: readonly string[]; readonly selectors: readonly string[] | null },
+): (LabelInNameVerdict | null)[] {
+  // Everything this callback needs must be DECLARED INSIDE it — the function is serialized and evaluated
+  // in the page, where neither this module's scope nor its top-level regexes exist.
+  const governed = new Set(roles);
+
+  /** The explicit role wins; a bare `<button>`/`<a href>` carries its implicit one. */
+  const roleOf = (node: Element): string => {
+    const explicit = node.getAttribute("role");
+    if (explicit !== null) {
+      return explicit;
+    }
+    if (node.tagName === "BUTTON") {
+      return "button";
+    }
+    return node.tagName === "A" && node.hasAttribute("href") ? "link" : "";
+  };
+
+  /**
+   * The control's VISIBLE label: its text with the `aria-describedby` target and every `aria-hidden`
+   * subtree removed. TEXT NODES ARE JOINED WITH A SPACE, never read via `textContent`: two sibling
+   * `<span>`s reading "Talks" and "50%" concatenate to "Talks50%", which mints the phantom word
+   * "talks50" and misses the real one.
+   */
+  const visibleLabelOf = (node: Element): string => {
+    const clone = node.ownerDocument.importNode(node, true);
+    const ids = (node.getAttribute("aria-describedby") ?? "").split(/\s+/).filter((s) => s !== "");
+    for (const id of ids) {
+      for (const described of clone.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {
+        described.remove();
+      }
+    }
+    for (const hidden of clone.querySelectorAll("[aria-hidden='true']")) {
+      hidden.remove();
+    }
+    const walker = clone.ownerDocument.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+    const parts: string[] = [];
+    for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+      parts.push(n.nodeValue ?? "");
+    }
+    return parts.join(" ").replace(/\s+/g, " ").trim();
+  };
+
+  // TOKENS, NOT SUBSTRINGS. `lowered.includes(word)` passed the visible word "art" against
+  // the accessible name "cart" — WCAG 2.5.3 is about the WORD appearing in the name, and a check
+  // that accepts any name merely CONTAINING the letters reports a clean row for a real violation.
+  // Both sides are tokenized with the SAME regex, so "Add to cart" still matches "add to cart" and
+  // "Cart (3)" still contains "cart". ≥2 letters, which is why a bare "⌘K" glyph never trips this and a
+  // live "50%" is exempt by construction.
+  const wordsOf = (text: string): string[] => text.toLowerCase().match(/[a-z][a-z']+/g) ?? [];
+
+  const judge = (node: Element | null): LabelInNameVerdict | null => {
+    const label = node?.getAttribute("aria-label") ?? "";
+    if (node === null || label.trim() === "" || node.closest("[aria-hidden='true'],[inert]") !== null) {
+      return null;
+    }
+    if (!(node instanceof HTMLElement) || node.offsetParent === null || !governed.has(roleOf(node))) {
+      return null;
+    }
+    const visible = visibleLabelOf(node);
+    const labelWords = new Set(wordsOf(label));
+    const shown = wordsOf(visible);
+    const missing = shown.filter((word) => !labelWords.has(word));
+    return { label, visible, shown: shown.length, missing: [...new Set(missing)] };
+  };
+
+  const nodes = selectors === null ? [...el.querySelectorAll("[aria-label]")] : selectors.map((selector) => el.ownerDocument.querySelector(selector));
+  return nodes.map(judge);
+}
+
+/** Every governed control under `root` whose name drops a word it shows: {@link judgeLabelInName} over the whole page. */
 export async function labelInNameFindings(root: Locator | Page): Promise<readonly NameFinding[]> {
   const scope = "locator" in root ? root.locator("body") : root;
-  const raw = await scope.evaluate(
-    (el: Element, roles: readonly string[]) => {
-      // Everything this callback needs must be DECLARED INSIDE it — the function is serialized and evaluated
-      // in the page, where neither this module's scope nor its top-level regexes exist. That is why the
-      // regex literals below carry a biome-ignore rather than being hoisted to module scope.
-      const governed = new Set(roles);
+  const verdicts = await scope.evaluate(judgeLabelInName, { roles: [...LABEL_IN_NAME_ROLES], selectors: null });
+  return verdicts
+    .filter((verdict): verdict is LabelInNameVerdict => verdict !== null && verdict.missing.length > 0)
+    .map((r) => ({
+      rule: "label-not-in-name" as const,
+      detail: `aria-label "${r.label}" drops the visible word(s) ${r.missing.map((w) => `"${w}"`).join(", ")} (visible text: "${r.visible}") — WCAG 2.5.3`,
+    }));
+}
 
-      /** The explicit role wins; a bare `<button>`/`<a href>` carries its implicit one. */
-      const roleOf = (node: Element): string => {
-        const explicit = node.getAttribute("role");
-        if (explicit !== null) {
-          return explicit;
-        }
-        if (node.tagName === "BUTTON") {
-          return "button";
-        }
-        return node.tagName === "A" && node.hasAttribute("href") ? "link" : "";
-      };
-
-      /**
-       * The control's VISIBLE label: its text with the `aria-describedby` target and every `aria-hidden`
-       * subtree removed. TEXT NODES ARE JOINED WITH A SPACE, never read via `textContent`: two sibling
-       * `<span>`s reading "Talks" and "50%" concatenate to "Talks50%", which mints the phantom word
-       * "talks50" and misses the real one.
-       */
-      const visibleLabelOf = (node: Element): string => {
-        const clone = node.ownerDocument.importNode(node, true);
-        const ids = (node.getAttribute("aria-describedby") ?? "").split(/\s+/).filter((s) => s !== "");
-        for (const id of ids) {
-          for (const described of clone.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {
-            described.remove();
-          }
-        }
-        for (const hidden of clone.querySelectorAll("[aria-hidden='true']")) {
-          hidden.remove();
-        }
-        const walker = clone.ownerDocument.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
-        const parts: string[] = [];
-        for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
-          parts.push(n.nodeValue ?? "");
-        }
-        return parts.join(" ").replace(/\s+/g, " ").trim();
-      };
-
-      const out: { label: string; visible: string; missing: string[] }[] = [];
-      for (const node of el.querySelectorAll("[aria-label]")) {
-        const label = node.getAttribute("aria-label") ?? "";
-        const hidden = label.trim() === "" || node.closest("[aria-hidden='true'],[inert]") !== null;
-        if (hidden || !(node instanceof HTMLElement) || node.offsetParent === null || !governed.has(roleOf(node))) {
-          continue;
-        }
-        const visible = visibleLabelOf(node);
-        // TOKENS, NOT SUBSTRINGS. `lowered.includes(word)` passed the visible word "art" against
-        // the accessible name "cart" — WCAG 2.5.3 is about the WORD appearing in the name, and a check
-        // that accepts any name merely CONTAINING the letters reports a clean row for a real violation.
-        // Both sides are tokenized with the SAME regex, so "Add to cart" still matches "add to cart" and
-        // "Cart (3)" still contains "cart".
-        const wordsOf = (text: string): string[] => text.toLowerCase().match(/[a-z][a-z']+/g) ?? [];
-        // ≥2 letters, which is why a bare "⌘K" glyph never trips this and a live "50%" is exempt by construction.
-        const labelWords = new Set(wordsOf(label));
-        const words = wordsOf(visible);
-        const missing = words.filter((word) => !labelWords.has(word));
-        if (missing.length > 0) {
-          out.push({ label, visible, missing: [...new Set(missing)] });
-        }
-      }
-      return out;
-    },
-    [...LABEL_IN_NAME_ROLES],
+/**
+ * The selectors among `selectors` whose element passes {@link judgeLabelInName}: governed, a visible label left once its
+ * descriptions are stripped, and every word of it in the name. A control whose whole shown text is its own description has
+ * no label left to agree with its name, so it never passes.
+ */
+export async function labelInNamePasses(page: Page, selectors: readonly string[]): Promise<ReadonlySet<string>> {
+  const verdicts = await page.locator("body").evaluate(judgeLabelInName, { roles: [...LABEL_IN_NAME_ROLES], selectors });
+  return new Set(
+    selectors.filter((_selector, at) => {
+      const verdict = verdicts[at];
+      return verdict !== null && verdict !== undefined && verdict.shown > 0 && verdict.missing.length === 0;
+    }),
   );
-
-  return raw.map((r) => ({
-    rule: "label-not-in-name" as const,
-    detail: `aria-label "${r.label}" drops the visible word(s) ${r.missing.map((w) => `"${w}"`).join(", ")} (visible text: "${r.visible}") — WCAG 2.5.3`,
-  }));
 }
 
 /** Runs the tree lens and both DOM lenses over the page and returns every finding. */

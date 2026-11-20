@@ -21,6 +21,11 @@ export function createVectorSweepOps(deps: VectorSweepDeps): VectorSweepOps {
     beginDocumentVectorSweep: async (enumerationScope): Promise<readonly DocumentVectorSweepReceipt[]> => {
       const receipts: DocumentVectorSweepReceipt[] = [];
       for (const ownerId of await sweptOwners(enumerationScope)) {
+        // The reindex skips a disabled owner's documents, so the pass covers none of them: no generation is resolved
+        // (a resolve can probe the owner's encoder) and no `documents` completion is recorded for them.
+        if (!(await deps.isAccountEnabled(ownerId))) {
+          continue;
+        }
         receipts.push({ ownerId, generation: await embeddings.resolveGeneration(ownerId, "embed") });
       }
       return receipts;

@@ -34,7 +34,7 @@ test("truncated real shipped art is refused by the production magic guard before
     addToGallery: (args) => services.assets.addToGallery(args),
   });
   expect(await valid.character.storeAvatar(actor, CARD.input.handle)).not.toBeNull();
-  expect(await services.assets.listOwned({ principal: actor, limit: 100 })).toMatchObject([{ kind: "avatar", mime: art.mime }]);
+  expect(await services.assets.listOwned({ principal: actor, limit: 100 })).toMatchObject([{ kinds: ["avatar"], mime: art.mime }]);
 });
 
 test("seed gallery keeps the actual Principal and refuses a foreign subject while owned repeats deduplicate", async ({ harness, services }) => {

@@ -48,7 +48,7 @@ export interface PluginToolRegistration {
  *  slug with `-` → `__`, because the OpenAI/MCP function-name charset has no hyphen; the DOUBLING is what
  *  makes the mint injective — the proof is on {@link pluginToolWireName} below).
  *
- *  WHY IT IS A FUNCTION AND NOT A TEMPLATE LITERAL AT THE REGISTRAR (U3): two call sites now need the same
+ *  WHY IT IS A FUNCTION AND NOT A TEMPLATE LITERAL AT THE REGISTRAR: two call sites need the same
  *  answer — `entry/compose` mints it when it registers the guest's tool, and `plugin.listSurfaces` derives it
  *  so a `tool-card` surface can be MATCHED to a persisted `ToolCallRecord.name` on the client. A second
  *  spelling of the rule would silently unmatch every card the day either changed. It lives in `contracts`
@@ -60,14 +60,7 @@ export interface PluginToolRegistration {
  *  it matches on and the prefix this mint emits are the same string by construction. */
 export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
 
-/** INJECTIVE, and the proof lives here because the whole app depends on it (owner ruling).
- *
- *  IT USED NOT TO BE. The transliteration was `-` → `_`, so a slug's hyphen and a tool name's underscore were
- *  indistinguishable once flattened: `("foo-bar","baz")` and `("foo","bar_baz")` both spelled
- *  `plugin_foo_bar_baz` with both halves independently valid (`SLUG_RE`, `PLUGIN_TOOL_NAME_RE`). The wall was
- *  `domain/tool-use`'s per-installer uniqueness refusal, so the collision was loud rather than silent — but it
- *  cost the second plugin its whole activation, and two legitimately named plugins could not coexist. The
- *  owner ruled for the injective form plus a migration of the persisted spellings, over keeping the refusal.
+/** INJECTIVE, and the proof lives here because the whole app depends on it.
  *
  *  THE PROOF. `SLUG_RE` (`manifest.ts`) is `^[a-z0-9][a-z0-9-]{1,N}$` and `PLUGIN_TOOL_NAME_RE` (`ui.ts`)
  *  is `^[a-z][a-z0-9_]{0,M}$` for whatever `N`/`M` the wire-mint budget (`manifest.ts` `PLUGIN_SLUG_MAX`/
@@ -86,21 +79,21 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *  plugins' own slugs — so a production decoder would be an unused second home for the rule. The rule is
  *  stated here, not executed.
  *
- *  LENGTH WAS A SEPARATE WALL that this change's own doubling made worse, and it is closed at the
- *  INPUT boundaries instead of leaving it as a downstream refusal: `domain/tool-use`'s `TOOL_NAME_RE` caps
+ *  LENGTH IS A SEPARATE WALL, closed at the INPUT boundaries rather than left as a downstream refusal:
+ *  `domain/tool-use`'s `TOOL_NAME_RE` caps
  *  a registry name at 64 bytes (`manifest.ts` `PLUGIN_TOOL_WIRE_NAME_MAX`, pinned to that regex by a
  *  cross-package test), and `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX` are sized so
  *  `PLUGIN_TOOL_NAME_PREFIX.length + 2*slug.length + 1 + name.length` can NEVER exceed it — a slug over
  *  budget is refused at the manifest parse (contracts), a name over budget is refused at the membrane's
  *  `tools.register` (`infra/plugin-host/membrane.ts`, the guest-input trust boundary), and BOTH refusals
  *  name the length, not "collision". `registerPluginTool`'s `TOOL_NAME_RE.test` is therefore a pure
- *  BACKSTOP from here on — unreachable by construction for a plugin-sourced name (kept loud in case a
- *  future caller bypasses either boundary), never the primary wall it used to be.
+ *  BACKSTOP — unreachable by construction for a plugin-sourced name (kept loud in case a
+ *  future caller bypasses either boundary), never the primary wall.
  *
- *  THE COLLISION REFUSAL AT `registerPluginTool` SURVIVES this change and is still reachable: one plugin
+ *  THE COLLISION REFUSAL AT `registerPluginTool` SURVIVES and is still reachable: one plugin
  *  registering the same tool twice, a second copy of the same slug on one shelf, and a name a first-party
- *  tool already holds. What it no longer has to catch is two DIFFERENT slugs flattening alike — that arm
- *  is now unreachable by construction, and the property pin above is what proves it. */
+ *  tool already holds. Two DIFFERENT slugs cannot flatten alike — that arm
+ *  is unreachable by construction, and the proof above is what proves it. */
 export function pluginToolWireName(slug: string, name: string): string {
   return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "__")}_${name}`;
 }
@@ -110,7 +103,7 @@ export function pluginToolWireName(slug: string, name: string): string {
  *  `getCardData` writes and reads (the write host-fn D148 clause b/d governs). It is a sibling of
  *  {@link pluginToolWireName}, and homed here for the SAME reason: the slug is host knowledge (the bridge stamps
  *  it from the re-validated manifest, never guest input), the format is part of what a plugin author is
- *  promised (a portable, ST-`writeExtensionField`-shaped per-card blob that survives import↔export), and both
+ *  promised (a portable per-card blob that survives import↔export), and both
  *  the persistence write op and any reader must derive the exact same key or silently target the wrong field.
  *
  *  UNLIKE `pluginToolWireName` it does NOT transliterate the slug's hyphens at all: a card extensions object
@@ -132,8 +125,8 @@ export interface PluginTransformRegistration {
   readonly handler: PluginHandlerRef;
 }
 
-/** A DISPLAY transform the guest registered via `host.transforms.registerDisplay` — collected at activation
- *  (seam 14). Unlike its D50 sibling it needs NO external registrar: it is read
+/** A DISPLAY transform the guest registered via `host.transforms.registerDisplay` — collected at activation.
+ *  Unlike its D50 sibling it needs NO external registrar: it is read
  *  directly off the resident instance by the display round-trip verb and re-entered through the port's
  *  `invoke`, exactly as a `PluginSurfaceRegistration`'s `onAction` is. Order among a plugin's own display
  *  transforms is REGISTRATION order (the collected array's order) — the same "the guest declared it first"
@@ -165,8 +158,8 @@ export interface PluginEventSubscription {
 
 /** A PRIVATE plugin-event subscription the guest registered via `host.pubsub.on`. This is
  *  a DIFFERENT plane from {@link PluginEventSubscription} and the difference is the whole forgery wall: the
- *  Tier-1 trigger taxonomy is the DOMAIN's closed vocabulary (a plugin-emitted one would be a forged fact,
- *  §5.24), whereas this plane is INSTALLER-PRIVATE and plugin-authored — `emitterSlug`/`name` are free-text
+ *  Tier-1 trigger taxonomy is the DOMAIN's closed vocabulary (a plugin-emitted one would be a forged fact),
+ *  whereas this plane is INSTALLER-PRIVATE and plugin-authored — `emitterSlug`/`name` are free-text
  *  channel coordinates, never a `TriggerFact`, never entering a domain/chat bus, and never crossing to another
  *  user. `emitterSlug` names WHICH of the installer's plugins to listen to (the emitter stamps its own slug
  *  host-side, so a subscriber can listen but never forge a publication). */
@@ -188,14 +181,19 @@ export const PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX = 32;
  *  `ui.setState` 16 KiB posture). It bounds the fan-out cost: one emit is re-delivered to every subscriber, so a
  *  tight per-emit cap is what keeps a fan-out bounded. Over cap is a REFUSAL (a rejected guest promise). */
 export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
+/** The deepest cascade level a plugin's handler may run at. A handler run its installer's own plugin command caused,
+ *  a pubsub delivery that command's emit opened or a trigger fact its host call raised, runs one level deeper than that
+ *  command; every other invocation runs at 0. So an announcement reaches its listeners and one reply from them reaches
+ *  theirs, and a plugin that wakes itself, or two that wake each other, stop there at any rate. */
+export const PLUGIN_CASCADE_DEPTH_MAX = 2;
 
-/** A UI surface the guest registered via `host.ui.register` — collected at activation
- *  (U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
+/** A UI surface the guest registered via `host.ui.register` — collected at activation.
+ *  Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off
  *  the resident instance by `plugin.listSurfaces`, and its `onAction` handler is re-entered by
  *  `plugin.invokeUiAction` through the port's `invoke`. `spec` is the guest-supplied declarative node tree
  *  (zod-validated host-side at collection — an invalid spec is a REGISTRATION refusal, the surface absent, never
  *  activation-fatal); `onAction` is the opaque handler ref the action round-trip re-invokes (absent = a
- *  display-only surface with no actions). `anchor`/`tier`/`spec` are the U0 vocabulary (`ui.ts`). */
+ *  display-only surface with no actions). `anchor`/`tier`/`spec` are the shared vocabulary (`ui.ts`). */
 export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta &
   (
     | {
@@ -211,8 +209,8 @@ export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta &
       }
   );
 
-/** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation
- *  (U5). Like a surface it needs NO external registrar: it is read directly off the resident instance by
+/** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation.
+ *  Like a surface it needs NO external registrar: it is read directly off the resident instance by
  *  `plugin.listCommands` (which the `/plugin` dispatcher and the command palette both fan off) and re-entered
  *  by `plugin.invokeUiCommand` through the port's `invoke`. `onRun` is REQUIRED — unlike a surface, a command
  *  with nothing to run is not a display-only affordance, it is a dead menu row. */
@@ -230,11 +228,11 @@ export interface PluginInstance {
   readonly events: readonly PluginEventSubscription[];
   readonly surfaces: readonly PluginSurfaceRegistration[];
   readonly commands: readonly PluginCommandRegistration[];
-  /** U6 seam 14 — read directly off the instance by the display round-trip (no registrar), like `surfaces`. */
+  /** Read directly off the instance by the display round-trip (no registrar), like `surfaces`. */
   readonly displayTransforms: readonly PluginDisplayTransformRegistration[];
-  /** U6 §5.15 — handed to the macro registrar, which resolves each ONCE per turn into the turn's registry. */
+  /** Handed to the macro registrar, which resolves each ONCE per turn into the turn's registry. */
   readonly macros: readonly PluginMacroRegistration[];
-  /** U8 §5a — the private plugin-event subscriptions, handed to the pubsub registrar (the `events` pattern),
+  /** The private plugin-event subscriptions, handed to the pubsub registrar (the `events` pattern),
    *  which wires each onto the INSTALLER-scoped resident plugin-event bus. Never the domain fan-out. */
   readonly pubsub: readonly PluginPubsubSubscription[];
 }

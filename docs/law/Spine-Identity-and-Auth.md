@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-11
+updated: 2026-11-14
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -50,12 +50,13 @@ Code comments cite the numbered invariants below as "invariant N":
    `can(principal, action, {kind:'chat', roster})`. The meaning of a role, the `owner ⊇ admin` ladder and the `host`
    bit, lives in `packages/contracts/src/identity/index.ts` as `userRoleSatisfies` and `isHostRole`: pure predicates over
    the closed role tuples that `can()`, the projection and roster homes below and client display labels all read. A
-   client display read is never an authorization (D121). In the server and the client, the `no-restricted-syntax`
-   role selectors in `eslint.config.ts` refuse a role literal (`host`, `member`, `owner`, `admin`) tested against an
-   operand named for a role (a `role`, `globalRole` or `viewerRole` field, a `*Role` variable, a decoded
-   `participantRoleValue(...)`) in an equality, a `switch` case, an array literal's `includes` or an `in` over an
-   object literal; `tests/tooling/eslint-role-comparison.test.ts` plants each form. A comparison under another name
-   is outside the selectors and stays a review question. `roster` in this doc names the code-level
+   client display read is never an authorization (D121). Outside that file and the account role chip
+   (`packages/client/src/components/user-role-status.ts`), `orb/no-role-comparison` refuses in every package source
+   an equality, a `switch` discriminant or case label, a membership read (`includes`, `indexOf`, `has`, `get`), a
+   keyed lookup and an `in` test whose operand the checker types as a `UserRole` or `ParticipantRole`, whatever the
+   field, variable or constant is named, including an alias, a branded, optional or nullable form and the union
+   inferred from the role schema; `tests/tooling/eslint-role-comparison.test.ts` plants each shape. A role widened to
+   `string` is no longer a role to the checker; keep role values typed. `roster` in this doc names the code-level
    `chat_participants` membership (`packages/server/src/domain/chat/verbs/participants.ts`, `packages/server/src/domain/chat/substrate/participants-host.ts`,
    `participants-humans.ts`). It is not the user-facing Roster, which names the saved
    seats-knobs-rules template (`domain/roster-preset`). The room's seated characters are Characters.
@@ -103,18 +104,34 @@ Code comments cite the numbered invariants below as "invariant N":
    word, the law or ledger sentence that rules it. The first sentence of this paragraph rules the
    back-channel route.
 
-   tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs only the content-type guard at its mount
-   (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
+   tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs two guards at its mount
+   (`packages/server/src/entry/app.ts`), on every credential path. The content-type guard refuses any POST to
    `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
    CORS-simple and the app mounts no CORS middleware, so a cross-origin page cannot send it without a
-   preflight the app never answers. The guard is required, not defense in depth: `@trpc/server`'s
+   preflight the app never answers. A proxy in front of the app must not answer one either
+   (`docs/law/container-deployment-security.md`, "A proxy in front of the app"). The guard is required, not defense in depth: `@trpc/server`'s
    `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` as mutations,
    and `multipart/form-data` is CORS-simple, so without the guard a plain cross-origin `<form>` reaches the
    mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
    path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
    paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
-   relies on the fallback path. GET is untouched: tRPC's method map admits GET for queries and
-   subscriptions only.
+   relies on the fallback path. tRPC's method map also admits GET for queries and subscriptions, and a GET
+   carries no content type, so a cross-site page can send one (an `<img>`, a navigation carrying the Lax
+   cookie). The second guard, `refuseHeaderlessOutsidePost`, refuses every tRPC request outside POST that
+   lacks `x-orb-csrf`, on every credential path. No procedure runs on any of them, and the app grants no CORS,
+   so a cross-site page cannot read the answer. tRPC answers some requests before the guard's refusal applies,
+   so the answer depends on what the request names:
+
+   - A query gets the FORBIDDEN a header-less cookie mutation gets (403).
+   - A subscription gets a 200 event stream that carries that FORBIDDEN as a serialized error frame.
+   - On GET, an unknown procedure gets 404, and a mutation gets 405.
+   - HEAD gets 204, which tRPC answers before it reads the request.
+   - Any other method, such as OPTIONS, PUT, DELETE or PATCH, gets an answer by its content type:
+     - 415 with no content type, or with one tRPC does not parse.
+     - 405 with `multipart/form-data` or `application/octet-stream`, on any path.
+     - 405 with `application/json` on a procedure, and 404 on an unknown one.
+
+   A query still must not write. The client sends every request as a JSON POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through
@@ -224,11 +241,26 @@ A role read answers exactly one of three questions, and each has one home:
   as a co-GM who commands the room but must not read deception truth.
 - **"Which seat is the host?"** is a roster lookup (role to identity, D19), homed at
   `hostSeatOf` and `hostUserIdOf` in `packages/server/src/domain/chat/substrate/participants-host.ts`, whose consumers want an owner for a
-  downstream read (card/preset/connection ownership, the stats delta's owner, the notification
+  downstream read (card and preset ownership, the stats delta's owner, the notification
   recipient) and whose `userId` guard is the one answer for that class.
 
 Ask which question a site answers before "fixing" its spelling. The three homes cross-cite each other;
 collapsing any two of them is a defect, not a cleanup.
+
+Work on a room host's account needs the host's consent, not only the host lookup. `hostConsentOf` in
+`packages/server/src/domain/chat/substrate/participants-humans.ts` answers it: the host must be seated, present
+and enabled, so a disabled host stands as a departed one. Its `consents` variant is the one mint of
+`ConsentingHostId` (`packages/kit/src/ids/index.ts`).
+
+- An op that resolves a connection or runs model work on a room host's account takes `ConsentingHostId`,
+  never a plain `UserId`.
+- A user who funds their own work is not host consent and keeps a plain `UserId`. Examples are a workload
+  funder, an automation rule author and a plugin installer.
+- A request principal that acts on its own account proves itself through its `Principal`, not through this brand.
+
+`tsc` refuses a raw `UserId` at those ops, as `tests/server/domain/chat/substrate/participants-humans.test-d.ts`
+shows, and `orb/no-unsafe-cast` refuses a second mint. A type predicate that names the brand is outside both
+checkers and stays a review question.
 
 ## 2d. Who owns what — the map is derived, not written here
 
@@ -257,8 +289,8 @@ review re-flags something already ruled.
   author to still host. A plugin's ask runs on the yes of the host its card was raised to: that host must still
   host, the plugin must still be installed and enabled, and its installer must still hold the membership the ask
   recorded. The installer need not host, and a demoted host counts as a member. An installer who leaves or is
-  removed leaves no executable ask, even if invited back. The card names the installer in its own field, apart
-  from the plugin's free-text name, and shows a turn's whole steer. `askActorStillStands` in `packages/server/src/domain/automation/substrate/authority.ts` holds both
+  removed leaves no executable ask, even if invited back. A disabled author or installer stands as one who left.
+  The card names the installer in its own field, apart from the plugin's free-text name, and shows a turn's whole steer. `askActorStillStands` in `packages/server/src/domain/automation/persistence/authority.ts` holds both
   actor checks.
 
 ## 3. Construction

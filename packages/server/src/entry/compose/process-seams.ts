@@ -4,7 +4,7 @@
 
 import { randomInt, randomUUID } from "node:crypto";
 import { createIdSource } from "@orb/kit/ids";
-import { authModeSource, env, hostEnvAllowlist } from "#foundation/env";
+import { authModeSource, childProcessEnv, env, hostEnvAllowlist } from "#foundation/env";
 import { createLogger, createObservabilityRings } from "#foundation/observability";
 import { systemConnector, systemFetch, systemResolver } from "#infra/network";
 import { systemTimers } from "#infra/timers";
@@ -24,6 +24,7 @@ export type ProcessSeams = Pick<
   | "networkExecution"
   | "env"
   | "hostEnvAllowlist"
+  | "childProcessEnv"
   | "authModeSource"
   | "logger"
   | "rings"
@@ -45,6 +46,7 @@ export function createProcessSeams(): ProcessSeams {
     networkExecution: { fetch: systemFetch, resolver: systemResolver },
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource: authModeSource(),
     logger: createLogger(env.LOG_LEVEL, rings.logs),
     rings,

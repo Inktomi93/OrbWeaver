@@ -2,9 +2,12 @@
 // `controlMd` and `checkbox` hold the width of the control a slot stands in for; `avatarMd`, `avatarLg`, `avatarHero` and `ripplePortrait` the picture a box stands in for or a column sits
 // under; the rest are the named column widths. `lane` is a lane's width once the container can seat it beside another lane, and the whole
 // width until then. `flankFit` is the width a room needs to seat its plugin column beside the transcript's reading floor.
+// `spansFiller` leaves a content-sized box as it is until it holds a {@link FILLS_MEASURE} box, then spans its parent.
 export const WIDTH = {
   full: "inline-full",
   fit: "inline-fit",
+  // The attribute is spelled out because the class scanner reads literals; it is FILLS_MEASURE's.
+  spansFiller: "has-[[data-fills-measure]]:inline-full",
   control: "inline-(--size-control-sm)",
   controlMd: "inline-(--size-control-md)",
   checkbox: "inline-(--size-checkbox)",
@@ -19,6 +22,13 @@ export const WIDTH = {
   flankFit: "inline-(--dimension-room-flank-fit)",
   numberInline: "inline-(--width-number-inline)",
 } as const;
+
+/**
+ * The attributes a box stamps when it takes the whole measure it sits in, the way a long reply's text does. Its own
+ * content cannot size it: a frame's document is opaque to this one's layout, so a content-sized ancestor would fall
+ * back to the frame's intrinsic width. Each such ancestor wears `WIDTH.spansFiller`.
+ */
+export const FILLS_MEASURE = { "data-fills-measure": "" } as const;
 
 /** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose`, `code` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
 export const CAP = {
@@ -82,8 +92,9 @@ export const MIN_HEIGHT = {
   // In a roomy dialog a picker's footer is never shorter than one row, with a Clear search or without, so the list above it gives up one footer
   // however the footer reads. A shorter dialog gives its rows the room a short footer leaves.
   holdsPickerFooter: "dialog-roomy:min-block-(--height-picker-footer)",
-  // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line.
-  holdsLineOnLandscape: "dialog-short:glass-short:min-block-min",
+  // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line. A short phone sheet's
+  // title truncates by the same law (ui-platform-rulings §8.1), so it holds its line there too.
+  holdsLineOnLandscape: "dialog-short:glass-short:min-block-min sheet-short:glass-short:min-block-min",
   viewport: "min-block-dvh",
   full: "min-block-full",
   control: "min-block-(--size-control-sm)",
@@ -106,13 +117,15 @@ export const MIN_HEIGHT = {
 /** A list row title's floor: the title-floor width, or its line when that is narrower (`min-inline-title-fit` in primitives.css). */
 export const TITLE_FLOOR = "min-inline-title-fit";
 
-/** The least inline size a box holds, by what must fit in it: a control, a popup's content, the composer's field, or a title. */
+/** The least inline size a box holds, by what must fit in it: a control, a popup's content, the composer's field, or a title; `shrinks` holds none, so a flex or grid child may shrink below its content. */
 export const MIN_WIDTH = {
+  shrinks: "min-inline-0",
   controlMd: "min-inline-(--size-control-md)",
   popupNarrow: "min-inline-(--width-popup-narrow)",
   popupFloor: "min-inline-(--width-popup-floor)",
   composerField: "min-inline-(--dimension-composer-field-min)",
   title: "min-inline-(--width-title-floor)",
-  // The longest word: a flex line breaks before the box would split one. A landscape phone's dialog header holds one line, so there the box truncates.
-  word: "min-inline-min dialog-short:glass-short:min-inline-0",
+  // The longest word: a flex line breaks before the box would split one. A landscape phone's dialog header, and a short phone sheet's, holds one
+  // line, so there the box truncates.
+  word: "min-inline-min dialog-short:glass-short:min-inline-0 sheet-short:glass-short:min-inline-0",
 } as const;

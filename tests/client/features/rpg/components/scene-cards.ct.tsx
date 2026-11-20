@@ -9,6 +9,9 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "#client/features/rpg/lib/rpg-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
@@ -67,12 +70,12 @@ test("a failed archive read renders the shared error state directly under the se
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   const error = archive.locator(':scope > [data-slot="query-error"]');
-  await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
+  await expect(error.getByRole("status")).toHaveText(queryFailedLabel(RPG_SCENE_CARDS_READ_LABEL));
   await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
   await expect(archive).not.toHaveRole("region");
 
   failing = false;
-  await error.getByRole("button", { name: "Retry", exact: true }).click();
+  await error.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[data-slot="query-error"]')).toHaveCount(0);
 });
@@ -97,7 +100,7 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   });
   const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   failing = false;
@@ -128,7 +131,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   // Record what the status says at the moment it takes focus: that is what a screen reader reads out.
@@ -143,7 +146,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   failing = false;
   await retry.focus();
   await page.keyboard.press("Enter");
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const focused = archive.locator(":focus");
   await expect(focused).toHaveRole("status");
   await expect(focused).toHaveAccessibleName(/\S/);
@@ -169,13 +172,13 @@ for (const hold of FOCUS_HOLDS) {
     });
     const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
-    const retry = archive.getByRole("button", { name: "Retry", exact: true });
+    const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await expect(retry).toBeVisible();
 
     failing = false;
     await retry.focus();
     await page.keyboard.press("Enter");
-    await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+    await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
     await expect(archive.locator(":focus")).toHaveRole("status");
     await hold.leave?.(archive);
     const holder = (): Promise<string | null> =>
@@ -206,7 +209,7 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   const firstPending = await height();
 
   firstLoad.fail();
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   pending = retried;
   await retry.click();
@@ -228,7 +231,7 @@ test("a Retry that fails again hands keyboard focus to the new Retry button", as
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   failing = false;
@@ -251,7 +254,7 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   await messages.requested;
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
   messages.release();
@@ -316,7 +319,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   expect(await height()).not.toBeCloseTo(cardHeight, 0);
   pending = null;
   firstVisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const emptyHeight = await height();
   expect(emptyHeight).not.toBeCloseTo(cardHeight, 0);
   await emptyMount.unmount();
@@ -328,7 +331,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await expect(reserved).toHaveCount(1);
   expect(await height()).toBeCloseTo(emptyHeight, 0);
   revisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
 });
 
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {
@@ -337,8 +340,8 @@ test("an archive with no cards yet renders the empty doorway under its label", a
   await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toHaveCount(0);
 });
 
@@ -374,6 +377,7 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
+    // A card with no note ends its name at the stamp: the literal pins the builder's no-note arm.
     await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);

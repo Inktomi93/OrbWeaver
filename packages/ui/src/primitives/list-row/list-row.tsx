@@ -1,5 +1,5 @@
 // THE ROW'S ACCESSIBLE-NAME CONTRACT (#512, owner ruling 2026-08-23 — accept + document): the clickable
-// row's NAME is `title` (+ ` · titleQualifier` when present), and the SUBTITLE reaches AT as the row's
+// row's NAME is `title` (+ ` · titleQualifier`, or ` · meta` under `metaQualifiesTitle`, when present), and the SUBTITLE reaches AT as the row's
 // DESCRIPTION (aria-describedby), never the name. Consequence, accepted deliberately: axe's
 // `label-content-name-mismatch` (weight 0, hidden group) fires on every subtitled row, because axe
 // concatenates ALL text inside the button as "visible label" while the name carries only the title line.
@@ -8,10 +8,13 @@
 // arms and their costs: folding the subtitle into the name (verbose announcements at every call site) and
 // moving the subtitle out of the button (the hit target shrinks to the title line). Do not "fix" the axe
 // rule here without reopening #512's ruling.
+import { Collapsible as BaseCollapsible } from "@base-ui/react/collapsible";
 import type { MouseEventHandler, ReactElement, ReactNode, Ref } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { declaresOverlay, SELECTION_RAIL_TONE } from "#lib";
+import { CollapsiblePanel } from "#primitives/collapsible";
+import { ChevronDown, Icon } from "#primitives/icons";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
 import { TITLE_QUALIFIER_SEPARATOR } from "./title-qualifier.tsx";
@@ -50,7 +53,7 @@ interface ListRowPropsBase {
   /** Read a prose attribution in the body face; identifiers retain the default monospace face. */
   titleQualifierFace?: "mono" | "body";
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
-  subtitle?: string;
+  subtitle?: string | undefined;
   /** Opts a functional subtitle into the ratified label step instead of the instrument tier's micro gloss. */
   subtitleStep?: "default" | "label";
   /**
@@ -81,6 +84,14 @@ interface ListRowPropsBase {
    */
   meta?: string;
   /**
+   * The `meta` datum is what tells this row from a same-titled sibling (two rooms with one name, told apart by
+   * their stamps), so it joins the row's accessible NAME as `"<title> · <meta>"` and leaves its description.
+   * It stays painted in the trailing meta slot, so every row of a list keeps its datum in ONE place with ONE
+   * separator rule: no dot before the trailing datum, on a qualified row or a plain one. A `titleQualifier` is
+   * for a disambiguator that is not the row's trailing datum (a handle), painted beside the name.
+   */
+  metaQualifiesTitle?: boolean;
+  /**
    * Rest-VISIBLE state markers (a game glyph, a pressed star, an "Archived" badge) — rendered on the TITLE
    * LINE beside `meta`, inside the content column. That is what lets a row whose CONTROLS are all
    * hover-revealed float its whole `actions` cluster (`actionsFloat`) unconditionally: markers earn their
@@ -110,29 +121,25 @@ interface ListRowPropsBase {
    */
   subtitleReveal?: string;
   /**
-   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it.
+   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it. Pass the controls bare: the slot spaces them,
+   * wraps them onto further lines when they outgrow the row, and sets them at the row's end edge, so a wrapper `Row` around them would
+   * keep them on one line and run them past the row.
    */
   actions?: ReactNode;
   /** Dims the whole row to the receded step, for a row that stands behind its live siblings (an archived chat). */
   receded?: boolean;
   /**
-   * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
-   * nothing interactive nests inside it. The body's children are all phrasing content, so a
-   * native `<button>` is valid.
+   * The row's state under its subtitle: a verdict, a last-run line, the one-line excerpt of what the row holds. Phrasing content
+   * the caller clamps; it rides the row's `aria-describedby` with the subtitle, never its name.
    */
-  clickable?: boolean;
+  detail?: ReactNode;
+  /** A set state marked on the row's leading edge: an override that differs from what the row would inherit. */
+  rail?: "none" | "primary";
   /**
    * The row is the current selection: skin it with the selection rail and announce it as `aria-current`. Pass `""`
    * to set it and `undefined` to clear it; the row derives `aria-current` from it, so a caller never states both.
    */
   "data-selected"?: "" | undefined;
-  /**
-   * Marks a clickable row as a DISCLOSURE header — the row owns a group of child rows that render below it while
-   * open. Use it INSTEAD OF `data-selected` on a parent whose children carry the "you are here" marker:
-   * `aria-current` on both a parent and its child announces two current items for one location (the settings nav).
-   * Ignored on a non-clickable row (a static div has nothing to expand).
-   */
-  "aria-expanded"?: boolean | undefined;
   /** Disables the click affordance: removed from tab order, `aria-disabled`, dimmed. Pass `""` to set it. */
   "data-disabled"?: "" | undefined;
   /**
@@ -142,13 +149,51 @@ interface ListRowPropsBase {
    * `variants.ts` for why it travels as a data attribute rather than a class.
    */
   titleStep?: "default" | "promoted";
-  onClick?: MouseEventHandler<HTMLButtonElement>;
   /** The clickable body's `<button>`, for a caller that moves focus to the row. Unused by a non-clickable row. */
   bodyRef?: Ref<HTMLButtonElement>;
   className?: string;
 }
 
+/** A disclosure row's open state and what it opens. */
+export interface ListRowExpand {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  /** What the row opens, on a full line under the body and its actions. */
+  readonly panel: ReactNode;
+}
+
+// A row is a button row or a disclosure row, never both: the disclosure's trigger owns its own press and its `aria-expanded`.
+type ListRowPress =
+  | {
+      expand?: never;
+      /**
+       * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
+       * nothing interactive nests inside it. The body's children are all phrasing content, so a
+       * native `<button>` is valid.
+       */
+      clickable?: boolean;
+      /**
+       * Marks a clickable row as a DISCLOSURE header — the row owns a group of child rows that render below it while
+       * open. Use it INSTEAD OF `data-selected` on a parent whose children carry the "you are here" marker:
+       * `aria-current` on both a parent and its child announces two current items for one location (the settings nav).
+       * Ignored on a non-clickable row (a static div has nothing to expand).
+       */
+      "aria-expanded"?: boolean | undefined;
+      onClick?: MouseEventHandler<HTMLButtonElement>;
+    }
+  | {
+      /**
+       * Makes the row a DISCLOSURE: the body is the trigger of a panel that opens on a full line beneath the row. Enter, Space
+       * and a press toggle it, focus stays on the body, and `actions` stays a sibling, so a press on a control there never toggles it.
+       */
+      expand: ListRowExpand;
+      clickable?: never;
+      "aria-expanded"?: never;
+      onClick?: never;
+    };
+
 export type ListRowProps = ListRowPropsBase &
+  ListRowPress &
   (
     | {
         /**
@@ -202,11 +247,12 @@ export type ListRowProps = ListRowPropsBase &
  * (nested interactive content inside a button is invalid for assistive tech). The body's own
  * children are strictly phrasing content, so the native `<button>` is valid HTML.
  */
-/** The body wrapper: a native `<button>` when `clickable`, else a static `<div>`. Split out to keep
+/** The body wrapper: the collapsible's trigger on a disclosure row, a native `<button>` when `clickable`, else a static `<div>`. Split out to keep
  *  the clickable/selected/disabled branching off the composition root's complexity. */
 function ListRowBody({
   slots,
   clickable,
+  disclosure,
   selected,
   expanded,
   disabled,
@@ -219,6 +265,8 @@ function ListRowBody({
 }: {
   slots: Slots;
   clickable: boolean;
+  /** The body is the trigger of the row's collapsible. */
+  disclosure: boolean;
   selected: boolean;
   expanded: boolean | undefined;
   disabled: boolean;
@@ -234,6 +282,22 @@ function ListRowBody({
   children: ReactNode;
 }): ReactElement {
   const ariaCurrent = selected ? "true" : undefined;
+  if (disclosure) {
+    // The collapsible's own trigger: it states `aria-expanded` and `aria-controls` and toggles on a press, Enter and Space.
+    return (
+      <BaseCollapsible.Trigger
+        aria-describedby={ariaDescribedBy}
+        aria-label={ariaLabel}
+        className={slots.body()}
+        data-tone="neutral"
+        data-slot="list-row-body"
+        ref={bodyRef}
+      >
+        {children}
+        <Icon icon={ChevronDown} size="sm" className={slots.chevron()} />
+      </BaseCollapsible.Trigger>
+    );
+  }
   if (!clickable) {
     // Non-clickable rows are a static <div> body — no role, no tab stop, no name/description (the visible
     // title/subtitle text stands on its own); onClick is honored only when clickable.
@@ -276,6 +340,41 @@ function ListRowBody({
   );
 }
 
+/** The row's root: the collapsible's own root on a disclosure row, so the body's trigger and the panel share its open state. */
+function ListRowRoot({
+  className,
+  selected,
+  expand,
+  children,
+}: {
+  className: string;
+  selected: boolean;
+  expand: ListRowExpand | undefined;
+  children: ReactNode;
+}): ReactElement {
+  // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
+  // here, and an attribute the default arm simply doesn't style costs nothing.
+  const attributes = {
+    className,
+    "data-selected": selected ? "" : undefined,
+    "data-tone": selected ? SELECTION_RAIL_TONE : "neutral",
+    "data-slot": "list-row-root",
+  } as const;
+  if (expand === undefined) {
+    return <div {...attributes}>{children}</div>;
+  }
+  return (
+    <BaseCollapsible.Root {...attributes} open={expand.open} onOpenChange={(open): void => expand.onOpenChange(open)}>
+      {children}
+    </BaseCollapsible.Root>
+  );
+}
+
+// What tells this row from a same-titled sibling: a caller's qualifier, or the trailing datum under `metaQualifiesTitle`.
+function nameQualifierOf(titleQualifier: string | undefined, meta: string | undefined, metaQualifiesTitle: boolean): string | undefined {
+  return metaQualifiesTitle ? meta : titleQualifier;
+}
+
 export function ListRow({
   align,
   leading,
@@ -291,14 +390,18 @@ export function ListRow({
   subtitleDecorative = false,
   subtitleStep = "default",
   meta,
+  metaQualifiesTitle = false,
   markers,
+  detail,
   actions,
   actionsFloat = false,
   receded = false,
+  rail = "none",
   stackActions = false,
   stackActionsAt = "cq-32",
   rowTint = "body",
   clickable = false,
+  expand,
   "data-selected": dataSelected,
   "aria-expanded": expanded,
   "data-disabled": dataDisabled,
@@ -309,11 +412,17 @@ export function ListRow({
 }: ListRowProps): ReactElement {
   const selected = dataSelected !== undefined;
   const disabled = dataDisabled !== undefined;
+  // A disclosure row's body is a button too: it wears the clickable row's press skin and hides the title it is named by.
+  const pressable = clickable || expand !== undefined;
+  const nameQualifier = nameQualifierOf(titleQualifier, meta, metaQualifiesTitle);
   const slots = listRowVariants({
     align,
-    clickable,
+    clickable: pressable,
+    disclosure: expand !== undefined,
     float: actionsFloat,
-    qualified: titleQualifier !== undefined,
+    // A datum that tells rows apart is the half a squeeze must never eat, so the name keeps its floor beside it either way.
+    qualified: nameQualifier !== undefined,
+    rail,
     receded,
     stackActions,
     stackActionsAt,
@@ -326,23 +435,18 @@ export function ListRow({
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
-  const metaId = meta === undefined ? undefined : `${baseId}-meta`;
+  const metaId = meta === undefined || metaQualifiesTitle ? undefined : `${baseId}-meta`;
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
+  const detailId = detail === undefined ? undefined : `${baseId}-detail`;
   const fullTitleId = fullTitle === undefined ? undefined : `${baseId}-full-title`;
-  const describedBy = [subtitleId, metaId, markersId, fullTitleId].filter((id) => id !== undefined).join(" ") || undefined;
+  const describedBy = [subtitleId, metaId, markersId, detailId, fullTitleId].filter((id) => id !== undefined).join(" ") || undefined;
   return (
-    // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
-    // here, and an attribute the default arm simply doesn't style costs nothing.
-    <div
-      className={slots.root({ className })}
-      data-selected={selected ? "" : undefined}
-      data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
-      data-slot="list-row-root"
-    >
+    <ListRowRoot className={slots.root({ className })} expand={expand} selected={selected}>
       <ListRowBody
         ariaDescribedBy={describedBy}
-        ariaLabel={titleQualifier === undefined ? title : `${title}${TITLE_QUALIFIER_SEPARATOR}${titleQualifier}`}
+        ariaLabel={nameQualifier === undefined ? title : `${title}${TITLE_QUALIFIER_SEPARATOR}${nameQualifier}`}
         clickable={clickable}
+        disclosure={expand !== undefined}
         disabled={disabled}
         expanded={expanded}
         onClick={onClick}
@@ -352,9 +456,10 @@ export function ListRow({
         overlay={actionsFloat}
       >
         <ListRowContent
-          clickable={clickable}
+          clickable={pressable}
+          detail={detail}
           fullTitle={fullTitle}
-          ids={{ subtitleId, metaId, markersId, fullTitleId }}
+          ids={{ subtitleId, metaId, markersId, detailId, fullTitleId }}
           leading={leading}
           markers={markers}
           meta={meta}
@@ -376,6 +481,11 @@ export function ListRow({
           {actions}
         </div>
       )}
-    </div>
+      {expand === undefined ? null : (
+        <CollapsiblePanel className={slots.panel()} holds="controls">
+          <div className={slots.panelBody()}>{expand.panel}</div>
+        </CollapsiblePanel>
+      )}
+    </ListRowRoot>
   );
 }

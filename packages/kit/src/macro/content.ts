@@ -8,15 +8,27 @@
 // Homed HERE because the user-macro handler (user-macros.ts) splices untrusted arg/input values into an
 // author template and needs exactly this defense; guided imports it from here (one home, D51 posture).
 //
-// IMPORTANT: U+200B goes BETWEEN the two braces, not before/after the pair. The macro parser scans
-// with `text.indexOf("{{", pos)` — placing the zero-width-space outside the pair leaves the `{{`
-// token intact and indexOf still finds it, so the defense would be a no-op. Inserting U+200B
-// between the braces gives `{<ZWSP>{`, which the indexOf scan can no longer match. Output looks
-// identical to a human (U+200B is invisible) and round-trips through every storage layer that
-// preserves Unicode. The U+200B codepoint is load-bearing — keep it exact.
-const ZWSP = "​";
+// SECURITY: U+200B goes after EVERY brace that another brace of the same kind follows, so no run of
+// braces keeps an adjacent pair. The parser opens a tag at any `{{` (`text.indexOf("{{", pos)`), and
+// a pair-at-a-time rewrite leaves one inside an odd run: `{{{x}}}` became `{<ZWSP>{{x}<ZWSP>}}`, which
+// parses as `{{x}<ZWSP>}}` and evaluates. A zero-width space outside the braces is no defense either,
+// because the `{{` stays intact. An exact `{{` or `}}` still gets the one U+200B between its braces,
+// the bytes stored lore and stashed cards already hold. Keep the code point exact.
+const ZWSP = "\u200B";
 export function neutralizeMacros(s: string): string {
-  return s.replace(/\{\{/g, `{${ZWSP}{`).replace(/\}\}/g, `}${ZWSP}}`);
+  return s.replace(/\{(?=\{)/g, `{${ZWSP}`).replace(/\}(?=\})/g, `}${ZWSP}`);
+}
+
+/** {@link neutralizeMacros} for a value spliced into a template the engine then evaluates. A brace the template
+ *  writes against the slot, of either kind and on either side, would pair with the value's edge brace, so a value
+ *  whose first or last character is any brace gets a zero-width space on that edge too. */
+export function neutralizeSplice(s: string): string {
+  const inner = neutralizeMacros(s);
+  return `${isBrace(inner.at(0)) ? ZWSP : ""}${inner}${isBrace(inner.at(-1)) ? ZWSP : ""}`;
+}
+
+function isBrace(char: string | undefined): boolean {
+  return char === "{" || char === "}";
 }
 
 /** UTF-8 byte length for the macro engine's input and output belts. `null` means the source contains

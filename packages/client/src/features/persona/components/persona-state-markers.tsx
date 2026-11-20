@@ -7,6 +7,7 @@ import { Check, Icon, Link2 } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { PERSONA_PLAYING_AS_LABEL } from "../lib/persona-copy.ts";
 
 /** ✓ — the persona on the viewer's seat. `seatBindsPresets`: preset text follows the seat too (ADR 0250). */
 export function PlayingGlyph({ seatBindsPresets }: { readonly seatBindsPresets: boolean }): ReactElement {
@@ -14,7 +15,7 @@ export function PlayingGlyph({ seatBindsPresets }: { readonly seatBindsPresets: 
     <StateGlyph
       hint={seatBindsPresets ? "Your lines and preset text use this persona." : "Your lines use this persona."}
       icon={Check}
-      label="Playing as"
+      label={PERSONA_PLAYING_AS_LABEL}
       seatBinds={seatBindsPresets ? "lines-and-presets" : "lines"}
     />
   );

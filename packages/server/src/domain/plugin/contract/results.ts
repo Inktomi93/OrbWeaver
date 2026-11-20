@@ -35,9 +35,12 @@ export interface PluginFrameAsset {
 /** What ONE user's application of the published set did (`applyDistributedPlugins`). Slugs, not views: the
  *  caller is the entry hook, whose only interest is the log line and whether anything happened — the rows
  *  themselves arrive through the ordinary `list`. A slug the caller already holds at any version is skipped,
- *  which is also the whole idempotency story (the latch is belt, this is braces). */
+ *  which is also the whole idempotency story (the latch is belt, this is braces). `refused` names each published
+ *  slug whose stored bundle this build's install parse refuses (an invalid manifest or an unserved host major), with
+ *  that refusal's message for the operator log. */
 export interface DistributedPluginApplication {
   readonly installedSlugs: readonly string[];
+  readonly refused: readonly { readonly slug: string; readonly reason: string }[];
 }
 
 /** `uiHostCall`'s reply: the host function's result as an inert JSON string, never a materialized object. */

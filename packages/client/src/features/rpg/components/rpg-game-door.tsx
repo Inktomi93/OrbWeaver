@@ -20,7 +20,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { GAME_MODE_KEPT_LINE, GAME_MODE_OFF_KICKER, GAME_MODE_ON_LABEL, GAME_MODE_RESUME_LABEL, onGameModeStarted } from "#state";
 import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
@@ -35,7 +35,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
   const invalidation = useInvalidation();
   const createGame = useCreateGame({ trpc, invalidation });
   const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const createAdmission = useRef(false);
   const engageAdmission = useRef(false);
 

@@ -3,7 +3,7 @@
 // and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all; the three removing verbs fan
 // `chatDeleted` on the LIVE-ONLY lane.
 //
-// Authority: title/star/archive/delete + injection write/delete → host; variables + injection list →
+// Authority: title/star/archive/delete + injection write/delete + a saved correction → host; variables + injection list →
 // member; `reapTemporaryChats` is per-user maintenance (non-chat-scoped); `reapHusk` is host-only.
 //
 // ⚠ DELETE-FIRST IS THE LAW HERE. Emitting `chatDeleted` BEFORE the delete would open a FALSE-EMIT window:
@@ -17,8 +17,8 @@
 // Nothing was lost by dropping the durable row: `chat_events.chat_id` CASCADES, so the `chatDeleted` row
 // was cascaded away by the very delete it announced — it was never replayable.
 //
-// HUSKS (R0 §4.2/§4.6). Every WRITE here CLAIMS the room first (`deps.claimChat`, before the write — the
-// ordering invariant in `verbs/claim-chat.ts`): configuring a room is "doing something with it" (F4(a)), so a
+// HUSKS (R0 §4.2/§4.6). Every WRITE here CLAIMS the room after its refusals and before the write
+// (`deps.claimChat` — the ordering invariant in `verbs/claim-chat.ts`): configuring a room is "doing something with it" (D166), so a
 // room the user titled/starred/tuned is no longer an abandonable husk. The three verbs that do NOT claim are
 // the three that remove the row — `delete`, `reapHusk`, `reapTemporaryChats`.
 // This file owns BOTH reap arms (§4.6): `reapHusk` is the best-effort nav-away drop (host-only, and the
@@ -32,9 +32,11 @@
 // `reapTemporaryChats` sweeps the caller's expired temporary chats AND expired husks, scoped to chats the
 // caller hosts. Bulk delete rides the same FK cascade as `delete`.
 
-import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, RoomClaim, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import { NEW_CHAT_INJECTION_PLACEMENT } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -44,11 +46,13 @@ import { findOffVocabularyPicks } from "@orb/kit/macro";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
+import { getLog } from "#foundation/observability";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";
+import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
 import type {
   ArchiveChatParams,
   DeleteChatInjectionParams,
@@ -59,6 +63,7 @@ import type {
   ListChatInjectionsParams,
   ReapHuskParams,
   ReapTemporaryChatsParams,
+  SaveCorrectionParams,
   SetChatAnchorPersonaParams,
   SetChatInjectionParams,
   SetUserMacroValuesParams,
@@ -70,16 +75,16 @@ import type { ReapResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import {
-  commitGenerationObservationRemoval,
   generationObservationRemovalRefused,
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
+import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
+import { findKeptInjection, insertChatInjectionIfAbsent } from "../persistence/injection-write.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
-import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { ownedByConsentingHuman } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 
@@ -98,6 +103,8 @@ interface ChatLifecycleDeps {
   readonly activeTurns: ActiveTurns;
   /** The husk→real transition (R0) — every write here calls it BEFORE writing. */
   readonly claimChat: ClaimChatOp;
+  /** The room-work barrier the admitted verbs hold for their whole run; both reap arms delete only an idle room. */
+  readonly admission: HandoffBarrier;
 }
 
 /** The lifecycle slice of `ChatService` this grouped file owns. */
@@ -116,15 +123,16 @@ type ChatLifecycleVerbs = Pick<
   | "setVariables"
   | "setUserMacroValues"
   | "setChatInjection"
+  | "saveCorrection"
   | "listChatInjections"
   | "deleteChatInjection"
 >;
 
 /** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. The trio itself
- *  lives in `substrate/host-fenced-write` (four verbs had spelled it out); this stays as the
+ *  lives in `persistence/host-fenced-write` (four verbs had spelled it out); this stays as the
  *  single-statement shape this file's callers pass. */
-async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
-  await commitHostFencedWrite(ctx, chatId, [statement]);
+async function commitFencedChatWrite(ctx: ChatContext, claim: RoomClaim, statement: BatchStmt): Promise<void> {
+  await commitHostFencedWrite(ctx, claim, [statement]);
 }
 
 /** Map a persisted `chat_injections` row → the `ChatInjectionView` wire shape (`order` omitted when null). */
@@ -150,11 +158,11 @@ async function hostRowUpdate(
     readonly patch: Partial<typeof chats.$inferInsert>;
   },
 ): Promise<void> {
-  await requireHost(ctx, args.principal, args.chatId);
-  await claimChat(args.chatId);
+  const { admission } = await requireHost(ctx, args.principal, args.chatId);
+  const claim = await claimChat(admission);
   await commitFencedChatWrite(
     ctx,
-    args.chatId,
+    claim,
     ctx.db
       .update(chats)
       .set({ ...args.patch, updatedAt: ctx.now() })
@@ -192,7 +200,7 @@ function createArchive(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat
  *  `ctx.verifyPersonaOwned` against each present-and-enabled human's `userId`. */
 function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatAnchorPersona"] {
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const participants = await loadParticipants(ctx.db, chatId);
       // The SAME consent set the resolver gates seat personas on: a new pin must be a present, enabled player's.
@@ -200,8 +208,8 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitDurableChatEvent
         throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present, enabled human participant`);
       }
     }
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -220,6 +228,51 @@ function appendRemovalVersions(ctx: ChatContext, statements: BatchStmt[], caller
   for (const ownerId of ownerIds) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
   }
+}
+
+type RoomRemoval =
+  | { readonly kind: "removed"; readonly deleted: boolean }
+  | { readonly kind: "observations-moved"; readonly error: unknown }
+  // A live write moved a retained owner's canon under every retirement attempt.
+  | { readonly kind: "starved" };
+
+const ROOM_DELETE_STARVED = "the room kept changing while it was deleted; try again shortly";
+
+// The one batch both delete paths commit. The observation fence must stay the batch's first statement, because its
+// refusal is read by position; the stats retirement goes right after it, ahead of the observation inverses, whose own
+// stats writes would otherwise move the canon version the retirement's guard compares.
+async function removeRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL | undefined, callerId: UserId): Promise<RoomRemoval> {
+  for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
+    const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
+    const scope = { chatIds: [chatId], chatPredicate: sql`${and(predicate, retainedStats.predicate)}` };
+    const groups = await loadGenerationObservationsForRemoval(ctx, scope);
+    const retirement = await ctx.prepareCanonRetirement(ctx.db, { kind: "room", chatId });
+    const statements = generationObservationRemovalStatements(ctx, scope, groups);
+    const retiring: BatchStmt[] = [];
+    retirement.beforeDelete(retiring, ctx.db);
+    statements.splice(1, 0, ...retiring);
+    const deleteIndex = statements.length;
+    statements.push(
+      ctx.db
+        .delete(chats)
+        .where(and(eq(chats.id, chatId), predicate))
+        .returning({ id: chats.id }),
+    );
+    retirement.afterDelete(statements, ctx.db);
+    appendRemovalVersions(ctx, statements, callerId, retainedStats.ownerIds);
+    try {
+      const deleted = (await ctx.db.batch(batchMany(statements)))[deleteIndex];
+      return { kind: "removed", deleted: Array.isArray(deleted) && deleted.length > 0 };
+    } catch (error) {
+      if (await generationObservationRemovalRefused(ctx, scope, groups, error)) {
+        return { kind: "observations-moved", error };
+      }
+      if (!(await retirement.refused(error))) {
+        throw error;
+      }
+    }
+  }
+  return { kind: "starved" };
 }
 
 /** `delete` — host-only. Drop the chat row; every child cascades (FK). Fans `chatDeleted` on the live-only
@@ -249,16 +302,16 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
       ),
     ];
     abortTurns(chatId);
-    const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
-    const scope = { chatIds: [chatId], chatPredicate: retainedStats.predicate };
-    const groups = await loadGenerationObservationsForRemoval(ctx, scope);
-    const statements = generationObservationRemovalStatements(ctx, scope, groups);
-    const deleteIndex = statements.length;
-    statements.push(ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id }));
-    appendRemovalVersions(ctx, statements, principal.userId, retainedStats.ownerIds);
-    const results = await commitGenerationObservationRemoval(ctx, scope, groups, statements);
-    const removed = results[deleteIndex];
-    if (Array.isArray(removed) && removed.length > 0) {
+    const removal = await removeRoom(ctx, chatId, undefined, principal.userId);
+    if (removal.kind === "observations-moved") {
+      const refusal = new ChatOperationError(CHAT_OP_CODES.aborted, "the generation facts changed before their source could be removed");
+      refusal.cause = removal.error;
+      throw refusal;
+    }
+    if (removal.kind === "starved") {
+      throw new ChatOperationError(CHAT_OP_CODES.aborted, ROOM_DELETE_STARVED);
+    }
+    if (removal.deleted) {
       emitLive({ type: "chatDeleted", chatId });
     }
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
@@ -288,27 +341,23 @@ function callerHostsChat(ctx: ChatContext, userId: UserId): SQL | undefined {
 }
 
 async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL, ownerId: UserId): Promise<boolean> {
-  const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
-  const scope = { chatIds: [chatId], chatPredicate: sql`${and(predicate, retainedStats.predicate)}` };
-  const groups = await loadGenerationObservationsForRemoval(ctx, scope);
-  const statements = generationObservationRemovalStatements(ctx, scope, groups);
-  const deleteIndex = statements.length;
-  statements.push(
-    ctx.db
-      .delete(chats)
-      .where(and(eq(chats.id, chatId), predicate))
-      .returning({ id: chats.id }),
-  );
-  appendRemovalVersions(ctx, statements, ownerId, retainedStats.ownerIds);
-  try {
-    const deleted = (await ctx.db.batch(batchMany(statements)))[deleteIndex];
-    return Array.isArray(deleted) && deleted.length > 0;
-  } catch (error) {
-    if (await generationObservationRemovalRefused(ctx, scope, groups, error)) {
-      return false;
-    }
-    throw error;
+  const removal = await removeRoom(ctx, chatId, predicate, ownerId);
+  // A reap never blocks on one room: a starved one is left for a later sweep, and the rest go on.
+  if (removal.kind === "starved") {
+    getLog(ctx.logger).warn({ chatId }, ROOM_DELETE_STARVED);
   }
+  return removal.kind === "removed" && removal.deleted;
+}
+
+// The one delete both reap arms take. It holds the room closed only for the delete, so an admission meets a closed
+// room for one batch, never a turn, and a room with admitted work in it is left for a later reap.
+async function deleteIdleRoom(
+  ctx: ChatContext,
+  admission: HandoffBarrier,
+  room: { readonly chatId: ChatId; readonly predicate: SQL; readonly ownerId: UserId },
+): Promise<boolean> {
+  using idle = admission.tryCloseIdle(room.chatId);
+  return idle !== null && (await deleteQualifiedRoom(ctx, room.chatId, room.predicate, room.ownerId));
 }
 
 /** The room has NO human besides the caller — the belt that keeps the TTL sweep off a room somebody else is
@@ -358,8 +407,15 @@ function hasNoOtherHuman(ctx: ChatContext, userId: UserId): SQL {
  *
  *  The pre-SELECT stays, and it is not a redundant read: it is what distinguishes "this was never a husk"
  *  (idempotent no-op, no list repaint owed — the client fires this on every nav-away) from "it WAS a husk and
- *  someone claimed it under us" (the survivor case, which still repaints). */
-function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapHusk"] {
+ *  someone claimed it under us" (the survivor case, which still repaints).
+ *
+ *  A ROOM WITH ADMITTED WORK IN IT IS NOT REAPED. A first send claims only after its own checks, so until then
+ *  the predicate still matches a room the host is writing into from another tab or device. The delete runs
+ *  only while the room-work barrier is idle and held closed, so a send, turn or picture in flight declines
+ *  the reap (that work claims the room, or fails and leaves it to the TTL sweep), and one arriving during the
+ *  delete is refused as a closing room (`roomClosing`) and a retry finds no room. */
+function createReapHusk(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLive" | "admission">): ChatService["reapHusk"] {
+  const { emitLive, admission } = deps;
   return async ({ principal, chatId }: ReapHuskParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const predicate = sql`${and(eq(chats.id, chatId), isNull(chats.startedAt))}`;
@@ -369,7 +425,7 @@ function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatServ
     }
     // The predicate rides the DELETE, so a claim racing in after the SELECT costs the reap, never the room —
     // and `RETURNING` is what the fan below is conditioned on, so it can never announce a survivor.
-    if (await deleteQualifiedRoom(ctx, chatId, predicate, principal.userId)) {
+    if (await deleteIdleRoom(ctx, admission, { chatId, predicate, ownerId: principal.userId })) {
       emitLive({ type: "chatDeleted", chatId });
     }
     // Both arms repaint: the reaped room must leave the list, and a room that survived the race must come
@@ -395,8 +451,12 @@ function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatServ
  *  Each eligible room is a separate atomic refund-and-delete unit: a declined room's required-id guard
  *  must not block another qualifying room. The same current predicate gates the cohort read, the first
  *  write and DELETE; snapshot ids only bound this invocation. Each actual removal fans before the next
- *  fallible unit, so a later database failure cannot silence a deletion already committed. */
-function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapTemporaryChats"] {
+ *  fallible unit, so a later database failure cannot silence a deletion already committed.
+ *
+ *  Each unit deletes through the husk reap's idle close: a room with a turn, send or picture in flight is skipped
+ *  this pass and swept on a later one, and a send arriving during a delete is refused as a closing room. */
+function createReapTemporaryChats(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLive" | "admission">): ChatService["reapTemporaryChats"] {
+  const { emitLive, admission } = deps;
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
     const cutoff = ctx.now() - ttlHours * MS_PER_HOUR;
@@ -408,7 +468,7 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
     const cohort = await ctx.db.select({ id: chats.id }).from(chats).where(predicate).orderBy(chats.id);
     let reaped = 0;
     for (const { id } of cohort) {
-      if (await deleteQualifiedRoom(ctx, id, predicate, principal.userId)) {
+      if (await deleteIdleRoom(ctx, admission, { chatId: id, predicate, ownerId: principal.userId })) {
         reaped += 1;
         emitLive({ type: "chatDeleted", chatId: id });
       } else {
@@ -422,9 +482,9 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
 /** `setVariables` — member. Flush the `{{var}}`→value map to `chats.variableValues`. Emits `chatUpdated`. */
 function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const { admission } = await requireParticipant(ctx, principal, chatId);
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -443,11 +503,11 @@ function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, clai
  *  their option was renamed away. */
 function createSetUserMacroValues(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
   return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireParticipant(ctx, principal, chatId);
     const parsed = userMacroValuesSchema.parse(values);
     await assertDeclaredPicks(ctx, chatId, parsed);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -562,8 +622,8 @@ function createGetRuntimeVariables(ctx: ChatContext): ChatService["getRuntimeVar
  *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
 function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatInjection"] {
   return async ({ principal, chatId, id, position, depth, role, content, order }: SetChatInjectionParams): Promise<ChatInjectionView> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     const at = ctx.now();
     let injectionId = id;
     if (id !== undefined) {
@@ -603,6 +663,30 @@ function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, 
   };
 }
 
+/** `saveCorrection` — host-only, the injections surface's own gate. Keeps the player's correction as an ordinary
+ *  chat injection at the Add placement (D116: per-chat prose has one door), so it reaches every later turn in their
+ *  words and leaves through the injections list. The same text again is the kept row at that placement: no second
+ *  insert, no `chatUpdated`, because nothing moved. */
+function createSaveCorrection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["saveCorrection"] {
+  return async ({ principal, chatId, content }: SaveCorrectionParams): Promise<ChatInjectionView> => {
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
+    const key = { chatId, ...NEW_CHAT_INJECTION_PLACEMENT, content };
+    const inserted = await insertChatInjectionIfAbsent(ctx.db, { ...key, id: ctx.newInjectionId(), createdAt: ctx.now() });
+    if (inserted !== undefined) {
+      await emit({ type: "chatUpdated", chatId });
+      return toInjectionView(inserted);
+    }
+    const kept = await findKeptInjection(ctx.db, key);
+    // The guard refused only because the kept row exists; a concurrent delete between the two statements is the
+    // one way it is gone, and that save then reads as a vanished target.
+    if (kept === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return toInjectionView(kept);
+  };
+}
+
 /** `listChatInjections` — member. The persisted positional injections, splice-ordered. */
 function createListChatInjections(ctx: ChatContext): ChatService["listChatInjections"] {
   return async ({ principal, chatId }: ListChatInjectionsParams): Promise<ChatInjectionView[]> => {
@@ -623,8 +707,8 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
  *  watching the room. `RETURNING` is the transition test, the same shape the claim stamp uses. */
 function createDeleteChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     const dropped = await ctx.db
       .delete(chatInjections)
       .where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)))
@@ -644,14 +728,15 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     archive: createArchive(ctx, emit, claimChat),
     setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit, claimChat),
     delete: createDelete(ctx, emitLive, (chatId) => deps.activeTurns.abortAll(chatId)),
-    reapHusk: createReapHusk(ctx, emitLive),
-    reapTemporaryChats: createReapTemporaryChats(ctx, emitLive),
+    reapHusk: createReapHusk(ctx, deps),
+    reapTemporaryChats: createReapTemporaryChats(ctx, deps),
     setVariables: createSetVariables(ctx, emit, claimChat),
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),
     getUserMacroPicks: createGetUserMacroPicks(ctx),
     getVariablePicks: createGetVariablePicks(ctx),
     getRuntimeVariables: createGetRuntimeVariables(ctx),
     setChatInjection: createSetChatInjection(ctx, emit, claimChat),
+    saveCorrection: createSaveCorrection(ctx, emit, claimChat),
     listChatInjections: createListChatInjections(ctx),
     deleteChatInjection: createDeleteChatInjection(ctx, emit, claimChat),
   };

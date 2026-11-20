@@ -13,7 +13,7 @@
 //      literally cannot reach a domain event from here (§5.24 — a plugin-emitted domain event would be a forged
 //      fact; this plane is a closed, plugin-authored vocabulary that never touches the closed domain one).
 //   3. NO TRIGGERFACT — the delivered payload is `JSON.stringify({name, data})`, a plain object. It carries no
-//      trigger `type`, no cascade depth, no `chatId` — nothing the automation fan-out could consume. Automation
+//      trigger `type`, no automation depth, no `chatId` — nothing the automation fan-out could consume. Automation
 //      reach is a FUTURE explicit `pluginEvent` trigger member, and it is NOT this plane.
 //
 // Bounds (§5a "its own caps/budgets under the existing FIFO"): the per-emit `data` is capped
@@ -21,8 +21,21 @@
 // subscriber), and the number of subscriptions per plugin is capped at COLLECTION (the membrane). Delivery is
 // fire-and-forget under each subscriber's own invocation budget (the FIFO + CPU guard) — one plugin's slow
 // handler cannot block the emitter or a sibling.
+//
+// TWO BOUNDS ON SELF-BOUGHT WORK, ruled together. Each delivery opens a new invocation with a fresh CPU account, the
+// emitter's own subscriptions included, so an emit buys guest CPU. One depth bounds every plane a plugin can wake
+// itself through: a handler run its installer's own plugin command caused runs one cascade level deeper than that
+// command, and any other invocation is depth 0. On this plane the bridge refuses an emit whose deliveries would pass
+// `PLUGIN_CASCADE_DEPTH_MAX` with `PluginPubsubDepthError`; on the trigger plane a fact such a command raised (a
+// character it ingested, an entry it wrote) is not delivered past it
+// (`packages/server/src/domain/plugin/verbs/registrar-ops.ts`). So a plugin that wakes
+// itself, or siblings that wake each other, stop after two hops at any rate, while an announcement and one reply to it
+// still deliver. The depth is held by the command authority in the app, which checks the depth the membrane stamps
+// as `chat.requestTurn`'s automation depth is, and carries it into the domain work the call runs (`cascade-scope.ts`).
+// The pubsub total stays bounded by `PLUGIN_PUBSUB_EMIT_PER_HOUR`, the emitter's hourly floor (`rate-floor.ts`).
 
 import { PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES } from "@orb/contracts/plugin";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
@@ -31,7 +44,7 @@ import type { PluginEventBus, PluginRegistrationHandle } from "../contract/ops.t
 /** One resident subscriber on a channel: the closure that re-enters its guest handler with the JSON payload,
  *  under that plugin's own invocation budget. */
 interface Subscriber {
-  readonly deliver: (payloadJson: string) => void;
+  readonly deliver: (payloadJson: string, depth: number) => void;
 }
 
 /** The channel key — `${installer}:${emitterSlug}:${name}`. Colon-separated and unambiguous: a UserId is a
@@ -54,14 +67,14 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
       for (const sub of subscriptions) {
         const key = channelKey(installer, sub.emitterSlug, sub.name);
         const entry: Subscriber = {
-          deliver: (payloadJson): void => {
+          deliver: (payloadJson, depth): void => {
             // Fire-and-forget under the subscriber's OWN invocation budget (the port's `invoke` runs the guest
             // handler under the FIFO + CPU guard). A throwing/slow handler is contained to that plugin's crash
             // policy and never blocks the emitter or a sibling.
             // A rejection is already logged with its plugin and cause by the resident `invoke`, so it is settled
             // here rather than rethrown into a second "detached operation failed" line.
             superviseDetached(`plugin-pubsub:${sub.emitterSlug}:${sub.name}`, "plugin.pubsub.deliver", { emitterSlug: sub.emitterSlug, name: sub.name }, () =>
-              Promise.allSettled([invoke(sub.handler, payloadJson, null)]),
+              Promise.allSettled([invoke(sub.handler, payloadJson, null, depth)]),
             );
           },
         };
@@ -85,13 +98,13 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
         },
       };
     },
-    emit: ({ installer, emitterSlug, name, data }): void => {
+    emit: ({ installer, emitterSlug, name, data, depth }): void => {
       // THE PER-EMIT PAYLOAD CAP — enforced BEFORE any fan-out, so an over-cap emit is refused ENTIRELY (a
       // rejected guest promise upstream) rather than amplified across every subscriber. The membrane's inbound
       // arg cap already bounds the call, but a private-event plane's own bound is the fan-out DoS belt.
       const payloadJson = JSON.stringify({ name, data });
       if (Buffer.byteLength(payloadJson, "utf8") > PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES) {
-        throw new Error(`plugin host: pubsub.emit payload exceeds the ${PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES}-byte cap`);
+        throw new DomainConflictError(`plugin host: pubsub.emit payload exceeds the ${PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES}-byte cap`);
       }
       // The lookup is the WHOLE isolation story: an emit for `installer` resolves ONLY the channel keyed by that
       // installer, so a subscriber of another user's identically-named channel is a DIFFERENT key and is never
@@ -101,7 +114,7 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
         return;
       }
       for (const subscriber of set) {
-        subscriber.deliver(payloadJson);
+        subscriber.deliver(payloadJson, depth);
       }
     },
   };
@@ -113,9 +126,9 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
  *  as a rejected promise, matching every other membrane refusal, without this closure needing to be `async`. */
 export function createPluginEventEmitter(
   bus: PluginEventBus,
-): (req: { installerUserId: UserId; emitterSlug: string; name: string; data: Record<string, unknown> }) => Promise<void> {
-  return ({ installerUserId, emitterSlug, name, data }): Promise<void> => {
-    bus.emit({ installer: installerUserId, emitterSlug, name, data });
+): (req: { installerUserId: UserId; emitterSlug: string; name: string; data: Record<string, unknown>; depth: number }) => Promise<void> {
+  return ({ installerUserId, emitterSlug, name, data, depth }): Promise<void> => {
+    bus.emit({ installer: installerUserId, emitterSlug, name, data, depth });
     return Promise.resolve();
   };
 }

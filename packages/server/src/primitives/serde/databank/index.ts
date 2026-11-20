@@ -59,23 +59,25 @@ export interface CanonicalDocument {
   readonly characterHandles: readonly string[];
 }
 
-const wireDocumentSchema = z.object({
-  name: z.string().trim().min(1),
-  mime: z.string(),
-  origin: docOriginSchema,
-  sourceUrl: z.string().nullish().catch(null),
-  extractedText: z.string(),
-  importHash: z.string().min(1),
-  byteSize: z.int().nonnegative(),
-  extractorVersion: z.string(),
-  createdAt: z.int().nonnegative().nullish().catch(null),
-  // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
-  // against the db behind its own ownership gate.
-  sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),
-  sourceAssetHash: z.string().min(1).nullish().catch(null),
-  global: z.boolean().catch(false),
-  characterHandles: z.array(z.string().trim().min(1)).catch([]),
-});
+const wireDocumentSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    mime: z.string(),
+    origin: docOriginSchema,
+    sourceUrl: z.string().nullish().catch(null),
+    extractedText: z.string(),
+    importHash: z.string().min(1),
+    byteSize: z.int().nonnegative(),
+    extractorVersion: z.string(),
+    createdAt: z.int().nonnegative().nullish().catch(null),
+    // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
+    // against the db behind its own ownership gate.
+    sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),
+    sourceAssetHash: z.string().min(1).nullish().catch(null),
+    global: z.boolean().catch(false),
+    characterHandles: z.array(z.string().trim().min(1)).catch([]),
+  })
+  .strip();
 
 const documentSerde = defineJsonObjectSerde<CanonicalDocument, z.infer<typeof wireDocumentSchema>>({
   schemaKind: DATABANK_SCHEMA_KIND,

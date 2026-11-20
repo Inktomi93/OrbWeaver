@@ -14,7 +14,7 @@
 
 import type { AuthMe } from "@orb/contracts/identity";
 import { redirect } from "@tanstack/react-router";
-import { fetchAuthMe, stashInboundJoinToken } from "#data";
+import { fetchAuthMe, isHttpFailure, stashInboundJoinToken } from "#data";
 
 // Only a transient blip should retry; ~600ms total comfortably covers a vite HMR reconnect without a
 // perceptible stall on a truly-down server (the router paints RoutePending across this window).
@@ -30,12 +30,15 @@ const wait = (ms: number): Promise<void> =>
 /** This request's auth state, or null only when the server stays unreachable across a short retry window.
  *  A completed fetch (authed OR anon) short-circuits immediately — retries cover a THROWN read only. */
 async function meOrNull(retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
-  // a thrown read retries, then returns null after
-  // the window; requireAuthed turns null into `throw redirect({ to: "/login" })` (route-guards.ts:55-58) and redirectIfAuthed
-  // (:64) leaves the caller on /login, the surface it guards. Ends if a caller treats null as an authed state.
+  // A read that fails as a request retries, then returns null after the window; requireAuthed turns null into
+  // `throw redirect({ to: "/login" })` and redirectIfAuthed leaves the caller on /login, the surface it guards. Any
+  // other fault rejects.
   try {
     return await fetchAuthMe();
-  } catch {
+  } catch (error) {
+    if (!isHttpFailure(error)) {
+      throw error;
+    }
     if (retriesLeft <= 0) {
       return null;
     }

@@ -40,8 +40,16 @@ test("a retry estimate of a params-poison row answers null while a healthy row o
     }
     return await harness.principalFor(row.ownerId);
   };
-  expect(await harness.services.workloads.estimateRetryModelCalls({ caller: await owner(healthy.id), id: healthy.id })).toEqual({
+  expect(
+    await harness.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: await owner(healthy.id), id: healthy.id }),
+  ).toEqual({
     calls: expect.any(Number),
+    bound: "exact",
   });
-  expect(await harness.services.workloads.estimateRetryModelCalls({ caller: await owner(poisoned.id), id: poisoned.id })).toEqual({ calls: null });
+  expect(
+    await harness.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: await owner(poisoned.id), id: poisoned.id }),
+  ).toEqual({
+    calls: null,
+    bound: "exact",
+  });
 });

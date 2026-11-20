@@ -33,7 +33,7 @@ export function TabsFocusRevealStory({
           <Text voice="reading">{"Workspace context before the tabs. ".repeat(30)}</Text>
           <Tabs defaultValue={initial} orientation={vertical ? "vertical" : "horizontal"}>
             <Row aria-label="Tab clip" className="overflow-x-auto py-tight min-inline-0" role="region">
-              <TabsList activateOnFocus={!manual} aria-label="Review stages">
+              <TabsList activateOnFocus={!manual} aria-label="Review stages" track="free">
                 <TabsTab value="opening">Opening</TabsTab>
                 <TabsTab value="notes">Working notes</TabsTab>
                 <TabsTab disabled={true} value="locked">

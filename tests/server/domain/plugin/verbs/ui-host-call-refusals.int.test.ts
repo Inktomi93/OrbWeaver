@@ -2,7 +2,7 @@
 // error log alone: a write past the key cap and a chat-scoped call with no room are the caller's mistakes.
 // @subject packages/server/src/domain/plugin/verbs/ui-host-call.ts
 // @subject packages/server/src/domain/plugin/substrate/ui-host-dispatch.ts
-// @subject packages/server/src/domain/plugin/substrate/storage.ts
+// @subject packages/server/src/domain/plugin/persistence/storage.ts
 
 import { spawn } from "node:child_process";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";

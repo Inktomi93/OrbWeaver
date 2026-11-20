@@ -123,6 +123,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--tone-info-tint-active",
   // The surface the tone washes mix over (`TONE_HOST_VAR`), reset so a scope's washes mix over its own page, not an outer card.
   "--tone-host",
+  // The opacity an inactive control dims to (D355): raised over the resting step until the scope's own inks clear 3:1.
+  "--opacity-disabled",
   "--font-sans",
   "--radius-card",
 ] as const;

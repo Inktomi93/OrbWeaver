@@ -10,7 +10,7 @@ export { readAccounts } from "./admin/accounts.ts";
 export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";
 export { bootAtlas, bootAtlasDates, lastAtlasState } from "./atlas-guest.ts";
 export { prepareBackupFolder } from "./backup-folder.ts";
-export { casOf } from "./cas.ts";
+export { casOf, storeThenDamageBlob } from "./cas.ts";
 export { readRoomCanon } from "./chat/canon.ts";
 export type { StoredAvatar } from "./chat/cast.ts";
 export { addCharacter, addPersona, startRoom, storeAvatar } from "./chat/cast.ts";
@@ -60,6 +60,7 @@ export {
   latestSchemaSnapshot,
   migrationsBefore,
   migrationsBeforeLatest,
+  migrationsHolding,
   ownDb,
   ownFileDb,
   SHIPPED_MIGRATIONS,
@@ -72,7 +73,7 @@ export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
 export { seedCharacter } from "./factories/character.ts";
 export type { TranscriptLine } from "./factories/chat.ts";
-export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript } from "./factories/chat.ts";
+export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript, transcriptFile } from "./factories/chat.ts";
 export { makeResolvedSecret } from "./factories/credentials.ts";
 export type { OwnerRowDamage } from "./factories/damaged-owner.ts";
 export { damageOwnerRow } from "./factories/damaged-owner.ts";
@@ -107,7 +108,17 @@ export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
 export { servePhysicalPeer } from "./physical-peer.ts";
-export { exportLibrary, imageProvider, restoreBundle, SIGNED_IN_ROUTE, signedInBox, WORKLOAD_DEADLINE_MS } from "./portability-box.ts";
+export type { LibraryExport } from "./portability-box.ts";
+export {
+  exportLibrary,
+  imageProvider,
+  readLibraryExport,
+  restoreBundle,
+  restoreBundleTally,
+  SIGNED_IN_ROUTE,
+  signedInBox,
+  WORKLOAD_DEADLINE_MS,
+} from "./portability-box.ts";
 export { connectDevice, isOnline } from "./presence.ts";
 export type {
   NativeServerHarnessOptions,

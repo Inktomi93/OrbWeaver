@@ -41,7 +41,7 @@ export interface FetchJsonArgs {
   readonly method?: "GET" | "POST" | undefined;
   readonly headers?: Readonly<Record<string, string>> | undefined;
   readonly body?: unknown;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** The literals to scrub from any error text (the bearer, secret-valued headers, key-in-body values). */
   readonly secrets: ProviderScrubSet;
   /** Names the call in error messages (`openrouter credits`, `endpoint models`). */
@@ -94,8 +94,6 @@ export interface ProviderLogger {
   readonly summarizeItem: (entry: ProviderSummarizeItemLog) => void;
 }
 
-// RNG midpoint (random() in [0,1) → jitter in [0.8, 1.2))
-
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
   readonly scheduleTimeout: ScheduleOp;
@@ -106,7 +104,7 @@ export interface RetryOptions {
   /** Cap on any single backoff sleep (ms). */
   readonly maxMs?: number;
   /** Caller-cancel that interrupts the backoff sleep (so Stop during a rate-limit wait is prompt). */
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   /** Injected jitter RNG in `[0, 1)` — deterministic in tests. */
   readonly random: RandomSource;
   /** The request span's event sink (`provider.retry` / `provider.retry.abandoned`); absent ⇒ no-op. */
@@ -153,8 +151,8 @@ export interface ProviderSamplingLog {
   readonly dropped: readonly ProviderSamplingDrop[];
 }
 
-/** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling
- *  2026-07-27) so a diagnosis of an rpg extraction never greps "summarize". Metadata only. */
+/** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling) so a
+ *  diagnosis of an rpg extraction never greps "summarize". Metadata only. */
 export interface ProviderSummarizeItemLog {
   readonly task: "summarize" | "structured";
   readonly model: string;

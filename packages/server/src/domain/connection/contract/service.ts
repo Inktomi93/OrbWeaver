@@ -15,6 +15,7 @@ import type {
   EmbedSpaceChangePreview,
   GetBoundConnectionOp,
   ModelListing,
+  ProviderId,
   ResolveChatCapabilityOp,
   ResolveChatCapabilityParams,
   ResolvedConnectionView,
@@ -22,6 +23,7 @@ import type {
   RuleOwnedBy,
   TaskAvailabilityOp,
   TokenizeResult,
+  Wire,
 } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { SettingsKvPort } from "@orb/contracts/settings";
@@ -35,6 +37,7 @@ import type { AuditEntry } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
 import type {
   CatalogModelsParams,
+  ConnectionCapabilitiesParams,
   ConnectionDiagnosticParams,
   CreateConnectionParams,
   DraftCatalogModelsParams,
@@ -84,7 +87,7 @@ export interface ConnectionContext {
    *  the write to undo and refuse. */
   readonly syncEmbedTargets: SyncTargetGenerationsOp;
   /** Prove a prospective encoder without changing the stored target. */
-  readonly previewTargetMove: PreviewTargetMoveOp;
+  readonly previewTargetMove: PreviewTargetMoveOp<AbortSignal>;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus
@@ -104,11 +107,11 @@ export interface ConnectionService {
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
   /** Trusted server resolution retains its credential; client reads use the credential-free projection. */
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-  readonly availability: TaskAvailabilityOp;
+  readonly availability: TaskAvailabilityOp<AbortSignal>;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
-  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
-  readonly resolveChatCacheContext: ResolveChatCapabilityOp;
-  readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
+  readonly resolveChatCapability: (params: ResolveChatCapabilityParams & { readonly signal: AbortSignal }) => Promise<ResolvedConnectionView>;
+  readonly resolveChatCacheContext: ResolveChatCapabilityOp<AbortSignal>;
+  readonly capabilities: (params: ConnectionCapabilitiesParams) => Promise<ConnectionCapabilityView>;
   /** Each word's tokens on the targeted connection's server, cached per (server, model, word). */
   readonly tokenizeWords: (params: TokenizeWordsParams) => Promise<TokenizeResult>;
 
@@ -153,6 +156,9 @@ export interface ConnectionPorts {
   readonly bindings: BindingStore;
   readonly providerStore: ProviderStore;
   readonly snapshotStore: SnapshotStore;
+  /** The wire of the definition an owner claimed for a plugin provider id, served or tombstoned; the registry
+   *  serves only enabled installs, so the credentials domain reads a disabled plugin provider's wire here. */
+  readonly claimedProviderWire: (providerId: ProviderId, ownerId: UserId) => Promise<Wire | undefined>;
 }
 
 export interface ConnectionPortsDeps {

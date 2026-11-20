@@ -62,7 +62,7 @@ export function UtilityPresetSelect(): ReactElement {
     // The same placement the role rows use: the picker ends the label row, and under one container width it sits below the label.
     <Row align="center" alignBelow="stretch-cq-32" gap="field" indent={true} justify="between" stackBelow="cq-32">
       {/* The hint is a sibling of the label, never inside it, or its name joins the label's. */}
-      <Row align="center" className="min-inline-0" gap="tight" wrap="cq-20">
+      <Row align="center" minWidth="shrinks" gap="tight" wrap="cq-20">
         <Text className="min-inline-0" voice="label" wrap="word">
           Utility preset
         </Text>
@@ -75,7 +75,7 @@ export function UtilityPresetSelect(): ReactElement {
         <Select
           aria-label="Utility preset"
           items={items}
-          layout="hugWrap"
+          layout="hug"
           value={value}
           disabled={setPreset.isPending}
           onValueChange={(next): void => {

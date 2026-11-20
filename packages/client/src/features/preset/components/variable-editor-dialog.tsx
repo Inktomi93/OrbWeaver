@@ -6,13 +6,19 @@ import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DestructiveAction, FlowDialog } from "#components";
+import { DestructiveAction, FlowDialog, MutedLine } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import {
+  PRESET_EDIT_VARIABLE_TITLE,
+  PRESET_VARIABLE_ADD_OPTION_NAME,
+  PRESET_VARIABLE_QUESTION_NAME,
+  presetVariableOptionGroupName,
+  presetVariableOptionRemoveTitle,
+} from "../lib/preset-names.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
@@ -31,7 +37,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
   return (
     <FlowDialog
       dismiss={{ at: "footer", label: DIALOG_VERBS.done, primary: true }}
-      title="Edit variable"
+      title={PRESET_EDIT_VARIABLE_TITLE}
       open={true}
       onOpenChange={(next): void => {
         if (!next) {
@@ -43,7 +49,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
         {(field): ReactElement => <field.TextField label="Name" description="The macro key: used as {{name}} in your prompt." />}
       </form.AppField>
       <form.AppField name={`variables[${index}].question`}>
-        {(field): ReactElement => <field.TextField label="Question" description="What the chat asks you at generation." />}
+        {(field): ReactElement => <field.TextField label={PRESET_VARIABLE_QUESTION_NAME} description="What the chat asks you at generation." />}
       </form.AppField>
 
       <OptionList form={form} index={index} />
@@ -79,15 +85,15 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
         {(values): ReactElement => (
           <Stack gap="field">
             {values.variables[index]?.options.length === 0 ? (
-              <Text voice="gloss">No options yet.</Text>
+              <MutedLine>No options yet.</MutedLine>
             ) : (
               values.variableRowIds[index]?.options.map((id, j) => (
-                <Row key={id} gap="field" align="end" role="group" aria-label={`Option ${j + 1}`}>
+                <Row key={id} gap="field" align="end" role="group" aria-label={presetVariableOptionGroupName(j + 1)}>
                   <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
                   <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
                   <DestructiveAction
                     confirm={{
-                      title: `Remove option ${j + 1}?`,
+                      title: presetVariableOptionRemoveTitle(j + 1),
                       description: "The variable saves without it. This can't be undone.",
                       confirmLabel: DIALOG_VERBS.remove,
                     }}
@@ -100,7 +106,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                     }}
                     trigger={
                       <Button variant="ghost" size="sm">
-                        Remove
+                        {DIALOG_VERBS.remove}
                       </Button>
                     }
                   />
@@ -118,7 +124,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                 }}
               >
                 <Icon icon={Plus} size="sm" />
-                Add option
+                {PRESET_VARIABLE_ADD_OPTION_NAME}
               </Button>
             </Row>
           </Stack>

@@ -2,21 +2,22 @@ import type { LanguageModelV4GenerateResult } from "@ai-sdk/provider";
 import type { GenerationUsage, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { GoogleBackendDeps, ImageGenerateRequest, ImageGenerateResult } from "#contract";
-import { ProviderError } from "#contract";
+import { generationOf, ProviderError } from "#contract";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { mediaFilePart } from "../v4/prompt.ts";
 import { generationUsageOf, measuredCostOf, sdkWarnings } from "../v4/result.ts";
 import { generatedImageOf } from "../v4/stream.ts";
 import { createImageNormalizer, passthroughImageNormalizer, toImageUrl } from "../wire/image-normalize.ts";
-import { requireGoogleGeneration } from "./chat.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 import { googleExtras } from "./options.ts";
 import { googleServedModelOf, googleTokenDetailsOf, googleTokenUsageOf } from "./usage.ts";
 
 function imageUsageOf(result: LanguageModelV4GenerateResult): GenerationUsage {
   const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
-  // Google 4.0.87 drops modelVersion from response.modelId, but retains the actual response body.
+  // The served model version is not on the result's `response.modelId` (the SDK fills it off the parsed
+  // response and falls back to "", `@ai-sdk/google@4.0.102`'s image `doGenerate`); the raw body's own
+  // `modelVersion` carries it.
   const servedModel = googleServedModelOf(result.response?.body);
   return {
     ...generationUsageOf(result.usage, servedModel ?? undefined, measured),
@@ -27,11 +28,11 @@ function imageUsageOf(result: LanguageModelV4GenerateResult): GenerationUsage {
 
 export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: GoogleBackendDeps): Promise<ImageGenerateResult> {
   const { connection } = req;
-  const generation = requireGoogleGeneration(connection);
+  const label = `${connection.providerId} generateImage (${connection.model})`;
+  const generation = generationOf(connection, label);
   if (!generation.output.modalities.includes("image")) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "Google connection cannot generate images" });
   }
-  const label = `${connection.providerId} generateImage (${connection.model})`;
   const warnings: ResolvedWarning[] = [];
   if (req.edit?.mask !== undefined) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "Google image editing does not support masks" });
@@ -58,7 +59,7 @@ export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: Go
             ...(req.size === undefined ? {} : { imageConfig: { aspectRatio: aspectRatioOf(req.size.width, req.size.height) } }),
           },
         },
-        ...(req.signal === undefined ? {} : { abortSignal: req.signal }),
+        abortSignal: req.signal,
       });
     warnings.push(...sdkWarnings(result.warnings));
     if (result.finishReason.unified === "content-filter") {
@@ -75,7 +76,7 @@ export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: Go
 }
 
 function imageSources(req: ImageGenerateRequest, warnings: ResolvedWarning[]): readonly (Uint8Array | string)[] {
-  const generation = requireGoogleGeneration(req.connection);
+  const generation = generationOf(req.connection);
   const edit = acceptsImageEdit(generation) ? req.edit : undefined;
   if (req.edit !== undefined && edit === undefined) {
     warnings.push({ code: "image_edit_dropped", message: "The model cannot edit images; generated from text" });

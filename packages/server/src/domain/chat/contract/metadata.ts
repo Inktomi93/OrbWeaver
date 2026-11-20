@@ -21,39 +21,39 @@ export const toolRecurseLimitSchema = z.int().min(TOOL_RECURSE_LIMIT_MIN).max(TO
 
 /** The declarative shape of the `chats.metadata` blob — every sub-blob independently fault-isolated
  *  (`.catch(undefined)`: a malformed one heals to absent without nuking its siblings) and the object
- *  itself `.loose()` (unknown future fields pass through unstripped). The runtime entry point is
+ *  itself a `z.looseObject` (unknown future fields pass through unstripped). The runtime entry point is
  *  {@link parseChatMetadata}. */
-const chatMetadataSchema = z
-  .object({
-    // The STORED read (`storedGroupConfigSchema`): retired keys are stripped before the strict arms see
-    // them, because the `.catch(undefined)` here is NOT free for a group blob — healing it to absent would
-    // silently revert a narrator room to the per-speaker default. Write doors keep the raw strict schema.
-    group: storedGroupConfigSchema.optional().catch(undefined),
-    roomOverrides: roomOverridesSchema.optional().catch(undefined),
-    opening: openingPolicySchema.optional().catch(undefined),
-    toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
-    databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
-    background: themeBackgroundSchema.optional().catch(undefined),
-    rpg: chatRpgPointerSchema.optional().catch(undefined),
-    hostDisplayScripts: z.boolean().optional().catch(undefined),
-    // B1 — the per-room offer-choices posture. `.optional()` is LOAD-BEARING here in a way it is not for its
-    // boolean neighbour above: absent means INHERIT the host's per-user default, not "off", so the heal arm
-    // (a corrupt value ⇒ absent) lands on inherit rather than on a silently-forced posture.
-    offerChoices: z.boolean().optional().catch(undefined),
-    // B7 — the two reaction toggles, the same load-bearing `.optional()`: absent = INHERIT the host's
-    // per-user default (`resolveCharactersCanReact` / `resolveReactionsEnabled`), so a corrupt value heals
-    // to inherit, never to a forced posture.
-    charactersCanReact: z.boolean().optional().catch(undefined),
-    reactionsEnabled: z.boolean().optional().catch(undefined),
-    // The room's regex levers. Both heal to ABSENT, which is ALLOWED: a corrupt blob must never be
-    // able to switch a host's regex off behind their back (the failure direction that matters here is the
-    // opposite of the group blob's, where healing to absent would silently revert a posture).
-    regexEnabled: z.boolean().optional().catch(undefined),
-    // Heals to ABSENT (= on), the regexEnabled direction: a corrupt blob only ever restores the default.
-    memberPersonaLore: z.boolean().optional().catch(undefined),
-    regexTiers: regexTierAllowSchema.optional().catch(undefined),
-  })
-  .loose() satisfies z.ZodType<{ [K in keyof ChatMetadata]?: ChatMetadata[K] | undefined }>;
+const chatMetadataSchema = z.looseObject({
+  // The STORED read (`storedGroupConfigSchema`): retired keys are stripped before the strict arms see
+  // them, because the `.catch(undefined)` here is NOT free for a group blob — healing it to absent would
+  // silently revert a narrator room to the per-speaker default. Write doors keep the raw strict schema.
+  group: storedGroupConfigSchema.optional().catch(undefined),
+  roomOverrides: roomOverridesSchema.optional().catch(undefined),
+  opening: openingPolicySchema.optional().catch(undefined),
+  toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
+  databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
+  background: themeBackgroundSchema.optional().catch(undefined),
+  rpg: chatRpgPointerSchema.optional().catch(undefined),
+  // Fails closed: absent means shared, so a stored value that does not parse reads as the host's off, never as
+  // absent.
+  hostDisplayScripts: z.boolean().optional().catch(false),
+  // B1 — the per-room offer-choices posture. `.optional()` is LOAD-BEARING here in a way it is not for its
+  // boolean neighbour above: absent means INHERIT the host's per-user default, not "off", so the heal arm
+  // (a corrupt value ⇒ absent) lands on inherit rather than on a silently-forced posture.
+  offerChoices: z.boolean().optional().catch(undefined),
+  // B7 — the two reaction toggles, the same load-bearing `.optional()`: absent = INHERIT the host's
+  // per-user default (`resolveCharactersCanReact` / `resolveReactionsEnabled`), so a corrupt value heals
+  // to inherit, never to a forced posture.
+  charactersCanReact: z.boolean().optional().catch(undefined),
+  reactionsEnabled: z.boolean().optional().catch(undefined),
+  // The room's regex levers. Both heal to ABSENT, which is ALLOWED: a corrupt blob must never be
+  // able to switch a host's regex off behind their back (the failure direction that matters here is the
+  // opposite of the group blob's, where healing to absent would silently revert a posture).
+  regexEnabled: z.boolean().optional().catch(undefined),
+  // Heals to ABSENT (= on), the regexEnabled direction: a corrupt blob only ever restores the default.
+  memberPersonaLore: z.boolean().optional().catch(undefined),
+  regexTiers: regexTierAllowSchema.optional().catch(undefined),
+}) satisfies z.ZodType<{ [K in keyof ChatMetadata]?: ChatMetadata[K] | undefined }>;
 
 function asRecord(raw: unknown): Record<string, unknown> {
   return raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};

@@ -27,8 +27,8 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
-import { useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
-import { ROW_RENAME_NAME } from "#lib";
+import { roomRosterOptions, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
+import { ROW_RENAME_NAME, rethrowUnlessTrpcFailure } from "#lib";
 import {
   enterSelectionMode,
   GAME_MODE_KEPT_LINE,
@@ -44,12 +44,19 @@ import { useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } fr
 import { useSelfLeave } from "../hooks/use-membership-mutations.ts";
 import {
   BACK_TO_PARENT_CHAT_LABEL,
+  CHAT_CLOSE_NAME,
   CHAT_DELETE_NAME,
+  CHAT_LEAVE_CONFIRM_NAME,
   CHAT_LEAVE_CONFIRM_TITLE,
   CHAT_LEAVE_MEMBER_NOTE,
   CHAT_LEAVE_NAME,
+  CHAT_NEW_WITH_SAME_CHARACTERS_NAME,
+  CHAT_OPTIONS_NAME,
   CHAT_SELECT_MESSAGES_NAME,
+  CHAT_SETTINGS_DOOR_NAME,
 } from "../lib/chat-options-names.ts";
+import { characterGalleryName } from "../lib/chat-surface-names.ts";
+import { deleteOwnChat } from "../lib/gone-room-draft.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 interface GameModeActions {
@@ -115,7 +122,7 @@ function useGameModeActions(chatId: ChatId): GameModeActions {
  *  themselves). */
 function GameMenuSection({ chatId, actions }: { readonly chatId: ChatId; readonly actions: GameModeActions }): ReactElement | null {
   const trpc = useTRPC();
-  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const detailQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const { pending, start, setMode } = actions;
   const labelId = useId();
   const descriptionId = useId();
@@ -169,7 +176,7 @@ function GameMenuSection({ chatId, actions }: { readonly chatId: ChatId; readonl
  *  chain and the item is a permission omit, never a dead door. */
 function ParentChatItem({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
-  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const detailQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   // Optional-chained like the game section: the CT harness answers an unlisted proc with `null`.
   const parentChatId = detailQuery.data?.parentChatId ?? null;
   const lineageQuery = useGatedQuery(parentChatId === null ? null : chatId, (id) => trpc.chat.getChatLineage.queryOptions({ chatId: id }));
@@ -232,7 +239,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    deleteChat.mutate({ chatId }, { onSuccess: goToLanding });
+    deleteOwnChat(chatId, () => deleteChat.mutateAsync({ chatId }));
   };
   // The confirm holds open while the leave runs and stays open with the reason if the server refuses it.
   const confirmLeave = (): Promise<void> => selfLeave.mutateAsync({ chatId }).then(goToLanding);
@@ -252,7 +259,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
       icon: LogOut,
       title: CHAT_LEAVE_CONFIRM_TITLE,
       description: CHAT_LEAVE_MEMBER_NOTE,
-      confirmLabel: "Leave",
+      confirmLabel: CHAT_LEAVE_CONFIRM_NAME,
       onConfirm: confirmLeave,
     };
   }
@@ -260,7 +267,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
     <>
       <RowActionsMenu
         icon={MenuIcon}
-        label="Chat options"
+        label={CHAT_OPTIONS_NAME}
         triggerSize="glyph"
         shape="pill"
         ink="inherit"
@@ -276,17 +283,17 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
           <MenuItem
             onClick={(): void => {
               // `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface; this launcher stays in the current room. Ends if useStartChat drops errorToast.
-              startChat({ characterIds }).catch(() => undefined);
+              startChat({ characterIds }).catch(rethrowUnlessTrpcFailure);
             }}
           >
             <Icon icon={MessagesSquare} size="sm" />
-            New chat with the same characters
+            {CHAT_NEW_WITH_SAME_CHARACTERS_NAME}
           </MenuItem>
         ) : null}
         {soloGallery !== undefined ? (
           <MenuItem onClick={(): void => openGallery(soloGallery)}>
             <Icon icon={LayoutGrid} size="sm" />
-            {soloGallery.name}'s gallery
+            {characterGalleryName(soloGallery.name)}
           </MenuItem>
         ) : null}
         {galleryCharacters.length > 1 ? (
@@ -310,7 +317,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         {onGroupSettings === undefined ? null : (
           <MenuItem onClick={onGroupSettings}>
             <Icon icon={Settings} size="sm" />
-            Chat settings
+            {CHAT_SETTINGS_DOOR_NAME}
           </MenuItem>
         )}
 
@@ -352,7 +359,7 @@ function TrailingItems({ onRename }: { readonly onRename: (() => void) | undefin
       )}
       <MenuItem onClick={goToLanding}>
         <Icon icon={X} size="sm" />
-        Close chat
+        {CHAT_CLOSE_NAME}
       </MenuItem>
     </>
   );

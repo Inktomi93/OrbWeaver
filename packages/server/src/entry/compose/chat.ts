@@ -32,6 +32,7 @@ import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain
 import type { AssetsService, ChatAssetOpsDeps } from "#domain/assets";
 import { createChatAssetOps } from "#domain/assets";
 import type { AutomationOps } from "#domain/automation";
+import { createTurnGlobalVariableOps } from "#domain/automation";
 import type { CharacterService } from "#domain/character";
 import { createCharacterRoomProjections, createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
@@ -67,6 +68,7 @@ import {
   createGenerationObservationSink,
   createGetMembership,
   createGetPendingUserText,
+  createLoadConsentingHostUserId,
   createPostNarratorMessage,
   createPromptTransformRegistry,
   createReactAsCharacter,
@@ -82,6 +84,7 @@ import {
   loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import { createDetachHandoffDocuments } from "#domain/databank";
 import { createResolveOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements, createMemoryEmbeddingOps } from "#domain/embeddings";
@@ -93,7 +96,7 @@ import { createPersonaOwned, createResolveConnectedPersona, createResolvePersona
 import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import { createLoadOptionalPreset } from "#domain/preset";
-import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
+import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts, createDetachHandoffRegexScripts } from "#domain/regex";
 import type { RpgAssemblyContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
@@ -102,11 +105,11 @@ import { createTokenHasher, selectHandleById, selectHandlesByIds } from "#domain
 import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
-import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
+import { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBooks } from "#domain/world-info";
 import type { AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
-import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
+import { createRegexTest, openRegexPass, REGEX_TEXT_PASS_BUDGET_MS, regexHistoryPassBudgetMs } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "../auth/principal-mint.ts";
@@ -129,7 +132,7 @@ export interface ChatComposeInput {
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
 
   readonly timers: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
+  readonly backgroundSignal: AbortSignal;
   readonly trackBackground: ChatAssemblyContext["trackBackground"];
   readonly recordTurnOutcome?: ChatAssemblyContext["recordTurnOutcome"];
   readonly random: RandomSource;
@@ -208,7 +211,7 @@ export interface ChatComposeInput {
   readonly assets: AssetsService;
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
    *  the `materializeBackground` precedent one line up. */
   readonly storeInlineReplyImage: ChatAssemblyContext["storeInlineReplyImage"];
@@ -249,10 +252,11 @@ export interface ChatComposeResult extends AsyncDisposable {
     readonly claimChat: ClaimChatOp;
     /** The roster projection — the tracker view's roster ∪ sheets source. */
     readonly resolveRpgParticipants: ResolveRpgParticipants;
-    /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
-     *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
-     *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
-    readonly resolveHostUserId: RpgAssemblyContext["resolveRoomFunder"];
+    /** The chat's PRESENT host userId (role='host', D19) when that host consents (present and enabled) — the
+     *  human whose connection a member's game read judges. Resolved by ROLE, never join order (a handoff swaps
+     *  roles in place — the first-joined human is NOT the host). `null` = a hostless room or a disabled host, so a
+     *  member's read never resolves a disabled account's connection. */
+    readonly resolveConsentingHostUserId: RpgAssemblyContext["resolveRoomFunder"];
     /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
      *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
     readonly resolveCanonWindow: ResolveCanonWindow;
@@ -319,7 +323,7 @@ export interface ChatComposeResult extends AsyncDisposable {
  */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent, timers } = input;
-  const stats = createStatsBatchWiring(input.idSource);
+  const stats = createStatsBatchWiring(input.idSource, input.now);
   const auditStatements = input.auditStatements;
 
   const lifetime = new AsyncDisposableStack();
@@ -403,7 +407,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     db,
     now,
     timers,
-    ...(input.backgroundSignal === undefined ? {} : { backgroundSignal: input.backgroundSignal }),
+    backgroundSignal: input.backgroundSignal,
     trackBackground: input.trackBackground,
     ...(input.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: input.recordTurnOutcome }),
     can: input.can,
@@ -414,11 +418,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newMessageReactionId: minter(ID_PREFIX.messageReaction, input.idSource),
     newParticipantId: minter(ID_PREFIX.chatParticipant, input.idSource),
     newInjectionId: minter(ID_PREFIX.chatInjection, input.idSource),
+    newMemoryStrikeId: minter(ID_PREFIX.chatMemoryStrike, input.idSource),
     newEventId: minter(ID_PREFIX.chatEvent, input.idSource),
     newInviteId: minter(ID_PREFIX.chatInvite, input.idSource),
     newPendingTurnId: minter(ID_PREFIX.pendingTurn, input.idSource),
     newChatTurnId,
-    newCompactionSpendId: minter(ID_PREFIX.compactionSpend, input.idSource),
     hashToken: createTokenHasher(input.sessionSecret),
     signupInvites: { mode: input.authMode, mintable: SIGNUP_INVITES_MINTABLE[input.authMode] },
     audit: input.audit,
@@ -426,7 +430,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createEmitChatChanged({ db, logger: input.logger }, input.publishChatChanged),
-    applyRegexReplace: createRegexApplyReplace(),
+    openRegexPass: (rows) => openRegexPass(rows === undefined ? REGEX_TEXT_PASS_BUDGET_MS : regexHistoryPassBudgetMs(rows)),
     prng: input.random,
     testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
@@ -442,6 +446,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     }),
     resolveChatPresetParams,
     resolveChatProse,
+    resolveMemoryConfig,
+    readMemoryDefaults: () => input.settings.getEffectiveConfig().memoryDefaults,
     resolveChat: inferenceOps.resolveChat,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     resolveCharacterDistillates: createResolveOwnedDistillates(db),
@@ -453,7 +459,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
       bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
-      applyStatsDelta: stats.applyStatsDelta,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character, input.idSource),
       // The picture RE-OWN, avatar AND carried background: `assets` is per-owner with an
@@ -481,6 +486,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // the nominee has consented to anything, so they are structurally unable to mint (no clock, no minter).
     countHandoffBooks: createCountHandoffBooks(input.db),
     countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
+    detachHandoffBooks: createDetachHandoffBooks(input.db),
+    detachHandoffRegexScripts: createDetachHandoffRegexScripts(input.db),
+    detachHandoffDocuments: createDetachHandoffDocuments(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     ...characterProjections,
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
@@ -495,6 +503,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       assets: input.assets,
       mediaProcessing: input.mediaProcessing,
       forbidExternalMedia: () => input.settings.getEffectiveConfig().forbidExternalMedia,
+      resolveUserEnabled: input.resolveUserEnabled,
     }),
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
     resolveAssetHash: assetOps.resolveAssetHash,
@@ -508,6 +517,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
     settleRetainedChatRebase: stats.settleRetainedChatRebase,
     bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
+    shiftCharacterCensus: stats.shiftCharacterCensus,
+    recordLedgerSpend: stats.recordLedgerSpend,
+    prepareCanonRetirement: stats.prepareCanonRetirement,
+    prepareCanonAdmission: stats.prepareCanonAdmission,
     summarize: inferenceOps.summarize,
     resolveSpeakerReranker: inferenceOps.resolveSpeakerReranker,
     resolveSpeakerArbiter: inferenceOps.resolveSpeakerArbiter,
@@ -561,6 +574,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     teaching: [...createChatTeachingContributions({ db }), ...(input.teaching ?? [])],
     // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
+    // The per-user global plane (D46) is automation's table: the turn's read cache, and the upserts the reply batch places.
+    ...createTurnGlobalVariableOps({ db, now }),
     // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
     pluginMacros: input.pluginMacros ?? null,
     listPluginMacros: input.listPluginMacros ?? null,
@@ -611,7 +626,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       setRpgPointer: createSetRpgPointer(chatCtx, { claimChat }),
       claimChat,
       resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
-      resolveHostUserId: resolveChatHostUserId,
+      resolveConsentingHostUserId: createLoadConsentingHostUserId({ db, resolveUserEnabled: input.resolveUserEnabled }),
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,

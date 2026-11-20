@@ -22,7 +22,7 @@ export function buildRecallQuery(
   return recallQueryOf(cfg, scope, renderTranscript(recallQueryWindow(recent, cfg.queryWindow), recallMacroNames(names)));
 }
 
-/** Adapt recall's char-name map (the gather producer, `assemble-gather.ts`) into the `resolveRowMacros`
+/** Adapt recall's char-name map (the gather producer, `assembly/gather.ts`) into the `resolveRowMacros`
  *  context `renderTranscript` takes. Recall carries CHARACTER names only (its query text labels + resolves
  *  `{{char}}` per row for embed-index parity with the digest body); the persona map is empty here, so a query
  *  row's `{{user}}` floors to "User" — the recall query text is a fuzzy semantic embed, not per-persona keyed. */

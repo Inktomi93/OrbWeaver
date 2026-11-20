@@ -10,8 +10,9 @@
 import { RosterPresetNameConflictError } from "../contract/errors.ts";
 import type { CreateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
+import { loadView } from "../persistence/load-view.ts";
 import { insertPresetWithMembers, ownedPresetNameTaken } from "../persistence/queries.ts";
-import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
+import { ensureAnchorOwned, ensureMembersOwned, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
 import { normalizeMembers } from "../substrate/members.ts";
 
 export function createCreate(ctx: RosterPresetContext): RosterPresetService["create"] {

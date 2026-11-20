@@ -32,8 +32,9 @@ import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, surfaceDeferredFailure, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
+import { pickerShowingLine } from "./shared-control-names.ts";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
  *  library taken before the question was asked — and since #157 it is a PAGE of a keyset walk, not the
@@ -185,14 +186,14 @@ function CharacterPickerBody({
     if (hasNextPage && !isFetching) {
       // The retained-page error below owns the rejection; the promise is consumed so it cannot become an
       // unhandled rejection while TanStack exposes the same failure through `isFetchNextPageError`.
-      fetchNextPage().catch(() => undefined);
+      fetchNextPage().catch(surfaceDeferredFailure);
     }
   };
   useEffect(() => {
     const list = listRef.current;
     const cannotScrollToTail = candidates.length === 0 || (list !== null && list.clientHeight > 0 && list.scrollHeight <= list.clientHeight);
     if (cannotScrollToTail && hasNextPage && !isFetching && !query.isFetchNextPageError) {
-      fetchNextPage().catch(() => undefined);
+      fetchNextPage().catch(surfaceDeferredFailure);
     }
   }, [candidates.length, fetchNextPage, hasNextPage, isFetching, query.isFetchNextPageError]);
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
@@ -227,7 +228,7 @@ function CharacterPickerBody({
         {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
           <Row wrap={true} divider="top" align="center" gap="row" padding="row" minHeight="holdsPickerFooter">
             <Text as="span" voice="gloss">
-              {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
+              {excludedLoadedCount === 0 ? pickerShowingLine(String(candidates.length), String(totalCount)) : characterCountLabel(candidates.length)}
             </Text>
             <Row grow="content" gap="field" justify="end">
               {query.isFetchNextPageError ? (
@@ -296,7 +297,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
-      <Row align="center" className="min-inline-0" grow={true} gap="row">
+      <Row align="center" minWidth="shrinks" grow={true} gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>

@@ -30,7 +30,7 @@
 //
 // A DISABLED RESET'S LEGIBILITY is answered by the SHAPE: in production a
 // disabled Reset does not exist — an unmodified row renders the empty cell. The dev menu
-// keeps `data-disabled:opacity-disabled`, which is the house-wide disabled convention shared by every menu,
+// keeps the menu item's own disabled state (`packages/ui/src/lib/disabled-state.ts`), shared by every menu,
 // select and command item in `@orb/ui`; retuning it here would be a cross-cutting change to a surface this
 // row does not own.
 
@@ -46,7 +46,7 @@ import { formatConfigLink } from "#state";
 import { DescribedMenuItem } from "./described-menu-item.tsx";
 
 import { RowActionsMenu } from "./row-actions-menu.tsx";
-
+import { settingResetName } from "./shared-control-names.ts";
 import type { ConfigLeafValue } from "./use-config-leaf.ts";
 
 /** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
@@ -128,7 +128,7 @@ function SettingRowResetAction({ label, binding, focusControl }: Omit<SettingRow
   if (binding === null || !binding.modified) {
     return <ActionCell />;
   }
-  const name = `Reset ${label} to its default`;
+  const name = settingResetName(label);
   const onUndone = (): void => {
     returning.current = true;
     takeFocusBack();

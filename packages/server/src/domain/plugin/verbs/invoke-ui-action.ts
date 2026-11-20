@@ -59,7 +59,7 @@ async function admitChat(ctx: PluginContext, caller: InvokeUiActionParams["calle
 }
 
 export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiAction"] {
-  return async ({ caller, pluginId, surfaceId, actionId, values, chatId }: InvokeUiActionParams) => {
+  return async ({ caller, pluginId, surfaceId, actionId, values, chatId, signal }: InvokeUiActionParams) => {
     // (1) OWNER SCOPE — leak-free NOT_FOUND for a plugin the caller does not own (the cross-tenant gate).
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -86,7 +86,7 @@ export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistr
     // with a sad toast.
     let outcome: PluginUiOutcome = { toasts: [] };
     try {
-      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat);
+      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat, signal);
     } catch (error) {
       throw asPluginActionError(error);
     } finally {

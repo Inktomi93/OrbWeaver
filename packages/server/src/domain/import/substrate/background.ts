@@ -12,8 +12,8 @@
 // written — the only gallery surface is character-scoped (`listGallery({subjectCharacterId})`), so such a row
 // would be invisible data.
 //
-// The mime is derived from the EXTENSION and then magic-verified inside `assets.store` (`enforceMagic`), so a
-// mislabelled file is refused with a reason rather than entering the CAS as a lie.
+// The mime is derived from the EXTENSION, and the loader stores a picture under its sniffed type instead. `assets.store`
+// magic-verifies every claim (`enforceMagic`), so a mislabelled non-picture is refused with a reason.
 
 /** The ST profile SUBDIRECTORY holding the app-background library. */
 export const ST_BACKGROUND_DIR = "backgrounds";

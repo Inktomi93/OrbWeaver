@@ -13,14 +13,13 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { EditableTagChip } from "#components";
+import { EditableTagChip, MutedLine } from "#components";
 import type { TagFilterEntry, TagFilterState } from "#lib";
 import { tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
-
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
-import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME } from "../lib/character-names.ts";
+import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME, characterTagFilterName } from "../lib/character-names.ts";
 
 /** THE tag chip's own spelling — the state attribute each chip carries, which is also what the CTs address
  *  them by. One const, so the roving group and the markup can never name two different things. */
@@ -161,7 +160,7 @@ export function TagVocabularyPanel({
       </ScrollArea>
       {/* A search that finds nothing must SAY so — an empty scroller is indistinguishable from a broken one. */}
       <Text voice="gloss">{`Right-click, hold, or press ${EDIT_LABEL_KEY} to edit a label.`}</Text>
-      {matches.length === 0 ? <Text voice="gloss">{`No tag matches "${query}".`}</Text> : null}
+      {matches.length === 0 ? <MutedLine>{`No tag matches "${query}".`}</MutedLine> : null}
     </>
   );
 }
@@ -199,7 +198,7 @@ export function TagFilterChip({
   return (
     // iOS WebKit fires no `contextmenu` on long-press, so touch gets a visible edit button beside the chip.
     // Fine pointers keep right-click and F2 and the rail's resting width.
-    <Row className="min-inline-0" cap="fit" gap="tight">
+    <Row minWidth="shrinks" cap="fit" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
       <Text as="span" hiddenAt="fine">
         <EditableTagChip iconOnly={true} tag={tag} />
@@ -237,9 +236,9 @@ function TagFilterChipButton({
             event.preventDefault();
             edit();
           }}
-          aria-label={`Filter by ${tag.name}: ${presentation.announced}: ${presentation.next}`}
+          aria-label={characterTagFilterName(tag.name, presentation.announced, presentation.next)}
           cap="fit"
-          className="min-inline-0"
+          minWidth="shrinks"
           data-tag-filter-state={state}
           variant="outline"
           onClick={(): void => onCycle(tag.id)}

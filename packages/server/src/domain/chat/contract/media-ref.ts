@@ -1,4 +1,5 @@
 import type { AssetCasRefByIdOp, LoadAssetBytesOp } from "@orb/contracts/assets";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
@@ -12,7 +13,8 @@ export interface ImageRefAssets {
 
 /** The room facts a stored asset must satisfy before its bytes are read for the model. */
 export interface MediaRoomAccess {
-  readonly ownerIsPresent: (ownerId: UserId, chatId: ChatId) => Promise<boolean>;
+  /** The owner is in the room's consent set: present and enabled. */
+  readonly ownerConsents: (ownerId: UserId, chatId: ChatId) => Promise<boolean>;
   /** The room placed the asset itself: a `message_assets` link on one of its messages. Every link writer checks
    *  that the writer owns a cited picture, so a bare id spelled in any body places nothing. */
   readonly isPlacedInRoom: (assetId: AssetId, chatId: ChatId) => Promise<boolean>;
@@ -23,4 +25,6 @@ export interface ResolveMediaRefDeps {
   readonly assets: Pick<ImageRefAssets, "assetCasRefById" | "loadAssetBytes">;
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
   readonly forbidExternalMedia: () => boolean;
+  /** The disabled-account read the owner's consent check narrows the room's present humans with. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
 }

@@ -33,8 +33,9 @@ export const parseImageryCall = serde.parse;
 export function imageryCallImportHash(call: PortableImageryCall): string {
   const execution = portableImageryExecutionSchema.parse(call.execution);
   const legacyGenerationId = execution.sourceCallId === null ? call.images[0]?.sourceGenerationId : null;
-  // Context FK deletion/handle relink changes attribution, not the immutable execution it describes.
-  const { subjectCharacterHandle: _subject, chatId: _chat, connectionId: _connection, identityHash: _reuse, ...facts } = execution;
+  // Context FK deletion/handle relink changes attribution, not the immutable execution it describes. The measured time
+  // is a sample of that execution, absent from files and rows written before it was kept, so it never splits a call.
+  const { subjectCharacterHandle: _subject, chatId: _chat, connectionId: _connection, identityHash: _reuse, genTimeMs: _time, ...facts } = execution;
   return sha256Hex(JSON.stringify({ execution: facts, legacyGenerationId }));
 }
 

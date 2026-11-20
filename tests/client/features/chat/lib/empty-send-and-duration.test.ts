@@ -4,19 +4,19 @@ import { expect, test } from "@orb/testkit/node";
 import { resolveEmptySendAction } from "#client/features/chat/lib/continue-on-empty.ts";
 import { durationLabel, genDurationLabel } from "#client/features/chat/lib/gen-duration.ts";
 
-test("empty send continues assistant tails and generates only committed non-assistant tails", () => {
+test("empty send continues assistant tails, generates on committed non-assistant tails, and does nothing with the switch off", () => {
   const ids = createSeededIds();
   const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
   const messageId = mintTypeId(ID_PREFIX.message, ids.next);
-  const input = { continueOnSend: true, generateOnEmptySend: true, chatId, hasText: false, tailAssistantMessageId: messageId };
+  const input = { emptyEnterReplies: true, chatId, hasText: false, tailAssistantMessageId: messageId };
 
   expect(resolveEmptySendAction({ ...input, tailRole: "assistant" })).toEqual({ kind: "continue", chatId, messageId });
   expect(resolveEmptySendAction({ ...input, tailRole: "user", tailAssistantMessageId: null })).toEqual({ kind: "generate", chatId });
   expect(resolveEmptySendAction({ ...input, tailRole: "system", tailAssistantMessageId: null })).toEqual({ kind: "generate", chatId });
   expect(resolveEmptySendAction({ ...input, tailRole: null, tailAssistantMessageId: null })).toEqual({ kind: "generate", chatId });
-  expect(resolveEmptySendAction({ ...input, tailRole: "assistant", continueOnSend: false })).toBeNull();
+  expect(resolveEmptySendAction({ ...input, tailRole: "assistant", emptyEnterReplies: false })).toBeNull();
   expect(resolveEmptySendAction({ ...input, tailRole: "assistant", tailAssistantMessageId: null })).toBeNull();
-  expect(resolveEmptySendAction({ ...input, tailRole: "user", generateOnEmptySend: false })).toBeNull();
+  expect(resolveEmptySendAction({ ...input, tailRole: "user", tailAssistantMessageId: null, emptyEnterReplies: false })).toBeNull();
   expect(resolveEmptySendAction({ ...input, tailRole: "assistant", hasText: true })).toBeNull();
   expect(resolveEmptySendAction({ ...input, tailRole: "user", hasText: true })).toBeNull();
   expect(resolveEmptySendAction({ ...input, tailRole: "assistant", chatId: null })).toBeNull();

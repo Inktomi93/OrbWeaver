@@ -5,8 +5,9 @@ import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { RULE_WORLD_BOOK_NAME, RULE_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 
 interface RuleBookFieldProps {
   readonly chatId: ChatId | null;
@@ -27,7 +28,7 @@ export function RuleBookField(props: RuleBookFieldProps): ReactElement {
     <QueryBoundary
       resetKeys={[props.chatId]}
       fallback={<SkeletonRows count={2} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={RULE_WORLD_BOOKS_READ_LABEL} onRetry={retry} />}
     >
       {props.chatId === null ? <OwnedBookField {...props} /> : <AttachedBookField {...props} chatId={props.chatId} />}
     </QueryBoundary>
@@ -51,7 +52,7 @@ function BookSelect({ chatId, value, onChange, error, onBlur, books }: RuleBookF
   const unavailable = value.length > 0 && !items.some((item) => item.value === value);
   return (
     <Stack gap="tight">
-      <Field label="World book" error={error}>
+      <Field label={RULE_WORLD_BOOK_NAME} error={error}>
         {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the label association flows through Base UI's FieldRootContext at render time, the same as `SelectField`. */}
         <Select
           onOpenChange={(open): void => {
@@ -70,7 +71,7 @@ function BookSelect({ chatId, value, onChange, error, onBlur, books }: RuleBookF
           }}
         />
       </Field>
-      {items.length === 0 ? <Text voice="gloss">{emptyBookGuidance(chatId)}</Text> : null}
+      {items.length === 0 ? <MutedLine>{emptyBookGuidance(chatId)}</MutedLine> : null}
       {unavailable ? <Text voice="gloss">The saved book is retained. Replace it deliberately; an unavailable book can prevent saving.</Text> : null}
     </Stack>
   );

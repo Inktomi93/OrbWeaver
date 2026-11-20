@@ -53,10 +53,12 @@ function useRecentsTitle(): string {
   return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
 }
 
-// Home's start control belongs to this tile while the account has no room to resume.
-function useHoldsStart(): boolean {
+// Home's start control belongs to this tile while the account has no room to resume. A pending read is unknown; a failed one leaves
+// the control to the masthead, so a broken list never hides the way to start a chat.
+function useHoldsStart(): boolean | null {
   const trpc = useTRPC();
-  return useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT })).data?.items.length === 0;
+  const page = useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
+  return page.isPending ? null : page.data?.items.length === 0;
 }
 
 export const chatRecentsTile: HomeTileContribution = {

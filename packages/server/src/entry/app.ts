@@ -8,13 +8,15 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
+import { viewerRunsCardScripts } from "@orb/contracts/settings";
+import { TRPC_BODY_LIMIT_HEADER, TRPC_BODY_MAX_BYTES } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
-import type { TRPCError } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { ResponseMeta } from "@trpc/server/http";
 import type { Context, MiddlewareHandler } from "hono";
@@ -24,19 +26,19 @@ import { timing } from "hono/timing";
 import type { ImportAssetPort } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
-import type { SettleImportMemory } from "#domain/import";
+import type { ExportCurrentCard, SettleImportMemory } from "#domain/import";
 import type { SessionsService } from "#domain/sessions";
 import { readGlobalSettings } from "#domain/settings";
 import type { RelayController } from "#domain/share";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { AuditWiring, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
+import type { AuditWiring, DebugRoutesOptions, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
 import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
 import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
 import type { PhysicalPeerRead } from "#infra/network";
-import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp, trustedProxiesOf } from "#infra/network";
+import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import type { ContextForRequest, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter } from "../transport/trpc/index.ts";
@@ -47,6 +49,7 @@ import type {
   AuthSessionsPort,
   BlobAssetsPort,
   BlobCasPort,
+  CardFrameDeps,
   FirstRunRouteDeps,
   HealthzDeps,
   OidcRoutesDeps,
@@ -66,6 +69,7 @@ import {
   registerImportBundle,
   registerImportChat,
   registerImportTree,
+  registerImportTreeZip,
   registerJoin,
   registerPluginFrame,
   registerPluginUi,
@@ -82,11 +86,6 @@ const TRPC_MOUNT = "/api/trpc/*";
 const NOT_FOUND = 404;
 const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// tRPC bodies are JSON (a batched call's inputs + params). 1 MiB is generous for that; oversized binary
-// rides the upload/import routes with their own larger caps. Bounds a malicious oversized mutation body.
-const TRPC_BODY_MAX_BYTES = BYTES_PER_MIB;
 
 // The ONE content-type a tRPC mutation may carry, and the bound on how much of a rejected one reaches the
 // log ring (the header is attacker-controlled and header-size-bounded, not length-bounded by us).
@@ -107,7 +106,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
 
 /**
  * THE CSRF CONTENT-TYPE BELT (Spine-Identity-and-Auth invariant 9). A tRPC mutation is POST-only
- * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.18's
+ * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.23's
  * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
  * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
  * CORS-SIMPLE: an ordinary cross-site `<form>` POST reaches this mount with no preflight and no CORS grant
@@ -124,8 +123,8 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * CORS-simple content-type, so a cross-site page cannot make the browser send one without a preflight this
  * app never answers (it mounts no CORS middleware).
  *
- * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
- * subscriptions only. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
+ * GET passes this belt — it carries no content-type, and tRPC's method map admits GET for queries and
+ * subscriptions only; {@link refuseHeaderlessOutsidePost} covers it. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
  * is why this belt, not the method, is what bounds a POST to `application/json`. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
  * and the refusal still carries `X-Request-Id` (observability is mounted above this — and it
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
@@ -145,6 +144,28 @@ function trpcJsonOnly(logger: Logger): MiddlewareHandler {
     );
     return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
   };
+}
+
+/**
+ * THE OUTSIDE-POST CSRF CHECK (Spine-Identity-and-Auth invariant 9). Over POST a tRPC request rides the content-type
+ * belt above. A GET carries no content type: a cross-site page can send one with no custom header (an `<img>`, a
+ * top-level navigation that carries the `SameSite=Lax` cookie), and the loopback owner fallback admits it as the
+ * owner. So every tRPC request outside POST, query or subscription, must carry the CSRF header, which a cross-site
+ * page cannot send without a preflight this app never answers. One rule for every procedure, on every credential
+ * path, so a query that writes is covered too; a query still must not write. The refusal is the tRPC `FORBIDDEN` a
+ * header-less cookie mutation gets, raised before any procedure resolves.
+ */
+function refuseHeaderlessOutsidePost(request: { readonly method: string; readonly headers: Headers; readonly path: string }, logger: Logger): void {
+  if (request.method === "POST" || hasCsrfHeader(request.headers)) {
+    return;
+  }
+  securityEvent(
+    "trpc_outside_post_csrf_rejected",
+    { method: request.method, path: request.path },
+    "security: tRPC request outside POST rejected — no CSRF header",
+    logger,
+  );
+  throw new TRPCError({ code: "FORBIDDEN", message: "A tRPC request outside POST needs the CSRF header" });
 }
 
 // The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
@@ -187,8 +208,14 @@ export interface AppDeps {
   /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
    *  hops, the debug token, the client bundle and the build posture this app reads. */
   readonly env: Env;
+  /** The environment the debug surface's bug-report `git` child starts with. */
+  readonly childProcessEnv: DebugRoutesOptions["childProcessEnv"];
   readonly physicalPeer?: PhysicalPeerRead;
   readonly liveBuses: LiveBuses;
+  /** Hears each turn that ends in a room, as the room's id only (`ServicesResult.onChatTurnEnded`). */
+  readonly onChatTurnEnded: CardFrameDeps["onTurnEnded"];
+  /** Chat's present-seat read (`ServicesResult.chatRpgOps.getMembership`). */
+  readonly chatMembership: CardFrameDeps["participants"]["getMembership"];
   readonly importStagingDir: string;
   readonly authConfig: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
@@ -224,6 +251,8 @@ export interface AppDeps {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift the Characters import dialog's door threads, so no door drops a card's scripts. */
   readonly importCardScripts: ImportCardScripts;
+  /** The import lookup's current-card step the card doors thread, so an exported card finds the row the app wrote (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
   readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: HealthzDeps["isShuttingDown"];
@@ -258,7 +287,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger, deps.rings, deps.now);
   // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
   // transport can never disagree about which peer is a trusted hop.
-  const trustedProxies = trustedProxiesOf(deps.env);
+  const trustedProxies = deps.env.FORWARD_AUTH_TRUSTED_PROXIES;
 
   const multiHumanCapable = deps.multiHumanCapable ?? createMultiHumanCapability(authMode, () => deps.services.settings.getEffectiveConfig());
   // One live read for the sign-in page and the signed-out invite previews, which both keep login handles off the page.
@@ -278,14 +307,12 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // Security headers cover every response — including the allowlist 403 below. The CSP's
   // external-media allowance is read PER REQUEST off the live resolved config, so flipping the admin
   // "Block external media" setting changes the very next response's header (see security-headers.ts).
-  app.use(
-    "*",
-    securityHeaders({
-      dev: deps.env.NODE_ENV !== "production",
-      allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-      trustedProxies,
-    }),
-  );
+  const security = securityHeaders({
+    dev: deps.env.NODE_ENV !== "production",
+    allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    trustedProxies,
+  });
+  app.use("*", security.middleware);
 
   // ONE RULE, MOUNTED ONCE PER POST-`next()` WRITER. hono's `compose()` hands `app.onError` only an
   // `err instanceof Error`, and it runs it at the frame that CAUGHT the throw — so every middleware OUTSIDE
@@ -360,10 +387,16 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // so a refused non-JSON POST is never buffered at all.
   app.use(TRPC_MOUNT, trpcJsonOnly(deps.logger));
 
-  // Cap tRPC JSON bodies (1 MiB) before the handler buffers them. Returns a bare 413 rather than throwing
-  // an HTTPException (which the app's observability onError would flatten to a 500 — an ugly shape for a
-  // tRPC client). Mirrors the upload/import routes' body-limit belt.
-  app.use(TRPC_MOUNT, bodyLimit({ maxSize: TRPC_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }));
+  // Cap tRPC JSON bodies before the handler buffers them. The cap sits above the largest text a procedure admits, so
+  // each procedure's own input schema is the limit a person meets and this one only bounds a hostile body; binary rides
+  // the upload and import routes with their own caps. Returns a bare 413 rather than throwing an HTTPException (which
+  // the app's observability onError would flatten to a 500 — an ugly shape for a tRPC client). The 413 states the cap in
+  // `TRPC_BODY_LIMIT_HEADER`, which is how the client tells it from a proxy's 413 and names a number only for this one.
+  // Mirrors the upload/import routes' body-limit belt.
+  app.use(
+    TRPC_MOUNT,
+    bodyLimit({ maxSize: TRPC_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE, { [TRPC_BODY_LIMIT_HEADER]: String(TRPC_BODY_MAX_BYTES) }) }),
+  );
 
   app.all(TRPC_MOUNT, (c) =>
     fetchRequestHandler({
@@ -371,13 +404,15 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
       req: c.req.raw,
       router: appRouter,
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
-      createContext: () =>
-        deps.trpcContext({
+      createContext: () => {
+        refuseHeaderlessOutsidePost({ method: c.req.method, headers: c.req.raw.headers, path: c.req.path }, deps.logger);
+        return deps.trpcContext({
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c, trustedProxies),
-        }),
+        });
+      },
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
       // Subscriptions avoid buffering relays; query inputs avoid URL ceilings. Mutations stay POST-only.
       allowMethodOverride: true,
@@ -403,30 +438,32 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
 
   // The card-frame doorway. Its participant read IS the trust authority (a client selects a character, the
   // server decides that character's policy), and `allowExternalMedia` is the SAME live deployment ceiling
-  // the app document CSP above is built from — one ceiling, now three consumers. Note `securityHeaders`
-  // deliberately SKIPS the served document path so the frame's own, tighter policy survives (see
+  // the app document CSP above is built from — one ceiling, now three consumers. The served document route goes
+  // through the security headers' own-policy registrar, so the frame's own, tighter policy survives (see
   // security-headers.ts).
   registerCardFrame(app, {
-    participants: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
+    participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params), getMembership: deps.chatMembership },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-    // The deployment half of the html-trust ladder's TOP rung. Same live read the participant
-    // resolver uses, applied a second time at the boundary that actually mints the policy.
-    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
-    viewerRunsCardScripts: async (viewer) => (await deps.services.settings.loadUserSettings(viewer.userId)).chat.runCardScripts,
+    // The viewer's consent reads an unreadable settings blob as no (`viewerRunsCardScripts`).
+    viewerRunsCardScripts: async (viewer) => viewerRunsCardScripts(await deps.services.settings.getUserSettings({ principal: viewer })),
+    onTurnEnded: deps.onChatTurnEnded,
     now: deps.now,
+    logger: deps.logger,
+    registerOwnPolicyRoute: security.registerOwnPolicyRoute,
   });
 
   // The PLUGIN-frame doorway. Same substrate, one authority: the owner-scoped `getFrameBody` read,
   // which also re-checks the row's live `ui.frame` grant per mint. It takes NO deployment ceiling because its
   // policy has no variable axis — a plugin frame is always the media floor plus the `data:` door (the reasoning
-  // is in `plugin-frame.ts`). `securityHeaders` skips the served-document path here for the same mechanical
-  // reason it skips the card frame's: `secure-headers` would otherwise overwrite the frame's own policy.
+  // is in `plugin-frame.ts`). Its document and asset routes go through the same registrar as the card frame's,
+  // for the same mechanical reason: `secure-headers` would otherwise overwrite the frame's own policy.
   registerPluginFrame(app, {
     surfaces: {
       getFrameBody: (params) => deps.services.plugin.getFrameBody(params),
       getFrameAsset: (params) => deps.services.plugin.getFrameAsset(params),
     },
     now: deps.now,
+    registerOwnPolicyRoute: security.registerOwnPolicyRoute,
   });
 
   registerUpload(app, {
@@ -435,6 +472,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     tag: deps.services.tag,
     worldInfo: deps.importWorldInfo,
     importCardScripts: deps.importCardScripts,
+    exportCurrentCard: deps.exportCurrentCard,
     databank: deps.services.databank,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
@@ -446,14 +484,16 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     newOpaqueId: deps.newOpaqueId,
   });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
-  registerImportTree(app, {
+  const importTreeDeps = {
     logger: deps.logger,
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
     stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
-  });
+  };
+  registerImportTree(app, importTreeDeps);
+  registerImportTreeZip(app, importTreeDeps);
   registerAuthRoutes(app, {
     logger: deps.logger,
     emitUserEvent: deps.liveBuses.user.publishUserEvent,
@@ -486,10 +526,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // The other floor axis, from the SAME effective config the compose-time roster resolver reads
     // (`entry/compose/chat.ts` resolveSeatDeco) — so a client-side preview and the server's own render
     // policy are derived from one value, never two guesses.
-    trustHtml: () => deps.services.settings.getEffectiveConfig().trustHtml,
-    // The ladder's top-rung CEILING — served so the per-character "Interactive" control can say it is inert
-    // deployment-wide instead of offering a capability the mint will refuse.
-    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
+    defaultHtmlStep: () => deps.services.settings.getEffectiveConfig().defaultHtmlStep,
     share: deps.shareState,
     trustedProxies,
   });
@@ -501,13 +538,14 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     now: deps.now,
     auditFailures: deps.auditFailures,
     env: deps.env,
+    childProcessEnv: deps.childProcessEnv,
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
     // foundation sits BELOW transport in the tier list and may not import it.
     sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : userId) },
     // The SAME live read every other consumer above uses — so the /config probes report the deployment tier
-    // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
+    // the server is actually running on, and a character on "Inherit default" resolves to a real
     // verdict instead of leaving the reader to infer what it inherits.
     effectiveConfig: () => deps.services.settings.getEffectiveConfig(),
     // Registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the

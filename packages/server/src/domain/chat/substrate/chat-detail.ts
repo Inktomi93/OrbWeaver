@@ -6,12 +6,12 @@
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
 import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR, resolveHostDisplayScripts, resolveNarratorRenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
+import type { ResolvedAnchor } from "../persistence/anchor.ts";
 import type { loadChatRow } from "../persistence/queries.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
-import type { ResolvedAnchor } from "./participants-humans.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";
 
 /** The projected `chats` row (metadata already parsed): persistence's `ChatRow`, which both `loadChatRow` and
@@ -49,6 +49,7 @@ export function toChatDetail({
 }: ToChatDetailInput): ChatDetailData {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
+  const narratorRender = resolveNarratorRenderPolicy(participants);
   return {
     id: chat.id,
     title: chat.title,
@@ -61,6 +62,7 @@ export function toChatDetail({
     anchorState: anchor.state,
     anchorOwnerHandle: anchor.ownerHandle,
     participants,
+    ...(narratorRender === undefined ? {} : { narratorRender }),
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     // A role-derived PAYLOAD field, not a gate — DERIVED from its class home (`member-visibility.ts`, the
     // role-PROJECTION class, D106-F1: consumers thread the verdict as DATA), never the
@@ -75,10 +77,9 @@ export function toChatDetail({
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
-    hostDisplayScripts: chat.metadata.hostDisplayScripts === true,
-    // `?? null`, NOT `=== true`: absent is the INHERIT state here, and collapsing it to `false` would tell
-    // the host's toggle that a never-touched room is pinned off (the toolRecurseLimit shape, not the
-    // hostDisplayScripts one — that neighbour genuinely has no third state).
+    hostDisplayScripts: resolveHostDisplayScripts(chat.metadata.hostDisplayScripts),
+    // `?? null`: absent is the INHERIT state here, and collapsing it to `false` would tell the host's toggle that a
+    // never-touched room is pinned off (the toolRecurseLimit shape, not the resolved hostDisplayScripts one).
     offerChoices: chat.metadata.offerChoices ?? null,
     // B7 — the same tri-state shape as offerChoices (absent = inherit the host's per-user default).
     charactersCanReact: chat.metadata.charactersCanReact ?? null,

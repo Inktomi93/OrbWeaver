@@ -4,6 +4,7 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { IMAGINE_COUNT_NAME, IMAGINE_MORE_OPTIONS_NAME, imagineGenerateCountLabel } from "#client/features/imagery/lib/imagine-names.ts";
 import type { ImagineInShellStory } from "./_imagine-shell-stories.tsx";
 import { routeShell } from "./app-shell-ct.ts";
 
@@ -33,8 +34,8 @@ test("Generate sits in the dialog footer and stays on screen at a phone height w
   await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SERVED);
   await mount<typeof ImagineInShellStory>(STORY, { seed: { chatId, mode: "free", prompt: "A lantern over a harbour" } });
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "More options", exact: true }).click();
-  await dialog.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "4", exact: true }).click();
-  const generate = dialog.locator('[data-slot="dialog-footer"]').getByRole("button", { name: "Generate 4 images", exact: true });
+  await dialog.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+  await dialog.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "4", exact: true }).click();
+  const generate = dialog.locator('[data-slot="dialog-footer"]').getByRole("button", { name: imagineGenerateCountLabel(4), exact: true });
   await expect(generate).toBeInViewport();
 });

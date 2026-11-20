@@ -16,7 +16,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { useState } from "react";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 /** The binding as the readout reads it: what it COULD bind to, what it IS bound to, and the one control's
@@ -47,7 +47,7 @@ export function useReadoutBinding(): ReadoutBinding {
   // is by definition OPEN, so `getChat` is the warm cache entry the chat surface already holds, and it is
   // exact rather than best-effort. `useGatedQuery` keeps the key unbuilt when nothing is bound, so an unbound
   // readout fires no request at all.
-  const chat = useGatedQuery(targetChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chat = useGatedQuery(targetChatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const title = chat.data?.title;
   return {
     targetChatId,

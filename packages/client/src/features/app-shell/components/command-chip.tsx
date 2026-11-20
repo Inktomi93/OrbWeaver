@@ -9,6 +9,8 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactNode } from "react";
 import type { ModalSlotId } from "#state";
 import { openModal } from "#state";
+import { useModalTrigger } from "../hooks/use-modal-trigger.ts";
+import { commandChipName } from "../lib/app-shell-names.ts";
 import { commandShortcutLabel } from "../lib/command-shortcut-label.ts";
 
 interface CommandChipProps {
@@ -22,6 +24,7 @@ interface CommandChipProps {
  *  both spelled from `commandShortcutLabel`, the platform's key hint for the accelerator. */
 export function CommandChip({ modalId, label, icon }: CommandChipProps): ReactNode {
   const shortcut = commandShortcutLabel(navigator.userAgent);
+  const modal = useModalTrigger(modalId);
   return (
     <>
       <Tooltip>
@@ -34,7 +37,8 @@ export function CommandChip({ modalId, label, icon }: CommandChipProps): ReactNo
               // The DURABLE focus return for this modal: ModalHost reads it when a keyboard-opened palette
               // captured nobody (modal-host.tsx).
               data-modal-trigger={modalId}
-              aria-label={`Jump, the command menu (${shortcut})`}
+              aria-label={commandChipName(shortcut)}
+              {...modal.attributes}
               onClick={(): void => openModal(modalId)}
             >
               <Icon icon={icon} size="sm" />

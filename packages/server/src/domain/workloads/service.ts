@@ -18,8 +18,8 @@ import { createSetScheduleEnabled } from "./verbs/set-schedule-enabled.ts";
 import { createStart } from "./verbs/start.ts";
 import { createUpdateSchedule } from "./verbs/update-schedule.ts";
 
-export function createWorkloadService(input: DbAssemblyInput<WorkloadServiceContext>): WorkloadService {
-  const ctx: WorkloadServiceContext = { ...input, db: databaseForOwner(input.db) };
+export function createWorkloadService(input: DbAssemblyInput<Omit<WorkloadServiceContext, "reportedUnreadable">>): WorkloadService {
+  const ctx: WorkloadServiceContext = { ...input, db: databaseForOwner(input.db), reportedUnreadable: new Set() };
   return {
     ...createStart(ctx),
     ...createEstimateModelCalls(ctx),

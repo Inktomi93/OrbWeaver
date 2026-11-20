@@ -2,6 +2,7 @@
 // a WCAG 2.5.8 target. The Base UI focus-guard excusal that `accessibilityScan` applies must not swallow an authored aria-hidden control.
 import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
+import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { ScrollAndHintStory } from "./_structure-stories.tsx";
 
 const SCROLL_STORY = "tests/ui/primitives/text/_structure-stories/ScrollAndHintStory";
@@ -12,7 +13,7 @@ test("a scrolling Text is reachable by keyboard and the hint trigger is at least
   await mount<typeof ScrollAndHintStory>(SCROLL_STORY, {});
   const region = page.getByRole("region", { name: "Scrolling block", exact: true });
   await expect(region).toHaveAttribute("tabindex", "0");
-  const hint = page.getByRole("button", { name: "More info about Word count", exact: true });
+  const hint = page.getByRole("button", { name: hintTriggerName("Word count"), exact: true });
   const box = await hint.boundingBox();
   expect(Math.min(box?.width ?? 0, box?.height ?? 0)).toBeGreaterThanOrEqual(MINIMUM_TARGET);
   const { violations } = await accessibilityScan(page);

@@ -20,7 +20,9 @@ import {
   CHAT_BOOK_PICKER_READ,
   CHAT_DOCUMENT_PICKER_READ,
   CHAT_DOCUMENT_SEARCH_NAME,
+  chatAttachItemName,
 } from "#client/features/chat/lib/chat-attach-names.ts";
+import { CHAT_DOCUMENTS_SECTION_LABEL, CHAT_WORLD_BOOKS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
@@ -37,7 +39,7 @@ const TAB_PROCEDURES = [
   "databank.listActiveForChat",
   "worldInfo.listForChat",
   "regex.listForChat",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",
@@ -76,7 +78,7 @@ test("a failed world-book read in the attach picker offers a Retry and does not 
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^World books/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_WORLD_BOOKS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(queryFailedLabel(CHAT_BOOK_PICKER_READ), { exact: true })).toBeVisible();
@@ -99,7 +101,7 @@ test("a failed bank read in the add-document picker offers a Retry and does not 
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^Documents/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_DOCUMENTS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ADD_FROM_BANK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(queryFailedLabel(CHAT_DOCUMENT_PICKER_READ), { exact: true })).toBeVisible();
@@ -121,23 +123,23 @@ test("a refused attach is said in the picker", async ({ mount, page, corpusMedia
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^World books/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_WORLD_BOOKS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
-  await page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true }).click();
+  await page.getByRole("button", { name: chatAttachItemName(book.name), exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(CHAT_ATTACH_BOOK_FAILURE, { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: chatAttachItemName(book.name), exact: true })).toBeEnabled();
 });
 
 test("a script attach in flight keeps the picker open, so its failure is said in the picker", async ({ mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const { chatId, host } = await hostRoom(root);
   const script = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   const hold = holdServed();
   await openTab(root, page, host, {
-    ...serveCorpusProcedures(host, ["regex.listScripts"]),
+    ...serveCorpusProcedures(host, ["regex.listScripts", "regex.listGlobal"]),
     ...serveCorpusProcedures(host, ["regex.attachToChat"], () => hold),
   });
   await corpusMedia();
@@ -146,13 +148,45 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await page.getByRole("button", { name: /^Regex/u }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("checkbox", { name: `Attach ${script.name} to this chat`, exact: true }).click();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true }).click();
   await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
   await hold.requested;
-  await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  // The footer's exit shows that the write holds the dialog, and the keyboard's way out is held with it.
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
+  await expect(cancel).toBeDisabled();
+  await page.keyboard.press("Escape");
   // Let a dialog that does close finish its exit transition before asserting that this one stayed.
   await absenceWindow(page, DIALOG_EXIT_WINDOW_MS);
   await expect(dialog).toBeVisible();
   hold.fail();
   await expect(dialog.getByText(CHAT_ATTACH_SCRIPTS_FAILURE, { exact: true })).toBeVisible();
+  // The failure leaves the pick and the exit open for a retry or a Cancel.
+  await expect(dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true })).toBeChecked();
+  await expect(cancel).toBeEnabled();
+});
+
+test("the script picker's commit attaches every ticked script in the order ticked and closes", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const make = (name: string): ReturnType<Caller["regex"]["createScript"]> =>
+    host.regex.createScript({
+      input: createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["display"] }),
+    });
+  const second = await make("Second ticked");
+  const first = await make("First ticked");
+  await openTab(root, page, host, serveCorpusProcedures(host, ["regex.listScripts", "regex.attachToChat"]));
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const commit = dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true });
+  await expect(commit).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(first.name), exact: true }).click();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(second.name), exact: true }).click();
+  await commit.click();
+  await expect(dialog).toHaveCount(0);
+  const attached = (await host.regex.listForChat({ chatId })).map((script) => script.id);
+  expect(attached.filter((id) => id === first.id || id === second.id)).toEqual([first.id, second.id]);
 });

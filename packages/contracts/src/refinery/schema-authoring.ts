@@ -1,5 +1,5 @@
-// @orb/contracts/refinery/schema-authoring — the custom payload-schema AUTHORING contract (R3 / SF0;
-// the NL→schema design's write-boundary belt + its
+// @orb/contracts/refinery/schema-authoring — the custom payload-schema AUTHORING contract (the
+// NL→schema design's write-boundary belt + its
 // security tightenings, homed HERE so the server verbs and the client editor validate through ONE
 // schema). A stored `refinery_schemas.schema` blob is LIFTABLE BY INVARIANT: every write parses through
 // {@link refinerySchemaDocumentSchema}, whose belt is `liftJsonSchema` (the same trust boundary that
@@ -16,11 +16,11 @@
 //   • `x-orb-ui` render hints are VALIDATED here (malformed hints refuse at save with their path; on
 //     READ the renderer heals a malformed hint to "no hint" — render-by-structure, never a failure).
 //   • the WELL-KNOWN CORE: a custom SCORE schema must keep `overallScore` on the exact
-//     1-10 scale (the F6 stamp, library sorts and the dossier stay comparable across schemas); a custom
+//     1-10 scale (the card's score stamp, library sorts and the dossier stay comparable across schemas); a custom
 //     ANALYZE schema must carry the verdict enum with the exact three spellings (the iterate loop's
 //     REGRESSION stop condition survives any custom shape).
 //
-// Custom REWRITE schemas do not exist (F-N3: the apply path's semantics ARE the fixed typed contract),
+// Custom REWRITE schemas do not exist (the apply path's semantics ARE the fixed typed contract),
 // and there is no "any" stage: one schema serves one stage, because each stage pins its own core.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -31,8 +31,7 @@ import { REFINERY_VERDICTS, SCORE_MAX, SCORE_MIN } from "./core.ts";
 
 // ── the authoring caps (all model-facing text) ───────────────────────────────────────────
 
-/** ResponseFormat identifier grammar (the extension's own rule, `validate.ts:100`) — the stored name IS
- *  the wire `ResponseFormat.name`. */
+/** ResponseFormat identifier grammar — the stored name IS the wire `ResponseFormat.name`. */
 const REFINERY_SCHEMA_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export const REFINERY_SCHEMA_NAME_MAX = 64;
 /** The NL origin / purpose note — editable, rides the editor and the generation prompt. */
@@ -60,13 +59,13 @@ export const RENDER_HINT_ROLES = ["hero", "verdict", "axis", "prose", "title", "
 /** The member twin of `RENDER_HINT_ROLES` — the role-authoring surface: the schema editor's
  *  render-hint picker (`render-hint-picker.tsx`, split out of `schema-editor-dialog.tsx`) imports this
  *  to type its `<Select>` state, so an author picks a role from the vocabulary instead of hand-typing
- *  one of 8 magic strings. WIRED with a live prod consumer — the tuple stays the runtime value both the
- *  picker and the renderer read; this alias is the picker's compile-time handle on it. */
+ *  one of 8 magic strings. The tuple is the runtime value both the picker and the renderer read; this
+ *  alias is the picker's compile-time handle on it. */
 export type RenderHintRole = (typeof RENDER_HINT_ROLES)[number];
 
 /** One node's `x-orb-ui` hint. `tone` maps enum MEMBERS to tone words (the verdict banner's good/warn/bad
- *  tints are authored data, never inferred from member spellings). `chart` is honored for `bars` in R3;
- *  `radar` is the R4 elevation — legal to author now, renders as bars until the radar primitive lands. */
+ *  tints are authored data, never inferred from member spellings). `chart` is honored for `bars`;
+ *  `radar` is legal to author and renders as bars until the radar primitive lands. */
 /** A hint `group` word (a section-clustering key, same identifier budget as a schema name). */
 const RENDER_HINT_GROUP_MAX = 64;
 /** A hint `label` (display text — roomier than an identifier, still one line). */
@@ -221,8 +220,11 @@ const rawSchemaNode = jsonObjectSchema;
  *  The ONE belt every write runs (and the client editor may run locally — same refusals, same paths). */
 export const refinerySchemaDocumentSchema = z
   .strictObject({
-    name: z.string().max(REFINERY_SCHEMA_NAME_MAX).regex(REFINERY_SCHEMA_NAME_PATTERN, "name must match ^[a-zA-Z_][a-zA-Z0-9_]*$"),
-    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+    name: z
+      .string()
+      .max(REFINERY_SCHEMA_NAME_MAX, `A name holds at most ${REFINERY_SCHEMA_NAME_MAX} characters.`)
+      .regex(REFINERY_SCHEMA_NAME_PATTERN, "A name starts with a letter or underscore and holds only letters, digits and underscores (no spaces)."),
+    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX, `A description holds at most ${REFINERY_SCHEMA_DESCRIPTION_MAX} characters.`),
     stage: refinerySchemaStageSchema,
     schema: rawSchemaNode,
   })

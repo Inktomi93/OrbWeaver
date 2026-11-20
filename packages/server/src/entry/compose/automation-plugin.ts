@@ -53,6 +53,7 @@ import {
   isPluginEnabledFor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_PUBSUB_EMIT_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
   recordHostHaltFor,
@@ -68,7 +69,7 @@ import { createPluginWorldInfoReads } from "#domain/world-info";
 import type { ScopedEgress } from "#infra/network";
 import { createNetworkPluginGitSource } from "#infra/network";
 import type { PluginHostSeamDeps } from "#infra/plugin-host";
-import { createPluginHost } from "#infra/plugin-host";
+import { createPluginCascadeScope, createPluginHost } from "#infra/plugin-host";
 import type { LiveBuses } from "#transport/trpc";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -89,6 +90,9 @@ export interface AutomationPluginComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
   readonly publishAutomationEvent: LiveBuses["automation"]["publishAutomationEvent"];
+  /** Ends at shutdown. Rule dispatch runs off the domain bus under the background-work supervisor, so this is the
+   *  cancel its arms' provider calls and fetches take. */
+  readonly backgroundSignal: AbortSignal;
 
   readonly egress: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
   readonly scheduleTimeout: ScheduleOp;
@@ -191,9 +195,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     deps;
   const { service: chat } = chatCompose;
   const chatGuards = createWiredChatGuards({ db, can });
+  // One enabled read for every standing question this plane asks: a rule author's, an ask actor's, a plugin
+  // installer's room standing, and each guest host call on the installer's account.
+  const isUserEnabled = createResolveUserEnabled(deps.sessions);
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
   const automationRuntime = createAutomationRuntimeOps<DrivableToolSet>({
+    backgroundSignal: deps.backgroundSignal,
     resolveOwnerPrincipal,
     requestTurn: (params) => chatCompose.requestTurn(params),
     postNarratorMessage: (chatId, content, media, options) => chatCompose.rpgChatOps.postNarratorMessage(chatId, content, media, options),
@@ -234,7 +242,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     generatePicture: automationRuntime.generatePicture,
     listBackgroundChoices: automationRuntime.listBackgroundChoices,
     setChatBackground: async ({ authorUserId, chatId, background }) => {
-      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background });
+      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background, signal: deps.backgroundSignal });
     },
     isToolDrivableBy: (toolName, authorUserId) => deps.toolUse.isToolDrivableBy(toolName, authorUserId),
     runTool: automationRuntime.runTool,
@@ -273,7 +281,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,
-    isAuthorEnabled: createResolveUserEnabled(deps.sessions),
+    isAuthorEnabled: isUserEnabled,
     executePluginSuggestion: suggestionExecutor.run,
     isPluginLive: (pluginId, ownerId) => isPluginEnabledFor(db, ownerId, pluginId),
     applyProseRewrite: async ({ authorUserId, chatId, messageId, variantId, expectedContentHash, content }) => {
@@ -283,8 +291,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   });
   await automationEnabled.reload();
   await automationTransforms.reload();
+  // The plugin host opens it around each host call and the plugin domain reads it where a trigger reaches a handler.
+  const pluginCascade = createPluginCascadeScope();
   const pluginHost: PluginHostPort = hostResources.use(
     createPluginHost({
+      cascadeScope: pluginCascade,
       ...deps.pluginExecution,
       env: deps.env,
       timers: deps.timers,
@@ -311,13 +322,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
     searchQuery: createPluginRateFloor(now, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
+    pubsubEmit: createPluginRateFloor(now, { capability: "pubsub.emit", limit: PLUGIN_PUBSUB_EMIT_PER_HOUR }),
     loreWrites: createSerialLanes(),
   };
   const pluginSurfaceState = createPluginSurfaceStateStore(deps.logger);
   // Private pubsub has no domain/chat event sink.
   const pluginEventBus = createPluginEventBus(deps.logger, deps.traces);
   const pluginUiOutbox = createPluginUiOutbox(now);
-  const resolveChatAuthority = createPluginChatAuthority({ db, can });
+  const resolveChatAuthority = createPluginChatAuthority({ db, can, resolveUserEnabled: isUserEnabled });
   const registrarOps = createPluginRegistrarOps({
     logger: deps.logger,
     traces: deps.traces,
@@ -326,6 +338,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     resolveChatAuthority,
     newEventId: () => `plugin-event:${newOpaqueId()}`,
+    cascadeCause: pluginCascade.current,
   });
   const pluginHostOps: PluginHostOps = {
     chat: {
@@ -390,6 +403,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       findCardData: pluginRuntime.cardState.findCardData,
     },
     pubsub: { emit: createPluginEventEmitter(pluginEventBus) },
+    isInstallerEnabled: isUserEnabled,
     registrar: {
       ...registrarOps,
       registerMacros: (macros, invoke, scope) =>

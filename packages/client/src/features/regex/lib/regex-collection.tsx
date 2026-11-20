@@ -20,7 +20,7 @@ import {
   useRegexMemberTitle,
 } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
-import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "./regex-names.ts";
+import { REGEX_IMPORT_SCRIPT_NAME, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME, REGEX_SELECT_SCRIPTS_NAME } from "./regex-names.ts";
 
 export const regexCollection: CollectionContribution = {
   emptyText: "A script finds a pattern in text and replaces it, in messages or in the prompt.",
@@ -35,8 +35,8 @@ export const regexCollection: CollectionContribution = {
     askName: { fieldLabel: REGEX_SCRIPT_NAME_FIELD_NAME, maxLength: REGEX_SCRIPT_NAME_MAX },
   },
   // D121-D: the host renders this door; production LIFECYCLE_DOORS records regex's standalone import.
-  importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
-  bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
+  importFile: { label: REGEX_IMPORT_SCRIPT_NAME, accept: "application/json", useRun: useImportRegexMember },
+  bulkSelect: { label: REGEX_SELECT_SCRIPTS_NAME, useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,
   // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
   detail: (view) => <RegexMemberSurface view={view} />,
@@ -44,12 +44,10 @@ export const regexCollection: CollectionContribution = {
   // "WHERE IT RUNS".
   //
   // …AND IT IS NO LONGER "WHERE IT RUNS" (side-eye 2026-08-19, the clarity finding). Two orthogonal concepts
-  // wore near-identical phrasing on one screen: the EDITOR's `Runs on` field picks which TEXT STREAMS a
-  // script rewrites (your message · model output · rendered transcript), while THIS pane decides and reports
-  // which SCOPES it is attached from (globally, or by a preset / character / room). A reader who has just
-  // set "Runs on" and then reads "Where it runs" 300px away has no way to know they are not the same
-  // control, and the pane's own copy already speaks the attachment vocabulary ("Runs in every chat",
-  // "Attached by presets · 2"). The panel is re-headed rather than the field, because the field's label is
-  // also quoted inside this pane's own "no stream selected" warning — one re-head, one changed string.
+  // wore near-identical phrasing on one screen: the EDITOR picks what text a script rewrites and `When it
+  // runs`, while THIS pane decides and reports which SCOPES it is attached from (globally, or by a preset /
+  // character / room). A reader who has just set "When it runs" and then reads "Where it runs" 300px away
+  // has no way to know they are not the same control, and the pane's own copy already speaks the attachment
+  // vocabulary ("Runs in every chat", "Attached by presets · 2").
   context: { kind: "body", title: "Where it’s attached", render: (view) => <RegexContextBody memberId={view.memberId} /> },
 };

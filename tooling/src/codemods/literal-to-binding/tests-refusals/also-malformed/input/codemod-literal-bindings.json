@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "literal": "Couldn't load things.",
+      "expression": "queryFailedLabel(READ_LABELS.things)",
+      "binding": "queryFailedLabel",
+      "from": "#client/query.ts",
+      "also": [{ "binding": "READ_LABELS" }],
+      "files": ["a.ts"]
+    }
+  ]
+}

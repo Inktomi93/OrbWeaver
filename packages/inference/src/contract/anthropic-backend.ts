@@ -28,7 +28,7 @@ export interface AnthropicBackendDeps {
 export interface AnthropicTransportDeps {
   readonly fetch: typeof fetch;
   readonly captureWire?: WireCaptureSink | undefined;
-  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
+  /** Tap the reply bytes onto the capture entry too — the process-tier opt-in, off by default. */
   readonly captureWireReply?: boolean | undefined;
 }
 

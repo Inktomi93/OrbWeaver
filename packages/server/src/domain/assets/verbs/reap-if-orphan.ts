@@ -6,8 +6,8 @@
 
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { selectReferencedAmong } from "../persistence/asset-refs.ts";
+import { purgeAsset } from "../persistence/purge-asset.ts";
 import { loadAssetCasRefById } from "../persistence/queries.ts";
-import { purgeAsset } from "../substrate/purge-asset.ts";
 
 export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrphan"] {
   return async (assetIds) => {

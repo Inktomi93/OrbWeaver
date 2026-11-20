@@ -1,7 +1,7 @@
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
-export interface PersonaSeatCaptureDeps {
+export interface PersonaSeatReseatDeps {
   readonly db: Db;
-  readonly setActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<unknown>;
 }

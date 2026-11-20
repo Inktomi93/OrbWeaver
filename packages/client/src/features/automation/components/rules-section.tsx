@@ -26,7 +26,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { RuleManager } from "./rule-manager.tsx";
 
@@ -63,7 +63,7 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           // at the same `min-h-(--size-control-sm)` pointer-conditional floor, the same three-line name column.
           <Card padding="none" key={index}>
             <Row align="center" minHeight="control" gap="field" padding="block">
-              <Stack className="min-inline-0" grow={true} gap="tight">
+              <Stack minWidth="shrinks" grow={true} gap="tight">
                 <Skeleton height="lineLabel" variant="text" />
                 <Skeleton width="full" height="lineLabel" />
                 <Skeleton width="half" height="lineLabel" />
@@ -125,9 +125,9 @@ function RulesSection({ chatId }: RulesSectionProps): ReactElement {
           section in this pane opens with one. */}
       <Text voice="gloss">{RULES_INTRO}</Text>
       {rules.length === 0 ? (
-        <Text voice="gloss">
+        <MutedLine>
           Nothing is watching this chat yet. Add a rule (post an image, nudge the pacing, offer chips) and it starts off until you enable it.
-        </Text>
+        </MutedLine>
       ) : null}
       <RuleManager key={chatId} chatId={chatId} rules={rules} />
     </Stack>

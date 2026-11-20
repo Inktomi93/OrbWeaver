@@ -9,16 +9,17 @@ import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
 import type { HuskReaperStory } from "./_husk-reaper-stories.tsx";
 
 const STORY = "tests/client/data/_husk-reaper-stories/HuskReaperStory";
-const REAP_FAILURE = "Scripted husk reap failure";
 const CONTROL_NOTICE = "Control notice";
 
 test("a husk reap that fails writes its log, which the bug-report ring records by job name only, and raises no toast", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const husk = root.idSource.typeId(ID_PREFIX.chat);
+  // The marker carries the words routeTrpc puts on the wire, which for a 500 are production's unclassified-fault sentence.
+  const failure = trpcError();
   const calls = await routeTrpc(page, {
     ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
-    "chat.reapHusk": ({ chatId }) => (chatId === husk ? trpcError({ message: REAP_FAILURE }) : undefined),
+    "chat.reapHusk": ({ chatId }) => (chatId === husk ? failure : undefined),
   });
   const toastMounts = await watchToastMounts(page);
   const logged = page.waitForEvent("console", {
@@ -38,5 +39,5 @@ test("a husk reap that fails writes its log, which the bug-report ring records b
   const ring = page.getByRole("status", { name: "Bug-report ring", exact: true });
   await expect(ring).toContainText('"job":"huskReap"');
   await expect(ring).not.toContainText(BACKGROUND_JOB_LOGS.huskReap);
-  await expect(ring).not.toContainText(REAP_FAILURE);
+  await expect(ring).not.toContainText(failure.message);
 });

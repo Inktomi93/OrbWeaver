@@ -2,20 +2,33 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, screenOverviewDoorName } from "@orb/client/lib";
 import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
-import { appearanceSettingsSchema, BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema, BLUR_SURFACES, ELEVATIONS } from "@orb/contracts/settings/appearance";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId, ChatId, ThemeId } from "@orb/kit/ids";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { emulateMedia, landedMutedContrast, paintedArt, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import {
+  emulateMedia,
+  landedMutedContrast,
+  paintedArt,
+  pixel,
+  pixelContrast,
+  releaseEmulatedMedia,
+  resolvedLength,
+  seedShellState,
+} from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { nameShape } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
@@ -37,6 +50,8 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const DIALOG = '[data-slot="dialog-popup"]';
 const ART_LAYER = '[data-slot="theme-background-layer"]';
 const WIDE = { width: 1280, height: 800 } as const;
+// Wide enough for the desktop shell, too narrow to dock the list beside the content, so the list opens as an overlay.
+const NARROW_DESKTOP = { width: 900, height: 900 } as const;
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
 // Every axis the cascade cases read, pinned so the corpus viewer's own appearance never decides a case.
 const BASE_APPEARANCE: Partial<AppearanceSettings> = {
@@ -51,7 +66,6 @@ const BASE_APPEARANCE: Partial<AppearanceSettings> = {
 const REDUCED_MOTION_ATTR = channelName("reducedMotion");
 const BLUR_SURFACES_ATTR = channelName("blurSurfaces");
 const SURFACE_TEXTURE_ATTR = channelName("surfaceTexture");
-const SHADOW_EFFECTS_ATTR = channelName("shadowEffects");
 const SERVED = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
 // The reduced-motion floor writes `animation-duration: 0.01ms`, a literal with no token; anything under a
 // millisecond is floored, and the unfloored glyph runs at the resolved `--motion-breathe`.
@@ -65,13 +79,14 @@ const UA_ROOT_PX = 16;
 const LARGE_FONT_SCALE = 1.25;
 const TRACK_WIDTHS = [1280, 1440, 1920] as const;
 const DIAL_PCT = 50;
-const BLUR_STRENGTH = 20;
 const READING_LINE_HEIGHT = 2;
 const READING_LETTER_SPACING = 0.05;
 const READING_BODY_SCALE = 1.6;
 const BLACK_ART_PASSWORD = "synthetic-corpus-ct-black-art-password";
 // Large enough that a cover fit paints it as a field, not a tile.
 const BLACK_ART_SIDE = 64;
+// Eight cells across the art, so a cover fit puts several black and white edges behind every line of a message.
+const CHECKER_CELL = 8;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SHIMMER_CLASS = "orb-weave-shimmer";
 
@@ -197,8 +212,18 @@ async function noiseSpread(page: Page, box: { x: number; y: number; width: numbe
   );
 }
 
-/** A one-grey PNG: pure black or white is the worst art a glass surface can sit over, built byte for byte so no image library is needed. */
+/** A one-grey PNG: pure black or white is the worst flat art a glass surface can sit over. */
 function greyPng(side: number, grey: number): Buffer {
+  return shadedPng(side, () => grey);
+}
+
+/** A black and white checkerboard: the busiest art there is, so text over it meets both extremes at once. */
+function checkerPng(side: number, cell: number): Buffer {
+  return shadedPng(side, (x, y) => ((Math.floor(x / cell) + Math.floor(y / cell)) % 2 === 0 ? 0 : 255));
+}
+
+/** A greyscale PNG whose every pixel is `shade(x, y)`, built byte for byte so no image library is needed. */
+function shadedPng(side: number, shade: (x: number, y: number) => number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const length = Buffer.alloc(4);
     length.writeUInt32BE(data.length);
@@ -214,26 +239,29 @@ function greyPng(side: number, grey: number): Buffer {
   header.writeUInt8(8, 8);
   header.writeUInt8(2, 9);
   // Each row is a zero filter byte followed by its RGB triples.
-  const rows = Buffer.alloc((side * 3 + 1) * side, grey);
-  for (let row = 0; row < side; row += 1) {
-    rows[row * (side * 3 + 1)] = 0;
+  const stride = side * 3 + 1;
+  const rows = Buffer.alloc(stride * side, 0);
+  for (let y = 0; y < side; y += 1) {
+    for (let x = 0; x < side; x += 1) {
+      rows.fill(shade(x, y), y * stride + 1 + x * 3, y * stride + 4 + x * 3);
+    }
   }
   return Buffer.concat([PNG_SIGNATURE, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
 }
 
 /**
- * A fresh corpus root whose owner uploaded a one-grey wallpaper through the production upload route and chose it at
- * the least dim the settings allow, in the given theme with every glass surface on. Its blob is served to the
- * page from the same root under the owner's own cookie.
+ * A fresh corpus root whose owner uploaded `png` as a wallpaper through the production upload route and chose it, in
+ * the given theme with every glass surface on and `appearance` over the pinned base. Its blob is served to the page
+ * from the same root under the owner's own cookie.
  */
-async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId | null): Promise<Root> {
+async function artRoot(page: Page, png: Buffer, selectedThemeId: ThemeId | null, appearance: Partial<AppearanceSettings> = {}): Promise<Root> {
   await using construction = new AsyncDisposableStack();
   const art = construction.use(await createCorpusHarness());
   const owner = await art.principalFor(art.ownerId);
   const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
   const form = new FormData();
   form.set("kind", "background");
-  form.set("file", new Blob([new Uint8Array(greyPng(BLACK_ART_SIDE, grey))], { type: "image/png" }), "solid.png");
+  form.set(UPLOAD_FILE_FIELD, new Blob([new Uint8Array(png)], { type: "image/png" }), "art.png");
   const uploaded = await art.http.request("/api/assets/upload", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1", forwarded: "" }, body: form });
   if (!uploaded.ok) {
     throw new Error(`the wallpaper upload failed (${String(uploaded.status)})`);
@@ -245,11 +273,11 @@ async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId |
     patch: {
       ...BASE_APPEARANCE,
       blurSurfaces: [...BLUR_SURFACES],
+      ...appearance,
       backgroundImageKind: "asset",
       backgroundAssetId: stored.assetId,
       backgroundAssetHash: stored.hash,
       backgroundAssetMime: "image/png",
-      backgroundDim: BACKGROUND_DIM_MIN,
     },
   });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId } });
@@ -341,6 +369,18 @@ async function borderWidths(locator: Locator): Promise<string> {
   const sides = ["block-start", "inline-end", "block-end", "inline-start"];
   const widths = await Promise.all(sides.map((side) => computed(locator, `border-${side}-width`)));
   return widths.join(" ");
+}
+
+/** The shadow token resolved inside `host`, so it reads that box's theme ingredients. */
+function resolvedShadow(host: Locator, token: string): Promise<string> {
+  return host.evaluate((element, name) => {
+    const probe = element.ownerDocument.createElement("div");
+    probe.style.boxShadow = `var(${name})`;
+    element.append(probe);
+    const shadow = getComputedStyle(probe).boxShadow;
+    probe.remove();
+    return shadow;
+  }, token);
 }
 
 /** `color-mix(in oklab, var(token) pct, partner)` resolved inside `host`, so it inherits that box's theme and colour scheme. */
@@ -453,26 +493,56 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(pane)).toContain("saturate(");
   });
 
-  test("glow lifts Home's surface through its first child while the surface root stays a box-less contents wrapper", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { elevation: "glow" });
-    await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", "glow");
-    const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
-    await expect(surface).toHaveCSS("display", "contents");
-    await expect(surface).toHaveCSS("border-top-width", "0px");
-    await expect(surface).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await expect(surface).toHaveCSS("border-top-left-radius", "0px");
-    await expect.poll(() => computed(surface.locator("> :first-child"), "filter")).toContain("drop-shadow(");
-  });
+  // Docked chrome never casts, at any elevation, and a pane sliding over content casts the float shadow at every one
+  // (ui-surface-and-interaction-rules §2.2 and §2.4).
+  for (const elevation of ELEVATIONS) {
+    test(`${elevation} elevation: a docked pane casts nothing at a desktop or a phone, and the same pane floating casts the float shadow`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeAppearance(page, corpus, { elevation });
+      await seedShellState(page, BOTH_DOCKED);
+      await mount<typeof AppShellStory>(STORY, {});
+      const grid = page.locator(".shell-grid");
+      const pane = page.locator(LIST);
+      await expect(grid).toHaveAttribute("data-elevation", elevation);
+      await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+      for (const docked of [LIST, CONTEXT]) {
+        await expect.poll(() => computed(page.locator(docked), "box-shadow"), `${docked} docked at a desktop`).toBe("none");
+      }
 
-  test("flat elevation gives Home's surface carrier no glow filter", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { elevation: "flat" });
-    await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", "flat");
-    const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
-    await expect(surface).toBeAttached();
-    await expect.poll(() => computed(surface.locator("> :first-child"), "filter")).toBe("none");
-  });
+      await page.setViewportSize(PHONE);
+      await expect(grid).toHaveAttribute("data-list-mode", "docked");
+      await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+      await expect.poll(() => computed(pane, "box-shadow")).toBe("none");
+
+      await page.setViewportSize(NARROW_DESKTOP);
+      await page.getByRole("button", { name: "Show list panel", exact: true }).click();
+      await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+      const floatShadow = await resolvedShadow(pane, TOKENS["shadow.overlay"].cssVar);
+      expect(floatShadow).not.toBe("none");
+      await expect.poll(() => computed(pane, "box-shadow")).toBe(floatShadow);
+    });
+
+    test(`${elevation} elevation: Home's surface root stays a box-less contents wrapper and neither it nor its first child casts`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeAppearance(page, corpus, { elevation });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", elevation);
+      const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
+      await expect(surface).toHaveCSS("display", "contents");
+      await expect(surface).toHaveCSS("border-top-width", "0px");
+      await expect(surface).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(surface).toHaveCSS("border-top-left-radius", "0px");
+      const carrier = surface.locator("> :first-child");
+      await expect(carrier).toBeVisible();
+      expect([await computed(carrier, "filter"), await computed(carrier, "box-shadow")]).toStrictEqual(["none", "none"]);
+    });
+  }
 
   test("an open pane's carrier blurs and a collapsed pane's carrier pays for no backdrop filter", async ({ corpus, mount, page }) => {
     await seedShellState(page, BOTH_DOCKED);
@@ -490,12 +560,12 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(page.locator(CONTEXT))).toBe("none");
   });
 
-  test("the glass reads the blur-strength number in px", async ({ corpus, mount, page }) => {
+  test("the glass blurs by the glass radius token", async ({ corpus, mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
-    await routeAppearance(page, corpus, { blurSurfaces: ["panels"], blurStrength: BLUR_STRENGTH });
+    await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    await expect.poll(() => carrierBlur(page.locator(LIST))).toContain(`blur(${String(BLUR_STRENGTH)}px)`);
+    await expect.poll(() => carrierBlur(page.locator(LIST))).toContain(`blur(${TOKENS["blur.glass"].value})`);
   });
 
   test("the docked pane carries no layer promotion of its own while its carrier blurs", async ({ corpus, mount, page }) => {
@@ -563,6 +633,22 @@ test.describe("reduced transparency", () => {
     await expect.poll(() => carrierBlur(pane)).toBe("none");
     await expect.poll(() => fillAlpha(dialog)).toBe(1);
     await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toBe("none");
+  });
+
+  test("keeps the chosen glass when the reader turned off following the device", async ({ corpus, mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAppearance(page, corpus, { blurSurfaces: ["panels", "modals"], followSystemTransparency: false });
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+    const pane = page.locator(LIST);
+    const dialog = page.locator(DIALOG);
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute(channelName("followSystemTransparency"), "false");
+    await expect.poll(() => fillAlpha(pane, "::before")).toBeLessThan(1);
+    await expect.poll(() => carrierBlur(pane)).toContain("blur(");
+    await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
+    await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toContain("blur(");
   });
 
   test("leaves the phone's own pane and reading-surface fills standing", async ({ corpus, mount, page }) => {
@@ -658,7 +744,7 @@ test.describe("contrast more", () => {
   });
 });
 
-test.describe("the three-way OS preferences", () => {
+test.describe("the OS preferences", () => {
   // [app mode, the OS asks for the preference, the preference's arm applies]
   const ModeCases = [
     ["system", false, false],
@@ -672,10 +758,12 @@ test.describe("the three-way OS preferences", () => {
     await seedShellState(page, { activeSection: "chats" });
   });
 
-  for (const [mode, osReduce, solid] of ModeCases) {
-    test(`reduced transparency ${mode} with OS reduce=${String(osReduce)} makes the glass solid: ${String(solid)}`, async ({ corpus, mount, page }) => {
+  // The device's reduced-transparency setting always wins over the glass; no app setting overrides it.
+  for (const osReduce of [false, true]) {
+    test(`with OS reduce transparency=${String(osReduce)} the glass is solid: ${String(osReduce)}`, async ({ corpus, mount, page }) => {
+      const solid = osReduce;
       await emulateMedia(page, { contrast: "no-preference", transparency: osReduce ? "reduce" : "no-preference" });
-      await routeAppearance(page, corpus, { reducedTransparency: mode, blurSurfaces: ["panels"] });
+      await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
       await mount<typeof AppShellStory>(STORY, {});
       const pane = page.locator(LIST);
       await expect(pane).toHaveAttribute("data-panel-mode", "docked");
@@ -700,8 +788,9 @@ test.describe("the three-way OS preferences", () => {
     });
   }
 
-  test("with both preferences on, reduced transparency's solid fill wins the glass knob", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { reducedTransparency: "on", increasedContrast: "on" });
+  test("with increased contrast on and the OS asking for reduced transparency, the solid fill wins the glass knob", async ({ corpus, mount, page }) => {
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
+    await routeAppearance(page, corpus, { increasedContrast: "on" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-grid")).toBeVisible();
     await expect.poll(() => rootValue(page, TOKENS["blur.fill-chrome"].cssVar)).toBe(SOLID_FILL);
@@ -725,7 +814,7 @@ test.describe("in an open room", () => {
       await expect.poll(() => fillAlpha(bubble(page, role))).toBeLessThan(1);
       await expect.poll(() => computed(bubble(page, role), "backdrop-filter")).toContain("blur(");
     }
-    await page.locator(`${LIST} .shell-panel-header`).getByRole("button", { name: "New", exact: true }).click();
+    await page.locator(`${LIST} .shell-panel-header`).getByRole("button", { name: BAND_NEW_LABEL, exact: true }).click();
     const dialog = page.locator(DIALOG);
     await expect(dialog).toBeVisible();
     await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
@@ -754,21 +843,28 @@ test.describe("in an open room", () => {
     }
   });
 
-  test("the shadow-effects attribute is always written, and its true variant paints a text shadow the false one withholds", async ({ corpus, mount, page }) => {
-    let state: { readonly appearance: Partial<AppearanceSettings> } = { appearance: { shadowEffects: false } };
+  test("text on the wallpaper takes the over-art halo with no setting, and a bubble's text, backed by its own fill, takes none", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings> } = { appearance: {} };
     await routeLiveAppearance(page, corpus, () => state);
     const chatId = await groupRoomId();
-    const off = await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+    const plain = await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
     await roomReady(page);
-    await expect(page.locator("html")).toHaveAttribute(SHADOW_EFFECTS_ATTR, "false");
-    await expect.poll(() => computed(bubble(page, "assistant"), "text-shadow")).toBe("none");
-    await off.unmount();
+    await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-has-bg-image");
+    await expect.poll(() => computed(page.locator(".shell-main"), "text-shadow")).toBe("none");
+    await plain.unmount();
 
-    state = { appearance: { shadowEffects: true } };
+    state = { appearance: wallpaper(corpus) };
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
     await roomReady(page);
-    await expect(page.locator("html")).toHaveAttribute(SHADOW_EFFECTS_ATTR, "true");
-    await expect.poll(() => computed(bubble(page, "assistant"), "text-shadow")).not.toBe("none");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image");
+    // The halo paints on the dark branch only, so the case needs the corpus viewer's dark polarity.
+    expect(await computed(page.locator(".shell-main"), "color-scheme")).toBe("dark");
+    await expect.poll(() => haloAlpha(page.locator(".shell-main"))).toBeGreaterThan(0);
+    await expect.poll(() => computed(bubble(page, "assistant"), "text-shadow")).toBe("none");
   });
 
   test("reduced transparency turns the composer and each role's bubble solid and stops their blur", async ({ corpus, mount, page }) => {
@@ -1153,6 +1249,37 @@ test.describe("the light arm's plate over a wallpaper", () => {
   });
 });
 
+test.describe("message text over the busiest wallpaper", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  // No text halo paints on a message: its legibility over art is its own fill, so every chat style must clear the
+  // text floor on that fill alone, over black and white at once, on the light and the dark polarity.
+  for (const theme of ["light", "dark"] as const) {
+    for (const chatStyle of THEME_CHAT_STYLES) {
+      test(`${chatStyle} on the ${theme} theme reads at the text floor over a black and white checkerboard`, async ({ corpus, mount, page }) => {
+        await using art = await artRoot(page, checkerPng(BLACK_ART_SIDE, CHECKER_CELL), themeIdFor(theme) ?? null, { chatStyle });
+        await serveArtRoom(page, corpus, art);
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+        await roomReady(page);
+        await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+        await expect.poll(() => computed(page.locator(".shell-main"), "color-scheme")).toBe(theme);
+        const ratios: string[] = [];
+        for (const role of ROOM_ROLES) {
+          const text = bubble(page, role).locator("p").first();
+          await text.scrollIntoViewIfNeeded();
+          const { ratio, describe } = await pixelContrast(page, text);
+          if (ratio < AA_NORMAL_RATIO) {
+            ratios.push(`${role}: ${ratio.toFixed(2)} (${describe})`);
+          }
+        }
+        expect(ratios).toStrictEqual([]);
+      });
+    }
+  }
+});
+
 test.describe("the dark arm over the brightest wallpaper a viewer can save", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(WIDE);
@@ -1164,7 +1291,7 @@ test.describe("the dark arm over the brightest wallpaper a viewer can save", () 
       mount,
       page,
     }) => {
-      await using art = await solidArtRoot(page, 255, await seedThemeId(seed));
+      await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 255), await seedThemeId(seed));
       await serveArtRoom(page, corpus, art);
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
       await roomReady(page);
@@ -1197,7 +1324,7 @@ test.describe("the dark arm over the brightest wallpaper a viewer can save", () 
   }
 
   test("the composer's glass takes the lift on hover and focus, and drops it at rest", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 255, null);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 255), null);
     await serveArtRoom(page, corpus, art);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
     await roomReady(page);
@@ -1223,7 +1350,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
   });
 
   test("the pane and another section's reading surface clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 0, lightThemeId);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 0), lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
@@ -1255,7 +1382,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
   });
 
   test("in a room the composer and each role's bubble clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 0, lightThemeId);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 0), lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
@@ -1365,22 +1492,19 @@ test.describe("handover to the pending mark", () => {
 for (const mode of [
   { name: "desktop glass", width: 1280, blur: true, reduced: false, glass: true },
   { name: "desktop glass disabled", width: 1280, blur: false, reduced: false, glass: false },
-  { name: "reduced transparency", width: 1280, blur: true, reduced: true, glass: false },
+  { name: "OS reduced transparency", width: 1280, blur: true, reduced: true, glass: false },
   { name: "phone", width: 390, blur: true, reduced: false, glass: false },
 ] as const) {
   test(`the wallpaper landing follows the surface policy in ${mode.name}`, async ({ corpus, mount, page }, testInfo) => {
     await page.setViewportSize({ width: mode.width, height: 844 });
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
-    await routeStoredAppearance(page, corpus, {
-      ...wallpaper(corpus),
-      blurSurfaces: mode.blur ? ["panels"] : [],
-      reducedTransparency: mode.reduced ? "on" : "off",
-    });
+    await emulateMedia(page, { contrast: "no-preference", transparency: mode.reduced ? "reduce" : "no-preference" });
+    await routeStoredAppearance(page, corpus, { ...wallpaper(corpus), blurSurfaces: mode.blur ? ["panels"] : [] });
     await mount<typeof AppShellStory>(STORY, {});
     if (mode.width === PHONE.width) {
       await page
         .locator(".shell-topbar")
-        .getByRole("button", { name: /overview$/u })
+        .getByRole("button", { name: nameShape(screenOverviewDoorName) })
         .click();
     }
     const plate = page.locator('.shell-content [data-slot="empty-state-root"]').first();

@@ -4,7 +4,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { deleteMovesDefaultNote, PERSONA_DELETE_NAME } from "#client/features/persona/lib/persona-copy.ts";
+import { deleteMovesDefaultNote, PERSONA_DELETE_NAME, PERSONA_DELETE_TITLE, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -30,10 +30,10 @@ test("the crowned persona's delete confirm names the last-played persona the cro
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { currentPersonaId: lastPlayed.id, defaultPersonaId: doomed.id } });
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
-  await page.getByRole("button", { name: `Show details for ${doomed.name}`, exact: true }).click();
+  await page.getByRole("button", { name: personaDetailsToggleName(doomed.name, false), exact: true }).click();
   await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
 
-  await expect(page.getByRole("alertdialog", { name: "Delete this persona?", exact: true })).toContainText(deleteMovesDefaultNote(lastPlayed.name));
+  await expect(page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true })).toContainText(deleteMovesDefaultNote(lastPlayed.name));
 });
 
 test("with the crowned persona also last played, the confirm names the persona the server then crowns", async ({ mount, page }) => {
@@ -45,9 +45,9 @@ test("with the crowned persona also last played, the confirm names the persona t
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { currentPersonaId: doomed.id, defaultPersonaId: doomed.id } });
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
-  await page.getByRole("button", { name: `Show details for ${doomed.name}`, exact: true }).click();
+  await page.getByRole("button", { name: personaDetailsToggleName(doomed.name, false), exact: true }).click();
   await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
-  const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
+  const confirm = page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true });
   await expect(confirm).toContainText("Your default moves to");
   const promised = await confirm.textContent();
   await confirm.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
@@ -69,10 +69,10 @@ test("a persona that is not the default says nothing about the crown", async ({ 
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { currentPersonaId: crowned.id, defaultPersonaId: crowned.id } });
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
-  await page.getByRole("button", { name: `Show details for ${other.name}`, exact: true }).click();
+  await page.getByRole("button", { name: personaDetailsToggleName(other.name, false), exact: true }).click();
   await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
 
-  const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
+  const confirm = page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true });
   await expect(confirm).toBeVisible();
   await expect(confirm).not.toContainText(deleteMovesDefaultNote(crowned.name));
 });

@@ -51,10 +51,6 @@ export interface ImportOrphanCharacterInput {
  *  which is also what the chat write op's `assertSeatedSpeakers` gate would refuse. */
 export interface GroupChatInputDeps {
   readonly now: Clock;
-  /** The zone SillyTavern's zone-less wall-clock dates were written in (`ImportProfileDeps.stWallClockZone`).
-   *  The imported room's TITLE renders its date in this same zone, so the title says the day the ST filename
-   *  spelled. Absent ⇒ the serde's `"UTC"` default. */
-  readonly wallClockZone?: string;
   /** The ST group's own display name — the imported room's TITLE subject. A group transcript's header
    *  `character_name` is one member, so it cannot name the room. */
   readonly roomName: string;
@@ -82,13 +78,19 @@ export interface ImportChatsInput {
   readonly chats: CollectedChat[];
 }
 
-/** The ST group wave's input. Both maps are keyed by CARD FILENAME — the collect-time key ST itself uses for a
- *  group's `members[]` and for each transcript line's `original_avatar`, and the only key that survives handle
- *  collision-suffixing. The driver builds them after the character wave (the only point the mapping exists):
- *  every card this run imported, plus any member card already in the library. */
-export interface ImportGroupsInput {
+/** One profile directory's groups and the cards they may seat. Both maps are keyed by CARD FILENAME — the
+ *  collect-time key ST itself uses for a group's `members[]` and for each transcript line's `original_avatar`, and
+ *  the only key that survives handle collision-suffixing. They hold only this profile's cards: a filename another
+ *  profile also uses names a different card there. The driver builds them after the character wave (the only point
+ *  the mapping exists), from the cards this run imported or matched. */
+export interface ImportProfileGroups {
   readonly groups: readonly CollectedGroup[];
   readonly characterIdByCardFilename: ReadonlyMap<string, CharacterId>;
   /** Card filename → the card's display NAME, for the roster-scoped name fallback on older exports. */
   readonly characterNameByCardFilename: ReadonlyMap<string, string>;
+}
+
+/** The ST group wave's input, one entry per profile directory. */
+export interface ImportGroupsInput {
+  readonly profiles: readonly ImportProfileGroups[];
 }

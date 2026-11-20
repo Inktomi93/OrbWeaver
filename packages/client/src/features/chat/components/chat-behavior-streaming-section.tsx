@@ -1,5 +1,5 @@
 // The "Streaming" chat-behavior SECTION (SET-SEAMS stage 2) — the stream scroll mode plus the smooth-reveal
-// pacer and its gated speed slider. A settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by
+// speed, one slider whose 0 is off. A settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by
 // features/chat, the feature that READS these knobs: the message list's `scrollMode` and the streaming
 // ghost's `useSmoothText` pacer.
 //
@@ -9,7 +9,7 @@
 // projection, the seeded defaults, the `Pick`-derived form type and the contribution's `owns` claim.
 
 import type { ChatSettings } from "@orb/contracts/settings";
-import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
+import { DEFAULT_CHAT_SETTINGS, SMOOTH_STREAM_CPS_MAX, SMOOTH_STREAM_CPS_STEP, SMOOTH_STREAM_OFF } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -17,14 +17,9 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateStreaming } from "../hooks/use-chat-settings-mutations.ts";
-import {
-  CHAT_STREAMING_KEYS,
-  CHAT_STREAMING_SUBCATEGORY,
-  SMOOTH_STREAM_CPS_MAX,
-  SMOOTH_STREAM_CPS_MIN,
-  STREAM_SCROLL_MODE_ITEMS,
-} from "../lib/chat-behavior-streaming-model.ts";
+import { CHAT_STREAMING_KEYS, CHAT_STREAMING_SUBCATEGORY, STREAM_SCROLL_MODE_ITEMS } from "../lib/chat-behavior-streaming-model.ts";
 
 type StreamingForm = Pick<ChatSettings, (typeof CHAT_STREAMING_KEYS)[number]>;
 
@@ -83,19 +78,17 @@ function StreamingBody({
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="smooth-stream">
-            <form.AppField name="smoothStream">{(field): ReactElement => <field.SwitchField label="Smooth streaming" />}</form.AppField>
+            <form.AppField name="smoothStreamCps">
+              {(field): ReactElement => (
+                <field.SliderField
+                  label={configSettingLabel(CHAT_STREAMING_SUBCATEGORY, "smoothStreamCps")}
+                  min={SMOOTH_STREAM_OFF}
+                  max={SMOOTH_STREAM_CPS_MAX}
+                  step={SMOOTH_STREAM_CPS_STEP}
+                />
+              )}
+            </form.AppField>
           </SettingRow>
-          <form.Subscribe selector={(state): boolean => state.values.smoothStream}>
-            {(on): ReactElement | null =>
-              on ? (
-                <SettingRow settingId="smooth-stream-cps">
-                  <form.AppField name="smoothStreamCps">
-                    {(field): ReactElement => <field.SliderField label="Reveal speed (chars/sec)" min={SMOOTH_STREAM_CPS_MIN} max={SMOOTH_STREAM_CPS_MAX} />}
-                  </form.AppField>
-                </SettingRow>
-              ) : null
-            }
-          </form.Subscribe>
           <SettingRow settingId="reasoning-auto-collapse">
             <form.AppField name="reasoningAutoCollapse">{(field): ReactElement => <field.SwitchField label="Auto-collapse reasoning" />}</form.AppField>
           </SettingRow>

@@ -5,7 +5,7 @@ import { castId } from "@orb/kit/ids";
 import { nonEmpty } from "@orb/testkit/iso";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME, CHAT_TRANSCRIPT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import type { HeldTurn } from "./support/chat-room.ts";
 import { messageRow, openCharacterRoom, renameOpenChat, sendByKey, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
@@ -62,7 +62,7 @@ async function assertIdle(page: Page, timeout = 5000): Promise<void> {
 }
 
 async function readRenderedCanon(page: Page, count: number): Promise<(readonly [string | null, string | null, readonly string[]])[]> {
-  const rows = page.getByRole("log", { name: "Conversation messages", exact: true }).locator('[data-slot="message-list-row"]');
+  const rows = page.getByRole("log", { name: CHAT_TRANSCRIPT_NAME, exact: true }).locator('[data-slot="message-list-row"]');
   const active = rows.and(page.locator('[tabindex="0"]'));
   await active.focus();
   await active.press("Home");
@@ -89,7 +89,7 @@ function assertRenderedCanon(rendered: Awaited<ReturnType<typeof readRenderedCan
 
 function scriptedChatTitle(stopped: boolean): string {
   return stopped
-    ? "Stop closes the held provider socket and retains the user row without an unfinished assistant"
+    ? "Stop closes the held provider socket and keeps the user row and the streamed prefix as the reply"
     : "first send streams incrementally, second send works, and exact canon survives reload";
 }
 
@@ -136,7 +136,11 @@ for (const stopped of [false, true]) {
           { role: "assistant", content: GREETING },
           ...turns
             .slice(0, index + 1)
-            .flatMap((item) => [{ role: "user", content: item.userMessage }, ...(stopped ? [] : [{ role: "assistant", content: item.prefix + item.suffix }])]),
+            // A Stop keeps what the reader saw: the streamed prefix is the reply.
+            .flatMap((item) => [
+              { role: "user", content: item.userMessage },
+              { role: "assistant", content: stopped ? item.prefix : item.prefix + item.suffix },
+            ]),
         ]);
     }
     const before = await listCanon(chatId);

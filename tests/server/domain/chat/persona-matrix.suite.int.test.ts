@@ -7,7 +7,7 @@ import type { GroupConfig } from "@orb/contracts/chat";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, NAMES_BEHAVIOR, promptSectionIdSchema } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { PersonaId } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
@@ -141,7 +141,11 @@ async function sendStep(room: Room, step: Extract<Step, { kind: "send" }>): Prom
 
 async function impersonateStep(room: Room, step: Extract<Step, { kind: "impersonate" }>): Promise<string> {
   let text = "";
-  for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room[step.who], chatId: room.h.chatId })) {
+  for await (const { delta } of room.h.root.services.chat.impersonateStream({
+    signal: new AbortController().signal,
+    principal: room[step.who],
+    chatId: room.h.chatId,
+  })) {
     text += delta;
   }
   expect(text).not.toBe("");
@@ -324,7 +328,7 @@ const COMBOS: readonly Combo[] = [
       },
     }),
   ),
-  ...(["default", "content", "completion", "none"] as const).map(
+  ...NAMES_BEHAVIOR.map(
     (mode): Combo => ({
       id: `9-${mode}`,
       calls: 2,

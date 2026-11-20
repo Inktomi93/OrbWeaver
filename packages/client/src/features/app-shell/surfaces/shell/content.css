@@ -1,8 +1,10 @@
 /* shell.css region: the content pane: the view transition, region fill and scrim. The index imports the regions in cascade order; a rule's winner across regions is
  * decided there, so a rule moves between regions only with its source position. */
 @layer shell {
-  /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the content pane: a root capture
-   * paints a still frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
+  /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the screen's content: this pane, or
+   * on a phone the list when the list is the screen (mobile.css), never both at once. A root capture paints a still
+   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The shell's sheets and the
+   * portalled floats carry names of their own during a swap (below), so they stay above the content they cover. The
    * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
   :root {
     view-transition-name: none;
@@ -39,6 +41,7 @@
     /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
     animation-fill-mode: both;
   }
+
   .shell-region-fill {
     flex: 1 1 auto;
     min-block-size: 0;
@@ -51,14 +54,6 @@
   @container shell-main (inline-size < 20rem) {
     [data-slot="chat-room-surface"] {
       overflow-x: hidden;
-    }
-  }
-
-  /* An inset pane at the enlarged root gives the column back to the held block inset, below the held section inset
-   * `paddingInline` writes, so a control row of its own width fits. */
-  @container shell-main (inline-size < 20rem) {
-    .shell-region-fill[data-inset] {
-      padding-inline: var(--spacing-inset-block);
     }
   }
 
@@ -82,5 +77,87 @@
   .shell-scrim[data-visible="true"] {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  /* The snapshots paint above every live element, so a sheet over the captured region would sit under them for the
+   * whole fade (ui-surface-and-interaction-rules §5.7). Each shell sheet, and the scrim while it dims, therefore carry a
+   * capture name of their own while a swap runs, and paint above the content in their own paint order. A pane is a
+   * sheet while it floats (`overlay`) and, in a
+   * regime where it is only ever a sheet (`data-panel-sheet`, and every phone context pane in mobile.css), while it is
+   * parked too, so its exit slide stays on top. A docked pane that collapses is chrome and stays uncaptured. Named only
+   * during a swap, so at rest the pane is no capture root for the glass inside it. */
+  :root:active-view-transition .shell-panel[data-panel-side="list"]:is([data-panel-mode="overlay"], [data-panel-sheet]) {
+    view-transition-name: orb-shell-list-sheet;
+  }
+  :root:active-view-transition .shell-panel[data-panel-side="context"]:is([data-panel-mode="overlay"], [data-panel-sheet]) {
+    view-transition-name: orb-shell-context-sheet;
+  }
+  :root:active-view-transition .shell-scrim[data-visible="true"] {
+    view-transition-name: orb-shell-scrim;
+  }
+  /* A float paints live: its group follows the element's own box each frame and its new side is the live element, so
+   * its own slide or fade runs unchanged. A float the swap closes has only its old side, which leaves with the
+   * outgoing content at the outgoing step. */
+  ::view-transition-group(orb-shell-list-sheet),
+  ::view-transition-group(orb-shell-context-sheet),
+  ::view-transition-group(orb-shell-scrim) {
+    animation-name: none;
+  }
+  ::view-transition-new(orb-shell-list-sheet),
+  ::view-transition-new(orb-shell-context-sheet),
+  ::view-transition-new(orb-shell-scrim) {
+    animation: none;
+  }
+  ::view-transition-old(orb-shell-list-sheet),
+  ::view-transition-old(orb-shell-context-sheet),
+  ::view-transition-old(orb-shell-scrim) {
+    animation: none;
+    opacity: 0;
+  }
+  ::view-transition-old(orb-shell-list-sheet):only-child,
+  ::view-transition-old(orb-shell-context-sheet):only-child,
+  ::view-transition-old(orb-shell-scrim):only-child {
+    opacity: 1;
+    animation-name: orb-shell-float-leave;
+    animation-duration: var(--motion-fast);
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+  @keyframes orb-shell-float-leave {
+    to {
+      opacity: 0;
+    }
+  }
+
+  /* The portalled floats take the same cover as the shell sheets, by their two shared owners: the themed portal root, where
+   * every dialog, palette, popover, menu, select and tooltip mounts, and the toast viewport, which mounts on the body. One
+   * name per owner, never per float: two open floats of one kind would share a name, and a duplicate name aborts the swap
+   * to a hard cut. The portal root adds no box at rest (grid.css), and a name needs one, so while a swap runs it is a
+   * fixed box over the viewport, the box the floats inside already resolve their coordinates against. Each is named only
+   * while it holds a float, so an empty layer costs the swap no snapshot; the toast viewport holds its toasts inside one
+   * stack, so a toast is a grandchild. */
+  :root:active-view-transition .shell-portal-root:not(:empty) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    view-transition-name: orb-shell-floats;
+  }
+  :root:active-view-transition .shell-toast-viewport:has(> * > *) {
+    view-transition-name: orb-shell-toasts;
+  }
+  /* A layer can hold a float that stays and one the swap closes at once, so neither side is hidden: the two cross-fade at
+   * the outgoing step with the default blend, which sums to the same pixels where the float did not change. A float that
+   * stays reads unchanged, and one that closed leaves with the outgoing content. */
+  ::view-transition-group(orb-shell-floats),
+  ::view-transition-group(orb-shell-toasts) {
+    animation-name: none;
+  }
+  ::view-transition-old(orb-shell-floats),
+  ::view-transition-old(orb-shell-toasts),
+  ::view-transition-new(orb-shell-floats),
+  ::view-transition-new(orb-shell-toasts) {
+    animation-duration: var(--motion-fast);
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
   }
 }

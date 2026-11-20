@@ -1,6 +1,8 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
+import type { LoadGlobalVariablesOp } from "@orb/contracts/automation";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
+  AssembleContext,
   ClaimChatOp,
   DurableChatBusEvent,
   ForkGameOp,
@@ -15,6 +17,8 @@ import type {
   InvitePreview,
   LiveOnlyChatBusEvent,
   MemoryDigestInput,
+  MemoryItemKey,
+  MemoryView,
   NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
@@ -61,9 +65,10 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatInviteId,
+  ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
-  CompactionSpendId,
+  ConsentingHostId,
   Handle,
   MessageId,
   MessageReactionId,
@@ -80,9 +85,10 @@ import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
-import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { GatherAssembleArgs, SendRegexSink } from "./gather.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
-import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
+import type { MemoryConfig, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink, ResolveBackfillMemoryConfig } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
@@ -111,7 +117,7 @@ export type LoadParticipantViewsBatchOp = (chatIds: readonly ChatId[]) => Promis
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
-type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
+type ResolveChatConnectionOp = (params: { readonly funderUserId: ConsentingHostId; readonly signal: AbortSignal }) => Promise<Resolved<"chat">>;
 
 /** The live card for a roster member under the host's ownership. Null means gone/mid-delete — the caller
  *  treats null as skip, never an error. */
@@ -135,6 +141,18 @@ type CopyHandoffBooksOp = (args: CopyHandoffBooksArgs) => Promise<readonly State
  *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
  *  on its own, so unlike the lore arm it is not derived from what the seats did. */
 type CopyHandoffRegexScriptsOp = (args: CopyHandoffRegexScriptsArgs) => Promise<readonly StatementToken[]>;
+
+/** The host-handoff BOOK detach (world-info's `DetachHandoffBooks`, declared structurally): the UNEXECUTED
+ *  `chat_books` delete of every book on `chatId` the incoming host does not own. */
+type DetachHandoffBooksOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
+
+/** The host-handoff SCRIPT detach (regex's `DetachHandoffRegexScripts`, declared structurally): the UNEXECUTED
+ *  `chat_regex_scripts` delete of every script on `chatId` the incoming host does not own. */
+type DetachHandoffRegexScriptsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
+
+/** The host-handoff DOCUMENT detach (databank's `DetachHandoffDocuments`, declared structurally): the UNEXECUTED
+ *  `chat_documents` delete of every document on `chatId` the incoming host does not own. */
+type DetachHandoffDocumentsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
@@ -180,6 +198,7 @@ export interface ExtractQuietParams {
   /** The initiating viewer's zone, which the template's `{{date}}`/`{{time}}`/`{{weekday}}` read. Absent ⇒ UTC
    *  (a caller with no viewer: automation, a plugin, a model tool call). */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 export interface ExtractQuietResult {
   readonly text: string;
@@ -217,7 +236,7 @@ export interface QuietGenerateParams {
   readonly userText: string;
   /** Optional generation tuning (temperature / maxOutputTokens); absent ⇒ the op's bounded defaults. */
   readonly intent?: UserIntent | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 /** The reduced result — not exported (nothing imports it directly; `QuietGenerate` is its only consumer). */
 interface QuietGenerateResult {
@@ -318,7 +337,7 @@ type ListPluginMacrosOp = (authorUserId: UserId) => readonly PluginMacroNames[];
 export interface PromptTransformRegistry {
   readonly apply: ApplyPromptTransformsOp;
   /** Register a transform (idempotent by `id` — a re-register replaces the prior, e.g. an automation rule edit). */
-  readonly register: RegisterPromptTransformOp;
+  readonly register: RegisterPromptTransformOp<AbortSignal>;
   /** Deregister by id (an automation rule disable / a plugin teardown). A no-op for an unknown id. */
   readonly unregister: UnregisterPromptTransformOp;
 }
@@ -482,7 +501,7 @@ export type GeneratePictureOp = (
     readonly caller: Principal;
     /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
      *  funder, asset store and gallery. */
-    readonly runAsUserId: UserId;
+    readonly runAsUserId: ConsentingHostId;
     readonly chatId: ChatId;
 
     readonly n?: number | undefined;
@@ -492,6 +511,7 @@ export type GeneratePictureOp = (
     readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
     /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
     readonly timeZone?: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   },
 ) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
@@ -507,21 +527,24 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
 
 /** memory's digest vector write — the one write path. Cancellation belongs to the runtime operation, not the shared
  *  memory payload, and `AbortSignal` is not declared in the contracts program. */
-export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
+export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal: AbortSignal }) => Promise<MemoryEmbedSpace>;
 
 /** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
  * because `AbortSignal` is not declared in the contracts program. */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (a bare key list left
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
 /** `ownerId` is OMITTED on purpose: `MemoryScope` carries no owner (D20), so the compose binding resolves the
  *  chat HOST — whose `embed`/`rerank` bindings define the digest space — from the chat FK before calling search. */
-type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: TurnRetrievalEvents | undefined) => Promise<readonly ScoredBlock[]>;
+type SearchDigestsOp = (
+  query: Omit<MemoryQueryOptions, "ownerId"> & { readonly signal: AbortSignal },
+  events?: TurnRetrievalEvents | undefined,
+) => Promise<readonly ScoredBlock[]>;
 
 /** The per-call degrade observations BOTH in-turn retrieval ops report back — the neutral, chat-side half of
  *  the seam (search owns its own `DigestSearchEvents`; neither side imports the other's vocabulary).
@@ -544,9 +567,10 @@ type GatherDatabankOp = (
   args: {
     readonly chatId: ChatId;
     /** The room HOST — the document space is theirs (host-only v1), so their `embed`/`rerank` bindings serve it. */
-    readonly hostUserId: UserId;
+    readonly hostUserId: ConsentingHostId;
     readonly queryText: string;
     readonly tokenBudget: number;
+    readonly signal: AbortSignal;
     readonly k?: number | undefined;
     readonly minScore?: number | undefined;
     readonly rerank?: boolean | undefined;
@@ -564,19 +588,61 @@ type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlock
  *  Empty is legal and means "nothing teaches this turn" (byte-identical). */
 export type ChatTeachingRegistry = readonly TeachingContribution[];
 
+/** Ops `createChatContext` binds over the finished context; composition never supplies them. */
+export interface ChatContextBoundOps {
+  /** The turn's chat-internal gather (`assembly/gather.ts`), bound to this context and the `memory/` reads it
+   *  needs, so a verb reaches the subsystem without importing it. */
+  readonly gatherAssembleContext: (args: GatherAssembleArgs, foreign: ForeignInputs, out?: SendRegexSink) => Promise<AssembleContext>;
+  /** The room's memory view and its strikes (`memory/strikes.ts`), bound the same way. */
+  readonly memoryStrikes: MemoryStrikeOps;
+}
+
+/** The memory-strike work the verbs run after their gates. */
+export interface MemoryStrikeOps {
+  /** The view as the caller may see it: clamped to their history floor, strike ids only when `isHost`. */
+  readonly view: (args: { readonly chatId: ChatId; readonly floor: HistoryFloorSeq; readonly isHost: boolean }) => Promise<MemoryView>;
+  /** Strike the span the key's item covers, or answer the strike already on it. `inserted` says whether a row
+   *  landed. Throws `memory_item_stale` when the key no longer names what the host read. */
+  readonly strike: (args: {
+    readonly chatId: ChatId;
+    readonly hostUserId: UserId;
+    readonly item: MemoryItemKey;
+  }) => Promise<{ readonly strikeId: ChatMemoryStrikeId; readonly inserted: boolean }>;
+  /** Lift the span the strike names, for every bucket. True when a row moved. */
+  readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
+  /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
+  readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
+  /** The reorder's re-stamp of every strike's stored seqs onto its live endpoints, for the reorder's own batch after
+   *  the re-sequence statements. */
+  readonly restampSeqsAfterReorder: (chatId: ChatId) => BatchStmt;
+  /** The fork's copy of the room's strikes, as statements for the fork's own batch: each strike lands re-keyed onto
+   *  every position of the fork's own grid its span overlaps, laid out over the copied messages (`slotIdMap` holds
+   *  only those) with `hostUserId`'s memory config. A scoped strike keeps its character only when that character holds
+   *  a seat in the fork. */
+  readonly forkStrikes: (args: {
+    readonly sourceChatId: ChatId;
+    readonly newChatId: ChatId;
+    /** The fork's host: the forker. */
+    readonly hostUserId: UserId;
+    readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
+    readonly seatedCharacterIds: ReadonlySet<CharacterId>;
+    readonly createdAt: number;
+  }) => Promise<BatchStmt[]>;
+}
+
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
  *  the id-minters are the determinism seams (no ambient Date.now()/mintTypeId() in a verb). */
-export interface ChatContext extends EngineContext, ChatAccountingContext {
+export interface ChatContext extends EngineContext, ChatAccountingContext, ChatContextBoundOps {
   /** The privilege-decision seam — every chat-authority verdict routes through this; chat never imports admin. */
   readonly can: Can;
   readonly newChatId: () => ChatId;
   readonly newParticipantId: () => ChatParticipantId;
   readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
+  readonly newMemoryStrikeId: () => ChatMemoryStrikeId;
   readonly newEventId: () => ChatEventId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
-  readonly newCompactionSpendId: () => CompactionSpendId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: HashTokenOp;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
@@ -598,6 +664,14 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** The owner's per-user global plane (D46) as the turn's macro read cache. Injected because `global_variables`
+   *  is automation's table; its write half is {@link EngineContext.globalVariableWriteStatements}. */
+  readonly loadGlobalVariables: LoadGlobalVariablesOp;
+  /** The room host's memory tuning with their own switch folded in (`mode: "off"` when they turned memory off,
+   *  D293) — the merge the turn and the backfill read, so the memory view reports the switch the turn obeys. */
+  readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
+  /** The app-wide memory defaults alone, so the memory view can tell the app's switch from the host's own. */
+  readonly readMemoryDefaults: () => MemoryConfig;
   /** B7 — a user's per-user reaction defaults (`UserSettings.chat.{reactionsEnabled,charactersCanReact}`),
    *  the VERB-TIME half of the resolve pair: `toggleReaction`/`listReactions`/`reactAsCharacter` gate on
    *  `resolveReactionsEnabled(room, hostDefault)` and no ForeignInputs exists outside the turn path (the
@@ -625,6 +699,12 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
    *  except executable, and un-flippable by anyone still in the room. */
   readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
+  /** HOST HANDOFF, the D64 detach: the UNEXECUTED `chat_books`, `chat_regex_scripts` and `chat_documents` deletes
+   *  the swap batch commits after the copy re-points, so the room carries only attachments the new host owns.
+   *  Injected because each table belongs to its domain (D337). */
+  readonly detachHandoffBooks: DetachHandoffBooksOp;
+  readonly detachHandoffRegexScripts: DetachHandoffRegexScriptsOp;
+  readonly detachHandoffDocuments: DetachHandoffDocumentsOp;
   /** HOST HANDOFF, the NOMINATE-side disclosure: how many books / scripts an accept would land in
    *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
    *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a
@@ -650,25 +730,25 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** Materialize a user-pasted external background URL into an owned CAS asset — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   readonly summarize: SummarizeOp;
   /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
    *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
-  readonly resolveSpeakerReranker: (funderUserId: UserId) => Promise<SpeakerReranker | null>;
+  readonly resolveSpeakerReranker: (funderUserId: ConsentingHostId, signal: AbortSignal) => Promise<SpeakerReranker | null>;
   /** The FUNDER's Utility role for Smart's opt-in arbiter, or null when it is unbound or its model can serve no
    *  structured-output vehicle. Null is the arbiter's visible degrade, never a free-text call. */
-  readonly resolveSpeakerArbiter: (funderUserId: UserId, chatId: ChatId) => Promise<SpeakerArbiter | null>;
+  readonly resolveSpeakerArbiter: (funderUserId: ConsentingHostId, chatId: ChatId, signal: AbortSignal) => Promise<SpeakerArbiter | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task
    *  cannot run gets the named availability refusal thrown. */
-  readonly summarizerContextTokens: (funderUserId: UserId) => Promise<number>;
+  readonly summarizerContextTokens: (funderUserId: UserId, signal: AbortSignal) => Promise<number>;
   /** Can the FUNDER's summarize task run, and if not, why. The memory backfill reads it once per sweep: with no
    *  summarize connection bound (`no-connection`) digests are not derivable, the same as Memory off. */
-  readonly summarizeAvailability: (funderUserId: UserId) => Promise<SendAvailability>;
+  readonly summarizeAvailability: (funderUserId: UserId, signal: AbortSignal) => Promise<SendAvailability>;
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated. Same per-call resolution as above. */
-  readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
+  readonly embedContextTokens: (funderUserId: UserId, signal: AbortSignal) => Promise<number>;
   /** The FUNDER's Utility-role preset params (D304), `undefined` under task defaults. The arbiter and the memory
    *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
@@ -677,7 +757,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The disabled-account containment gate (owner-ruled): whether a human's backing `users` row
    *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
    *  an admin disable propagates the very next round. Chat never reads `users` itself — see
-   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`substrate/participant-actor.ts`) at the ONE
    *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
    *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
    *  set the same way a departed member's already does. */
@@ -767,14 +847,19 @@ export interface ChatServiceDeps {
   /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance
    *  only; `actor` (a rule's requested turn) folds that actor's own binding first. */
   readonly resolveConnection: (args: {
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly chatId: ChatId;
     readonly actor?: BindingActor | undefined;
+    readonly signal: AbortSignal;
   }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the room HOST's chat connection — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
-  readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
-  readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;
+  readonly checkSendAvailability: (args: {
+    readonly funderUserId: ConsentingHostId;
+    readonly chatId: ChatId;
+    readonly signal: AbortSignal;
+  }) => Promise<SendAvailability>;
+  readonly getNextTurnConnection: (args: { readonly funderUserId: ConsentingHostId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;

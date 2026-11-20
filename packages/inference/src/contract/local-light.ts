@@ -13,6 +13,8 @@ export interface LocalLightBackendDeps {
   readonly log: InferenceDeps["log"];
   readonly superviseDetached: InferenceDeps["superviseDetached"];
   readonly config: NonNullable<InferenceDeps["localLight"]> | undefined;
+  /** The inference Worker's environment, read when it starts. */
+  readonly childEnv: InferenceDeps["env"]["childProcessEnv"];
 }
 
 export interface LocalLightBackend {

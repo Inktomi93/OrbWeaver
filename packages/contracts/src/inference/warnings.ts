@@ -50,14 +50,23 @@ export const WARNING_CODE = {
   // A CONTENT prefill with thinking on ⇒ an empty reply on a server whose folded
   // `features.prefillSuppressesThinking` says so; the prefill wins and the thinking toggle is dropped.
   reasoningDroppedForPrefill: "reasoning_dropped_for_prefill",
+  // The authored chain of thought (`prefillReasoning`) found no stamped continue row to ride: the turn ends
+  // elsewhere, prefill is off for it, the user owns the `messages` array, or the route models no continue.
+  // The seed is dropped; the home is the aggregated per-turn notice.
+  prefillReasoningDropped: "prefill_reasoning_dropped",
+  // An authored tail-prefill row (assistant@depth-0) stood down because the turn carries tools: "continue this
+  // row" and "stop and emit a call" are incompatible instructions at one turn end, and the tools win (a turn
+  // end carrying both is refused outright). The row still rides, normalized to a plain message; the
+  // CONTINUATION intent drops, and the author who configured the prefill is told rather than left guessing.
+  prefillSuppressedByTools: "prefill_suppressed_by_tools",
   // The CONNECTION's `declared` block overrode a dated measurement on the named field (§6.2). NEVER on the turn
   // stream — a badge on the connection row (the user asked for it).
   declaredOverridesMeasured: "declared_overrides_measured",
   // A background task (digests/caption/…) had no fundable row: the shared "nothing ran" notice.
   backgroundTaskDegraded: "background_task_degraded",
-  // ── the SDK's OWN drops (§A3) ───────────────────────────────────────────────────────────────────────
-  // These three carry what the Vercel provider stripped AFTER our funnel ran, which is a SECOND gate the
-  // capability fold does not model: the funnel can resolve `temperature` from a measured range and the
+  // ── the SDK's OWN drops ──────────────────────────────────────────────────────────────────────────────
+  // These three carry what the Vercel provider strips AFTER our funnel runs, a SECOND gate the capability
+  // fold does not model: the funnel can resolve `temperature` from a measured range and the
   // provider still refuse it for this model. Distinct codes (not the funnel's `sampling_knob_dropped`) so a
   // receipt says WHO dropped the knob — ours or the SDK's — which is the difference between a wrong curated
   // cell and a wrong model id.
@@ -75,7 +84,7 @@ export const WARNING_CODE = {
 } as const;
 export type WarningCode = (typeof WARNING_CODE)[keyof typeof WARNING_CODE];
 
-/** The existing wire decoder accepts optional detail fields on previously produced warnings. */
+/** Detail fields are optional, so a stored warning whose code carries none still parses. */
 export const resolvedWarningSchema = z.strictObject({
   code: z.enum(WARNING_CODE),
   message: z.string(),

@@ -5,6 +5,7 @@ import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PERSONA_FROM_CHARACTER_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -34,8 +35,8 @@ for (const regime of [
       const caller = await root.internalCallerFor(root.ownerId);
       await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.viewport.width, appearance: appearanceSettingsSchema.parse({}) });
-      await page.getByRole("button", { name: "New persona from a character", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "New persona from a character", exact: true });
+      await page.getByRole("button", { name: PERSONA_FROM_CHARACTER_NAME, exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: PERSONA_FROM_CHARACTER_NAME, exact: true });
       await expect(dialog.locator(ROW).first()).toBeVisible();
       // Exactly one: none would mean the rows cannot be reached by scrolling, two means one nests inside the other.
       const scrollers = await dialog.evaluate(

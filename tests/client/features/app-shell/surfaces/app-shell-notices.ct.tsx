@@ -1,7 +1,7 @@
 // The shell's notice overlay and its stray-file guard: a notice never moves the content column, a burst stays inside
 // the overlay's cap, the empty overlay passes the pointer through, and only a file nothing else handled is swallowed.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, sectionBackName } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
@@ -9,6 +9,7 @@ import { ALERTS_REGION_NAME, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
@@ -203,11 +204,11 @@ test.describe("with an open sheet and keyboard", () => {
       title: "Imported with notes",
       description: LONG_DETAIL,
     });
-    await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(card.name);
+    await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(card.name);
     await page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: card.name, exact: true }).click();
     // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
     // retried by scrolling the page, which moves every box this test then measures.
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     // Document-timeline animations only: a scroll-driven animation (the rail's scroll fades) reads "running" for as long
     // as its scroller exists and moves nothing.
     await page.waitForFunction(() =>

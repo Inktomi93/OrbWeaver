@@ -290,8 +290,9 @@ export interface CharacterChatsProjectionView {
   readonly characterId: CharacterId;
   /** Names the pane + its empty state ("No chats with Aveline yet"). */
   readonly characterName: string;
-  /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. */
-  readonly onNewChat: () => void;
+  /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. `null` while the
+   *  character hero's own New chat is on screen beside the pane, so one screen holds one door to the action. */
+  readonly onNewChat: (() => void) | null;
 }
 
 /** The Chats CONTEXT-panel state projection — the `ChatDetail` wire fields the tabs read, plus
@@ -313,7 +314,7 @@ export interface CommittedChatContext {
 }
 
 // Deep links and tab definitions derive their identifiers from the same vocabulary.
-const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview", "plugins"] as const;
+const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "memory", "preview", "plugins"] as const;
 export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 /** The host and contributor share the label for the typed plugin-panel destination. */
 export const CHAT_PLUGINS_TAB_LABEL = "Plugins";

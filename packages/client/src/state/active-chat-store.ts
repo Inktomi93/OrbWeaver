@@ -100,15 +100,38 @@ export function subscribeHuskAbandoned(listener: (chatId: ChatId) => void): () =
   };
 }
 
+// Sends this device has in flight, counted per room. The server claims a room only just before the user row,
+// after its own checks, so a reap that lands while a send is in flight deletes the room and loses the line.
+// A text send is already covered by the draft check below, because the composer clears its text only after
+// the row commits; an attachment-only send leaves the draft empty, so it needs this count.
+const sendsInFlight = new Map<ChatId, number>();
+
+/** Keep `chatId` out of the nav-away reap while one send into it is in flight. Dispose the hold when that send
+ *  settles, whether it committed or failed. */
+export function holdRoomForSend(chatId: ChatId): Disposable {
+  sendsInFlight.set(chatId, (sendsInFlight.get(chatId) ?? 0) + 1);
+  return {
+    [Symbol.dispose]: (): void => {
+      const left = (sendsInFlight.get(chatId) ?? 1) - 1;
+      if (left === 0) {
+        sendsInFlight.delete(chatId);
+      } else {
+        sendsInFlight.set(chatId, left);
+      }
+    },
+  };
+}
+
 /** Leaving `nextChatId` (null = landing): publish the outgoing created room as a reap candidate and forget
  *  it. SKIPPED while its composer holds unsent text — the user is mid-thought and may come back, and the
- *  TTL belt covers them if they do not (§4.6). Returns the `createdChatId` the next state should carry. */
+ *  TTL belt covers them if they do not (§4.6) — and while a send into it is in flight. Returns the
+ *  `createdChatId` the next state should carry. */
 function releaseCreatedChat(nextChatId: ChatId | null): ChatId | null {
   const { createdChatId } = useActiveChatStore.getState();
   if (createdChatId === null || createdChatId === nextChatId) {
     return createdChatId;
   }
-  if (readComposerDraft(createdChatId) === "") {
+  if (readComposerDraft(createdChatId) === "" && !sendsInFlight.has(createdChatId)) {
     // Snapshot before firing — an unsubscribe inside a listener must not mutate the set mid-iteration.
     for (const listener of [...huskAbandonedListeners]) {
       listener(createdChatId);

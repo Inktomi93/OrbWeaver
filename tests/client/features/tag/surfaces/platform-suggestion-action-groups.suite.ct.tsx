@@ -1,3 +1,4 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -8,13 +9,14 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { TAG_REJECT_NAME, tagSuggestionRowName } from "#client/features/tag/lib/tag-list-name.ts";
 import type { SuggestionActionGroupsStory } from "./_suggestion-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_suggestion-action-groups-stories/SuggestionActionGroupsStory";
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 const REVIEW_WRITES = {
-  apply: { label: "Apply", chosen: "tag.attachTag", other: "tag.detachTag" },
-  reject: { label: "Reject", chosen: "tag.detachTag", other: "tag.attachTag" },
+  apply: { label: DIALOG_VERBS.apply, chosen: "tag.attachTag", other: "tag.detachTag" },
+  reject: { label: TAG_REJECT_NAME, chosen: "tag.detachTag", other: "tag.attachTag" },
 } as const;
 
 async function tagChangeFrame(events: ReturnType<Root["app"]["liveBuses"]["user"]["subscribeUserEvents"]>): Promise<readonly StreamFrame[]> {
@@ -101,9 +103,9 @@ for (const regime of REGIMES) {
           },
         });
         const mounted = await mount<typeof SuggestionActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-        const row = page.getByRole("group", { name: `Suggested ${tag.name} for ${firstName}`, exact: true });
-        const apply = row.getByRole("button", { name: "Apply", exact: true });
-        const reject = row.getByRole("button", { name: "Reject", exact: true });
+        const row = page.getByRole("group", { name: tagSuggestionRowName(tag.name, firstName), exact: true });
+        const apply = row.getByRole("button", { name: DIALOG_VERBS.apply, exact: true });
+        const reject = row.getByRole("button", { name: TAG_REJECT_NAME, exact: true });
         await apply.focus();
         await page.keyboard.press("Tab");
         await expect(reject).toBeFocused();
@@ -123,8 +125,8 @@ for (const regime of REGIMES) {
         await row.getByRole("button", { name: REVIEW_WRITES[decision].label, exact: true }).focus();
         await page.keyboard.press("Enter");
         await expect(row).toBeHidden();
-        const remaining = page.getByRole("group", { name: `Suggested ${tag.name} for ${secondName}`, exact: true });
-        await expect(remaining.getByRole("button", { name: "Apply", exact: true })).toBeFocused();
+        const remaining = page.getByRole("group", { name: tagSuggestionRowName(tag.name, secondName), exact: true });
+        await expect(remaining.getByRole("button", { name: DIALOG_VERBS.apply, exact: true })).toBeFocused();
         expect((await caller.tag.listPendingSuggestions()).map((entry) => entry.characterId)).toEqual([second.id]);
         const adopted = await caller.tag.listAttachedEntities({ tagId: tag.id, targetType: "character" });
         const adoptedTargets = { apply: [first.id], reject: [] };

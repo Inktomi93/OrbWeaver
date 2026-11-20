@@ -97,7 +97,7 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
           </Row>
         ))}
       </Stack>
-      <Row align="center" gap="field">
+      <Row align="center" gap="field" wrap="cq-20">
         <Input
           aria-label={takesWords ? "Word or token number to bias" : "Token number to bias"}
           onChange={(event): void => setDraftKey(event.currentTarget.value)}

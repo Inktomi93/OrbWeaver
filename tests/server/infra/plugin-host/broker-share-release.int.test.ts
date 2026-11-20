@@ -41,8 +41,8 @@ test("a runtime's last answer stays on its own share, and the share passes on on
       BROKER_ENTRY,
       ...formatPluginBrokerArguments({ directory, workerMaximum: WORKER_MAXIMUM, generation, nodeEnvironment: "test", logLevel: "silent" }),
     ],
-    // The watchdog's beat pipe sits at PLUGIN_BROKER_BEAT_FD; the broker refuses to start without it.
-    { cwd: directory, env: { ["NODE_ENV"]: "test" }, stdio: ["ignore", "ignore", "inherit", "ipc", "pipe"] },
+    // The broker writes its heartbeats on stderr, which only a watchdog reads.
+    { cwd: directory, env: { ["NODE_ENV"]: "test" }, stdio: ["ignore", "ignore", "ignore", "ipc"] },
   );
   await using lifetime = new AsyncDisposableStack();
   const exited = once(broker, "exit");

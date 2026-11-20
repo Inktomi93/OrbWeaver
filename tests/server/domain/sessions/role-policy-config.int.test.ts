@@ -1,4 +1,4 @@
-import { OIDC_ADMIN_GROUPS_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY, RE_DERIVE_ROLE_ON_LOGIN_KEY } from "@orb/contracts/identity";
+import { CSRF_HEADER, OIDC_ADMIN_GROUPS_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY, RE_DERIVE_ROLE_ON_LOGIN_KEY } from "@orb/contracts/identity";
 import { brandedId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { readAccounts } from "@orb/testkit/node/composed";
@@ -50,7 +50,7 @@ test.each([
     .filter(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"))
     .map(({ role: stored }) => ({ role: stored }));
   expect(rows).toEqual(role === null ? [] : [{ role }]);
-  expect((await root.http.request("/api/trpc/sessions.me", { headers })).status).toBe(role === null ? 401 : 200);
+  expect((await root.http.request("/api/trpc/sessions.me", { headers: new Headers([...headers, [CSRF_HEADER, "1"]]) })).status).toBe(role === null ? 401 : 200);
 });
 
 test("an IdP rename cannot take the graph's reserved seed key or its comparison-key look-alike", async () => {

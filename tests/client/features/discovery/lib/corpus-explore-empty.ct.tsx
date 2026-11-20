@@ -10,7 +10,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { CORPUS_MODE_NAME, CORPUS_SORTING_DOOR_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_MODE_NAME, CORPUS_SORTING_DOOR_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -69,7 +69,7 @@ test("the Archetypes door inside the open CONTEXT sheet closes it, reveals the o
   const context = page.locator(CONTEXT);
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
-  await context.getByRole("tab", { name: "Archetypes", exact: true }).click();
+  await context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.archetypes, exact: true }).click();
   const door = context.getByRole("button", { name: CORPUS_SORTING_DOOR_NAME, exact: true });
   await expect(door).toBeVisible();
 

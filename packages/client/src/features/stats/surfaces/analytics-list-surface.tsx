@@ -20,13 +20,13 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
-import { LibraryRow, ListPage, QueryBoundary } from "#components";
+import { CHARACTER_SEARCH_NAME, LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
+import { ANALYTICS_LEADERBOARD_NAME, ANALYTICS_LEADERBOARD_READ_LABEL, analyticsSortName } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -68,7 +68,7 @@ export function AnalyticsListSurface(): ReactElement {
           onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
         >
           {ANALYTICS_SORT_OPTIONS.map((option) => (
-            <Toggle key={option.id} value={option.id} aria-label={`Sort by ${option.label}`}>
+            <Toggle key={option.id} value={option.id} aria-label={analyticsSortName(option.label)}>
               {option.label}
             </Toggle>
           ))}
@@ -76,7 +76,7 @@ export function AnalyticsListSurface(): ReactElement {
       }
       ref={surfaceRef}
       // The search is the reach past the page cap; the sort orders the page that comes back.
-      search={<Input aria-label={ANALYTICS_SEARCH_NAME} onValueChange={setAnalyticsSearchQuery} placeholder={ANALYTICS_SEARCH_NAME} value={search} />}
+      search={<Input aria-label={CHARACTER_SEARCH_NAME} onValueChange={setAnalyticsSearchQuery} placeholder={CHARACTER_SEARCH_NAME} value={search} />}
       skipTo="Skip to characters"
     >
       <LeaderboardRows sort={sort} search={search} />
@@ -102,7 +102,7 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
       <QueryBoundary
         resetKeys={[deferredSort, trimmed]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={ANALYTICS_LEADERBOARD_READ_LABEL} onRetry={retry} />}
       >
         <LeaderboardPageRows sort={deferredSort} trimmed={trimmed} />
       </QueryBoundary>
@@ -150,7 +150,7 @@ function LeaderboardBody({
 
   return (
     <VirtualList
-      aria-label="Character leaderboard"
+      aria-label={ANALYTICS_LEADERBOARD_NAME}
       height="fill"
       estimateSize={(): number => ESTIMATED_ROW_PX.ranked}
       fadeEdge={true}

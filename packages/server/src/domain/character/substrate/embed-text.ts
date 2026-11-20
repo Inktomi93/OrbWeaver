@@ -4,6 +4,7 @@
 // fields are deliberately excluded — they dilute identity signal and hurt card-similarity retrieval.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { CARD_EMBED_WINDOW_TOKENS } from "@orb/contracts/inference";
 import { swapIdentityMacros } from "@orb/kit/macro";
 import { replaceAngleSpans } from "@orb/kit/strings";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
@@ -15,7 +16,7 @@ type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality
 // engine window; capping here keeps `content_hash` consistent with the bytes that reach the vector, so the cut lives at
 // this projection and not only at the provider surface.
 //
-// The cap is deliberately not threaded from the resolved engine. `EMBED_WINDOW_TOKENS` is the pooling engines' window;
+// The cap is deliberately not threaded from the resolved engine. `CARD_EMBED_WINDOW_TOKENS` is the pooling engines' window;
 // the supported encoders run from the unknown-model floor through the curated windows in
 // `packages/inference/src/capability/sources/curated/embedders.ts`. This projection is keyed by card id alone (D20) and the
 // engine's window belongs to the owner's binding, not to the card. The shipped seed vectors substitute only for the
@@ -47,14 +48,12 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
   return swapIdentityMacros(text, { char: charName, user: userName });
 }
 
-/** The embed window floor — the pooling engines' 8192. */
-const EMBED_WINDOW_TOKENS = 8192;
 /** What `{{user}}` projects to: a card is embedded without any viewer. */
 const USER_PLACEHOLDER_NAME = "User";
 
 /** Field order matters: last-token pooling weights later text less, so identity fields lead. */
 export function buildCardEmbedText(card: CardEmbedFields): string {
-  const budget = safeTokenWindow(EMBED_WINDOW_TOKENS);
+  const budget = safeTokenWindow(CARD_EMBED_WINDOW_TOKENS);
   const name = card.name;
   const first = card.greetings[0]?.text ?? null;
   const alternates = card.greetings.slice(1);

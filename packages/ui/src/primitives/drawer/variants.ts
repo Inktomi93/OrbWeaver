@@ -1,19 +1,21 @@
-import { POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib";
+import { MIN_HEIGHT, POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib";
 
 // The panel is a bottom sheet; its live swipe transform is wired to Base UI's --drawer-* vars
 // (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
 // SCRIM_BASE (the bare `bg-backdrop` fill) but keep their OWN `--motion-layout` fade — a drawer's scrim
 // tracks the sliding panel, not the standard overlay fade of SCRIM(tier).
-// A bottom sheet's viewport and scrim stop `--drawer-bottom-inset` short of the floor; the host sets that
-// variable where something (the phone tab bar) must stay visible and tappable below the sheet.
+// A bottom sheet's viewport stops `--drawer-bottom-inset` short of the floor; the host sets that variable where
+// something (the phone tab bar) must stay in view below the sheet. The scrim still runs to the floor: the sheet is
+// modal, so what stays in view under it is inert, and the scrim says so (ui-surface-and-interaction-rules §2.11).
 export const drawerVariants = tv({
   slots: {
     backdrop: `${SCRIM_BASE}
-      inset-be-(--drawer-bottom-inset,0) z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo min-block-0
+      z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo min-block-0
       data-ending-style:opacity-0
       data-starting-style:opacity-0
     `,
-    viewport: "fixed inset-0 inset-be-(--drawer-bottom-inset,0) z-(--z-modal)",
+    // Clipped, so a sheet that ends above the tab bar casts its float shadow and slides in above the bar, never over it.
+    viewport: "fixed inset-0 inset-be-(--drawer-bottom-inset,0) z-(--z-modal) overflow-clip",
     // The sheet takes arrival focus as a whole: that is announced, not painted, and the controls inside draw their own rings.
     popup: `
       absolute inset-x-0 inset-be-0 flex [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] flex-col rounded-t-card
@@ -27,7 +29,10 @@ export const drawerVariants = tv({
     swipeArea: "fixed inset-x-0 inset-be-0 z-(--z-overlay) touch-none block-row",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
-    title: TITLE_STEP,
+    // A short sheet's title holds one line beside Close and its words truncate to it (ui-platform-rulings §8.1); its full text stays the
+    // sheet's accessible name. The words are their own box, so a reader can tell they are cut and a reveal can open them whole.
+    title: `${TITLE_STEP} sheet-short:glass-short:flex sheet-short:glass-short:min-inline-0 ${MIN_HEIGHT.holdsLineOnLandscape}`,
+    titleText: `${TITLE_STEP} min-inline-0 sheet-short:glass-short:truncate`,
     description: POPUP_DESCRIPTION,
   },
 });

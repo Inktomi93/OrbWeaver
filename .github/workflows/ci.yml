@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm lint
       - run: pnpm typecheck
@@ -34,50 +34,37 @@ jobs:
 
   # One type-aware program over the whole tree outgrew one runner's memory, so each part lints on its
   # own runner. The parts are ESLINT_PARTS in `scripts/eslint-parts.ts`, which pre-push runs one after
-  # another; `tests/tooling/eslint-parts.repo.int.test.ts` fails when this matrix and that table disagree.
+  # another and each job runs by name; `tests/tooling/eslint-parts.repo.int.test.ts` fails when this
+  # matrix and that table disagree.
   eslint:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        part:
-          - name: client
-            args: packages/client
-          - name: server
-            args: packages/server
-          - name: ui
-            args: packages/ui
-          - name: packages
-            args: packages --ignore-pattern packages/client/ --ignore-pattern packages/server/ --ignore-pattern packages/ui/
-          - name: tests
-            args: tests
-          - name: tooling
-            args: tooling
-          - name: root
-            args: . --ignore-pattern packages/ --ignore-pattern tests/ --ignore-pattern tooling/
-    name: eslint (${{ matrix.part.name }})
+        part: [client, server, ui, packages, tests-node, tests-dom, tests-iso, tooling, root]
+    name: eslint (${{ matrix.part }})
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm lint:eslint ${{ matrix.part.args }}
+      - run: pnpm lint:eslint:parts ${{ matrix.part }}
 
   node:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: bash scripts/ci/install-media.sh
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm test --maxWorkers=2 --reporter=default --reporter=json --outputFile=reports/test-report.json
       - if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: node-results
           path: reports/
@@ -94,16 +81,18 @@ jobs:
         shard: [1, 2, 3]
     name: ct (${{ matrix.shard }}/3)
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           browsers: "true"
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm test:ct --workers=2 --shard=${{ matrix.shard }}/3
+      # A hosted runner is several times slower than a developer's machine, and a test that waits on a guess can lose there.
+      # One retry lets the job pass; the summary still names each test that needed it as flaky, and local runs keep no retry.
+      - run: pnpm test:ct --workers=2 --retries=1 --shard=${{ matrix.shard }}/3
       - if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: component-results-${{ matrix.shard }}
           path: |
@@ -117,17 +106,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           browsers: "true"
       - run: bash scripts/ci/install-media.sh
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm e2e:smoke --workers=1
       - if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: smoke-results
           path: |
@@ -137,8 +126,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The job's check is named by its id: main's branch rule requires the check `ci-ok`, and a display name would report a
+  # different check, which leaves the rule unmet on every pull request.
   ci-ok:
-    name: CI
     if: always()
     needs: [static, eslint, node, ct, e2e-smoke]
     runs-on: ubuntu-24.04

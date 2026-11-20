@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execPath } from "node:process";
-import { setTimeout as delay } from "node:timers/promises";
+import { setTimeout as delay, setImmediate } from "node:timers/promises";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -19,7 +19,7 @@ import { castId, createIdSource } from "@orb/kit/ids";
 import { isAdmin } from "@orb/server/domain/admin";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { createResolveUserEnabled, createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import type { WorkloadRunnerAssemblyDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
@@ -29,11 +29,12 @@ import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwn
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env/record";
-import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env/record";
+import { bindPostureInput, childEnvFrom, resolveBindPosture } from "@orb/server/foundation/env/record";
 import { createAuditWiring, createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createScopedTimers } from "@orb/server/infra/timers";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -52,7 +53,9 @@ type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
 /** The root's options. Every env key reaches the record through its {@link ENV_SEAMS} row: the named options in
  *  {@link EnvSeamOptions}, or `env` for a raw row. */
-export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder" | "showcaseBundles">> {
+export interface ServerHarnessOptions
+  extends EnvSeamOptions,
+    Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder" | "showcaseBundles" | "extractorVersions">> {
   /** Raw values for the raw rows, parsed with the rest of the record by the production parse, so a value production
    *  refuses is refused here. */
   readonly env?: RawEnvInput;
@@ -81,6 +84,10 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   /** Real-time milliseconds every {@link ServerTestHarness.internalCallerFor} call waits before it runs, so detached work
    *  runs ahead of a producer's next write; the corpus determinism test sets it to expose a producer that skips a settle. */
   readonly callerStallMs?: number;
+  /** Refuse a mutation through {@link ServerTestHarness.internalCallerFor} that starts while detached work from this root
+   *  (a turn's memory build, an admitted workload step) is still running. Such a write draws seeded ids beside that work
+   *  in an order the I/O timing picks; the producer settles first with `settleBackground`. */
+  readonly refuseUnsettledWrites?: boolean;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
   readonly sdkNative?: AgentSdkNativeOptions;
@@ -161,6 +168,48 @@ function stallCaller<T extends object>(target: T, stallMs: number, owner?: objec
         throw new TypeError("a stalled caller path is not callable");
       }
       await delay(stallMs);
+      const result: unknown = await Reflect.apply(procedure, owner, args);
+      return result;
+    },
+  });
+}
+
+// The router's procedure table is untyped at this depth, so the kind is read as data.
+function procedureKind(procedure: unknown): unknown {
+  const def: unknown = (typeof procedure === "function" || typeof procedure === "object") && procedure !== null ? Reflect.get(procedure, "_def") : undefined;
+  return typeof def === "object" && def !== null ? Reflect.get(def, "type") : undefined;
+}
+
+const MUTATION_KIND = "mutation";
+const MUTATION_PATHS: ReadonlySet<string> = new Set(
+  Object.entries(appRouter._def.procedures).flatMap(([path, procedure]) => (procedureKind(procedure) === MUTATION_KIND ? [path] : [])),
+);
+
+/** Whether the root's detached work is idle now. An idle tracker settles on microtasks, which run before the immediate;
+ *  work that waits on I/O or a timer does not. */
+async function backgroundIdle(settleBackground: () => Promise<void>): Promise<boolean> {
+  return await Promise.race([settleBackground().then(() => true), setImmediate().then(() => false)]);
+}
+
+// Reads are left alone: a producer polls a running workload's row while it runs, and a read draws no seeded id.
+function settledWriteCaller<T extends object>(target: T, settleBackground: () => Promise<void>, path: readonly string[] = [], owner?: object): T {
+  return new Proxy(target, {
+    get(object, key) {
+      const value: unknown = Reflect.get(object, key);
+      return typeof key === "string" && value !== null && (typeof value === "object" || typeof value === "function")
+        ? settledWriteCaller(value, settleBackground, [...path, key], object)
+        : value;
+    },
+    async apply(procedure, _receiver, args: unknown[]) {
+      if (typeof procedure !== "function") {
+        throw new TypeError("a guarded caller path is not callable");
+      }
+      const name = path.join(".");
+      if (MUTATION_PATHS.has(name) && !(await backgroundIdle(settleBackground))) {
+        throw new Error(
+          `${name} started while detached work from this root was still running, so its seeded ids would follow timing. Await root.settleBackground() before this write.`,
+        );
+      }
       const result: unknown = await Reflect.apply(procedure, owner, args);
       return result;
     },
@@ -308,6 +357,9 @@ const IN_PROCESS_CLIENT_IP = "127.0.0.1";
 // A root's agent child env is fixed, not the developer's shell: the only host fact a native child needs is the
 // directory of the node binary this run executes, so `node` resolves to the same runtime.
 const noHostEnv: ServicesDeps["hostEnvAllowlist"] = () => ({ ["PATH"]: dirname(execPath) });
+// A root's inheriting children (tar, ffmpeg, git, the Workers) start from the run's own environment through the
+// production builder, as they inherited it before the builder existed.
+const harnessChildEnv: ServicesDeps["childProcessEnv"] = () => childEnvFrom(inheritedProcessEnv());
 
 // The root's record is its whole environment, so a record that sets AUTH_MODE is the environment that supplied it.
 function authModeSourceOf(options: Pick<ServerHarnessOptions, "env">): ServicesDeps["authModeSource"] {
@@ -600,6 +652,7 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
     // Sharing's egress keeps the platform fetch behind the refusing resolver, so an unscripted name never resolves.
     networkExecution: networkExecutionOf(options, systemFetch),
     env: inputs.env,
+    childEnv: harnessChildEnv,
   };
 }
 
@@ -619,7 +672,8 @@ function workloadsFor(
     shutdown.throwIfAborted();
     signal.throwIfAborted();
     const completion = (async (): Promise<void> => {
-      const row = await loadWorkload(execution.db, app.workloadContributions, id);
+      // A row that reads as poison is refused below, so a once-only log set of its own loses nothing.
+      const row = await loadWorkload(execution.db, { contributions: app.workloadContributions, logger: execution.logger, reportedUnreadable: new Set() }, id);
       if (row === null || row.poison) {
         throw new Error("The admitted workload has no runnable native row");
       }
@@ -705,6 +759,7 @@ export async function createServerHarness(
     rings,
     audit,
     hostEnvAllowlist: () => ({ ...noHostEnv(), ...options.hostEnv }),
+    childProcessEnv: harnessChildEnv,
     authModeSource: authModeSourceOf(options),
     authConfig,
     rolePolicy,
@@ -721,6 +776,7 @@ export async function createServerHarness(
     secretBoxKey: options.secretBoxKey ?? null,
     ...replicaOf(options),
     ...(options.showcaseBundles === undefined ? {} : { showcaseBundles: options.showcaseBundles }),
+    ...(options.extractorVersions === undefined ? {} : { extractorVersions: options.extractorVersions }),
     sessionSecret: SESSION_SECRET,
     sessionsCrypto,
     ...dataSlots,
@@ -742,8 +798,10 @@ export async function createServerHarness(
     now: clock.now,
     contributions: app.workloadContributions,
     isBoxOwner: createBoxOwnerRead(app.sessions),
+    isAccountEnabled: createResolveUserEnabled(app.sessions),
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
+    trackRun: app.workloadEvents.trackWorkloadRun,
     scheduleInterval: timers.interval,
   } satisfies WorkloadRunnerAssemblyDeps;
   const principalFor = createHostPrincipalResolver(app.sessions);
@@ -789,7 +847,8 @@ export async function createServerHarness(
       }),
       signal === undefined ? undefined : { signal },
     );
-    return options.callerStallMs === undefined ? caller : stallCaller(caller, options.callerStallMs);
+    const guarded = options.refuseUnsettledWrites === true ? settledWriteCaller(caller, app.settleBackground) : caller;
+    return options.callerStallMs === undefined ? guarded : stallCaller(guarded, options.callerStallMs);
   };
   const actor = actorFor({ app, idSource }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);

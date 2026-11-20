@@ -1,8 +1,8 @@
 // schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). The retained chat tables:
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
-// chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
-// compaction_spend · chat_generation_observations. Built
+// chat_injections · chat_memory_strikes · chat_locks · chat_import_claims · chat_handoff_resumptions ·
+// chat_generation_observations. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
@@ -33,8 +33,8 @@
 // (`satisfies`) — compile-time validity + a test-mirror over each column's `.enumValues`. Every CHECK is
 // built from the SAME tuple as a static raw fragment (a CHECK is DDL — no bound parameters).
 //
-// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at
-// insert via `(unixepoch() * 1000)`; caller-set timestamps are required `integer` numbers. JSON columns
+// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`);
+// every timestamp is a required `integer` the caller states (`stampColumn` for a row stamp). JSON columns
 // are `$type<T>()` + read at the `@orb/db/query` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
 // `message_variants.params`/`promptSnapshot`/`metadata`). The `raw_request`/`raw_response` provider
 // envelopes are DELETED: nothing ever wrote them and the wire inspector reads `promptSnapshot`.
@@ -84,9 +84,9 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatInviteId,
+  ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
-  CompactionSpendId,
   MessageAssetId,
   MessageId,
   MessageReactionId,
@@ -103,7 +103,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -180,11 +180,15 @@ export const chats = sqliteTable(
       .$type<ChatId>()
       .references((): AnySQLiteColumn => chats.id, { onDelete: "set null" }),
     forkedAt: integer("forked_at"),
+    // Set when a human other than the host takes a seat, copied on fork and carried by export, never cleared; a
+    // bundle written before the flag existed imports as shared. Room text has no reliable author, so the host's global
+    // variable plane (D46) never loads in a room another account touched.
+    everShared: integer("ever_shared", { mode: "boolean" }).notNull().default(false),
     // Portable compaction checkpoint (D25 — STAYS): the summary text + the seq it covers through.
     compactSummary: nulFreeText("compact_summary"),
     compactedAtSeq: integer("compacted_at_seq"),
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
-    // `@orb/db/query` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
+    // `@orb/db/query` read seam; never trusted raw.
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
     // PERSISTED CANON: the per-chat ChoiceBlock variable flush — `setVariables` writes it,
     // `getVariablePicks` reads it back. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/query` read
@@ -209,12 +213,20 @@ export const chats = sqliteTable(
     // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
     // no-op). Mirrors `characters.importHash`. Nullable (null for a born-here chat).
     importHash: nulFreeText("import_hash"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // THE LANDING MARKER. Non-null = an import is still committing this room in stages (epoch-ms the first stage
+    // landed); NULL = landed. Readers hide a landing room because its roster is written in the stage that clears
+    // this column, so no membership gate admits it. The failed-import cleanup and the boot sweep delete ONLY a room
+    // with this column set (`packages/server/src/domain/chat/persistence/import-landing.ts`), never one by the
+    // absence of its roster.
+    landingAt: integer("landing_at"),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The lineage walk (membership-gated per ancestor — D18); also speeds the fork-children listing.
     index("chats_parent_idx").on(t.parentChatId),
+    // The boot sweep's lookup; partial, so a landed room costs the index nothing.
+    index("chats_landing_idx").on(t.landingAt).where(sql`${t.landingAt} IS NOT NULL`),
     // SQLite auto-indexes NOTHING for a child FK: every `DELETE FROM personas/users` must scan this table to
     // apply the SET NULL unless the referencing column LEADS an index (FK-index test).
     index("chats_anchor_persona_idx").on(t.anchorPersonaId),
@@ -241,7 +253,7 @@ export const chatImportClaims = sqliteTable(
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     importHash: nulFreeText("import_hash").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }), index("chat_import_claims_chat_idx").on(t.chatId)],
 );
@@ -364,7 +376,7 @@ export const messages = sqliteTable(
     // nothing, so origin is the slot's, not the variant's). `initiator` derives TURN_INITIATORS (no re-spell).
     initiator: text("initiator", { enum: TURN_INITIATORS }).notNull().default("human"),
     automationDepth: integer("automation_depth").notNull().default(0),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     editedAt: integer("edited_at"),
   },
   (t) => [
@@ -548,12 +560,12 @@ export const messageVariants = sqliteTable(
     lastContinuationReasoning: nulFreeText("last_continuation_reasoning"),
     // The generation sidecar (§5.3c class 3): a PARSED JSON sidecar, never an open bag. `VariantMetadata`
     // (@orb/contracts/chat) is the closed shape both sides import — the measured reasoning window under
-    // `VARIANT_METADATA_REASONING_MS_KEY`, the per-provider `providerMetadata` union, and the ST import's
-    // declared-opaque `importResidue`. Every read goes through `parseVariantMetadata` (the `$type` states the
-    // contract; the parse proves it). Closing this type makes the stats rollups'
-    // `json_extract(metadata, '$.reasoning_duration')` read a declared key.
+    // `VARIANT_METADATA_REASONING_MS_KEY`, the per-provider `providerMetadata` union, the sources the turn
+    // cited under `sources`, and the ST import's declared-opaque `importResidue`. Every read goes through
+    // `parseVariantMetadata` (the `$type` states the contract; the parse proves it). Closing this type makes
+    // the stats rollups' `json_extract(metadata, '$.reasoning_duration')` read a declared key.
     metadata: text("metadata", { mode: "json" }).$type<VariantMetadata>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The swipe set + its position; idx is unique within a message.
@@ -614,7 +626,7 @@ export const messageAssets = sqliteTable(
     // picture the model emitted mid-turn — the ONLY origin the wire-history projection sends back as an
     // assistant image part). NOT NULL, no default — every writer stamps it.
     origin: text("origin", { enum: MESSAGE_ASSET_ORIGINS }).$type<MessageAssetOrigin>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The per-message lookup ("what did this message attach?") + the CASCADE parent index.
@@ -667,7 +679,7 @@ export const chatParticipants = sqliteTable(
     talkativeness: real("talkativeness").notNull().default(DEFAULT_TALKATIVENESS),
     // Muted: cards/WI still contribute but never arbiter-selected; excluded from `{{groupNotMuted}}`.
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
-    joinedAt: integer("joined_at").notNull().default(sql`(unixepoch() * 1000)`),
+    joinedAt: stampColumn("joined_at"),
     // Lifecycle horizons live in `messages.seq` (NOT the stream cursor). `leftSeq` null = present.
     joinSeq: integer("join_seq").notNull(),
     leftSeq: integer("left_seq"),
@@ -788,7 +800,7 @@ export const messageReactions = sqliteTable(
     segmentIndex: integer("segment_index"),
     segmentSpeaker: nulFreeText("segment_speaker"),
     segmentSnippet: nulFreeText("segment_snippet"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // ONE reactor · ONE emoji · ONE target — as PHYSICS (a double-add is an `ON CONFLICT DO NOTHING` no-op,
@@ -851,7 +863,7 @@ export const chatInvites = sqliteTable(
     // The AUTH_MODE at mint; a signup redeem refuses under any other mode (D259). Null on a row minted before
     // the column existed, and never null on a signup row.
     mintMode: text("mint_mode", { enum: AUTH_MODES }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     uniqueIndex("chat_invites_token_hash_unique").on(t.tokenHash),
@@ -903,10 +915,18 @@ export const pendingTurns = sqliteTable(
     // The sender's zone AT DEFER TIME, so the drained turn's time macros read their clock even if the sender's
     // zone has moved since. Null (no zone reported) drains on the UTC clock.
     timeZone: nulFreeText("time_zone").$type<IanaTimeZone>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The user message this deferred turn answers, so the drained reply reads that send's own dice stamp, not the
+    // room's latest line. Null on a row queued before the column, or after its message was deleted: it drains on the
+    // latest user message.
+    messageId: nulFreeText("message_id")
+      .$type<MessageId>()
+      .references(() => messages.id, { onDelete: "set null" }),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("pending_turns_chat_idx").on(t.chatId),
+    // The message FK SET-NULLs on a message delete (FK-index test).
+    index("pending_turns_message_idx").on(t.messageId),
     // Both turn-identity FKs CASCADE on user delete; SQLite auto-indexes neither, so a user hard-delete
     // would scan the whole table twice (FK-index test).
     index("pending_turns_triggered_by_idx").on(t.triggeredBy),
@@ -951,7 +971,7 @@ export const chatEvents = sqliteTable(
     type: nulFreeText("type").$type<ChatBusEvent["type"]>().notNull(),
     // The full closed bus event (room-public; the contract's allowlist makes secrets unrepresentable).
     payload: text("payload", { mode: "json" }).$type<ChatBusEvent>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [uniqueIndex("chat_events_chat_seq_unique").on(t.chatId, t.seq), check("chat_events_type_check", sql.raw(`type in (${checkList(CHAT_EVENT_TYPES)})`))],
 );
@@ -984,12 +1004,56 @@ export const chatInjections = sqliteTable(
     // Priority WITHIN a depth (ST `injection_order`; co-located in_chat injections splice DESC). `order`
     // is a SQL keyword — the column is `injection_order`.
     order: integer("injection_order"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("chat_injections_chat_idx").on(t.chatId),
     check("chat_injections_position_check", sql.raw(`position in (${checkList(INJECTION_POSITIONS)})`)),
     check("chat_injections_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// chat_memory_strikes — the host's strikes on remembered items: recall leaves a struck digest out of every later
+// prompt. User arrangement, not derived data, so it never lives on `chat_digests`, which is deleted and rebuilt
+// from canon. A strike names a span of the story by tier and the covered span's endpoint message ids, which survive
+// a re-embed and a re-summarize, and recall drops every bucket's summary of it; `content_hash` and `topic_anchor`
+// are what the item held when struck.
+//   • `scoped_character_id` records only which bucket's item the host struck; NULL is the room's SHARED bucket, or a
+//     scoped character since deleted. It SETS NULL with that character, never cascades: the strike is room
+//     configuration, and deleting a library card (a former host's, after a handoff) must not lift it.
+//   • The endpoint columns carry NO FK on purpose: a hidden or deleted endpoint orphans the strike, and the orphan
+//     stays listed for the host instead of vanishing.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const chatMemoryStrikes = sqliteTable(
+  "chat_memory_strikes",
+  {
+    id: nulFreeText("id").$type<ChatMemoryStrikeId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
+      .$type<ChatId>()
+      .notNull()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    scopedCharacterId: nulFreeText("scoped_character_id")
+      .$type<CharacterId>()
+      .references(() => characters.id, { onDelete: "set null" }),
+    tier: integer("tier").notNull(),
+    messageStartId: nulFreeText("message_start_id").$type<MessageId>().notNull(),
+    messageEndId: nulFreeText("message_end_id").$type<MessageId>().notNull(),
+    // The endpoints' seqs as of the last write that knew them. The ids stay the match; a seq answers only for an
+    // endpoint whose message is gone, since a delete never renumbers and a member may delete their own message.
+    seqStart: integer("seq_start").notNull(),
+    seqEnd: integer("seq_end").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
+    topicAnchor: nulFreeText("topic_anchor"),
+    createdAt: stampColumn("created_at"),
+  },
+  (t) => [
+    // One strike per span, whatever copy it was made on: the character is not in the key, so a racing second strike
+    // yields to the first and nulling a deleted character can never collide.
+    uniqueIndex("chat_memory_strikes_span_unique").on(t.chatId, t.tier, t.messageStartId, t.messageEndId),
+    index("chat_memory_strikes_scoped_character_idx").on(t.scopedCharacterId),
+    check("chat_memory_strikes_tier_check", sql.raw("tier >= 0")),
   ],
 );
 
@@ -1017,32 +1081,6 @@ export const chatLocks = sqliteTable("chat_locks", {
   // The TTL horizon — a stale lock past this is takeover-eligible (the LOCK_TTL_MS window).
   expiresAt: integer("expires_at").notNull(),
 });
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// compaction_spend — one row per PRICED compaction pass: the money a marker generation cost, written in the
-// same batch as its live stats delta. The marker itself is overwritten by every pass, so this ledger is the
-// only canon the stats rebuild can re-derive compaction spend from (`rebuild-from-canon.ts`).
-// OWNER-STAMPED (D23): the funding host is the owner, and no FK reaches it — the spend is the host's money,
-// not the room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
-// Append-only: a lost marker CAS still spent the money, so its row stays.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const compactionSpend = sqliteTable(
-  "compaction_spend",
-  {
-    id: nulFreeText("id").$type<CompactionSpendId>().primaryKey(),
-    // FK users RESTRICT — the same posture as the stats rollups this row feeds.
-    ownerId: nulFreeText("owner_id")
-      .$type<UserId>()
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    // Fractional USD; only a reported, positive cost is a row (an unpriced pass spends nothing to record).
-    costUsd: real("cost_usd").notNull(),
-    // The pass's clock — the live delta's `now`, so the rebuild buckets the spend in the same timeline bucket.
-    createdAt: integer("created_at").notNull(),
-  },
-  (t) => [index("compaction_spend_owner_idx").on(t.ownerId, t.createdAt)],
-);
 
 // Completed responses awaiting a transcript generation, including refusals and nonpersisting drafts.
 // Required retained parents CASCADE; successful commit transfers these facts into the variant and removes

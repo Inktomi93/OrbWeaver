@@ -8,7 +8,7 @@
 // read the FIRST character on the phone and the joined characters on the desktop, side-eye 2026-08-07 finding 1). A room has
 // a row from the creation click, so there is one arm and the shared display-title chain names it.
 
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import type { ScreenTitle } from "#lib";
 import { censusTitle, chatRoomTitle } from "#lib";
 import { useActiveChatId } from "#state";
@@ -19,7 +19,7 @@ import { filterCharacters } from "./roster.ts";
 export function useChatsSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const chatId = useActiveChatId();
-  const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   // Unconditional, above the early return: this is a hook, and the shell calls THIS hook unconditionally
   // for exactly the same reason (`section-registry.ts`, `NO_SELECTION_TITLE`).
   const census = useChatCensus();

@@ -59,16 +59,23 @@ test("rate limits and missing releases keep distinct reasons, and non-success bo
 });
 
 test("transport and mid-body failures become distinct typed refusals; a following success still parses", async () => {
-  const fetchImpl = vi.fn<NonNullable<UpstreamFetchDeps["fetchImpl"]>>().mockRejectedValueOnce(new Error("transport refused"));
+  const fetchImpl = vi.fn<NonNullable<UpstreamFetchDeps["fetchImpl"]>>().mockRejectedValueOnce(new TypeError("fetch failed"));
   const probes = createUpstreamFetches({ localVersion: () => "1.2.3", fetchImpl });
   expect(await probes.main()).toEqual({ ok: false, reason: "couldn't reach GitHub — this box may be offline" });
-  fetchImpl.mockResolvedValueOnce({
-    ...response(COMMIT_BODY),
-    bytes: () => Promise.reject(new Error("body cap")),
-  });
+  fetchImpl.mockResolvedValueOnce({ ...response(COMMIT_BODY), bytes: () => Promise.reject(new TypeError("terminated")) });
   expect(await probes.main()).toEqual({ ok: false, reason: "GitHub's answer could not be read" });
   fetchImpl.mockResolvedValueOnce(response(COMMIT_BODY));
   expect(await probes.main()).toEqual({ ok: true, upstream: { channel: "main", commit: COMMIT, short: COMMIT.slice(0, 12), committedAt: null } });
+});
+
+test("a fault that is not an egress refusal or a network failure rejects instead of reading as offline", async () => {
+  const closed = new Error("egress lifetime is closed");
+  const fetchImpl = vi.fn<NonNullable<UpstreamFetchDeps["fetchImpl"]>>().mockRejectedValueOnce(closed);
+  const probes = createUpstreamFetches({ localVersion: () => "1.2.3", fetchImpl });
+  await expect(probes.main()).rejects.toBe(closed);
+  const broken = new RangeError("body decoder fault");
+  fetchImpl.mockResolvedValueOnce({ ...response(COMMIT_BODY), bytes: () => Promise.reject(broken) });
+  await expect(probes.main()).rejects.toBe(broken);
 });
 
 test("foreign payloads and non-release tags refuse while canonical commit and release payloads parse", () => {

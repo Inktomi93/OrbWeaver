@@ -3,6 +3,7 @@ import { characterCardV3Schema, createCharacterSchema } from "@orb/contracts/cha
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every native schema export, including future tables that named imports would omit.
 import * as schema from "@orb/db/schema";
 import { expect, test } from "@orb/testkit/node";
@@ -110,8 +111,8 @@ test("the actual HTTP character doors download native owner bytes and isolate ma
   const file = await response.text();
   expect(characterCardV3Schema.parse(JSON.parse(file)).data.description).toBe(marker);
   const body = new FormData();
-  body.append("file", new Blob([file], { type: "application/json" }), "owned.json");
-  body.append("file", new Blob(["not a card"], { type: "application/json" }), "malformed.json");
+  body.append(UPLOAD_FILE_FIELD, new Blob([file], { type: "application/json" }), "owned.json");
+  body.append(UPLOAD_FILE_FIELD, new Blob(["not a card"], { type: "application/json" }), "malformed.json");
   const imported = await root.http.request(LIFECYCLE_DOORS.character.singleImport.cite, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body });
   expect(imported.status).toBe(200);
   const outcome = cardImportResultSchema.parse(await imported.json());

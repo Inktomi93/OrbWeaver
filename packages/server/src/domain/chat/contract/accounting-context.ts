@@ -2,9 +2,13 @@
 import type {
   ApplyStatsDelta,
   BumpStatsCanonVersion,
+  PrepareCanonAdmission,
+  PrepareCanonRetirement,
+  RecordLedgerSpend,
   ResolveRetainedChatAccountingScope,
   ResolveRetainedChatRebase,
   SettleRetainedChatRebase,
+  ShiftCharacterCensus,
 } from "@orb/contracts/stats";
 import type { chats, Db, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -27,10 +31,14 @@ export interface ChatAccountingContext {
     SQL
   >;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
+  readonly shiftCharacterCensus: ShiftCharacterCensus<BatchStmt[], Db>;
+  readonly recordLedgerSpend: RecordLedgerSpend<BatchStmt[], Db>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>;
+  readonly prepareCanonAdmission: PrepareCanonAdmission<BatchStmt[], Db>;
 }
 
 /** Retained canon writes do not receive room rekey or character-only accounting operations. */
 export type RetainedCanonContext = Pick<
   ChatAccountingContext,
-  "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope" | "bumpStatsCanonVersion"
+  "db" | "now" | "applyStatsDelta" | "settleRetainedChatRebase" | "resolveRetainedChatAccountingScope" | "bumpStatsCanonVersion"
 >;

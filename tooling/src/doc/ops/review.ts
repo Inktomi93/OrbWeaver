@@ -35,12 +35,12 @@ function selectDocs(patterns: readonly string[], repoRoot = root): readonly stri
 export function review(patterns: readonly string[], repoRoot = root, date = today()): WriteOutcome {
   const paths = selectDocs(patterns, repoRoot);
   if (paths.length === 0) {
-    return { written: [], refusals: [`${patterns.join(" ")}: selects no governed document`] };
+    return { written: [], created: [], refusals: [`${patterns.join(" ")}: selects no governed document`] };
   }
   for (const path of paths) {
     writeDoc(path, withFields(readDoc(path, repoRoot).source, { updated: date }), repoRoot);
   }
-  return { written: paths, refusals: [] };
+  return { written: paths, created: [], refusals: [] };
 }
 
 export function due(patterns: readonly string[], repoRoot = root): readonly DueDoc[] {

@@ -26,13 +26,15 @@
 // first-time speaker's portrait/name entry) and the rest of the window. The wire read stays authoritative;
 // the patch only removes the interval in which the cache is KNOWABLY stale.
 
-import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "./trpc.ts";
 
 interface PendingCanonQueue {
-  readonly views: Map<string, () => void>;
+  /** The newest pending patch per row id: its latest view, or its removal. */
+  readonly rows: Map<MessageId, () => void>;
   readonly unsubscribe: () => void;
 }
 
@@ -52,13 +54,13 @@ function removePendingQueue(queryClient: QueryClient, queryHash: string): Pendin
   return queue;
 }
 
-function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view: MessageView, apply: () => void): void {
+function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, rowId: MessageId, apply: () => void): void {
   // `getOrInsertComputed` is not in the browser floor (Chrome 145, Firefox 144, Safari 26.2).
   const clientQueues = pendingCanonByClient.get(queryClient) ?? new Map<string, PendingCanonQueue>();
   pendingCanonByClient.set(queryClient, clientQueues);
   let queue = clientQueues.get(queryHash);
   if (queue === undefined) {
-    const views = new Map<string, () => void>();
+    const rows = new Map<MessageId, () => void>();
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.query.queryHash !== queryHash) {
         return;
@@ -74,15 +76,16 @@ function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view
       if (ready === undefined) {
         return;
       }
-      for (const patch of ready.views.values()) {
+      for (const patch of ready.rows.values()) {
         patch();
       }
     });
-    queue = { views, unsubscribe };
+    queue = { rows, unsubscribe };
     clientQueues.set(queryHash, queue);
   }
-  // Multiple carriers for one row can arrive before the initial read. Only the newest view is canon.
-  queue.views.set(view.id, apply);
+  // Multiple carriers for one row can arrive before the initial read. Only the newest is canon, so a removal replaces
+  // the row's queued view.
+  queue.rows.set(rowId, apply);
 }
 
 type CanonPage = inferOutput<Trpc["chat"]["listMessages"]>;
@@ -131,15 +134,18 @@ function applyCachedChange(queryClient: QueryClient, trpc: Trpc, event: ChatBusE
  *  (`{ chatId }` — composer readers and ordinary history both consume this finite tail, with its carrier
  *  taking precedence over overlapping paged rows): replace-by-id, or append at the tail for a row the page has
  *  never seen (a fresh reply / the caller's own just-sent user row). A carrier that beats the open room's
- *  initial read queues until that read lands; a background room with no query still gains no phantom list. */
+ *  initial read, a removal included, queues until that read lands; a background room with no query still gains no
+ *  phantom list. */
 export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): void {
   if (event.type === "messagesDeleted") {
-    applyCachedChange(queryClient, trpc, event);
-    const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
-    const query = queryClient.getQueryCache().find({ queryKey: key, exact: true });
-    const pending = query === undefined ? undefined : pendingCanonByClient.get(queryClient)?.get(query.queryHash);
+    const readHash = applyCachedChange(queryClient, trpc, event) ? undefined : initialReadHash(queryClient, trpc, event.chatId);
+    if (readHash === undefined) {
+      return;
+    }
     for (const id of event.messageIds) {
-      pending?.views.delete(id);
+      queueUntilInitialRead(queryClient, readHash, id, (): void => {
+        applyCachedChange(queryClient, trpc, { ...event, messageIds: [id] });
+      });
     }
     return;
   }
@@ -147,15 +153,18 @@ export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: Chat
     return;
   }
   const view = event.view;
-  if (applyCachedChange(queryClient, trpc, event)) {
+  const readHash = applyCachedChange(queryClient, trpc, event) ? undefined : initialReadHash(queryClient, trpc, event.chatId);
+  if (readHash === undefined) {
     return;
   }
-  const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
-  const query = queryClient.getQueryCache().find({ queryKey: key, exact: true });
-  if (query?.state.fetchStatus !== "fetching") {
-    return;
-  }
-  queueUntilInitialRead(queryClient, query.queryHash, view, (): void => {
+  queueUntilInitialRead(queryClient, readHash, view.id, (): void => {
     applyCachedChange(queryClient, trpc, event);
   });
+}
+
+// The room's tail read while it fetches. Callers ask only once the tail holds no page, so this is its initial read.
+function initialReadHash(queryClient: QueryClient, trpc: Trpc, chatId: ChatId): string | undefined {
+  const key = trpc.chat.listMessages.queryKey({ chatId });
+  const query = queryClient.getQueryCache().find({ queryKey: key, exact: true });
+  return query?.state.fetchStatus === "fetching" ? query.queryHash : undefined;
 }

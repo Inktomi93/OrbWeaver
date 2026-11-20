@@ -4,17 +4,18 @@
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
 import type { ThemeLevel } from "@orb/contracts/discovery";
+import { THEME_LEVELS } from "@orb/contracts/discovery";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ComputeThemesOptions, ThemeNameEstimateOptions } from "../contract/params.ts";
+import type { ComputeThemesOptions, ThemeNameCeilingOptions, ThemeNameEstimateOptions } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
 import type { ComputeThemesDeps } from "../contract/service.ts";
 import type { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
@@ -146,7 +147,11 @@ function nameWorthy(draft: ClusterDraft): boolean {
   return draft.memberDigestIds.length >= MIN_NAME_SIZE;
 }
 
-async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: RolePresetParams): Promise<(string | null)[]> {
+async function nameDrafts(
+  drafts: readonly ClusterDraft[],
+  rc: RoleClients<AbortSignal>,
+  sampleOpts: RolePresetParams & { readonly signal: AbortSignal },
+): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];
@@ -189,6 +194,20 @@ export async function countThemeNameCalls(db: Db, opts: ThemeNameEstimateOptions
   return buildDrafts(solo, opts, opts.seed ?? DEFAULT_SEED).filter(nameWorthy).length;
 }
 
+/** The most naming calls a recompute can make once a backfill ahead of it adds digests: at most `k` clusters per level
+ *  in each embedding space a solo digest is in, per owner, counting one space for an owner who has none yet, since a
+ *  backfill writes its digests in the owner's one memory space. */
+export async function countThemeNameCeiling(db: Db, opts: ThemeNameCeilingOptions): Promise<number> {
+  const spaces = new Map<string, Set<string>>();
+  for (const row of await readEstimateDigestVectors(db, opts)) {
+    if (!row.isGroup) {
+      spaces.set(row.ownerId, (spaces.get(row.ownerId) ?? new Set()).add(row.model));
+    }
+  }
+  const owners = opts.ownerId === null ? [...spaces.values()] : [spaces.get(opts.ownerId) ?? new Set<string>()];
+  return owners.reduce((sum, owned) => sum + opts.k * THEME_LEVELS.length * Math.max(owned.size, 1), 0);
+}
+
 /**
  * Recompute EVERY owner's emergent themes — a full atomic replace of `theme_clusters` (the CASCADE clears
  * `digest_theme_assignments`, then both are reinserted). Discovery's service binds the dependencies used by
@@ -215,7 +234,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // The funder's Utility-role preset over the `theme_name` posture (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUtilityPresetParams(opts.funderUserId));
-  const names = await nameDrafts(drafts, rc, sampleOpts);
+  const names = await nameDrafts(drafts, rc, { ...sampleOpts, signal: opts.signal });
   const computedAt = deps.now();
 
   const clusterRows: ClusterRow[] = [];
@@ -241,10 +260,13 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     }
   }
 
+  // The last cancel point: once the replace commits, the stamp pass below completes it.
+  opts.signal.throwIfAborted();
   await replaceAll(db, clusterRows, assignRows, opts.ownerId);
   // Stamps `msgMidAt` on the fresh assignments (written null in the replace batch) — tier-0 via the exact
-  // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf).
-  await backfillMsgMidAt(db, deps.tier0RangeOf, opts);
+  // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf). The replace has committed themes
+  // whose timeline reads skip an unstamped row, so no cancel may stop this pass partway.
+  await backfillMsgMidAt(db, deps.tier0RangeOf, opts, new AbortController().signal);
   return {
     clustersWritten: clusterRows.length,
     digestsAssigned: assignRows.length,
@@ -262,10 +284,10 @@ async function replaceAll(db: Db, clusterRows: readonly ClusterRow[], assignRows
         db.delete(themeClusters)
       : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
   const stmts: BatchStmt[] = [del];
-  for (const chunk of chunkRows(clusterRows, rowsPerInsert(CLUSTER_COLS))) {
+  for (const chunk of chunkRows(clusterRows, CLUSTER_COLS)) {
     stmts.push(db.insert(themeClusters).values(chunk));
   }
-  for (const chunk of chunkRows(assignRows, rowsPerInsert(ASSIGN_COLS))) {
+  for (const chunk of chunkRows(assignRows, ASSIGN_COLS)) {
     stmts.push(db.insert(digestThemeAssignments).values(chunk));
   }
   await db.batch(batchMany(stmts));

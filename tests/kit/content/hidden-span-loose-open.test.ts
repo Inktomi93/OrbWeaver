@@ -23,6 +23,7 @@ const LEHMER_MODULUS = 2_147_483_647;
 // The longest attr name the walkers read whole.
 const WINDOW_NAME = "k".repeat(64);
 const OVER_HIDDEN_BOUND = "x".repeat(17_000);
+const SHORT_TAG_LENGTH = 64;
 
 const concealed: readonly (readonly [string, string])[] = [
   ["a first attr name past the identifier window", `Before <lie ${WINDOW_NAME}k="1" truth="${SECRET}"/> after`],
@@ -41,6 +42,10 @@ const concealed: readonly (readonly [string, string])[] = [
   ["a mixed-case name", `Before <Lie truth="${SECRET}"> after`],
   ["an upper-case name with no close", `Before <LIE truth=${SECRET} and more`],
   ["an upper-case name cut at the end", `Before <OFILTER reason="${SECRET}`],
+  ["a non-ASCII attr name", `Before <lie véracité="${SECRET}"/> after`],
+  ["a namespaced attr name", `Before <lie x:truth="${SECRET}"/> after`],
+  ["a quoted attr name", `Before <lie "truth"="${SECRET}"/> after`],
+  ["a non-ASCII attr name cut at the end", "Before <lie véraci"],
 ];
 
 const closed: readonly (readonly [string, string])[] = [
@@ -117,19 +122,20 @@ test.each([...concealed.map(([, body]) => body), ...prose.map(([, body]) => body
   }
 });
 
-test("a tag that broke counts as broken, and one left unfinished counts unless the output was cut off", () => {
+// Only a tag that runs to the end of the body can be the cut itself. A complete tag past a bound has bytes after it.
+test("a tag that broke or passed a bound counts always, and one left unfinished counts unless the output was cut off", () => {
   const broken = [
     `${LEAD}<lie truth="${SECRET}"> after`,
     `${LEAD}<LIE truth=${SECRET} and more`,
     `${LEAD}<lie\ntruth="${SECRET}"/>`,
     `${LEAD}<lie character="W"\n truth="${SECRET}`,
+    `${LEAD}<lie truth="${OVER_HIDDEN_BOUND}"/> Three paragraphs members lose.`,
+    `${LEAD}${"<l".repeat(12)}<lie a="1"/>${'ie a="1"/>'.repeat(12)} Three paragraphs members lose.`,
   ];
   const unfinished = [
     `${LEAD}<lie truth="${SECRET}`,
     `${LEAD}<LIE truth="${SECRET}\n\nThree paragraphs members lose.`,
     `${LEAD}<lie truth="C:\\"/>\n\nThree paragraphs members lose.`,
-    `${LEAD}<lie truth="${OVER_HIDDEN_BOUND}"/> Three paragraphs members lose.`,
-    `${LEAD}${"<l".repeat(12)}<lie a="1"/>${'ie a="1"/>'.repeat(12)} Three paragraphs members lose.`,
   ];
   const sound = [`${LEAD}<lie truth="${SECRET}"/>`, `${LEAD}<l<lie a="1"/>ie truth="${SECRET}"/> after`, ...prose.map(([, text]) => text), "plain"];
   for (const cutOff of [false, true]) {
@@ -198,4 +204,39 @@ test("a continue delimiter that lands between attrs decides the verdict on the s
   const stored = `${LEAD}<lie character="W"`;
   const addition = ` truth="${SECRET}"/> after`;
   expect(streamed([`${stored}\n`, addition])).toBe(stripHiddenSpans(`${stored}\n${addition}`).content);
+});
+
+/** A whole `<lie truth="…"/>` exactly `length` bytes long. */
+function tagOfLength(length: number): string {
+  const head = '<lie truth="';
+  const close = '"/>';
+  return `${head}${"x".repeat(length - head.length - close.length)}${close}`;
+}
+
+const recognised = (length: number): boolean => stripHiddenSpans(`${LEAD}${tagOfLength(length)} after`).content.endsWith(" after");
+
+// The bound is found from the strip itself: the shortest whole tag it no longer reads as a tag. A walk that reads its
+// close past the bound recognises a tag the stream has already concealed for outgrowing that bound.
+test("around the hidden scan bound, the stream and the commit strip agree on a tag whose close arrives last", () => {
+  let shortest = SHORT_TAG_LENGTH;
+  let longest = OVER_HIDDEN_BOUND.length;
+  // Controls: a short tag is a tag, and one past the bound is not, so the search brackets the bound.
+  expect(recognised(shortest)).toBe(true);
+  expect(recognised(longest)).toBe(false);
+  while (longest - shortest > 1) {
+    const middle = Math.floor((shortest + longest) / 2);
+    if (recognised(middle)) {
+      shortest = middle;
+    } else {
+      longest = middle;
+    }
+  }
+  for (let length = longest - 3; length <= longest + 3; length += 1) {
+    const body = `${LEAD}${tagOfLength(length)} after`;
+    const committed = stripHiddenSpans(body).content;
+    const closeAt = LEAD.length + length;
+    for (let held = 1; held <= '"/>'.length; held += 1) {
+      expect(streamed([body.slice(0, closeAt - held), body.slice(closeAt - held)]), `${String(length)} bytes, ${String(held)} held`).toBe(committed);
+    }
+  }
 });

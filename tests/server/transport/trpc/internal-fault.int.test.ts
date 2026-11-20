@@ -3,7 +3,7 @@
 // @subject packages/server/src/transport/trpc/error-mapping.ts
 // @subject packages/server/src/transport/trpc/trpc.ts
 
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { DomainInternalFaultError } from "@orb/kit/errors";
 import { classifyDomainError } from "@orb/server/transport/trpc";
 import { present } from "@orb/testkit/iso";
@@ -14,6 +14,7 @@ import { z } from "zod";
 
 const INTERNAL_DETAIL = "declared space dim 768, embedder returned 512";
 const LOG_SCAN_LIMIT = 500;
+const CSRF = { [CSRF_HEADER]: "1" } as const;
 const logRecordSchema = z.looseObject({ level: z.string(), err: z.looseObject({ message: z.string() }).optional() });
 const responseSchema = z.looseObject({ error: z.looseObject({ message: z.string(), data: z.looseObject({ code: z.string() }) }) });
 
@@ -38,14 +39,14 @@ test("a procedure that hits a tripwire answers 500 without its text and logs it 
       .map((line) => logRecordSchema.parse(JSON.parse(line)))
       .filter((record) => record.level === "error" && record.err?.message.includes(INTERNAL_DETAIL) === true).length;
 
-  const healthy = await root.http.request("/api/trpc/tag.listTags");
+  const healthy = await root.http.request("/api/trpc/tag.listTags", { headers: CSRF });
   expect(healthy.status).toBe(200);
   await healthy.arrayBuffer();
   expect(tripwireErrors()).toBe(0);
 
   const listTags = vi.spyOn(root.services.tag, "listTags").mockRejectedValue(new TripwireError(INTERNAL_DETAIL));
   try {
-    const response = await root.http.request("/api/trpc/tag.listTags");
+    const response = await root.http.request("/api/trpc/tag.listTags", { headers: CSRF });
     const body = await response.text();
     expect(response.status).toBe(500);
     expect(responseSchema.parse(JSON.parse(body)).error.data.code).toBe("INTERNAL_SERVER_ERROR");

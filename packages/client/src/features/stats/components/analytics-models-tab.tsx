@@ -20,10 +20,17 @@ import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
+import {
+  ANALYTICS_GENERATIONS_BY_MODEL_NAME,
+  ANALYTICS_GENERATIONS_HEADING,
+  ANALYTICS_MODELS_NAME,
+  ANALYTICS_MODELS_SCOPE_REASON,
+  ANALYTICS_REPLY_SPEED_HEADING,
+} from "../lib/analytics-names.ts";
 import {
   byModelBarItems,
   formatAccountingLabel,
@@ -43,16 +50,18 @@ import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 export function AnalyticsModelsTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsModelsTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
-        reserveKey="analytics.models"
-      >
-        <ModelsBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsModelsTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="datum" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
+          reserveKey="analytics.models"
+        >
+          <ModelsBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -63,23 +72,23 @@ function ModelsBody(): ReactElement {
 
   return (
     <Stack gap="section">
-      <LibraryScopeNotice reason="Model usage is rolled up per model, with no per-character breakdown to narrow to." />
+      <LibraryScopeNotice reason={ANALYTICS_MODELS_SCOPE_REASON} />
       <AccountingCoverageNotice />
 
       {drilled === null ? <OwnerLatency /> : null}
 
-      <Section heading="Generations">
-        <BarList items={byModelBarItems(models)} label="Generations by model" truncation="middle" valueFormatter={formatCompact} />
+      <Section heading={ANALYTICS_GENERATIONS_HEADING}>
+        <BarList items={byModelBarItems(models)} label={ANALYTICS_GENERATIONS_BY_MODEL_NAME} truncation="middle" valueFormatter={formatCompact} />
       </Section>
 
       <Section heading="Breakdown">
         {models.length === 0 ? (
-          <Text voice="gloss">No model usage recorded yet.</Text>
+          <MutedLine>No model usage recorded yet.</MutedLine>
         ) : (
           /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
              empty (side-eye ANALYTICS 2026-08-19, P2c — 50 rows, none of them a list item). The wrapper
              carries the role, never the ListRow, and posinset/setsize is the collection-rows spelling. */
-          <Stack aria-label="Models" gap="row" role="list">
+          <Stack aria-label={ANALYTICS_MODELS_NAME} gap="row" role="list">
             {models.map((model, index) => {
               const modelName = modelDisplayName(model.model);
               return (
@@ -129,7 +138,7 @@ function OwnerLatency(): ReactElement {
   const trpc = useTRPC();
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "owner" }));
   return (
-    <Section heading="Reply speed (all models)">
+    <Section heading={ANALYTICS_REPLY_SPEED_HEADING}>
       <Row gap="block" wrap={true}>
         <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
         <StatFigure label={LATENCY_LABELS.p90Ttft} value={formatMs(latency.p90TtftMs)} />

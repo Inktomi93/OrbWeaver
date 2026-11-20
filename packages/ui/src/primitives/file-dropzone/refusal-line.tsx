@@ -1,5 +1,6 @@
 import type { ComponentPropsWithRef, ReactElement } from "react";
 import { Icon, TriangleAlert } from "#primitives/icons";
+import { REFUSAL_GLYPH_NAME } from "./file-dropzone-names.ts";
 import { fileDropzoneVariants } from "./variants.ts";
 
 // The refusal line of a file control: the destructive glyph and the reason, wrapping inside its own width. The dropzone, whether on its own or as
@@ -10,7 +11,7 @@ function RefusalBody({ message }: { readonly message: string }): ReactElement {
   const slots = fileDropzoneVariants();
   return (
     <>
-      <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
+      <Icon className={slots.errorIcon()} icon={TriangleAlert} label={REFUSAL_GLYPH_NAME} size="xs" />
       <span className={slots.errorText()}>{message}</span>
     </>
   );

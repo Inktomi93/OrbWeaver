@@ -12,12 +12,12 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
+import { FormingChip, FramedMediaNotice, FramedScriptNotice, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
+import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useRenderPolicyFloor, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
 import { RpgCardRow } from "./rpg-card-row.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
@@ -50,20 +50,39 @@ export function RpgCardLightbox({
 
 /** The lightbox's card body. A COMPONENT because the routed card-frame handle is minted with a hook — and
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
- *  authored content, so its sandbox CSP must be the transcript's, never a laxer default. */
+ *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
+ *
+ *  It frames as the transcript's card does: a lost handle mints once more and then draws the floor, a frame that falls
+ *  to its floor gives the card up, a link opens only through the shared confirm, and a forming chip holds the body
+ *  until the routed frame draws. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
-  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(
+  const { themeTokens, cardStyleTokens: styleTokens, fontFamily } = useSandboxTheme();
+  const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
+  const links = useFramedLinkConfirm();
+  // The routed document's own grant; the srcdoc floor runs no script and loads external media only as the card allows.
+  const granted = frame.mint.state === "routed" ? frame.mint.granted : { externalMedia: card.allowExternalMedia, interactive: false };
+  const forming = frame.mint.state === "floor" ? undefined : <FormingChip title={cardLabel(card.title)} />;
   return (
-    <ImmersiveCard
-      html={card.html}
-      {...(card.title === null ? {} : { title: card.title })}
-      origin={card.origin}
-      allowExternalMedia={card.allowExternalMedia}
-      {...(frameSrc === undefined ? {} : { frameSrc })}
-    />
+    <>
+      <ImmersiveCard
+        html={card.html}
+        {...(card.title === null ? {} : { title: card.title })}
+        origin={card.origin}
+        allowExternalMedia={card.allowExternalMedia}
+        {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
+        {...(forming === undefined ? {} : { pending: forming })}
+        onLink={links.requestLink}
+        onMissing={frame.onMissing}
+        onFloor={frame.giveUp}
+      />
+      {links.confirm}
+      {/* The transcript card's notices, under the same conditions (`card-block.tsx`). The archive draws only in a game
+          whose cards are on, so the held-cards notice never applies here. */}
+      <FramedMediaNotice chatId={chatId} characterId={card.characterId} html={card.html} css={undefined} granted={granted} />
+      {frame.mint.state === "routed" ? <FramedScriptNotice chatId={chatId} characterId={card.characterId} html={card.html} granted={granted} /> : null}
+    </>
   );
 }
 
@@ -90,11 +109,11 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
     <Stack gap="field" data-slot="rpg-card-archive">
-      <Kicker>Cards</Kicker>
+      <Kicker>{RPG_JOURNAL_SCOPE_LABELS.cards}</Kicker>
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={RPG_SCENE_CARDS_READ_LABEL} onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}
       >
         <ArchiveBody chatId={chatId} />
@@ -106,12 +125,18 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
 function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
-    queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
+    queries: [roomTailOptions(trpc, { chatId }), roomRosterOptions(trpc, { chatId })],
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
+  const cards = collectArchivedCards(messages.messages, {
+    participants: chat.participants,
+    narrator: chat.narratorRender,
+    viewerUserId: chat.viewerUserId,
+    installForbidsExternalMedia,
+  }).toReversed();
   if (cards.length === 0) {
-    return <RpgDoorwayLine>No cards yet: the story crafts them, and they land here.</RpgDoorwayLine>;
+    return <MutedLine>{RPG_SCENE_NO_CARDS_LINE}</MutedLine>;
   }
   return (
     <Stack gap="field">

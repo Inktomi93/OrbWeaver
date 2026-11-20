@@ -25,6 +25,7 @@ import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
+import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
@@ -72,7 +73,8 @@ export interface UnionsReport {
 
 /** What the unions scan cannot see, printed with every run. */
 const UNION_LIMITS: readonly string[] = [
-  "A tuple with any element that is not a string literal (a constant, a spread, a template) is skipped whole, so none of its members is judged.",
+  "A tuple with any element whose type is not one string literal (a spread, a `string`, a union) is skipped whole, so none of its members is judged. An element read from a constant (`CODE.x`) is the member its type names.",
+  "A member is built by a literal only: a constant read into a slot (`take(CODE.x)`) builds nothing, so a member production builds only that way reports unbuilt.",
   'A literal builds a member only in a slot spelled from the tuple. A slot that re-spells the member as its own literal type (a discriminated union arm `kind: "x"`, a hand-written union, or the union a tuple `satisfies` when no tuple spells it) builds nothing, so a member production builds only there reports unbuilt.',
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's.",
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into sorts as parsed instead.",
@@ -140,8 +142,13 @@ function unwrap(node: Expression): Expression {
 const isConstAssertion = (node: Expression): node is Expression & { readonly expression: Expression } =>
   isAsExpression(node) && isTypeReferenceNode(node.type) && isIdentifier(node.type.typeName) && node.type.typeName.text === "const";
 
-// `const NAME = ["a", "b"] as const`: every element a string literal.
-function tupleOf(node: Node): { readonly name: Identifier; readonly elements: readonly StringLiteral[] } | null {
+interface ConstArray {
+  readonly name: Identifier;
+  readonly elements: readonly Expression[];
+}
+
+// `const NAME = [...] as const` with at least one element.
+function constArrayOf(node: Node): ConstArray | null {
   if (!(isVariableDeclaration(node) && isIdentifier(node.name) && node.initializer !== undefined)) {
     return null;
   }
@@ -150,8 +157,33 @@ function tupleOf(node: Node): { readonly name: Identifier; readonly elements: re
   if (array === null || !isArrayLiteralExpression(array) || array.elements.length === 0) {
     return null;
   }
-  const elements = array.elements.filter(isStringLiteral);
-  return elements.length === array.elements.length ? { name: node.name, elements } : null;
+  return { name: node.name, elements: [...array.elements] };
+}
+
+interface NamedElement {
+  readonly element: Expression;
+  readonly text: string;
+}
+
+// The arrays whose every element names a member, with each element's text. A string literal is its own text; any other
+// element (`CODE.x`, a named constant) is the string literal its type is, asked of the checker in one batch for the world.
+function stringTuples(world: NativeWorld, arrays: readonly ConstArray[]): readonly { readonly name: Identifier; readonly named: readonly NamedElement[] }[] {
+  const asked = arrays.flatMap(({ elements }) => elements.filter((element) => !isStringLiteral(element)));
+  const types = world.typesAt(asked);
+  const typed = new Map<Expression, string>();
+  for (const [at, element] of asked.entries()) {
+    const type = types[at];
+    if (type?.isStringLiteralType() === true) {
+      typed.set(element, type.value);
+    }
+  }
+  return arrays.flatMap(({ name, elements }) => {
+    const named = elements.flatMap((element): NamedElement[] => {
+      const text = isStringLiteral(element) ? element.text : typed.get(element);
+      return text === undefined ? [] : [{ element, text }];
+    });
+    return named.length === elements.length ? [{ name, named }] : [];
+  });
 }
 
 function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): void {
@@ -165,15 +197,16 @@ function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): vo
 }
 
 function tuples(world: NativeWorld): readonly Tuple[] {
-  const found: { readonly name: Identifier; readonly elements: readonly StringLiteral[] }[] = [];
+  const arrays: ConstArray[] = [];
   eachProductionNode(world, (node) => {
-    const tuple = tupleOf(node);
-    if (tuple !== null) {
-      found.push(tuple);
+    const array = constArrayOf(node);
+    if (array !== null) {
+      arrays.push(array);
     }
   });
+  const found = stringTuples(world, arrays);
   const symbols = world.symbolsAt(found.map(({ name }) => name));
-  return found.map(({ name, elements }, index) => {
+  return found.map(({ name, named }, index) => {
     const site = world.siteOf(name);
     const symbol = symbols[index];
     return {
@@ -181,7 +214,7 @@ function tuples(world: NativeWorld): readonly Tuple[] {
       site,
       name: name.text,
       keys: symbol === undefined ? [] : declarationKeys(symbol),
-      members: elements.map((element) => ({ text: element.text, site: world.siteOf(element), line: lineOf(element) })),
+      members: named.map(({ element, text }) => ({ text, site: world.siteOf(element), line: lineOf(element) })),
     };
   });
 }
@@ -317,10 +350,10 @@ interface FirstPass {
   readonly literals: readonly LiteralSite[];
 }
 
-function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sources): FirstPass {
+function engineOne(options: ScanOptions, worlds: readonly string[], lists: ReadonlyMap<string, WorldFiles>, sources: Sources): FirstPass {
   const found = new Map<string, { readonly tuple: Tuple; readonly references: Map<string, Site>; readonly satisfied: ReadonlySet<string> }>();
   const literals = new Map<string, LiteralSite>();
-  const homes = homeFiles(worlds, NativeWorld.fileLists(options.root, worlds));
+  const homes = homeFiles(worlds, lists);
   for (const config of worlds) {
     using world = NativeWorld.open(options.root, config);
     const local = tuples(world);
@@ -361,7 +394,8 @@ function subsetLineages(first: FirstPass): ReadonlyMap<string, readonly string[]
 export function scanUnions(options: ScanOptions): UnionsReport {
   const { worlds } = scanWorlds(options);
   const sources = new Sources(options.root);
-  const first = engineOne(options, worlds, sources);
+  const lists = NativeWorld.fileLists(options.root, worlds);
+  const first = engineOne(options, worlds, lists, sources);
   const entries = [...first.tuples.values()];
   const subsets = subsetLineages(first);
   const lineage = (tuple: Tuple): readonly string[] => [tuple.key, ...(subsets.get(tuple.key) ?? [])];
@@ -377,7 +411,7 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const texts = new Set(candidates.map(({ member }) => member.text));
   const builtTwo = builtInto(worlds.flatMap((config) => builtByService(ServiceWorld.open(options.root, config), sources, texts, own)));
   const tupleSites = [...new Set(candidates.map(({ tuple }) => tuple))].map((tuple) => tuple.site);
-  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log, crossCheck: options.crossCheck });
+  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log, crossCheck: options.crossCheck, lists });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredUnionMember[] = [];
   const disagreements: string[] = [];

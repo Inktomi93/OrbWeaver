@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
@@ -90,8 +91,21 @@ test("setup has one cache owner and only saves successful misses from trusted tr
   expect(restores[1]?.with?.["restore-keys"]).toBeUndefined();
 });
 
-test("setup derives cache paths from pnpm and denies cache writes to every untrusted event", async ({ repoRoot, scratch, fakeBin }) => {
-  const script = z.string().parse(setupSteps(repoRoot).find((step) => step.id === "pnpm")?.run);
+test("a caller that opts out of the caches restores none of them", ({ repoRoot }) => {
+  const restores = setupSteps(repoRoot).filter((step) => step.uses?.startsWith("actions/cache/restore@") === true);
+  expect(restores.map((step) => step.id)).toEqual(["pnpm-cache", "browser-cache"]);
+  for (const cache of ["true", "false"]) {
+    for (const restore of restores) {
+      expect(runInNewContext(restore.if ?? "true", { inputs: { cache, browsers: "true" } }), restore.id).toBe(cache === "true");
+    }
+  }
+});
+
+test("setup derives cache paths from pnpm and denies cache writes to every untrusted event or opted-out caller", async ({ repoRoot, scratch, fakeBin }) => {
+  const step = setupSteps(repoRoot).find((candidate) => candidate.id === "pnpm");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
+  expect(step?.env).toEqual({ ["USE_CACHE"]: "${{ inputs.cache }}" });
+  const script = z.string().parse(step?.run);
   await fakeBin(
     "pnpm",
     `
@@ -103,18 +117,21 @@ test("setup derives cache paths from pnpm and denies cache writes to every untru
   `,
   );
   const output = join(scratch, "cache-output");
-  for (const event of ["push", "workflow_dispatch", "schedule", "pull_request", "pull_request_target", "workflow_run", "issue_comment"]) {
-    await writeFile(output, "");
-    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
-      env: Object.fromEntries([
-        ["GITHUB_EVENT_NAME", event],
-        ["GITHUB_OUTPUT", output],
-      ]),
-    });
-    expect(result.code, result.stderr).toBe(0);
-    const values = readFileSync(output, "utf8");
-    expect(values).toContain("version=12.6.0\n");
-    expect(values).toContain("paths<<EOF\n/resolved pnpm/store/v11\n/resolved pnpm/cache\nEOF\n");
-    expect(values).toContain(`save=${["push", "workflow_dispatch", "schedule"].includes(event)}\n`);
+  for (const cache of ["true", "false"]) {
+    for (const event of ["push", "workflow_dispatch", "schedule", "pull_request", "pull_request_target", "workflow_run", "issue_comment"]) {
+      await writeFile(output, "");
+      const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+        env: Object.fromEntries([
+          ["GITHUB_EVENT_NAME", event],
+          ["GITHUB_OUTPUT", output],
+          ["USE_CACHE", cache],
+        ]),
+      });
+      expect(result.code, result.stderr).toBe(0);
+      const values = readFileSync(output, "utf8");
+      expect(values).toContain("version=12.6.0\n");
+      expect(values).toContain("paths<<EOF\n/resolved pnpm/store/v11\n/resolved pnpm/cache\nEOF\n");
+      expect(values, `${cache}:${event}`).toContain(`save=${cache === "true" && ["push", "workflow_dispatch", "schedule"].includes(event)}\n`);
+    }
   }
 });

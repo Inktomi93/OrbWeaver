@@ -33,7 +33,7 @@ export function createReviewImport(ctx: PersonaContext): PersonaService["reviewI
         placement: personaPlacementOf(persona.metadata),
         artHash: persona.artHash,
       };
-      if (key.length === 0 || findDuplicatePersona(identity, known) !== null) {
+      if (findDuplicatePersona(identity, known) !== null) {
         continue;
       }
       const holder = findNameCollision(identity, owned);

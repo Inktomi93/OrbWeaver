@@ -9,10 +9,11 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { ANALYTICS_GENERATIONS_BY_MODEL_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
 const STORY = "tests/client/features/stats/components/_accounting-coverage-stories/AccountingCoverageStory";
-const CHART = "Generations by model";
+const CHART = ANALYTICS_GENERATIONS_BY_MODEL_NAME;
 const ELLIPSIS = "…";
 const MODEL_SETS = [
   {

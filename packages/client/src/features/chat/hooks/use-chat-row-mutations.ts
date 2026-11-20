@@ -1,6 +1,7 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { EntityMutateAsync, Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { CHAT_DELETE_FAILED_TITLE } from "../lib/chat-surface-names.ts";
 
 // The chat-list row write verbs (the per-row kebab: rename/star/archive/delete). All four are host-only
 // server-side; ChatSummary's viewerRole hides them from non-host rows. All four are busDriven —
@@ -45,7 +46,7 @@ type DeleteChatVars = inferInput<Trpc["chat"]["delete"]>;
 export const useDeleteChat = createEntityMutation<inferInput<Trpc["chat"]["delete"]>, unknown>({
   options: (trpc) => trpc.chat.delete.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't delete the chat.",
+  errorToast: CHAT_DELETE_FAILED_TITLE,
 });
 
 export interface ChatListRowActions {

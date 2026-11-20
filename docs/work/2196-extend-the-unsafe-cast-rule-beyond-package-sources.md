@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: tooling
+plan: typed-enforcers
 ---
 
 # Extend the unsafe cast rule beyond package sources

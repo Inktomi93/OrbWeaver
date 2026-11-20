@@ -4,8 +4,9 @@ import {
   CONTROL_BLOCK,
   CONTROL_INLINE,
   CONTROL_SIZES,
-  DISABLED_STATE,
-  DISABLED_STATE_NATIVE,
+  DISABLED_FIELD,
+  DISABLED_FIELD_INK,
+  DISABLED_POINTER,
   FIELD_STACK,
   FOCUS_RING_INSET,
   TOUCH_TARGET_PSEUDO,
@@ -37,14 +38,19 @@ const STACKED_INCREMENT_REACH = "@max-cq-12:before:inset-s-0 @max-cq-12:before:i
 
 export const numberFieldVariants = tv({
   slots: {
-    root: `${FIELD_STACK} ${DISABLED_STATE}`,
+    root: `${FIELD_STACK} ${DISABLED_POINTER}`,
     scrubArea: "flex cursor-ew-resize items-center gap-row text-label leading-label font-medium text-muted-foreground select-none inline-fit",
     scrubCursor: "flex text-foreground",
-    group: ["flex items-stretch rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
+    // The parts take the group's ink, so a disabled field swaps every part to the muted ink from the one box that swaps its fill.
+    group: [
+      "flex items-stretch rounded-control border border-input-border bg-field-fill text-foreground inline-full",
+      "data-invalid:border-destructive",
+      DISABLED_FIELD,
+    ],
     decrement: [
       `
         group relative -my-(--border-width-control) flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border
-        text-foreground select-none
+        select-none
         ${TOUCH_TARGET_PSEUDO}
       `,
       `
@@ -53,20 +59,19 @@ export const numberFieldVariants = tv({
         active:bg-tone-tint-active active:text-tone-text-on-tint
       `,
       `outline-none ${FOCUS_RING_INSET}`,
-      `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",
     ],
     input: [
-      "-my-(--border-width-control) bg-transparent text-foreground tabular-nums inline-full min-inline-(--size-control-md)",
+      "-my-(--border-width-control) bg-transparent tabular-nums inline-full min-inline-(--size-control-md)",
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
-      DISABLED_STATE,
       "data-invalid:text-destructive",
+      DISABLED_FIELD_INK,
     ],
     increment: [
       `
         group relative -my-(--border-width-control) flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border
-        text-foreground select-none
+        select-none
         ${TOUCH_TARGET_PSEUDO}
       `,
       `
@@ -75,7 +80,6 @@ export const numberFieldVariants = tv({
         active:bg-tone-tint-active active:text-tone-text-on-tint
       `,
       `outline-none ${FOCUS_RING_INSET}`,
-      `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",
     ],
     // The bounds sentence is SR-only: it replaces the aria-valuemin/max a textbox can't carry, and the

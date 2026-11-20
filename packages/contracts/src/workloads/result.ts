@@ -1,11 +1,10 @@
 // `@orb/contracts/workloads` — per-kind RESULT vocabulary: the terminal projection a contribution returns,
 // stored verbatim in the `workloads.result` JSON column and read back by the client.
 //
-// A result is a domain↔domain wire shape, so it homes in `contracts` beside its params (the
-// `IngestRunResult` precedent — databank's ingest result always lived in `@orb/contracts/databank` and the
-// workloads contract referenced it rather than re-spelling a twin; that exception is now the rule). Kinds
-// whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
-// still awaiting their owner + assembles the exhaustive map.
+// A result is a domain↔domain wire shape, so it homes in `contracts`, beside its params: a kind whose OWNER
+// has its own contracts module carries its result type there (the `IngestRunResult` precedent, now the rule),
+// and the workloads contract references it rather than re-spelling a twin. This module carries the workload
+// domain's own shapes and assembles the exhaustive map.
 
 import { z } from "zod";
 import type { FsckReport } from "#assets";
@@ -41,14 +40,23 @@ export interface MaintenanceResult {
   readonly preview?: ImportPreview;
   /** import-st only: how many items of each kind the upload holds, counted the way the dry run's preview counts. */
   readonly found?: ImportKindCounts;
+  /** import-st real run only, in `found`'s units: the entries it wrote nothing for because the library or an earlier
+   *  entry of the upload held them. A merged persona is in `mergedKeys`, not here. */
+  readonly inLibrary?: number;
+  /** import-st real run only: the recorded skips the run never attempted. */
+  readonly skipped?: number;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` is what a file that DID import still
  *  left behind (a kept edited lorebook, a dropped overlay) — the same operator-facing notes the sync
- *  descriptor-level report already carried, now surfaced on the BACKGROUND workload's own result so
+ *  descriptor-level report surfaces, carried on the BACKGROUND workload's own result too so
  *  a run driven off-request is not silently cleaner than the same import run through the sync door. */
 export interface BundleImportWorkloadResult {
+  /** Files that wrote a row. */
   readonly imported: number;
+  /** Files the library already held: each reused its row and wrote none (D290). */
+  readonly inLibrary: number;
+  /** Files never attempted: routed to no entity, or past an abort. */
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
@@ -114,11 +122,15 @@ export const maintenanceResultSchema = z
     mergedKeys: z.array(z.string()).readonly().optional(),
     preview: importPreviewSchema.optional(),
     found: importKindCountsSchema.optional(),
+    inLibrary: z.number().optional(),
+    skipped: z.number().optional(),
   })
-  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, found, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, found, inLibrary, skipped, ...view }) => ({
     ...view,
     ...(preview !== undefined ? { preview } : {}),
     ...(found !== undefined ? { found } : {}),
+    ...(inLibrary !== undefined ? { inLibrary } : {}),
+    ...(skipped !== undefined ? { skipped } : {}),
     ...(mergedKeys !== undefined ? { mergedKeys } : {}),
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),
@@ -127,14 +139,17 @@ export const maintenanceResultSchema = z
 
 export const bundleImportWorkloadResultSchema = z.strictObject({
   imported: z.number(),
+  // A stored row can predate the held count and have counted its held files as imported; it reads as holding none.
+  inLibrary: z.number().default(0),
   skipped: z.number(),
   failed: z.number(),
   notes: z.array(z.string()).readonly(),
-  // A row stored before imports carried a scope reads as having none: it offers nothing, and still lists.
+  // A stored row can predate the import scope and reads as having none: it offers nothing, and still lists.
   memoryScope: storedImportWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
-// A row stored before the owner census keys were retired still carries them: accept and drop, so the strict view never echoes them.
+// A stored row may still carry owner census keys this build does not declare: accept and drop, so the strict view
+// never echoes them.
 export const importTokenUsageBackfillResultSchema = z
   .strictObject({
     scanned: z.number(),

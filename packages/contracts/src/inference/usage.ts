@@ -244,7 +244,7 @@ function projectedUsage(rows: readonly (GenerationUsage | GenerationUsageLeg)[],
 export function projectGenerationUsage(rows: readonly (GenerationUsage | GenerationUsageLeg)[]): GenerationUsageProjection {
   return { total: projectedUsage(rows, true), knownSubtotal: projectedUsage(rows, false) };
 }
-/** Image provenance already has a scalar cost. Legacy rows retain an unknown source, not a fabricated one. */
+/** Image provenance already has a scalar cost. Rows written without a recorded source keep it unknown, never fabricated. */
 export const generationUsageDetailsSchema = generationUsageSchema.omit({ costUsd: true }).extend({
   cacheReadTokens: tokenUsageSchema.shape.cacheReadTokens.nullable(),
   cacheWriteTokens: tokenUsageSchema.shape.cacheWriteTokens.nullable(),

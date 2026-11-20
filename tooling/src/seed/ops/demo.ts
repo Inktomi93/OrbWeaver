@@ -267,7 +267,12 @@ export async function seedDemoContent(deps: SeedDemoDeps): Promise<SeedDemoResul
   }
 
   // A databank document (paste-origin) + a synchronous ingest so document_chunks + embeddings exist.
-  const upload = await services.databank.createFromText({ principal: owner, name: DEMO_DOCUMENT_NAME, text: DEMO_DOCUMENT_TEXT });
+  const upload = await services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: DEMO_DOCUMENT_NAME,
+    text: DEMO_DOCUMENT_TEXT,
+  });
   const ingest = await built.databankIngest.ingestDocument({ documentId: upload.document.id, signal: new AbortController().signal });
   log(`databank document ingested: ${DEMO_DOCUMENT_NAME} (${ingest.chunksUpserted} chunk(s) embedded)`);
 

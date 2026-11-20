@@ -1,23 +1,22 @@
-// @orb/contracts/rpg/actor — THE actor: its reference, its IDENTITY half, and its per-actor VOLATILE state
+// @orb/contracts/rpg/actor — THE actor: its reference, its IDENTITY half, and its per-actor VOLATILE state.
 // Wallet + inventory are FIRST-CLASS on EVERY actor
-// (character AND npc), present in lite (owner-CONFIRMED at ratification). `wallet` is a STORED
-// named-amount array, NOT legacy's derived currency-item total — lite has no loot engine to mint currency
+// (character AND npc), present in lite. `wallet` is a STORED
+// named-amount array, NOT a derived currency-item total — lite has no loot engine to mint currency
 // items, so a derived wallet would be a permanently-empty dead doorway; full's loot engine later CREDITS the
 // same slots at grant time (an engine graft onto an existing column, zero re-spell).
 //
-// R2 — THE NPC IS AN ACTOR, NOT A SCENE ANNOTATION. An npc's identity half (name/emoji/mood/relationship
-// + the standing appearance/outfit/thoughts guides) used to live on the `presentCharacters` ROW, which
-// departure DESTROYS, while her hard half (trackers/conditions/inventory/wallet/status) lived on the
-// `actorState` row, which departure RETAINS invisibly. Two planes, opposite lifecycles, one person: return
-// re-surfaced the pack against a blank face and silently reset the relationship arc (the review's MS-2).
-// Both halves now ride ONE {@link rpgActorEntrySchema} row, and `presentCharacters` slims to a pure PRESENCE
-// list of actor-ref keys. Departure = presence drop; EVERYTHING is retained; return = presence add.
+// AN NPC IS AN ACTOR, NOT A SCENE ANNOTATION. Her identity half (name/emoji/mood/relationship + the standing
+// appearance/outfit/thoughts guides) and her hard half (trackers/conditions/inventory/wallet/status) ride ONE
+// {@link rpgActorEntrySchema} row with ONE lifecycle, and `presentCharacters` is a pure PRESENCE list of
+// actor-ref keys. Departure = presence drop; EVERYTHING is retained; return = presence add. Splitting the two
+// halves across rows with opposite lifecycles made a returning NPC resurface against a blank face with her
+// relationship arc silently reset.
 //
-// Actor-ref arms: `character`/`user` address participant identities directly (no membership shadow — §4.3);
+// Actor-ref arms: `character`/`user` address participant identities directly (no membership shadow);
 // `cast` addresses scene-only NPCs by a real normalized SLUG ({@link rpgNpcSlug}) with the display name
-// carried separately on `identity.name` — the tracker unification's own key/label lesson applied to people
-// (the doc used to CLAIM a "normalized-name key" while storing the verbatim model-authored name, so a rename
-// was impossible and case variance minted sibling identities). Full ADDS the `{kind:"libraryNpc"}` arm
+// carried separately on `identity.name` — the tracker key/label split applied to people. Keying by the
+// verbatim model-authored name instead would make a rename impossible and mint sibling identities on case
+// variance. Full ADDS the `{kind:"libraryNpc"}` arm
 // when the cross-game `rpg_npcs` library lands — an additive union member every `assertNever` consumer is
 // compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
 // table). The arm is spelled `libraryNpc`, not `npc`, because the bare word is spent on the SCENE npc
@@ -37,18 +36,18 @@ import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 // ends, so "Sister Vesna" / "sister  vesna" / "Sister Vesna." all address ONE actor. The DISPLAY name is
 // never derived back from it — it rides `identity.name`.
 //
-// THE KEPT SET IS UNICODE. It used to be `[^a-z0-9]`, which is not "lossy", it is DESTRUCTIVE for
-// every script without ASCII letters: 李明, 田中太郎, محمد, Мария and 🐉 ALL folded to the empty string and
-// therefore to one fallback key, and `apply.ts` matches existing actor rows by exactly that key — so two
-// NPCs with different Chinese names resolved onto ONE row and the second overwrote the first's identity,
+// THE KEPT SET IS UNICODE. An ASCII-only `[^a-z0-9]` is not "lossy", it is DESTRUCTIVE for
+// every script without ASCII letters: 李明, 田中太郎, محمد, Мария and 🐉 ALL fold to the empty string and
+// therefore to one fallback key — and existing actor rows are matched by exactly that key, so two
+// NPCs with different Chinese names resolve onto ONE row and the second overwrites the first's identity,
 // trackers, inventory and wallet. A key that merges two people is not a normalization, it is data loss.
 // `\p{M}` rides along with `\p{L}` because in many scripts a mark is part of the letter, not punctuation.
 const NPC_SLUG_STRIP = /[^\p{L}\p{N}\p{M}]+/gu;
 
 /** The FALLBACK for a name that carries no letter, digit or mark AT ALL (emoji-only, punctuation-only). A
  *  npc key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a worse
- *  answer than a stable key the host can rename later — but a SHARED fallback bucket is the very merge this
- *  function was fixed for, so the bucket is per-name: the fallback word plus the name's code points in hex.
+ *  answer than a stable key the host can rename later — but a SHARED fallback bucket merges two people, so
+ *  the bucket is per-name: the fallback word plus the name's code points in hex.
  *  Lossless ⇒ two symbol-only names can never collide, and the result is already its own slug (ASCII + `-`)
  *  so idempotency — the wire's canonicality predicate — still holds. A blank name has no code points and
  *  keeps the bare word: one nameless bucket is a necessity, not a collision. */
@@ -56,8 +55,8 @@ const NPC_SLUG_FALLBACK = "unnamed";
 
 /** The marker joining the fallback word to its code points. `+` is OUTSIDE the kept class, so the FOLD can
  *  never emit it — every real name's `+` becomes a `-`. That is what separates `rpgNpcSlug("🐉")` from
- *  `rpgNpcSlug("Unnamed 1f409")`, which used to be the SAME key: the fold reaches `unnamed-1f409`,
- *  the fallback mints `unnamed+1f409`, and no name can fold into the second. */
+ *  `rpgNpcSlug("Unnamed 1f409")`: the fold reaches `unnamed-1f409`, the fallback mints `unnamed+1f409`, and
+ *  no name can fold into the second. */
 const NPC_SLUG_FALLBACK_MARK = "+";
 
 /** An ALREADY-MINTED fallback key, recognised so it can short-circuit the fold and stay its own slug.
@@ -83,8 +82,8 @@ const CODE_POINT_RADIX = 16;
  *  encode one idea against opposite requirements: that one mints a USER-VISIBLE character handle living in a
  *  per-owner unique index and folds aggressively; this one mints an INTERNAL actor key whose only job is to
  *  never merge two people, so it NFC-PRESERVES (marks kept — in many scripts a mark is part of the letter)
- *  and never truncates. What they shared was the BUG, an ASCII-only kept set; the fix belongs on each side
- *  in its own terms, which is why this one does not call the other. */
+ *  and never truncates. An ASCII-only kept set would be the same defect on both sides; each encodes it in
+ *  its own terms, which is why this one does not call the other. */
 export function rpgNpcSlug(name: string): string {
   // A key is an address every viewer receives, and the member belt rewrites values, never addresses: a hidden
   // span's markup would fold away below but its truth words would survive into the key.
@@ -109,7 +108,7 @@ export function rpgNpcSlug(name: string): string {
  *  its stable {@link rpgNpcSlug} `key`. Full ADDS `{kind:"libraryNpc"}` — the reserved cross-game library
  *  arm (additive — `assertNever` consumers error).
  *
- *  PREVENT-AT-SCHEMA on the npc key (the R6 enum-constraint / stamped-id write-boundary precedent): a cast
+ *  PREVENT-AT-SCHEMA on the npc key (the enum-constraint / stamped-id write-boundary precedent): a cast
  *  key must ALREADY BE its own slug, so a non-canonical one is unrepresentable at the wire rather than
  *  refused somewhere downstream. Without it a raw API caller could `patchActor` with
  *  `npcKey: "Sister Vesna"` and mint a SIBLING row beside the model's `npc:sister-vesna` — a duplicate
@@ -125,7 +124,7 @@ export const rpgNpcRefSchema = z
       .refine((key) => key === rpgNpcSlug(key), { error: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
   })
   .strip();
-/** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
+/** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor`. Promotion
  *  turns an npc into a participant character, so a `character`/`user` target is not "refused" — it is
  *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the npc-key
  *  refine above already takes). The union below is composed FROM this, never a second spelling of the arm. */
@@ -152,8 +151,8 @@ export function actorRefKey(ref: RpgActorRef): string {
 }
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-/** An inventory item — `type` taxonomy ships for display + full's equip/filter future, minus any wallet
- *  coupling (§2.6). */
+/** An inventory item — `type` taxonomy ships for display + full's equip/filter future, unconnected to
+ *  `wallet` (a stored amount array, not an item total). */
 export const rpgInventoryItemSchema = z
   .object({
     id: z.string().min(1),
@@ -183,11 +182,11 @@ const rpgConditionSchema = z
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** A present character's RELATIONSHIP — a first-class field on the actor's IDENTITY half,
- *  NOT a `customFields` entry. `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token
- *  level); `label` is the free gloss used ONLY when `kind === "custom"` (empty otherwise). The default reading
- *  is the NPC's stance toward the PLAYER. Swipe-consistent by construction (it rides the snapshot's actor
- *  plane) and DEPARTURE-SURVIVING since R2 (it used to die with the `presentCharacters` row, so an established
- *  `enemy` returned as `neutral` with no journal beat — the silent arc reset). */
+ *  NOT a `customFields` entry. `kind` rides the closed vocab (the schema constrains it to the six tokens at
+ *  the token level); `label` is the free gloss used ONLY when `kind === "custom"` (empty otherwise). The
+ *  default reading is the NPC's stance toward the PLAYER. Swipe-consistent by construction, and
+ *  DEPARTURE-SURVIVING because it rides the snapshot's actor plane rather than the presence row — an
+ *  established `enemy` never returns as `neutral` with no journal beat. */
 export const rpgRelationshipSchema = z
   .object({
     kind: rpgRelationshipKindSchema.default("neutral"),
@@ -196,20 +195,8 @@ export const rpgRelationshipSchema = z
   .strip();
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
-/** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Participant actors
- *  (character/user) carry NO identity here: their name/avatar come from chat and their standing
- *  prose from `rpg_sheets` (one home per fact, never a second name to reconcile).
- *
- *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgNpcSlug}), which is what
- *  makes rename possible at all. The three guides are STANDING state (see {@link RPG_NPC_GUIDE_FIELDS}).
- *
- *  `characterId` is UNREAD (flagged rot, R4): it was reserved as "the promotion join", but promotion RE-KEYS
- *  the row to `character:<id>` — the ref itself carries the join, and a promoted actor has no identity half at
- *  all ({@link rpgPromotedCardDescription} carries its durable content onto the card instead). Left in place
- *  rather than deleted in the promotion lane; its removal is a contracts+mirror sweep of its own. */
 /** Grapheme-safe truncation for `name` (`initialsFor`'s `Intl.Segmenter` idiom, kept local rather than shared
- *  with `kit` — this clamp is CARD-bound-shaped, not a generic string primitive). Reused rather than rebuilt
- *  once a second card-bound clamp needs one. */
+ *  with `kit` — this clamp is CARD-bound-shaped, not a generic string primitive). */
 const NAME_CLAMP_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const NAME_CLAMP_ELLIPSIS = "…";
 
@@ -217,10 +204,10 @@ const NAME_CLAMP_ELLIPSIS = "…";
  *  `rpgActorIdentitySchema.name` is `min(1)` with NO max — it is MODEL-AUTHORED at the extraction boundary
  *  (`update_scene.presentUpsert[].name`, folded onto the identity plane by `tools/apply.ts`'s
  *  `mergeNpcIdentity`) — while `promoteActor` hands that name straight to `cardFaceFields.name`
- *  (`CARD_FACE_LIMITS.nameMax` = 200). An over-length NPC name therefore minted a card the character wire
- *  refused, dropping a model-authored actor from canon over a name.
+ *  (`CARD_FACE_LIMITS.nameMax` = 200). An over-length NPC name would therefore mint a card the character wire
+ *  refuses, dropping a model-authored actor from canon over a name.
  *
- *  ORCHESTRATOR RULING: CLAMP, never refuse — a refusal is a worse answer than a shortened
+ *  CLAMP, never refuse — a refusal is a worse answer than a shortened
  *  card name the host can rename. The bound is DERIVED from `CARD_FACE_LIMITS.nameMax` (one home in
  *  `contracts/card-face`, never a second literal) and the cut lands on a GRAPHEME boundary (never a torn
  *  surrogate/combining-mark pair) with a trailing ellipsis marking the cut as lossy. This is a PURE function,
@@ -245,6 +232,16 @@ export function clampActorCardName(name: string): { readonly value: string; read
 }
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+/** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Participant actors
+ *  (character/user) carry NO identity here: their name/avatar come from chat and their standing
+ *  prose from `rpg_sheets` (one home per fact, never a second name to reconcile).
+ *
+ *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgNpcSlug}), which is what
+ *  makes rename possible at all. The three guides are STANDING state (see {@link RPG_NPC_GUIDE_FIELDS}).
+ *
+ *  `characterId` is UNREAD: promotion RE-KEYS the row to `character:<id>`, so the ref itself carries the join
+ *  and a promoted actor has no identity half at all ({@link rpgPromotedCardDescription} carries its durable
+ *  content onto the card instead). */
 export const rpgActorIdentitySchema = z
   .object({
     name: z.string().min(1),
@@ -259,7 +256,7 @@ export const rpgActorIdentitySchema = z
   .strip();
 export type RpgActorIdentity = z.infer<typeof rpgActorIdentitySchema>;
 
-/** The PERSISTENT per-character guides (RV-11) — the three prose fields the extraction round is asked for on
+/** The PERSISTENT per-character guides — the three prose fields the extraction round is asked for on
  *  every beat (`extraction-prompt.ts`: "appearance + outfit (when described), thoughts"). They are STANDING
  *  state, not a per-beat observation: a character's look and dress persist until the story changes them, and
  *  `thoughts` is the character's unspoken inner state (flavor — never dialogue). Named ONCE here because both
@@ -269,7 +266,7 @@ export type RpgActorIdentity = z.infer<typeof rpgActorIdentitySchema>;
 export const RPG_NPC_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
 export type RpgNpcGuideField = (typeof RPG_NPC_GUIDE_FIELDS)[number];
 
-/** The reader-facing label each standing guide carries into a PROMOTED NPC's card description (R4). Named
+/** The reader-facing label each standing guide carries into a PROMOTED NPC's card description. Named
  *  beside the tuple it is keyed by, so a guide added to {@link RPG_NPC_GUIDE_FIELDS} fails `tsc` here rather
  *  than silently vanishing from every card promotion mints. */
 const NPC_GUIDE_CARD_LABEL: Readonly<Record<RpgNpcGuideField, string>> = {
@@ -278,7 +275,7 @@ const NPC_GUIDE_CARD_LABEL: Readonly<Record<RpgNpcGuideField, string>> = {
   thoughts: "Inner life",
 };
 
-/** PROMOTION'S IDENTITY CARRY (R4) — the standing guides an NPC accumulated, rendered as the card description
+/** PROMOTION'S IDENTITY CARRY — the standing guides an NPC accumulated, rendered as the card description
  *  her freshly-minted character card is born with.
  *
  *  Promotion RE-KEYS the actor row from `npc:<slug>` to `character:<id>`, and a participant actor carries NO
@@ -309,17 +306,15 @@ export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `wallet` is
- *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker
- *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the npc row's
- *  opaque `customFields` string record, so every tracked value on every actor (participant OR scene NPC)
- *  reads from ONE home with ONE addressing rule.
+ *  the STORED named-amount array. `trackerValues` is the tracked-field VALUE plane, keyed by tracker
+ *  `key` — every tracked value on every actor (participant OR scene NPC) reads from ONE home with ONE
+ *  addressing rule.
  *
- *  `hp` IS NOT HERE (R3, owner-RULED): health folded into the unified tracker system. It was the one labelled
- *  number left outside the unification's rule, and it carried a DUAL-MAX home (`sheet.maxHp` beside
- *  `hp.max`, with no reconciler anywhere) — exactly the drift class the unification killed for pools. A `d20`
- *  game SEEDS an `hp` meter tracker at mint; `freeform` seeds nothing, because the lived freeform default was
- *  always hp-absent. Health is now mode-forkable, renameable, and read by the same one grammar as every other
- *  meter. There is no `actorRef` here either — the ref keys the {@link rpgActorEntrySchema} ROW above it. */
+ *  `hp` IS NOT HERE: health is a TRACKER like any other, so it has one home, one max and one read grammar, and
+ *  it is mode-forkable and renameable. A `d20` game SEEDS an `hp` meter tracker at mint; `freeform` seeds
+ *  nothing, because the lived freeform default is hp-absent. A dedicated `hp` field beside the tracker system
+ *  would be a second max with no reconciler — the drift class the one-home rule exists to kill.
+ *  There is no `actorRef` here either — the ref keys the {@link rpgActorEntrySchema} ROW above it. */
 export const rpgActorVolatileSchema = z
   .object({
     trackerValues: rpgTrackerValuesSchema.default({}),
@@ -332,7 +327,7 @@ export const rpgActorVolatileSchema = z
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
 
 // Strip mode: also reads imported files, model output and stored rows.
-/** THE actor row on the snapshot's `actorState` plane (R2) — one person, both halves, one lifecycle. `identity`
+/** THE actor row on the snapshot's `actorState` plane — one person, both halves, one lifecycle. `identity`
  *  is present for `npc` actors and absent for participant ones (see {@link rpgActorIdentitySchema}); `volatile` is
  *  always whole. The plane is keyed by {@link actorRefKey} over `actorRef` (the merge engine's computed element
  *  key), and it is ADDITIVE: an actor leaves it by `rpg.dismissActor`, never by going unmentioned. */
@@ -347,12 +342,11 @@ export const rpgActorEntrySchema = z
   .strip();
 export type RpgActorEntry = z.infer<typeof rpgActorEntrySchema>;
 
-// ── THE OP-SHAPED HAND VOCABULARY (R1 — `rpg.patchActor`) ────────────────────────────────────────────────
-// The hand used to author this plane as a whole-ARRAY IMAGE through `editSnapshot`, which asked a client that
-// could only SEE the plane in projections (the participant half + a bolted-on `castVolatile` map, never the
-// offstage rows — both retired by R2's one `RpgActorView`) to
-// re-author every actor's every field on every click. Three shipped defects and one latent clobber came out of
-// that one contract. The ops below replace it: one actor, one
+// ── THE OP-SHAPED HAND VOCABULARY (`rpg.patchActor`) ────────────────────────────────────────────────
+// A whole-ARRAY image would ask a client that can only SEE the plane in projections (the participant half
+// plus a bolted-on `castVolatile` map, never the offstage rows) to re-author every actor's every field on
+// every click — and a stale image silently clobbers anything a model flush wrote between the panel's read and
+// the click. The ops below replace it: one actor, one
 // datum, per call — the server reads the TRUE head, applies the op, and writes back, so a model flush landing
 // between the panel's read and the human's click can no longer be overwritten by a stale image, and the
 // auto-lock lands on exactly the datum the human touched.
@@ -367,8 +361,8 @@ const RPG_ACTOR_OP_FIELDS = ["status", "trackerValues", "conditions", "inventory
 export type RpgActorOpField = (typeof RPG_ACTOR_OP_FIELDS)[number];
 
 // The IDENTITY fields the hand ops address as free TEXT, pinned to the identity plane's own keys. Each is
-//  also its own fine lock path (`actorState.<key>.identity.<field>`) — pinning one NPC's mood no longer
-//  freezes every npc, which is what the retired plane-level `presentCharacters` pin did. `relationship`
+//  also its own fine lock path (`actorState.<key>.identity.<field>`) — pinning one NPC's mood never
+//  freezes every npc. `relationship`
 //  is deliberately absent: it is a two-field object with its own op arm, not a string.
 const RPG_ACTOR_IDENTITY_TEXT_FIELDS = ["name", "emoji", "mood", "appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
 
@@ -390,9 +384,9 @@ const rpgInventoryItemInputSchema = rpgInventoryItemSchema.omit({ id: true }).pa
  *  (the `<field>` in its `actorState.<actorKey>.<field>` lock path) and carries only that field's datum.
  *  Keyed sub-arrays (`conditions` by name, `inventory` by id, `wallet` by name — the merge engine's own
  *  element keys) get add/remove/patch arms; the leaves get `set` arms. There is no `setHp`: health is an
- *  ordinary meter tracker since R3, so it is written by `setTracker` like every other one. */
+ *  ordinary meter tracker, so it is written by `setTracker` like every other one. */
 export const rpgActorOpSchema = z.discriminatedUnion("op", [
-  // The IDENTITY arms (R2) — an npc's own half. They REFUSE on an actor that carries no identity (a
+  // The IDENTITY arms — an npc's own half. They REFUSE on an actor that carries no identity (a
   // participant: her name is chat's and her standing prose is the sheet's), which is errors-as-data,
   // not a silent no-op. `setIdentityText` on `name` is the RENAME the slug key was minted to make possible.
   z.strictObject({ op: z.literal("setIdentityText"), field: z.enum(RPG_ACTOR_IDENTITY_TEXT_FIELDS), text: z.string() }),

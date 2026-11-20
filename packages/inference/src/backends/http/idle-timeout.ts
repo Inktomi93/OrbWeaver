@@ -1,11 +1,11 @@
-// infra/providers/backends/http/idle-timeout — a rolling idle-abort wrapper for streaming runners.
+// packages/inference/src/backends/http/idle-timeout.ts — a rolling idle-abort wrapper for streaming runners.
 // Shared (below the sealed backends) so every HTTP chat runner, and the agent-sdk side-generation turn,
 // composes the same stall guard without reaching into another strategy.
 //
 // Why IDLE, not a whole-turn deadline: a single `AbortSignal.timeout(N)` kills the turn N ms after it
 // STARTS — so a legitimately long generation that streams for >N ms is aborted mid-stream even though the
 // socket is healthy. Resetting the window on every received chunk means only a genuine stall (no bytes for
-// the whole window) trips the abort. Pure timers + AbortController — no clock read, so it stays gate-clean.
+// the whole window) trips the abort. Pure timers + AbortController — no clock read.
 //
 // The caller-signal fold lives in `./abort-flatten.ts` (the reason-flattening law's one home) — this file
 // composes it with the idle timer; it does not re-implement it.
@@ -49,7 +49,7 @@ export function isIdleTrip(error: unknown): boolean {
  * detaches from the caller's signal). The caller's cancel is folded in — REASON-FLATTENED, never
  * `AbortSignal.any` (`./abort-flatten.ts`) — so the composed signal fires on either cause.
  */
-export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs: number | undefined, scheduleTimeout: ScheduleOp): IdleAbort {
+export function turnAbortSignal(external: AbortSignal, idleWindowMs: number | undefined, scheduleTimeout: ScheduleOp): IdleAbort {
   const idleMs = idleWindowMs ?? IDLE_TIMEOUT_MS;
   const controller = new AbortController();
   let cancelTimer: (() => void) | undefined;
@@ -71,12 +71,8 @@ export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs:
     cancelTimer = scheduleTimeout((): void => controller.abort(new IdleTripError(idleMs)), idleMs);
   };
 
-  // Fold the caller's cancel into our controller so the composed signal fires on either cause — through
-  // `foldAbortInto`, which is the ONE home of the reason-flattening law (`./abort-flatten.ts` states the bug
-  // in full: `AbortSignal.any` propagates the source `reason`, this signal goes straight to `fetch`, and a
-  // caller reason containing "timeout"/"connection"/"network" makes `classifyTransportName` read a CANCELLED
-  // turn as a retryable fault and re-run it). Node-26 program §4.12's "don't adopt `.any` here" KEEP stands;
-  // it is now enforced by there being no local composition to get wrong.
+  // The caller's cancel is folded through `foldAbortInto`, the ONE home of the reason-flattening law, so no
+  // local composition exists to get wrong; `./abort-flatten.ts` states the bug in full.
   detachExternal = foldAbortInto(controller, external);
   // Stop the idle timer once aborted (caller cancel or our own stall trip) so a settled turn leaves no
   // dangling timer.

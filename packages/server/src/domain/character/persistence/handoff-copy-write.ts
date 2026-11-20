@@ -84,7 +84,6 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
     ...input,
     db: databaseForOwner(input.db),
     bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
-    applyStatsDelta: (batch, _db, delta) => input.applyStatsDelta(batchHandle(batch), input.db, delta),
   };
   return async ({ fromOwnerId, toOwnerId, chatId, characterIds }): Promise<readonly HandoffCardCopy[]> => {
     if (characterIds.length === 0) {
@@ -181,7 +180,7 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
             createdAt: at,
             updatedAt: at,
           },
-          ctx,
+          ctx.bumpStatsCanonVersion,
         );
         if (claimed) {
           return [{ sourceCharacterId: source.id, characterId: newId }];

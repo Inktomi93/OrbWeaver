@@ -31,8 +31,9 @@ import { pluginSlugSchema } from "@orb/contracts/plugin";
 import type { InstallForAllUsersParams } from "../contract/params.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { upsertDistribution } from "../persistence/distributed-plugins.ts";
+import { alreadyHolds } from "../persistence/distribution.ts";
 
-import { alreadyHolds, installDistributedCopy } from "../substrate/distribution.ts";
+import { installDistributedCopy } from "../substrate/distribution.ts";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createInstallForAllUsers(ctx: PluginContext, deps: PluginDistributionDeps & DistributionInstallDeps): PluginService["installForAllUsers"] {

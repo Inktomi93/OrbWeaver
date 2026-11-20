@@ -12,24 +12,22 @@ import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { DroppedAppendFanEvent, DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
 import type { CharacterRegexSlice } from "./regex-tiers.ts";
-import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
+import type { HistoryFloorSeq, SeatRenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
 
 /** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
-
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
 // The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
 //  render policy, the raw theme + background overrides, and the card name/avatar) — replaces
 //  four separate reads of the same `characters` row per participant. `card` is null for a human/agent
 //  seat, no resolvable host, or a gone/mid-delete card.
-interface SeatDeco {
-  /** The content-render policy (character override ?? global floor); the bare global floor for a card-less seat. */
-  readonly renderPolicy: RenderPolicy;
+// The render policy and its source come from `resolveSeatRenderPolicy`, never from two separate reads.
+interface SeatDeco extends SeatRenderPolicy {
   /** The raw, unmerged per-character theme override; null for a card-less seat. Chat never reads the themes
    *  table — the override/global/default cascade is a client concern. */
   readonly themeOverride: ThemeOverride | null;
-  /** BG-C — the raw, unmerged per-character carried BACKGROUND source (the `themeOverride` twin); null for a
+  /** The raw, unmerged per-character carried BACKGROUND source (the `themeOverride` twin); null for a
    *  card-less seat. The true-solo takeover + cascade are a client concern (the app-shell resolver). */
   readonly backgroundOverride: ThemeBackground | null;
   /** The card's display name + avatar; null for a human/agent seat, no host, or a gone card. */
@@ -44,7 +42,8 @@ export type ResolveCharacterTagsOp = (params: {
 }) => Promise<readonly Pick<TagView, "id" | "name">[]>;
 
 /** Resolves a roster member's full card-derived decoration in ONE read. `characterId: null` (a human/agent
- *  seat) or `ownerId: null` (no resolvable host) yields the bare global floor + a null card — fail-closed. */
+ *  seat) or `ownerId: null` (no consenting host) yields the bare global floor + a null card — fail-closed; the
+ *  second answers `no-host` as its render source. */
 export type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<SeatDeco>;
 
 declare const viewerVisibilityBrand: unique symbol;
@@ -60,9 +59,12 @@ declare const viewerVisibilityBrand: unique symbol;
  *  canon read checks by object identity, so a spread copy with a defaulted floor is refused when the read runs. */
 export interface ViewerVisibility {
   readonly [viewerVisibilityBrand]: true;
+  /** The chat this answer was resolved for. A canon read refuses the answer for any other chat: a host's unclamped,
+   *  hidden-reading answer for their own room would otherwise open another room's pre-join and hidden canon. */
+  readonly chatId: ChatId;
   readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
-  /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
+  /** The D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
    *  (`<lie>`/`<ofilter>`) verbatim — the host reveal plane; `false` ⇒ a member, whose canon must be
    *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
    *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
@@ -107,7 +109,7 @@ export type ResolveSeatDecosOp = (params: {
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
  * onto the reply slot, and runs the turn through the SAME engine path a human send clears — the per-chat turn
- * lock and the cascade-depth cap included. (Automation's own §3 rate gate is the spend wall, and
+ * lock and the cascade-depth cap included. (Automation's own rate gate is the spend wall, and
  * it sits in the arm above this op.)
  */
 export interface RequestTurnParams {
@@ -184,7 +186,7 @@ export interface TurnRetrievalEvents {
 export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
 
 /** Register a prompt transform; idempotent by id, so a re-register replaces the prior one. */
-export type RegisterPromptTransformOp = (transform: PromptTransform) => void;
+export type RegisterPromptTransformOp<Signal> = (transform: PromptTransform<Signal>) => void;
 
 /** Deregister a prompt transform by id; a no-op for an unknown id. */
 export type UnregisterPromptTransformOp = (id: string) => void;
@@ -213,8 +215,8 @@ interface ResolveRegexSourcesArgs {
   readonly presetId: PresetId | null;
   /** The present characters, in roster order. */
   readonly characterIds: readonly CharacterId[];
-  /** The room. Room-public scope, not owner-filtered. */
-  readonly chatId: ChatId;
+  /** The room, or null for a read outside any room (its chat slice is then empty). */
+  readonly chatId: ChatId | null;
 }
 
 /** The four resolved slices, each ordered by its junction position. The consumer unions and dedupes them. */
@@ -234,3 +236,12 @@ export type RequireParticipantOp = (principal: Principal, chatId: ChatId) => Pro
 
 /** The room-host gate, the host twin of {@link RequireParticipantOp}: resolves for the room's host, throws for anyone else. */
 export type RequireHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
+
+/** The room's present host, or `null` for a hostless room. A consumer domain that filters a room's attachments by
+ *  owner reads the host through this op, because it reads neither the roster nor `chats`. */
+export type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
+
+/** Narrow the present host's room-tier rows to what a non-host member of `chatId` may read: the room-tier part of
+ *  that member's display read. Nothing while the host withholds their display scripts; otherwise only the enabled
+ *  display-pass rows the room's levers apply. The caller has already gated membership and resolved the host. */
+export type RoomTierForMemberOp = (chatId: ChatId, hostRows: readonly RegexScriptRow[]) => Promise<RegexScriptRow[]>;

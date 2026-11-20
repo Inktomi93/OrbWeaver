@@ -21,10 +21,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import type { ImageSubject } from "#state";
 import { openImageEdit, useDetailSubject } from "#state";
 import { useSetChatBackground } from "../hooks/use-imagery-mutations.ts";
-import { IMAGE_EDIT_NAME } from "../lib/imagine-names.ts";
+import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_NAME } from "../lib/imagine-names.ts";
 import { ProvenanceStrip } from "./provenance-strip.tsx";
 
 export function ImageDetailBody(): ReactElement {
@@ -32,7 +33,7 @@ export function ImageDetailBody(): ReactElement {
   if (subject === undefined) {
     return (
       <Stack gap="block" padding="block">
-        <Text voice="gloss">No image selected.</Text>
+        <Text voice="gloss">{IMAGE_DETAIL_EMPTY_TEXT}</Text>
       </Stack>
     );
   }
@@ -64,7 +65,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         // THE SUCCESS TOAST BELONGS TO THE SETTLED WRITE (#623 P1). It used to fire on the line after a
         // fire-and-forget `.mutate(...)`, so a REFUSED write (the host-only gate, the asset-ownership gate)
         // painted the mutation's `errorToast` AND "Set as chat background" together and the viewer could not
-        // tell which was true. Awaiting `mutateAsync` is the sibling shape `image-edit-body.tsx` already uses.
+        // tell which was true. Awaiting `mutateAsync` is the sibling shape `../hooks/use-image-edit-commit.tsx` already uses.
         // The rejection stops HERE deliberately, and that is not an error swallowed: `useSetChatBackground`
         // carries `errorToast: "Couldn't set the chat background."`, which IS the handling — re-throwing would
         // reach the outer `.catch` below and re-open the double toast from the other side. Awaited (not
@@ -74,7 +75,8 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
             chatId: subject.chatId,
             background: { kind: "asset", assetId: subject.assetId, assetHash: ref.hash, mime: ref.mime },
           });
-        } catch {
+        } catch (error) {
+          rethrowUnlessTrpcFailure(error);
           return;
         }
         // This repaints the whole room from a lightbox button, so the toast names where to change it back —

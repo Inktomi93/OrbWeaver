@@ -1,52 +1,61 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "@orb/contracts/regex";
+import type {
+  ExportRegexScripts,
+  ImportCardScripts,
+  ImportGlobalScripts,
+  ImportPresetScripts,
+  ImportRegexScript,
+  PlanPresetScripts,
+} from "@orb/contracts/regex";
 import type { ImportRpgGame } from "@orb/contracts/rpg";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
-import { createBackgroundStore } from "#domain/assets";
+import { createAdmitsAvatar, createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import { createCompareAndSetImportedTokenUsage, createFindImportedChatHashes, createListImportedTokenUsageCandidates } from "#domain/chat";
+import {
+  createCompareAndSetImportedTokenUsage,
+  createFindImportedChatHashes,
+  createImportMemoryStrikes,
+  createListImportedTokenUsageCandidates,
+} from "#domain/chat";
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
+import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, OwnedChatTitle, SettleImportMemory } from "#domain/import";
 import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
   createImportWorkloadDrivers,
   createRefreshImportPlannerStats,
   createSettleImportMemory,
+  createSettleImportStats,
   DEFAULT_IMPORT_STAGING_DIR,
   importStagedArchive,
   runBundleImport,
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
-import { createFindOwnedPersonaByName, createFindOwnedPersonas } from "#domain/persona";
+import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
-import { createFindOwnedPresets, createImportPresets } from "#domain/preset";
+import { createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
-import {
-  createAdoptImportedDefaultPersona,
-  createApplyImportedAppearance,
-  createFindOwnedThemes,
-  createImportTheme,
-  createOwnedBackgroundHashes,
-} from "#domain/settings";
+import { createAdoptImportedDefaultPersona, createApplyImportedAppearance, createImportTheme, createOwnedBackgroundHashes } from "#domain/settings";
+import type { SpendLedgerPortabilityService } from "#domain/stats";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
-import { createFindOwnedBooks } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
 import { createOperatorImportPort, createStagedImportPort, extractZip, readStagedManifest, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
 import { runProfileDirImport } from "../import/index.ts";
+import { minter } from "./minter.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
@@ -65,14 +74,19 @@ export interface PortabilityRunnerComposeDeps {
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsAssemblyContext;
   readonly imageryPortability: ImageryPortabilityService;
+  readonly spendLedgerPortability: SpendLedgerPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
+  /** The import lookup's last step for a card or room the app wrote (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
+  readonly exportCurrentChats: ExportCurrentChats;
+  readonly ownedChatTitle: OwnedChatTitle;
   readonly character: CharacterService;
   readonly assets: AssetsService;
   readonly attachCardTag: TagService["attachCardTagByName"];
@@ -87,6 +101,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importRegexScript: ImportRegexScript;
   /** The ST profile import's PRESET-scoped + GLOBAL regex lifts (the silent-gap sweep). */
   readonly importPresetScripts: ImportPresetScripts;
+  readonly planPresetScripts: PlanPresetScripts;
   readonly importGlobalScripts: ImportGlobalScripts;
   /** The ST world NAME-LINK attach (card `extensions.world` + charLore → the owner's books, by exact name). */
   readonly attachBooksByName: AttachOwnedBooksByName;
@@ -116,15 +131,21 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const settleImportMemory = createSettleImportMemory(workloads, now);
 
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
-  const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
-    await reconcileStats(db, { ownerId, now, idSource: deps.idSource });
-  };
+  const settleImportStats = createSettleImportStats({
+    // Runs after the import's rows landed; the owner's rollups must cover all of them, so no cancel may stop it.
+    rebuild: async ({ ownerId }) => {
+      await reconcileStats(db, { ownerId, now, idSource: deps.idSource, signal: new AbortController().signal });
+    },
+    workloads,
+    logger: deps.logger,
+  });
   const findPersonaByName = createFindOwnedPersonaByName(db);
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */
   const profileImport = {
     character: deps.character,
     storeAvatar: deps.assets.store,
     attachCardTag: deps.attachCardTag,
+    exportCurrentCard: deps.exportCurrentCard,
     importLorebook: deps.importWorldInfo.importLorebook,
     hasPrimaryBook: deps.importWorldInfo.hasPrimaryBook,
     linkCarriedBooks: deps.importWorldInfo.linkCarriedBooks,
@@ -132,11 +153,15 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
     enqueueImportIndex,
+    heldChatHashes: createFindImportedChatHashes({ db }),
+    exportCurrentChats: deps.exportCurrentChats,
+    ownedChatTitle: deps.ownedChatTitle,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),
     attachChatTagByName: deps.attachChatTag,
     importRpgGame: deps.importRpgGame,
+    importMemoryStrikes: createImportMemoryStrikes({ db, newMemoryStrikeId: minter(ID_PREFIX.chatMemoryStrike, deps.idSource) }),
     findOwnedAssetIdsByHash: deps.assets.ownedAssetIdsByHash,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
   };
@@ -147,9 +172,10 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     settingsCtx: deps.settingsCtx,
     presetCtx: deps.presetCtx,
     worldInfoExportCtx: deps.worldInfoExportCtx,
-    importStandaloneLorebook: deps.importStandaloneLorebook,
+    importStandaloneLorebooks: deps.importStandaloneLorebooks,
     assetsCtx: deps.galleryCtx,
     imagery: deps.imageryPortability,
+    spend: deps.spendLedgerPortability,
     databankCtx: deps.databankCtx,
     persona: deps.persona,
     exportService: deps.exportService,
@@ -166,7 +192,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     operatorImportPort: createOperatorImportPort(deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR),
     stagedImportPort: async (root, digest) => createStagedImportPort(root, await readStagedManifest(root, digest)),
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion),
+    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource, deps.now).bumpStatsCanonVersion),
     ...createImportWorkloadDrivers({
       now,
       quiet: deps.quiet,
@@ -176,20 +202,18 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           fs,
           principal,
           ...profileImport,
-          importStandaloneLorebook: deps.importStandaloneLorebook,
+          importStandaloneLorebooks: deps.importStandaloneLorebooks,
           ownership: {
-            findBooks: createFindOwnedBooks({ db }),
-            findPresets: createFindOwnedPresets(deps.presetCtx),
-            findThemes: createFindOwnedThemes(deps.settingsCtx),
             backgroundHashes: createOwnedBackgroundHashes(deps.settingsCtx),
-            findPersonas: createFindOwnedPersonas({ db }),
             findChatHashes: createFindImportedChatHashes({ db }),
+            admitsAvatar: createAdmitsAvatar(),
           },
           importPresetScripts: deps.importPresetScripts,
+          planPresetScripts: deps.planPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,
           attachBooksByName: deps.attachBooksByName,
-          importPreset: createImportPresets(deps.presetCtx),
-          importTheme: createImportTheme(deps.settingsCtx),
+          importPresets: createImportPresets(deps.presetCtx),
+          importThemes: createImportTheme(deps.settingsCtx),
           adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
           storeBackground: createBackgroundStore({ store: deps.assets.store, maxBytes: () => ASSET_UPLOAD_MAX_BYTES }),
           applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
@@ -203,10 +227,10 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       staged: async ({ stagedPath, digest, ...args }) =>
         importStagedArchive({ ...args, registry: portability, staged: stageDirectory(stagedPath, await readStagedManifest(stagedPath, digest)) }),
       writeReport: (markdown, generatedAt) => writeImportReportFile(markdown, generatedAt, deps.importReportsDir),
-      reconcileStats: reconcileImportStats,
+      settleStats: settleImportStats,
       settleMemory: settleImportMemory,
     }),
-    reconcileImportStats,
+    settleImportStats,
     refreshPlannerStats: createRefreshImportPlannerStats(db),
     emitLibraryChanged: createImportLibraryEmitter({
       charactersChanged: ({ ownerId }) => deps.emitUserEvent(ownerId, { type: "charactersChanged" }),

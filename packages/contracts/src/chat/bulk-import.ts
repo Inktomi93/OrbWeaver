@@ -73,8 +73,8 @@ export interface BulkImportVariantInput {
   readonly ttftMs: number | null;
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
-  /** The variant's sidecar as the bundle carries it — the same closed `VariantMetadata` the column stores
-   *  (§5.3c class 3), so an import round-trip cannot widen it back into a bag. */
+  /** The variant's sidecar as the bundle carries it — the same closed `VariantMetadata` the column stores,
+   *  so an import round-trip cannot widen it back into a bag. */
   readonly metadata: VariantMetadata | null;
   /** The variant's INPUT token count. An orb-native bundle carries the recorded usage figure. The ST jsonl
    *  arm supplies it for a `user`/`system` slot: ST has ONE `extra.token_count` — the count of the row's own
@@ -82,7 +82,7 @@ export interface BulkImportVariantInput {
    *  {@link tokensOut}. ("ST carries no inbound count" is a claim about ST's FIELD NAMES, not about what
    *  the value means.) */
   readonly tokensIn?: number | null;
-  /** R6 (orb-native only) — the swipe's runtime-variable ops (`message_variants.variable_delta`). Carrying
+  /** The swipe's runtime-variable ops (`message_variants.variable_delta`), orb-native only. Carrying
    *  the DELTAS is what lets a restore re-derive `chats.runtimeVariables`, which is a cache and therefore
    *  does not travel. Absent ⇒ null (the ST arm's shape). */
   readonly variableDelta?: readonly VarOp[] | null;
@@ -90,10 +90,10 @@ export interface BulkImportVariantInput {
   readonly usage?: GenerationUsage;
 }
 
-/** One `chat_injections` row carried by an importing chat. The per-chat prose plane: since the room-override
- *  author's-note twin was retired (owner ruling) this LIST is the ONE prose door, for BOTH arms —
- *  an orb-native bundle carries the whole list verbatim, and the ST arm converts its single `note_prompt`
- *  (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one row. */
+/** One `chat_injections` row carried by an importing chat. The per-chat prose plane, and this LIST is its ONE
+ *  door for BOTH arms — an orb-native bundle carries the whole list verbatim, and the ST arm converts its single
+ *  `note_prompt` (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one
+ *  row. A bare string cannot be the door: with ST's placement honored it could not say where the note goes. */
 export interface BulkImportInjectionInput {
   readonly position: (typeof CHAT_INJECTION_POSITIONS)[number];
   readonly depth: number;
@@ -188,12 +188,14 @@ export interface BulkImportChatInput {
    *  op runs it through the column's OWN `parseChatMetadata` read seam, so there is exactly one validation home
    *  and a corrupt sub-blob heals to its default instead of landing a shape every reader must then guard. */
   readonly metadata?: ChatMetadata | Record<string, unknown>;
-  // ── R6, the orb-native fidelity arm. Every field below is ABSENT on the ST jsonl path, and absent means
-  // "exactly what an ST import writes today" — so declaring them changed no byte of the interchange arm.
+  // ── The orb-native fidelity arm. Every field below is ABSENT on the ST jsonl path, and absent means
+  // "exactly what an ST import writes today".
   /** `chats.starred`. Absent ⇒ false (the column default). */
   readonly starred?: boolean;
   /** `chats.archived`. Absent ⇒ false (the column default). */
   readonly archived?: boolean;
+  /** `chats.everShared`: another human once held a seat in the exported room. Absent ⇒ false. */
+  readonly everShared?: boolean;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. Absent ⇒ null. */
   readonly compactSummary?: string | null;
   readonly compactedAtSeq?: number | null;
@@ -204,25 +206,38 @@ export interface BulkImportChatInput {
   readonly userMacroValues?: UserMacroValues | null;
   /** The chat's whole prose plane, verbatim — the ONE per-chat prose door. An orb-native bundle supplies its
    *  whole `chat_injections` list; the ST arm supplies the single row it converted `note_prompt` + ST's
-   *  recorded placement knobs into. Absent/empty ⇒ none. (This REPLACED a sibling `authorsNote: string|null`
-   *  field, which could carry only the text: with ST's placement honored, a bare string could no longer say
-   *  where the note goes, and two spellings of one plane is exactly what the owner ruling unwound.) */
+   *  recorded placement knobs into. Absent/empty ⇒ none. One list, never a text field beside it: with ST's
+   *  placement honored a bare string cannot say where the note goes. */
   readonly injections?: readonly BulkImportInjectionInput[];
 }
 
-/** R6 — the ids ONE imported chat was written under, index-aligned to the input that produced them. The
+/** The ids ONE imported chat was written under, index-aligned to the input that produced them. The
  *  orb-native bundle's cross-plane references are POSITIONAL (`messages[i].variants[j]`) precisely BECAUSE
  *  ids are not preserved across a box; this is the remap that turns those positions back into ids, so the
  *  caller can re-link the chat-anchored planes it owns (the rpg campaign) without the chat write op ever
  *  learning what an rpg game is. Alignment IS the contract: `messageIds[i]` is the row written for
- *  `messages[i]`, and `variantIds[i][j]` for `messages[i].variants[j]`. */
+ *  `messages[i]`, and `variantIds[i][j]` for `messages[i].variants[j]`. A `null` is a row the write refused
+ *  ({@link BulkImportRefusedRow}); a message whose every variant was refused has no slot. */
 export interface ImportedChatIdentity {
   readonly chatId: ChatId;
-  readonly messageIds: readonly MessageId[];
-  readonly variantIds: readonly (readonly MessageVariantId[])[];
+  readonly messageIds: readonly (MessageId | null)[];
+  readonly variantIds: readonly (readonly (MessageVariantId | null)[])[];
 }
 
-/** R6 — one input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
+/** One imported variant the write refused because its text is longer than `MESSAGE_TEXT_MAX_CHARS`. The rest of
+ *  its chat still lands; a refused selected variant hands the selection to the message's first written one. */
+export interface BulkImportRefusedRow {
+  /** The chat's `importedFrom` source name. */
+  readonly chat: string;
+  /** The message's 0-based position in the input transcript. */
+  readonly messageIndex: number;
+  /** The variant's `idx` within its message. */
+  readonly variantIdx: number;
+  readonly field: "content" | "reasoning";
+  readonly chars: number;
+}
+
+/** One input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
  *  `aligned` pairs `messages[i]` with the slot the import wrote for it, and is `null` where that slot or variant
  *  was since deleted. `unproven-origin` is the refusal: the room's surviving slots no longer prove the seq its
  *  import numbered from, so no position can be paired with a row and the caller re-links nothing anchored. */
@@ -261,6 +276,8 @@ export interface BulkImportChatsResult {
    *  are still NULL** — never overwriting a choice the owner made after the import. Counted per CHAT, and
    *  zero on a run that healed nothing (including every fresh import). */
   readonly chatsPersonaHealed: number;
+  /** The variants this run refused as over-long, in input order. Empty when every row landed. */
+  readonly refusedRows: readonly BulkImportRefusedRow[];
 }
 
 /** The chat-owned bulk-import write op. Throws `DomainNotFoundError` when the target character is not the owner's. */

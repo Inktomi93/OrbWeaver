@@ -17,7 +17,7 @@ import { createSeededIds, FROZEN_AT_MS, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { exportLibrary, makeAssetBytes, restoreBundle, seedRpgCheckpoint, seedRpgGame, seedTranscript, signedInBox } from "@orb/testkit/node/composed";
-import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
+import { failOnExportNote, makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 
 const SOURCE_ID_CURSOR = 2 ** 29;
 const HANDLE = castId<CharacterHandle>("bridge-warden");
@@ -82,7 +82,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
   const bundle = await exportLibrary(source, ["character", "chat"]);
 
   await using target = await signedInBox();
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const [restoredRoom, ...extra] = await roomsOf(target);
   if (restoredRoom === undefined || extra.length > 0) {
     throw new Error("the restore did not land exactly one room");
@@ -99,7 +99,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
     checkpointId: castId(checkpoint?.id ?? ""),
   });
 
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   expect(await roomsOf(target)).toEqual([restoredRoom]);
   expect((await targetCaller.chat.listChatInjections({ chatId: restoredRoom })).map((row) => row.content)).toEqual([INJECTION]);
   expect((await targetCaller.rpg.listCheckpoints({ chatId: restoredRoom })).map((row) => row.label)).toEqual([CHECKPOINT]);
@@ -342,7 +342,7 @@ test("importing a campaign bundle again after the room lost a later message keep
   }
   const params = { principal: owner, chatId: room.id };
   // The unchanged file lands on its own identity: nothing is created and nothing is noted.
-  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false, label: ANCHORED_TITLE });
 
   const last = (await root.services.chat.listMessages(params)).messages.at(-1);
   if (last === undefined) {
@@ -352,7 +352,7 @@ test("importing a campaign bundle again after the room lost a later message keep
 
   // The slots no longer align with the file, so the campaign cannot be re-placed; the room still holds its game,
   // so that is not a loss and the import says nothing about one.
-  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false, label: ANCHORED_TITLE });
   expect((await root.services.rpg.listJournal(params)).map((entry) => entry.title)).toEqual([ANCHORED_JOURNAL]);
 });
 
@@ -390,11 +390,11 @@ test("a room's compact summary, room overrides and variable picks restore by val
   }
   // The compaction marker is written by a summarizer turn; the production writer carries one into the file the restore reads.
   const withMarker = buildChatBundleFile({ ...sourceRoom.value, compactSummary: COMPACT_SUMMARY, compactedAtSeq: COMPACTED_AT_SEQ });
-  const sourceCard = await source.app.exportService.exportCharacter({ principal: owner, characterId: made.id });
+  const sourceCard = await source.app.exportService.exportCharacter({ principal: owner, characterId: made.id, note: failOnExportNote });
 
   await using target = await signedInBox();
   const cardBundle = await exportLibrary(source, ["character"]);
-  expect(await restoreBundle(target, cardBundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, cardBundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const chat = target.app.portability.find((entity) => entity.kind === "chat");
   if (chat === undefined) {
     throw new Error("production composition has no chat portability descriptor");
@@ -427,6 +427,7 @@ test("a room's compact summary, room overrides and variable picks restore by val
   const restoredCardBytes = await target.app.exportService.exportCharacter({
     principal: await target.principalFor(target.ownerId),
     characterId: restoredCard.id,
+    note: failOnExportNote,
   });
   expect([...(restoredCardBytes?.bytes ?? [])]).toEqual([...sourceCard.bytes]);
 });
@@ -440,29 +441,34 @@ test("an owner's persona, world book, global databank document and settings valu
     input: createPersonaSchema.parse({ name: "Backup Persona", description: "Travels in the backup." }),
   });
   await source.services.worldInfo.createBook({ principal: owner, input: { name: "Backup World" } });
-  const { document } = await source.services.databank.createFromText({ principal: owner, name: "Field Notes", text: "The kingdom's dusk lasts nine hours." });
+  const { document } = await source.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "Field Notes",
+    text: "The kingdom's dusk lasts nine hours.",
+  });
   await source.services.databank.attachGlobal({ principal: owner, documentId: document.id });
   // A value off its default, so a restored read proves the value travelled and not only the section.
-  await source.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "chat", patch: { continueOnSend: false } } });
-  expect((await sourceCaller.settings.getUserSettings()).config.chat.continueOnSend).toBe(false);
+  await source.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "chat", patch: { emptyEnterReplies: false } } });
+  expect((await sourceCaller.settings.getUserSettings()).config.chat.emptyEnterReplies).toBe(false);
   const bundle = await exportLibrary(source, ["persona", "world-info", "databank", "user-settings"]);
 
   await using target = await signedInBox();
   const targetCaller = await target.internalCallerFor(target.ownerId);
-  expect((await targetCaller.settings.getUserSettings()).config.chat.continueOnSend).not.toBe(false);
+  expect((await targetCaller.settings.getUserSettings()).config.chat.emptyEnterReplies).not.toBe(false);
   const landed = async (): Promise<unknown> => ({
     personas: (await targetCaller.persona.list()).map((persona) => persona.name).filter((name) => name === "Backup Persona"),
     books: (await targetCaller.worldInfo.listBooks()).map((book) => book.name).filter((name) => name === "Backup World"),
     documents: (await targetCaller.databank.list({})).items.map((item) => item.name).filter((name) => name === "Field Notes"),
     globalDocuments: (await targetCaller.databank.listGlobal()).length,
-    continueOnSend: (await targetCaller.settings.getUserSettings()).config.chat.continueOnSend,
+    emptyEnterReplies: (await targetCaller.settings.getUserSettings()).config.chat.emptyEnterReplies,
   });
 
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const first = await landed();
-  expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
+  expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, emptyEnterReplies: false });
   // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
   expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   expect(await landed()).toEqual(first);
 });

@@ -14,16 +14,21 @@ import type { Cancellation } from "@orb/kit/guards";
 import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema, storedGroupConfigSchema } from "#chat";
+import type { HtmlTrustStep } from "#chat";
+import { HTML_TRUST_STEPS } from "#chat";
 import type { DatabankSettings } from "#databank";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { IpCertificateSetting, Principal } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
-import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { EXTRACTION_MODES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS, MULTIMODAL_MODES } from "#imagery";
+import type { ImportAnswer } from "#import";
 import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { pluginSurfaceIdSchema } from "#plugin";
-import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
+import type { ProseOverrides } from "#prose";
+import { proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
+import type { ProseOverride } from "#prose-slot";
+import { proseOverrideFromLegacy } from "#prose-slot";
 import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
@@ -32,7 +37,7 @@ import { appearanceSettingsSchema } from "./appearance.ts";
 import type { SettingsImportOutcome } from "./import-results.ts";
 
 // The `appearance` section lives in its own module so the client's pre-paint boot hint can reach the
-// CONTRACT's own schema object (e94c50a718: one set of bounds, never a client copy) without composing this
+// CONTRACT's own schema object (one set of bounds, never a client copy) without composing this
 // whole `UserSettings` tree and its prose tables. Ownership is unchanged — the section is settings',
 // and shared appearance shapes and operations are re-exported here for `@orb/contracts/settings` consumers.
 // The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
@@ -46,6 +51,7 @@ export type {
 } from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
+  BACKGROUND_SCRIM_DIM,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
   mintBackgroundEntryId,
@@ -55,7 +61,7 @@ export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
 export { CATALOG_SETTINGS_PREFIX, SETTINGS_TENANT_PREFIXES } from "./kv.ts";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
-// LogLevel — the ONE tuple (foundation/env imports it DOWN for its `z.enum`; kills the hand-kept mirror).
+// LogLevel — the ONE tuple (foundation/env imports it DOWN for its `z.enum`, so there is no hand-kept mirror).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
@@ -66,7 +72,7 @@ const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 11;
+export const APP_SETTINGS_SCHEMA_VERSION = 12;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -74,7 +80,7 @@ const SCORE_CEIL = 1;
 // The per-knob numeric BOUNDS — the ONE home the schema below AND the admin surface's clamp both read, so a
 // clamped client value always passes the schema (no silent-wipe path: an out-of-range send fails the inner
 // schema and trips memoryDefaults' `.catch(undefined)`, wiping EVERY override). `int` = integer-only;
-// `min`/`max` inclusive; `max: null` = unbounded above (the count knobs — the schema never capped them, so
+// `min`/`max` inclusive; `max: null` = unbounded above (the count knobs — the schema places no cap on them, so
 // clamping preserves the exact accepted set). `mode` (enum) + `keywordMatch` (boolean) are non-numeric.
 export const MEMORY_DEFAULTS_BOUNDS = {
   blockSize: { min: 1, max: null, int: true },
@@ -191,16 +197,16 @@ export const IMAGE_VARIANT_QUALITY_MAX = 100;
 const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.int().min(IMAGE_VARIANT_QUALITY_MIN).max(IMAGE_VARIANT_QUALITY_MAX).optional();
 
 // Positive-integer millisecond durations (born-in-DB admin floors, no env): the prompt-transform per-transform
-// deadline (floor 250ms), the non-owner local-compute budget WINDOW (floor 24h — the cap's sibling), and the
-// model-catalog success-refresh cadence (floor 24h). A value ≤0 / non-finite drops at parse → the floor governs.
+// deadline (floor 250ms) and the model-catalog success-refresh cadence (floor 24h). A value ≤0 / non-finite
+// drops at parse → the floor governs.
 const durationMs = (): z.ZodOptional<z.ZodNumber> => z.int().positive().optional();
 
-// The retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
+// Runtime-flippable, so AppSettings rather than ENV.
 export const DEFAULT_LOCAL_MULTI_USER = false;
 export const DEFAULT_DISCREET_LOGIN = false;
 
-const MAX_IMAGE_BYTES_FLOOR = 100_000;
-const MAX_IMAGE_BYTES_CEIL = 100_000_000;
+export const MAX_IMAGE_BYTES_FLOOR = 100_000;
+export const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
 // The databank-upload override CEILING = the route belt (@orb/contracts/uploads DATABANK_UPLOAD_MAX_BYTES,
@@ -243,14 +249,12 @@ const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
-  trustHtml: z.boolean().nullable().optional().catch(undefined),
-  // The deployment CEILING on the html-trust ladder's top rung — "may a card run its own scripts in a
-  // viewer's browser". Floor TRUE, and also the default rung of every "Inherit default" character; `false`
-  // revokes it everywhere. See `@orb/contracts/chat::DeploymentRenderPolicy`.
-  allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
+  // "Default for characters": the step an "Inherit default" character takes; a character's own step wins over it.
+  // Floor `interactive`. See `@orb/contracts/chat::DeploymentRenderPolicy`.
+  defaultHtmlStep: z.enum(HTML_TRUST_STEPS).nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
-  // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
+  // The per-image byte cap the asset store and the remote-image fetch both bound by (floor/ceiling above).
   maxImageBytes: z.int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
   // Databank single-document upload cap — TIGHTEN-only (schema max = the route belt).
   maxDatabankBytes: z.int().min(MAX_DATABANK_BYTES_FLOOR).max(MAX_DATABANK_BYTES_CEIL).nullable().optional().catch(undefined),
@@ -260,7 +264,7 @@ const appSettingsShape = {
   catalogRefreshIntervalMs: durationMs().nullable().optional().catch(undefined),
   // The image-variant lossy-encoder quality (folded into the variant cache key — see resolve-variant).
   imageVariantQuality: imageVariantQualitySchema().nullable().optional().catch(undefined),
-  /** GOVERNANCE (inference program F12): the PRIVATE-range hosts/CIDRs an `auth: endpoint` connection may dial
+  /** GOVERNANCE: the PRIVATE-range hosts/CIDRs an `auth: endpoint` connection may dial
    *  (`127.0.0.1`, `::1`, `192.168.1.0/24`…). Per DEPLOYMENT, never per principal — the same SSRF guard with a
    *  data input. Env floor `PRIVATE_ENDPOINT_ALLOWLIST`; DB override wins; born `[127.0.0.1, ::1]` under
    *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only).
@@ -296,27 +300,24 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     }
     return { ...config, schemaVersion: 2 };
   },
-  // v2→v3: the `engineLaunch` LAUNCH-config section (since RETIRED with the vLLM fleet — inference
-  // program F11) was purely additive/optional — no field moved or renamed. Stamp the version so a v2 row
-  // stops re-running the lift chain; the absent section reads back as the env floor.
+  // v2→v3: the `engineLaunch` LAUNCH-config section was purely additive/optional — no field moved or renamed.
+  // Stamp the version so a v2 row stops re-running the lift chain; the absent section reads back as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
-  // v3→v4: the Phase B ⑩ admin-tier fields (maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs,
-  // imageVariantQuality, and the since-retired agentSdkConcurrency and engineLaunch.genPresencePenalty) were purely
-  // additive/optional — an absent field reads back as its floor.
+  // v3→v4: the admin-tier fields (maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs,
+  // imageVariantQuality) were purely additive/optional — an absent field reads back as its floor.
   3: (config) => ({ ...config, schemaVersion: 4 }),
   // v4→v5: a stamp; no stored field changes meaning.
   4: (config) => ({ ...config, schemaVersion: 5 }),
-  // v5→v6: `promptCacheMinDepth` (findings §5) is purely additive/optional — an absent field reads back as
+  // v5→v6: `promptCacheMinDepth` is purely additive/optional — an absent field reads back as
   // its born-in-DB floor 0, which is the identity of the `Math.max` it feeds, so no stored blob changes
   // meaning and no wire body moves.
   5: (config) => ({ ...config, schemaVersion: 6 }),
   // v6→v7: a stamp; no stored field changes meaning.
   6: (config) => ({ ...config, schemaVersion: 7 }),
-  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (docs/work/0122, owner ruling). Unlike every lift
+  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (owner ruling). Unlike every lift
   // above this one it DELETES a stored field, so it is the only one that has to be written by hand rather than
-  // stamped: the owner's probe measured the experimental boost on the real corpus (222-message
-  // conversation, biases 0…1) and found the final top-three unchanged in mixC and actively WORSE at a smaller
-  // retrieveK, so the knob is retired rather than blessed with a production blend.
+  // stamped: measured on the real corpus, the experimental boost left the final top-three unchanged in mixC
+  // and was actively WORSE at a smaller retrieveK, so the knob is retired rather than blessed with a production blend.
   //
   // The deletion is SURGICAL — the section is rebuilt minus one key, never replaced. `memoryDefaults` is an
   // admin's override blob; substituting a default for a section that failed to look right is exactly the settings-
@@ -333,8 +334,8 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   },
   // v8→v9: `ipCertificate` (D275) is purely additive/optional — an absent field reads back as off.
   8: (config) => ({ ...config, schemaVersion: 9 }),
-  // v9→v10: the admin summarizer sampling override is deleted (each model role picks its own preset), and the
-  // engine-launch and vLLM-concurrency sections left with the in-server fleet. Dropping the keys rewrites
+  // v9→v10: the admin summarizer sampling override is gone (each model role picks its own preset), and the
+  // engine-launch and vLLM-concurrency sections are gone with the in-server fleet. Dropping the keys rewrites
   // the stored blob clean at the next write instead of carrying unaddressable residue.
   9: (config) => {
     const { memorySummarizer: _summarizer, engineLaunch: _engineLaunch, vllmConcurrency: _vllmConcurrency, ...rest } = config;
@@ -345,7 +346,29 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     const { importSkipCharacters: _importSkipCharacters, ...rest } = config;
     return { ...rest, schemaVersion: 11 };
   },
+  // v11→v12: `trustHtml` and `allowInteractiveCards` fold into `defaultHtmlStep` (D294).
+  11: (config) => {
+    const { trustHtml, allowInteractiveCards, ...rest } = config;
+    const step = defaultHtmlStepFromLegacy(allowInteractiveCards, trustHtml);
+    return { ...rest, ...(step === undefined ? {} : { defaultHtmlStep: step }), schemaVersion: 12 };
+  },
 };
+
+/**
+ * The `defaultHtmlStep` a v11 blob's two install keys meant for an inheriting character: the ceiling's own value when
+ * it was set on, else the render default it fell back to. An unset or unreadable ceiling stays unset, so the floor
+ * (`interactive`) keeps governing. While the ceiling was up, `trustHtml` decided only seats with no readable card,
+ * which now always draw as Plain text (D294), so it carries nothing forward.
+ */
+function defaultHtmlStepFromLegacy(allowInteractiveCards: unknown, trustHtml: unknown): HtmlTrustStep | undefined {
+  if (allowInteractiveCards === true) {
+    return "interactive";
+  }
+  if (allowInteractiveCards !== false) {
+    return;
+  }
+  return trustHtml === true ? "trusted" : "untrusted";
+}
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
   schema: appSettingsSchema,
@@ -363,11 +386,11 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // UserSettings — the per-user tier. Namespaced; each section `.prefault({})`.
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// ROUTING LEFT THE SETTINGS BLOB (inference program §5.3, F7/F16): a user's per-task picks are
-// `connection_bindings` rows (`actorKind: "user"`), never `roleDefaults.<task>` leaves here; the source lists
-// (`INFERENCE_SOURCES` …) that mirrored the firewall are gone with the axis. v8 → v9 DROPS the `routing`
+// ROUTING IS NOT IN THE SETTINGS BLOB (inference §5.3): a user's per-task picks are
+// `connection_bindings` rows (`actorKind: "user"`), never `roleDefaults.<task>` leaves here, and there are no
+// source lists mirroring the firewall. v8 → v9 DROPS the `routing`
 // section outright (no lift, pre-launch posture).
-export const USER_SETTINGS_SCHEMA_VERSION = 10;
+export const USER_SETTINGS_SCHEMA_VERSION = 11;
 
 /** How the Utility role picks its preset. Absent (`null`) is task defaults: each background task runs at its
  *  own posture with no preset params. `same-as-chat` follows the active preset; `preset` names one. */
@@ -385,25 +408,21 @@ const WI_TOKEN_BUDGET_MIN = 0;
 const WI_TOKEN_BUDGET_MAX = 65_536;
 const WI_TOKEN_BUDGET_DEFAULT = 1024;
 const AUTO_SWIPE_MIN_LENGTH_DEFAULT = 0;
-// Post-round auto-behavior bounds — the max follow-ups a send auto-issues. Default 1 (the neo-parity
-// ONE-follow-up floor the turn engine hard-coded as AUTO_SWIPE_MAX / AUTO_CONTINUE_MAX); the ceiling caps a
-// pathological spend (each retry is a full generation). A value outside these self-heals to the default.
-const AUTO_SWIPE_MAX_RETRIES_MIN = 1;
-const AUTO_SWIPE_MAX_RETRIES_MAX = 5;
-const AUTO_SWIPE_MAX_RETRIES_DEFAULT = 1;
-const AUTO_CONTINUE_ROUNDS_MIN = 1;
-const AUTO_CONTINUE_ROUNDS_MAX = 5;
-const AUTO_CONTINUE_ROUNDS_DEFAULT = 1;
-// ⑧(a) temporary-chat reap TTL in HOURS (the per-user reaper's cutoff). Default 24 = the engine's former
-// TEMPORARY_CHAT_REAP_TTL_MS (86_400_000ms); 1h..1yr bounds keep a fat-fingered value from wiping fresh
-// temp chats or never reaping.
-const TEMP_CHAT_TTL_HOURS_MIN = 1;
-const TEMP_CHAT_TTL_HOURS_MAX = 8760;
+// The max auto-continue follow-ups one send issues. 0 is off; the ceiling caps a pathological spend (each round is
+// a full generation). A value outside these self-heals to off. Exported because the editor's control reads them.
+export const AUTO_CONTINUE_ROUNDS_OFF = 0;
+export const AUTO_CONTINUE_ROUNDS_MAX = 5;
+// Temporary-chat reap TTL in HOURS (the per-user reaper's cutoff). Default 24h; 1h..1yr bounds keep a
+// fat-fingered value from wiping fresh temp chats or never reaping.
+export const TEMP_CHAT_TTL_HOURS_MIN = 1;
+export const TEMP_CHAT_TTL_HOURS_MAX = 8760;
 const TEMP_CHAT_TTL_HOURS_DEFAULT = 24;
-// Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the trickle floor in chars/sec.
-// Range mirrors neo's Streaming pref; default OFF so the reveal tracks raw chunk cadence unless opted in.
-const SMOOTH_STREAM_CPS_MIN = 15;
-const SMOOTH_STREAM_CPS_MAX = 300;
+// Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the reveal rate in chars/sec, where
+// 0 is off and the reveal tracks raw chunk cadence; the editor's one slider steps from Off through the rates.
+// Exported because that control reads them.
+export const SMOOTH_STREAM_OFF = 0;
+export const SMOOTH_STREAM_CPS_MAX = 300;
+export const SMOOTH_STREAM_CPS_STEP = 10;
 const SMOOTH_STREAM_CPS_DEFAULT = 80;
 const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
@@ -454,9 +473,10 @@ const memorySchema = z
 // The per-user databank tuning — the chunk params ingest uses (chunkText) + the
 // retrieval params gather passes to search.documents (k/minScore/rerank) + the `{{databank}}` slot token
 // budget. `chunk`/`retrieval` REUSE the `#databank` shapes (derive, never re-spell — a drift fails tsc here);
-// `slotTokenBudget` was the chat-side DATABANK_SLOT_TOKEN_BUDGET=4096 constant, absorbed so an admin/user can
-// retune the slot's share of the turn. Every nested block `.prefault({})` so an old blob with no databank
-// section reads the grounded defaults byte-identically (the memory/appearance additive-section precedent).
+// `slotTokenBudget` is the owner-tunable form of the fixed chat-side 4096-token budget it replaced, so an
+// admin/user can retune the slot's share of the turn. Every nested block `.prefault({})` so an old blob with no
+// databank section reads the grounded defaults byte-identically (the memory/appearance additive-section
+// precedent).
 const DATABANK_SLOT_TOKEN_BUDGET_MIN = 0;
 const DATABANK_SLOT_TOKEN_BUDGET_MAX = 65_536;
 const DATABANK_SLOT_TOKEN_BUDGET_DEFAULT = 4096;
@@ -485,21 +505,13 @@ const chatSchema = z
     attachmentQuality: attachmentQualitySchema,
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
     enterSends: z.boolean().catch(true).default(true),
-    autoContinue: z.boolean().catch(false).default(false),
-    // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
-    // engine's AUTO_CONTINUE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
-    autoContinueRounds: z
-      .int()
-      .min(AUTO_CONTINUE_ROUNDS_MIN)
-      .max(AUTO_CONTINUE_ROUNDS_MAX)
-      .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
-      .default(AUTO_CONTINUE_ROUNDS_DEFAULT),
-    continueOnSend: z.boolean().catch(true).default(true),
-    // W-E: bare Enter on an EMPTY composer with a NON-assistant tail (a draft-forked user tail, an empty
-    // committed chat) triggers a generate — the "simple send" keyboard convenience so a reply can be prompted
-    // without typing one. The ▷ Response icon is the always-discoverable equivalent; this pref only governs the
-    // keyboard shortcut. Default ON (owner-ratified). Off ⇒ empty Enter is a no-op on a non-assistant tail.
-    generateOnEmptySend: z.boolean().catch(true).default(true),
+    // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn engine's
+    // AUTO_CONTINUE loop reads). 0 is off, the default.
+    autoContinueRounds: z.int().min(AUTO_CONTINUE_ROUNDS_OFF).max(AUTO_CONTINUE_ROUNDS_MAX).catch(AUTO_CONTINUE_ROUNDS_OFF).default(AUTO_CONTINUE_ROUNDS_OFF),
+    // Bare Enter on an EMPTY composer asks for a reply: it continues an assistant tail, and on any other committed
+    // tail (a fresh chat, your own message last) it generates one. The ▷ Response icon is the always-discoverable
+    // equivalent; this pref only governs the keyboard shortcut. Default ON. Off ⇒ an empty Enter does nothing.
+    emptyEnterReplies: z.boolean().catch(true).default(true),
     autoSwipe: z
       .object({
         enabled: z.boolean().default(false),
@@ -508,51 +520,46 @@ const chatSchema = z
         // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
         // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
-        // The max auto-swipe regenerations for a rejected reply (the bound the turn engine's
-        // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
-        maxRetries: z.int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
       .strip()
       .prefault({}),
+    // The user's own stop list, applied with every preset: the turn unions it with the active preset's `params.stop`.
     // Element-wise: a non-string element costs THAT entry, not every stop string the user wrote.
     customStoppingStrings: tolerantArray(z.string(), []).default([]),
-    // ⑧(a) — how long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
-    // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
-    // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds
-    // self-heals to the default.
+    // How long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
+    // caller's hosted chats) may delete it. Per-user because the reaper runs under the caller's principal over
+    // THEIR chats. A value outside the bounds self-heals to the default.
     tempChatTtlHours: z.int().min(TEMP_CHAT_TTL_HOURS_MIN).max(TEMP_CHAT_TTL_HOURS_MAX).catch(TEMP_CHAT_TTL_HOURS_DEFAULT).default(TEMP_CHAT_TTL_HOURS_DEFAULT),
-    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling):
-    // the per-word fade lives on `mode="streaming"` itself, so this knob is PURELY
-    // pacing — and the old "smooth is jankier" objection was measured dead on that build (over-budget
-    // commits 205→55, LoAFs 18→11). Off ⇒ raw network-chunk cadence, still faded.
-    smoothStream: z.boolean().catch(true).default(true),
-    smoothStreamCps: z.int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
-    // Client-honored (the MessageList `scrollMode`). Default `follow`: today's sealed sticky-tail behavior.
+    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON at 80 chars/sec (owner ruling): the
+    // per-word fade lives on `mode="streaming"` itself, so this knob is PURELY pacing — and the "smooth is jankier"
+    // objection was measured dead on that build (over-budget commits 205→55, LoAFs 18→11). 0 ⇒ raw network-chunk
+    // cadence, still faded.
+    smoothStreamCps: z.int().min(SMOOTH_STREAM_OFF).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
+    // Client-honored (the MessageList `scrollMode`). Default `follow`: the sealed sticky-tail behavior.
     streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),
-    // Client-honored (the streaming ghost's `<ReasoningBlock>`). Default ON = today's behavior: the live
+    // Client-honored (the streaming ghost's `<ReasoningBlock>`). Default ON: the live
     // reasoning disclosure auto-collapses to the "Thought for Ns" header the instant the first answer token
-    // lands. Off ⇒ the trace stays open after the answer (the reader closes it), which the SillyTavern
-    // reasoning setting also exposes. When ON, the collapse is SNAP (no fold) so the answer prose paints at
+    // lands. Off ⇒ the trace stays open after the answer (the reader closes it). When ON, the collapse is SNAP (no fold) so the answer prose paints at
     // its final position in one commit rather than being flung up the trace's height
     // (the measured 350–677px prose fling). Live-ghost only — a committed row already
     // mounts collapsed + host-expandable.
     reasoningAutoCollapse: z.boolean().catch(true).default(true),
-    // B1 / RULED F2 — the per-USER default for the room-level "offer choices" posture: a room that carries no
-    // explicit `chatMetadata.offerChoices` inherits this, so a NEW room is born playing the way its host
-    // plays (the cold-start half of the knob — the room value alone would leave every fresh chat off). The
-    // room value always wins; the precedence has ONE home (`resolveOfferChoices`, @orb/contracts/chat).
+    // The per-USER default for the room-level "offer choices" posture: EVERY room this user hosts that carries no
+    // explicit `chatMetadata.offerChoices` follows this, read per turn — a new room and an old room whose host never
+    // set it alike, so flipping it reaches both (the editor's copy says so). The room value always wins; the
+    // precedence has ONE home (`resolveOfferChoices`, @orb/contracts/chat).
     // SERVER-honored, on the same `UserSettings.chat` → `ChatBehaviorInputs` FOREIGN seam `autoContinue` and
     // `customStoppingStrings` ride. Default OFF ⇒ byte-identical to a tree that never heard of the knob.
     offerChoices: z.boolean().catch(false).default(false),
-    // B7 — the per-USER default for the room-level "characters can react" posture (the `react` tool's
+    // The per-USER default for the room-level "characters can react" posture (the `react` tool's
     // attach gate). The offerChoices twin on the same FOREIGN seam. Default OFF at BOTH tiers (owner
     // requirement): an autonomous AI dropping reactions is opt-in — a host enables it per room or flips
     // this default; nothing turns it on by silence. Room value wins; ONE precedence home
     // (`resolveCharactersCanReact`, @orb/contracts/chat).
     charactersCanReact: z.boolean().catch(false).default(false),
-    // B7 — the per-USER default for the room-level reaction-plane MASTER switch (pills + picker +
+    // The per-USER default for the room-level reaction-plane MASTER switch (pills + picker +
     // toggleReaction + the react tool + the attribution loop). Default ON, deliberately opposite its
-    // sibling: B6 reactions are a SHIPPED feature, so this knob exists to make them disableable — a
+    // sibling: reactions are a shipped surface, so this knob exists to make them disableable — a
     // default of off would silently retire a live surface. Room value wins; ONE precedence home
     // (`resolveReactionsEnabled`, @orb/contracts/chat). SERVER-honored (the verb gate + the
     // `listReactions` verdict) and client-read only to seat the host's toggle.
@@ -568,69 +575,15 @@ const chatSchema = z
 
 export type ChatSettings = z.infer<typeof chatSchema>;
 
-// ⑪ — the library-list page size (rows fetched per page by the paginated library surfaces). Client-honored:
-// the collection-surface CONSUMER reads it and passes `limit` into the query (never a factory-internal read,
-// tier direction). Default 30 = the former client `PAGE_LIMIT` const (byte-identical); the ceiling mirrors
-// the server list verb's MAX_LIMIT=100 (a larger request is server-clamped anyway).
-export const LIBRARY_PAGE_SIZE_MIN = 10;
-const LIBRARY_PAGE_SIZE_MAX = 100;
-export const LIBRARY_PAGE_SIZE_DEFAULT = 30;
-const librarySchema = z
-  .object({
-    pageSize: z.int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
-  })
-  .strip()
-  .prefault({});
-
-// ⑫ per-user image-prompt-building overrides — each mode's extraction/caption instruction, authored by the
-// user, composing over the shipped `@orb/contracts/imagery` catalog (unset ⇒ the byte-identical default). Keyed
-// by the canonical PROMPT_TEMPLATE_MODES literals (the imagery catalog's shape); every field OPTIONAL with a
-// per-field `.catch(undefined)` so a malformed override self-heals to the default (never nukes the section).
-// Cap mirrors the request prompt cap scale — an instruction is a paragraph, not an essay.
-const IMAGERY_TEMPLATE_MAX_CHARS = 4000;
-const imageryTemplateField = (): z.ZodCatch<z.ZodOptional<z.ZodString>> => z.string().max(IMAGERY_TEMPLATE_MAX_CHARS).optional().catch(undefined);
-const imagerySchema = z
-  .object({
-    // The four text-EXTRACTION mode instructions ({{char}}/{{user}} resolve via the ONE macro engine).
-    templates: z
-      .object({
-        character: imageryTemplateField(),
-        face: imageryTemplateField(),
-        scenario: imageryTemplateField(),
-        background: imageryTemplateField(),
-      })
-      .strip()
-      .prefault({}),
-    // The two MULTIMODAL vision-caption instructions (no macros — the image is the subject).
-    captions: z
-      .object({
-        character_multimodal: imageryTemplateField(),
-        face_multimodal: imageryTemplateField(),
-      })
-      .strip()
-      .prefault({}),
-  })
-  .strip()
-  .prefault({});
-
-export type ImagerySettings = z.infer<typeof imagerySchema>;
-
-/** Resolve the extraction instruction for a mode: the user's per-mode override ⊕ the shipped
- *  `@orb/contracts/imagery` catalog default. Unset ⇒ byte-identical to the shipped default (the
- *  default-identity discipline). The ONE resolver both the compose op + the tests read (never a re-spelled
- *  fallback that could drift from the catalog).
- *
- *  The STORAGE is unchanged (`imagery.templates.<mode>`, a bare string) — the two rungs are
- *  funnelled through `resolveProse` so precedence and the staleness signal come from ONE place. */
-export function resolveImageryTemplate(imagery: ImagerySettings, mode: ExtractionMode): string {
-  const id = IMAGERY_TEMPLATE_SLOT_IDS[mode];
-  return resolveProseText(id, legacyProseOverrides(id, imagery.templates[mode]));
+/** Resolve the extraction instruction for a mode: the user's `prose` override ⊕ the shipped `@orb/contracts/imagery`
+ *  catalog default. Unset ⇒ byte-identical to the shipped default. */
+export function resolveImageryTemplate(prose: ProseOverrides, mode: ExtractionMode): string {
+  return resolveProseText(IMAGERY_TEMPLATE_SLOT_IDS[mode], prose);
 }
 
-/** Resolve the multimodal caption instruction for a mode: the user's override ⊕ the shipped catalog default. */
-export function resolveImageryCaption(imagery: ImagerySettings, mode: MultimodalCaptionMode): string {
-  const id = IMAGERY_CAPTION_SLOT_IDS[mode];
-  return resolveProseText(id, legacyProseOverrides(id, imagery.captions[mode]));
+/** Resolve the multimodal caption instruction for a mode: the user's `prose` override ⊕ the shipped catalog default. */
+export function resolveImageryCaption(prose: ProseOverrides, mode: MultimodalCaptionMode): string {
+  return resolveProseText(IMAGERY_CAPTION_SLOT_IDS[mode], prose);
 }
 
 const personaSchema = z
@@ -652,12 +605,7 @@ const workloadsSchema = z
 
 const onboardingSchema = z
   .object({
-    // NOTE: `personaWizardSeen` was DELETED (Phase B ⑥ / D107): it was defined here but READ +
-    // WRITTEN by nothing. The first-run persona gate triggers on zero owned personas
-    // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
-    // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
-    // sibling seeded-flags below are consumed.
-    // The PRE-LEDGER character latch: the user seed (`entry/boot/seed-user-content.ts`, D263) reads it once,
+    // The first-run character latch: the user seed (`entry/boot/seed-user-content.ts`, D263) reads it once,
     // on an account's first ledger pass, to record the shipped characters as already given. Nothing writes it.
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
@@ -677,13 +625,9 @@ const onboardingSchema = z
     // (owner-ruled, arm (a)), and the thing that makes "has the user taken this plugin over?"
     // answerable at all.
     //
-    // THE PRIOR RULING ON THIS FIELD'S NEIGHBOUR SURVIVES; ITS INPUT CHANGED. `examplePluginsSeeded`'s
-    // comment used to end "No pack-version twin: a plugin's own manifest `version` + the `upgrade` verb are
-    // the release channel for bundle content, and re-dressing an INSTALLED plugin behind the user's back is
-    // exactly what the consent posture exists to prevent." Both halves still hold and are LOAD-BEARING here:
-    // this is NOT a pack-version counter and it is NOT a release channel — the release channel is still the
+    // THIS IS NOT A PACK-VERSION COUNTER AND NOT A RELEASE CHANNEL. The release channel is the
     // shipped manifest's `version` read straight off the bundle (`@orb/showcase-plugins`'s
-    // `readShowcaseManifest`) and still the REAL `upgrade` verb, whose own wall is what keeps the upgrade
+    // `readShowcaseManifest`) plus the REAL `upgrade` verb, whose own wall is what keeps the upgrade
     // from happening behind anyone's back (widened reach lands the row DISABLED with a standing re-consent,
     // the grant carried forward is the intersection, and a plugin the user turned off stays off). What this
     // map records is PROVENANCE: the version this system itself last installed, so the seeder can tell an
@@ -733,20 +677,11 @@ export const userSettingsSchema = z
     memory: memorySchema,
     databank: databankSchema,
     chat: chatSchema,
-    library: librarySchema,
-    imagery: imagerySchema,
-    // The per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
-    // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
-    // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
-    // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (adapted, never
-    // duplicated) and are NOT mirrored here.
+    // The per-USER prose-slot overrides (`home: "user"` slots only), the image-prompt instructions included. Keyed
+    // by the closed `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam
+    // rather than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
     prose: proseOverridesSchema,
     persona: personaSchema,
-    // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key
-    // is dropped before the strict arms see it, because this `.catch` would otherwise revert the user's saved
-    // room defaults to per-speaker — the chat blob's silent-reversal class, one tier up. The section's write
-    // path is deep-merge-and-re-validate through this same lenient parser by design, so no strict door moves.
-    groupDefaults: storedGroupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
     onboarding: onboardingSchema,
     workloads: workloadsSchema,
     profile: profileSchema,
@@ -775,16 +710,12 @@ export const USER_SETTINGS_SECTIONS = [
   "memory",
   "databank",
   "chat",
-  "library",
-  "imagery",
-  // PROSE-1 S2: the section tuple is the EDITOR's door, so it lands in the SAME commit as the Prose settings
-  // section that writes it (D107 arm B — a member registered ahead of its writer is a dead switch). The
+  // The section tuple is the EDITOR's door, so a member exists only beside the writer that writes it
+  // (D107 arm B — a member registered ahead of its writer is a dead switch). The
   // writer is the chat-owned `prose-settings` contribution at the `chat-behavior` anchor; it patches ONE
   // slot-id key at a time (a blank field sends the leaf `null` = back to the shipped default).
   "prose",
   "persona",
-
-  "groupDefaults",
   "onboarding",
   "workloads",
   "profile",
@@ -814,6 +745,119 @@ export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = DEFAULT_USER_SETTINGS.appearance;
 
 export const DEFAULT_CHAT_SETTINGS: ChatSettings = DEFAULT_USER_SETTINGS.chat;
+
+/** The v10→v11 `chat` section: the empty-Enter pair folds into one switch (both on keeps it on; any off turns it
+ *  off, the conservative reading of a user who disabled half of it), auto-continue's switch folds into its round count
+ *  (0 is off), the smooth-stream switch folds into its rate (0 is off), and `autoSwipe.maxRetries` goes: nothing ever
+ *  wrote it. A non-object section passes through for the schema to judge. */
+function liftChatCleanup(chat: unknown): unknown {
+  if (!isPlainObject(chat)) {
+    return chat;
+  }
+  const { continueOnSend, generateOnEmptySend, autoContinue, smoothStream, autoSwipe, ...rest } = chat;
+  const lifted: Record<string, unknown> = { ...rest };
+  if (continueOnSend !== undefined || generateOnEmptySend !== undefined) {
+    lifted["emptyEnterReplies"] = continueOnSend !== false && generateOnEmptySend !== false;
+  }
+  if (autoContinue !== true) {
+    lifted["autoContinueRounds"] = AUTO_CONTINUE_ROUNDS_OFF;
+  } else if (rest["autoContinueRounds"] === undefined) {
+    lifted["autoContinueRounds"] = LEGACY_AUTO_CONTINUE_ROUNDS;
+  }
+  if (smoothStream === false) {
+    lifted["smoothStreamCps"] = SMOOTH_STREAM_OFF;
+  }
+  if (isPlainObject(autoSwipe)) {
+    const { maxRetries: _maxRetries, ...swipe } = autoSwipe;
+    lifted["autoSwipe"] = swipe;
+  } else if (autoSwipe !== undefined) {
+    lifted["autoSwipe"] = autoSwipe;
+  }
+  return lifted;
+}
+
+/** The v10→v11 `appearance` section: knobs that became derived leave (speaker name size from message size,
+ *  paragraph spacing from line height, the scrim from the contrast floor, the prose halo from the background, the
+ *  glass radius from its token); the `glow` look keeps its depth as `ramp`; and an app-side "reduce transparency"
+ *  that was forced on becomes glass off, because the glass control is now the one transparency choice. */
+function liftAppearanceCleanup(appearance: unknown): unknown {
+  if (!isPlainObject(appearance)) {
+    return appearance;
+  }
+  const {
+    readingNameScale: _nameScale,
+    readingParagraphSpacing: _paragraphSpacing,
+    backgroundDim: _dim,
+    shadowEffects: _shadow,
+    blurStrength: _blurStrength,
+    reducedTransparency,
+    ...rest
+  } = appearance;
+  const lifted: Record<string, unknown> = { ...rest };
+  if (lifted["elevation"] === "glow") {
+    lifted["elevation"] = "ramp";
+  }
+  if (reducedTransparency === "on") {
+    lifted["blurSurfaces"] = [];
+  }
+  if (reducedTransparency === "off") {
+    lifted["followSystemTransparency"] = false;
+  }
+  return lifted;
+}
+
+/** The v10→v11 image-prompt move: each `imagery.templates.<mode>` and `imagery.captions.<mode>` string becomes the
+ *  `prose` override of its slot, stamped at the first slot version as the legacy adapter stamped it, so its stale
+ *  signal reads exactly as before. An override the `prose` blob already holds for the slot wins. */
+function liftImageryIntoProse(imagery: unknown, prose: unknown): unknown {
+  const group = isPlainObject(imagery) ? imagery : {};
+  const moved = {
+    ...legacyImageryOverrides(group["templates"], EXTRACTION_MODES, IMAGERY_TEMPLATE_SLOT_IDS),
+    ...legacyImageryOverrides(group["captions"], MULTIMODAL_MODES, IMAGERY_CAPTION_SLOT_IDS),
+  };
+  if (Object.keys(moved).length === 0) {
+    return prose;
+  }
+  return isPlainObject(prose) ? { ...moved, ...prose } : moved;
+}
+
+/** One stored imagery group's string overrides, re-keyed by their prose slot ids. */
+function legacyImageryOverrides<Mode extends string>(
+  group: unknown,
+  modes: readonly Mode[],
+  slotIds: Readonly<Record<Mode, string>>,
+): Record<string, ProseOverride> {
+  const moved: Record<string, ProseOverride> = {};
+  for (const mode of modes) {
+    const text = isPlainObject(group) ? group[mode] : undefined;
+    const override = typeof text === "string" ? proseOverrideFromLegacy(text) : undefined;
+    if (override !== undefined) {
+      moved[slotIds[mode]] = override;
+    }
+  }
+  return moved;
+}
+
+// The v10 round count an enabled auto-continue ran when no count was stored.
+const LEGACY_AUTO_CONTINUE_ROUNDS = 1;
+
+/** v10→v11 (see the lift table): `groupDefaults` and `library` leave, `imagery` moves into `prose`, and the chat and
+ *  appearance sections fold their merged pairs. Every section is rebuilt minus its retired keys, never replaced. */
+function liftSettingsCleanup(c: Record<string, unknown>): Record<string, unknown> {
+  const { groupDefaults: _groupDefaults, library: _library, imagery, prose, chat, appearance, ...rest } = c;
+  const lifted: Record<string, unknown> = { ...rest };
+  const movedProse = liftImageryIntoProse(imagery, prose);
+  if (movedProse !== undefined) {
+    lifted["prose"] = movedProse;
+  }
+  if (chat !== undefined) {
+    lifted["chat"] = liftChatCleanup(chat);
+  }
+  if (appearance !== undefined) {
+    lifted["appearance"] = liftAppearanceCleanup(appearance);
+  }
+  return lifted;
+}
 
 const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c) => {
@@ -847,8 +891,8 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     const { regexScripts, ...rest } = c;
     return { ...rest, regex: { scripts: Array.isArray(regexScripts) ? regexScripts : [] } };
   },
-  // v3→v4: mint a stable per-ROW `entryId` on every `appearance.backgroundLibrary` entry (F-P2 — a
-  // content-addressed `assetId` is shared by byte-identical uploads, so keying rows on it collided). The
+  // v3→v4: mint a stable per-ROW `entryId` on every `appearance.backgroundLibrary` entry — a
+  // content-addressed `assetId` is shared by byte-identical uploads, so keying rows on it collided. The
   // backfill is DETERMINISTIC (`${assetId}:${index}`, not a random uuid) so it is stable across the repeated
   // reads that re-run this lift until the first v4 write stamps the storedVersion column — a random mint would
   // hand a different key out on every read. Idempotent: an entry already carrying an `entryId` keeps it.
@@ -875,34 +919,37 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     return { ...c, appearance: { ...appearance, backgroundLibrary } };
   },
   // v4→v5: the `databank` section (chunk/retrieval/slotTokenBudget) is purely ADDITIVE — an old blob has no
-  // databank key, which reads back as the `.prefault({})` grounded defaults (byte-identical to pre-wire).
+  // databank key, which reads back as the `.prefault({})` grounded defaults.
   // Nothing to move; carry every namespace through untouched (the section's absence IS its default).
   4: (c) => ({ ...c }),
-  // v5→v6: the `imagery` section (per-mode prompt-template/caption overrides, Phase B ⑫) is purely ADDITIVE —
+  // v5→v6: the `imagery` section (per-mode prompt-template/caption overrides) is purely ADDITIVE —
   // an old blob has no imagery key, which reads back as `.prefault({})` (every override absent ⇒ the shipped
   // `@orb/contracts/imagery` catalog default, byte-identical). Carry every namespace through untouched.
   5: (c) => ({ ...c }),
-  // v6→v7: the `prose` section (PROSE-1 S1 — the app-tier prose-slot overrides) is purely ADDITIVE. An old
+  // v6→v7: the `prose` section (the app-tier prose-slot overrides) is purely ADDITIVE. An old
   // blob has no prose key, which reads back as `.prefault({})` ⇒ every slot resolves to its shipped default,
-  // byte-identical to pre-PROSE-1. Carry every namespace through untouched (the v4→v5/v5→v6 shape).
+  // byte-identical to a blob that never carried the section. Carry every namespace through untouched (the v4→v5/v5→v6 shape).
   6: (c) => ({ ...c }),
-  // v7→v8: the `regex` section is DELETED (D121-E). The owner-global script library is no longer an
+  // v7→v8: the `regex` section is DELETED (D121-E). The owner-global script library is not an
   // embedded blob — it is `regex_scripts` rows attached through `global_regex_scripts`. A LIFT-TO-DROP and
   // not a silent strip, because the section tuple (`USER_SETTINGS_SECTIONS`) is the section-patch door: a
   // stored `regex` key would otherwise survive as an unaddressable orphan in the blob. NO-LEGACY — the
-  // scripts are NOT migrated (BACKREST-MANUAL: the owner re-enters them by hand, the ruled carryover arm).
+  // scripts are NOT migrated (the owner re-enters them by hand).
   7: (c) => {
     const { regex: _retiredLibrary, ...rest } = c;
     return rest;
   },
-  // v8→v9 (inference program §13 step 4): `routing.roleDefaults` LEAVES the blob — per-task picks are
-  // `connection_bindings` rows now; the old leaves are dropped, never lifted (pre-launch, F19).
+  // v8→v9 (§13): `routing.roleDefaults` LEAVES the blob — per-task picks are
+  // `connection_bindings` rows now; the old leaves are dropped, never lifted (pre-launch).
   8: (c) => {
     const { routing: _dropped, ...rest } = c;
     return rest;
   },
   // v9→v10: `seeds.summarizePreset` is additive; an absent field reads back as task defaults.
   9: (c) => ({ ...c }),
+  // v10→v11: the settings cleanup. Dead and duplicate knobs leave the blob and merged pairs fold into their one key,
+  // so the stored blob is rewritten clean at the next write instead of carrying keys no reader or editor addresses.
+  10: liftSettingsCleanup,
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
@@ -933,8 +980,7 @@ export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   logLevel: LogLevel;
   forbidExternalMedia: boolean;
-  trustHtml: boolean;
-  allowInteractiveCards: boolean;
+  defaultHtmlStep: HtmlTrustStep;
   memoryDefaults: MemoryDefaults;
   rateLimits: ResolvedRateLimits;
   privateEndpointAllowlist: string[];
@@ -978,6 +1024,13 @@ export interface UserSettingsView {
   configUnreadable: VersionedParseFailure | null;
 }
 
+/** Whether this viewer consents to card and styled-reply scripts. `chat.runCardScripts` is a consent, so a stand-in for
+ *  a blob that could not be read faithfully is not this viewer's answer and reads as no (D294). The card-frame route and
+ *  the client's script notice both read the consent here. */
+export function viewerRunsCardScripts(view: Pick<UserSettingsView, "config" | "configUnreadable">): boolean {
+  return view.configUnreadable === null && view.config.chat.runCardScripts;
+}
+
 export interface GlobalSettingView {
   key: string;
   value: JsonValue;
@@ -994,8 +1047,7 @@ export const effectiveAppConfigSchema = z.strictObject({
   corpusAutoindex: z.boolean(),
   logLevel: logLevelSchema,
   forbidExternalMedia: z.boolean(),
-  trustHtml: z.boolean(),
-  allowInteractiveCards: z.boolean(),
+  defaultHtmlStep: z.enum(HTML_TRUST_STEPS),
   memoryDefaults: memoryDefaultsSchema.strict(),
   rateLimits: resolvedRateLimitsSchema,
   privateEndpointAllowlist: z.array(z.string()),
@@ -1018,7 +1070,6 @@ const appSettingsOutputSchema = appSettingsSchema.strict().extend({
   rateLimits: rateLimitsSchema.strict().nullable().optional(),
 });
 const userSettingsOutputSchema = userSettingsSchema.strict().extend({
-  groupDefaults: groupConfigSchema,
   prose: proseOverridesViewSchema,
   seeds: seedsSchema.unwrap().strict(),
   worldInfo: worldInfoSchema.unwrap().strict(),
@@ -1030,11 +1081,6 @@ const userSettingsOutputSchema = userSettingsSchema.strict().extend({
   chat: chatSchema.unwrap().strict().extend({
     autoSwipe: chatSchema.unwrap().shape.autoSwipe.unwrap().strict(),
     attachmentQuality: attachmentQualitySchema.unwrap().strict(),
-  }),
-  library: librarySchema.unwrap().strict(),
-  imagery: imagerySchema.unwrap().strict().extend({
-    templates: imagerySchema.unwrap().shape.templates.unwrap().strict(),
-    captions: imagerySchema.unwrap().shape.captions.unwrap().strict(),
   }),
   persona: personaSchema.unwrap().strict(),
   onboarding: onboardingSchema.unwrap().strict(),
@@ -1128,15 +1174,29 @@ export type MarkDistributedPluginAppliedOp = (principal: Principal) => Promise<v
 /** Slug → this user's owned scene-plate background ref, or `null` when the shipped pack has no such plate. */
 export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
 
-/** The settings-owned theme import: a bundle descriptor, a profile import or a single file. `fallbackName` names
- *  a raw SillyTavern theme that carries no `name`. */
-export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
+/** One theme file of an import batch. `fallbackName` names a raw SillyTavern theme that carries no `name`. */
+export interface ThemeImportFile {
+  readonly bytes: Uint8Array;
+  readonly fallbackName?: string;
+}
 
-/** For each file, in order, whether the owner holds a theme {@link ImportThemeOp} would reuse for each theme in it.
- *  A read: it writes nothing, and it loads the owner's themes once for the whole list. A file that does not parse,
- *  or carries no theme, answers `false`. Once `signal` aborts it stops and returns the answers so far, which the
- *  aborted caller discards. */
-export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation) => Promise<readonly boolean[]>;
+interface ThemeImportBatch {
+  readonly ownerId: UserId;
+  readonly files: readonly ThemeImportFile[];
+  readonly signal: Cancellation;
+}
+
+/** The settings-owned theme import, in order, for a bundle descriptor, a profile import or a single file (a batch of
+ *  one): a theme equal to an owned one, or to one an earlier theme of the batch lands, reuses that row; a different
+ *  one under a taken name lands under the next free name. With `dryRun` it writes nothing and answers, per file, what
+ *  the write does with it: reuse the owner's theme for every theme in it (`"library"`), reuse a theme for every theme
+ *  in it with at least one landed earlier in the batch (`"upload"`), or write (`null`), with one content key per
+ *  theme. A file that does not parse, or carries no theme, answers `null` with no key. Once `signal` aborts it stops
+ *  after the file in hand and returns what it has. */
+export interface ImportThemes {
+  (args: ThemeImportBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: ThemeImportBatch & { readonly dryRun: false }): Promise<readonly SettingsImportOutcome[]>;
+}
 
 /** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
 export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;

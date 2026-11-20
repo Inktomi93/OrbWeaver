@@ -19,11 +19,13 @@ import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { ReconcileInFlight } from "../contract/reconcile-in-flight.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import { reconcileOwnerStats } from "../substrate/reconcile-owner.ts";
+import { reconcileOwnerStats } from "../persistence/reconcile-owner.ts";
 
 export function createReconcile(ctx: StatsContext, inFlight: ReconcileInFlight): Pick<StatsService, "reconcile"> {
   async function reconcile(ownerId: UserId): Promise<ReconcileStatsResult> {
-    return await inFlight.run(ownerId, () => reconcileOwnerStats(ctx.db, { ownerId, now: ctx.now, idSource: ctx.idSource }));
+    // Every click for this owner joins the one running rebuild, so no one caller's cancel may end it.
+    const signal = new AbortController().signal;
+    return await inFlight.run(ownerId, () => reconcileOwnerStats(ctx.db, { ownerId, now: ctx.now, idSource: ctx.idSource, signal }));
   }
   return { reconcile };
 }

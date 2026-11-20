@@ -59,22 +59,23 @@ import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotRead
 import type { StageEstimateSubject, StagePrompts, StageResolution } from "../contract/prompts.ts";
 import type { ExecuteStage, RefineryContext, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
+import { resolveStageResolution } from "../persistence/stage-resolution.ts";
 import { resolveStageSampling, stageBudgetMisfitOf, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
-import { REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
+import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the
  *  stamp OBSERVABLY (banned-silent-fork), never fabricates a score. */
-const overallScoreCoreSchema = z.object({ overallScore: z.number() });
+const overallScoreCoreSchema = z.object({ overallScore: z.number() }).strip();
 
 /** The service verb — the engine below with `isRefinement:false` (the engine instance arrives via deps
  *  so `iterate` provably runs the SAME one; wired at `service.ts`). */
 export function createRunStage(ctx: RefineryContext, deps: StageEngineDeps): RefineryService["runStage"] {
-  return async ({ principal, sessionId, stage, rewriteRunId }) => {
+  return async ({ principal, sessionId, stage, rewriteRunId, signal }) => {
     try {
-      return await deps.executeStage({ principal, sessionId, stage, isRefinement: false, rewriteRunId });
+      return await deps.executeStage({ principal, sessionId, stage, isRefinement: false, rewriteRunId, signal });
     } finally {
       // ONE emit per VERB, in a `finally` — the freshness event must be TOTAL over the outcomes, because the
       // run ledger is append-only: a stage that stamped signals and then threw still moved reads. This is
@@ -91,7 +92,9 @@ export function createRunStage(ctx: RefineryContext, deps: StageEngineDeps): Ref
 interface StagePass {
   readonly session: RefinerySessionView;
   /** The owner's role-client bundle — every stage turn is `structured` on it (§7.5-1). */
-  readonly rc: RoleClients;
+  readonly rc: RoleClients<AbortSignal>;
+  /** The request's cancel, carried to every model call this pass makes. */
+  readonly signal: AbortSignal;
   /** The resolved summarize model's window, read ONCE per pass (`summarizerFactsOf`). */
   readonly contextTokens: number | null;
   /** The wire grammar this pass runs under (fixed contract or the custom schema's projection). */
@@ -118,7 +121,7 @@ interface StagePass {
  *  `isRefinement:false`; `iterate` runs it twice per round. Reloads the session per call so an iterate
  *  round's analyze sees the rewrite that just landed. */
 export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
-  return async ({ principal, sessionId, stage, isRefinement, rewriteRunId }) => {
+  return async ({ principal, sessionId, stage, isRefinement, rewriteRunId, signal }) => {
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
@@ -137,9 +140,9 @@ export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
       if (parsed === null) {
         throw new DomainNotFoundError("refinery run", rewriteRunId);
       }
-      return executeResolved(ctx, { ownerId, stage, isRefinement, prior: { ...prior, rewrite: parsed }, session, sessionId });
+      return executeResolved(ctx, { ownerId, stage, isRefinement, prior: { ...prior, rewrite: parsed }, session, sessionId, signal });
     }
-    return executeResolved(ctx, { ownerId, stage, isRefinement, prior, session, sessionId });
+    return executeResolved(ctx, { ownerId, stage, isRefinement, prior, session, sessionId, signal });
   };
 }
 
@@ -152,11 +155,12 @@ async function executeResolved(
     readonly prior: PriorRuns;
     readonly session: RefinerySessionView;
     readonly sessionId: Parameters<ExecuteStage>[0]["sessionId"];
+    readonly signal: AbortSignal;
   },
 ): Promise<RefineryRun> {
-  const { ownerId, stage, isRefinement, prior, session, sessionId } = args;
+  const { ownerId, stage, isRefinement, prior, session, sessionId, signal } = args;
   assertStageReady(stage, isRefinement, prior);
-  const pass = await resolveStagePass(ctx, { ownerId, sessionId, stage, session });
+  const pass = await resolveStagePass(ctx, { ownerId, sessionId, stage, session, signal });
   assertStageBudgetFits(pass);
   const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
 
@@ -307,17 +311,19 @@ async function resolveStagePass(
     readonly sessionId: Parameters<ExecuteStage>[0]["sessionId"];
     readonly stage: RefineryStage;
     readonly session: RefinerySessionView;
+    readonly signal: AbortSignal;
   },
 ): Promise<StagePass> {
-  const { ownerId, sessionId, stage, session } = args;
+  const { ownerId, sessionId, stage, session, signal } = args;
   const overrides = await ctx.resolveUserProse(ownerId);
   const presetParams = await ctx.resolveUtilityPresetParams(ownerId);
   const resolution = await resolveStageResolution(ctx, { ownerId, stage, session });
   const rc = await ctx.roleClientsFor(ownerId);
-  const facts = await summarizerFactsOf(rc, presetParams, { ownerId, resolveStructuredBinding: ctx.resolveStructuredBinding });
+  const facts = await summarizerFactsOf(rc, presetParams, { ownerId, resolveStructuredBinding: ctx.resolveStructuredBinding, signal });
   return {
     session,
     rc,
+    signal,
     contextTokens: facts.contextTokens,
     stage,
     subject: stageSubjectOf(stage, session),
@@ -340,14 +346,14 @@ async function resolveStagePass(
  *  floor (`substrate/output-budget` — the ONE expression `preflight` also evaluates, which is why the fit
  *  line and the wire now carry the same number). Resolved per arm because the budget's window clamp needs
  *  the prompt, and only the arm has it. */
-function sampleOptsFor(pass: StagePass, prompts: StagePrompts): StructuredOptions {
+function sampleOptsFor(pass: StagePass, prompts: StagePrompts): StructuredOptions<AbortSignal> {
   const sampling = resolveStageSampling({
     subject: pass.subject,
     presetParams: pass.presetParams,
     contextTokens: pass.contextTokens,
     inputEstimate: estimateTokens(`${prompts.system}\n${prompts.user}`),
   });
-  return { responseFormat: pass.responseFormat, ...sampling };
+  return { responseFormat: pass.responseFormat, ...sampling, signal: pass.signal };
 }
 
 /** The three ECONOMIC columns of a finished run, resolved identically for every stage: the provider's own
@@ -519,9 +525,9 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: Pri
 }
 
 interface RunOneArgs<T> {
-  readonly rc: RoleClients;
+  readonly rc: RoleClients<AbortSignal>;
   readonly prompts: StagePrompts;
-  readonly sampleOpts: StructuredOptions;
+  readonly sampleOpts: StructuredOptions<AbortSignal>;
   readonly lane: Parameters<typeof traceStructuredRetry>[0];
   readonly payloadSchema: z.ZodType<T>;
 }

@@ -7,6 +7,7 @@
 import type { RoutableTask } from "@orb/contracts/inference";
 import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR, MODEL_ROLES_SUBCATEGORY_ID, RERANK_ROLE_DOOR, UTILITY_ROLE_DOOR } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { CONNECTIONS_LIST_NAME } from "./connections-copy.ts";
 
 const CHAT_MODEL_SETTING = CHAT_ROLE_DOOR.setting;
 const UTILITY_MODEL_SETTING = UTILITY_ROLE_DOOR.setting;
@@ -25,7 +26,7 @@ export const ROLE_SETTING_IDS: Readonly<Partial<Record<RoutableTask, string>>> =
 
 export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
   id: "connections",
-  label: "Connections",
+  label: CONNECTIONS_LIST_NAME,
   keywords: ["connection", "provider", "model", "key", "url", "openrouter", "anthropic", "vllm", "ollama", "claude"],
   teach: {
     summary:

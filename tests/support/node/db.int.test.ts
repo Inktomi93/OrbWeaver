@@ -331,10 +331,38 @@ function topLevelClauses(body: string): readonly string[] {
   return [...clauses, body.slice(start).trim()];
 }
 
+const INLINE_REFERENCE =
+  /^(?<column>`[^`]+`|\w+)\s+(?<rest>.*?)\s*REFERENCES\s+(?<table>`[^`]+`|\w+)\s*\((?<target>`[^`]+`|\w+)\)(?<actions>(?:\s+ON\s+(?:UPDATE|DELETE)\s+(?:SET\s+NULL|SET\s+DEFAULT|CASCADE|RESTRICT|NO\s+ACTION))*)\s*$/iu;
+const REFERENCE_ACTION = /ON\s+(?<event>UPDATE|DELETE)\s+(?<action>SET\s+NULL|SET\s+DEFAULT|CASCADE|RESTRICT|NO\s+ACTION)/giu;
+const TABLE_CONSTRAINT = /^(?:FOREIGN|CONSTRAINT|CHECK|UNIQUE|PRIMARY)\b/iu;
+
+const backticked = (name: string): string => (name.startsWith("`") ? name : `\`${name}\``);
+
+// An ADD COLUMN migration can only declare a reference inline on the column, where a push writes it as a table-level
+// FOREIGN KEY with both actions spelled. Split an inline reference into that table-level spelling, absent actions as
+// SQLite's NO ACTION, so the two read as one schema and a different action or a missing reference still differs.
+function tableLevelReference(clause: string): readonly string[] {
+  const match = TABLE_CONSTRAINT.test(clause) ? null : INLINE_REFERENCE.exec(clause);
+  if (match?.groups === undefined) {
+    return [clause];
+  }
+  const { column = "", rest = "", table = "", target = "", actions = "" } = match.groups;
+  const action = { update: "no action", delete: "no action" };
+  for (const found of actions.matchAll(REFERENCE_ACTION)) {
+    const event = found.groups?.["event"]?.toLowerCase() === "update" ? "update" : "delete";
+    action[event] = (found.groups?.["action"] ?? "").toLowerCase().replace(/\s+/gu, " ");
+  }
+  return [
+    `${backticked(column)} ${rest}`.trim(),
+    `FOREIGN KEY (${backticked(column)}) REFERENCES ${backticked(table)}(${backticked(target)}) ON UPDATE ${action.update} ON DELETE ${action.delete}`,
+  ];
+}
+
 /** Every schema object's stored SQL, one line each, with a table's clauses sorted and its `CREATE TABLE <name>` head
- *  dropped. An ADD COLUMN migration appends its column after the last one, where a push declares it in place, and a
- *  rebuilt table's name comes back double-quoted where a push backticks it; neither is schema. The text carries the
- *  CHECK constraints the pragma lines above cannot see. */
+ *  dropped. An ADD COLUMN migration appends its column after the last one, where a push declares it in place, a
+ *  rebuilt table's name comes back double-quoted where a push backticks it, and an added column's reference sits on
+ *  the column where a push writes a table-level FOREIGN KEY; none is schema. The text carries the CHECK constraints
+ *  the pragma lines above cannot see. */
 async function schemaTexts(db: Db): Promise<readonly string[]> {
   const objects = await db.all<{ readonly type: string; readonly name: string; readonly text: string | null }>(
     sql`SELECT type, name, sql AS text FROM sqlite_master WHERE name NOT LIKE ${SQLITE_INTERNAL} AND name <> ${DRIZZLE_LEDGER} ORDER BY type, name`,
@@ -346,7 +374,9 @@ async function schemaTexts(db: Db): Promise<readonly string[]> {
     if (type !== "table" || open === -1 || close < open) {
       return `${type} ${name}: ${statement}`;
     }
-    const clauses = topLevelClauses(statement.slice(open + 1, close)).toSorted();
+    const clauses = topLevelClauses(statement.slice(open + 1, close))
+      .flatMap(tableLevelReference)
+      .toSorted();
     return `${type} ${name}: (${clauses.join(", ")})`;
   });
 }
@@ -392,6 +422,24 @@ test("freshDb's pushed schema text equals the shipped chain's, clause order asid
   const pushed = await schemaTexts(pair.pushed);
   expect(pushed.length).toBeGreaterThan(50);
   expect(differences(pushed, await schemaTexts(pair.migrated))).toEqual([]);
+});
+
+test("the text comparison reads an inline reference as the pushed table-level one, and still reports a different action or a missing reference", async () => {
+  await using pair = await schemaPair();
+  await pair.pushed.run(
+    sql`CREATE TABLE planted_ref (\`id\` text, \`user_id\` text, FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE set null)`,
+  );
+  const plantedIn = async (column: string): Promise<readonly string[]> => {
+    await pair.migrated.run(sql`DROP TABLE IF EXISTS planted_ref`);
+    await pair.migrated.run(sql.raw(`CREATE TABLE planted_ref (\`id\` text, \`user_id\` ${column})`));
+    return differences(await schemaTexts(pair.pushed), await schemaTexts(pair.migrated));
+  };
+  expect(await plantedIn("text REFERENCES users(id) ON DELETE SET NULL")).toEqual([]);
+  expect(await plantedIn("text REFERENCES users(id) ON DELETE CASCADE")).toEqual([
+    expect.stringMatching(/^- table planted_ref: .*ON DELETE set null/u),
+    expect.stringMatching(/^\+ table planted_ref: .*ON DELETE cascade/u),
+  ]);
+  expect(await plantedIn("text")).toEqual([expect.stringMatching(/^- table planted_ref: .*FOREIGN KEY/u), expect.stringMatching(/^\+ table planted_ref: /u)]);
 });
 
 test("the text comparison still reports a planted column drift", async () => {

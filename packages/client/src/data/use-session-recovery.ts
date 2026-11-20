@@ -78,7 +78,9 @@ export function useSessionRecovery(): SessionRecoveryState {
         ownsCompletion = false;
       };
     }
-    // the catch calls `setFailedBind`, which makes `bindFailed` true and the hook return `{ status: "error", retry }`; AppRootSessionBoundary (routes/app-root-session-boundary/boundary.tsx:8) renders QueryErrorState with that retry. Ends if the error status stops rendering.
+    // A failed bind is the surface's error state (client-architecture-state-and-gates.md §11): the catch calls
+    // `setFailedBind`, which makes the hook return `{ status: "error", retry }`, and AppRootSessionBoundary renders
+    // QueryErrorState with that retry. The cause is logged, so a fault reads as itself and not as a bare failed bind.
     void bindDurableLocalToUser(userId)
       .then(() => {
         if (ownsCompletion && durableLocalReadyFor(userId)) {
@@ -86,7 +88,8 @@ export function useSessionRecovery(): SessionRecoveryState {
           setHydratedUserId(userId);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error("durable-local bind failed", error);
         if (ownsCompletion) {
           setFailedBind({ attempt: bindAttempt, userId });
         }

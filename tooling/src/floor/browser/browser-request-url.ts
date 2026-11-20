@@ -1,6 +1,7 @@
 // The only mint for request-summary URL identity. Raw credentials and sensitive query values are erased
 // before the string can inhabit a map key or captured request value.
 import { z } from "zod";
+import { URL_SECRET_PAIR_NAMES, URL_SECRET_PATH_NAMES } from "./url-secret-names.ts";
 
 const SENSITIVE_QUERY_NAME = /token|password|passwd|secret|api[_-]?key|authorization|credential|session|signature/iu;
 const SENSITIVE_PATH_SEGMENT_NAME = /^(?:token|password|passwd|secret|api[_-]?key|authorization|credential|session|signature)$/iu;
@@ -16,13 +17,14 @@ export function redactedRequestUrl(raw: string): RedactedRequestUrl {
       url.password = "[REDACTED]";
     }
     for (const name of [...url.searchParams.keys()]) {
-      if (SENSITIVE_QUERY_NAME.test(name)) {
+      if (SENSITIVE_QUERY_NAME.test(name) || URL_SECRET_PAIR_NAMES.has(name.toLowerCase())) {
         url.searchParams.set(name, "[REDACTED]");
       }
     }
     const segments = url.pathname.split("/");
     for (let index = 0; index < segments.length - 1; index += 1) {
-      if (SENSITIVE_PATH_SEGMENT_NAME.test(decodeURIComponent(segments[index] ?? ""))) {
+      const name = decodeURIComponent(segments[index] ?? "");
+      if (SENSITIVE_PATH_SEGMENT_NAME.test(name) || URL_SECRET_PATH_NAMES.has(name.toLowerCase())) {
         segments[index + 1] = "%5BREDACTED%5D";
       }
     }

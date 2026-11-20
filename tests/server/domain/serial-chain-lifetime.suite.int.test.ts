@@ -1,4 +1,4 @@
-// @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
+// @subject packages/server/src/domain/plugin/consent/consent-prompt.ts
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 import { setTimeout as physicalDeadline } from "node:timers/promises";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";

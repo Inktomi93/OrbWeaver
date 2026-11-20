@@ -1,5 +1,5 @@
 // verb: scrapeYoutube (DB8) — fetch a video's timedtext caption track over the SAME ANY_HOST safeFetch guard as
-// scrapeWeb, join the caption cues to plain text, then the §2 canon tail (`substrate/scrape-canon`).
+// scrapeWeb, join the caption cues to plain text, then the §2 canon tail (`persistence/scrape-canon`).
 // No API key: `https://www.youtube.com/api/timedtext?v=<id>&lang=<lang>` returns the
 // caption XML (`<text start=… dur=…>cue</text>` cues). We derive the 11-char video id from a watch/short/embed URL
 // (or a bare id), decode the cue text, and join cues with `\n` — the caption text is the canon, mime 'text/plain'.
@@ -14,7 +14,7 @@ import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeYoutubeParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
 import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
-import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
+import { finalizeScrape } from "#src/domain/databank/persistence/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 const TIMEDTEXT_ORIGIN = "https://www.youtube.com/api/timedtext";
@@ -70,7 +70,7 @@ function captionsToText(xml: string): string {
 }
 
 export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scrapeYoutube"] {
-  return async ({ principal, url, lang, destination }: ScrapeYoutubeParams): Promise<UploadResult> => {
+  return async ({ principal, url, lang, destination, signal }: ScrapeYoutubeParams): Promise<UploadResult> => {
     const videoId = videoIdFrom(url);
     if (videoId === undefined) {
       throw new ScrapeFailedError();
@@ -79,7 +79,7 @@ export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scra
 
     let bytes: Uint8Array;
     try {
-      bytes = await ctx.fetchUrl(captionUrl);
+      bytes = await ctx.fetchUrl(captionUrl, signal);
     } catch (err) {
       // The refusal is a client error the transport does not log and carries the cause off the wire, so a broken fetch is recorded here.
       getLog(ctx.logger).warn({ err }, "databank: a youtube caption fetch failed");
@@ -94,6 +94,7 @@ export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scra
 
     return finalizeScrape(ctx, {
       principal,
+      signal,
       destination,
       bytes: new TextEncoder().encode(text),
       origin: "youtube",

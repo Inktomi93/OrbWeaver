@@ -15,6 +15,7 @@ import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
@@ -42,7 +43,9 @@ export function toEntryView(row: EntryRow): EntryView {
     enabled: row.enabled,
     priority: row.priority,
     ignoreBudget: row.ignoreBudget,
-    metadata: entryMetadataSchema.nullable().catch(null).parse(row.metadata),
+    // Stored text that is not JSON degrades like a blob out of shape; it is tested first because the open schema would
+    // admit the marker's own `text` key as metadata.
+    metadata: row.metadata instanceof UnreadableJsonText ? null : entryMetadataSchema.nullable().catch(null).parse(row.metadata),
   };
 }
 
@@ -180,18 +183,19 @@ export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAtta
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
-// Not owner-filtered — a chat's attached books are room-public prompt content (membership is the caller gate).
-export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachmentView[]> {
+/** The room's attached books the room's HOST owns, the set a turn applies (D64). A row a former host left on the
+ *  room is not listed, because it applies nothing. The room's members read it; membership is the caller's gate. */
+export async function listHostChatBooks(db: Db, chatId: ChatId, hostUserId: UserId): Promise<BookAttachmentView[]> {
   const rows = await db
     .select({ book: worldBooks })
     .from(chatBooks)
     .innerJoin(worldBooks, eq(chatBooks.worldBookId, worldBooks.id))
-    .where(eq(chatBooks.chatId, chatId))
+    .where(and(eq(chatBooks.chatId, chatId), eq(worldBooks.ownerId, hostUserId)))
     .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
-/** Reverse of listChatBooks. A book attached to zero chats returns []. */
+/** Reverse of {@link listHostChatBooks}, without its owner filter. A book attached to zero chats returns []. */
 export async function listChatIdsForBook(db: Db, bookId: WorldBookId): Promise<ChatId[]> {
   const rows = await db.select({ chatId: chatBooks.chatId }).from(chatBooks).where(eq(chatBooks.worldBookId, bookId));
   return rows.map((r) => r.chatId);

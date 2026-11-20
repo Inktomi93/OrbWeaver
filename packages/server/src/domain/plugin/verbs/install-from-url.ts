@@ -13,17 +13,17 @@
 // nothing but their own new row (no foreign id — the sweep classifies it EXEMPT).
 //
 // The fetch rides `ctx.fetchBundle` (the compose-wired `safeFetch` ANY_HOST guard — SSRF/private-range denial +
-// byte cap, NEVER a bare fetch of an attacker-named URL); `fetchBundleThroughGuard` collapses any fetch failure
-// to a leak-free `PluginBundleFetchError`. Nothing persists on a fetch failure OR a bad-zip refusal.
+// byte cap, NEVER a bare fetch of an attacker-named URL), which `domain/plugin/context.ts` wraps to collapse any
+// fetch failure to a leak-free `PluginBundleFetchError`. Nothing persists on a fetch failure OR a bad-zip refusal.
 
 import { PluginBundlePreviewStaleError } from "../contract/errors.ts";
 import type { InstallFromUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
-import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest.ts";
+import { hashPluginBundle } from "../substrate/manifest.ts";
 
 export function createInstallFromUrl(ctx: PluginContext, deps: { readonly install: PluginService["install"] }): PluginService["installFromUrl"] {
   return async ({ caller, url, expectedBundleHash, grant }: InstallFromUrlParams) => {
-    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url, ctx.logger);
+    const bundle = await ctx.fetchBundle(url);
     if (hashPluginBundle(bundle) !== expectedBundleHash) {
       throw new PluginBundlePreviewStaleError();
     }

@@ -18,6 +18,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
 import { useUpdateWorkloadsTuning } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
+import { DUPLICATE_THRESHOLD_NAME } from "../lib/workloads-names.ts";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
   COMPUTE_THEMES_K_MAX,
@@ -83,7 +84,7 @@ function WorkloadsTuningBody({
             <form.AppField name="dupThreshold">
               {(field): ReactElement => (
                 <field.NumberField
-                  label="Duplicate threshold"
+                  label={DUPLICATE_THRESHOLD_NAME}
                   description="Cosine similarity (0–1) above which two characters are flagged as duplicates. Higher = only near-identical pairs."
                   min={DUP_THRESHOLD_MIN}
                   max={DUP_THRESHOLD_MAX}

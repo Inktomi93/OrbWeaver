@@ -8,7 +8,8 @@
 //     The wire envelope has no spelling for a staged handle or digest (D340): only an upload route mints those.
 //   • `list`/`get`/`cancel`/`retry` — IDOR-scoped in the verb to the caller's own `ownerId`
 //     (a non-admin), or across ALL owners (owner∪admin = the deployment-wide view). A foreign/absent id →
-//     leak-free NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
+//     leak-free NOT_FOUND. An admin sees the box owner's rows but may not cancel or retry them (D17), and is
+//     answered the same NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
 // Thin: validate → LAYER-1 owner gate for bulk → enter the front door → map errors.
 //
 // LIVE TAILING IS NOT HERE ANY MORE (SSE-1 S5). The deleted `subscribe` proc is the `workloads` ROOM on the
@@ -21,6 +22,7 @@ import {
   cancelWorkloadResultSchema,
   modelCallEstimateSchema,
   scheduleCadenceSchema,
+  WORKLOAD_KINDS,
   wireStartWorkloadEnvelope,
   workloadListInputSchema,
   workloadModeSchema,
@@ -36,7 +38,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const workloadsRouter = t.router({
   start: authedProcedure
@@ -75,20 +77,27 @@ export const workloadsRouter = t.router({
     .output(modelCallEstimateSchema)
     .input(
       strictTwin(
-        z.strictObject({
-          input: wireStartWorkloadEnvelope,
-          mode: workloadModeSchema.default("singular"),
-          targetOwnerId: brandedId("UserId").optional(),
-          assumeAdmitted: z.boolean().optional(),
-        }),
+        z
+          .strictObject({
+            input: wireStartWorkloadEnvelope,
+            mode: workloadModeSchema.default("singular"),
+            targetOwnerId: brandedId("UserId").optional(),
+            assumeAdmitted: z.boolean().optional(),
+            // The stages a chained confirm runs first; each is a start envelope, counted only, never started.
+            after: z.array(wireStartWorkloadEnvelope).max(WORKLOAD_KINDS.length).optional(),
+          })
+          // A chain is one person's pass over their own library; a bulk sweep is never chained.
+          .refine((value) => value.after === undefined || value.mode === "singular", { path: ["after"], message: "only a singular run is chained" }),
       ),
     )
-    .query(({ ctx, input }) => {
+    .query(({ ctx, input, signal }) => {
       if (input.mode === "bulk") {
         requireOwner(ctx.auth);
       }
       return ctx.services.workloads.estimateModelCalls({
+        signal: procedureSignal(signal),
         input: asStartWorkloadInput(input.input),
+        ...(input.after !== undefined ? { after: input.after.map(asStartWorkloadInput) } : {}),
         caller: ctx.auth,
         mode: input.mode,
         ...(input.assumeAdmitted !== undefined ? { assumeAdmitted: input.assumeAdmitted } : {}),
@@ -100,7 +109,7 @@ export const workloadsRouter = t.router({
   estimateRetryModelCalls: authedProcedure
     .output(modelCallEstimateSchema)
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
-    .query(({ ctx, input }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth })),
+    .query(({ ctx, input, signal }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth, signal: procedureSignal(signal) })),
 
   cancel: authedProcedure
     .output(cancelWorkloadResultSchema)
@@ -134,8 +143,8 @@ export const workloadsRouter = t.router({
 
   // ── Schedules (the TIME dimension) — recurring auto-enqueue. Owner-scoped like the workload verbs: a
   //    SINGULAR schedule is any authed caller, unless the kind's `ownerOnly` says otherwise; a BULK schedule is
-  //    BOX-OWNER-only (LAYER-1 gate here, re-checked in the verb); read/mutate-by-id collapse a foreign id to
-  //    leak-free NOT_FOUND. ──
+  //    BOX-OWNER-only (LAYER-1 gate here, re-checked in the verb); read/mutate-by-id collapse a foreign id, and
+  //    the box owner's schedule to a delegated admin's mutate (D17), to leak-free NOT_FOUND. ──
   createSchedule: authedProcedure
     .output(workloadScheduleRefSchema)
     .input(

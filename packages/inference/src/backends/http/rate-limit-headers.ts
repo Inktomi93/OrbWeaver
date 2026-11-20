@@ -1,7 +1,7 @@
-// The ONE rate-limit header parser for the hosted wires (inference audit B6): the V4 `doStream` result exposes
+// The ONE rate-limit header parser for the hosted wires: the V4 `doStream` result exposes
 // `response.headers`, and the snapshot it yields is the same `RateLimitSnapshot` the agent-sdk wire fills from
 // its `rate_limit_event` frame, so a caller reads one shape whatever the wire. Two header FAMILIES, both
-// MEASURED 2026-09-20 (scratch `rec-probe.mjs`):
+// observed on the live API:
 //   • Anthropic — `anthropic-ratelimit-<axis>-{limit,remaining,reset}` for `requests`, `tokens`, `input-tokens`,
 //     `output-tokens`; `reset` is an RFC 3339 instant (`req_011CfEBkpjRWAjtLDifB2qpW`).
 //   • OpenAI-style — `x-ratelimit-{limit,remaining,reset}-<axis>` for `requests`, `tokens`; `reset` is a Go
@@ -19,7 +19,8 @@ const ANTHROPIC_RE = /^anthropic-ratelimit-(?<axis>[a-z-]+)-(?<field>limit|remai
 const OPENAI_RE = /^x-ratelimit-(?<field>limit|remaining|reset)-(?<axis>[a-z-]+)$/u;
 const RETRY_AFTER = "retry-after";
 // Sticky: the parts are read back-to-back from a string `DURATION_WHOLE_RE` already accepted, so no scan is needed.
-const DURATION_PART_RE = /(?<value>\d+(?:\.\d+)?)(?<unit>ms|[smh])/uy;
+// Read through `matchAll`, which iterates a copy, so the shared regex's `lastIndex` is never written.
+const DURATION_PART_RE = /(?<value>\d+(?:\.\d+)?)(?<unit>ms|[smh])/guy;
 const DURATION_WHOLE_RE = /^(?:\d+(?:\.\d+)?(?:ms|[smh]))+$/u;
 const MS_PER: Readonly<Record<"ms" | "s" | "m" | "h", number>> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 };
 const STATUS_ALLOWED = "allowed";
@@ -55,8 +56,7 @@ function parseGoDuration(text: string): number | undefined {
     return;
   }
   let total = 0;
-  DURATION_PART_RE.lastIndex = 0;
-  for (let part = DURATION_PART_RE.exec(trimmed); part !== null; part = DURATION_PART_RE.exec(trimmed)) {
+  for (const part of trimmed.matchAll(DURATION_PART_RE)) {
     const value = Number(part.groups?.["value"]);
     const unit = part.groups?.["unit"];
     if (unit !== "ms" && unit !== "s" && unit !== "m" && unit !== "h") {
@@ -76,6 +76,12 @@ function asInstant(value: string): number | undefined {
 function retryAfterAt(value: string, now: number): number | undefined {
   const seconds = /^\d+$/u.test(value.trim()) ? Number(value) : undefined;
   return seconds !== undefined ? now + seconds * MS_PER.s : asInstant(value);
+}
+
+/** When a failed response's `retry-after` header says the service will take the request again. */
+export function retryAfterResetsAt(headers: Readonly<Record<string, string>>, now: number): number | undefined {
+  const value = Object.entries(headers).find(([key]) => key.toLowerCase() === RETRY_AFTER)?.[1];
+  return value === undefined ? undefined : retryAfterAt(value, now);
 }
 
 function setField(axis: Axis, field: string, value: string, reset: (raw: string) => number | undefined): void {

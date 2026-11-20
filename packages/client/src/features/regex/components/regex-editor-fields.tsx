@@ -1,57 +1,58 @@
-// The regex-script EDITOR FIELDS — one library row's AUTHORED fields: name · the find pattern (via
-// `@orb/ui/code-editor` — a regex is code) · replaceString · placement · enabled · run-on-edit.
+// The regex-script EDITOR FIELDS: one library row's authored fields, mounted in the config CONTENT pane.
 //
-// MOUNTED, NOT POPPED. This was `components/regex-editor-dialog.tsx`, a
-// Dialog stacked on top of the settings modal — a modal inside a modal, with its own focus-return bug
-// history (side-eye X-8). The config workspace mounts the SAME fields in the CONTENT pane, so the Dialog
-// shell (and the focus-return apparatus it needed) is gone while not one field changed. It moved from
-// `components/` into this feature at the same time: the composite had exactly one consumer left, and
-// tier 2 is for what TWO features need.
-//
-// THE DISPLAY/PROMPT TIER IS NOT AMONG THEM, deliberately (side-eye X-1 + X-2, 2026-08-03): `markdownOnly`
-// and `promptOnly` are masks over `placement`, so authoring them beside the `Runs on` chips let one editor
-// state two contradicting facts about the same script. They are derived at the save boundary now —
-// `features/regex/lib/derive-tier-flags.ts` carries the reasoning and the three arms.
-//
-// D121-E CHANGED ITS BINDING, and that is the whole point of the reshape: it used to bind
-// `regexScripts[index].*` on whichever of THREE embedded carriers was in scope, which is exactly how the
-// app ended up with three editors at three capability levels. There is now ONE library row, so there is
-// ONE editor at ONE capability level, and the pickers attach that row rather than authoring a fourth copy.
+// TWO AXES, TWO CONTROLS. "What it changes" picks the targets and "When it runs" picks one of four pass sets
+// (`../lib/regex-when.ts`). A choice that would read none of the chosen targets is disabled with its reason, and a
+// target its passes cannot read is disabled while unselected. A stored target the passes do not read stays selected
+// and is named as not applying; nothing clears it. Depth and the author scope exist only beside a display or prompt choice, and run on edit only beside the
+// save choice, so the controls a script cannot use are absent rather than inert. The save boundary
+// (`../lib/regex-save-boundary.ts`) keeps the stored row in step with what is shown.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { HISTORY_DEPTH_PLACEMENT, SubstituteFindRegex, WHOLE_HISTORY_DEPTH } from "@orb/kit/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
+import type { RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
+import { REGEX_DEPTH_FLOOR, REGEX_DEPTH_MAX, REGEX_TARGETS, SubstituteFindRegex } from "@orb/kit/regex";
+import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
+import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
-import { lazy, Suspense, useId } from "react";
+import { lazy, Suspense, useId, useState } from "react";
+import { ConfirmDialog, SettingSwitchRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
-import { REGEX_PLACEMENT_ITEMS } from "#lib";
-import { REGEX_FIND_PATTERN_NAME, REGEX_NAME_FIELD_NAME, REGEX_REPLACE_WITH_NAME } from "../lib/regex-names.ts";
+import { REGEX_TARGET_ITEMS, regexPassesRead } from "#lib";
+import {
+  REGEX_DEPTH_CONTINUED_NAME,
+  REGEX_DEPTH_FROM_NAME,
+  REGEX_DEPTH_TO_NAME,
+  REGEX_FIND_PATTERN_NAME,
+  REGEX_NAME_FIELD_NAME,
+  REGEX_REPLACE_WITH_NAME,
+  REGEX_RUN_ON_EDIT_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION,
+  REGEX_SAVE_CLEARS_SCOPE_TITLE,
+  REGEX_TARGETS_FIELD_NAME,
+  REGEX_WHEN_FIELD_NAME,
+} from "../lib/regex-names.ts";
+import { regexHoldsMessageScope } from "../lib/regex-save-boundary.ts";
+import type { RegexWhenChoice } from "../lib/regex-when.ts";
+import { regexUnreadReasons, regexUnreadTargetsNote, regexWhenIsEphemeral, regexWhenItems, regexWhenOf, regexWhenPasses } from "../lib/regex-when.ts";
+import { RegexAuthorScopeFields } from "./regex-author-scope-fields.tsx";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
 
-// Lazy — CodeMirror is heavy and only this editor needs it.
+// Lazy: CodeMirror is heavy and only this editor needs it.
 const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })));
 
-/** The placement multi-toggle items. The labels are the SHARED map (side-eye F-23): this editor used to
- *  offer the raw enum member (`USER_INPUT`) while the Transforms readout printed prose for the same stage,
- *  so one pipeline had two vocabularies and neither surface could be read against the other. */
-const PLACEMENT_ITEMS = REGEX_PLACEMENT_ITEMS;
-
-/** ONE string for the field's visible label and the trigger's accessible name (the `params-deck` Quality
- *  pattern): jsx-a11y cannot see the Base UI Field association, and two hand-written copies of a label are
- *  two chances for a screen reader to hear something the screen does not say. */
+/** One string for the field's visible label and the trigger's accessible name: jsx-a11y cannot see the Base UI
+ *  Field association. */
 const SUBSTITUTE_LABEL = "Macros in the find pattern";
 
-/** `substituteRegex` — ST's "Macros in Find Regex" (its `substitute_find_regex` select). The knob was in the
- *  schema and honoured by the executor (`compilePattern` macro-substitutes the pattern in `raw`/`escaped`
- *  mode) from the day the library landed, with NO control anywhere in the app: it could only ever arrive on
- *  an imported card. Same story for `Trim out` below. The wire is ST's numeric enum, so the option VALUES
- *  are its numbers stringified (Select is string-valued) and the map back is a lookup, never a cast. */
+/** The wire is SillyTavern's numeric enum, so the option values are its numbers stringified and the map back is a
+ *  lookup, never a cast. */
 const SUBSTITUTE_ITEMS: readonly { readonly value: string; readonly label: string }[] = [
   { value: String(SubstituteFindRegex.none), label: "Leave macros alone" },
   { value: String(SubstituteFindRegex.raw), label: "Resolve macros first" },
@@ -64,62 +65,171 @@ const SUBSTITUTE_BY_VALUE: ReadonlyMap<string, SubstituteFindRegex> = new Map([
   [String(SubstituteFindRegex.escaped), SubstituteFindRegex.escaped],
 ]);
 
-/** Trim strings round-trip through ONE textarea, one per line — and the split is NOT filtered. Dropping
- *  blank lines would delete the newline the user just typed on an autosaving form, so the empty entry is
- *  kept: the executor skips a falsy trim string, making it inert rather than wrong. */
+const WHEN_CHOICES_BY_VALUE: ReadonlyMap<string, RegexWhenChoice> = new Map(regexWhenItems([]).map((item) => [item.value, item.value]));
+
+/** Trim strings round-trip through one textarea, one per line, and the split is not filtered: dropping blank lines
+ *  would delete the newline the user just typed on an autosaving form. The executor skips an empty trim string. */
 function splitTrimStrings(value: string): string[] {
   return value === "" ? [] : value.split("\n");
 }
 
-/** The two depth bounds' labels — one string each for the visible label AND the stepper buttons' accessible
- *  name (the `params-deck` Quality pattern; a bare "Decrease" tells a screen reader nothing about WHICH
- *  bound it moves). */
-const DEPTH_MIN_LABEL = "From (messages back)";
-const DEPTH_MAX_LABEL = "To (messages back)";
+/** Every position, the reading of an absent depth: the floor that includes the reply being continued, no ceiling. */
+const EVERY_POSITION: RegexDepth = { min: REGEX_DEPTH_FLOOR, max: null };
 
-// The form these fields bind — a direct-bind form OR the autosave factory's reset-less form (nothing here
-// calls `reset`, so it accepts the wider shape).
+// The form these fields bind: a direct-bind form or the autosave factory's reset-less form.
 type RegexEditorForm = Omit<AppFormInstance<CreateRegexScriptInput>, "reset">;
 
-/** THE DEPTH SCOPE — rendered ONLY while `Runs on` carries the history leg, because it is the only leg that
- *  HAS a depth (every other placement runs once, on one string, at persist or at render). This is the same
- *  unrepresentable-contradiction discipline the tier flags got: rather than showing two bounds that would
- *  govern nothing on a send-only script, the controls do not exist, and the save boundary keeps the stored
- *  row in step (`../lib/derive-tier-flags`).
- *
- *  DEPTH 0 IS THE NEWEST MESSAGE and counts backwards (the ST semantic, cited in `@orb/kit/regex`'s
- *  `RegexHistoryDepth`). "To" empty = no ceiling, which is Base UI's own null-is-empty shape rather than a
- *  sentinel number. */
-function HistoryDepthFields({ form }: Pick<RegexEditorFieldsProps, "form">): ReactElement {
+/** The error the when field shows for a pass set no choice spells. */
+function whenError(passes: readonly RegexPass[]): string | null {
+  if (passes.length === 0) {
+    return "Not set: this script is saved, but nothing will ever run it.";
+  }
+  return regexWhenOf(passes) === null ? "This script's timing is not one of these choices. Pick one so it runs the way you expect." : null;
+}
+
+/** A target the passes cannot read is disabled while unselected, so none can be added; a selected one stays pressed so
+ *  it can be removed, and the field names it as not applying. */
+function targetItems(passes: readonly RegexPass[], selected: readonly RegexTarget[]): readonly { value: string; label: string; disabled: boolean }[] {
+  return REGEX_TARGET_ITEMS.map((item) => ({
+    value: item.value,
+    label: item.label,
+    disabled: passes.length > 0 && !selected.includes(item.value) && !regexPassesRead(passes, item.value),
+  }));
+}
+
+/** The unread note comes first: it is the one that asks for a fix. Then the reasons for the texts that cannot be added. */
+function targetsDescription(passes: readonly RegexPass[], selected: readonly RegexTarget[], blocked: readonly RegexTarget[]): string {
+  return regexUnreadTargetsNote(selected, passes) ?? (blocked.length > 0 ? regexUnreadReasons(blocked) : "Which text this script rewrites.");
+}
+
+function TargetsField({ form, passes }: { readonly form: RegexEditorForm; readonly passes: readonly RegexPass[] }): ReactElement {
   return (
-    <form.AppField name="historyDepth">
+    <form.AppField name="targets">
       {(field): ReactElement => {
-        const scope = field.state.value ?? WHOLE_HISTORY_DEPTH;
+        const items = targetItems(passes, field.state.value);
+        return (
+          <field.MultiToggleField
+            description={targetsDescription(
+              passes,
+              field.state.value,
+              REGEX_TARGETS.filter((target) => items.some((item) => item.disabled && item.value === target)),
+            )}
+            items={items}
+            label={REGEX_TARGETS_FIELD_NAME}
+            {...(field.state.value.length === 0 ? { error: "No text selected: this script is saved, but nothing will ever run it." } : {})}
+          />
+        );
+      }}
+    </form.AppField>
+  );
+}
+
+// A move to the save choice drops a set depth range or author scope at the save boundary, and the autosave would
+// store that loss at once, so the move waits for a confirm. With neither set it switches at once.
+function WhenField({ form, targets }: { readonly form: RegexEditorForm; readonly targets: readonly RegexTarget[] }): ReactElement {
+  const items = regexWhenItems(targets);
+  const [held, setHeld] = useState<RegexPass[] | null>(null);
+  return (
+    <form.AppField name="passes">
+      {(field): ReactElement => {
+        const choice = regexWhenOf(field.state.value);
+        const chosen = items.find((item) => item.value === choice);
+        return (
+          <>
+            <Field description={chosen?.description ?? null} error={whenError(field.state.value)} label={REGEX_WHEN_FIELD_NAME} name={field.name}>
+              <Select<RegexWhenChoice>
+                aria-label={REGEX_WHEN_FIELD_NAME}
+                items={items}
+                placeholder="Pick when it runs"
+                value={choice}
+                onValueChange={(next: RegexWhenChoice | null): void => {
+                  const picked = next === null ? undefined : WHEN_CHOICES_BY_VALUE.get(next);
+                  if (picked === undefined) {
+                    return;
+                  }
+                  if (!regexWhenIsEphemeral(picked) && regexHoldsMessageScope({ depth: form.getFieldValue("depth"), authors: form.getFieldValue("authors") })) {
+                    setHeld(regexWhenPasses(picked));
+                  } else {
+                    field.handleChange(regexWhenPasses(picked));
+                  }
+                }}
+              />
+            </Field>
+            <ConfirmDialog
+              confirmLabel={REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME}
+              description={REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION}
+              onConfirm={(): void => {
+                if (held !== null) {
+                  field.handleChange(held);
+                }
+              }}
+              onOpenChange={(open: boolean): void => {
+                if (!open) {
+                  setHeld(null);
+                }
+              }}
+              open={held !== null}
+              title={REGEX_SAVE_CLEARS_SCOPE_TITLE}
+            />
+          </>
+        );
+      }}
+    </form.AppField>
+  );
+}
+
+/** The depth bounds. Depth 0 is the newest message and counts backwards; the reply a continue extends sits before it
+ *  at -1, which the switch adds while the range starts at the newest message. */
+function DepthFields({ form }: { readonly form: RegexEditorForm }): ReactElement {
+  return (
+    <form.AppField name="depth">
+      {(field): ReactElement => {
+        const scope = field.state.value ?? EVERY_POSITION;
+        const from = Math.max(scope.min, 0);
         return (
           <Section heading="How far back it reaches">
-            <Row gap="field">
-              <Field description="0 is the newest message." label={DEPTH_MIN_LABEL}>
-                <NumberField
-                  aria-label={DEPTH_MIN_LABEL}
-                  min={0}
-                  onValueChange={(next: number | null): void => {
-                    field.handleChange({ ...scope, min: next ?? 0 });
+            <Stack gap="field">
+              <Row gap="field" stackBelow="cq-28">
+                <Field description="0 is the newest message." label={REGEX_DEPTH_FROM_NAME}>
+                  <NumberField
+                    aria-label={REGEX_DEPTH_FROM_NAME}
+                    max={REGEX_DEPTH_MAX}
+                    min={0}
+                    onValueChange={(next: number | null): void => {
+                      const min = next ?? 0;
+                      // Moving the start off the newest message leaves the continued reply out with the rest.
+                      field.handleChange({
+                        min: min === 0 && scope.min === REGEX_DEPTH_FLOOR ? REGEX_DEPTH_FLOOR : min,
+                        max: scope.max === null ? null : Math.max(scope.max, min),
+                      });
+                    }}
+                    value={from}
+                  />
+                </Field>
+                <Field description="Leave empty to reach the whole chat." label={REGEX_DEPTH_TO_NAME}>
+                  <NumberField
+                    aria-label={REGEX_DEPTH_TO_NAME}
+                    max={REGEX_DEPTH_MAX}
+                    min={from}
+                    onValueChange={(next: number | null): void => {
+                      field.handleChange({ ...scope, max: next });
+                    }}
+                    placeholder="no limit"
+                    value={scope.max}
+                  />
+                </Field>
+              </Row>
+              {from === 0 ? (
+                <SettingSwitchRow
+                  checked={scope.min === REGEX_DEPTH_FLOOR}
+                  description="When you ask for a reply to be continued, change that reply as well."
+                  label={REGEX_DEPTH_CONTINUED_NAME}
+                  onChange={(on: boolean): void => {
+                    field.handleChange({ ...scope, min: on ? REGEX_DEPTH_FLOOR : 0 });
                   }}
-                  value={scope.min}
                 />
-              </Field>
-              <Field description="Leave empty to reach the whole history." label={DEPTH_MAX_LABEL}>
-                <NumberField
-                  aria-label={DEPTH_MAX_LABEL}
-                  min={0}
-                  onValueChange={(next: number | null): void => {
-                    field.handleChange({ ...scope, max: next });
-                  }}
-                  placeholder="no limit"
-                  value={scope.max}
-                />
-              </Field>
-            </Row>
+              ) : null}
+            </Stack>
           </Section>
         );
       }}
@@ -129,30 +239,20 @@ function HistoryDepthFields({ form }: Pick<RegexEditorFieldsProps, "form">): Rea
 
 export interface RegexEditorFieldsProps {
   readonly form: RegexEditorForm;
-  /** The row id of the script being edited, or `null` when it has none yet — the PIPELINE panel needs it to
-   *  decide whether this script is already in the always-on tier or is appended after it. Nothing else here
-   *  reads it: every other field is bound through the form. */
-  readonly scriptId: string | null;
+  /** The row id of the script being edited, or `null` before it has one; the pipeline panel needs it to find the
+   *  script in the always-on set. */
+  readonly scriptId: RegexScriptId | null;
 }
 
-/** The regex-script field set — bound to one library row, rendered wherever the caller mounts it. */
+/** The regex-script field set, bound to one library row. */
 export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): ReactElement {
   const patternId = useId();
   return (
     <Stack gap="block">
       <form.AppField name="name">{(field): ReactElement => <field.TextField label={REGEX_NAME_FIELD_NAME} />}</form.AppField>
 
-      {/* THE PATTERN FIELD SAYS WHAT A PATTERN LOOKS LIKE (side-eye X-12): every other field on this
-          editor carried a description and this one — the only field whose syntax the user can get
-          WRONG — carried none, so nothing on screen said whether to type `foo` or `/foo/gi`. Both are
-          accepted (`parsePatternFlags` in `@orb/kit/regex` reads the slash form and forces `g`), which
-          is exactly why it had to be stated. */}
-      {/* IT LOOKS AND BEHAVES LIKE A FIELD (side-eye 2026-08-03 P2). Three tells said otherwise: a 31px
-          line-number gutter on a one-line regex (`setup="line"` drops it), text starting flush against the
-          frame (the seal now insets `.cm-content` like an `<Input>`), and a `<label for>` that resolved to
-          nothing — Base UI mints the `for` from the Field context, and CodeMirror's editable is not a
-          `Field.Control`, so it pointed at an element that never mounts. `labelFor` + `contentId` make the
-          association real and the label click focus the editor. */}
+      {/* The pattern field says what a pattern looks like, because it is the one field whose syntax can be wrong.
+          `labelFor` + `contentId` make the label reach CodeMirror's editable, which is not a `Field.Control`. */}
       <form.AppField name="findRegex">
         {(field): ReactElement => (
           <Field
@@ -161,7 +261,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
             name={field.name}
             description="A regular expression: bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<CodeEditorFallback value={field.state.value} />}>
               <CodeEditor
                 ariaLabel={REGEX_FIND_PATTERN_NAME}
                 contentId={patternId}
@@ -196,38 +296,38 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
         )}
       </form.AppField>
 
-      {/* `Runs on` IS THE ONLY HOME FOR WHERE A SCRIPT BITES (side-eye X-1 + X-2). The `markdownOnly` /
-          `promptOnly` switches that used to sit under Options are GONE from this editor: they are pure
-          MASKS over this very set (the executor skips a `markdownOnly` script on every non-DISPLAY leg
-          and a `promptOnly` one on DISPLAY), so as independent switches they could contradict each
-          other AND contradict the chips above them. They are now DERIVED from this selection at the
-          save boundary — see `features/regex/lib/derive-tier-flags.ts` for the three arms and for why
-          the import path is deliberately left alone. */}
-      <form.AppField name="placement">
-        {(field): ReactElement => (
-          <field.MultiToggleField
-            description="Which text streams this script rewrites."
-            items={PLACEMENT_ITEMS}
-            label="Runs on"
-            // The F3 defect, stated (side-eye 2026-08-03 P2): every chip off is SAVEABLE — the schema stays
-            // lenient because the card-boundary heal needs it — and the script then runs nowhere with
-            // nothing on screen saying so. The row's scent says it too ("runs nowhere").
-            {...(field.state.value.length === 0 ? { error: "No stream selected: this script is saved, but nothing will ever run it." } : {})}
-          />
-        )}
-      </form.AppField>
+      {/* Each axis control reads the other's value, so each subscribes to that one array alone. */}
+      <form.Subscribe selector={(state): readonly RegexPass[] => state.values.passes}>
+        {(passes): ReactElement => <TargetsField form={form} passes={passes} />}
+      </form.Subscribe>
+      <form.Subscribe selector={(state): readonly RegexTarget[] => state.values.targets}>
+        {(targets): ReactElement => <WhenField form={form} targets={targets} />}
+      </form.Subscribe>
 
-      {/* The depth scope appears with its leg and vanishes with it — see `HistoryDepthFields`. Subscribing
-          to `placement` alone (not the whole form state) keeps every other keystroke out of this branch. */}
-      <form.Subscribe selector={(state): readonly RegexPlacement[] => state.values.placement}>
-        {(placement): ReactElement | null => (placement.includes(HISTORY_DEPTH_PLACEMENT) ? <HistoryDepthFields form={form} /> : null)}
+      <form.Subscribe selector={(state): readonly RegexPass[] => state.values.passes}>
+        {(passes): ReactElement => {
+          const choice = regexWhenOf(passes);
+          if (choice === "save") {
+            return (
+              <form.AppField name="runOnEdit">
+                {(field): ReactElement => <field.SwitchField label={REGEX_RUN_ON_EDIT_NAME} description="Rewrite a message again when someone edits it." />}
+              </form.AppField>
+            );
+          }
+          if (!regexWhenIsEphemeral(choice)) {
+            return <Text voice="gloss">Pick when it runs to set how far back it reaches and whose messages it changes.</Text>;
+          }
+          return (
+            <>
+              <DepthFields form={form} />
+              <RegexAuthorScopeFields form={form} />
+            </>
+          );
+        }}
       </form.Subscribe>
 
       <Section heading="Options">
         <form.AppField name="enabled">{(field): ReactElement => <field.SwitchField label="Enabled" />}</form.AppField>
-        <form.AppField name="runOnEdit">
-          {(field): ReactElement => <field.SwitchField label="Run on edit" description="Re-apply when a message is edited." />}
-        </form.AppField>
         <form.AppField name="substituteRegex">
           {(field): ReactElement => (
             <Field
@@ -251,20 +351,14 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
         </form.AppField>
       </Section>
 
-      {/* THE TESTER (see `./regex-test-panel`). It sits LAST because every field above it feeds it —
-          pattern, replacement, trim list and macro mode all change what it shows — so reading the editor
-          top to bottom ends on the answer.
-          The children param is deliberately UNANNOTATED: react-form infers `Subscribe`'s selected type
-          from the selector, and annotating the child's parameter blocks that inference (TSelected falls
-          back to the whole `FormState` and the call stops typechecking). */}
-      {/* TWO PANELS, TWO QUESTIONS (REGX2). "Try it" answers "what does this find/replace DO", with the run
-          gates neutralised so a switched-off draft still previews. "In the pipeline" answers "what will
-          ACTUALLY happen on this stream", honouring every gate and showing this script's place among the
-          always-on set. Do not unify them — whichever question lost would stop being answerable. */}
+      {/* TWO PANELS, TWO QUESTIONS. "Try it" answers what the find/replace does, with the run gates open so a
+          switched-off draft still previews. "In the pipeline" answers what will happen on one text at one time,
+          honouring every gate. They sit last because every field above feeds them. The children parameter stays
+          unannotated so react-form infers the selected type from the selector. */}
       <form.Subscribe selector={(state): CreateRegexScriptInput => state.values}>
         {(values): ReactElement => (
           <>
-            <RegexTestPanel script={values} />
+            <RegexTestPanel script={values} scriptId={scriptId} />
             <RegexPipelinePanel script={values} scriptId={scriptId} />
           </>
         )}

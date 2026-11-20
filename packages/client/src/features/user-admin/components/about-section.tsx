@@ -26,7 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { surfaceDeferredFailure, testId, timeLib } from "#lib";
 import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.ts";
 
 /** The version section's own suspense/error boundary — it reads for itself, so it recovers for itself. */
@@ -88,13 +88,14 @@ export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string })
   return (
     <Section divider={true} heading={ABOUT_UPDATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Row align="center" gap="row">
+        {/* The check and its verdict wrap onto further lines when enlarged text outgrows the column. */}
+        <Row align="center" cap="fit" gap="row" wrap={true}>
           <Button
             variant="outline"
             size="sm"
             disabled={update.isFetching}
             onClick={(): void => {
-              update.refetch().catch(() => undefined); // the verdict slot below renders the failure
+              update.refetch().catch(surfaceDeferredFailure); // the verdict slot below renders the failure
             }}
           >
             {update.isFetching ? "Checking…" : "Check for updates"}
@@ -134,7 +135,7 @@ function behindLine(remote: Upstream | null): string {
 function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement {
   if (check.status === "up-to-date") {
     return (
-      <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+      <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
         <Badge tone="success" variant="solid">
           Up to date
         </Badge>
@@ -144,7 +145,7 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
   }
   if (check.status === "behind") {
     return (
-      <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+      <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
         <Badge tone="warning" variant="solid">
           Update available
         </Badge>
@@ -153,7 +154,7 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
     );
   }
   return (
-    <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+    <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
       <Badge>Couldn't check</Badge>
       <Text voice="gloss">{check.reason ?? "The upstream head could not be read."}</Text>
     </Row>

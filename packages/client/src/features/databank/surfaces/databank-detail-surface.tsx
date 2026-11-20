@@ -5,9 +5,8 @@
 //
 // `form` TIER (density §3.1 "entity editor"): identity header → Details group → Maintenance → Source text.
 //
-// THIS PANE OWNS ITS SCROLL, and that is not decoration: the shell's CONTENT region (`.shell-content` /
-// `.shell-region-fill`) is a bounded flex box carrying NO overflow, so a surface that does not declare
-// `h-full min-h-0 overflow-y-auto overscroll-contain` simply has its tail unreachable. A document's Details block plus a revealed source text is exactly that shape.
+// THIS PANE OWNS ITS SCROLL through `ContentPane`: the shell's CONTENT region is a bounded flex box carrying NO overflow,
+// so a surface without a scroller has its tail unreachable. A document's Details block plus a revealed source text is exactly that shape.
 //
 // SOURCE TEXT is a read-only SCROLL REGION, not a `Textarea` (§2.2's rejected primitive): legacy dumped the
 // canon into a form control, which announces as an editable textbox, invites an edit that cannot be saved,
@@ -29,7 +28,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
+import { ContentPane, DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
 import { QueryErrorState, QueryUnavailableState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
@@ -37,7 +36,16 @@ import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_EMPTY_BANK_NOTE } from "../lib/databank-copy.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
-import { DATABANK_LANDING_NAME, databankSourceToggleName } from "../lib/databank-names.ts";
+import {
+  DATABANK_DETAIL_FACTS_KICKER,
+  DATABANK_DETAIL_MAINTENANCE_KICKER,
+  DATABANK_DETAIL_SOURCE_KICKER,
+  DATABANK_LANDING_NAME,
+  DATABANK_REBUILD_DOCUMENT_NAME,
+  DATABANK_REBUILD_HINT,
+  DATABANK_SOURCE_TEXT_READ_LABEL,
+  databankSourceToggleName,
+} from "../lib/databank-names.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -53,7 +61,7 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Stack scroll="y" height="fill" focusTarget={true} data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
+    <ContentPane data-slot="databank-content" inset="none" ref={surfaceRef} tabIndex={-1}>
       {documentId === null ? (
         <DatabankWelcome />
       ) : (
@@ -71,7 +79,7 @@ export function DatabankDetailSurface(): ReactElement {
           <DetailBody documentId={documentId} />
         </QueryBoundary>
       )}
-    </Stack>
+    </ContentPane>
   );
 }
 
@@ -179,7 +187,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
   };
 
   return (
-    // The document's editor column: the cap every sibling member editor keeps, centered and breathing.
+    // The document's editor body on the pane's column, the column every sibling member editor keeps.
     <EditorPage data-slot="databank-detail-editor" gap="section" inset="section">
       <DetailHeader
         actions={
@@ -207,7 +215,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
       {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): a read-only GROUPING gets the micro-caps
             name plus a hairline to the edge, which is what 20+ sibling features spell and what the mock
             draws. `heading` is the settings-pane form contract, and this pane is a readout. */}
-      <Section kicker="Details">
+      <Section kicker={DATABANK_DETAIL_FACTS_KICKER}>
         {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
@@ -229,7 +237,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         </Grid>
       </Section>
 
-      <Section kicker="Maintenance">
+      <Section kicker={DATABANK_DETAIL_MAINTENANCE_KICKER}>
         <Stack gap="row">
           {/* THE PARAGRAPH TAKES THE READING MEASURE, THE BLOCK ABOVE KEEPS THE CONTROL ONE: "a block
                 holding controls keeps the wider measure while the paragraph inside it takes this one". The
@@ -241,11 +249,11 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 not tie the pair"). The button rides its own sentence. */}
           <Row align="center" wrap={true} gap="row" justify="start">
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
-              Use this after a settings change, or if search misses this document.
+              {DATABANK_REBUILD_HINT}
             </Text>
             <Button className="shrink-0" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
               <Icon icon={RefreshCw} size="sm" />
-              Rebuild search index for this document
+              {DATABANK_REBUILD_DOCUMENT_NAME}
             </Button>
           </Row>
           {/* A stuck-ingest signal: a doc parked in Queued/Indexing well past its last update likely
@@ -254,7 +262,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         </Stack>
       </Section>
 
-      <Section kicker="Source text">
+      <Section kicker={DATABANK_DETAIL_SOURCE_KICKER}>
         <Stack gap="row">
           <Row justify="start">
             <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
@@ -283,7 +291,7 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
     <QueryBoundary
       resetKeys={[documentId]}
       fallback={<SkeletonRows count={3} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the source text" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={DATABANK_SOURCE_TEXT_READ_LABEL} onRetry={retry} />}
     >
       <SourceTextBody documentId={documentId} />
     </QueryBoundary>

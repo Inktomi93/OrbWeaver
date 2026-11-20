@@ -425,6 +425,7 @@ export interface DetachDanglingPointerParams {
 export interface ResyncFromStoryParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
+  readonly signal: AbortSignal;
 }
 
 /** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling). Chat- +
@@ -437,6 +438,7 @@ export interface PopulateFromCharacterParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly actorRef: RpgActorRef;
+  readonly signal: AbortSignal;
 }
 
 /** `listJournal` — the paged lineage-projected archive (member). */

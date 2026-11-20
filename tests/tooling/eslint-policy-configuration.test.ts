@@ -19,18 +19,15 @@ test("ambient declarations use their compiler projects without enabling async ru
   expect(results.flatMap(({ messages }) => messages)).toEqual([]);
 });
 
-test.for(["tests/server/transport/trpc/procedure-input.test-d.ts", "tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts"])(
-  "type tests retain their compiler and async rule settings: %s",
-  async (path) => {
-    const { languageOptions, rules } = await resolvedConfig(eslint, join(ROOT, path));
-    expect(languageOptions.parserOptions).toMatchObject({
-      project: ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"],
-      projectService: false,
-    });
-    expect(levelOf(rules["orb/no-raw-id"])).toBe(2);
-    expect(levelOf(rules["@typescript-eslint/no-floating-promises"])).toBe(2);
-  },
-);
+test.for([
+  { path: "tests/server/transport/trpc/procedure-input.test-d.ts", world: "tsconfig.node.json" },
+  { path: "tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts", world: "tsconfig.tests-dom.json" },
+])("type tests retain their world's compiler and the async rule settings: $path", async ({ path, world }) => {
+  const { languageOptions, rules } = await resolvedConfig(eslint, join(ROOT, path));
+  expect(languageOptions.parserOptions).toMatchObject({ project: [world], projectService: false });
+  expect(levelOf(rules["orb/no-raw-id"])).toBe(2);
+  expect(levelOf(rules["@typescript-eslint/no-floating-promises"])).toBe(2);
+});
 
 async function judge(path: string, rule: string, source: string): Promise<number> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
@@ -95,6 +92,13 @@ test.for([
     outside: "packages/client/src/components/form-dialog.tsx",
     bad: `import { Dialog } from "@orb/ui/dialog";`,
     good: `import { ConfirmDialog } from "#components";`,
+  },
+  {
+    id: "sheet-via-composite",
+    inside: "packages/client/src/features/plugin/components/sheet-probe.tsx",
+    outside: "packages/client/src/components/sheet-dialog.tsx",
+    bad: `import { Drawer } from "@orb/ui/drawer";`,
+    good: `import { SheetDialog } from "#components";`,
   },
   {
     id: "config-host-no-feature-import",

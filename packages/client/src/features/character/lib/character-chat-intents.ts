@@ -10,6 +10,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { useStartChat } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { clearChatListCharacterFilter, revealContextPanel, setActiveSection } from "#state";
 
 /** The projection pane's container slot — the one string the shell stamps. */
@@ -29,7 +30,7 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
     setActiveSection("chats");
     // startChat awaits `mutation.mutateAsync`
     // (use-start-chat.ts:62), whose mutation sets `errorToast` (use-start-chat.ts:41); MutationCache.onError toasts it (query-client.ts:81-83). Ends if that errorToast is dropped.
-    startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
+    startChat({ characterIds: [characterId] }).catch(rethrowUnlessTrpcFailure); // useStartChat's errorToast owns failure.
   };
 }
 

@@ -35,8 +35,8 @@ async function findings(source: string, path = CLIENT): Promise<readonly string[
 
 test.for([
   ["a registered property", 'export const A = "var(--appearance-font-scale)";'],
-  ["a root attribute", 'export const A = "[data-appearance-shadow-effects]";'],
-  ["a class variant", 'export const A = "appearance-shadow-effects-true:opacity-50";'],
+  ["a root attribute", 'export const A = "[data-appearance-justify-body-text]";'],
+  ["a class variant", 'export const A = "appearance-justify-body-text-true:opacity-50";'],
   ["a resolved preference variant", 'export const A = "appearance-reduced-motion:animate-none";'],
   ["a media condition key", 'export const A = { "motion-reduce": 1 };'],
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
@@ -48,7 +48,7 @@ test.for([
 test.for([
   ["a misspelled property", 'export const A = "--appearance-font-scal";', "--appearance-font-scal"],
   ["the retired attribute spelling in the new prefix", 'export const A = "[data-appearance-shadow]";', "data-appearance-shadow"],
-  ["a variant for a value the schema lacks", 'export const A = "appearance-shadow-effects-on:opacity-50";', "appearance-shadow-effects-on"],
+  ["a variant for a value the schema lacks", 'export const A = "appearance-justify-body-text-on:opacity-50";', "appearance-justify-body-text-on"],
   ["an OS-only motion variant", 'export const A = "motion-reduce:animate-none";', "motion-reduce:"],
   ["the OS-only motion-safe variant", 'export const A = "motion-safe:animate-pulse";', "motion-safe:"],
   ["an OS-only contrast variant", 'export const A = "contrast-more:border-2";', "contrast-more:"],

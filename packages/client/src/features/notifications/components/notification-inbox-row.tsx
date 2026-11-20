@@ -16,9 +16,20 @@ import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, timeLib } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
+import {
+  ACCEPT_HANDOFF_NAME,
+  acceptInvitationName,
+  DEFERRED_TURN_CHAT_GONE_COPY,
+  DEFERRED_TURN_HOST_UNAVAILABLE_COPY,
+  declineInvitationName,
+  dismissRowName,
+  KICKED_ROW_COPY,
+  openPluginsName,
+  REVIEW_PLUGIN_CONSENT_NAME,
+} from "../lib/notifications-copy.ts";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
@@ -36,11 +47,10 @@ const ROW_COPY: {
   readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>, pluginName: string | undefined) => string;
 } = {
   invite: (p) => `Invited to a chat by ${p.invitedByHandle}`,
-  kicked: () => "You were removed from a chat",
+  kicked: () => KICKED_ROW_COPY,
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `Your chat is now hosted by ${p.newHostHandle}`,
-  "deferred-turn-dropped": (p) =>
-    p.reason === "consent" ? "An AI reply couldn't run. The host hasn't allowed it" : "An AI reply couldn't run. That chat is no longer available",
+  "deferred-turn-dropped": (p) => (p.reason === "consent" ? DEFERRED_TURN_HOST_UNAVAILABLE_COPY : DEFERRED_TURN_CHAT_GONE_COPY),
   "automation-notice": (p) => `Automation notice: ${p.message}`,
   // The crash policy turns a plugin off after repeated failures; the payload carries the id only.
   "plugin-disabled": (_p, pluginName) => `${pluginName ?? "A plugin"} was turned off after it kept failing`,
@@ -126,7 +136,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
     // useDeclineInvite (hooks/use-invite-actions.ts) and useDismissNotification (hooks/use-inbox.ts) each carry an errorToast.
     // Ends if one drops its errorToast or a new `work` caller lacks one.
     void work()
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         actionOwned.current = false;
       });
@@ -170,7 +180,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
   // door rather than a second spelling of the Extensions pane's deep link.
   //
   // It deliberately does NOT dismiss the row: the ask stands until it is ANSWERED, and the producer
-  // retracts it the moment the last plugin is settled (`domain/plugin/substrate/consent-prompt.ts`). A
+  // retracts it the moment the last plugin is settled (`domain/plugin/consent/consent-prompt.ts`). A
   // reader who wants it gone anyway has the Dismiss beside it — that is the "deny is recoverable" arm:
   // the plugins stay installed and ungranted, and this screen is still one click away.
   const reviewConsent = (): void => {
@@ -215,7 +225,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
           </Row>
         ) : null}
-        <Stack gap="tight" className="min-inline-0">
+        <Stack gap="tight" minWidth="shrinks">
           <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} wrap="anywhere">
             {rowCopy(item.payload, disabledPluginName)}
           </Text>
@@ -227,11 +237,11 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
       <Row gap="field" align="center" wrap={true} justify="end">
         {isInvite && !acted ? (
           <>
-            <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
+            <Button aria-label={acceptInvitationName(item.payload.invitedByHandle)} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
               {DIALOG_VERBS.accept}
             </Button>
             <Button
-              aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
+              aria-label={declineInvitationName(item.payload.invitedByHandle)}
               type="button"
               disabled={isPending}
               variant="outline"
@@ -243,18 +253,18 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
           </>
         ) : null}
         {isHandoff && !acted && !acceptedHandoff ? (
-          <Button aria-label="Accept the host handoff" type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
+          <Button aria-label={ACCEPT_HANDOFF_NAME} type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
             {DIALOG_VERBS.accept}
           </Button>
         ) : null}
         {isConsent ? (
-          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} size="sm" onClick={reviewConsent}>
+          <Button aria-label={REVIEW_PLUGIN_CONSENT_NAME} type="button" disabled={isPending} size="sm" onClick={reviewConsent}>
             Review
           </Button>
         ) : null}
         {disabledPluginName === undefined ? null : (
           <Button
-            aria-label={`Open Plugins, ${disabledPluginName}`}
+            aria-label={openPluginsName(disabledPluginName)}
             type="button"
             disabled={isPending}
             variant="outline"
@@ -275,7 +285,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             real second answer — but Dismiss is the escape hatch, never the row's point. */}
         {isInvite && !acted ? null : (
           <Button
-            aria-label={`Dismiss: ${rowCopy(item.payload, disabledPluginName)}`}
+            aria-label={dismissRowName(rowCopy(item.payload, disabledPluginName))}
             type="button"
             disabled={isPending}
             variant="ghost"

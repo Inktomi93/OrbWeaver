@@ -2,6 +2,7 @@ import { EntryListEditor } from "@orb/client/components";
 import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { STORY_ADD_ENTRY_LABEL } from "./_entry-list-labels.ts";
 
 export function EntryListRebaseStory({ items }: { readonly items: readonly string[] }): ReactElement {
   const [removed, setRemoved] = useState<string | undefined>();
@@ -11,7 +12,7 @@ export function EntryListRebaseStory({ items }: { readonly items: readonly strin
         heading="Entries"
         helperText="Edit the current entries."
         emptyText="No entries"
-        addLabel="Add entry"
+        addLabel={STORY_ADD_ENTRY_LABEL}
         items={items}
         getTitle={(item): string => item}
         getSubtitle={(): string => ""}

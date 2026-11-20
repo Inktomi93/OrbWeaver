@@ -4,6 +4,7 @@
 // reads through the same persisted resolve (`useRerankModel`), for Smart's default picker.
 
 import type { Capability, RoutableTask } from "@orb/contracts/inference";
+import type { ModelCallBound, ModelCallCount } from "@orb/contracts/workloads";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { useQuery } from "@tanstack/react-query";
@@ -65,13 +66,16 @@ export function useRerankModel(): RoleModelState {
   return state.kind === "ready" ? { kind: "ready", label: state.label } : state;
 }
 
-function callCount(calls: number): string {
-  return `about ${calls} model ${calls === 1 ? "call" : "calls"}`;
+// A ceiling is the most the run can make: a stage ahead of it grows its input before it starts.
+const CALL_COUNT_LEAD: Readonly<Record<ModelCallBound, string>> = { exact: "about", ceiling: "up to" };
+
+function callCount({ calls, bound }: ModelCallCount): string {
+  return `${CALL_COUNT_LEAD[bound]} ${calls} model ${calls === 1 ? "call" : "calls"}`;
 }
 
 /** The sentence a paid-run confirm leads with: the size of the run, and whether a Utility model can take it. A
  *  `recurring` run is a schedule's, so the size is per run, counted over the library as it stands today. */
-export function modelRunCostSentence(calls: number, utility: UtilityModelState, recurring = false): string {
+export function modelRunCostSentence(calls: ModelCallCount, utility: UtilityModelState, recurring = false): string {
   const subject = recurring ? "Each run of this schedule" : "This";
   if (utility.kind === "unset") {
     return `${subject} needs ${callCount(calls)} on a Utility model, and none is set, so nothing can run until you pick one.`;

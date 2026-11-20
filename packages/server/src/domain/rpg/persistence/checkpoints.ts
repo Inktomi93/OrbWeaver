@@ -1,6 +1,7 @@
 // Labeled checkpoints; each one's bookmark snapshot shares its write batch, and the composite FK admits only it.
 // Restore owns its narrator/state batch in the verb; the snapshot FK remains RESTRICT.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { rpgCheckpoints } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -10,7 +11,7 @@ import { desc, eq } from "drizzle-orm";
 import type { NewRpgCheckpoint, RpgCheckpointRow } from "../contract/service.ts";
 
 /** Commit the checkpoint and its bookmark snapshot together, without a durable half on failure. */
-export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint, bookmark: BatchStmt): Promise<RpgCheckpointRow> {
+export async function insertCheckpoint(db: Db, _claim: RoomClaim, values: NewRpgCheckpoint, bookmark: BatchStmt): Promise<RpgCheckpointRow> {
   await db.batch(batchMany([bookmark, batchStmt(db.insert(rpgCheckpoints).values(values))]));
   const row = await findCheckpoint(db, values.id);
   if (!row) {

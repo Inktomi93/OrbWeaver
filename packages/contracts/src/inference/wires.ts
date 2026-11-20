@@ -1,5 +1,5 @@
 // The WIRE axis — how bytes are spelled and parsed. The ONLY inference axis that is CODE: one backend per
-// member in `@orb/inference`, and a plugin can never add one (F8 — providers are data, wires are not).
+// member in `@orb/inference`, and a plugin can never add one — providers are data, wires are not.
 // `serves` is the policy CEILING for every provider on the wire (a provider row may narrow it, never
 // widen it); `deltas` is what a backend on the wire may emit.
 
@@ -26,12 +26,14 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },
-  // Two transports (`openai-compatible`, `openrouter`), one backend over the Vercel AI SDK (§8.1).
+  // Two transports (`openai-compatible`, `openrouter`), one backend over the Vercel AI SDK (§8.1), and two
+  // chat protocols: `/chat/completions` and `/responses` (the latter over `@ai-sdk/openai`'s `.responses()`;
+  // provider rows list the subset they actually serve).
   // `generateImage` rides the row's `features.images` arm, `rerank` the row's `features.rerankPath`,
   // `imageEmbed` a model whose embedding capability declares `input ∋ image` — the wire CAN serve them;
   // `connectionTasks` + `requirementMet` decide per row.
   "openai-compat": {
-    apis: ["chat-completions"],
+    apis: ["chat-completions", "responses"],
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },
@@ -41,7 +43,7 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
     serves: ["chat", "summarize", "structured"],
     deltas: ["text", "reasoning", "tool-call", "citation", "usage"],
   },
-  // The subscription's wire and nothing else's (F18).
+  // The subscription's wire and nothing else's.
   "agent-sdk": {
     apis: ["agent-sdk"],
     serves: ["chat", "summarize", "structured"],

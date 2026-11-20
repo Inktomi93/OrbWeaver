@@ -32,3 +32,35 @@ test("a comment in TSDoc, trailing a line or alone in a JSX container is a menti
     "zqCode ask type,code",
   ]);
 });
+
+test("more names than one grep pattern holds are searched in parts, and each hit is counted once", async ({ plantedTree }) => {
+  // Enough names that their single alternation is past what the pattern compiler takes.
+  const members = Array.from({ length: 3000 }, (_, at) => `zqName${String(at).padStart(6, "0")}`);
+  const [first = "", second = ""] = members;
+  const middle = members[1500] ?? "";
+  const last = members.at(-1) ?? "";
+  const root = await plantedTree({
+    [DECLARATION]: DECLARED,
+    "packages/a/src/first.ts": `export const a = { ${first}: 1 };\n`,
+    "packages/a/src/last.ts": `export const b = "${last}";\n`,
+    // One line holds a name from the first part and one from the last, so each part's search finds it.
+    "packages/a/src/both.ts": `export const c = { ${first}: 1, ${last}: 2 }; // ${second}\n`,
+  });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const rows = members.map((member) => ({ member, verdict: "dead" as const, known: [], neverWritten: false }));
+  const wired = DECLARED.indexOf("wired");
+  const { rows: staged, stage } = literalStage(root, new Sources(root), rows, {
+    key: "Row.wired",
+    member: "wired",
+    known: [`${DECLARATION}:${String(wired)}`],
+  });
+  const evidence = new Map(staged.map(({ member, verdict, literal }) => [member, { verdict, counts: literal?.counts }]));
+  expect([first, second, middle, last].map((member) => evidence.get(member))).toEqual([
+    { verdict: "ask", counts: { code: 2 } },
+    { verdict: "dead", counts: { comment: 1 } },
+    { verdict: "dead", counts: {} },
+    { verdict: "ask", counts: { string: 1, code: 1 } },
+  ]);
+  expect(stage?.deadAfter).toBe(members.length - 2);
+});

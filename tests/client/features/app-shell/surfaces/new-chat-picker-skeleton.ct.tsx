@@ -9,8 +9,10 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { LAYOUT_SUBPIXEL_PX, pressableWhole, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { pickerShowingLine } from "#client/components/shared-control-names.ts";
 import type { AppShellModalStory, AppShellWarmRostersNewChatStory } from "./_app-shell-stories.tsx";
 import { SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -23,7 +25,7 @@ const ACTIONS = '[data-slot="new-chat-actions"]';
 const SEARCH_FIELD = '[data-slot="command-input-wrapper"]';
 // The picker pages a hundred characters at a time; the corpus library plus this many is past one page.
 const PAST_ONE_PAGE = 101;
-const SHOWING_LINE = /^Showing \d+ of \d+$/u;
+const SHOWING_LINE = nameShape((count) => pickerShowingLine(count, count));
 const DECLARED_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
 const DECLARED_BOX_WITH_DOOR = `calc(${DECLARED_BOX} + var(${TOKENS["height.picker-door-row"].cssVar}))`;
 const WARM_STORY = `${SHELL_STORIES}/AppShellWarmRostersNewChatStory`;

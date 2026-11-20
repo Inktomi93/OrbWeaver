@@ -1,8 +1,9 @@
 // `@orb/contracts/stats` — the chat↔stats economics WIRE: `StatsDelta` (the per-canon-write increment
 // payload chat produces every turn) + `ApplyStatsDelta` (the injected-op signature stats' write
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
-// chat→stats sideways import; the apply IMPL lives in `domain/stats/write/apply-delta.ts`.
+// chat→stats sideways import; the apply IMPL lives in `packages/server/src/domain/stats/persistence/apply-delta.ts`.
 
+import { DomainUnavailableError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatParticipantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
@@ -61,7 +62,7 @@ const statsDeltaSchema = z.strictObject({
   cacheWriteTokens: z.number().optional(),
   // per-OWNER chat count (chat created / forked). The per-CHARACTER half is `characterChats` below.
   chats: z.number().optional(),
-  // The per-CHARACTER room census: +1 for each SEAT this write creates. Split off `chats`/
+  // The per-CHARACTER room census: +1 for each SEAT this write creates. A separate column from `chats`/
   // `forkedChats` because those two feed `owner_stats` AND `character_stats` from one field, so a
   // multi-seat room could not credit its second seat without double-counting the owner's library. The
   // rebuild defines this column as `COUNT(DISTINCT cp.chat_id)` per character seat
@@ -96,8 +97,8 @@ const statsDeltaSchema = z.strictObject({
   modelCacheReadTokens: z.number().optional(),
   modelCacheWriteTokens: z.number().optional(),
 
-  // Bump `owner_stats.characters` by 1 — set ONLY when this write is the FIRST chat for a character
-  // (live-undercounts a character with no chats until a drift-repair reconcile; documented, acceptable).
+  // Bump `owner_stats.characters` by 1 — set ONLY when this write is the FIRST started room for a character. The
+  // rebuild counts the same set: the owner's characters with a seat in a started room, past seats included.
   newCharacter: z.boolean().optional(),
   firstAt: z.number().nullable().optional(), // candidate for firstChatAt (MIN)
   lastAt: z.number().nullable().optional(), // candidate for lastActivityAt (MAX)
@@ -117,6 +118,7 @@ export const SPEND_DELTA_FIELDS = [
   "notionalCostSamples",
   "modelGenerations",
   "modelGenSamples",
+  "modelGenTimeMs",
   "modelCostUsd",
   "lastAt",
   "tokensIn",
@@ -148,14 +150,17 @@ export type SpendDelta = Pick<StatsDelta, "ownerId" | "bucketStart" | "model" | 
   readonly provider: ProviderId | null;
 };
 
-/** One image generation's spend: `count` pictures from one priced provider call, on one model bucket.
- *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count). */
+/** One image generation's spend: `count` pictures from one priced provider call, on one model bucket. The call
+ *  is one timed sample, however many pictures it returned.
+ *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count).
+ *  @param genTimeMs - the call's measured wall time; null when the record carries none. */
 export function imageGenerationSpendDelta(args: {
   readonly ownerId: UserId;
   readonly model: ModelId;
   readonly provider: ProviderId | null;
   readonly costUsd: number | null;
   readonly count: number;
+  readonly genTimeMs: number | null;
   readonly now: number;
 }): SpendDelta {
   return {
@@ -165,15 +170,61 @@ export function imageGenerationSpendDelta(args: {
     model: args.model,
     provider: args.provider,
     modelGenerations: args.count,
-    modelGenSamples: args.count,
     now: args.now,
+    ...(args.genTimeMs !== null ? { modelGenTimeMs: args.genTimeMs, modelGenSamples: 1 } : {}),
     ...(args.costUsd !== null ? { costUsd: args.costUsd, costSamples: 1, modelCostUsd: args.costUsd, modelCostSamples: 1 } : {}),
   };
 }
 
-/** One priced compaction pass: the marker generation's cost on the owner and timeline grains only (no
- *  character, no model rollup, no turn counters), so the quiet operation's spend stays visible on stats. */
-export function compactionSpendDelta(args: { readonly ownerId: UserId; readonly costUsd: number; readonly now: number }): SpendDelta {
+/** What a `spend_ledger` row records: priced model spend that leaves no canon row of its own. A consumer that
+ *  handles each kind maps over this tuple, so a new kind fails `tsc` where it is missing. */
+export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption", "retired-canon"] as const;
+export type SpendLedgerKind = (typeof SPEND_LEDGER_KINDS)[number];
+
+/** The kind a canon retirement writes. Its spend is already on the live rollups, so it never rides a live delta. */
+export const RETIRED_CANON_KIND = "retired-canon" satisfies SpendLedgerKind;
+
+/** One ledger entry as its writer states it. `now` is the spend's clock, stamped on the row and the delta alike. */
+export interface LedgerSpend {
+  readonly kind: Exclude<SpendLedgerKind, typeof RETIRED_CANON_KIND>;
+  readonly ownerId: UserId;
+  readonly costUsd: number;
+  readonly now: number;
+}
+
+/** One paid sample of canon that left its owner's stats scope, as the retirement records it and the rebuild folds it. */
+export interface RetiredSpend {
+  readonly ownerId: UserId;
+  readonly costUsd: number;
+  readonly model: ModelId | null;
+  readonly provider: ProviderId | null;
+  readonly notional: boolean;
+  readonly now: number;
+}
+
+/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. An entry without
+ *  a model, provider or notional flag reads as none. */
+export const portableSpendLedgerSchema = z.strictObject({
+  entries: z.array(
+    z.strictObject({
+      kind: z.enum(SPEND_LEDGER_KINDS),
+      costUsd: z.number().nonnegative(),
+      createdAt: z.int().nonnegative(),
+      model: modelIdSchema.nullable().optional(),
+      provider: providerIdSchema.nullable().optional(),
+      notional: z.boolean().optional(),
+    }),
+  ),
+});
+export type PortableSpendLedger = z.infer<typeof portableSpendLedgerSchema>;
+
+/** The injected op that records ledger spend: the `spend_ledger` row and its stats delta, pushed into the caller's
+ *  batch so the two commit together or neither does. Generic over `Batch`/`Db` like {@link ApplyStatsDelta}. */
+export type RecordLedgerSpend<Batch, Db> = (batch: Batch, db: Db, spend: LedgerSpend) => void;
+
+/** One priced ledger entry (a compaction pass, an image prompt's extraction or caption): the cost on the owner and
+ *  timeline grains only (no character, no model rollup, no turn counters), so a quiet call's spend stays visible. */
+export function ledgerSpendDelta(args: Pick<LedgerSpend, "ownerId" | "costUsd" | "now">): SpendDelta {
   return {
     ownerId: args.ownerId,
     characterId: null,
@@ -184,6 +235,26 @@ export function compactionSpendDelta(args: { readonly ownerId: UserId; readonly 
     costSamples: 1,
     lastAt: args.now,
     now: args.now,
+  };
+}
+
+/** One retired paid sample: the cost on the owner, timeline and model grains it was paid on, never a character or a turn.
+ *  @remarks The rebuild folds a `retired-canon` ledger row with this builder, and a retirement keeps exactly these
+ *  fields on the live rollups while it subtracts the rest of the canon, so the two writers agree on the kept spend. */
+export function retiredCanonSpendDelta(spend: RetiredSpend): SpendDelta {
+  const notional = spend.notional ? 1 : 0;
+  return {
+    ownerId: spend.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(spend.now),
+    model: spend.model,
+    provider: spend.model === null ? null : spend.provider,
+    costUsd: spend.costUsd,
+    costSamples: 1,
+    ...(notional > 0 ? { notionalCostSamples: notional } : {}),
+    ...(spend.model === null ? {} : { modelCostUsd: spend.costUsd, modelCostSamples: 1, ...(notional > 0 ? { modelNotionalCostSamples: notional } : {}) }),
+    lastAt: spend.now,
+    now: spend.now,
   };
 }
 
@@ -354,6 +425,67 @@ export type SettleRetainedChatRebase<Batch, Database> = (
  *  exact incremental rollup delta exists; the next reconcile must still detect the mutation. */
 export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: UserId) => void;
 
+/** What a delete takes out of owners' stats scope: a room, from every owner it counts for, or a character, with every
+ *  started room it was its owner's last seat in. */
+export type CanonRetirementScope =
+  | { readonly kind: "room"; readonly chatId: ChatId }
+  | { readonly kind: "character"; readonly ownerId: UserId; readonly characterId: CharacterId };
+
+/** The statements a delete places around itself so the live rollups equal a rebuild over the canon it leaves. Counts
+ *  and activity leave with the canon; paid spend stays and moves into the owner-stamped ledger. `beforeDelete` goes
+ *  ahead of the delete, because its census reads the seats the cascade removes, and opens with a guard that rolls
+ *  the batch back when a live write moved the canon it read; `afterDelete` re-derives the extrema from what is left.
+ *  `refused` tells that guard's rollback apart from any other failure of the batch. */
+export interface CanonRetirement<Batch, Db> {
+  readonly beforeDelete: (batch: Batch, db: Db) => void;
+  readonly afterDelete: (batch: Batch, db: Db) => void;
+  readonly refused: (error: unknown) => Promise<boolean>;
+}
+
+/** How many times a delete prepares its retirement again after a live write moved the canon it read, before it
+ *  refuses with retry later. */
+export const CANON_RETIREMENT_ATTEMPTS = 3;
+
+/** How many times a rebuild folds an owner again after a live write moved the canon it folded, before it refuses
+ *  with retry later and leaves the live rollups as they are. */
+export const STATS_REBUILD_ATTEMPTS = 5;
+
+/** A rebuild that a live writer outran on every attempt: the live rollups stand, and a later rebuild settles them. A
+ *  caller that rebuilds after its own durable write tells this refusal apart to defer the rebuild, never to fail the write. */
+export class StatsRebuildStarvedError extends DomainUnavailableError {
+  constructor() {
+    super("the library kept changing while its stats were rebuilt; the live totals are unchanged, try again shortly");
+  }
+}
+
+/** Read the canon a delete will take out of scope, through the delete's own connection, and plan its retirement. The
+ *  caller has already authorized the delete; a refused plan is prepared again against the canon that moved. */
+export type PrepareCanonRetirement<Batch, Db> = (db: Db, scope: CanonRetirementScope) => Promise<CanonRetirement<Batch, Db>>;
+
+/** The statements a seat places around itself when it brings a started room back into its owner's stats scope, the
+ *  inverse of a character delete's retirement: the counts the rebuild folds for the room return, and the retired
+ *  ledger rows of its paid samples leave, since the spend they carried is still shown and the canon holds it again.
+ *  `beforeSeat` opens with the same guard; `afterSeat` re-derives the owner's extrema with the seat in place. A seat
+ *  in a room its owner already counts gets no statements and no guard. */
+export interface CanonAdmission<Batch, Db> {
+  readonly beforeSeat: (batch: Batch, db: Db) => void;
+  readonly afterSeat: (batch: Batch, db: Db) => void;
+  readonly refused: (error: unknown) => Promise<boolean>;
+}
+
+/** Read the room a seat is about to bring into `ownerId`'s scope and plan its admission. The caller has already
+ *  authorized the seat; a refused plan is prepared again. */
+export type PrepareCanonAdmission<Batch, Db> = (db: Db, room: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<CanonAdmission<Batch, Db>>;
+
+/** Move the owner's character count by one when a room re-points a seat onto or off `character`: `+1` when it
+ *  now holds a seat in `chatId`, `-1` when it no longer does. Stats applies it only when the character holds
+ *  no seat in any other started room, so a character seated in two rooms counts once. */
+export type ShiftCharacterCensus<Batch, Db> = (
+  batch: Batch,
+  db: Db,
+  shift: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly chatId: ChatId; readonly direction: 1 | -1 },
+) => void;
+
 // The narrowed, already-aggregated economics results stats hands to a consumer (discovery's insights)
 // through an injected op — the raw `message_variants` economics row is unspellable outside stats, so a
 // consumer never re-sums a column itself.
@@ -364,9 +496,9 @@ export interface CharacterEconomics {
   readonly characterId: CharacterId;
   /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
    *  ABSENT ACCOUNTING IS NOT ZERO: an imported library carries thousands of
-   *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
-   *  surface print "0 tokens returned" beside "1,187 exchanges" — a contradiction the reader can only
-   *  resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
+   *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 makes the corpus
+   *  surface print "0 tokens returned" beside a four-digit exchange count — a contradiction the reader can
+   *  only resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
   readonly tokensOut: number | null;
   readonly tokensOutProvenance: TokenProvenance;
   readonly costUsd: number | null;
@@ -386,8 +518,8 @@ export interface CharacterModelEconomics {
   readonly costUsd: number | null;
 }
 
-// ── The `reconcile-stats` workload's terminal result (the workloads junk-drawer exit: authored by the
-//    OWNING domain). The same rebuild also runs awaited, in-request, off the import post-settle. ──
+// ── The `reconcile-stats` workload's terminal result: authored by the OWNING domain. The same rebuild also
+//    runs awaited, in-request, off the import post-settle. ──
 
 /** What a full `reconcileStats` rebuild touched: owners swept, character rollups rewritten. */
 export interface ReconcileStatsResult {

@@ -35,13 +35,14 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, START_NEW_CHAT_NAME, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
 import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
+import { ROSTER_DELETE_TITLE, rosterAddToChatName, rosterDeleteName, rosterStartChatName } from "../lib/roster-names.ts";
 
 /** One roster row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
@@ -78,7 +79,7 @@ function RosterRow(props: {
   return (
     <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
       <Row align="center" gap="field" stackBelow="cq-28" alignBelow="stretch-cq-28">
-        <Stack gap="tight" className="min-inline-0" grow={true}>
+        <Stack gap="tight" minWidth="shrinks" grow={true}>
           <Row align="center" gap="field">
             <Text voice="label" truncate="fill">
               {roster.name}
@@ -101,19 +102,19 @@ function RosterRow(props: {
           </Text>
         </Stack>
         <Row align="center" gap="tight" justify="end" className="shrink-0" wrap={true}>
-          <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
+          <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={rosterStartChatName(roster.name, counts)}>
             <Icon icon={MessagesSquare} size="sm" />
             Start
           </Button>
           {canAddToChat ? (
-            <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={`Add ${roster.name} to this chat${counts}`}>
+            <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={rosterAddToChatName(roster.name, counts)}>
               <Icon icon={UserPlus} size="sm" />
               Add to chat
             </Button>
           ) : null}
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
-          <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
+          <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={rosterDeleteName(roster.name)}>
             <Icon icon={Trash} size="sm" />
           </Button>
         </Row>
@@ -301,7 +302,7 @@ export function RosterPicker(): ReactElement {
         reportApply(roster, result);
         closeModal();
       })
-      .catch(() => undefined); // errorToast owns the failure copy.
+      .catch(rethrowUnlessTrpcFailure); // errorToast owns the failure copy.
   };
 
   const onSave = (name: string, game: RpgGameTemplate | null): void => {
@@ -345,7 +346,7 @@ export function RosterPicker(): ReactElement {
           `Saved “${view.name}”: ${characterCountPhrase(view.members.length)}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
         ),
       )
-      .catch(() => undefined); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
+      .catch(rethrowUnlessTrpcFailure); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
   };
 
   // THE LIBRARY LEADS, THE SAVE DOOR FOLLOWS (side-eye P3-1). The door into this surface is the Members
@@ -382,7 +383,7 @@ export function RosterPicker(): ReactElement {
                 }}
               >
                 <Icon icon={MessagesSquare} size="sm" />
-                Start a new chat
+                {START_NEW_CHAT_NAME}
               </Button>
             )
           }
@@ -412,7 +413,7 @@ export function RosterPicker(): ReactElement {
             setConfirmDelete(null);
           }
         }}
-        title="Delete this roster?"
+        title={ROSTER_DELETE_TITLE}
         description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template: chats you started from it are untouched.`}
         confirmLabel="Delete"
         onConfirm={(): void => {

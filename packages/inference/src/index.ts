@@ -123,13 +123,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const registry = await createProviderRegistry(deps.providerStore);
   const built = buildBackends(deps);
   const fetchImpl = deps.sdkFetch;
-  // `warn` is WRAPPED, never passed as a bare method reference (#2510, found while verifying that lane's e2e).
-  // pino's level methods read `this[writeSym]`, so a detached `deps.log.warn` throws
-  // `TypeError: this[writeSym] is not a function` the first time it is CALLED — which is only ever on the
-  // mirror's degrade path (`catalog/mirror.ts` warmOnce's catch). A catalog warm that failed for an ordinary
-  // reason therefore did not degrade to the marked-estimated fallback: it threw from inside its own catch and
-  // surfaced as an unmapped 500 on `chat.commitMessage` / `chat.previewAssembly`. The sibling wiring at
-  // `backends/agent-sdk/log.ts:93` already wraps for the same reason.
+  // `warn` is WRAPPED, never passed as a bare method reference: pino's level methods read `this[writeSym]`, so a
+  // detached `deps.log.warn` throws `TypeError: this[writeSym] is not a function` the first time it is CALLED —
+  // which is only ever on the mirror's degrade path (`catalog/mirror.ts` warmOnce's catch). A catalog warm that
+  // fails for an ordinary reason must degrade to the marked-estimated fallback; a throw from inside its own catch
+  // surfaces as an unmapped 500.
   const mirrorDeps: MirrorDeps = {
     now: deps.now,
     snapshotStore: deps.snapshotStore,
@@ -208,9 +206,15 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     return row.baseUrl;
   };
-  // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason.
+  // A mirror warm or a listed-model probe is shared by every caller coalesced onto it, so no one caller's cancel may
+  // end it: each caller races its own signal against the shared answer (`backends/http/abort-wait.ts`), and each
+  // dial keeps its own deadline.
+  const sharedWarmSignal = (): AbortSignal => new AbortController().signal;
+  // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason. A
+  // catalog that lost its embeddings or rerank list comes back `partial`, which the mirror serves to the read that
+  // asked and never holds or stores.
   const warmOpenRouterCatalog = (): Promise<MirrorWarm<ModelCatalogEntry[]>> =>
-    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }), NO_PROVIDER_SECRETS);
+    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl(), signal: sharedWarmSignal() }), NO_PROVIDER_SECRETS);
   const warmOpenRouter = async (): Promise<void> => {
     await warmOpenRouterCatalog();
   };
@@ -232,7 +236,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     modelProbes.set(row, run);
     return run;
   };
-  const warmEndpoint = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
+  const warmEndpoint: ResolverContext["warmEndpoint"] = async (connection, provider, secret, { modelProbes: probing }) => {
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
     if (baseUrl === null) {
       return;
@@ -247,8 +251,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       secret,
       headers: connection.transport?.headers,
       secrets,
+      signal: sharedWarmSignal(),
       modelInfoApi,
-      probeModel: connection.model,
+      ...(probing ? { probeModel: connection.model } : {}),
       warn: (message) => {
         deps.log.warn({ providerId: provider.id }, message);
       },
@@ -256,17 +261,17 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     // The Anthropic list needs its `anthropic-version` header, which only the provider's own lister sends.
     const fetchRows = (): Promise<EndpointModel[]> => {
       if (provider.wire === "google-generative-ai") {
-        return fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl);
+        return fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models", signal: endpointArgs.signal }, fetchImpl);
       }
       if (provider.wire === "anthropic-messages") {
-        return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models" }, fetchImpl);
+        return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models", signal: endpointArgs.signal }, fetchImpl);
       }
       return fetchEndpointModels(endpointArgs);
     };
     const mirror = endpointModels(baseUrl, modelInfoApi, tenant);
-    const warm = await mirror.warm(fetchRows, secrets);
-    // A list warmed for another model on this server carries none of this model's own probes.
-    if (warm.ok && provider.wire === "openai-compat") {
+    const warm = await mirror.warm(async () => ({ complete: await fetchRows() }), secrets);
+    // A list warmed for another model on this server, or without probes, carries none of this model's own.
+    if (warm.ok && probing && provider.wire === "openai-compat") {
       await probeUnprobedModel(mirror, endpointArgs, connection.model);
     }
   };
@@ -275,8 +280,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmAgentSdkCatalog = (identity: SpawnIdentity): Promise<MirrorWarm<AgentSdkModel[]>> => {
     const agentSdkBackend = built.agentSdk;
     return agentSdkBackend === undefined
-      ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed." })
-      : agentSdkCatalog.warm(() => agentSdkBackend.catalog(identity), resolvedScrubSet({ credential: identity.credential, transport: null }));
+      ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed.", partial: null })
+      : agentSdkCatalog.warm(
+          async () => ({ complete: await agentSdkBackend.catalog(identity, sharedWarmSignal()) }),
+          resolvedScrubSet({ credential: identity.credential, transport: null }),
+        );
   };
   const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
     await warmAgentSdkCatalog(identity);
@@ -289,7 +297,16 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     return (
       await detectedServer(baseUrl).warm(
-        () => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, scheduleTimeout: deps.scheduleTimeout }),
+        async () => ({
+          complete: await detectServer({
+            fetch: fetchImpl,
+            baseUrl,
+            secret,
+            headers: connection.transport?.headers,
+            scheduleTimeout: deps.scheduleTimeout,
+            signal: sharedWarmSignal(),
+          }),
+        }),
         secrets,
       )
     ).ok;
@@ -353,11 +370,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
-      for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
+      for: async ({ connectionId, principal, signal, listFacts }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal.userId);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
-        const kind = (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
+        const kind = (await discoveredKind(ctx, connection, listFacts === true ? "list" : "full")) ?? DEFAULT_MODEL_KIND;
         const facts = behaveAs(ctx, provider, connection);
         const tasks = connectionTasks(facts, kind);
         const task = tasks[0];
@@ -368,7 +385,13 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
             message: `connection "${connection.label}" (${provider.id}, ${kind}) serves no task`,
           });
         }
-        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId });
+        const outcome = await resolveTaskWithBaseline(ctx, {
+          task,
+          principal,
+          connectionId,
+          signal,
+          ...(listFacts === true ? { listFacts } : {}),
+        });
         const detected = behaveAs(ctx, provider, connection);
         return {
           capability: outcome.resolved.capability,
@@ -409,9 +432,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       },
       invalidateEndpoint,
       passageCounter: (resolved) => passageCounterFor(fetchImpl, resolved),
-      tokenize: async (resolved, words): Promise<TokenizeResult> => {
+      tokenize: async (resolved, words, signal): Promise<TokenizeResult> => {
         const target = tokenTargetOf(resolved);
-        return target === null ? { available: false, words: [] } : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words))] };
+        return target === null
+          ? { available: false, words: [] }
+          : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words, signal))] };
       },
     },
     diagnostics,

@@ -1,51 +1,49 @@
-// `wrapFetch` — the `fetch` every SDK provider instance on a HOSTED wire receives (openai-compat + anthropic-messages). FOUR of the five
-// custom-byo controls that survive the SDK cut-over live here (§8.1), for EVERY endpoint row alike:
-//   1. HOST-PIN (#25): `redirect: "manual"`, and ANY 3xx / opaqueredirect is a hard NON-retryable error, never
+// `wrapFetch` — the `fetch` every SDK provider instance on a HOSTED wire receives (openai-compat + anthropic-messages).
+// The custom-byo controls that must sit BELOW the SDK live here, for EVERY endpoint row alike:
+//   1. HOST-PIN: `redirect: "manual"`, and ANY 3xx / opaqueredirect is a hard NON-retryable error, never
 //      followed — Node's default follow re-sends `Authorization: Bearer …` to whatever host `Location` names.
 //   3. Error bodies are read capped at 64 KiB with `reader.cancel()` past it, then handed to the SDK as a
 //      re-framed `Response` so its own failed-response handler classifies the (scrubbed) text. The read
-//      OVER-reads by `secretScrubOverhang` and scrubs before it slices (#1820) — see `scrubToLimit`.
+//      OVER-reads by `secretScrubOverhang` and scrubs before it slices — see `scrubToLimit`.
 //   4. Wire-capture bodies are SECRET-SCRUBBED BY VALUE before the ring (`transport.includeBody` can carry
 //      key-in-body auth), and the entry is emitted AFTER the attempt so the RESPONSE HEADERS ride with it
-//      (§D1: Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
+//      (Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
 //      Here rather than at the `doStream` result because the bytes this file holds are the FINAL ones —
 //      after `transformRequestBody` AND after our own `shapeBody` — while the SDK result's `request.body`
 //      is an earlier copy that predates the shaping.
-//   4b. THE REPLY TAP (§D2/§D3), opt-in (`capture.reply`): the response body is TEE'd, our branch drained to
+//   4b. THE REPLY TAP, opt-in (`capture.reply`): the response body is TEE'd, our branch drained to
 //      the SAME 64 KiB cap with the SAME `reader.cancel()` discipline as control 3 (one number, one reason),
 //      and the entry emitted when that drain ends — so the request body, the response headers AND the literal
 //      reply text ride ONE ring row. A HEAD cap is the right end to keep: OpenRouter puts its
 //      `debug.echo_upstream_body` payload in the FIRST SSE frame.
 //
-//      REJECTED ALTERNATIVE, recorded so nobody re-derives it from the audit: the SDK's `includeRawChunks` +
-//      the V4 `raw` stream part (the audit's own D2/D3 fix text, "the reducer forwards `raw` parts to the
-//      capture sink"). MEASURED against the installed provider dist 3.0.0: `includeRawChunks` only decides
-//      whether the OR provider re-emits each ALREADY-PARSED chunk as a `{type:"raw", rawValue}` part
-//      (`dist/index.js:3941-3942`); it changes neither the request nor the SSE bytes. And
-//      `debug.echo_upstream_body` is a REQUEST BODY field whose payload "will be returned as the first chunk
-//      in the stream" (`dist/index.d.ts:174-185`) — i.e. it rides the ordinary SSE. So `includeRawChunks` is
-//      what the SDK needs to SURFACE the echo as a part, NOT what our capture needs to SEE it: D2 and D3 are
-//      one toggle at the SDK part layer only, and this transport sits underneath it. The raw part is also
-//      strictly weaker evidence — post-parse JSON, one payload per chunk (so either a second entry shape or a
-//      fully deferred emit), and reachable only from a `doStream` call site, while this tap is the literal
-//      wire, at one site, for every surface (chat, embed, image, diagnostics) on both hosted wires. It rests
-//      on exactly the argument control 4 already makes for the request side.
+//      REJECTED ALTERNATIVE, so nobody re-derives it: `includeRawChunks` + the V4 `raw` stream part cannot
+//      carry this capture. `includeRawChunks` only decides whether the OR provider re-emits each
+//      ALREADY-PARSED chunk as a `{type:"raw", rawValue}` part; it changes neither the request nor the SSE
+//      bytes. `debug.echo_upstream_body` is a REQUEST BODY field whose payload rides the first SSE frame, so
+//      the raw part is what the SDK needs to SURFACE the echo as a part, never what a capture needs to SEE
+//      it: it is one toggle at the SDK part layer only, and this transport sits underneath it. The raw part
+//      is also strictly weaker evidence — post-parse JSON, one payload per chunk (so either a second entry
+//      shape or a fully deferred emit), and reachable only from a `doStream` call site, while this tap is
+//      the literal wire, at one site, for every surface (chat, embed, image, diagnostics) on both hosted
+//      wires. It rests on exactly the argument control 4 already makes for the request side.
+//      Verified at the installed `@openrouter/ai-sdk-provider@3.1.0`: both stream paths re-emit the parsed
+//      chunk as a `raw` part under `includeRawChunks`, and `debug.echo_upstream_body` is a REQUEST option
+//      whose payload returns as the stream's first chunk.
 //   • `transport.responseMap` + `features.reasoningKeys`: each SSE chunk / the JSON body is reshaped through
-//     the user's dot paths BEFORE the SDK parses it (today's `reshapeChunk`), so a non-OpenAI reply still
-//     lands on the SDK's chunk schema. Only when a map or key list is set — the untouched stream passes
-//     through by reference otherwise.
+//     the user's dot paths BEFORE the SDK parses it, so a non-OpenAI reply still lands on the SDK's chunk
+//     schema. Only when a map or key list is set — the untouched stream passes through by reference otherwise.
 // The openrouter transport ALSO routes its body shaping through here (`shapeBody`), because the OR provider
 // exposes no post-convert hook: the request body is parsed ONCE, shaped, captured, re-serialised.
 import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet, ResponseMap } from "#contract";
 import { ProviderError } from "#contract";
 import type { WrapFetchArgs } from "#src/contract/v4.ts";
+import { isRedirect } from "../http/fetch-json.ts";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 
 const ERROR_BODY_LIMIT = 65_536;
-const REDIRECT_MIN = 300;
-const REDIRECT_MAX = 399;
 const JSON_CONTENT_TYPE = "application/json";
 const EVENT_STREAM = "text/event-stream";
 const CONTENT_TYPE = "content-type";
@@ -53,10 +51,6 @@ const REASONING_CONTENT_KEY = "reasoning_content";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isRedirect(res: Response): boolean {
-  return res.type === "opaqueredirect" || (res.status >= REDIRECT_MIN && res.status <= REDIRECT_MAX);
 }
 
 /** What a capped read produced. `tearDown` is the abort / socket reset that ended it early — carried rather
@@ -89,7 +83,7 @@ async function readCappedStream(body: ReadableStream<Uint8Array>, limit: number)
         break;
       }
     }
-    // the read failure is held in `CappedRead.tearDown`; `readCapped` rethrows it for the error-body path, and the reply tap keeps the partial bytes while the same failure reaches the SDK on the teed downstream branch. Ends if CappedRead stops carrying the error.
+    // The read failure is carried in `CappedRead.tearDown`, never thrown from here.
   } catch (error) {
     tearDown = { error };
   } finally {
@@ -98,11 +92,10 @@ async function readCappedStream(body: ReadableStream<Uint8Array>, limit: number)
   return { text: out.slice(0, limit), tearDown };
 }
 
-/** SCRUB BEFORE YOU MANGLE (#1820): a reader that truncates FIRST and scrubs SECOND cannot be saved by any
- *  later belt — a credential straddling the cut matches neither spelling, and its surviving PREFIX is real
- *  key material. So every read here OVER-reads by `secretScrubOverhang`, scrubs the WHOLE buffer, and only
- *  then slices to the display cap. Both byte directions of this file go through this one pair; `fetch-json`
- *  already obeyed it, this file did not until the reply tap gave it a second reader. */
+/** SCRUB BEFORE YOU MANGLE: a reader that truncates FIRST and scrubs SECOND cannot be saved by any later
+ *  belt — a credential straddling the cut matches neither spelling, and its surviving PREFIX is real key
+ *  material. So every read here OVER-reads by `secretScrubOverhang`, scrubs the WHOLE buffer, and only then
+ *  slices to the display cap. Both byte directions of this file go through this one pair. */
 function overreadLimit(secrets: ProviderScrubSet): number {
   return ERROR_BODY_LIMIT + secretScrubOverhang(secrets);
 }
@@ -285,7 +278,7 @@ async function reshapedResponse(res: Response, args: WrapFetchArgs): Promise<Res
     return new Response(reshapedStream(res.body, args), { status: res.status, statusText: res.statusText, headers: res.headers });
   }
   if (contentType.includes(JSON_CONTENT_TYPE)) {
-    // A declared-JSON 2xx that does not parse is a `server` error, never an empty success (#1400).
+    // A declared-JSON 2xx that does not parse is a `server` error, never an empty success.
     const text = await res.text();
     const parsed = parseDeclaredJson(text, args.label);
     return new Response(JSON.stringify(reshapeEvent(parsed, args, false)), { status: res.status, statusText: res.statusText, headers: res.headers });
@@ -343,7 +336,7 @@ function capturedHeaders(headers: Headers, secrets: ProviderScrubSet): Record<st
 }
 
 /** Record ONE send. Emitted AFTER the attempt rather than before it, so the request and what came back ride
- *  the same ring entry (§D1) — a request row whose response is a separate row cannot be correlated, and the
+ *  the same ring entry — a request row whose response is a separate row cannot be correlated, and the
  *  bytes here are the FINAL ones (post-`transformRequestBody`, post-`shapeBody`), which is strictly more
  *  faithful than the SDK result's own `request.body`. A failed attempt still records, with no headers. */
 function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, headers: Headers | undefined, reply: string | undefined): void {
@@ -382,16 +375,16 @@ function tapReply(res: Response, args: WrapFetchArgs, body: Record<string, unkno
   const emit = (reply: string): void => {
     emitCapture(args, body, res.headers, reply);
   };
-  // both settlement arms call `emit`, which writes the wire-capture row (the rejection arm with an empty reply); `readCappedStream` carries its tear-down in `CappedRead` and does not reject. Ends if either arm stops emitting.
   void readCappedStream(ours, overreadLimit(args.secrets)).then(
     (read) => {
       emit(read.text);
     },
     // Unreachable by construction — `readCappedStream` CARRIES its tear-down in `CappedRead` rather than
     // throwing. The arm is here because that guarantee is internal to this file while the floating read is
-    // the only thing standing between a send and its ring row: it emits, it never swallows.
-    () => {
+    // the only thing standing between a send and its ring row: it emits, then lets the defect reject unhandled.
+    (error: unknown) => {
       emit("");
+      throw error;
     },
   );
   return new Response(downstream, { status: res.status, statusText: res.statusText, headers: res.headers });
@@ -433,7 +426,7 @@ export function wrapFetch(args: WrapFetchArgs): typeof fetch {
       throw err;
     }
     if (isRedirect(res)) {
-      // A redirect's body is never read, so there is nothing to defer for: emit now, exactly as before.
+      // A redirect's body is never read, so there is nothing to defer for: emit now.
       emitCapture(args, prepared.capturedBody, res.headers, undefined);
       throw redirectRefused(args, res);
     }

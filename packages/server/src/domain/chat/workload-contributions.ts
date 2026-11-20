@@ -138,10 +138,18 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       },
       admissionKey: memoryAdmissionKey,
       // A segments-only pass embeds and never summarizes, so it costs no Utility-model call.
-      modelCalls: async ({ ownerId, funderUserId, params }) =>
-        params.segmentsOnly === true
-          ? 0
-          : await deps.estimateMemoryBackfill({ ownerId, funderUserId: requireWorkloadFunder(funderUserId), importWindow: params.importWindow ?? null }),
+      modelCalls: async ({ ownerId, funderUserId, params, signal }) => ({
+        calls:
+          params.segmentsOnly === true
+            ? 0
+            : await deps.estimateMemoryBackfill({
+                ownerId,
+                funderUserId: requireWorkloadFunder(funderUserId),
+                importWindow: params.importWindow ?? null,
+                signal,
+              }),
+        bound: "exact",
+      }),
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.

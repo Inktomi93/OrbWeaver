@@ -19,23 +19,12 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
+import { useRevertContinueMutation, useUndoContinueMutation } from "./use-message-mutations.ts";
 
 const useCommitMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["commitMessage"]>, unknown>({
   options: (trpc) => trpc.chat.commitMessage.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't post your message."),
-});
-
-const useUndoContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["undoContinue"]>, unknown>({
-  options: (trpc) => trpc.chat.undoContinue.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't undo the continuation.",
-});
-
-const useRevertContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["revertContinue"]>, unknown>({
-  options: (trpc) => trpc.chat.revertContinue.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't re-apply the continuation.",
 });
 
 export interface UseComposerUtilitiesResult {

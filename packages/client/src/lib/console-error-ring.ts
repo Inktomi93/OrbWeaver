@@ -74,7 +74,11 @@ function describe(value: unknown): string {
   // this output ever feeds a data path rather than a bug-report bundle.
   try {
     return JSON.stringify(value);
-  } catch {
+  } catch (error) {
+    // `JSON.stringify` refuses a cycle or a BigInt with a `TypeError`; any other throw is a fault.
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
     return "[unserializable]";
   }
 }

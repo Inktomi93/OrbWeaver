@@ -157,7 +157,7 @@ test("native socket disposal joins the held actual room pump before closing ingr
   const origin = `http://${address.address}:${address.port}`;
   const url = new URL("/api/trpc/stream.connect", origin);
   url.searchParams.set("input", JSON.stringify({ socketId }));
-  const response = await fetch(url, { headers: { accept: "text/event-stream" } });
+  const response = await fetch(url, { headers: { accept: "text/event-stream", [CSRF_HEADER]: "1" } });
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toContain("text/event-stream");
   const reader = response.body?.getReader();

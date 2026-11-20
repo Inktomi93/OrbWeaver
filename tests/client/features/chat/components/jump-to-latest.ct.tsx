@@ -16,7 +16,7 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { JUMP_TO_LATEST_LEAD, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -201,7 +201,7 @@ for (const [title, nativeScrollend, profile, quiet, scale] of [
     const distanceFromTail = (): Promise<number> => scroller.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight);
     await expect.poll(() => scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
     await expect.poll(distanceFromTail).toBeLessThanOrEqual(SCROLL_ROUNDING_PX);
-    const pill = page.getByRole("button", { name: /^Jump to latest/u });
+    const pill = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(JUMP_TO_LATEST_LEAD)}`, "u") });
     await expect(pill).toHaveCount(0);
     await listening.promise;
     await expect.poll(() => socket.attaches().some((ref) => ref.channel === "chat" && ref.chatId === chatId)).toBe(true);

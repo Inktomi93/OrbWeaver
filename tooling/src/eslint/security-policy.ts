@@ -68,16 +68,16 @@ const STATS_MESSAGE =
   "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md, invariant 5). Consume the injected stats economics op instead.";
 
 const USERS_MESSAGE =
-  "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10); the debug probe (foundation/observability/debug/inspect) counts its rows, read-only, by the Tier-2-Foundation.md ruling. Take userId from the resolved Principal instead.";
+  "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10); the debug probe (foundation/observability/debug/inspect) counts its rows by the Tier-2-Foundation.md ruling and holds only ReadOnlyDb, so a write from it fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts). Take userId from the resolved Principal instead.";
 
 const INBOX_MESSAGE =
-  "The notifications inbox table is named only by domain/notifications/persistence and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md). `notifications.record` is the one recipient writer (Core-0 §8); the probe's row count writes nothing, so it is no second writer. Route a notification through the injected notifications.record op.";
+  "The notifications inbox table is named only by domain/notifications/persistence and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md). `notifications.record` is the one recipient writer (Core-0 §8); the probe holds only ReadOnlyDb, so a write from it fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts) and it is no second writer. Route a notification through the injected notifications.record op.";
 
 const SETTINGS_KV_MESSAGE =
   "The settings key-value table is named only by domain/settings/persistence: settings has one writer (Core-0 §8). Read or write a tenant value through the settings KV port, or an app value through the settings service.";
 
 const VECTOR_MESSAGE =
-  "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) (D20) and the debug probe (foundation/observability/debug/inspect, read-only, Tier-2-Foundation.md). Go through the search engine with a producer scope.";
+  "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) (D20) and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md; it holds only ReadOnlyDb, so a write from it fails the typecheck, tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts). Go through the search engine with a producer scope.";
 
 // The import, export and whole-module doors of a row that owns `tables`; `ownedTableRule` adds the doors that need no import.
 const ownedTableRow = (id: string, tables: readonly string[], message: string): OwnedTableRow => {
@@ -325,7 +325,7 @@ const ROLE_DATA_EXPORTS = [
   { path: "primitives/role-data/registry.ts", names: ["userRoleCodes", "participantRoleCodes"] },
   { path: "primitives/role-data/decode/index.ts", names: ["isUserRoleState", "isParticipantRoleState", "userRoleValue", "participantRoleValue"] },
   { path: "domain/admin/guard.ts", names: ["isBootstrapOwnerRole", "isBootstrapOwnerRoleCode", "can", "requireAdmin", "requireOwner", "isAdmin", "isOwner"] },
-  { path: "domain/chat/substrate/participants-host.ts", names: ["hostSeatOf", "hostUserIdOf"] },
+  { path: "domain/chat/substrate/participants-host.ts", names: ["hostSeatOf", "hostUserIdOf", "standingSeatsOf"] },
   {
     path: "domain/chat/substrate/member-visibility.ts",
     names: [
@@ -471,7 +471,6 @@ const ROLE_DATA_EXPORTS = [
       "loadPresentHumanUserIds",
       "loadPresentCharacterSeats",
       "isCharacterSeated",
-      "isPresentParticipant",
       "loadParticipants",
       "characterSeatedInAnotherChat",
       "characterEverSeatedInChat",
@@ -500,6 +499,74 @@ export const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, in
     },
   ],
 }));
+
+/** The root of every server source a server import restriction judges. */
+export const SERVER_SOURCE_ROOT = "packages/server/src/";
+
+/**
+ * Every server import restriction, with the server sources that may make the import. A home ending in `/` is a
+ * directory; any other home is one file.
+ * @remarks Flat config replaces a rule's options per block, so `eslint.config.ts` builds every server
+ * `no-restricted-imports` block from this table: a home's block lifts its own row and keeps every other.
+ */
+export const SERVER_IMPORT_HOMES = [
+  {
+    id: "settings-table",
+    homes: [`${SERVER_SOURCE_ROOT}domain/settings/`],
+    restriction: {
+      regex: "^@orb/db(?:/(?:schema|index))?$",
+      importNames: ["settings"],
+      message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
+    },
+  },
+  {
+    id: "png-card-chunk",
+    homes: [`${SERVER_SOURCE_ROOT}domain/import/`, `${SERVER_SOURCE_ROOT}domain/export/`],
+    restriction: {
+      regex: "^@orb/kit/png-card-chunk(?:/|$)",
+      importNames: ["readCardChunk", "writeCardChunk", "isPng"],
+      message: "Use the import or export domain for PNG card-chunk operations.",
+    },
+  },
+  {
+    // A canon read accepts only the answer chat's resolver minted, so the mint has that one caller.
+    id: "visibility-mint",
+    homes: [`${SERVER_SOURCE_ROOT}domain/chat/verbs/resolve-viewer-visibility.ts`],
+    restriction: {
+      regex: "viewer-visibility-registry(?:\\.ts)?$",
+      importNames: ["mintViewerVisibility"],
+      message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
+    },
+  },
+  {
+    // A second policy writer would overwrite a frame route's own policy, or put one on a route the app policy owns.
+    id: "secure-headers",
+    homes: [`${SERVER_SOURCE_ROOT}entry/http/security-headers.ts`],
+    restriction: {
+      regex: "^hono/secure-headers$",
+      message: "The security headers module owns every policy header; register an own-policy route through its registerOwnPolicyRoute.",
+    },
+  },
+] as const;
+
+/**
+ * Chat's co-participant art gate: the files that decide which art a room member may load.
+ * @remarks Dependency-cruiser cannot tell the named exports of the `@orb/db` door apart (D335), so ESLint's
+ * `no-restricted-imports` refuses these tables in these files. A direct join would skip the owner reads the gate
+ * depends on. Add a chat file here once it stops importing the tables.
+ */
+export const CHAT_ART_GATE_SOURCES = [
+  `${SERVER_SOURCE_ROOT}domain/chat/persistence/co-participant-assets.ts`,
+  `${SERVER_SOURCE_ROOT}domain/chat/verbs/load-co-participant-owner.ts`,
+  `${SERVER_SOURCE_ROOT}domain/chat/verbs/load-chat-asset-refs.ts`,
+] as const;
+
+/** The other domains' tables the art gate reads through owner ops, through either door that exports them. */
+export const CHAT_ART_GATE_RESTRICTION = {
+  regex: "^@orb/db(?:/schema)?$",
+  importNames: ["assets", "characters", "personas"],
+  message: "chat reads these rows through the owner ops its contract declares",
+} as const;
 
 export const TURN_IDENTITY_RESTRICTIONS = [
   {

@@ -1,50 +1,24 @@
+import { stripUnreadElements } from "@orb/kit/content";
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
 import type { StreamdownProps } from "streamdown";
-import { defaultRehypePlugins, Streamdown } from "streamdown";
+import { Streamdown } from "streamdown";
 import { cn, SCROLLER, usePrefersReducedMotion } from "#lib";
-import { MARKDOWN_BLOCKQUOTE_COMPONENTS } from "./blockquote-component.tsx";
-import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
-import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
-import { MARKDOWN_INLINE_CODE_COMPONENTS } from "./inline-code-component.tsx";
-import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
+import { MARKDOWN_RENDER_FAILED_TEXT } from "./markdown-names.ts";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import {
   MARKDOWN_REMARK_PLUGINS,
   ownOriginMediaOnly,
   TIER_A_UNTRUSTED_ELEMENTS,
-  TRUSTED_ALLOWED_TAGS,
   TRUSTED_LITERAL_TAG_CONTENT,
+  TRUSTED_REHYPE_PLUGINS,
+  UNTRUSTED_REHYPE_PLUGINS,
   untrustedUrlTransform,
 } from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
-import { MARKDOWN_RULE_COMPONENTS } from "./rule-component.tsx";
+import { DICE_REMARK_PLUGINS, markdownRootClass, sealComponents } from "./seal.ts";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
 import { holdAmbiguousTail } from "./tail-hold.ts";
-
-// The two stable `components` maps. Both are module-level constants because Streamdown's Block memo
-// reference-compares the map key by key — a per-render object would re-render every settled block.
-// The seal OWNS six elements: the three list elements (#1085), the thematic break (H19, `rule-component.tsx`),
-// the blockquote (`blockquote-component.tsx`) and inline code (`inline-code-component.tsx`) — each a vendor `jsx`
-// call with an uncompiled class string, which is the test #1085 set for taking an element over rather than
-// out-painting it.
-const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = {
-  ...MARKDOWN_LIST_COMPONENTS,
-  ...MARKDOWN_RULE_COMPONENTS,
-  ...MARKDOWN_BLOCKQUOTE_COMPONENTS,
-  ...MARKDOWN_INLINE_CODE_COMPONENTS,
-};
-const SEAL_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...SEAL_COMPONENTS, ...DIALOGUE_COMPONENTS };
-const DICE_SEAL_COMPONENTS = { ...SEAL_COMPONENTS, ...DICE_COMPONENTS };
-const DICE_SEAL_COMPONENTS_WITH_DIALOGUE = { ...SEAL_COMPONENTS_WITH_DIALOGUE, ...DICE_COMPONENTS };
-const DICE_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = [...MARKDOWN_REMARK_PLUGINS, remarkInlineDice];
-
-function sealComponents(inlineDice: boolean, colorQuotes: boolean): NonNullable<StreamdownProps["components"]> {
-  if (inlineDice) {
-    return colorQuotes ? DICE_SEAL_COMPONENTS_WITH_DIALOGUE : DICE_SEAL_COMPONENTS;
-  }
-  return colorQuotes ? SEAL_COMPONENTS_WITH_DIALOGUE : SEAL_COMPONENTS;
-}
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -130,7 +104,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   override render(): ReactNode {
     if (this.state.failed) {
-      return <div className="text-body leading-body text-muted-foreground">Content failed to render.</div>;
+      return <div className="text-body leading-body text-muted-foreground">{MARKDOWN_RENDER_FAILED_TEXT}</div>;
     }
     return this.props.children;
   }
@@ -167,9 +141,7 @@ export function Markdown({
   // #42 word-reveal fade (D168): our reveal plugin replaces Streamdown's
   // `animated` arm (that knob was DEAD — its `streamdown/styles.css` was never imported — and its
   // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
-  // only: passing a custom `rehypePlugins` array would defeat the identity-gated `allowedTags` schema
-  // merge the TRUSTED tier depends on (policy.ts documents the gate), and no trusted surface streams
-  // today. Resolved reduced motion (the app's setting over the OS query, `usePrefersReducedMotion`) injects nothing
+  // only: no trusted surface streams today. Resolved reduced motion (the app's setting over the OS query, `usePrefersReducedMotion`) injects nothing
   // at all — REMOVE, guide §3.9; the CSS floor also collapses the fade to instant.
   // One plugin instance per mount (its reveal-time log is the fade's memory), minted in a lazy
   // useState initializer: identity-stable for the component's whole life — Streamdown's Block memo
@@ -178,11 +150,8 @@ export function Markdown({
   // closure + one array (no work happens until a streaming render passes it), so a static mount
   // paying it is cheaper than the ref-branch the react-hooks/refs render ban forbids.
   const reveal = mode === "streaming" && untrusted && !reducedMotion;
-  const [revealPlugins] = useState<NonNullable<StreamdownProps["rehypePlugins"]>>(() => [
-    ...Object.values(defaultRehypePlugins),
-    createRevealPlugin().rehypePlugin,
-  ]);
-  const revealProp = reveal ? { rehypePlugins: revealPlugins } : {};
+  const [revealPlugins] = useState<NonNullable<StreamdownProps["rehypePlugins"]>>(() => [...UNTRUSTED_REHYPE_PLUGINS, createRevealPlugin().rehypePlugin]);
+  const tierPlugins = untrusted ? UNTRUSTED_REHYPE_PLUGINS : TRUSTED_REHYPE_PLUGINS;
 
   // M1 tail-hold (tail-hold.ts, arm 1): streaming only, and a
   // pure PREFIX of the input — the still-undecidable trailing construct (a lone pipe row, a bare list
@@ -190,8 +159,6 @@ export function Markdown({
   // already is instead of flipping type under the reader. Runs before the repair layer; remend still sees
   // a well-formed prefix, and the caret keeps landing on a real leaf block (the pre-pass never empties
   // the body).
-  const body = mode === "streaming" ? holdAmbiguousTail(children) : children;
-
   if (children.length > MAX_RENDER_LENGTH) {
     return (
       <pre className={cn(`${SCROLLER} text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)`, className)} data-slot="markdown-oversized">
@@ -199,13 +166,18 @@ export function Markdown({
       </pre>
     );
   }
+  // THE UNTRUSTED ALLOWLIST UNWRAPS what it drops, so a panel's words stay as prose. An element whose content HTML
+  // reads raw or as text (a stylesheet, a script, a `textarea`) goes first with that content, or it would print.
+  // Below the guard, so an oversized body costs no read.
+  const read = untrusted ? stripUnreadElements(children) : children;
+  const body = mode === "streaming" ? holdAmbiguousTail(read) : read;
 
   // Emphasis/italic reads as narration in this app's prose voice — the base className tints every
   // rendered <em> with --color-narration, re-themed for free per palette.
   // Streamdown's root div HARDCODES its own spacing utilities (a 1rem block gap + whitespace-normal +
   // first/last-child margin trims) and twMerges our className over them. Its dist is deliberately NOT a
   // Tailwind source (its raw spacing would fight the reading-typography tokens —
-  // `--appearance-reading-paragraph-spacing` owns prose spacing via the higher-specificity
+  // the reader's line spacing owns prose spacing via the higher-specificity
   // `[data-slot="message-bubble"] p + p` rule), so those defaults were DEADCSS in the DOM. The base
   // className below neutralizes them with COMPILED equivalents: `space-y-0` replaces the 1rem gap via
   // the twMerge conflict group; the other three dedupe to the identical literal, which this scanned
@@ -219,7 +191,7 @@ export function Markdown({
   // Quoted content and the narrator's voice became the same rendering, on a surface whose entire voice system is
   // typographic. The element now carries house tokens only, so no dead vendor class stays in the DOM. Adding
   // `@source "…/streamdown/dist"` would have resurrected the vendor's whole spacing scale app-wide, the thing
-  // `--appearance-reading-paragraph-spacing` exists to own.
+  // the line-spacing-derived paragraph gap exists to own.
   //
   // #490 — THE INLINE-CODE HALF of that ruling. Inline code was first paid only a horizontal padding (`px-tight`). The vendor also spells
   // a SIZE and a VERTICAL padding on that element, and both were dropping on the floor: measured in a room
@@ -267,31 +239,18 @@ export function Markdown({
         // `components` key by key, so a stable identity is what keeps a settled block from re-rendering on
         // every commit.
         components={sealComponents(inlineDice, colorQuotes)}
-        className={
-          cn(
-            "space-y-0 wrap-break-word whitespace-normal [&_em]:text-narration [&>*:first-child]:mbs-0 [&>*:last-child]:mbe-0",
-            // The thematic break's SEPARATION (H19). The element itself is ours now (`rule-component.tsx`
-            // owns its ink), but the gap is spelled HERE, as a descendant variant: the root's own `space-y-0`
-            // trim governs a direct child's block margins, and a rule is the one owned element whose
-            // separation cannot be padding (preflight draws the line
-            // as its border-top, so padding puts the whole gap on one side of it). House token, never the
-            // vendor's `my-6`.
-            "[&_hr]:my-row",
-            // inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
-            "[&_:not(pre)>code]:p-tight [&_:not(pre)>code]:text-code",
-            className,
-          ) ?? ""
-        }
+        className={markdownRootClass(className)}
         // The word-reveal fade + the caret are OURS (#42): `animated`/`isAnimating` are deliberately NOT
         // passed (dead knob, see above — and their absence routes streaming block updates through
         // Streamdown's useTransition arm), and the `caret` prop is dropped because its `::after` attaches
         // to the per-block `dir` wrapper and renders on a fresh line below the text; the client ghost's
         // `ghost-stream-body` scope paints the caret on the true leaf block instead.
-        {...revealProp}
+        // Each pipeline holds the seal's sanitize schema and keeps one identity (module-level, or one per mount for the
+        // reveal): Streamdown's Block memo reference-compares it, so a fresh array would re-parse every settled block.
+        rehypePlugins={reveal ? revealPlugins : tierPlugins}
         {...(untrusted
-          ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, urlTransform: untrustedUrlTransform }
+          ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, unwrapDisallowed: true, urlTransform: untrustedUrlTransform }
           : {
-              allowedTags: TRUSTED_ALLOWED_TAGS,
               literalTagContent: [...TRUSTED_LITERAL_TAG_CONTENT],
               ...(ownOriginMedia ? { allowElement: ownOriginMediaOnly } : {}),
             })}

@@ -23,16 +23,17 @@
 // blob is read at the `@orb/db/query` parse-seam, never trusted raw. The ONLY enum COLUMN in this slice is the
 // per-character-attachment `role` (WORLD_BOOK_ROLES) on `character_books` (a book itself has NO role).
 //
-// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
+// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS; a stamp is `stampColumn`, stated by each insert.
 // Composite-PK junctions use `primaryKey({ columns })`; every FK CASCADEs (delete a book → its entries +
 // all four junction rows vanish; delete the scope target → that target's junction rows vanish).
 
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -64,11 +65,11 @@ export const worldBooks = sqliteTable(
     // NOTE: a book carries NO `role` — role is a per-character-ATTACHMENT property (`character_books.role`,
     // BookAttachmentView), "only meaningful on the character scope" (contracts/world-info). One book can be
     // primary for char A and auxiliary for char B, so role cannot live on the book.
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // The EDITED stamp (the regex_scripts X-16 precedent — "any user-edited-in-place entity a list pane
     // sorts/discriminates gets `updated_at`, maintained by write verbs"). Restamped by every update verb
     // from the injected clock (never a DB trigger).
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`).
@@ -108,10 +109,10 @@ export const worldEntries = sqliteTable(
     // The typed per-entry blob (`EntryMetadata`): { scopeMode?, position?, inject? {depth, role?} } + any
     // preserved unknown ST keys. NOT columns — read at the `@orb/db/query` seam / the `@orb/kit/world-info`
     // resolvers, never trusted raw.
-    metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    metadata: storedJsonText("metadata").$type<EntryMetadata | UnreadableJsonText>(),
+    createdAt: stampColumn("created_at"),
     // The EDITED stamp (the regex_scripts X-16 precedent — see `worldBooks.updatedAt`'s comment).
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // Entry-by-book hot path + the `worldBookId` FK cascade child (delete book → its entries).
@@ -138,7 +139,7 @@ export const chatBooks = sqliteTable(
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.chatId, t.worldBookId] }),
@@ -163,7 +164,7 @@ export const characterBooks = sqliteTable(
       .references(() => worldBooks.id, { onDelete: "cascade" }),
     // primary | auxiliary — derives WORLD_BOOK_ROLES. The per-character attachment role (see header).
     role: text("role", { enum: WORLD_BOOK_ROLES }).notNull().default(DEFAULT_BOOK_ROLE),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.worldBookId] }),
@@ -182,7 +183,7 @@ export const globalBooks = sqliteTable(
       .$type<WorldBookId>()
       .primaryKey()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   // No secondary index: unlike the other three junctions (where the book id is the NON-leading PK column),
   // here `worldBookId` IS the single-column PK — already indexed; a `*_book_idx` would just duplicate it.
@@ -201,7 +202,7 @@ export const personaBooks = sqliteTable(
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.personaId, t.worldBookId] }),

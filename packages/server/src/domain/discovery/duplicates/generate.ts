@@ -16,7 +16,7 @@ import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { ComputeChatDuplicatesOptions, ComputeDuplicatesOptions } from "../contract/params.ts";
@@ -138,7 +138,7 @@ async function replaceAllPairs(db: Db, inserts: readonly DupInsert[], ownerId?: 
           .delete(duplicateCharacterPairs)
           .where(inArray(duplicateCharacterPairs.characterIdA, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId))));
   const stmts: BatchStmt[] = [del];
-  for (const chunk of chunkRows(inserts, rowsPerInsert(DUP_COLS))) {
+  for (const chunk of chunkRows(inserts, DUP_COLS)) {
     stmts.push(db.insert(duplicateCharacterPairs).values(chunk));
   }
   await db.batch(batchMany(stmts));
@@ -338,7 +338,7 @@ async function replaceAllChatPairs(db: Db, inserts: readonly ChatDupInsert[], ow
           ),
         );
   const stmts: BatchStmt[] = [del];
-  for (const chunk of chunkRows(inserts, rowsPerInsert(CHAT_DUP_COLS))) {
+  for (const chunk of chunkRows(inserts, CHAT_DUP_COLS)) {
     stmts.push(db.insert(duplicateChatPairs).values(chunk));
   }
   await db.batch(batchMany(stmts));

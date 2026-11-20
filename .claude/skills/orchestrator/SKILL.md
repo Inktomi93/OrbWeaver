@@ -77,7 +77,7 @@ Finish an active plan before opening new work, and take P1 items first. `docs/pl
 
 ## Lane cap
 
-Owner ruling: run at most three agents beside the main session, at any model tier. Every agent counts, `code-reviewer` included. Raise the cap only on an explicit owner ruling, written here.
+Owner ruling: three agents beside the main session is a rule of thumb for box load, at any model tier, not a hard cap. Go over it when the work is independent and the box can take it; count the lanes that run browser tests or whole-tree checks.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start broad compiler or application runs minutes apart to limit shared-host load.
@@ -315,6 +315,11 @@ Diagnose an instrument failure far enough to identify its effect on the requeste
 - Assign a blocking native-tool repair explicitly before dispatching work that depends on it.
 - Commit requested implementation after its applicable checks and review. Do not add review rounds after completion.
 - File a review finding outside the item's done criteria as a new item, then land the item. Otherwise review rounds never end.
+- After a review, send each P1 finding back to the same lane as one leg. Send a P2 back only when it breaks the item's done line.
+- Board every other review finding in the same turn. Do not review the fix leg again unless it changes security or stored data.
+- Board a lane's draft items when you read its hand-back, in the same turn. Never leave them in a worktree report.
+- A finding below P2 gets no verify loop. Board it as the lane wrote it, after a duplicate check against the board.
+- Verify a P1 or P2 finding against the code once before you board it.
 
 ## Session start
 

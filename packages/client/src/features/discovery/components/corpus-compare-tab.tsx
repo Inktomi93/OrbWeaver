@@ -18,7 +18,7 @@ import { Select } from "@orb/ui/select";
 import { NoValue, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -31,6 +31,7 @@ import {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "#state";
+import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 
 const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 
@@ -45,16 +46,18 @@ const PICKER_PAGE = 200;
 export function CorpusCompareTab(): ReactElement {
   return (
     // The bracket owns the stable viewport; the query boundary measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusCompareTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="line" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
-        reserveKey="corpus.compare"
-      >
-        <CompareBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusCompareTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
+          reserveKey="corpus.compare"
+        >
+          <CompareBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -153,7 +156,7 @@ export function CompareResult({
     <QueryBoundary
       resetKeys={[idA, idB]}
       fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="that comparison" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.comparison} onRetry={retry} />}
     >
       <FacetDiff deep={deep} idA={idA} idB={idB} onDeep={onDeep} />
     </QueryBoundary>

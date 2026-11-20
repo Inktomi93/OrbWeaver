@@ -1,4 +1,4 @@
-// The derived-image cache, sibling to the CAS (sealed filesystem adapter: node:* + @orb/kit only). Makes
+// The derived-image cache, sibling to the CAS (sealed filesystem adapter: node:*, @orb/kit and the server primitives only). Makes
 // each (owner, hash, width) transform a once-per-deployment cost instead of recomputing on every request.
 // Per-user keyed like the CAS. Not canon: every entry is reproducible from the CAS original, so writes are
 // atomic (temp → rename) but not fsynced — losing an entry on power loss is just a recompute.
@@ -8,6 +8,7 @@ import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+import { isAbsentPath } from "#primitives/errno";
 import type { VariantCache, VariantKey } from "./contract.ts";
 
 const SHARD_A_END = 2;
@@ -43,12 +44,17 @@ export function createVariantCache(rootDir: string): VariantCache {
   }
 
   return {
-    read(ownerId, hash, variant): Promise<Uint8Array | undefined> {
-      // Best-effort: a miss, unreadable file, or malformed key all resolve to undefined (recompute).
-      // undefined is the cache-miss answer. resolve-variant (the only variants.read caller) treats it as a miss, rereads the CAS original and recomputes, and its variants.put still throws on a storage fault. Ends if a caller stops treating undefined as a plain miss.
-      return Promise.resolve()
-        .then(() => readFile(variantPath(ownerId, hash, variant)))
-        .catch(() => undefined);
+    async read(ownerId, hash, variant): Promise<Uint8Array | undefined> {
+      // An absent entry is the cache-miss answer: resolve-variant (the only variants.read caller) rereads the CAS
+      // original and recomputes. A malformed key or any other storage fault rejects.
+      try {
+        return await readFile(variantPath(ownerId, hash, variant));
+      } catch (error) {
+        if (isAbsentPath(error)) {
+          return;
+        }
+        throw error;
+      }
     },
 
     async put(ownerId, hash, variant, bytes): Promise<void> {

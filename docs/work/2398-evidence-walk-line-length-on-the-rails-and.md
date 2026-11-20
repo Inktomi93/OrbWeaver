@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-10
+updated: 2026-11-12
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ Prose wider than the reading measure is harder to read; the design system owns t
 
 ## Done when
 
-The line-length finding is gone from these surfaces' evidence checkpoints, fixed at the shared owner by giving prose its measure token, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
+The line-length finding is fixed at the shared owner by giving prose its measure token, shown by a component test that mounts each named production surface and runs this rule through the testkit's design audit, red today and green after, with no whole walk needed, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
 
 ## Evidence
 

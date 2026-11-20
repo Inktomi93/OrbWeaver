@@ -1,14 +1,20 @@
 // Recorded provider turns: the SSE `data:` payloads a real endpoint streamed, one step per request a journey makes.
 // A step is keyed by its place in the journey, never by a request hash, so a prompt change keeps the tape valid.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
+import process from "node:process";
 import { isPlainObject } from "@orb/kit/guards";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
+
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
+// Biome's own entry script, run by this Node: the `.bin` shim is a shell script on one platform and a batch file on another.
+const BIOME_ENTRY = join(REPO_ROOT, "node_modules", "@biomejs", "biome", "bin", "biome");
 
 /** The directory the committed tapes live in; a tape's name is its path below it, without `.json`. */
 export const PROVIDER_TAPE_DIR = join(import.meta.dirname, "provider-tapes");
 /** Where a recording run writes its tapes. Gitignored, because the e2e working-tree guard refuses a tracked write. */
-export const PROVIDER_TAPE_RECORD_DIR = join(import.meta.dirname, "..", "..", "..", "reports", "provider-tapes");
+export const PROVIDER_TAPE_RECORD_DIR = join(REPO_ROOT, "reports", "provider-tapes");
 /** The variable that turns an e2e run into a recording; the record script sets it to `1`. */
 export const PROVIDER_TAPE_RECORD_ENV = "E2E_TAPE_RECORD";
 
@@ -66,11 +72,27 @@ export function readProviderTape(name: string): ProviderTape {
   return parsed.data;
 }
 
+// The tape as the repository's formatter prints its committed file, so a fresh recording is committed as written.
+// Biome reads the text on stdin under the committed path: a recording directory is gitignored, and Biome skips an
+// ignored file.
+function formattedTape(name: string, tape: ProviderTape): string {
+  const formatted = runNicedSync(process.execPath, [BIOME_ENTRY, "format", `--stdin-file-path=${relative(REPO_ROOT, providerTapePath(name))}`], {
+    cwd: REPO_ROOT,
+    input: JSON.stringify(tape, null, 2),
+  });
+  if (formatted.status !== 0) {
+    throw new Error(
+      `provider tape "${name}" could not be formatted (${formatted.errorCode ?? formatted.signal ?? String(formatted.status)}): ${formatted.stderr}`,
+    );
+  }
+  return formatted.stdout;
+}
+
 /** Write a tape below `dir`; a recording run passes a gitignored directory, never the committed one. */
 export function writeProviderTape(name: string, tape: ProviderTape, dir: string): void {
   const path = providerTapePath(name, dir);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(providerTapeSchema.parse(tape), null, 2)}\n`);
+  writeFileSync(path, formattedTape(name, providerTapeSchema.parse(tape)));
 }
 
 // The shapes a provider or proxy echoes back: an OpenRouter, OpenAI or Anthropic key, or a bearer secret.

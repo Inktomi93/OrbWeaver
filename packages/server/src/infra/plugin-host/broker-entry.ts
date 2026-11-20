@@ -9,7 +9,7 @@
 // its watchdog does, when this thread's heartbeat stops, and the heartbeat timer runs whatever the Workers are doing.
 
 import { randomUUID } from "node:crypto";
-import { fstatSync, write } from "node:fs";
+import { write } from "node:fs";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import {
@@ -33,7 +33,6 @@ import {
   channelFullBridgeResult,
   channelFullResponse,
   encodeProcessValue,
-  PLUGIN_BROKER_BEAT_FD,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
@@ -61,31 +60,45 @@ const supervisorPid = process.ppid;
 function supervised(): boolean {
   return process.connected && process.ppid === supervisorPid;
 }
-// Beats go on their own pipe, never behind a frame: a large frame in the IPC queue would hold every beat sent after it
-// until it is read, and the watchdog would see a working broker as silent (D347). This thread still sends each beat,
-// so a hung main thread is silent on the pipe too.
+// Beats go on stderr, never behind a frame: a large frame in the IPC queue would hold every beat sent after it until it
+// is read, and the watchdog would see a working broker as silent (D347). The watchdog pipes this process's stderr,
+// reads each beat line and passes any other line on to its own stderr. This thread still sends each beat, so a hung
+// main thread is silent there too; a Worker's stderr reaches it only through this thread.
 //
-// THE WRITE NEVER BLOCKS THIS THREAD. The pipe is the child end of a socketpair the spawner hands over blocking, and
-// the permission model refuses the network grant a non-blocking socket would need, so the beat is written on the
-// thread pool, one at a time. A beat due while the last write is still pending is skipped, not queued: a watchdog
-// that stops reading holds one pool thread and no memory, and this thread goes on ending stuck Workers and
-// forwarding their messages. `EPIPE` means the watchdog is gone, and an unsupervised broker serves nothing.
-function isBeatPipe(fd: number): boolean {
-  try {
-    const stat = fstatSync(fd);
-    return stat.isFIFO() || stat.isSocket();
-  } catch {
-    // A closed descriptor: no pipe.
-    return false;
-  }
-}
-// Started without its watchdog's beat pipe at that descriptor, the broker would write beats into whatever it is.
-if (!isBeatPipe(PLUGIN_BROKER_BEAT_FD)) {
-  throw new Error("plugin broker: refusing to run without its watchdog's heartbeat pipe");
-}
+// THE WRITE NEVER BLOCKS THIS THREAD. Node writes `process.stderr` synchronously to a pipe on Windows, so a beat goes
+// through `fs.write` on the thread pool instead, one at a time, to the descriptor Node fixes for stderr on every
+// platform. A beat due while the last write is still pending is skipped, not queued: a watchdog that stops reading
+// holds one pool thread and no memory, and this thread goes on ending stuck Workers and forwarding their messages.
+// Once Node has opened `process.stderr` on a POSIX pipe the descriptor is non-blocking, so a full pipe answers `EAGAIN`
+// (the beat is dropped whole) or takes part of a line (the rest goes first next time, so every line stays one beat).
+// `EPIPE` means the watchdog is gone, and an unsupervised broker serves nothing.
+const beatDescriptor = process.stderr.fd;
 let beatPending = false;
+let unwrittenBeat: Buffer | null = null;
+function writeBeat(line: Buffer): void {
+  beatPending = true;
+  write(beatDescriptor, line, (error, written) => {
+    beatPending = false;
+    if (error === null) {
+      unwrittenBeat = written < line.byteLength ? line.subarray(written) : null;
+      return;
+    }
+    if (error.code === "EAGAIN") {
+      return;
+    }
+    // Any other fault but a closed pipe is a defect and stays loud.
+    if (error.code !== "EPIPE") {
+      throw error;
+    }
+    abandon();
+  });
+}
 const heartbeat = setInterval(() => {
   if (!process.connected || beatPending) {
+    return;
+  }
+  if (unwrittenBeat !== null) {
+    writeBeat(unwrittenBeat);
     return;
   }
   const beat = {
@@ -96,18 +109,7 @@ const heartbeat = setInterval(() => {
     execArgv: process.execArgv,
     nodeOptions: null,
   };
-  beatPending = true;
-  write(PLUGIN_BROKER_BEAT_FD, `${JSON.stringify(beat)}\n`, (error) => {
-    beatPending = false;
-    if (error === null) {
-      return;
-    }
-    // Any fault but a closed pipe is a defect and stays loud.
-    if (error.code !== "EPIPE") {
-      throw error;
-    }
-    abandon();
-  });
+  writeBeat(Buffer.from(`${JSON.stringify(beat)}\n`));
 }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
 heartbeat.unref();
 
@@ -185,10 +187,27 @@ function offer(message: BrokerParentMessage, route: PluginFrameRoute): boolean {
   return sender.offer({ kind: "frame", generation, frame, route });
 }
 
-// A command's answer, on its runtime's share; one that does not fit is answered with the channel-full refusal, which
-// the parent turns into a host-unavailable failure of that command alone.
+// What an ended invocation's answer says when the channel cannot carry the answer itself.
+const ENDED_ANSWER_REFUSED = "plugin host: invocation ended — its answer did not fit the channel";
+
+// The answer that replaces a command's answer the channel refused. An ended invocation strikes whatever refusal it met
+// (D347), so its answer never becomes the channel-full refusal: it stays the ended outcome, in host-fixed text and with
+// its activation log dropped, small enough that every hop carries it as a control frame. Any other answer fails as the
+// channel-full refusal, host-unavailable (D348).
+function answerRefusal(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): Extract<BrokerParentMessage, { readonly kind: "response" }> {
+  if (!message.ok && message.error.name === PLUGIN_INVOCATION_ENDED) {
+    return { kind: "response", id: message.id, ok: false, error: { name: PLUGIN_INVOCATION_ENDED, message: ENDED_ANSWER_REFUSED } };
+  }
+  if (message.ok && activationEnded(message.value)) {
+    return { kind: "response", id: message.id, ok: true, value: { ok: false, error: ENDED_ANSWER_REFUSED, log: [], ended: true } };
+  }
+  return channelFullResponse(message.id);
+}
+
+// A command's answer, on its runtime's share; one that does not fit is answered with its refusal, which the parent turns
+// into a failure of that command alone.
 function answer(share: string, message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
-  const refused = channelFullResponse(message.id);
+  const refused = answerRefusal(message);
   if (!offer(message, { share, refusal: { frame: serializeMessage(refused), back: false } })) {
     send(refused);
   }
@@ -537,6 +556,11 @@ function activationSucceeded(value: unknown): boolean {
   return typeof value === "object" && value !== null && Reflect.get(value, "ok") === true;
 }
 
+// Only the Worker's host code marks an activation outcome ended: main.js ran into its settlement wall or its CPU window.
+function activationEnded(value: unknown): boolean {
+  return typeof value === "object" && value !== null && Reflect.get(value, "ok") === false && Reflect.get(value, "ended") === true;
+}
+
 function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "command" }>): void {
   try {
     const runtimeId = message.runtimeId;
@@ -616,7 +640,8 @@ process.on("message", (value: unknown) => {
   }
   // Any failure to read or handle an inherited-channel frame calls abandon(), which ends the broker; the watchdog
   // reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects
-  // pending app commands. The cause goes to the inherited stderr first, the broker's only report channel.
+  // pending app commands. The cause goes to stderr first, the broker's only report channel, which the watchdog reads
+  // and passes on to its own stderr.
   try {
     const message = parseParentBrokerMessage(parseMessageLine(envelope.frame));
     if (message === null) {
@@ -630,6 +655,6 @@ process.on("message", (value: unknown) => {
     abandon();
   }
 });
+// The watchdog stops this broker by closing the channel (broker-watchdog.ts `stopBroker`); a dead watchdog closes it too.
 sender.send({ kind: "ready", generation });
-process.on("SIGTERM", abandon);
 process.on("disconnect", abandon);

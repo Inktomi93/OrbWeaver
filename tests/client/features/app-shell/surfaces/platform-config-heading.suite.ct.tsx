@@ -5,8 +5,8 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { CONFIG_CUSTOMIZE_LOOK_NAME, CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
-import { REGEX_NEW_SCRIPT_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { CONFIG_CUSTOMIZE_LOOK_NAME, CONFIG_THEME_GROUP_NAME, collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { ConfigHeadingShellStory } from "./_config-heading-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_config-heading-stories/ConfigHeadingShellStory";
@@ -63,7 +63,9 @@ async function expectAppearanceTasks(content: Locator, phone: boolean): Promise<
     if (first === null) {
       throw new Error("The appearance group has no first task section");
     }
-    return first.getBoundingClientRect().top - node.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(node).paddingBlockStart);
+    // The pane's block inset rides its body, inside the scroller.
+    const body = node.querySelector('[data-slot="content-pane-body"]') ?? node;
+    return first.getBoundingClientRect().top - body.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(body).paddingBlockStart);
   });
   await test.info().attach("first-task-leading-space", { body: JSON.stringify({ lead }), contentType: "application/json" });
   expect(Math.abs(lead) <= 1).toBe(phone);
@@ -77,7 +79,7 @@ async function expectRegexTasks(content: Locator, _phone: boolean): Promise<void
   const scripts = content.getByRole("list", { name: libraryName, exact: true });
   await expect(scripts).toBeVisible();
   await expect(scripts.getByRole("listitem").first()).toBeVisible();
-  await expect(content.getByRole("textbox", { name: "Filter regex scripts", exact: true })).toBeVisible();
+  await expect(content.getByRole("textbox", { name: collectionFilterName(REGEX_GROUP_LABEL), exact: true })).toBeVisible();
   await expect(content.getByText(/Find\/replace that runs on input/u)).toBeVisible();
   await expect(content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true })).toBeVisible();
 }

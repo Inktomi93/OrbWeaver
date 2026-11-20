@@ -9,6 +9,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
+import { PERSONA_MARKS_LESSON_TITLE } from "../lib/persona-copy.ts";
 
 /** A plain line, or an element that carries its own key (a mark line, or a paragraph with an inline mark). */
 type LearnLine = string | ReactElement;
@@ -53,7 +54,7 @@ function sentence(key: string, ...parts: readonly (string | LucideIcon)[]): Reac
 }
 
 export function renderMarksLearn(): ReactElement {
-  return learnBody("The four marks", [
+  return learnBody(PERSONA_MARKS_LESSON_TITLE, [
     "In the persona switcher, a row can carry up to four marks.",
     markLine("playing", Check, "Who you're playing in this chat. You change it by clicking the row."),
     markLine("pin", Pin, "Who the card's {{user}} is in this chat: the persona pin. The chat's host changes it.", "primary"),

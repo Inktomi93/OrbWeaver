@@ -11,13 +11,17 @@
 // the replacement FAILED → this file INVALIDATES the row it could not replace. The third used to have no
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
 // for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
+//
+// AN INVALIDATED DIGEST TAKES ITS STORED ANCESTORS WITH IT. A longer summary retells the digests it was built from,
+// and consolidation skips a group a dropped child leaves incomplete, so an ancestor left behind would keep telling
+// the scene as it read before the edit. `storedAncestors` names them; they drop in the same compare-and-swap.
 
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import { ProviderError, resolveSideGenSampling } from "@orb/inference";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ConsentingHostId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
@@ -47,17 +51,24 @@ interface GenerateDigestsArgs {
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
-  readonly signal?: AbortSignal | undefined;
-  readonly embedOwnerId?: UserId | undefined;
+  readonly signal: AbortSignal;
+  /** The room host whose encoder embeds the digests and whose space holds them. */
+  readonly embedOwnerId: ConsentingHostId;
 }
 
 /** The summarize call options for the FUNDER's memory build: their Utility-role preset params folded over the
  *  `memory_digest` posture (D304). The posture always carries an output cap, which hard-caps a looping model and
  *  is the SAME value `outputReserve` fits the input against. Read per call, so a changed choice applies next. */
-async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<RolePresetParams> {
+/** Whose summarize connection a batch spends, and the cancel of the build or sweep that asked for it. */
+export interface SummarizeFunder {
+  readonly funderUserId: UserId;
+  readonly signal: AbortSignal;
+}
+
+async function summarizerOpts(ctx: ChatContext, { funderUserId, signal }: SummarizeFunder): Promise<RolePresetParams> {
   const resolved = resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));
   const requested = resolved.maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
-  return { ...resolved, maxOutputTokens: clampOutputReserve(requested, await ctx.summarizerContextTokens(funderUserId)) };
+  return { ...resolved, maxOutputTokens: clampOutputReserve(requested, await ctx.summarizerContextTokens(funderUserId, signal)) };
 }
 
 /**
@@ -77,14 +88,14 @@ async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<R
  */
 async function summarizeBatchIsolated(
   ctx: ChatContext,
-  funderUserId: UserId,
+  { funderUserId, signal }: SummarizeFunder,
   inputs: readonly SummarizeInput[],
   onItemError: (index: number, err: unknown) => void,
 ): Promise<(string | null)[]> {
   if (inputs.length === 0) {
     return [];
   }
-  const call = { funderUserId, opts: await summarizerOpts(ctx, funderUserId) };
+  const call = { funderUserId, opts: { ...(await summarizerOpts(ctx, { funderUserId, signal })), signal } };
   // the handler re-runs each unfinished item alone through
   // `summarizeAlone`, and an item that fails alone reaches `onItemError`, which all three callers log with
   // `getLog(ctx.logger).error`. Items the batch finished are kept from `partialItems`. Ends if a caller stops logging `onItemError`.
@@ -106,7 +117,7 @@ async function summarizeBatchIsolated(
 /** One item's isolated summarize after its batch failed; `null` when it fails alone too. */
 async function summarizeAlone(
   ctx: ChatContext,
-  call: { readonly funderUserId: UserId; readonly opts: RolePresetParams },
+  call: { readonly funderUserId: UserId; readonly opts: RolePresetParams & { readonly signal: AbortSignal } },
   input: SummarizeInput,
   onError: (err: unknown) => void,
 ): Promise<string | null> {
@@ -124,8 +135,8 @@ async function summarizeAlone(
 
 /** The token-guard output reserve — the SAME `max_tokens` the summarize request sends (the one-home rule so
  *  the fit and the request can't diverge). */
-async function outputReserve(ctx: ChatContext, funderUserId: UserId): Promise<number> {
-  return (await summarizerOpts(ctx, funderUserId)).maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
+async function outputReserve(ctx: ChatContext, funder: SummarizeFunder): Promise<number> {
+  return (await summarizerOpts(ctx, funder)).maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
 }
 
 /** A consolidation pass's fold. `skippedEmpty` counts BOTH a blank summarizer result AND a bodyless arc (the
@@ -171,7 +182,7 @@ interface DigestPlan {
   readonly pending: readonly Tier0Pending[];
   readonly skipped: number;
   readonly skippedTokenGuard: number;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<DigestPlan | null> {
@@ -190,11 +201,11 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   }
   // Read only once a block has aged out: a funder with no Utility model has no window, and a pass with
   // nothing to digest must still complete.
-  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
+  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId, args.signal);
   if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
-  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId);
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);
@@ -250,8 +261,8 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
  *  isolated summarize of digest inputs with the funder's summarizer opts. Index-aligned; `null` = per-item fail
  *  (the content-hash self-heal retries it next pass). Length-sort the inputs before this for the big backfill
  *  batch — similar-length sequences pack with less ragged-batch padding waste. */
-export function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, funderUserId, inputs, (i, err) =>
+export function summarizeDigestBatch(ctx: ChatContext, funder: SummarizeFunder, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, funder, inputs, (i, err) =>
     getLog(ctx.logger).error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
   );
 }
@@ -265,7 +276,7 @@ export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArg
   }
   const texts = await summarizeDigestBatch(
     ctx,
-    plan.funderUserId,
+    { funderUserId: plan.funderUserId, signal: plan.signal },
     plan.pending.map((p) => p.input),
   );
   return commitDigestPlan(ctx, plan, texts);
@@ -313,11 +324,11 @@ async function collectTier0(
   // token guard fits against the RESOLVED text (a longer override must shrink the block, not overflow it).
   const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
   const systemPromptTokens = estimateTokens(systemPrompt);
-  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
-  const reserve = await outputReserve(ctx, args.funderUserId);
+  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId, args.signal);
+  const reserve = await outputReserve(ctx, { funderUserId: args.funderUserId, signal: args.signal });
   const pending: Tier0Pending[] = [];
   for (const block of env.blocks) {
-    args.signal?.throwIfAborted();
+    args.signal.throwIfAborted();
     const hash = blockHash(`${scopedCharacterId}:0:${block.blockIdx}`, block.rows);
     if (env.existing.get(`0:${block.blockIdx}`) === hash) {
       skipped += 1;
@@ -353,7 +364,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
   const { chatId, scopedCharacterId, isGroup } = plan.scope;
   let written = 0;
   let skippedEmpty = 0;
-  const staleKeys: { tier: number; blockIdx: number; staleHash: string }[] = [];
+  const staleKeys: StaleDigestKey[] = [];
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -367,7 +378,10 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       // sibling pass that healed this block meanwhile keeps its fresh digest.
       const staleHash = plan.existing.get(`0:${item.block.blockIdx}`);
       if (staleHash !== undefined) {
-        staleKeys.push({ tier: 0, blockIdx: item.block.blockIdx, staleHash });
+        staleKeys.push(
+          { tier: 0, blockIdx: item.block.blockIdx, staleHash },
+          ...storedAncestors(plan.existing, { tier: 0, blockIdx: item.block.blockIdx }, plan.cfg),
+        );
       }
       continue;
     }
@@ -391,14 +405,37 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
   return { written, skippedEmpty };
 }
 
+/** A stored digest a pass proved stale: its grid key and the hash the delete compares against. */
+interface StaleDigestKey {
+  readonly tier: number;
+  readonly blockIdx: number;
+  readonly staleHash: string;
+}
+
+/** The longer summaries stored above the digest at `from`, nearest tier first, each with its stored hash: the parent
+ *  at `floor(blockIdx / fanOut)` one tier up, and so on to `maxTier`, the same grouping `groupByParent` consolidates by.
+ *  A position with no stored row is absent. */
+function storedAncestors(
+  existing: ReadonlyMap<string, string>,
+  from: { readonly tier: number; readonly blockIdx: number },
+  cfg: Pick<ReturnType<typeof resolveCfg>, "fanOut" | "maxTier">,
+): StaleDigestKey[] {
+  const ancestors: StaleDigestKey[] = [];
+  let blockIdx = from.blockIdx;
+  for (let tier = from.tier + 1; tier <= cfg.maxTier; tier += 1) {
+    blockIdx = Math.floor(blockIdx / cfg.fanOut);
+    const staleHash = existing.get(`${tier}:${blockIdx}`);
+    if (staleHash !== undefined) {
+      ancestors.push({ tier, blockIdx, staleHash });
+    }
+  }
+  return ancestors;
+}
+
 /** Drop the KNOWN-stale digest rows a pass proved stale and then failed to replace — the third
  *  memory delete, beside the shrink reclaim and the content-hash self-heal. No-op on an empty set (the
  *  ordinary pass), so the build's no-op economy is untouched. */
-async function invalidateStale(
-  ctx: ChatContext,
-  scope: MemoryScope,
-  keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[],
-): Promise<void> {
+async function invalidateStale(ctx: ChatContext, scope: MemoryScope, keys: readonly StaleDigestKey[]): Promise<void> {
   if (keys.length === 0) {
     return;
   }
@@ -453,11 +490,14 @@ interface ConsPending {
  *  Non-exported — backfill derives it by inference (§7.4: no build-internal type in an export). */
 interface ConsolidationTierPlan {
   readonly embedSpace: MemoryEmbedSpace;
+  /** What the collect read as stored, so the store can name the ancestors of a parent it drops. */
+  readonly existing: ReadonlyMap<string, string>;
+  readonly cfg: ReturnType<typeof resolveCfg>;
   readonly parentTier: number;
   readonly pending: readonly ConsPending[];
   readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
   readonly skipped: number;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Walk tiers 0..maxTier-1, consolidating each complete `fanOut`-group of tier-k digests into a tier-(k+1)
@@ -468,7 +508,7 @@ async function consolidateTiers(
   args: {
     readonly cfg: ReturnType<typeof resolveCfg>;
     readonly existing: ReadonlyMap<string, string>;
-    readonly signal: AbortSignal | undefined;
+    readonly signal: AbortSignal;
     readonly funderUserId: UserId;
     readonly embedSpace: MemoryEmbedSpace;
   },
@@ -478,7 +518,7 @@ async function consolidateTiers(
   let skipped = 0;
   let skippedEmpty = 0;
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal, funderUserId, embedSpace });
     if (pass === null) {
       break; // fewer than fanOut children at this tier → the consolidation ceiling
@@ -500,7 +540,7 @@ async function consolidateOneTier(
   args: {
     readonly tier: number;
     readonly existing: ReadonlyMap<string, string>;
-    readonly signal: AbortSignal | undefined;
+    readonly signal: AbortSignal;
     readonly funderUserId: UserId;
     readonly embedSpace: MemoryEmbedSpace;
   },
@@ -513,7 +553,7 @@ async function consolidateOneTier(
   // so it uses `summarizeConsolidationBatch` (flat index). Same summaries, same opts — only the error tag differs.
   const texts = await summarizeBatchIsolated(
     ctx,
-    args.funderUserId,
+    { funderUserId: args.funderUserId, signal: args.signal },
     plan.pending.map((p) => p.input),
     (i, err) =>
       getLog(ctx.logger).error(
@@ -537,7 +577,7 @@ export async function collectConsolidationTier(
   args: {
     readonly tier: number;
     readonly existing: ReadonlyMap<string, string>;
-    readonly signal: AbortSignal | undefined;
+    readonly signal: AbortSignal;
     readonly funderUserId: UserId;
     readonly embedSpace: MemoryEmbedSpace;
   },
@@ -561,14 +601,14 @@ export async function collectConsolidationTier(
   // relations by changing who did what. The budget
   // is resolved ONCE per tier (the system prompt + output reserve are the same for every parent this pass).
   const consolidationBudget = {
-    contextTokens: await ctx.summarizerContextTokens(args.funderUserId),
+    contextTokens: await ctx.summarizerContextTokens(args.funderUserId, signal),
     systemPromptTokens: estimateTokens(consolidationSystem),
-    outputReserveTokens: await outputReserve(ctx, args.funderUserId),
+    outputReserveTokens: await outputReserve(ctx, { funderUserId: args.funderUserId, signal }),
   } as const;
   const pending: ConsPending[] = [];
   let skipped = 0;
   for (const [parentBlockIdx, group] of [...groups].sort((a, b) => a[0] - b[0])) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     if (group.length < cfg.fanOut) {
       continue; // incomplete group — defer until it fills
     }
@@ -598,14 +638,14 @@ export async function collectConsolidationTier(
       },
     });
   }
-  return { embedSpace: args.embedSpace, parentTier, pending, speakerMap, skipped, signal };
+  return { embedSpace: args.embedSpace, existing, cfg, parentTier, pending, speakerMap, skipped, signal };
 }
 
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
  *  but its own error tag. In the corpus backfill the flat batch loses per-parent context, so the log carries
  *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
-export function summarizeConsolidationBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, funderUserId, inputs, (i, err) =>
+export function summarizeConsolidationBatch(ctx: ChatContext, funder: SummarizeFunder, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, funder, inputs, (i, err) =>
     getLog(ctx.logger).error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
 }
@@ -621,7 +661,15 @@ export async function storeConsolidationTier(
 ): Promise<PassCounts> {
   let written = 0;
   let skippedEmpty = 0;
-  const staleKeys: { tier: number; blockIdx: number; staleHash: string }[] = [];
+  const staleKeys: StaleDigestKey[] = [];
+  const dropParent = (item: ConsPending): void => {
+    if (item.staleHash !== undefined) {
+      staleKeys.push(
+        { tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash },
+        ...storedAncestors(plan.existing, { tier: plan.parentTier, blockIdx: item.parentBlockIdx }, plan.cfg),
+      );
+    }
+  };
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -630,9 +678,7 @@ export async function storeConsolidationTier(
     const raw = texts[i];
     if (raw === null || raw === undefined || raw.trim().length === 0) {
       skippedEmpty += 1;
-      if (item.staleHash !== undefined) {
-        staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash });
-      }
+      dropParent(item);
       continue;
     }
     const parsed = parseDigest(raw);
@@ -643,9 +689,7 @@ export async function storeConsolidationTier(
     // VISIBLY, never silently ship a bodyless arc as canon).
     if (parsed.facts.trim().length === 0) {
       skippedEmpty += 1;
-      if (item.staleHash !== undefined) {
-        staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash });
-      }
+      dropParent(item);
       continue;
     }
     const receipt = await ctx.embeddingsStore({

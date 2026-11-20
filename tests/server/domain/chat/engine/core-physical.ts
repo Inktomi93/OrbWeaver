@@ -66,6 +66,53 @@ export function coreProse(text: string): Response {
   return coreSse([coreFrame({ choices: [{ delta: { content: text } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]);
 }
 
+/** Stream `frames`, then hold the open response until the turn's own cancellation closes it. `streamed` resolves
+ *  once the frames went out and `closed` once the physical stream ended. */
+export function corePartialReply(frames: readonly string[]): {
+  readonly streamed: Promise<void>;
+  readonly closed: Promise<void>;
+  readonly respond: (request: Request) => Response;
+} {
+  const streamed = Promise.withResolvers<void>();
+  const closed = Promise.withResolvers<void>();
+  return {
+    streamed: streamed.promise,
+    closed: closed.promise,
+    respond: (request): Response => {
+      let sent = false;
+      return new Response(
+        new ReadableStream<Uint8Array>(
+          {
+            async pull(controller): Promise<void> {
+              if (!sent) {
+                sent = true;
+                controller.enqueue(new TextEncoder().encode(frames.map((frame) => `${frame}\n\n`).join("")));
+                streamed.resolve();
+                return;
+              }
+              const interrupted = Promise.withResolvers<never>();
+              const abort = (): void => interrupted.reject(request.signal.reason);
+              try {
+                request.signal.throwIfAborted();
+                request.signal.addEventListener("abort", abort, { once: true });
+                await interrupted.promise;
+              } finally {
+                request.signal.removeEventListener("abort", abort);
+                closed.resolve();
+              }
+            },
+            cancel(): void {
+              closed.resolve();
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+        { headers: { "content-type": "text/event-stream" } },
+      );
+    },
+  };
+}
+
 /** Pause only external HTTP admission; actual cancellation releases and joins this physical edge. */
 export function coreHeldReply(): {
   readonly reached: Promise<AbortSignal>;

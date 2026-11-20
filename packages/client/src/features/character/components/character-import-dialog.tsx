@@ -7,12 +7,22 @@
 // open for another file, so the line is already in front of the person and no toast repeats it), and a partial says how many of how many.
 
 import type { CardImportResult } from "@orb/contracts/import";
+import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
-import { cardImportPartialLine, cardImportRefusalLine, DIALOG_VERBS, notify } from "#lib";
+import {
+  cardImportPartialLine,
+  cardImportRefusalLine,
+  cardInLibraryNotice,
+  cardsInLibraryNotice,
+  DIALOG_VERBS,
+  inLibraryClause,
+  notify,
+  refuseOversizeFiles,
+} from "#lib";
 import { selectCharacter } from "#state";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
@@ -24,24 +34,37 @@ interface ImportNotice {
   readonly message: string;
 }
 
-/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. */
+/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. A
+ *  `created: false` card is one the library already held (D290), and the toast says so rather than "imported". */
 function importNotice({ imported, failed }: CardImportResult): ImportNotice {
+  const landed = imported.filter((card) => card.created).length;
+  const held = imported.filter((card) => !card.created);
   if (failed.length === 0) {
-    return { kind: "success", message: imported.length === 1 ? "Card imported." : `${imported.length} cards imported.` };
+    const [onlyHeld] = held;
+    if (landed === 0) {
+      return {
+        kind: "info",
+        message: held.length === 1 && onlyHeld !== undefined ? cardInLibraryNotice(onlyHeld.name) : cardsInLibraryNotice(held.length),
+      };
+    }
+    const landedLine = landed === 1 ? "Card imported" : `${landed} cards imported`;
+    return { kind: "success", message: held.length === 0 ? `${landedLine}.` : `${landedLine}, ${inLibraryClause(held.length)}.` };
   }
   return {
     kind: "info",
-    message: cardImportPartialLine(imported.length, failed),
+    message: cardImportPartialLine(landed, held.length, failed),
   };
 }
 
 export interface CharacterImportDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** The door beside the dialog, rendered as its trigger so it speaks the dialog's open state. */
+  readonly trigger?: ReactElement;
 }
 
 /** The card-import dialog: drop PNG/JSON → upload → say the real outcome → open the imported card and close when something landed. */
-export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDialogProps): ReactElement {
+export function CharacterImportDialog({ open, onOpenChange, trigger }: CharacterImportDialogProps): ReactElement {
   const invalidation = useInvalidation();
   const [refusal, setRefusal] = useState<string | null>(null);
 
@@ -50,6 +73,12 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       return;
     }
     setRefusal(null);
+    // The route holds a whole drop in memory under one cap, so the files' sizes together are what it refuses on.
+    const tooLarge = refuseOversizeFiles(accepted, IMPORT_MAX_TOTAL_BYTES);
+    if (tooLarge !== undefined) {
+      setRefusal(tooLarge.message);
+      return;
+    }
     importCharacters(accepted).then(
       (result) => {
         if (result.imported.length === 0) {
@@ -93,6 +122,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       }}
       open={open}
       title={CHARACTER_IMPORT_NAME}
+      {...(trigger === undefined ? {} : { trigger })}
     >
       <FileDropzone
         accept={CARD_ACCEPT}

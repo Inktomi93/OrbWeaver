@@ -8,6 +8,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { FailedCardReason } from "@orb/contracts/import";
 import { CARD_REFUSAL_CODES, cardImportResultSchema, FAILED_CARD_REASONS } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -16,7 +17,6 @@ import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 type CardImportResult = ReturnType<typeof cardImportResultSchema.parse>;
 
-const DIALOG_FIELD = "file";
 const GOOD_FILE = "keeper.json";
 const REFUSED_FILE = "refused.json";
 // Far past any character name cap, so the card decodes and then fails the canonical schema.
@@ -45,7 +45,7 @@ function harness(): Promise<ServerTestHarness> {
 async function dialog(root: ServerTestHarness, files: Readonly<Record<string, string>>): Promise<CardImportResult> {
   const form = new FormData();
   for (const [filename, text] of Object.entries(files)) {
-    form.append(DIALOG_FIELD, new File([text], filename));
+    form.append(UPLOAD_FILE_FIELD, new File([text], filename));
   }
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);

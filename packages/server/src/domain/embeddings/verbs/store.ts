@@ -35,6 +35,7 @@ import type {
   StoreParams,
 } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
+import { resolveTargetGeneration } from "../persistence/generation.ts";
 import {
   existingCaptionedRow,
   existingCharacterHash,
@@ -47,7 +48,6 @@ import {
   upsertImageEmbedding,
 } from "../persistence/queries.ts";
 import { embedFailure } from "../substrate/embed-failure.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 
 function assertNever(value: never): never {
@@ -320,7 +320,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {
   const inFlight = new Map<string, Promise<StoreResult>>();
   const storeEntity = async (params: CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> => {
-    params.signal?.throwIfAborted();
+    params.signal.throwIfAborted();
     const task = params.lens === "card-text" ? "embed" : "imageEmbed";
     const via = params.lens === "image-captioned" ? params.via : task;
     const generation = await resolveTargetGeneration(ctx, params.ownerId, task, via);

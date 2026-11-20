@@ -9,7 +9,7 @@ import type { ModelId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
-import type { WorkerModelCache } from "#src/contract/local-light.ts";
+import type { LocalLightBackendDeps, WorkerModelCache } from "#src/contract/local-light.ts";
 import type {
   LocalLightHostMessage,
   LocalLightWorkerCall,
@@ -32,6 +32,8 @@ interface WorkerModelCacheConfig extends LocalLightWorkerOptions {
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
   readonly log: InferenceLog;
+  /** The Worker's `process.env`, read each time a Worker starts. */
+  readonly childEnv: LocalLightBackendDeps["childEnv"];
 }
 
 // Every provenance field a ProviderError may carry; `rewrap` in contract/errors.ts lists the same set.
@@ -168,7 +170,7 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   };
 
   const start = (): Live => {
-    const worker = new Worker(new URL("./model-worker.ts", import.meta.url), { workerData: options });
+    const worker = new Worker(new URL("./model-worker.ts", import.meta.url), { workerData: options, env: config.childEnv() });
     // An idle worker must never hold the process open; shutdown closes it explicitly.
     worker.unref();
     const state: Live = { worker, pending: new Map(), ended: false, closing: false, exited: Promise.withResolvers<void>(), joining: false };

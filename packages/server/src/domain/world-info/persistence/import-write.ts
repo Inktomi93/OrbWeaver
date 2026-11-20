@@ -29,13 +29,14 @@
 // uniqueness check this write once ran protected the title-keyed `upsertEntries` stream (its callers key by
 // title); that verb documents last-write-wins for a repeated title and needs no refusal here.
 
+import type { ImportAnswer } from "@orb/contracts/import";
 import type {
   AttachOwnedBooksByName,
   BulkImportLorebook,
   BulkImportLorebookInput,
   BulkImportLorebookResult,
   HasPrimaryBook,
-  ImportStandaloneLorebook,
+  ImportStandaloneLorebooks,
 } from "@orb/contracts/world-info";
 import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -46,10 +47,12 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { nextFreeLabel } from "@orb/kit/strings";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { mapYielding } from "#primitives/abort";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#primitives/serde/world-info";
-import { findDuplicateBook } from "#primitives/serde/world-info";
+import { bookContentKey, findDuplicateBook } from "#primitives/serde/world-info";
 import type { WorldInfoImportContext } from "../contract/import.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
@@ -117,7 +120,7 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
 /** The incoming embedded book projected onto the dedup shape. `metadata` is narrowed here so its
  *  canonical key matches the stored form (`entryStmts` stores `narrowEntryMetadata(raw)`); miss that
  *  and a re-encoded identical book fails to match. `keys` collapse is deferred to the pure normalizer. */
-export function toDedupBook(book: BulkImportLorebookInput): DedupBook {
+function toDedupBook(book: BulkImportLorebookInput): DedupBook {
   return {
     name: book.name,
     entries: book.entries.map(
@@ -140,7 +143,7 @@ export function toDedupBook(book: BulkImportLorebookInput): DedupBook {
  *  foreign book is never a candidate — cross-tenant gate). Two reads (books, then their entries) grouped in
  *  memory; `world_entries` metadata is the stored schema-parsed blob, so it is comparable to `toDedupBook`'s
  *  parsed side without re-parsing. */
-export async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCandidateBook[]> {
+async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCandidateBook[]> {
   const books = await db.select({ id: worldBooks.id, name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
   if (books.length === 0) {
     return [];
@@ -172,7 +175,8 @@ export async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<D
       enabled: e.enabled,
       priority: e.priority,
       ignoreBudget: e.ignoreBudget,
-      metadata: e.metadata,
+      // Stored metadata that is not JSON compares as none, as the entry view reads it.
+      metadata: e.metadata instanceof UnreadableJsonText ? null : e.metadata,
     });
     byBook.set(e.worldBookId, list);
   }
@@ -335,42 +339,96 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
   };
 }
 
-// The standalone (unattached) path — a sibling of createBulkImportLorebook that lands a lone book with no
-// character attach, additively: equal content reuses the owned row (under the name it carries), different
-// content lands under the next free name, and no owned row is ever edited.
-
-/** The owned book an equal incoming one reuses, or null. The one test both the write and the preview's `createFindOwnedBooks` ask. */
+/** The owned book an equal incoming one reuses, or null. */
 async function findOwnedEqualBook(db: Db, ownerId: UserId, book: BulkImportLorebookInput): Promise<DedupCandidateBook | null> {
   return findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
 }
 
-export function createImportStandaloneLorebook(input: DbAssemblyInput<WorldInfoImportContext>): ImportStandaloneLorebook {
-  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
-    const { db } = ctx;
-    const at = ctx.now();
+// The standalone (unattached) path — a sibling of createBulkImportLorebook that lands lone books with no character
+// attach, additively and in order: equal content reuses the row the owner holds or the batch landed (under the name
+// it carries), different content lands under the next free name, and no owned row is ever edited. The dry run is
+// this same loop with the write left out, so a preview cannot drift from the run.
 
-    const duplicate = await findOwnedEqualBook(db, ownerId, book);
-    if (duplicate !== null) {
-      return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
+type LorebookBatch = Omit<Parameters<ImportStandaloneLorebooks>[0], "dryRun">;
+
+/** The batch's library: each content key's book (the first owned book wins, then each book the batch lands), whether
+ *  the owner held it before the batch, and every name taken. */
+interface BookLibrary {
+  readonly byKey: Map<string, { readonly id: WorldBookId; readonly name: string; readonly owned: boolean }>;
+  readonly takenNames: string[];
+}
+
+async function bookLibraryOf(db: Db, ownerId: UserId): Promise<BookLibrary> {
+  const owned = await loadOwnedBooksForDedup(db, ownerId);
+  const library: BookLibrary = { byKey: new Map(), takenNames: owned.map((book) => book.name) };
+  for (const book of owned) {
+    const key = bookContentKey(book);
+    if (!library.byKey.has(key)) {
+      library.byKey.set(key, { id: book.id, name: book.name, owned: true });
     }
+  }
+  return library;
+}
 
-    const name = nextFreeLabel(book.name, await listOwnedBookNames(db, ownerId));
-    const bookId = ctx.newBookId();
-    const stmts: BatchStmt[] = [
-      batchStmt(
-        db.insert(worldBooks).values({
-          id: bookId,
-          ownerId,
-          name,
-          description: book.description,
-          createdAt: at,
-          updatedAt: at,
-        }),
-      ),
-      ...entryStmts(ctx, bookId, book, at),
-    ];
-    await db.batch(batchMany(stmts));
-    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false, created: true, name, renamedFrom: name === book.name ? null : book.name };
+interface BookDecision {
+  readonly answer: ImportAnswer;
+  readonly result: BulkImportLorebookResult;
+}
+
+/** What the batch does with one book, in the batch's order. A new book is entered in `library`, so a later equal book
+ *  reuses it. */
+function decideBook(library: BookLibrary, book: BulkImportLorebookInput, newId: () => WorldBookId): BookDecision {
+  const key = bookContentKey(toDedupBook(book));
+  const entryCount = book.entries.length;
+  const same = library.byKey.get(key);
+  if (same !== undefined) {
+    return {
+      answer: { reuse: same.owned ? "library" : "upload", keys: [key] },
+      result: { worldBookId: same.id, entryCount, replaced: false, created: false, name: same.name, renamedFrom: null },
+    };
+  }
+  const name = nextFreeLabel(book.name, library.takenNames);
+  const worldBookId = newId();
+  library.takenNames.push(name);
+  library.byKey.set(key, { id: worldBookId, name, owned: false });
+  return {
+    answer: { reuse: null, keys: [key] },
+    result: { worldBookId, entryCount, replaced: false, created: true, name, renamedFrom: name === book.name ? null : book.name },
   };
+}
+
+export function createImportStandaloneLorebooks(input: DbAssemblyInput<WorldInfoImportContext>): ImportStandaloneLorebooks {
+  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
+
+  async function write(ownerId: UserId, book: BulkImportLorebookInput, { worldBookId, name }: BulkImportLorebookResult): Promise<void> {
+    const at = ctx.now();
+    const stmts: BatchStmt[] = [
+      batchStmt(ctx.db.insert(worldBooks).values({ id: worldBookId, ownerId, name, description: book.description, createdAt: at, updatedAt: at })),
+      ...entryStmts(ctx, worldBookId, book, at),
+    ];
+    await ctx.db.batch(batchMany(stmts));
+  }
+
+  async function importBooks(args: LorebookBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  async function importBooks(args: LorebookBatch & { readonly dryRun: false }): Promise<readonly BulkImportLorebookResult[]>;
+  async function importBooks({
+    ownerId,
+    books,
+    signal,
+    dryRun,
+  }: LorebookBatch & { readonly dryRun: boolean }): Promise<readonly ImportAnswer[] | readonly BulkImportLorebookResult[]> {
+    if (books.length === 0) {
+      return [];
+    }
+    const library = await bookLibraryOf(ctx.db, ownerId);
+    const decided = await mapYielding(books, signal, async (book): Promise<BookDecision> => {
+      const decision = decideBook(library, book, ctx.newBookId);
+      if (!dryRun && decision.result.created) {
+        await write(ownerId, book, decision.result);
+      }
+      return decision;
+    });
+    return dryRun ? decided.map(({ answer }) => answer) : decided.map(({ result }) => result);
+  }
+  return importBooks;
 }

@@ -7,6 +7,7 @@ import type { BeginEmbeddingAccounting, EmbeddingAccounting, EmbeddingTask } fro
 import type { Task } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
+import { judgesTheKey } from "../backends/http/error-classify.ts";
 import type { BackendRegistry, ProviderExecutor, ReadOwnedExecutionConnection } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
@@ -41,6 +42,16 @@ function providerFailureOf(err: unknown): ProviderError | null {
   return cause instanceof ProviderError ? cause : null;
 }
 
+function refusalOf(failure: ProviderError): ProviderError {
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: failure.message,
+    ...(failure.apiErrorStatus === undefined ? {} : { apiErrorStatus: failure.apiErrorStatus }),
+    cause: failure,
+  });
+}
+
 export function createProviderExecutor(args: {
   readonly registry: BackendRegistry;
   readonly span: SpanFn;
@@ -61,10 +72,36 @@ export function createProviderExecutor(args: {
       task,
     });
 
+  // SECURITY: the one strike decision for every task. A 403 on a row whose 403 judges nothing (a model off the plan, a
+  // cooldown) never strikes the key and fails as a refusal in the service's words, since `auth_failed` would also tell
+  // the user the key was rejected. A settled caller-owned cancellation is not evidence against the key either.
+  const settleFailure = async (connection: Resolved, task: Task, signal: AbortSignal, err: unknown): Promise<never> => {
+    const failure = providerFailureOf(err);
+    if (failure === null || signal.aborted) {
+      throw err;
+    }
+    if (!judgesTheKey(failure, connection.features.forbiddenIsNotCredentialVerdict === true)) {
+      throw failure.kind === "auth_failed" ? refusalOf(failure) : err;
+    }
+    if (args.onAuthFailed !== undefined) {
+      try {
+        await args.onAuthFailed({
+          ownerId: connection.ownerId,
+          ...credentialExecutionEvidenceOf(connection.credential),
+          errorKind: failure.kind,
+          errorMessage: failure.message,
+        });
+      } catch (strikeErr) {
+        args.log.warn({ task, err: strikeErr }, "inference: the credential strike-out failed (the call's own error is unaffected)");
+      }
+    }
+    throw err;
+  };
+
   const execute = async <T extends Task, Result>(
     captured: Resolved<T>,
     task: T,
-    signal: AbortSignal | undefined,
+    signal: AbortSignal,
     run: (connection: Resolved<T>) => Promise<Result>,
   ): Promise<Result> => {
     const current = await args.readOwnedConnection(captured.connectionId, captured.ownerId);
@@ -87,21 +124,7 @@ export function createProviderExecutor(args: {
     try {
       return await run(connection);
     } catch (err) {
-      const failure = providerFailureOf(err);
-      // A settled caller-owned cancellation is not evidence against the key (the chat abort classification).
-      if (failure !== null && signal?.aborted !== true && args.onAuthFailed !== undefined) {
-        try {
-          await args.onAuthFailed({
-            ownerId: connection.ownerId,
-            ...credentialExecutionEvidenceOf(credential),
-            errorKind: failure.kind,
-            errorMessage: failure.message,
-          });
-        } catch (strikeErr) {
-          args.log.warn({ task, err: strikeErr }, "inference: the credential strike-out failed (the call's own error is unaffected)");
-        }
-      }
-      throw err;
+      return await settleFailure(connection, task, signal, err);
     }
   };
 

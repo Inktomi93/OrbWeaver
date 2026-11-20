@@ -25,7 +25,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, sectionBackName, testId, useFocusOnMount } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, setActiveSection } from "#state";
@@ -33,6 +33,7 @@ import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { matchWord, percent } from "../lib/corpus-vocabulary.ts";
 
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
@@ -222,7 +223,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       <Section heading="Similar characters">
         {dossier.similar.length === 0 ? (
-          <Text voice="gloss">No near neighbours found.</Text>
+          <MutedLine>No near neighbours found.</MutedLine>
         ) : (
           <Stack gap="row">
             {/* THE ORDER IS NOT THE PRINTED NUMBER, AND THE LIST NOW SAYS SO (side-eye corpus re-pass U3:
@@ -291,7 +292,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
     <QueryBoundary
       resetKeys={[characterId]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the similar art" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.similarArt} onRetry={retry} />}
     >
       <SimilarArtRead characterId={characterId} />
     </QueryBoundary>
@@ -303,7 +304,7 @@ function SimilarArtRead({ characterId }: { readonly characterId: CharacterId }):
   const { data: art } = useSuspenseQuery(trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }));
 
   if (art.length === 0) {
-    return <Text voice="gloss">No look-alike portraits found.</Text>;
+    return <MutedLine>No look-alike portraits found.</MutedLine>;
   }
   return (
     <Stack gap="row" role="list">

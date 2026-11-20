@@ -5,6 +5,7 @@
 
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { APNG_MIME, SNIFFED_IMAGE_MIMES } from "@orb/kit/image-sniff";
 import { z } from "zod";
 import type { Principal } from "#identity";
 import { pageDirectionShape } from "#rpc";
@@ -18,7 +19,7 @@ export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
  *  chat image or video (mp4/webm/gif); `document` = a databank source document's original bytes; `background` = a user-uploaded
  *  decorative app background (pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
- *  The db `assets.kind` enum derives from this tuple. */
+ *  The db `asset_kinds.kind` enum derives from this tuple. An asset holds one kind per use (D350). */
 
 export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"] as const;
 
@@ -49,10 +50,37 @@ export const ASSET_KIND_MEDIA = {
   plugin: ["zip", "image"],
 } as const satisfies Readonly<Record<AssetKind, readonly AssetMedia[]>>;
 
-/** Whether every blob of the kind is a picture: the only kinds an avatar field may point at. */
-export function isPictureAssetKind(kind: AssetKind): boolean {
+export const MP4_MIME = "video/mp4";
+export const WEBM_MIME = "video/webm";
+
+/** The stored types the blob route serves inline: the images the store accepts by signature, animated PNG, and the two
+ *  video containers. A stored type is served inline only when it equals one of these exactly; every other type
+ *  downloads as an attachment. */
+export const INLINE_SERVED_MIMES = [...SNIFFED_IMAGE_MIMES, APNG_MIME, MP4_MIME, WEBM_MIME] as const;
+export type InlineServedMime = (typeof INLINE_SERVED_MIMES)[number];
+
+// Whether every blob of the kind is a picture.
+function isPictureAssetKind(kind: AssetKind): boolean {
   const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
   return media.length > 0 && media.every((medium) => medium === "image");
+}
+
+// The stored types of a picture: the images the store accepts by signature, and animated PNG.
+const PICTURE_MIMES: readonly string[] = [...SNIFFED_IMAGE_MIMES, APNG_MIME];
+
+/** Whether a stored asset is a picture an avatar may point at: one of a picture kind, or one of a kind that also admits
+ *  images stored as one of the image types an avatar upload accepts (PNG, JPEG, GIF, WebP, animated PNG). The upload
+ *  door stores that type only after the bytes' signature matched it.
+ *
+ *  @remarks
+ *  An asset holds a kind for each use, so a picture first stored as a chat attachment and later as an avatar holds
+ *  both; any one picture use makes it a picture. The image header is not enough: an AVIF file is an MP4-family
+ *  container, so the store keeps it as a video under a `video/mp4` claim, and its header still reads as an image. */
+export function isPictureAsset(asset: { readonly kinds: readonly AssetKind[]; readonly mime: string }): boolean {
+  return asset.kinds.some((kind) => {
+    const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
+    return isPictureAssetKind(kind) || (media.includes("image") && PICTURE_MIMES.includes(asset.mime));
+  });
 }
 
 /** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
@@ -129,10 +157,9 @@ const CAS_HASH_HEX_LENGTH = 64;
 
 /** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator.
  *
- *  The floor matches what the producer can actually emit: `infra/storage/cas.ts` always returns a 64-char
- *  sha-256 hex, so an empty hash was a state no live path could reach and the schema accepted anyway. This
- *  is a RESPONSE validator over our own server's reply, not an input boundary — the tightening buys a louder
- *  failure if the reply ever stops being what the CAS promises, nothing more, and it is free. */
+ *  The width matches what the producer emits: `infra/storage/cas.ts` always returns a 64-char sha-256 hex.
+ *  This is a RESPONSE validator over our own server's reply, not an input boundary — the width buys a louder
+ *  failure if the reply ever stops being what the CAS promises, nothing more. */
 export const storedAssetSchema = z.strictObject({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
@@ -156,7 +183,8 @@ export const ASSET_LIST_LIMIT_MAX = 100;
 export interface AssetListItem {
   readonly assetId: AssetId;
   readonly hash: string;
-  readonly kind: AssetKind;
+  /** Every kind the asset is used as, in the order of `ASSET_KINDS`. */
+  readonly kinds: readonly AssetKind[];
   readonly mime: string;
   readonly size: number;
   readonly uploadedAt: number;
@@ -166,7 +194,7 @@ export interface AssetListItem {
 export const assetListItemSchema = z.strictObject({
   assetId: assetIdSchema,
   hash: z.string(),
-  kind: assetKindSchema,
+  kinds: z.array(assetKindSchema).readonly(),
   mime: z.string(),
   size: z.number(),
   uploadedAt: z.number(),
@@ -266,8 +294,8 @@ export const resolveBlobRefsParamsSchema = z.strictObject({
  *  here because only THIS projection needs them (the grid sizes its own tiles). */
 export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime"> & {
   /** Header-parsed intrinsic size, stored at upload — the render side reserves the true box with
-   *  it BEFORE the bytes arrive. `null` when the asset is not an image or its header was unparseable
-   *  (and on every row written before the dimension columns existed): the renderer falls back to its placeholder aspect. */
+   *  it BEFORE the bytes arrive. `null` when the asset is not an image, its header was unparseable, or its
+   *  row predates the dimension columns: the renderer falls back to its placeholder aspect. */
   readonly width: number | null;
   readonly height: number | null;
 };
@@ -285,8 +313,7 @@ export const resolveChatBlobRefsParamsSchema = z.strictObject({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
 
-// ── The `assets-fsck` workload's terminal result (the workloads junk-drawer exit: a workload's result
-//    shape is authored by the OWNING domain). ──
+// ── The `assets-fsck` workload's terminal result: a workload's result shape is authored by the OWNING domain. ──
 
 /** The read-only integrity walk's three fault counts — the REPORT is the product of the run. */
 export interface FsckReport {
@@ -309,13 +336,13 @@ export const fsckReportSchema = z.strictObject({ danglingRows: z.number(), corru
  *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
  *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
  *
- *  TWO CARRIED PICTURES, ONE PORT. The avatar was always re-owned here; the card's carried BACKGROUND
- *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
- *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
- *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write
- *  that could land a card the owner's own edit verb would reject. `kind` is the ASSET KIND the re-owned row
- *  is stored under, because the two are genuinely different kinds in the CAS index (a background is not an
- *  avatar to the gallery or to any per-kind read), never a caller-chosen label. */
+ *  TWO CARRIED PICTURES, ONE PORT. The avatar and the card's carried BACKGROUND (`background_override`
+ *  `kind:"asset"`) are the same fact on two columns, so both re-own here: copying either by id would land the
+ *  exact pointer-into-a-foreign-library this port exists to prevent, and the UPDATE path already refuses it
+ *  (`ensureBackgroundOverrideOwned`), so a handoff copy is not the one write that lands a card the owner's own
+ *  edit verb would reject. `kind` is the ASSET KIND the re-owned row is stored under, because the two are
+ *  genuinely different kinds in the CAS index (a background is not an avatar to the gallery or to any per-kind
+ *  read), never a caller-chosen label. */
 export type CopyAssetToOwner = (args: {
   readonly fromOwnerId: UserId;
   readonly toOwnerId: UserId;
@@ -334,13 +361,14 @@ export type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 export interface AssetEmbeddingReads {
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
-  readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
+  /** Every kind the asset is used as; `null` when the row is gone. */
+  readonly loadAssetKinds: (assetId: AssetId) => Promise<readonly AssetKind[] | null>;
   readonly loadAssetMime: (assetId: AssetId) => Promise<string | null>;
   readonly loadAssetHash: (assetId: AssetId) => Promise<string | null>;
   readonly loadAssetBytes: LoadAssetBytes;
 }
 
-/** The owner-gated byte read's answer (EC-B) — the CAS bytes + the stored mime of the caller's OWN asset.
+/** The owner-gated byte read's answer — the CAS bytes + the stored mime of the caller's OWN asset.
  *  Distinct from `loadAssetBytes`' bare `Uint8Array | null` (the un-principal indexer read, D20). */
 export interface OwnedAssetBytes {
   readonly bytes: Uint8Array;
@@ -365,11 +393,15 @@ export interface StoreParams {
 export type StoreAsset = (params: StoreParams) => Promise<StoredAsset>;
 /** The avatar-only store the profile importers call: the assets domain implements it, narrowed to the answer they read. */
 export type StoreAvatarAsset = (params: StoreParams & { readonly kind: "avatar" }) => Promise<Pick<StoredAsset, "assetId">>;
+/** The read-only twin of {@link StoreAvatarAsset}'s refusals: whether the store keeps `bytes` as an avatar under its
+ *  sniffed image type, with the magic check on and `maxBytes` as the cap, asked without writing. */
+export type AdmitsAvatar = (params: { readonly bytes: Uint8Array; readonly maxBytes: number }) => boolean;
 export type ReadOwnedAssetBytes = (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
 
 /** An asset's owner, CAS hash and mime, resolved by row id alone. */
 export interface AssetCasRef {
-  readonly kind: AssetKind;
+  /** Every kind the asset is used as. */
+  readonly kinds: readonly AssetKind[];
   readonly ownerId: UserId;
   readonly hash: string;
   readonly mime: string;
@@ -391,9 +423,23 @@ export type ImageryGalleryAdd = (owner: Principal, assetId: AssetId, subjectChar
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** Roster-avatar reference check, never a hash-to-owner oracle: the asset's owner only if the hash is an avatar
- *  or attachment the caller may render in a shared chat; `undefined` otherwise. */
+ *  or attachment the caller may render in a shared chat, and that owner is present and enabled there (the room's
+ *  pinned persona's avatar excepted); `undefined` otherwise. */
 export type LoadCoParticipantOwnerOp = (callerId: UserId, hash: string) => Promise<UserId | undefined>;
 
 /** The chat-scoped render resolver: the `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
- *  (a structural `message_assets` reference, owner present, caller present). */
+ *  (a structural `message_assets` reference, owner present and enabled, caller present). */
 export type LoadChatAssetRefsOp = (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+
+/** A render ref beside its asset's owner: the row the chat-scoped render resolver tests against the room. */
+export interface AssetBlobRefHolder {
+  readonly ref: AssetBlobRef;
+  readonly ownerId: UserId;
+}
+
+/** The rows the co-participant gate's hash lookup may answer for, both from the gate's own room read: the present
+ *  humans of the caller's rooms, and the avatars of those rooms' pins, whose owners may have left. */
+export interface HashHolderScope {
+  readonly ownerIds: readonly UserId[];
+  readonly assetIds: readonly AssetId[];
+}

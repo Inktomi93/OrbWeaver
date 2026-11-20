@@ -39,6 +39,8 @@ export interface AxisMark {
   readonly rowsOnScreen: number;
   readonly contentPx: number;
   readonly portPx: number;
+  /** The end of the rows as the list last wrote their height, which a row drawn past its measure overflows. */
+  readonly writtenPx: number;
 }
 
 /**
@@ -49,12 +51,17 @@ export interface AxisMark {
  * moves both. So does a clamp, when the port grows or the content shrinks under the reader, and that is no outside move: it
  * only moves up, and leaves the reader at the end of the content as it stood at the mark or stands now, whichever is shorter.
  * Rows can land after the clamp and before this check, so the end as it stands now is not enough, and the end it clamped to
- * can be a chunk of a stream short of both, so "at the end" is the band the list already reads as the end.
+ * can be a chunk of a stream short of both, so "at the end" is the band the list already reads as the end. A row drawn past
+ * its measure overflows the rows' written end; when it is replaced, the overflow goes and the browser clamps to that written
+ * end, short of the content at the mark and now, so the written end counts as an end too. The taller row is measured
+ * before this check, so the written end as it stands now has already grown past the clamp: the one taken at the mark is
+ * the end the browser clamped to.
  */
 export function movedFromOutside(mark: AxisMark, now: AxisMark): boolean {
   const scrolled = Math.abs(now.top - mark.top) > PROGRAMMATIC_SCROLL_EPSILON_PX;
   const shifted = Math.abs(now.rowsOnScreen - mark.rowsOnScreen) > PROGRAMMATIC_SCROLL_EPSILON_PX;
-  const clamped = now.top < mark.top && now.top + now.portPx >= Math.min(mark.contentPx, now.contentPx) - SCROLL_END_THRESHOLD_PX;
+  const clamped =
+    now.top < mark.top && now.top + now.portPx >= Math.min(mark.contentPx, now.contentPx, mark.writtenPx, now.writtenPx) - SCROLL_END_THRESHOLD_PX;
   return scrolled && shifted && !clamped;
 }
 

@@ -41,8 +41,9 @@ import {
   GROUP_VISIBILITY_FIELD_NAME,
 } from "#client/features/chat/lib/chat-settings-names.ts";
 import { GROUP_ADVANCED_LABEL, GROUP_VISIBILITY_LABELS } from "#client/features/chat/lib/group-config-model.ts";
-import { MEMBER_TALKATIVENESS_NAME } from "#client/features/chat/lib/members-names.ts";
+import { MEMBER_TALKATIVENESS_NAME, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
+import { talkativenessControlName } from "#client/lib/talkativeness.ts";
 import {
   characterChipNames,
   characterChips,
@@ -122,7 +123,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     await expect(
       page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
     ).toBeVisible();
-    await openContextTab(page, "This chat");
+    await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.settings);
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
     // (#830) and a closed panel is REMOVED from the DOM, so this count was 0 for a solo room and a group
     // room alike — a negative that could not fail. With the band open the claim is about `showGroup`, which
@@ -163,7 +164,7 @@ test("removing a character through the Members row menu drops the seat server-si
 
     // The newly-wired `removeCharacterFromChat`, driven through its ONE user-facing affordance.
     await openMemberRowMenu(page, CHARACTERS[1].name);
-    await page.getByRole("menuitem", { name: `Remove ${CHARACTERS[1].name} from chat` }).click();
+    await page.getByRole("menuitem", { name: memberRemoveName(CHARACTERS[1].name) }).click();
 
     // Server truth first: the seat is gone from the PRESENT roster (leftSeq-stamped out).
     await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: WAIT_SURFACE_MS }).toEqual([CHARACTERS[0].name]);
@@ -287,7 +288,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     // range input in this build, verified live, so the arrow is the honest gesture.
     await openMemberRowMenu(page, CHARACTERS[0].name);
     await page.getByRole("menuitem", { name: MEMBER_TALKATIVENESS_NAME }).click();
-    const slider = page.getByRole("slider", { name: `Talkativeness: ${CHARACTERS[0].name}` });
+    const slider = page.getByRole("slider", { name: talkativenessControlName(CHARACTERS[0].name) });
     await expect(slider).toBeVisible({ timeout: WAIT_UI_MS });
     await slider.press("ArrowLeft");
     await slider.press("ArrowLeft");

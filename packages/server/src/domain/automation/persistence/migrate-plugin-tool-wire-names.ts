@@ -12,7 +12,7 @@
 //      is the ONE arm that can hold a plugin wire name.
 //   2. WHAT AN UN-MIGRATED ROW COSTS. Unlike the transcript's silent card fallback, a stale `run_tool.name`
 //      is at least LOUD at fire time — the arm resolves against the LIVE registry
-//      (`substrate/validate.ts` at mint, the executor at fire) and a name nobody holds does not act. Loud is
+//      (`persistence/validate.ts` at mint, the executor at fire) and a name nobody holds does not act. Loud is
 //      better than silent, but a rule the host authored and never touched again would simply stop firing, so
 //      it is still a rewrite the owner ruled for rather than a nice-to-have.
 //

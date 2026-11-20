@@ -1,28 +1,64 @@
-// The co-participant reference reads that let a room member render another member's assets. Every read needs a
-// structural reference into a room where the CALLER is present, never a bare hash or id; a link arm also needs the
-// linking message at or above the caller's history floor. The fallback order between the arms is the verb's.
+// The chat-table reads of the co-participant art gate. Every read needs a structural reference into a room where the
+// CALLER is present, never a bare hash or id; a link read also needs the linking message at or above the caller's
+// history floor. The asset, character and persona rows arrive through the owner reads in `../contract/room-art-reads.ts`,
+// and the verbs join them with these rows, so this file names no table chat does not own (Core-0 §4). ESLint's
+// `no-restricted-imports` refuses those three tables here and in the gate's verbs (`CHAT_ART_GATE_SOURCES`).
 
-import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
-import {
-  assets as assetsTable,
-  characters as charactersTable,
-  chatParticipants,
-  messageAssets,
-  messages as messagesTable,
-  personas as personasTable,
-} from "@orb/db";
-import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
+import { chatParticipants, chats, messageAssets, messages } from "@orb/db";
+import type { AssetId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { alias } from "drizzle-orm/sqlite-core";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { loadPresentVisibilityRows } from "./participants-read.ts";
 
-const LIMIT_ONE = 1;
+// An aliased `chat_participants`: each read joins the caller's seat under its own alias name.
+interface SeatColumns {
+  readonly chatId: AnySQLiteColumn;
+  readonly userId: AnySQLiteColumn;
+  readonly leftSeq: AnySQLiteColumn;
+}
+
+// The caller's PRESENT seat in the room `chatId` names.
+function callerSeatOn(seat: SeatColumns, chatId: AnySQLiteColumn, callerId: UserId): SQL | undefined {
+  return and(eq(seat.chatId, chatId), eq(seat.userId, callerId), isNull(seat.leftSeq));
+}
+
+/** A present seat in a room where the caller holds a present seat, beside that room's pin (`chats.anchorPersonaId`). */
+export type CallerRoomSeat = Pick<typeof chatParticipants.$inferSelect, "chatId" | "kind" | "userId" | "characterId" | "activePersonaId"> & {
+  readonly anchorPersonaId: PersonaId | null;
+};
+
+/** Every present seat of every room where `callerId` holds a present seat, the caller's own included. */
+export async function loadCallerRoomSeats(db: Db, callerId: UserId): Promise<CallerRoomSeat[]> {
+  const callerSeat = alias(chatParticipants, "art_caller_seat");
+  return await db
+    .select({
+      chatId: chatParticipants.chatId,
+      kind: chatParticipants.kind,
+      userId: chatParticipants.userId,
+      characterId: chatParticipants.characterId,
+      activePersonaId: chatParticipants.activePersonaId,
+      anchorPersonaId: chats.anchorPersonaId,
+    })
+    .from(chatParticipants)
+    .innerJoin(callerSeat, callerSeatOn(callerSeat, chatParticipants.chatId, callerId))
+    .innerJoin(chats, eq(chats.id, chatParticipants.chatId))
+    .where(isNull(chatParticipants.leftSeq));
+}
+
+/** A `message_assets` link into a room, with the linking message's position. */
+export interface RoomAssetLink {
+  readonly assetId: AssetId;
+  readonly chatId: ChatId;
+  readonly seq: number;
+}
 
 // A link below the caller's floor in its room is a reference the caller cannot see, so it grants nothing (D16).
 // A room with no present caller seat fails closed.
-async function linksVisibleToCaller<T extends { readonly chatId: ChatId; readonly seq: number }>(db: Db, callerId: UserId, links: readonly T[]): Promise<T[]> {
+async function linksVisibleToCaller(db: Db, callerId: UserId, links: readonly RoomAssetLink[]): Promise<RoomAssetLink[]> {
   const seats = await loadPresentVisibilityRows(db, [...new Set(links.map((link) => link.chatId))], callerId);
   return links.filter((link) => {
     const seat = seats.get(link.chatId);
@@ -30,94 +66,26 @@ async function linksVisibleToCaller<T extends { readonly chatId: ChatId; readonl
   });
 }
 
-/** The `(assetId, hash, mime, width, height)` rows among `assetIds` with a `message_assets` row in `chatId` on a
- *  message at or above `callerId`'s history floor, whose owner AND `callerId` are both present members of that chat. */
-export async function loadChatAssetRefRows(db: Db, callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]): Promise<AssetBlobRef[]> {
-  const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
-  const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
-  // the scope is transitive, one hop past the gate's value-pin rule — the owner term's value is `ownerSeat.userId`, `ownerSeat` is bound to `messagesTable.chatId`, and the WHERE pins that chat to `chatId`, so an asset returns only when a `message_assets` row links it to a message in `chatId` and both its owner's seat and the caller's seat (`callerSeat.userId = callerId`) are present there. Ends if either seat join or the `chatId` pin is dropped.
+async function loadVisibleAssetLinks(db: Db, callerId: UserId, assetIds: readonly AssetId[], room: SQL | undefined): Promise<RoomAssetLink[]> {
+  // SECURITY: no short cut on an empty list. The blob door's time must not show whether anyone holds the bytes it asked for.
+  const callerSeat = alias(chatParticipants, "link_caller_seat");
   const links = await db
-    .select({
-      ref: {
-        assetId: assetsTable.id,
-        hash: assetsTable.hash,
-        mime: assetsTable.mime,
-        width: assetsTable.width,
-        height: assetsTable.height,
-      },
-      chatId: messagesTable.chatId,
-      seq: messagesTable.seq,
-    })
-    .from(assetsTable)
-    .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
-    .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-    .innerJoin(callerSeat, and(eq(callerSeat.chatId, messagesTable.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-    .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messagesTable.chatId), eq(ownerSeat.userId, assetsTable.ownerId), isNull(ownerSeat.leftSeq)))
-    .where(and(eq(messagesTable.chatId, chatId), inArray(assetsTable.id, [...assetIds])));
-  const refs = new Map<AssetId, AssetBlobRef>();
-  for (const link of await linksVisibleToCaller(db, callerId, links)) {
-    refs.set(link.ref.assetId, link.ref);
-  }
-  return [...refs.values()];
+    .select({ assetId: messageAssets.assetId, chatId: messages.chatId, seq: messages.seq })
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .innerJoin(callerSeat, callerSeatOn(callerSeat, messages.chatId, callerId))
+    .where(and(inArray(messageAssets.assetId, [...assetIds]), room));
+  return linksVisibleToCaller(db, callerId, links);
 }
 
-/** The owner of `hash` when it is the avatar of a character PRESENTLY rostered in a room `callerId` is present in. */
-export async function loadRosteredCharacterAvatarOwner(db: Db, callerId: UserId, hash: string): Promise<UserId | undefined> {
-  const rosterChar = alias(chatParticipants, "roster_char");
-  const callerSeat = alias(chatParticipants, "caller_seat");
-  const rows = await db
-    .select({ ownerId: assetsTable.ownerId })
-    .from(assetsTable)
-    .innerJoin(charactersTable, eq(charactersTable.avatarAssetId, assetsTable.id))
-    .innerJoin(rosterChar, and(eq(rosterChar.characterId, charactersTable.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
-    .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-    .where(eq(assetsTable.hash, hash))
-    .limit(LIMIT_ONE);
-  return rows[0]?.ownerId;
+/** The links of `assetIds` on messages in `chatId` at or above `callerId`'s history floor there; none when the caller
+ *  is not present in `chatId`. One row per link. */
+export function loadVisibleAssetLinksInRoom(db: Db, callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]): Promise<RoomAssetLink[]> {
+  return loadVisibleAssetLinks(db, callerId, assetIds, eq(messages.chatId, chatId));
 }
 
-/** The owner of `hash` when it is the avatar of a persona a PRESENT human seat holds active, in a room `callerId`
- *  is present in. */
-export async function loadSeatedPersonaAvatarOwner(db: Db, callerId: UserId, hash: string): Promise<UserId | undefined> {
-  const personaSeat = alias(chatParticipants, "persona_seat");
-  const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
-  const rows = await db
-    .select({ ownerId: assetsTable.ownerId })
-    .from(assetsTable)
-    .innerJoin(personasTable, eq(personasTable.avatarAssetId, assetsTable.id))
-    .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personasTable.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
-    .innerJoin(
-      personaCallerSeat,
-      and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
-    )
-    .where(eq(assetsTable.hash, hash))
-    .limit(LIMIT_ONE);
-  return rows[0]?.ownerId;
-}
-
-/** The owner of `hash` when a `message_assets` row links it into a room where both `callerId` and the owner are
- *  present, on a message at or above `callerId`'s history floor in that room. */
-export async function loadSharedAttachmentOwner(db: Db, callerId: UserId, hash: string): Promise<UserId | undefined> {
-  const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
-  const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
-  // Unlimited: each room has its own floor, so the first visible link is chosen after the read.
-  const links = await db
-    .select({
-      ownerId: assetsTable.ownerId,
-      chatId: messagesTable.chatId,
-      seq: messagesTable.seq,
-    })
-    .from(assetsTable)
-    .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
-    .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-    .innerJoin(
-      attachCallerSeat,
-      and(eq(attachCallerSeat.chatId, messagesTable.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)),
-    )
-    .innerJoin(
-      attachOwnerSeat,
-      and(eq(attachOwnerSeat.chatId, messagesTable.chatId), eq(attachOwnerSeat.userId, assetsTable.ownerId), isNull(attachOwnerSeat.leftSeq)),
-    )
-    .where(eq(assetsTable.hash, hash));
-  return (await linksVisibleToCaller(db, callerId, links))[0]?.ownerId;
+/** The links of `assetIds` on messages in any room where `callerId` is present, each at or above the caller's history
+ *  floor in its room. One row per link. */
+export function loadVisibleAssetLinksInCallerRooms(db: Db, callerId: UserId, assetIds: readonly AssetId[]): Promise<RoomAssetLink[]> {
+  return loadVisibleAssetLinks(db, callerId, assetIds, undefined);
 }

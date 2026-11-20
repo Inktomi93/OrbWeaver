@@ -1,18 +1,20 @@
-// The drained V4 stream → the ONE `ChatResult` record every wire speaks (§8.4-7): the normalized usage core
+// The drained V4 stream → the ONE `ChatResult` record every wire speaks: the normalized usage core
 // (`foldNestedUsage`), the finish-reason fold through the shared `FINISH_REASON_MAP`, the cost with its
 // PROVENANCE (`measured` when the wire reported a figure, `estimated` from the row's pricing × tokens,
-// `unrecorded` otherwise — §5.3c), and the wire-opaque metadata keyed by provider id.
+// `unrecorded` otherwise), and the wire-opaque metadata keyed by provider id.
 
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, GenerationUsage, NestedUsage, ResolvedWarning } from "@orb/contracts/inference";
-import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
+import type { ChatUsage, GenerationCapability, GenerationUsage, NestedUsage, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
+import { cacheMinTokensOf, foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ChatEvent, ChatResult, ResolvedSampling } from "#contract";
+import type { ChatEvent, ChatResult, ResolvedChatKnobs, ResolvedSampling } from "#contract";
 import { normalizeFinishReason } from "#contract";
+import type { ProviderLogger } from "#src/contract/http.ts";
 import type { MeasuredCost, ResultContext, StreamDrain } from "#src/contract/v4.ts";
-import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
+import { systemFingerprintOf, variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
 const OPENROUTER_KEY = "openrouter";
@@ -25,18 +27,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *  `gen-1789884256-ZeulFgkGknjAbAgCKe1S`): the per-phase upstream split and the BYOK bit. Optional throughout —
  *  a wire that reports none of it is simply not OpenRouter. */
 const reportedUsd = z.number().nonnegative().nullish().catch(null);
-const openRouterRawUsageSchema = z.object({
-  cost: reportedUsd,
-  cost_details: z
-    .object({
-      upstream_inference_cost: reportedUsd,
-      upstream_inference_prompt_cost: reportedUsd,
-      upstream_inference_completions_cost: reportedUsd,
-    })
-    .nullish()
-    .catch(null),
-  is_byok: z.boolean().nullish().catch(null),
-});
+const openRouterRawUsageSchema = z
+  .object({
+    cost: reportedUsd,
+    cost_details: z
+      .object({
+        upstream_inference_cost: reportedUsd,
+        upstream_inference_prompt_cost: reportedUsd,
+        upstream_inference_completions_cost: reportedUsd,
+      })
+      .strip()
+      .nullish()
+      .catch(null),
+    is_byok: z.boolean().nullish().catch(null),
+  })
+  .strip();
 
 function measuredCostWithDetails(args: {
   readonly cost: number;
@@ -90,9 +95,9 @@ export function generationUsageOf(usage: NestedUsage | undefined, servedModel: s
 
 /** The wire-reported cost off the SDK's provider metadata — OpenRouter's usage accounting today; `null` on every
  *  transport that reports none (the `estimated`/`unrecorded` arms follow). On a BYOK connection OR's `cost` is
- *  the GATEWAY FEE and `costDetails.upstreamInferenceCost` the provider's charge (inference audit A4), so the
- *  spend is their sum and both ride the record; on a passthrough connection `cost` IS the spend (measured equal
- *  to the upstream figure on every probe). The prompt/completions split lives on `usage.raw` only. */
+ *  the GATEWAY FEE and `costDetails.upstreamInferenceCost` the provider's charge, so the spend is their sum and
+ *  both ride the record; on a passthrough connection `cost` IS the spend (measured equal to the upstream figure
+ *  on every probe). The prompt/completions split lives on `usage.raw` only. */
 export function measuredCostOf(
   providerMetadata: SharedV4ProviderMetadata | undefined,
   rawUsage: Readonly<Record<string, unknown>> | undefined,
@@ -125,7 +130,7 @@ export function measuredCostOf(
   });
 }
 
-// ── the SDK's own warnings (§A3) ───────────────────────────────────────────────────────────────────────
+// ── the SDK's own warnings ─────────────────────────────────────────────────────────────────────────────
 
 /** How the provider spells a TOOL in an `unsupported` warning's `feature` (`@ai-sdk/anthropic` dist:
  *  `tool ${name}` / `provider-defined tool ${id}`, and `strict` for a tool's strict flag). The feature
@@ -169,31 +174,104 @@ function resolvedWarningOf(warning: SharedV4Warning): ResolvedWarning {
 }
 
 /** Every SDK warning the drain collected → our `ResolvedWarning`s. The caller folds these into the turn's
- *  warning array BEFORE the result is built, so they reach the bus events AND the sampling receipt (§B2)
+ *  warning array BEFORE the result is built, so they reach the bus events AND the sampling receipt
  *  from one place. */
 export function sdkWarnings(warnings: readonly SharedV4Warning[]): ResolvedWarning[] {
   return warnings.map(resolvedWarningOf);
 }
 
 /** Which warning codes a `provider.sampling` receipt lists under `dropped` — the funnel's own drops PLUS the
- *  SDK's second gate (§B2). One home, both hosted wires. */
-export const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new Set<ResolvedWarning["code"]>([
+ *  SDK's second gate. One home, both hosted wires. */
+const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new Set<ResolvedWarning["code"]>([
   "sampling_knob_dropped",
   "verbosity_dropped",
   "sdk_unsupported_setting",
 ]);
 
-/** `log.sampling.applied` is a CLAIM about the wire, so it must survive the SDK's own stripping (§B2): a knob
- *  the provider refused after `resolveChat` resolved it is removed here and rides `dropped` instead. Without
+/** `log.sampling.applied` is a CLAIM about the wire, so it must survive the post-funnel strippers: a
+ *  knob the provider refused (`sdk_unsupported_setting`) or the wire's own translator announced as ignored
+ *  (`sampling_knob_dropped` after the funnel — the agent-sdk's second gate, whose resolved values the funnel
+ *  could not drop because the user widened the axis) is removed here and rides `dropped` instead. Without
  *  this the receipt says "temperature applied" for a model whose provider never sent it. */
-export function appliedSampling(sampling: ResolvedSampling, warnings: readonly ResolvedWarning[]): Record<string, unknown> {
+function appliedSampling(sampling: ResolvedSampling, warnings: readonly ResolvedWarning[]): Record<string, unknown> {
   const dropped = new Set<string>();
   for (const warning of warnings) {
-    if (warning.code === "sdk_unsupported_setting" && warning.knob !== undefined) {
+    if ((warning.code === "sdk_unsupported_setting" || warning.code === "sampling_knob_dropped") && warning.knob !== undefined) {
       dropped.add(warning.knob);
     }
   }
   return Object.fromEntries(Object.entries(sampling).filter(([knob]) => !dropped.has(knob)));
+}
+
+/** The cache line for wires that place explicit-cache breakpoints; the breakpoint COUNTS stay with the
+ *  placer (only the placer knows its block kinds — the anthropic receipt names its tool-list breakpoint,
+ *  the openai-compat one has no such block). */
+export interface TurnReceiptCache {
+  readonly breakpointsPlaced: number;
+  readonly breakpointOffsets: readonly number[];
+}
+
+export interface TurnReceiptArgs {
+  readonly log: ProviderLogger;
+  readonly knobs: ResolvedChatKnobs;
+  readonly generation: GenerationCapability;
+  readonly api: string | null;
+  readonly providerId: ProviderId;
+  readonly requestedModel: ModelId;
+  readonly requestedParams: Record<string, unknown>;
+  readonly usage: ChatResult["usage"];
+  readonly warnings: readonly ResolvedWarning[];
+  /** The verbosity a wire ACTUALLY SENDS (openai-compat chat's `extraBody`, responses' `text:`).
+   *  Anthropic and Google drop it at the wire with a `verbosity_dropped` warning, so their `applied` must
+   *  not claim it and its code reads in `dropped` — the fold is caller-passed, not canonical, for that. */
+  readonly sentVerbosity?: ResolvedChatKnobs["verbosity"];
+  /** Only the breakpoint-placing wires pass this, and the gate is the PLACEMENT (the placer wrote
+   *  breakpoints), never the dialect: openai-compat chat's markers ride the resolved plan for any dialect
+   *  that spells a breakpoint format, anthropic messages always. */
+  readonly cache?: TurnReceiptCache;
+}
+
+/** The turn's receipt lines: the (model × wire) cell the funnel resolved (capability), the knobs that
+ *  survived it (sampling), and where the explicit cache went (cache). One home for the pair EVERY turn
+ *  runner emits — the four hosted wires and the agent-sdk, whose generation also resolves through the
+ *  funnel (`toSdkGeneration` calls `resolveChat`) and whose second-gate drops are exactly what the
+ *  sampling line exists to report. All five emit post-turn; a turn that throws before its result emits
+ *  nothing. The per-wire intents are ARGUMENTS (see the two fields above). */
+export function emitTurnReceipts(args: TurnReceiptArgs): void {
+  const { log, knobs, generation, usage, warnings } = args;
+  if (args.cache !== undefined) {
+    const { cacheReadTokens, cacheWriteTokens } = usage;
+    const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
+    let hitRatio: number | null = null;
+    if (total !== null && cacheReadTokens !== null) {
+      hitRatio = total > 0 ? cacheReadTokens / total : 0;
+    }
+    log.cache({
+      turnId: knobs.turnId,
+      cacheReadTokens,
+      cacheWriteTokens,
+      breakpointsPlaced: args.cache.breakpointsPlaced,
+      breakpointOffsets: args.cache.breakpointOffsets,
+      hitRatio,
+      minCacheTokens: cacheMinTokensOf(generation),
+    });
+  }
+  log.capability({
+    turnId: knobs.turnId,
+    api: args.api,
+    providerId: args.providerId,
+    requestedModel: args.requestedModel,
+    turns: { ...generation.turns },
+    droppedWarnings: warnings.map((warning) => ({ code: warning.code, message: warning.message })),
+  });
+  log.sampling({
+    turnId: knobs.turnId,
+    requested: { ...args.requestedParams },
+    applied: { ...appliedSampling(knobs.sampling, warnings), ...(args.sentVerbosity !== undefined ? { verbosity: args.sentVerbosity } : {}) },
+    dropped: warnings
+      .filter((warning) => DROPPED_SAMPLING_CODES.has(warning.code))
+      .map((warning) => ({ knob: warning.knob ?? warning.code, reason: warning.message })),
+  });
 }
 
 function costOf(
@@ -223,6 +301,10 @@ function costOf(
         core.cacheWriteTokens * (ctx.pricing.cacheWritePerMTok ?? 0)) /
       TOKENS_PER_MTOK;
     const completionUsd = (core.tokensOut / TOKENS_PER_MTOK) * ctx.pricing.outputPerMTok;
+    // A declared or listed price can be large enough to overflow; an infinite cost is no estimate.
+    if (!Number.isFinite(promptUsd + completionUsd)) {
+      return { costUsd: null, costDetails: null, costProvenance: "unrecorded" };
+    }
     return {
       costUsd: promptUsd + completionUsd,
       costDetails: { totalUsd: promptUsd + completionUsd, promptUsd, completionUsd, pricing: ctx.pricing },
@@ -249,19 +331,25 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   };
   const raw = drain.finish.raw ?? drain.finish.unified;
   const toolCalls = drain.toolCalls.length > 0 ? drain.toolCalls : undefined;
-  // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/wire/provider-metadata`).
-  // Keyed on `ctx.providerId` ALONE — the old `?? providerMetadata["openrouter"]` fallback filed OpenRouter's bag
-  // under whatever id the connection actually carried, which is the one thing a per-provider record may not do.
-  // `measuredCostOf` keeps its own unconditional read of that key: a COST is the same number whoever routed it.
-  const providerMetadata = variantProviderMetadataOf(ctx.providerId, drain.providerMetadata?.[ctx.providerId]);
+  // The vendor's bag under the key THIS wire's SDK writes it to (`ctx.providerMetadataKey`, the same derivation
+  // the runner wrote `providerOptions` with). A registry id is not that key for a hyphenated provider, so keying
+  // the bag by id leaves it unread; the UNION is keyed on `ctx.providerMetadataKey` ALONE, because a fallback to
+  // a fixed `openrouter` key would file OpenRouter's bag under whatever id the connection actually carried, which
+  // is the one thing a per-provider record may not do. `measuredCostOf` keeps its own unconditional read of that
+  // key: a COST is the same number whoever routed it.
+  const vendorBag = drain.providerMetadata?.[ctx.providerMetadataKey];
+  const providerMetadata = variantProviderMetadataOf(ctx.providerId, vendorBag);
   return {
     reply: drain.reply,
     ...(drain.textSignatures.length === 0 ? {} : { textSignatures: drain.textSignatures }),
+    // The cited sources, absent when the turn cited none — the `textSignatures`/`reasoningParts` discipline:
+    // an unreported fact stays absent, never an empty array.
+    ...(drain.sources.length === 0 ? {} : { sources: drain.sources }),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning: drain.reasoning,
     ...(drain.reasoningParts.length > 0 ? { reasoningParts: drain.reasoningParts } : {}),
-    // A REAL redacted block, never the old `no text but some reasoning tokens` heuristic: that shape is also
-    // an adaptive model answering with its display off (MEASURED 2026-09-19 — direct opus-5, adaptive, no
+    // A REAL redacted block, never inferred from a shape: `no text but some reasoning tokens` is also an
+    // adaptive model answering with its display off (MEASURED 2026-09-19 — direct opus-5, adaptive, no
     // `display`: 0 reasoning chars, 20 reasoning tokens, a signature present and nothing redacted).
     reasoningRedacted: drain.reasoningParts.some((part) => part.meta?.anthropic?.redactedData !== undefined),
     stopReason: raw,
@@ -276,6 +364,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     appliedEffort: ctx.appliedEffort,
     usage: { ...core, ...costOf(core, ctx), ...(ctx.responseCache === undefined ? {} : { responseCache: ctx.responseCache }) },
     ...(providerMetadata !== undefined ? { providerMetadata } : {}),
+    systemFingerprint: systemFingerprintOf(vendorBag),
     ...(drain.images.length > 0 ? { images: drain.images } : {}),
     events: warningEvents(ctx.warnings, ctx.now),
     rateLimit: ctx.rateLimit,

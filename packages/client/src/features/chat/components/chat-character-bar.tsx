@@ -66,8 +66,9 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { testId } from "#lib";
+import { CHAT_CHARACTER_BAR_NAME } from "../lib/chat-surface-names.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
 export interface ChatCharacterBarProps {
@@ -117,7 +118,7 @@ function CharacterBarStrip({
       plate="band"
       data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}
-      aria-label="Characters"
+      aria-label={CHAT_CHARACTER_BAR_NAME}
       aria-hidden={inTranscript ? true : undefined}
       role="group"
     >
@@ -148,7 +149,7 @@ function CharacterBarStrip({
 /** Seats from the same `chat.getChat` the message list + Context panel already read. */
 export function ChatCharacterBar({ chatId, inTranscript = false }: ChatCharacterBarProps): ReactElement | null {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const roster = filterCharacters(chat?.participants ?? []);
   const humans = resolveHumanParticipants(chat?.participants ?? []);
   const characters: readonly CharacterSeat[] = roster.map((member) => ({
@@ -165,9 +166,9 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
   const visible = humans.slice(0, HUMAN_CHIP_CAP);
   const overflow = humans.length - visible.length;
   return (
-    <Row gap="row" align="center" aria-label="People" className="min-inline-0" data-slot="character-bar-humans" role="group">
+    <Row gap="row" align="center" aria-label="People" minWidth="shrinks" data-slot="character-bar-humans" role="group">
       {visible.map((member) => (
-        <Row key={member.id} gap="row" align="center" className="min-inline-0" data-slot="human-chip">
+        <Row key={member.id} gap="row" align="center" minWidth="shrinks" data-slot="human-chip">
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>

@@ -2,7 +2,7 @@
 // this room, each one a one-shot `worldInfo.attachToChat`.
 //
 // THE DIALOG IS THE CONSENT MOMENT, SO IT SPELLS THE WRITE REACH. Attaching is not "adding a reference":
-// `domain/automation` refuses an `insert_world_info_entry` rule at MINT (`substrate/validate.ts`
+// `domain/automation` refuses an `insert_world_info_entry` rule at MINT (`persistence/validate.ts`
 // `assertBooksAttached`) and again at FIRE (`engine/arm-executors.ts`: "the attachment IS the room's
 // consent") unless the target book is attached HERE. So this room's rules can write entries into whatever
 // is attached, and the host granting that reach has to be told in words before they grant it — a quiet
@@ -30,12 +30,11 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
+import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
 import { CHAT_ATTACH_BOOK_FAILURE, CHAT_BOOK_PICKER_EMPTY_TITLE, CHAT_BOOK_PICKER_READ, chatAttachItemName } from "../lib/chat-attach-names.ts";
 import { attachableBooks } from "../lib/chat-books-model.ts";
@@ -68,7 +67,8 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
     try {
       await attach.mutateAsync({ chatId, bookId });
       onOpenChange(false);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       setFailure(CHAT_ATTACH_BOOK_FAILURE);
     } finally {
       ownedRef.current = false;
@@ -160,11 +160,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
           title={book.name}
         />
       ))}
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
     </Stack>
   );
 }

@@ -1,10 +1,10 @@
 import { alternation } from "./syntax.ts";
 
-const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
+const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "readCardJson", "buildCardV3"]);
 
 const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
 
-const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
+const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, readCardJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
 
 export const SERVER_HARD_RESTRICTIONS = [
   {
@@ -40,7 +40,7 @@ export const DB_SCHEMA_RESTRICTIONS = [
 ];
 
 const WIRE_OBJECT_MESSAGE =
-  "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` under a one-line reason, `z.looseObject` to keep unknown keys, or `z.object(...).catchall(schema)` to keep them typed (Spine-TypeScript-and-Patterns.md, type law 1).";
+  "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` to drop unknown keys, `z.looseObject` to keep them, or `z.object(...).catchall(schema)` to keep them typed (Spine-TypeScript-and-Patterns.md, type law 1).";
 // The mode check reads the `z` binding by name, so any other value spelling of zod would hide a call from it.
 const ZOD_SPELLING_MESSAGE = 'Reach zod only as `import { z } from "zod"` and `z.<builder>(...)`, so the wire-object mode check sees every object call.';
 const ZOD_SOURCE = String.raw`/^zod(\W.*)?$/`;

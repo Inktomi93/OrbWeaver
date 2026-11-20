@@ -94,15 +94,19 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {
-        const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));
+        const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection), req.signal);
         return listingOf(models.map(agentSdkCatalogEntry));
-        // the failure becomes `{ listed: false, reason }` through failedListing (wire/model-listing.ts:53), which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
       } catch (err) {
         return failedListing(err, resolvedScrubSet({ credential: req.connection.credential, transport: null }));
       }
     },
   };
-  return { backend, catalog: (identity) => fetchAgentSdkModels(identity, resolved, catalogLog), cancel: execution.cancel, settle: execution.settle };
+  return {
+    backend,
+    catalog: (identity, signal) => fetchAgentSdkModels(identity, resolved, catalogLog, signal),
+    cancel: execution.cancel,
+    settle: execution.settle,
+  };
 }
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────

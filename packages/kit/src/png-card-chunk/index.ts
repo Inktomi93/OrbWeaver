@@ -214,8 +214,13 @@ function decodeBase64Utf8(value: Uint8Array): string | null {
   // candidate and returns null when none decode, which parseCardPng (import substrate) passes on as "no card". Ends if readCardChunk stops reading the null.
   try {
     return bytesToUtf8(bytes);
-  } catch {
-    return null; // bytes weren't valid UTF-8 → fail soft, exactly as the null contract promises
+  } catch (error) {
+    // `decodeURIComponent` refuses bytes that are not UTF-8 with a `URIError` → fail soft, as the null contract
+    // promises. Any other throw is a fault and rejects.
+    if (!(error instanceof URIError)) {
+      throw error;
+    }
+    return null;
   }
 }
 
@@ -421,8 +426,13 @@ async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
         parts.push(value);
       }
     }
-  } catch {
-    return null; // Z_DATA_ERROR &c — corrupt zlib payload
+  } catch (error) {
+    // The Compression Streams standard rejects a corrupt or truncated zlib payload (Z_DATA_ERROR, Z_BUF_ERROR) with a
+    // `TypeError`, in Node and in the browser. Any other throw is a fault and rejects.
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
+    return null;
   }
   return concatChunks(parts);
 }

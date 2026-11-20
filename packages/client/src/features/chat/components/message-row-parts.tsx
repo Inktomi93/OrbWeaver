@@ -6,34 +6,35 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Stack } from "@orb/ui/layout";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
-import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
+import { bodyDisplayRow } from "../lib/display-row.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
-import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
+import { storedReplyTrains } from "../lib/split-paragraphs.ts";
 import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
-import { MessageBox } from "./message-box.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageReasoning } from "./message-reasoning.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
+import { MessageTrain } from "./message-train.tsx";
 import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
 
-/** Train bubbles derive paragraphs from the display projection, never while editing canon. */
-export function trainParagraphsFor(message: MessageView, editing: boolean, trains: boolean): ReturnType<typeof splitIntoTrainParagraphs> | null {
-  return !editing && trains ? splitIntoTrainParagraphs(message.content) : null;
+/** A row trains when its skin trains, it is not being edited, and its stored reply holds more than one paragraph. The
+ *  train then cuts its bubbles from what the display pass drew (`MessageTrain`). */
+export function rowTrains(message: MessageView, editing: boolean, trains: boolean): boolean {
+  return !editing && trains && storedReplyTrains(message.content);
 }
 
 /** Tool-card controls follow the message's author-or-host display posture. */
@@ -68,15 +69,22 @@ export function renderRowReasoning(args: {
   readonly showLLMReasoningIcon: boolean;
   readonly viewerIsHost: boolean;
   readonly viewerUserId: UserId | null | undefined;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
 }): ReactNode {
   const raw = args.message.reasoning;
   if (args.editing || raw === null || raw.length === 0) {
     return null;
   }
-  // Same macro/regex display pass the ghost's live trace gets, so `{{char}}`/`{{user}}` in a thinking trace
-  // read identically before and after commit.
-  const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
-  return <MessageReasoning message={args.message} displayText={text} showIcon={args.showLLMReasoningIcon} canEdit={isAuthorOrHost(args)} />;
+  return (
+    <MessageReasoning
+      message={args.message}
+      renderContext={args.renderContext}
+      displayDepth={args.displayDepth}
+      showIcon={args.showLLMReasoningIcon}
+      canEdit={isAuthorOrHost(args)}
+    />
+  );
 }
 
 /** The author-or-host UX gate the server verbs enforce; a caller without it never sees the control. */
@@ -84,15 +92,19 @@ function isAuthorOrHost(args: { readonly message: MessageView; readonly viewerIs
   return args.viewerIsHost || (args.viewerUserId !== undefined && args.viewerUserId !== null && args.message.authorUserId === args.viewerUserId);
 }
 
-/** Null when Tide's trains take over — each paragraph gets its own MessageContent call. */
+/** Null when Tide's train takes over: it draws the whole reply itself (`MessageTrain`). */
 export function resolveRowContent(args: {
   readonly editing: boolean;
   readonly message: MessageView;
-  readonly trainParagraphs: readonly string[] | null;
+  readonly trains: boolean;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The room's sheets written before this row (`roomSheetsBefore`). */
+  readonly roomSheets: readonly RoomSheet[] | undefined;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
   /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
   readonly viewerIsHost: boolean;
   readonly neighbours: MoveNeighbours | undefined;
@@ -103,7 +115,7 @@ export function resolveRowContent(args: {
     // now, so editing one IS a message edit (D166).
     return <MessageEditTextarea message={args.message} moveNeighbours={args.viewerIsHost ? (args.neighbours ?? NO_MOVE_NEIGHBOURS) : undefined} />;
   }
-  if (args.trainParagraphs !== null) {
+  if (args.trains) {
     return null;
   }
   return (
@@ -111,14 +123,15 @@ export function resolveRowContent(args: {
       content={args.message.content}
       render={args.render}
       renderContext={args.renderContext}
-      rowCharacterId={args.message.characterId}
-      rowPersonaId={args.message.personaId}
+      display={bodyDisplayRow(args.message, args.displayDepth)}
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
+      roomSheets={args.roomSheets}
       cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
       // The COMMITTED row identity the plugin display seam needs (U6, seam 14). Only committed rows carry one:
       // a ghost row has no settled `MessageView`, so it renders untransformed and always did.
       pluginDisplayRow={{ chatId: args.message.chatId, messageId: args.message.id }}
+      displayOrder={args.message.seq}
     />
   );
 }
@@ -167,7 +180,9 @@ export function renderRowBubble(args: {
   readonly footer: ReactNode;
   /** The transcript's last row, which takes `RowSkin.lastRowFloor`. */
   readonly lastRow: boolean;
-  readonly trainParagraphs: readonly string[] | null;
+  /** The row's actions-only bar overlays its first line (`HeaderShape.ownLine` is false). */
+  readonly headerOverlaid: boolean;
+  readonly trains: boolean;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
   /** Ripple's sticky portrait, welded inside the bubble's own Row; null for every other mode/kind. */
@@ -178,6 +193,10 @@ export function renderRowBubble(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The room's sheets written before this row (`roomSheetsBefore`). */
+  readonly roomSheets: readonly RoomSheet[] | undefined;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
   /** #245 — EDIT mode: the bubble stops hugging (`w-fit`, D66 N3) and fills the column the row holds open
    *  (`MessageRow`'s reservation is the other half); a hugging editor snapped a short reply's box narrower. */
   readonly editing: boolean;
@@ -188,60 +207,45 @@ export function renderRowBubble(args: {
   const facts = messageBoxFacts(args.skin, args.decoration, {
     role: args.role,
     lastRowFloor: args.lastRow && args.skin.lastRowFloor,
+    headerOverlaid: args.headerOverlaid,
     editing: args.editing,
     receded: args.message.excludedFromPrompt,
   });
-  const body =
-    args.trainParagraphs === null ? (
-      renderSingleBubble({
-        header: args.header,
-        footer: args.footer,
-        content:
-          args.reasoning === null ? (
-            args.content
-          ) : (
-            <>
-              {args.reasoning}
-              {args.content}
-            </>
-          ),
-        facts,
-        decoration: args.decoration,
-        weldedAvatar: args.weldedAvatar,
-        mirrored: args.mirrored,
-        artView: args.artView,
-        ...(args.onArtFailed === undefined ? {} : { onArtFailed: args.onArtFailed }),
-      })
-    ) : (
-      // A train has no single container, so an `inside` header would have nowhere to be inside — `tide` is
-      // declared `outside` for exactly that reason and never reaches this with a header. Rendering it at
-      // the head of the stack anyway keeps the slot TOTAL: a future trains skin that chose `inside` would
-      // paint a header above its pills, never silently drop the speaker.
-      <Stack key={args.message.content} gap="field" data-slot="message-bubble-train">
-        {args.header}
-        {args.reasoning}
-        {args.trainParagraphs.map((paragraph, index) => (
-          <MessageBox
-            // biome-ignore lint/suspicious/noArrayIndexKey: ordinal paragraphs belong to the keyed immutable message snapshot; replacement expires descendant state.
-            key={index}
-            {...facts}
-            shape="stack"
-            positioned={false}
-          >
-            <MessageContent
-              content={paragraph}
-              render={args.render}
-              renderContext={args.renderContext}
-              rowCharacterId={args.message.characterId}
-              rowPersonaId={args.message.personaId}
-              speakerThemes={args.speakerThemes}
-              narratorVoiced={args.narratorVoiced}
-              cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
-            />
-          </MessageBox>
-        ))}
-      </Stack>
-    );
+  const body = !args.trains ? (
+    renderSingleBubble({
+      header: args.header,
+      footer: args.footer,
+      content:
+        args.reasoning === null ? (
+          args.content
+        ) : (
+          <>
+            {args.reasoning}
+            {args.content}
+          </>
+        ),
+      facts,
+      decoration: args.decoration,
+      weldedAvatar: args.weldedAvatar,
+      mirrored: args.mirrored,
+      artView: args.artView,
+      ...(args.onArtFailed === undefined ? {} : { onArtFailed: args.onArtFailed }),
+    })
+  ) : (
+    <MessageTrain
+      key={args.message.content}
+      message={args.message}
+      displayDepth={args.displayDepth}
+      facts={facts}
+      header={args.header}
+      reasoning={args.reasoning}
+      render={args.render}
+      renderContext={args.renderContext}
+      speakerThemes={args.speakerThemes}
+      narratorVoiced={args.narratorVoiced}
+      roomSheets={args.roomSheets}
+    />
+  );
   // #2425 — THE SPEAKER SCOPE IS THE CONTENT COLUMN'S, NOT THE BUBBLE'S. It used to wrap this function's
   // return, which put an `outside` header (tide's, the one skin whose header is a SIBLING above the box)
   // OUTSIDE the carried palette: its pinned band resolved `--color-reading-band` from the VIEWER's theme

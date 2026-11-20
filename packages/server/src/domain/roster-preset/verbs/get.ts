@@ -3,7 +3,7 @@
 
 import type { GetRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
-import { loadView } from "../substrate/authored-input.ts";
+import { loadView } from "../persistence/load-view.ts";
 
 export function createGet(ctx: RosterPresetContext): RosterPresetService["get"] {
   return async ({ principal, presetId }: GetRosterPresetParams) => loadView(ctx, principal.userId, presetId);

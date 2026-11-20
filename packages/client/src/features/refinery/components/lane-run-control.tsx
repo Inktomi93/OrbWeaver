@@ -25,6 +25,7 @@ import { clearRefineryWorkbenchDoor, useRefineryRequestedDoor } from "#state";
 import type { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import type { preflightViewOf } from "../lib/preflight-warn.ts";
 import { stageWarnOf, warnScopeOf } from "../lib/preflight-warn.ts";
+import { refineryRerunStageName, refineryRunStageName } from "../lib/refinery-names.ts";
 
 // Re-derived locally from the preflight hook's wire shape (§7.4 — never an exported alias).
 type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
@@ -151,7 +152,7 @@ export function LaneRunControl({
     button.focus({ preventScroll: true });
     clearRefineryWorkbenchDoor();
   }, [requestedDoor, stage]);
-  const runLabel = hasRun ? `Re-run ${stage}` : `Run ${stage}`;
+  const runLabel = hasRun ? refineryRerunStageName(stage) : refineryRunStageName(stage);
   return (
     <Stack data-lane-run={stage} gap="tight">
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a

@@ -1,8 +1,7 @@
 // The rpg CONTEXT-panel SECTION contribution (client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
 // feature layout test anchor). The GAME-rail tabs: Status · Inventory · Scene ·
-// Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
-// Map (declared with a `disabledReason` but hidden by its `when` while the map program is parked).
+// Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction).
 // **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding
 // a participant entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
 // migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
@@ -20,25 +19,26 @@
 // many data per cm² — and the band wraps itself (`rpg-hud-band.tsx`). NEVER the rails: those are the shell's
 // and must render identically in a normal room and a game room, which is the whole ruling.
 
-import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
+import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse } from "@orb/ui/icons";
 import { Surface } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { CommittedChatContext, ContextTabDef } from "#lib";
+import { GAME_SETTINGS_TAB_ID } from "#state";
 import { RpgErrorState } from "../components/rpg-error-state.tsx";
 import { RpgGameDoor } from "../components/rpg-game-door.tsx";
 import { RpgGameTab } from "../components/rpg-game-tab.tsx";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body.tsx";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab.tsx";
 import { RpgJournalTab } from "../components/rpg-journal-tab.tsx";
-import { RPG_MAP_PLANNED, RpgMapTab } from "../components/rpg-map-tab.tsx";
 import { RpgQuestsTab } from "../components/rpg-quests-tab.tsx";
 import { RpgSceneTab } from "../components/rpg-scene-tab.tsx";
 import { RpgStatusTab } from "../components/rpg-status-tab.tsx";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
 import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat.ts";
+import { RPG_CONTEXT_TAB_LABELS } from "./rpg-names.ts";
 
 /** Build the lite game-tab contributions, bound to the door's cross-domain read channel. */
 export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<CommittedChatContext>[] {
@@ -62,88 +62,70 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     (s: CommittedChatContext): ReactNode =>
       isGameChat(s) ? (
         <Surface tier="instrument">
-          {/* RESERVED (#1098) — the key is DERIVED FROM THE TAB, never a literal: this is a FACTORY that
+          <ContextTabBody>
+            {/* RESERVED (#1098) — the key is DERIVED FROM THE TAB, never a literal: this is a FACTORY that
               builds five different game tabs, and one literal here would hand all five the same box (the
               copy-paste collision the gate's duplicate arm exists to red). One label, one surface, one key. */}
-          <QueryBoundary
-            resetKeys={[s.chatId]}
-            fallback={<SkeletonRows count={3} shape="line" />}
-            reserveKey={`rpg.tab.${label.toLowerCase()}`}
-            // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
-            // collapses to nothing on error so a failed read is a single `role="alert"` region, never two
-            // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
-            // read = the DANGLING POINTER state: `RpgErrorState` discriminates it and renders the typed
-            // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
-            renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
-          >
-            <RpgGameTabBody chatId={s.chatId} render={render} />
-          </QueryBoundary>
+            <QueryBoundary
+              resetKeys={[s.chatId]}
+              fallback={<SkeletonRows count={3} shape="line" />}
+              reserveKey={`rpg.tab.${label.toLowerCase()}`}
+              // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
+              // collapses to nothing on error so a failed read is a single `role="alert"` region, never two
+              // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
+              // read = the DANGLING POINTER state: `RpgErrorState` discriminates it and renders the typed
+              // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
+              renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
+            >
+              <RpgGameTabBody chatId={s.chatId} render={render} />
+            </QueryBoundary>
+          </ContextTabBody>
         </Surface>
       ) : null;
 
   return [
     {
       id: "rpg.status",
-      label: "Status",
+      label: RPG_CONTEXT_TAB_LABELS.status,
       icon: HeartPulse,
       strip: "game",
       when: isGameChat,
       // A game chat lands on Status (the game-state centerpiece) — not Members, the
       // declared-order first. A stored prior selection still wins.
       defaultTab: isGameChat,
-      body: gameTab("Status", (state) => <RpgStatusTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.status, (state) => <RpgStatusTab state={state} />),
     },
     {
       id: "rpg.inventory",
-      label: "Inventory",
+      label: RPG_CONTEXT_TAB_LABELS.inventory,
       icon: Backpack,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Inventory", (state) => <RpgInventoryTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.inventory, (state) => <RpgInventoryTab state={state} />),
     },
     {
       id: "rpg.scene",
-      label: "Scene",
+      label: RPG_CONTEXT_TAB_LABELS.scene,
       icon: Drama,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Scene", (state) => <RpgSceneTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.scene, (state) => <RpgSceneTab state={state} />),
     },
     {
       id: "rpg.quests",
-      label: "Quests",
+      label: RPG_CONTEXT_TAB_LABELS.quests,
       icon: Flag,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Quests", (state) => <RpgQuestsTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.quests, (state) => <RpgQuestsTab state={state} />),
     },
     {
       id: "rpg.journal",
-      label: "Journal",
+      label: RPG_CONTEXT_TAB_LABELS.journal,
       icon: BookOpen,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
-    },
-    {
-      // The ONE PHASE-locked tab ("Map"): when shown it carries its reason as `disabledReason` and OPENS
-      // onto the planned-feature body, so the bracket's cell does NOT mark it `aria-disabled` — announcing
-      // "unavailable" over a tab that Enter and a click both open is two stories.
-      id: "rpg.map",
-      label: "Map",
-      icon: MapIcon,
-      strip: "game",
-      // HIDDEN WHILE THE MAP PROGRAM IS PARKED (owner ruling): a tab that opens onto "not built yet" is a dead end.
-      // Un-parking is this one line, back to `isGameChat`.
-      when: (): boolean => false,
-      // Plain "planned" wording: no program name, no ticket id, no unlock the player could earn.
-      disabledReason: (): string => RPG_MAP_PLANNED,
-      body: (s): ReactNode =>
-        isGameChat(s) ? (
-          <Surface tier="instrument">
-            <RpgMapTab />
-          </Surface>
-        ) : null,
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.journal, (state) => <RpgJournalTab state={state} />),
     },
     {
       // The crown Game tab ("Game") — the host-admin home AND the #40 FRONT DOOR.
@@ -152,8 +134,8 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // (the `gameTab` wrapper — panel-state resolve + boundary; the console owns its OWN inner
       // `getConfigView` boundary, a second server-side host gate); a non-game / PAUSED chat renders the
       // Game DOOR (start a freeform|d20 game / turn a preserved game back on).
-      id: "rpg.game",
-      label: "Game",
+      id: GAME_SETTINGS_TAB_ID,
+      label: RPG_CONTEXT_TAB_LABELS.game,
       icon: Crown,
       strip: "meta",
       // HOST-ONLY — the crown-gold glyph at rest in the admin rail. `when` is the real gate
@@ -164,7 +146,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       when: isHostCommitted,
       body: (s): ReactNode => {
         if (isHostGameChat(s)) {
-          return gameTab("Game", (state) => <RpgGameTab state={state} />)(s);
+          return gameTab(RPG_CONTEXT_TAB_LABELS.game, (state) => <RpgGameTab state={state} />)(s);
         }
         if (!isHostCommitted(s)) {
           return null;
@@ -172,16 +154,18 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
         return (
           // RESERVED (#1098) — the Game DOOR is ONE surface (host-committed, non-game or paused), unlike
           // the tab factory above, so it takes a literal key of its own.
-          <QueryBoundary
-            resetKeys={[s.chatId]}
-            fallback={<SkeletonRows count={3} shape="line" />}
-            reserveKey="rpg.gameDoor"
-            // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
-            // pointer here surfaces the host detach heal exactly like the tab bodies.
-            renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}
-          >
-            <RpgGameDoor chatId={s.chatId} />
-          </QueryBoundary>
+          <ContextTabBody>
+            <QueryBoundary
+              resetKeys={[s.chatId]}
+              fallback={<SkeletonRows count={3} shape="line" />}
+              reserveKey="rpg.gameDoor"
+              // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
+              // pointer here surfaces the host detach heal exactly like the tab bodies.
+              renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}
+            >
+              <RpgGameDoor chatId={s.chatId} />
+            </QueryBoundary>
+          </ContextTabBody>
         );
       },
     },

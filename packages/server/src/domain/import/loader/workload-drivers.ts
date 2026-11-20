@@ -10,11 +10,13 @@ import { bundleImportMemoryChatIds, bundleImportNotes } from "../substrate/bundl
 import { formatImportReport } from "../substrate/report.ts";
 
 async function settleBundle(deps: ImportDriverDeps, report: BundleImportReport, ownerId: UserId, from: number): Promise<BundleImportWorkloadResult> {
-  if (report.imported > 0) {
-    await deps.reconcileStats({ ownerId });
+  // A held file still re-runs its planes (D290), so it settles like a written one.
+  if (report.imported + report.inLibrary > 0) {
+    await deps.settleStats({ ownerId });
   }
   return {
     imported: report.imported,
+    inLibrary: report.inLibrary,
     skipped: report.skipped,
     failed: report.failed,
     notes: bundleImportNotes(report),
@@ -41,6 +43,7 @@ export function createImportWorkloadDrivers(deps: ImportDriverDeps): ImportWorkl
           failed: report.skippedCards.length,
           mergedKeys: report.personasMergedKeys,
           found: report.found,
+          ...report.held,
           memoryScope: await deps.settleMemory({ ownerId: args.ownerId, from, memoryChatIds: report.memoryChatIds }),
         };
         if (reportPath !== undefined) {

@@ -8,6 +8,7 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq, inArray } from "drizzle-orm";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./factories/rows/imagery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -56,20 +57,20 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   await caller.connection.setBinding({ task: "generateImage", connectionId: connection.id });
   // A request with a customized count never reads or seeds the reuse rows, so the reuse cohorts use the default count.
   const params = { caller: principal, chatId: room.chat.id, subjectCharacterId: character.id, mode: "character" } as const;
-  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const tied = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const equalReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const first = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const tied = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const equalReuse = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   root.timers.advance(1);
   await root.settleBackground();
-  const newest = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const newerReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const newest = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const newerReuse = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   const callId = newest.generations[0]?.callId;
   if (descriptor === undefined || callId === null || callId === undefined) {
     throw new Error("native imagery corpus produced no portability descriptor or call identity");
   }
   let file: PortableFile | undefined;
-  for await (const candidate of descriptor.exportAll(root.ownerId)) {
+  for await (const candidate of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const parsed = portableImageryCallSchema.loose().parse(JSON.parse(new TextDecoder().decode(candidate.bytes)));
     if (parsed.execution.sourceCallId === callId) {
       file = candidate;

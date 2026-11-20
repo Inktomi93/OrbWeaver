@@ -39,6 +39,8 @@ export const BACKCHANNEL_ROUTE = { path: CSRF_EXEMPT_ROUTES.oidcBackchannelLogou
 // The native root also mounts this separately owned, capped diagnostic mutation outside entry/http.
 export const DEBUG_ROUTE = { path: "/api/_debug/bug-report", bytes: DATABANK_UPLOAD_MAX_BYTES + 1 };
 export const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
+// Streams its body to disk under the tree total like the bundle route, so a streamed probe would write a gibibyte.
+export const TREE_ZIP_ROUTE = PORTABILITY_ROUTES.importTreeZip;
 export const LOGOUT_ROUTE = "/api/auth/logout";
 export const PLUGIN_DELETE_ROUTE = `${PLUGIN_FRAME_ROUTE}/:id`;
 export const CSRF_HEADERS = { [CSRF_HEADER]: "1" };

@@ -16,13 +16,16 @@ import { useState } from "react";
 import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import {
-  abbreviateSourceCommit,
   approveLabel,
   CHECK_FOR_UPDATES_LABEL,
   consentAskKind,
   firstConsentLine,
   grantSummaryLine,
+  pluginCheckForUpdatesLabel,
+  pluginUpdateFromCommitLabel,
+  pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   reConsentLine,
   UPDATE_UNREACHABLE_LINE,
@@ -78,7 +81,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     // useCheckForUpdates (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't check for updates."); undefined just leaves the verdict as-is.
     // Ends if that mutation drops its errorToast.
-    const results = await check.mutateAsync(undefined).catch(() => undefined);
+    const results = await check.mutateAsync(undefined).catch(rethrowUnlessTrpcFailure);
     if (results === undefined) {
       return;
     }
@@ -96,7 +99,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       setVerdict({
         kind: "available",
         label: updateAvailableLabel(mine.newVersion),
-        ariaLabel: `Update ${plugin.name} to ${mine.newVersion}`,
+        ariaLabel: pluginUpdateToLabel(plugin.name, mine.newVersion),
         proof: mine,
       });
       return;
@@ -105,7 +108,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       setVerdict({
         kind: "available",
         label: updateCommitAvailableLabel(mine.sourceCommit),
-        ariaLabel: `Update ${plugin.name} from commit ${abbreviateSourceCommit(mine.sourceCommit)}`,
+        ariaLabel: pluginUpdateFromCommitLabel(plugin.name, mine.sourceCommit),
         proof: mine,
       });
       return;
@@ -131,7 +134,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     // `pending` is useUpgradePluginFromStoredGit (lib/plugin-distribution-mutations.ts),
     // useUpgradePluginFromShowcase or useUpgradePluginFromStoredUrl (lib/plugin-mutations.ts); each carries an errorToast.
     // Ends if any of them drops it.
-    const updated = await pending.catch(() => undefined);
+    const updated = await pending.catch(rethrowUnlessTrpcFailure);
     if (updated === undefined) {
       return;
     }
@@ -145,14 +148,14 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   return (
     <Row align="center" wrap={true} gap="field" justify="start">
       <Button
-        aria-label={`Check ${plugin.name} for updates`}
+        aria-label={pluginCheckForUpdatesLabel(plugin.name)}
         variant="outline"
         loading={check.isPending}
         onClick={(): void => {
           // runCheck already catches its own
           // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
           // catching internally.
-          void runCheck().catch(() => undefined);
+          void runCheck().catch(rethrowUnlessTrpcFailure);
         }}
         size="sm"
         wrap={true}
@@ -168,7 +171,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
             // applyUpgrade already
             // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
             // if applyUpgrade stops catching internally.
-            void applyUpgrade().catch(() => undefined);
+            void applyUpgrade().catch(rethrowUnlessTrpcFailure);
           }}
           size="sm"
           wrap={true}

@@ -1,8 +1,9 @@
 // verb: applyFields — the SHARP END (13, in order): the user-accepted entries of the
-// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. OWNER RULING:
+// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card.
 // Apply is an ATOMIC COMMIT and Keep/Discard is staging — one refused entry refuses the whole apply, every
 // refused entry is itemized with its typed reason, and recovery is the user's explicit discard of those
-// entries, never a partial write.
+// entries, never a partial write. A partial write would leave the card as a mix the user never reviewed:
+// they kept a set, and a write of only part of it is a card nobody chose.
 //
 // THE BELTS LIVE IN ONE PLACE — `substrate/accept-belts.ts` (intersection 9-11 + the §21 divergence
 // check + the patch construction), SHARED verbatim with `applyAsCopy` so the branch-off arm can never
@@ -32,7 +33,8 @@ import type { CardIdentityField } from "#primitives/serde/card";
 import { cardContentHash } from "#primitives/serde/card";
 import { RefinerySessionCompletedError } from "../contract/errors.ts";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
-import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/accept-belts.ts";
+import { resolveApplyBasis } from "../persistence/apply-basis.ts";
+import { buildPatch, remapSelection } from "../substrate/accept-belts.ts";
 
 /** The pre-apply snapshot label — prefix-classified by the version walk (Refinery vs Manual vs
  *  Pre-restore), with the session id as the provenance suffix (§6.2's convention; label is free text and
@@ -66,7 +68,7 @@ function basisOf(liveCard: CharacterCard): CardWriteBasis {
 }
 
 export function createApplyFields(ctx: RefineryContext): RefineryService["applyFields"] {
-  return async ({ principal, sessionId, accepts, rewriteRunId }) => {
+  return async ({ principal, sessionId, accepts, rewriteRunId, signal }) => {
     const ownerId = principal.userId;
     // The shared preamble: owned session → chosen rewrite (latest or operate-back) → LIVE card → the
     // per-entry intersection (belts 9-11 + divergence), in itemized order — ONE resolver with the copy arm.
@@ -101,7 +103,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     const snapshot = await ctx.snapshotCharacter({ principal, characterId: session.characterId, label: applySnapshotLabelOf(sessionId) });
     let detail: Awaited<ReturnType<typeof ctx.updateCharacter>>;
     try {
-      detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
+      detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard), signal });
     } catch (err) {
       // The snapshot above is the apply's WITNESS, not its prelude (the `restoreCardInPlace`
       // precedent's own words): it exists to record what the card looked like BEFORE THIS APPLY, so it has

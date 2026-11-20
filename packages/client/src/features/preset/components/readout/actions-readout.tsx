@@ -44,6 +44,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { OS_PREFERENCE_LABELS, testId, trpcErrorCode, viewerTimeZone } from "#lib";
+import { PRESET_ACTIONS_PREVIEW_READ_LABEL, PRESET_READOUT_NOT_HOST_INSPECTED, presetActionReadoutName } from "#src/features/preset/lib/preset-names.ts";
 import { openSectionInPrompt } from "#src/features/preset/lib/preset-nav.ts";
 import type { TemplateRow } from "#src/features/preset/lib/template-rows.ts";
 import {
@@ -83,7 +84,7 @@ export function ActionsReadout({ sections, presetId, boundChatId, templateText }
     // nothing selected, with no row highlighted anywhere on screen. The region's accessible NAME carries the
     // row, and the visible header below it says the same thing in the same words (WCAG 2.5.3: what is spoken
     // is what is shown).
-    <Stack aria-label={`Action readout: ${row.def.label}`} gap="section" role="region">
+    <Stack aria-label={presetActionReadoutName(row.def.label)} gap="section" role="region">
       {/* The PANEL's own header — a real `h2` above the section `h3`s, so the readout's subject is the first
           thing the outline (and the eye) reaches instead of being a suffix on the second section's kicker.
           The live announce is on it: selection is driven from the OTHER pane, so a screen-reader user who
@@ -132,7 +133,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
         </Row>
         <Text voice="gloss">
           No Guided instruction marker is placed, so a steer has nowhere to land. Every guided template resolves and is then dropped. Add the marker from the
-          rack's Add menu in the Prompt view.
+          Add menu in the Prompt view.
         </Text>
       </Section>
     );
@@ -159,7 +160,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
       <Text voice="gloss">
         {marker.enabled
           ? "Clicking the name opens that row in Prompt."
-          : "The marker is switched OFF. A steer resolves and is then dropped. Turn it back on from its rack row."}
+          : "The marker is switched OFF. A steer resolves and is then dropped. Turn it back on from its row in the Prompt view."}
       </Text>
     </Section>
   );
@@ -191,9 +192,9 @@ function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; read
       fallback={<SkeletonRows count={RESOLVING_SKELETON_ROWS} shape="datum" />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (
-          <Text voice="gloss">This chat cannot be inspected. Its host resolves the prompt, and you are not it.</Text>
+          <Text voice="gloss">{PRESET_READOUT_NOT_HOST_INSPECTED}</Text>
         ) : (
-          <QueryErrorState label="the resolved preview" onRetry={retry} />
+          <QueryErrorState label={PRESET_ACTIONS_PREVIEW_READ_LABEL} onRetry={retry} />
         )
       }
     >

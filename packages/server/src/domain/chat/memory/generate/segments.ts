@@ -15,14 +15,14 @@
 // interleaved). `collectSegments` does the db reads + chunking + hash gate + shrink prune for ONE chat and
 // returns the pending chunk writes; `storeSegments` hands a batch to the embeddings op, which embeds every
 // chunk in ONE flood and then writes the rows. `generateSegments` = both, for the live post-turn path; the
-// backfill collects the WHOLE corpus first and stores once (`substrate/backfill.ts`).
+// backfill collects the WHOLE corpus first and stores once (`memory/backfill/backfill.ts`).
 //
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
 import type { StoreSegmentParams } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
@@ -36,11 +36,10 @@ import { blockHash, sliceBlocks } from "./substrate/transcript.ts";
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
 interface GenerateSegmentsArgs {
   readonly chatId: ChatId;
-  /** Fallback vector owner when no explicit owner or pinned embedding space is supplied. */
-  readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
-  readonly signal?: AbortSignal | undefined;
-  readonly embedOwnerId?: UserId | undefined;
+  readonly signal: AbortSignal;
+  /** The room host whose encoder embeds the segments and whose space holds them. */
+  readonly embedOwnerId: ConsentingHostId;
 }
 
 /** One chat's collected segment work: the chunk writes that survived the hash gate, plus the counts the pass
@@ -77,12 +76,12 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   if (cutoff < cfg.blockSize) {
     return empty;
   }
-  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId);
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);
   const blocks = sliceBlocks(canon, cfg.blockSize);
-  const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId);
+  const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId, args.signal);
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];
@@ -90,7 +89,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   let skipped = 0;
   let skippedOverWindow = 0;
   for (const block of blocks) {
-    args.signal?.throwIfAborted();
+    args.signal.throwIfAborted();
     const chunks = chunkBlockForEmbedWindow(block.rows, macroNames, embedContextTokens);
     if (chunks === null) {
       // THE PATHOLOGICAL CEILING (the surviving skip arm). Not truncated, not partially stored: skipped WHOLE
@@ -152,7 +151,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
  * and writes the rows. Returns the pass counts. Callers with the whole corpus in hand (the backfill) pass
  * every chat's chunks at once; the live path passes one chat's.
  */
-export async function storeSegments(ctx: ChatContext, collected: CollectedSegments, signal?: AbortSignal): Promise<SegmentPassCounts> {
+export async function storeSegments(ctx: ChatContext, collected: CollectedSegments, signal: AbortSignal): Promise<SegmentPassCounts> {
   if (collected.pending.length > 0) {
     const receipts = await ctx.embeddingsStoreSegments(collected.pending, signal);
     if (receipts.length !== collected.pending.length) {

@@ -15,6 +15,7 @@
 
 import { Lock } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";
+import { CONFIG_ADVANCED_FOLD_NAME } from "#state";
 
 /** The admin pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx). */
 export const adminGroup: ConfigGroupDefinition = {
@@ -25,4 +26,5 @@ export const adminGroup: ConfigGroupDefinition = {
   description: "Deployment-wide media safety, compute, shared access, operations, accounts, sessions, and the local inference engines.",
   when: (viewer) => viewer.isAdmin,
   body: { kind: "sections" },
+  advancedFold: { label: CONFIG_ADVANCED_FOLD_NAME },
 };

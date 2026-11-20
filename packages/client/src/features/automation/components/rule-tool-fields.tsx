@@ -8,10 +8,12 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
+import { surfaceDeferredFailure } from "#lib";
+import { RULE_CAPTURE_TOOL_RESULT_NAME, RULE_TOOL_ARGUMENTS_NAME, RULE_TOOL_CATALOG_READ_LABEL, RULE_TOOL_FIELD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleToolArgumentGuidance, ruleToolParameterGuidance } from "../lib/rule-tool-arguments.ts";
 
@@ -47,7 +49,7 @@ export function RuleToolFields({
         renderError={(_error, retry): ReactElement => (
           <Stack gap="tight">
             <SavedToolName name={action.name} />
-            <QueryErrorState label="your tool catalog" onRetry={retry} />
+            <QueryErrorState label={RULE_TOOL_CATALOG_READ_LABEL} onRetry={retry} />
           </Stack>
         )}
       >
@@ -56,7 +58,7 @@ export function RuleToolFields({
       <form.AppField name={`actions[${index}].argsTemplate`}>
         {(field): ReactElement => (
           <field.MacroField
-            label="Argument template (JSON)"
+            label={RULE_TOOL_ARGUMENTS_NAME}
             suggestions={[]}
             description="Arguments must become a JSON object after macros expand. Only your tools are listed; a shared rule also needs its author’s access. Test does not invoke tools or capture results."
           />
@@ -68,7 +70,7 @@ export function RuleToolFields({
           field.state.value === undefined ? (
             <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
-              Capture tool result
+              {RULE_CAPTURE_TOOL_RESULT_NAME}
             </Button>
           ) : (
             <Stack gap="tight">
@@ -132,7 +134,7 @@ function ToolCatalogFields({
     <Stack gap="block">
       <form.AppField name={`actions[${index}].name`}>
         {(field): ReactElement => (
-          <Field label="Tool" error={touchedFieldError(field.state.meta)}>
+          <Field label={RULE_TOOL_FIELD_NAME} error={touchedFieldError(field.state.meta)}>
             {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- Base UI's FieldRootContext injects `aria-labelledby` at render time, as in SelectField. */}
             <Select
               onOpenChange={(open): void => {
@@ -152,7 +154,7 @@ function ToolCatalogFields({
           </Field>
         )}
       </form.AppField>
-      {tools.length === 0 ? <Text voice="gloss">You have no available automation tools. Activate a plugin with a tool you have permitted.</Text> : null}
+      {tools.length === 0 ? <MutedLine>You have no available automation tools. Activate a plugin with a tool you have permitted.</MutedLine> : null}
       {selected === undefined ? null : <Text voice="gloss">{selected.description}</Text>}
       {selected === undefined ? null : (
         <Stack gap="tight">
@@ -166,7 +168,7 @@ function ToolCatalogFields({
       <Button
         variant="ghost"
         onClick={(): void => {
-          catalog.refetch().catch(() => undefined);
+          catalog.refetch().catch(surfaceDeferredFailure);
         }}
       >
         Refresh tools

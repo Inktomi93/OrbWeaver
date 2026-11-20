@@ -14,6 +14,8 @@ const SECTION_ID = "admin-memory-tuning";
 export const memoryTuningSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "admin",
+  // The memory numerics are expert tuning: inside the Admin group's Advanced fold.
+  advanced: true,
   nav: MEMORY_TUNING_SUBCATEGORY,
   owns: { tier: "app", keys: ["memoryDefaults"] },
   body: (anchorId) => <MemoryTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,

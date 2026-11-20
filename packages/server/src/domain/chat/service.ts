@@ -4,6 +4,7 @@
 
 import type { ClaimChatOp, RequestTurnOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
+import type { ChatId } from "@orb/kit/ids";
 import { createChatContext } from "./context.ts";
 import type { ChatServiceDeps } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
@@ -14,6 +15,7 @@ import { createTurnEngine } from "./engine/engine.ts";
 import { buildTurnMemory } from "./memory/generate/turn.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
+import { createSaveGreetingTexts } from "./substrate/greeting-regex.ts";
 import { createHandoffBarrier } from "./substrate/handoff-barrier.ts";
 import { createAdmittedChatOperations } from "./verbs/admission.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
@@ -26,6 +28,7 @@ import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvitePreview } from "./verbs/invite-preview.ts";
 import { createInvites } from "./verbs/invites.ts";
 import { createLoadParticipantViews } from "./verbs/load-participant-views.ts";
+import { createMemoryStrikes } from "./verbs/memory-strikes.ts";
 import { createMessageWindow } from "./verbs/message-window.ts";
 import { createParticipants } from "./verbs/participants.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
@@ -33,7 +36,7 @@ import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
-import { createDeferredSettlement, createRequestTurn, createTurn } from "./verbs/turn.ts";
+import { createDeferredSettlement, createReleaseWaitingRound, createRequestTurn, createTurn } from "./verbs/turn.ts";
 import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
 
 export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQuietDeps>): VisibleExtractQuiet {
@@ -89,9 +92,10 @@ export function createChatService(
       newMessageAssetId: ctx.newMessageAssetId,
       newChatTurnId: ctx.newChatTurnId,
       applyStatsDelta: ctx.applyStatsDelta,
+      settleRetainedChatRebase: ctx.settleRetainedChatRebase,
       resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
       emitChatChanged: ctx.emitChatChanged,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       prng: ctx.prng,
       passageCounter: ctx.passageCounter,
       runChatTurn: ctx.runChatTurn,
@@ -99,8 +103,9 @@ export function createChatService(
       resolveImageUrl: ctx.resolveImageUrl,
       storeInlineReplyImage: ctx.storeInlineReplyImage,
       promptTransforms: ctx.promptTransforms,
+      globalVariableWriteStatements: ctx.globalVariableWriteStatements,
       timers: ctx.timers,
-      ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
+      backgroundSignal: ctx.backgroundSignal,
       trackBackground: ctx.trackBackground,
       ...(ctx.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: ctx.recordTurnOutcome }),
       rpg:
@@ -114,6 +119,7 @@ export function createChatService(
     },
     {
       emit: deps.emit,
+      emitProviderWait: deps.emitLive,
       holder: deps.holder,
       lockTtlMs: deps.lockTtlMs,
       generateMemory: (args) => buildTurnMemory(ctx, args),
@@ -124,6 +130,8 @@ export function createChatService(
   );
 
   const { loadParticipantViews, loadParticipantViewsBatch } = createLoadParticipantViews(ctx);
+  // ONE greeting save pass for the three greeting writes: founding, an in-window join and a step to an alternate.
+  const saveGreetingTexts = createSaveGreetingTexts(ctx, { resolveForeignInputs: deps.resolveForeignInputs, prng: deps.prng });
 
   // The turn collaborators, shared by the human verbs (createTurn) AND the non-human `requestTurn` seam
   // (createRequestTurn) — ONE engine + one active-turns Set, so an autonomous turn locks/aborts/budgets on the
@@ -135,9 +143,14 @@ export function createChatService(
     emit: deps.emit,
     prng: deps.prng,
     delay: deps.delay,
-    resolveConnection: deps.resolveConnection,
+    // A turn resolves its connection before it registers the Stop handle that cancels it, so only shutdown can
+    // end this resolve.
+    resolveConnection: (args: Omit<Parameters<ChatServiceDeps["resolveConnection"]>[0], "signal">): ReturnType<ChatServiceDeps["resolveConnection"]> =>
+      deps.resolveConnection({ ...args, signal: ctx.backgroundSignal }),
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
+    // ASSUMES(single-replica): one claim set per composed service, the turn verbs' only home for it.
+    replyClaims: new Set<ChatId>(),
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
@@ -146,6 +159,7 @@ export function createChatService(
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
     activeTurns: deps.activeTurns,
+    saveGreetingTexts,
     // The D129-F freeze-at-selection bake draws from the SAME service PRNG a turn's freeze does — a greeting
     // alternate baked at selection is the same kind of draw as one baked at the first user turn.
     prng: deps.prng,
@@ -165,9 +179,14 @@ export function createChatService(
     getNextTurnConnection: deps.getNextTurnConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
-  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
-  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat });
+  const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews, saveGreetingTexts });
+  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat, admission });
+  const participants = createParticipants(ctx, {
+    emit: deps.emitChecked,
+    claimChat,
+    saveGreetingTexts,
+    releaseWaiting: createReleaseWaitingRound(ctx, turnDeps),
+  });
   const admitted = createAdmittedChatOperations(ctx, {
     barrier: admission,
     operations: { ...turn, ...imageGen, compact, acceptHostHandoff: participants.acceptHostHandoff },
@@ -176,6 +195,7 @@ export function createChatService(
   // B6 — the reaction plane. NO `claimChat`: a reaction is a read-adjacent act on canon that already exists,
   // so it cannot be the first activity in a room (a husk has no committed variant to react to).
   const reactions = createReactions(ctx, { emit: deps.emit });
+  const memoryStrikes = createMemoryStrikes(ctx, { emit: deps.emit });
 
   return {
     service: {
@@ -190,6 +210,7 @@ export function createChatService(
       ...chatLifecycle,
       ...participants,
       ...reactions,
+      ...memoryStrikes,
       ...admitted,
     },
     requestTurn,

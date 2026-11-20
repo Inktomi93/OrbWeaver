@@ -12,12 +12,16 @@ import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads"
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { listStagedEntries, openVerifiedArchive, removeContained, resolveStagedPath, ZIP_STAGING_PREFIX } from "#infra/storage";
-import type { ImportWorkloadDeps } from "./contract/workloads.ts";
+import type { ImportStatsSettlement, ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 // Planner statistics are derived maintenance: a failed refresh must not reject committed import data.
 /** The result's merged persona keys, present only when a persona was merged. */
+function heldFields(result: { readonly inLibrary?: number; readonly skipped?: number }): { readonly inLibrary?: number; readonly skipped?: number } {
+  return { ...(result.inLibrary === undefined ? {} : { inLibrary: result.inLibrary }), ...(result.skipped === undefined ? {} : { skipped: result.skipped }) };
+}
+
 function mergedField(mergedKeys: readonly string[] | undefined): { readonly mergedKeys?: readonly string[] } {
   return mergedKeys !== undefined && mergedKeys.length > 0 ? { mergedKeys } : {};
 }
@@ -41,6 +45,12 @@ async function refreshPlannerAfterImport(
   }
 }
 
+/** What the run's progress says of a settled stats rebuild; a rebuild that ran needs no line. */
+const STATS_SETTLED_LINE: Readonly<Record<ImportStatsSettlement, string | null>> = {
+  rebuilt: null,
+  deferred: "Import committed; the library kept changing, so its stats rebuild was queued to run next.",
+};
+
 /** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
  *  progress, then reconcile owner stats on a real run that wrote canon. Extracted to keep the run body under
  *  the cognitive-complexity gate. */
@@ -49,12 +59,12 @@ async function settleImportRun(args: {
   readonly dryRun: boolean;
   readonly ownerId: UserId;
   readonly report: ReportProgress;
-  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly settleImportStats: ImportWorkloadDeps["settleImportStats"];
   readonly refreshPlannerStats: ImportWorkloadDeps["refreshPlannerStats"];
   readonly emitLibraryChanged: ImportWorkloadDeps["emitLibraryChanged"];
   readonly logger: Logger;
 }): Promise<void> {
-  const { result, dryRun, ownerId, report, reconcileImportStats, refreshPlannerStats, emitLibraryChanged } = args;
+  const { result, dryRun, ownerId, report, settleImportStats, refreshPlannerStats, emitLibraryChanged } = args;
   if (result.failed > 0) {
     // Per-card isolation surfaced: some cards were skipped but the batch completed (never a hard abort).
     report({ message: `imported with ${result.failed} card(s) skipped (validation)` });
@@ -64,7 +74,11 @@ async function settleImportRun(args: {
   }
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
-    await reconcileImportStats({ ownerId });
+    const settled = await settleImportStats({ ownerId });
+    const settledLine = STATS_SETTLED_LINE[settled];
+    if (settledLine !== null) {
+      report({ message: settledLine });
+    }
     await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report, args.logger);
     // Refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
@@ -104,11 +118,21 @@ async function profilePort(deps: ImportWorkloadDeps, stagedRoot: string | null, 
 /** Free the upload a row that never ran still holds. Never rejects: its row is already terminal, and the next boot's
  *  sweep frees what this could not. An unset handle reads the configured profile dir, which is never removed. */
 async function releaseStaged(deps: ImportWorkloadDeps, ownerId: UserId | null, handle: string | undefined): Promise<void> {
-  if (ownerId === null || handle === undefined) {
+  if (handle === undefined) {
     return;
   }
   // owned by the log line and the boot sweep, which frees whatever this could not reach. Ends if the sweep stops running at boot.
   try {
+    if (ownerId === null) {
+      // The row outlived its owner and no longer says whose root holds the upload. A handle is minted unique, so
+      // the one entry that carries its name under any account's root is the one this row staged.
+      for (const { ownerRoot, name, path } of await listStagedEntries(deps.stagingRoot)) {
+        if (name === handle && STAGED_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+          await removeContained(ownerRoot, path);
+        }
+      }
+      return;
+    }
     const ownerRoot = stagedOwnerRoot(deps.stagingRoot, ownerId);
     await removeContained(ownerRoot, await resolveStagedPath(ownerRoot, handle));
   } catch (err) {
@@ -119,13 +143,19 @@ async function releaseStaged(deps: ImportWorkloadDeps, ownerId: UserId | null, h
 /** The params field each staged kind names its upload in. */
 const STAGED_HANDLE_FIELD: Partial<Record<WorkloadKind, string>> = { "import-st": "stagedDir", "import-bundle": "token" };
 
-/** The handles active rows still own, read off the stored params so a row that no longer parses keeps its upload. */
+/** The upload a row's stored params name, read off the raw value so a row that no longer parses still names it. */
+function storedHandle(kind: WorkloadKind, params: unknown): string | undefined {
+  const field = STAGED_HANDLE_FIELD[kind];
+  const handle = field !== undefined && isPlainObject(params) ? params[field] : undefined;
+  return typeof handle === "string" ? handle : undefined;
+}
+
+/** The handles active rows still own. */
 function liveHandles(active: readonly ActiveWorkloadRow[]): ReadonlySet<string> {
   const handles = new Set<string>();
   for (const { kind, params } of active) {
-    const field = STAGED_HANDLE_FIELD[kind];
-    const handle = field !== undefined && isPlainObject(params) ? params[field] : undefined;
-    if (typeof handle === "string") {
+    const handle = storedHandle(kind, params);
+    if (handle !== undefined) {
       handles.add(handle);
     }
   }
@@ -158,11 +188,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       lane: "sweep",
       // A dry run is the preview a person watches (it writes nothing), so it never waits behind a sweep (D209).
       laneFor: (params) => (params.dryRun === true ? "interactive" : "sweep"),
+      // A preview is read by id while the review is open and is no run to keep: the end of the next dry run, or a boot, deletes it.
+      transientFor: (params) => params.dryRun === true,
       // Every per-entity write is dedupe-gated, so a retry re-runs the whole loop safely.
       resume: "idempotent-restart",
       admit: ({ params }) => Promise.resolve(params.stagedDir !== undefined && params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
       ownerOnly: readsOperatorTree,
-      releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.stagedDir),
+      releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, storedHandle("import-st", params)),
       // Declared once: both staged kinds share this root, and the sweep reads the rows of both.
       sweepOnBoot: (active) => sweepStaging(deps, active),
       run: async (ctx, params, report, signal): Promise<MaintenanceResult> => {
@@ -199,7 +231,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           dryRun,
           ownerId: targetOwnerId,
           report,
-          reconcileImportStats: deps.reconcileImportStats,
+          settleImportStats: deps.settleImportStats,
           refreshPlannerStats: deps.refreshPlannerStats,
           emitLibraryChanged: deps.emitLibraryChanged,
         });
@@ -212,6 +244,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
           found: result.found,
+          ...heldFields(result),
           ...previewField(result.preview),
         };
       },
@@ -236,7 +269,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       // The entity descriptors dedupe on re-import, so a retry is safe.
       resume: "idempotent-restart",
       admit: ({ params }) => Promise.resolve(params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
-      releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.token),
+      releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, storedHandle("import-bundle", params)),
       run: async (ctx, params, report, signal): Promise<BundleImportWorkloadResult> => {
         const targetOwnerId = ctx.ownerId;
         if (targetOwnerId === null) {
@@ -253,7 +286,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
               : await importStagedZip(deps.runBundleImport, { stagedPath, digest, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
           // A background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
-          if (report_.imported > 0) {
+          // A held file still re-runs its planes (D290), so it refreshes like a written one.
+          if (report_.imported + report_.inLibrary > 0) {
             await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report, deps.logger);
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }

@@ -13,14 +13,15 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonMemberSchema } from "@orb/kit/json";
 import { z } from "zod";
 import type { Principal } from "#identity";
+import type { UnavailableCause } from "#inference";
 import { providerIdSchema } from "#inference";
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
-/** WHAT KIND of secret a row seals, spelled from the provider row's `auth` (inference program §8.4-1): the
- *  metadata union is keyed on it. An `endpoint` row's transforms (headers / includeBody / excludeBody /
- *  responseMap) are NOT here any more — they are the CONNECTION's `transport` column (§5.3); a credential row
- *  is a sealed secret with a label, and connections give it meaning. `.nullable()`: most rows carry none. */
+/** WHAT KIND of secret a row seals, spelled from the provider row's `auth`: the metadata union is keyed on it.
+ *  An `endpoint` row's transforms (headers / includeBody / excludeBody / responseMap) are NOT here — they are
+ *  the CONNECTION's `transport` column; a credential row is a sealed secret with a label, and connections give
+ *  it meaning. `.nullable()`: most rows carry none. */
 export const providerMetadataSchema = z
   .discriminatedUnion("auth", [
     z.object({ auth: z.literal("apiKey") }).catchall(jsonMemberSchema),
@@ -40,10 +41,9 @@ export function parseProviderMetadata(raw: unknown): ProviderMetadata {
  *
  *  `ok` is an EARNED green — it means a probe went out and the credential was accepted, nothing else.
  *  `unchecked` is the honest answer when no such probe happened or its answer did not classify: a provider
- *  with no probe arm (SID-01 — the verb used to report a bare `ok` for those, so "Test" was green for a
- *  credential nobody had ever dialled), a row with no usable endpoint metadata, or a reachable endpoint
- *  answering a non-auth non-2xx. `unchecked` carries NO revocation/strike side-effect — it is not a
- *  failure, it is the absence of a verdict, and it must never be rendered as a pass. */
+ *  with no probe arm, a row with no usable endpoint metadata, or a reachable endpoint answering a non-auth
+ *  non-2xx. `unchecked` carries NO revocation/strike side-effect — it is not a failure, it is the absence of
+ *  a verdict, and it must never be rendered as a pass. */
 export type CredentialHealth =
   | { status: "ok"; checkedAt: number }
   | { status: "revoked"; checkedAt: number; reason: string }
@@ -96,6 +96,23 @@ export type RelabelCredentialOp = (params: RelabelCredentialParams) => Promise<v
  *  answered is the exact product lie the honest `unchecked` health arm already exists to prevent. */
 export const CRED_REVOKED_REASONS = ["auth_failed", "unreachable", "user"] as const;
 export type CredRevokedReason = (typeof CRED_REVOKED_REASONS)[number];
+
+/** The availability cause a bound row reads while its key is revoked, one per reason, so every surface says why. */
+export const REVOKED_KEY_CAUSES = {
+  ["auth_failed"]: "key-rejected",
+  unreachable: "key-revoked-unreachable",
+  user: "key-revoked-by-user",
+} as const satisfies Record<CredRevokedReason, UnavailableCause>;
+export type RevokedKeyCause = (typeof REVOKED_KEY_CAUSES)[CredRevokedReason];
+
+const credRevokedReasonSchema = z.enum(CRED_REVOKED_REASONS);
+
+/** The cause for a key revoked for `reason`. A stored reason this build cannot read, or none (a row that is not the
+ *  caller's), names no cause it cannot prove: the row is `unavailable`. */
+export function revokedKeyCause(reason: string | null): RevokedKeyCause | "unavailable" {
+  const parsed = credRevokedReasonSchema.safeParse(reason);
+  return parsed.success ? REVOKED_KEY_CAUSES[parsed.data] : "unavailable";
+}
 
 /** The credential read-model the `credentials.list`/`credentials.add` procedures return. It never carries a
  *  secret column (`ciphertext`/`iv`/`tag`) or the plaintext key; `toCredentialView` in the credentials domain

@@ -3,12 +3,13 @@ import type { RegisterPromptTransformOp, UnregisterPromptTransformOp } from "@or
 import type { InvocationChat, ResolvePluginChatAuthority } from "@orb/contracts/plugin";
 import type { PluginToolHandle, PluginToolSpecData } from "@orb/contracts/tool-use";
 import type { Logger, TraceRing } from "#foundation/observability";
+import type { PluginCascadeScope } from "#infra/plugin-host";
 import type { PluginHostOps } from "./ops.ts";
 
 /** Insert a plugin-sourced tool at activation. `invoke` runs the guest handler, so it takes the abort signal; the
  *  rest of the registration is contracts data. */
 type RegisterPluginToolOp = (
-  spec: PluginToolSpecData & { readonly invoke: (argsJson: string, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string> },
+  spec: PluginToolSpecData & { readonly invoke: (argsJson: string, chat: InvocationChat | null, signal: AbortSignal) => Promise<string> },
 ) => PluginToolHandle;
 
 /** The tool-use registry's runtime door, as the plugin registrar reaches it. */
@@ -21,9 +22,11 @@ export interface PluginRegistrarDeps {
   /** The root's trace ring each supervised plugin-event delivery seals into. */
   readonly traces: TraceRing;
   readonly toolUse: PluginToolRegistrar;
-  readonly promptTransforms: { readonly register: RegisterPromptTransformOp; readonly unregister: UnregisterPromptTransformOp };
+  readonly promptTransforms: { readonly register: RegisterPromptTransformOp<AbortSignal>; readonly unregister: UnregisterPromptTransformOp };
   readonly pluginSubscribers: PluginSubscriberRegistry;
   readonly resolveChatAuthority: ResolvePluginChatAuthority;
   readonly newEventId: () => string;
+  /** The plugin command whose host call raised the fact being delivered, read where the fan-out delivers it. */
+  readonly cascadeCause: PluginCascadeScope["current"];
 }
 export type PluginRegistrarOps = Pick<PluginHostOps["registrar"], "registerTool" | "registerTransform" | "subscribeEvent">;

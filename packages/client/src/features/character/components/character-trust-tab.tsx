@@ -1,7 +1,8 @@
-// The CONTEXT **Trust** tab — how this card's messages are allowed to RENDER: `forbidExternalMedia` and the
-// HTML-trust ladder, both tri-state, both immediate-commit on `character.update` (no save bar, no dirty
-// pill). `trustHtml` resolves `override ?? global`; `forbidExternalMedia` is TIGHTEN-ONLY over the
-// deployment ceiling, so while the deployment blocks external media the control renders locked.
+// The CONTEXT **Trust** tab — how this card's messages are allowed to RENDER: the block-external-media switch and
+// the HTML-trust ladder, both immediate-commit on `character.update` (no save bar, no dirty pill). `trustHtml`
+// resolves `override ?? global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling
+// (`resolveRenderPolicy` in @orb/contracts/chat), so a stored `false` resolves exactly like no override: the control
+// is one switch whose off writes the clear, and while the deployment blocks external media it renders locked.
 //
 // IT IS ITS OWN DOOR SINCE #841/#860 (owner 2026-08-30). It used to be the third of four concerns inside a
 // tab called "Options" — a three-paragraph security essay under a twelve-field colour editor, in a pane
@@ -13,13 +14,12 @@
 // HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
 // Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
 // `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
-// is unwritable here and unrepresentable in the resolved policy. The top rung runs card-authored scripts,
-// and it is also where "Inherit default" lands while the deployment's `allowInteractiveCards` ceiling is up
-// (owner ruling: interactive cards on by default), so this surface reads that ceiling, says which rung the
-// character resolves to, and names the lower rungs as the per-character disable. It does NOT lock the control
-// the way the external-media row does: there EVERY value is inert under the ceiling, here only one of four.
+// is unwritable here and unrepresentable in the resolved policy. The top step runs card-authored scripts, and
+// "Inherit default" lands on the install's "Default for characters" step, which is Interactive by default (owner
+// ruling). Every explicit step wins over that default, Interactive included (D294), so this surface says which step
+// the character resolves to and names the lower steps as the per-character disable. Only the external-media row locks,
+// because there the install's setting is a ceiling.
 
-import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -27,39 +27,21 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
+import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { HTML_TRUST_STEP_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
+import { CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL, CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 
-/** inherit / on / off ⇄ null / true / false (the tri-state wire encoding, shared by both Trust controls). */
-function tristateValue(flag: boolean | null): string {
-  if (flag === null) {
-    return "inherit";
-  }
-  return flag ? "on" : "off";
-}
-
-function tristateFlag(value: string): boolean | null {
-  if (value === "inherit") {
-    return null;
-  }
-  return value === "on";
-}
-
-/** The HTML-trust LADDER as one control (#111). `inherit` is the absence of an override, not a rung — it is
- *  spelled with the same sentinel the sibling tri-state uses, and it clears BOTH stored columns. The rungs
+/** The HTML-trust LADDER as one control (#111). `inherit` is the absence of an override, not a rung, and it
+ *  clears BOTH stored columns. The rungs
  *  are ordered weakest-first, matching `HTML_TRUST_STEPS`, so the menu reads as the ladder it is. */
 const INHERIT_STEP = "inherit";
-const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
-  untrusted: "Plain text",
-  trusted: "Rich HTML",
-  interactive: "Interactive",
-};
 const HTML_TRUST_ITEMS: SelectItems = [
   { value: INHERIT_STEP, label: "Inherit default" },
-  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_LABELS[step] })),
+  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_STEP_LABELS[step] })),
 ];
 
 /** One picked rung → the column pair to persist. `inherit` clears both; every other value goes through the
@@ -78,14 +60,16 @@ export function CharacterTrustTab({ characterId }: CharacterAppearanceTabProps):
   return (
     // RESERVED (#1098) — the Trust tab settles into the render-policy rows; its sibling Look tab is keyed
     // for the same reason, and two tabs in one panel that resize differently is the worse half of it.
-    <QueryBoundary
-      resetKeys={[characterId]}
-      fallback={<SkeletonRows count={4} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
-      reserveKey="character.context.trust"
-    >
-      <TrustTabBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[characterId]}
+        fallback={<SkeletonRows count={4} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
+        reserveKey="character.context.trust"
+      >
+        <TrustTabBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -95,17 +79,12 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
   const update = useUpdateCharacter({ trpc, invalidation });
   // The deployment ceiling (`/api/auth/config.forbidExternalMedia`) — the value the document CSP was built
-  // from. While it is on, EVERY value of this control resolves to blocked, so the control is inert: render
-  // it disabled + explained rather than as a dead switch (D107).
+  // from. While it is on, this character is blocked whatever it stores, so the switch is inert: render it
+  // locked on + explained rather than as a dead switch (D107).
   const externalMediaBlocked = useExternalMediaBlocked();
-  // The deployment half of the ladder's TOP rung (#111 leg 3). Unlike external media this does NOT lock the
-  // control — only ONE of the four values is inert while it is off, and disabling the whole select would
-  // take away three working choices. The rung stays pickable and the note below says what it will do.
-  const interactiveCardsAllowed = useInteractiveCardsAllowed();
   // What the stored pair actually RESOLVES to on this deployment — the same resolver compose runs. The
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
   const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
-  const externalMediaLockId = useId();
   const interactiveLockId = useId();
 
   const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null; interactiveHtml?: boolean | null }): void => {
@@ -114,55 +93,42 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
 
   return (
     <Stack gap="section">
-      {/* The external-media row can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling —
+      {/* The external-media switch can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling —
           enforced twice, by the tighten-only render-policy resolver (@orb/contracts/chat) and by the page's
-          Content-Security-Policy — and no per-character value can widen it. While the deployment blocks,
-          the control is LOCKED rather than offering an "Allow" that nothing honours. */}
+          Content-Security-Policy — and no per-character value can widen it. So the switch has two honest
+          states, block or follow the install; off writes the clear, never a stored `false`. While the
+          deployment blocks, the switch is locked on and says why. */}
       <Section heading="Trust">
+        <SettingSwitchRow
+          label={CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL}
+          checked={externalMediaBlocked || data.forbidExternalMedia === true}
+          onChange={(next): void => commit({ forbidExternalMedia: next ? true : null })}
+          disabled={externalMediaBlocked}
+          {...(externalMediaBlocked ? { disabledReason: "Blocked for everyone by your admin." } : {})}
+        />
         <Row gap="field" wrap={true}>
-          {/* No control-has-associated-label suppression here (unlike its sibling): the conditional
-              aria-describedby SPREAD makes the rule bail on this element, so a directive would be an
-              unused-disable error. The `label` prop still renders the visible, associated label. */}
-          <Select
-            label="External media"
-            items={[
-              { value: "inherit", label: "Inherit default" },
-              { value: "off", label: "Allow" },
-              { value: "on", label: "Forbid" },
-            ]}
-            value={tristateValue(data.forbidExternalMedia)}
-            onValueChange={(value): void => commit({ forbidExternalMedia: tristateFlag(String(value)) })}
-            disabled={externalMediaBlocked}
-            {...(externalMediaBlocked ? { "aria-describedby": externalMediaLockId } : {})}
-          />
           {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted < Render HTML <
               Interactive, in that order, with Inherit as the absence of an override rather than a rung.
               The write direction is the contracts helper, so this control cannot store the incoherent
               "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
           <Select
-            label="HTML rendering"
+            label={CHARACTER_HTML_TRUST_LABEL}
             items={HTML_TRUST_ITEMS}
             value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
             onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
             aria-describedby={interactiveLockId}
           />
         </Row>
-        {externalMediaBlocked ? (
-          <Text id={externalMediaLockId} voice="reading">
-            External media: blocked for everyone by your admin.
-          </Text>
-        ) : null}
         <Stack gap="field" id={interactiveLockId}>
-          <Text voice="reading">Plain text: safest, no styling.</Text>
+          <Text voice="reading">Plain text: no styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts.</Text>
           <Text voice="reading">Rich HTML: styled messages, no scripts.</Text>
           <Text voice="reading">
             Interactive: cards can run scripts in a sealed frame. A script can still tell its author that you viewed it, and your IP address.
           </Text>
         </Stack>
         <Text voice="reading" data-slot="trust-resolved-step">
-          This character's messages render as {HTML_TRUST_LABELS[resolvedStep]} right now.
+          This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
         </Text>
-        {interactiveCardsAllowed ? null : <Text voice="reading">Interactive is turned off by your admin, so it works like Rich HTML here.</Text>}
         <Text voice="reading">Changes apply right away.</Text>
       </Section>
     </Stack>

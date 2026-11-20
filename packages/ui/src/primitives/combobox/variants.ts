@@ -2,6 +2,9 @@ import {
   ACCENT_HOVER,
   COLOR_MOTION,
   CONTROL_MIN_BLOCK,
+  DISABLED_DIM,
+  DISABLED_FIELD_INK_NATIVE,
+  DISABLED_FIELD_WITHIN,
   DISABLED_STATE_NATIVE,
   FIELD_STACK,
   FOCUS_RING,
@@ -21,16 +24,19 @@ import {
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex flex-wrap items-center gap-x-glyph-gap rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
+      `
+        relative flex flex-wrap items-center gap-x-glyph-gap rounded-control border border-input-border bg-field-fill px-field text-foreground inline-full
+        min-inline-0
+      `,
       COLOR_MOTION,
       FOCUS_RING_WITHIN,
-      "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
+      DISABLED_FIELD_WITHIN,
     ],
     chips: "contents",
     chip: [
       `${INLINE_FIELD_ROW} rounded-full bg-secondary ps-block pe-field text-label leading-label text-secondary-foreground outline-none`,
       FOCUS_RING,
-      "data-disabled:opacity-disabled",
+      DISABLED_DIM,
     ],
     // The box is the glyph step, so the hit area rides `::before`, layout-neutral, as far past it as the touch floor asks on
     // every side (`glyph-bleed`: the touch-target less that step, halved, so it is pointer-conditional). The chip's end
@@ -47,8 +53,9 @@ export const comboboxVariants = tv({
     // `self-stretch` fills the line the wrapped box stretches to, so the draft input's hit area is the field's own
     // height rather than its text-height box.
     input: [
-      `flex-1 self-stretch bg-transparent px-field text-field leading-field text-foreground outline-none ${TITLE_FLOOR}`,
+      `flex-1 self-stretch bg-transparent px-field text-field leading-field outline-none ${TITLE_FLOOR}`,
       "placeholder:text-muted-foreground",
+      DISABLED_FIELD_INK_NATIVE,
     ],
     positioner: "z-(--z-popover) outline-none",
     popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],

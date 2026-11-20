@@ -26,8 +26,12 @@
 import { resolveProse } from "@orb/contracts/prose";
 import type { RpgInventoryItem, RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
+import { errorMessage } from "@orb/kit/error-message";
 import { readOwnKey } from "@orb/kit/objects";
+import { addSpanEvent } from "#foundation/observability";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
+
+const PLANE_DEGRADED_EVENT = "rpg.delta.plane_degraded";
 
 // Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
 //  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
@@ -513,13 +517,13 @@ const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
  *  value degrades to NO lines (the other planes still render); the block never throws. Returns the plane's
  *  lines (empty on no-change OR a degraded plane). */
 function renderPlane(r: RegisteredPlaneDiff, prev: RpgSnapshotState, cur: RpgSnapshotState, ctx: DeltaContext): readonly string[] {
-  // §2.7.4 D79-heal DEFENSIVE arm (comment below) —
-  // pure prose rendering, no write/persistence in this path; a malformed plane degrades to no lines for
-  // THAT plane only, the other planes still render. Consumed as the returned empty array.
+  // The GRACEFUL DEGRADE ruling in this file's header: pure prose rendering, no write in this path; a throwing renderer
+  // degrades THIS plane to no lines and the other planes still render. The fault is recorded on the turn's span, so a
+  // renderer defect reads as a degraded plane on the trace ring and never as a quiet empty diff.
   try {
     return r.run(prev, cur, ctx);
-  } catch {
-    // §2.7.4 D79-heal DEFENSIVE arm: a malformed prev/cur shape degrades THIS plane's line, never the block.
+  } catch (error) {
+    addSpanEvent(PLANE_DEGRADED_EVENT, { error: errorMessage(error) });
     return [];
   }
 }

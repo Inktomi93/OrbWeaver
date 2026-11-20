@@ -1,14 +1,40 @@
-import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameStyleTokens, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
-import type { CSSProperties, ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { CardFrameHeight, CardFrameHeightCap } from "@orb/kit/card-frame";
+import {
+  CARD_FRAME_SANDBOX,
+  cardFrameSettleDelayMs,
+  clampCardFrameFontFamily,
+  clampCardFrameStyleTokens,
+  clampCardFrameThemeTokens,
+  foldCardFrameHeight,
+  readCardFrameLink,
+  readCardFrameMissing,
+  settleCardFrameHeight,
+} from "@orb/kit/card-frame";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { cn } from "#lib";
 import { cssVar } from "#tokens";
+import { gateFrameFocus, holdsAdmittedFocus } from "./frame-focus.ts";
 import { buildSrcDoc } from "./srcdoc.ts";
 
 // An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
 // announces as an unnamed frame. The single production caller (`ImmersiveCard`) always passes the card's
 // own title (falling back to its own untitled label), so this constant is the LIBRARY floor for a caller
 // that hands us an empty string, not a second naming policy.
+// A card frame is grouped content on its own surface; a reply frame is the bubble's own prose and paints none.
+const FRAME_SURFACE: Record<CardFrameHeightCap, string> = { card: "rounded-base border border-border bg-card inline-full", reply: "inline-full" };
+
 const UNNAMED_FRAME_TITLE = "Embedded card";
+
+// How long a veiled routed frame may stay silent after its document loads. The pinned script reports on load, so a
+// document still silent past this answered with an error status, or carries no script the policy let run.
+const FRAME_REPORT_BOUND_MS = 2000;
+
+// Whether a vetted framed link points off the app's own origin. An address the URL parser refuses leaves nothing.
+function leavesApp(link: string): boolean {
+  const url = URL.parse(link);
+  return url !== null && url.origin !== location.origin;
+}
 
 interface SandboxFramePropsBase {
   /** The untrusted HTML — handed to a sandboxed realm, NEVER sanitized into the main DOM. */
@@ -53,6 +79,33 @@ interface SandboxFramePropsBase {
    * `@orb/contracts`). One home for the identity rule; the meaning stays with the consumer.
    */
   readonly onHostMessage?: (data: unknown, reply: (message: unknown) => void) => void;
+  /** What the frame holds: one card (the default), drawn on its own bordered surface under the card height cap, or
+   *  one whole reply, which sits on its bubble's surface and grows to its content instead of scrolling inside itself
+   *  (`@orb/kit/card-frame`). */
+  readonly holds?: CardFrameHeightCap;
+  /**
+   * A link clicked inside the frame, as an absolute http, https or mailto address off the app's own origin. Called
+   * only when the sender is this frame's own window ({@link readCardFrameLink} vets the address), the page holds a
+   * live user activation AND the focus gate admitted this frame as the place the reader holds
+   * ({@link holdsAdmittedFocus}): after a press on it or a Tab into it, never after its own `focus()`. So a scripted
+   * frame raises nothing off a click elsewhere in the app; once the reader presses or types in it, its script can post
+   * on that input. A frame with `ungatedFocus` is never admitted and never raises it. The string is the frame's: the
+   * caller still owes its own parse and confirm before opening. Absent ⇒ a framed link does nothing.
+   */
+  readonly onLink?: (url: string) => void;
+  /** The frame's document is the server's miss notice: its handle is unknown, expired or evicted. Sender-checked
+   *  like every frame message; the caller may mint again. */
+  readonly onMissing?: () => void;
+  /**
+   * Leave focus into the frame ungated. A card or reply frame is gated ({@link gateFrameFocus}): focus enters it only by
+   * a click on it or a Tab from the app. A plugin surface passes this: it is the app's own installed surface, opened by
+   * a click in the app, and its controls take focus at once as the app's do. Only its load-time focus is returned.
+   */
+  readonly ungatedFocus?: boolean;
+  /** The frame fell to the script-dead floor for good and draws `html` there; a caller whose `html` is empty draws its
+   *  own. A gated frame falls when its own script took focus in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}); a
+   *  veiled routed frame falls when its document loads and reports no height within {@link FRAME_REPORT_BOUND_MS}. */
+  readonly onFloor?: () => void;
 }
 
 export type SandboxFrameProps = SandboxFramePropsBase &
@@ -63,13 +116,66 @@ export type SandboxFrameProps = SandboxFramePropsBase &
          *  is the final height. Not a minimum: the whole point of #91 is that a short card measures BELOW it. */
         readonly heightPx?: number;
         readonly fill?: false;
+        /**
+         * What shows in the routed frame's place until its document reports its first height. Until then the frame
+         * loads with no height, no paint and no focus, so the reader never sees a blank frame while its document
+         * loads and draws. Absent ⇒ the frame shows from its first byte at `heightPx`.
+         */
+        readonly pending?: ReactNode;
       }
     | {
         readonly heightPx?: never;
         /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
         readonly fill?: boolean;
+        readonly pending?: never;
       }
   );
+
+// The frame's height: none while it is veiled, its measured or given height, or the chart height when it has neither.
+// `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
+function frameStyle(fill: boolean, veiled: boolean, appliedPx: number | undefined): CSSProperties | undefined {
+  if (fill) {
+    return undefined;
+  }
+  if (veiled) {
+    return { height: 0 };
+  }
+  return { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
+}
+
+// A VEILED FRAME IS NEVER LAZY. Its host waits on the height its document reports, and the veil holds it at 0px, which a
+// lazy load reads as off screen wherever it sits: at a transcript's end it never loads, never reports, and the list it
+// should grow is left short of its end. Only a frame that draws at a height of its own loads lazily.
+function frameLoading(veiled: boolean): "eager" | "lazy" {
+  return veiled ? "eager" : "lazy";
+}
+
+// EXACTLY ONE of the two delivery attributes is ever emitted — see the `src` prop doc.
+function frameDelivery(input: {
+  readonly html: string;
+  readonly css: string | undefined;
+  readonly themeTokens: Readonly<Record<string, string>> | undefined;
+  readonly styleTokens: Readonly<Record<string, string>> | undefined;
+  readonly fontFamily: string | undefined;
+  readonly allowExternalMedia: boolean;
+  readonly src: string | undefined;
+}): { readonly srcDoc: string } | { readonly src: string } {
+  if (input.src !== undefined) {
+    return { src: input.src };
+  }
+  return {
+    srcDoc: buildSrcDoc({
+      html: input.html,
+      css: input.css,
+      themeTokens: clampCardFrameThemeTokens(input.themeTokens),
+      styleTokens: clampCardFrameStyleTokens(input.styleTokens),
+      fontFamily: clampCardFrameFontFamily(input.fontFamily),
+      // A whole reply frames only on the routed delivery; the floor serves cards, which bring their own look.
+      rootAttributes: undefined,
+      allowExternalMedia: input.allowExternalMedia,
+    }),
+  };
+}
 
 /**
  * Renders untrusted self-contained HTML/CSS inside a sandboxed iframe. The iframe IS the security
@@ -84,13 +190,16 @@ export type SandboxFrameProps = SandboxFramePropsBase &
  * deliberate belt-and-suspenders: a mis-wired route that lost its header must not become a same-origin
  * frame — and since #111 leg 3 that belt is load-bearing rather than theoretical, because a routed card on
  * the `interactive` posture RUNS ITS OWN SCRIPTS (`script-src 'unsafe-inline'`, granted when the character
- * resolves to the ladder's top rung, its default under the deployment's `allowInteractiveCards` ceiling,
- * and only while that ceiling is up). Nothing about which
+ * resolves to the ladder's top step, the install's "Default for characters" is Interactive, and the viewer runs
+ * card scripts). Nothing about which
  * posture a document got is decided or even visible here: the server built the policy, this side just
  * frames the URL.
  *
  * HEIGHT: caller-controlled until the routed frame measures itself. The message is untrusted input from a
  * hostile document and is treated as such — see the listener below.
+ *
+ * LINKS: a link message counts only from a frame the focus gate admitted (`onLink`). Raw `document.activeElement` is
+ * not that control: a frame that calls `focus()` holds focus until the gate's judgement in the next task returns it.
  */
 export function SandboxFrame({
   html,
@@ -99,18 +208,27 @@ export function SandboxFrame({
   styleTokens,
   fontFamily,
   allowExternalMedia = false,
-  src,
+  src: routedSrc,
   title,
   complete = true,
   heightPx,
   fill = false,
   className,
   onHostMessage,
+  holds = "card",
+  onLink,
+  onMissing,
+  pending,
+  ungatedFocus = false,
+  onFloor,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
-  // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
-  const [measured, setMeasured] = useState<{ readonly delivery: string; readonly px: number } | undefined>(undefined);
+  // render instead of by a cascading `setState` — the same shape `useCardFrame` uses for its handle.
+  const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
+  // Set once the frame falls to the floor (`onFloor`), with the height it had: it stays there.
+  const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
+  const src = stopped === undefined ? routedSrc : undefined;
   const deliveryKey = src ?? "srcdoc-floor";
 
   // The frame's self-reported height crosses a TRUST BOUNDARY: the document that sends it renders
@@ -120,21 +238,42 @@ export function SandboxFrame({
   //      origin check would accept any opaque frame on the page. Window identity names exactly one sender,
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
-  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and refuses a shrink (kit, tested).
-  // Listener registration follows the delivery, because a re-mint replaces the frame's window.
+  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations resizes (kit, tested).
+  // Listener registration follows the delivery, because a re-mint replaces the frame's window. A `fill` frame's parent
+  // owns its height, so it folds no height; its links and its miss notice pass the same checks as any frame's.
   useEffect(() => {
-    if (fill) {
-      return;
-    }
     const onMessage = (event: MessageEvent): void => {
       const frameWindow = frameRef.current?.contentWindow;
       if (event.source === null || event.source !== frameWindow) {
         return;
       }
-      setMeasured((current) => {
-        const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data);
-        return px === undefined ? current : { delivery: deliveryKey, px };
-      });
+      const nowMs = performance.now();
+      if (!fill) {
+        setMeasured((current) => {
+          const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
+          return height === undefined ? current : { delivery: deliveryKey, height };
+        });
+      }
+      const link = readCardFrameLink(event.data);
+      // A link counts only from a press or key IN THIS FRAME: it activated the page (activation reaches every ancestor
+      // of the frame it lands in) and the focus gate admitted this frame. Activation alone is page-wide and lasts
+      // seconds, and a frame that posts and then calls `focus()` holds focus before the gate returns it, so either check
+      // alone lets a scripted frame ride a click anywhere in the app. No activation API ⇒ no link. A link to the app's
+      // own origin never leaves a frame: the frame resolves `href`, so `/settings` arrives as this origin.
+      const frame = frameRef.current;
+      if (
+        link !== undefined &&
+        frame !== null &&
+        "userActivation" in navigator &&
+        navigator.userActivation.isActive &&
+        holdsAdmittedFocus(frame) &&
+        leavesApp(link)
+      ) {
+        onLink?.(link);
+      }
+      if (readCardFrameMissing(event.data)) {
+        onMissing?.();
+      }
       // The sender is proven to be THIS frame's window (`frameWindow` is non-null here — the guard above
       // returned otherwise); the consumer decides what the message means. `reply` targets that same window
       // (`"*"` because an opaque-origin document has no origin to name — the message still reaches exactly the
@@ -145,17 +284,36 @@ export function SandboxFrame({
     return (): void => {
       window.removeEventListener("message", onMessage);
     };
-  }, [fill, deliveryKey, onHostMessage]);
+  }, [fill, deliveryKey, onHostMessage, holds, onLink, onMissing]);
 
-  // NO FOCUS ON MOUNT. A framed document that focuses itself while it loads (an autofocused game board) would
-  // pull the page's keyboard focus into a third party's document every time the frame mounts — a room opening
-  // would drop a keyboard or screen-reader user inside it unannounced. The document cannot be stopped from
-  // calling `focus()`, so the host takes focus back: if the frame holds focus when it finishes loading, focus
-  // returns to wherever it last was outside the frame. A person who wants the frame clicks or tabs into it.
+  // A height the frame asked for while it had no resize credit lands when a credit comes back, so the last report a
+  // document sends is always applied, even when it sends nothing after it.
+  const waiting = measured?.delivery === deliveryKey ? measured.height : undefined;
+  useEffect(() => {
+    if (waiting === undefined) {
+      return;
+    }
+    const delayMs = cardFrameSettleDelayMs(waiting, performance.now());
+    if (delayMs === undefined) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setMeasured((current) =>
+        current?.delivery === deliveryKey ? { delivery: deliveryKey, height: settleCardFrameHeight(current.height, performance.now()) } : current,
+      );
+    }, delayMs);
+    return (): void => {
+      clearTimeout(timer);
+    };
+  }, [waiting, deliveryKey]);
+
+  // NO FOCUS ON MOUNT, for an ungated frame (a gated one is covered whole by its gate). A framed document that focuses
+  // itself while it loads would pull the page's keyboard focus into a third party's document every time the frame
+  // mounts, so if the frame holds focus when it finishes loading, focus returns to wherever it last was outside it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
   useEffect(() => {
     const frame = frameRef.current;
-    if (frame === null) {
+    if (frame === null || !ungatedFocus) {
       return;
     }
     let outside: Element | null = document.activeElement === frame ? null : document.activeElement;
@@ -181,11 +339,51 @@ export function SandboxFrame({
       document.removeEventListener("focusin", onFocusIn);
       frame.removeEventListener("load", onLoad);
     };
-  }, [deliveryKey, complete]);
+  }, [deliveryKey, complete, ungatedFocus]);
 
-  // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
-  const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;
-  const style: CSSProperties | undefined = fill ? undefined : { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
+  const drawnPx = measured?.delivery === deliveryKey ? measured.height.px : undefined;
+  const appliedPx = drawnPx ?? stopped?.px ?? heightPx;
+  // Only the routed document measures itself; the srcdoc floor is script-dead, so it never waits.
+  const veiled = pending !== undefined && src !== undefined && drawnPx === undefined;
+  const style = frameStyle(fill, veiled, appliedPx);
+
+  // FOCUS ENTERS ONLY BY THE READER'S HAND (`frame-focus.ts`): a frame's own script cannot take keyboard focus.
+  const isVeiled = useEffectEvent((): boolean => veiled);
+  const fallToFloor = useEffectEvent((): void => {
+    if (stopped === undefined) {
+      setStopped({ px: appliedPx });
+      onFloor?.();
+    }
+  });
+  // A veiled frame whose document loaded and stayed silent would hold its stand-in for good.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || !isVeiled()) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onLoad = (): void => {
+      timer = setTimeout(() => {
+        if (isVeiled()) {
+          fallToFloor();
+        }
+      }, FRAME_REPORT_BOUND_MS);
+    };
+    frame.addEventListener("load", onLoad);
+    return (): void => {
+      frame.removeEventListener("load", onLoad);
+      clearTimeout(timer);
+    };
+  }, [deliveryKey, complete]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || ungatedFocus) {
+      return;
+    }
+    return gateFrameFocus(frame, isVeiled, fallToFloor);
+  }, [deliveryKey, complete, ungatedFocus]);
 
   if (!complete) {
     return (
@@ -200,40 +398,33 @@ export function SandboxFrame({
     );
   }
 
-  // EXACTLY ONE of the two delivery attributes is ever emitted — see the `src` prop doc.
-  const delivery =
-    src === undefined
-      ? {
-          srcDoc: buildSrcDoc({
-            html,
-            css,
-            themeTokens: clampCardFrameThemeTokens(themeTokens),
-            styleTokens: clampCardFrameStyleTokens(styleTokens),
-            fontFamily: clampCardFrameFontFamily(fontFamily),
-            allowExternalMedia,
-          }),
-        }
-      : { src };
+  const delivery = frameDelivery({ html, css, themeTokens, styleTokens, fontFamily, allowExternalMedia, src });
   return (
-    <iframe
-      // A DELIVERY FLIP MUST REMOUNT (measured live 2026-08-15): Chromium does not re-process `src` when
-      // `srcdoc` is removed from an already-committed frame — flipping the floor to the routed arm on ONE
-      // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
-      // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
-      // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
-      key={deliveryKey}
-      ref={frameRef}
-      sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
-      {...delivery}
-      title={title === "" ? UNNAMED_FRAME_TITLE : title}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className={className ?? "rounded-base border border-border bg-card inline-full"}
-      style={style}
-      data-slot="sandbox-frame"
-      // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of
-      // the inherited floor (the CSP itself lives on a response header / inside an opaque-origin document).
-      data-delivery={src === undefined ? "srcdoc" : "routed"}
-    />
+    <>
+      {veiled ? pending : null}
+      <iframe
+        // A DELIVERY FLIP MUST REMOUNT (measured live 2026-08-15): Chromium does not re-process `src` when
+        // `srcdoc` is removed from an already-committed frame — flipping the floor to the routed arm on ONE
+        // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
+        // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
+        // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
+        key={deliveryKey}
+        ref={frameRef}
+        sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
+        {...delivery}
+        title={title === "" ? UNNAMED_FRAME_TITLE : title}
+        loading={frameLoading(veiled)}
+        referrerPolicy="no-referrer"
+        className={cn(className ?? FRAME_SURFACE[holds], veiled && "invisible")}
+        style={style}
+        inert={veiled}
+        aria-hidden={veiled ? true : undefined}
+        data-slot="sandbox-frame"
+        // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of
+        // the inherited floor (the CSP itself lives on a response header / inside an opaque-origin document).
+        data-delivery={src === undefined ? "srcdoc" : "routed"}
+        data-drawn={veiled ? undefined : ""}
+      />
+    </>
   );
 }

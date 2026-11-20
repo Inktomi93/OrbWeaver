@@ -16,7 +16,7 @@ The common install has one owner. A Worker reserved there for an owner who does 
 
 **While more than one owner can run plugin code, an owner holds at most all but one of the Workers in use.** `pluginOwnerShare(capacity)` is `max(1, capacity − 1)`. An owner is a resident plugin's installer or the member running a snippet. A Worker is in use while a lease pins it; an idle warm runtime does not count, so residency is unchanged.
 
-**A sole owner uses every Worker.** The owners who can run plugin code are the owners of every enabled resident plugin, running or asleep, and the owners of the runtimes and requests the pool holds. The host holds all of them in memory, so no call reads the database to decide. A member who may run snippets but has run none counts from its first request.
+**A sole owner uses every Worker.** The owners who can run plugin code are the owners of every enabled resident plugin, running or asleep, and the owners of the runtimes and requests the pool holds. The host holds all of them in memory, so no call reads the database to decide. A member who may run snippets but has run none counts from its first request. A disabled owner whose plugin stays loaded (D147) still counts until the next boot.
 
 **A second owner's first request, while a sole owner holds every Worker, waits for the first Worker to free.** A Worker in use cannot be taken back, so the wait is at most that Worker's span bound. From the moment the request is queued the share binds for every owner, so the freed Worker goes to the newcomer, never to the first owner's next call.
 

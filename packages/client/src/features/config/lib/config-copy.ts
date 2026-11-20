@@ -26,6 +26,11 @@ export const CONFIG_WELCOME = {
  *  word says what the surface holds now that the settings modal retired into it. ONE home for both. */
 export const CONFIG_SECTION_LABEL = "Settings";
 
+/** The content region's name while one settings group is shown. */
+export function configGroupRegionName(groupLabel: string): string {
+  return `${groupLabel} settings`;
+}
+
 /** CONTEXT with nothing selected. Distinct from a collection's `{kind:"none"}` copy, which says the
  *  opposite thing: there something IS selected and simply has nothing to attach. */
 export const CONFIG_CONTEXT_EMPTY = {

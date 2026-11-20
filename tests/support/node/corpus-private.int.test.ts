@@ -9,7 +9,7 @@ import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { createDb, localPath, runMigrations, users } from "@orb/db";
+import { createDb, localPath, pendingMigrations, runMigrations, users } from "@orb/db";
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -54,15 +54,7 @@ test("private intake retains the existing singleton owner and nonempty content i
     await using held = ownFileDb(await createDb(layout.databaseUrl));
     const db = held.db;
     const source = createIdSource(ids.next);
-    const olderMigrations = join(parent, "older-migrations");
-    await cp(SHIPPED_MIGRATIONS, olderMigrations, { recursive: true });
-    const journalPath = join(olderMigrations, "meta/_journal.json");
-    const journal = z
-      .object({ entries: z.array(z.json()) })
-      .loose()
-      .parse(JSON.parse(await readFile(journalPath, "utf8")));
-    await writeFile(journalPath, JSON.stringify({ ...journal, entries: journal.entries.slice(0, -1) }));
-    await runMigrations(db, olderMigrations);
+    await runMigrations(db, SHIPPED_MIGRATIONS);
     original = await seedUser(
       db,
       {
@@ -240,4 +232,46 @@ test("private intake retains the existing singleton owner and nonempty content i
   await expect(createCorpusCapsule({ ...intake, directory: failedDirectory })).rejects.toThrow("copied enabled schedules");
   await expect(access(failedDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await readFile(database)).equals(beforeRefusal)).toBe(true);
+});
+
+// The lagging source holds only a directly seeded owner: no production service can run on a schema behind the shipped chain.
+test("private intake applies a pending migration to its copy and leaves the source behind", { tags: "slow", timeout: 180_000 }, async () => {
+  const parent = await mkdtemp(join(tmpdir(), "orb-private-corpus-lag-"));
+  await using ownership = new AsyncDisposableStack();
+  ownership.defer(() => rm(parent, { recursive: true, force: true }));
+  const layout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "source") });
+  const olderMigrations = join(parent, "older-migrations");
+  await cp(SHIPPED_MIGRATIONS, olderMigrations, { recursive: true });
+  const journalPath = join(olderMigrations, "meta/_journal.json");
+  const journal = z
+    .object({ entries: z.array(z.json()) })
+    .loose()
+    .parse(JSON.parse(await readFile(journalPath, "utf8")));
+  await writeFile(journalPath, JSON.stringify({ ...journal, entries: journal.entries.slice(0, -1) }));
+  let owner: Awaited<ReturnType<typeof seedUser>>;
+  {
+    await using held = ownFileDb(await createDb(layout.databaseUrl));
+    await runMigrations(held.db, olderMigrations);
+    owner = await seedUser(held.db, { handle: brandedId("Handle").parse("lagging-owner"), role: "owner" }, createIdSource(createSeededIds(100_000).next));
+    expect(await pendingMigrations(held.db, SHIPPED_MIGRATIONS)).toHaveLength(1);
+  }
+  const intakeParent = join(parent, "intake");
+  await mkdir(intakeParent, { mode: 0o700 });
+  const { options } = await createCorpusRecipe(parent);
+  const capsule = ownership.use(
+    await createCorpusCapsule({
+      ...options,
+      directory: join(intakeParent, "working"),
+      privateSourceDirectory: layout.root,
+      environment: LOCAL_ENVIRONMENT,
+      temporaryDirectory: parent,
+    }),
+  );
+  expect(capsule.wire.reads["sessions.me"][0]?.output).toMatchObject({ userId: owner.id });
+  {
+    await using captured = ownFileDb(await createDb(capsule.layout.databaseUrl));
+    expect(await pendingMigrations(captured.db, SHIPPED_MIGRATIONS)).toEqual([]);
+  }
+  await using source = ownFileDb(await createDb(layout.databaseUrl));
+  expect(await pendingMigrations(source.db, SHIPPED_MIGRATIONS)).toHaveLength(1);
 });

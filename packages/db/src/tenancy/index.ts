@@ -151,12 +151,12 @@ export const TABLE_SCOPING = {
     stamp: "D23 parentless per-user aggregate — monotonic rebuild ownership token",
     why: "D23 parentless per-user aggregate — monotonic rebuild ownership token.",
   },
-  compactionSpend: {
-    sqlName: "compaction_spend",
+  spendLedger: {
+    sqlName: "spend_ledger",
     scope: "ownerId",
     stamp:
-      "D23 owner unreachable by FK — the funding host's compaction spend, which outlives the chat it was spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold it to",
-    why: "D23 owner stamp — the funding host's compaction spend ledger; no FK reaches the owner.",
+      "D23 owner unreachable by FK — the funding principal's priced calls with no canon row of their own (compaction, image prompt extraction and caption), which outlive the chat they were spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold them to",
+    why: "D23 owner stamp — the funding principal's spend ledger; no FK reaches the owner.",
   },
   personas: { sqlName: "personas", scope: "ownerId", stamp: "D23 true producer", why: "D23 true producer — personas are single-owned." },
   rosterPresets: {
@@ -274,6 +274,11 @@ export const TABLE_SCOPING = {
     why: "the import idempotency claim is born with and derives authority through its chat; characterId narrows operation identity rather than creating a second read surface.",
   },
   chatInjections: { sqlName: "chat_injections", scope: "membership", why: "per-chat positional injections — room state, membership-gated." },
+  chatMemoryStrikes: {
+    sqlName: "chat_memory_strikes",
+    scope: "membership",
+    why: "the host's strikes on remembered items — room state the host writes and members read under their history floor.",
+  },
   chatInvites: { sqlName: "chat_invites", scope: "membership", why: "the membership chokepoint — issued by the host, redeemed by token; scope is the chat." },
   chatLocks: {
     sqlName: "chat_locks",
@@ -429,6 +434,11 @@ export const TABLE_SCOPING = {
     why: "discovery's distillation — scope derives through `characters` (its verbs' headers state the owner join).",
   },
   documentChunks: { sqlName: "document_chunks", scope: "parent", why: "databank chunk vectors — scope derives through `documents.ownerId`." },
+  assetKinds: {
+    sqlName: "asset_kinds",
+    scope: "parent",
+    why: "ownership DERIVES via `asset_id → assets.ownerId`; a row is one kind the parent asset is used as.",
+  },
   galleryItems: {
     sqlName: "gallery_items",
     scope: "parent",

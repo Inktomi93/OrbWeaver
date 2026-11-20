@@ -13,20 +13,29 @@ import { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
-test("native resumed transcript identities replay without dropping distinct child turns", async () => {
+// The first two cases start one real Node child per SDK turn, six and ten in sequence, and each cold start is
+// about four tenths of a second on two cores; the third starts one.
+test("native resumed transcript identities replay without dropping distinct child turns", { tags: "slow" }, async () => {
   const replay = async (): Promise<ReturnType<typeof createCorpusSdkExecution>["receipts"]> => {
     const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_REUSE] });
     await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
     const actor = await seedCorpusSdkActor(root);
     const caller = await root.internalCallerFor(actor.principal.userId);
     const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
-    const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+    const { resolved } = await root.app.runtime.resolve({
+      signal: new AbortController().signal,
+      principal: actor.principal,
+      connectionId: actor.connection.id,
+      task: "chat",
+      cachedFacts: true,
+    });
     if (resolved.task !== "chat") {
       throw new Error("native SDK identity control lost its chat task");
     }
     const connection = { ...resolved, task: resolved.task };
     const first = await root.app.runtime.executor.runChatTurn(
       toChatRequest({
+        signal: new AbortController().signal,
         connection,
         chatId: chat.id,
         params: {},
@@ -42,6 +51,7 @@ test("native resumed transcript identities replay without dropping distinct chil
     expect(first).toMatchObject({ providerMetadata: { sdkSessionId: sessionId } });
     for (const prompt of [CORPUS_SDK_REUSE, CORPUS_SDK_REUSE]) {
       const result = await root.app.runtime.executor.runChatTurn({
+        signal: new AbortController().signal,
         api: "agent-sdk",
         connection,
         chatId: chat.id,
@@ -69,7 +79,7 @@ test("native resumed transcript identities replay without dropping distinct chil
   expect(await replay()).toEqual(await replay());
 });
 
-test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", async () => {
+test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", { tags: "slow" }, async () => {
   const wire = createCorpusSdkExecution();
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const result = await seedCorpusSdkSessions(root, wire);
@@ -121,12 +131,19 @@ test("native SDK root disposal joins its actual held child before closing the co
   const wire = createCorpusSdkExecution({ deferHoldExit: true });
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const actor = await seedCorpusSdkActor(root);
-  const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    principal: actor.principal,
+    connectionId: actor.connection.id,
+    task: "chat",
+    cachedFacts: true,
+  });
   if (resolved.task !== "chat") {
     throw new Error("native SDK disposal did not resolve its actual task");
   }
   const turn = root.app.runtime.executor
     .runChatTurn({
+      signal: new AbortController().signal,
       api: "agent-sdk",
       connection: { ...resolved, task: resolved.task },
       params: {},

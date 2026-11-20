@@ -1,3 +1,4 @@
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { routeAuthConfig, routeTrpc } from "@orb/testkit/ct";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -23,7 +24,7 @@ async function captureSession(page: Page, root: Awaited<ReturnType<typeof create
   const live = await liveResponse.text();
   const dead = await (await root.http.request("/api/auth/me")).text();
   const config = await (await root.http.request("/api/auth/config")).text();
-  const refusedResponse = await root.http.request("/api/trpc/sessions.me?batch=1");
+  const refusedResponse = await root.http.request("/api/trpc/sessions.me?batch=1", { headers: { [CSRF_HEADER]: "1" } });
   const refused = await refusedResponse.text();
   expect(liveResponse.status).toBe(200);
   expect(refusedResponse.status).toBe(401);

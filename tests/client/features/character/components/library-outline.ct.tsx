@@ -1,8 +1,10 @@
+import { contentRegionName, screenOverviewDoorName } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -12,6 +14,8 @@ import {
   CHARACTER_JUST_ADDED_SHELF_NAME,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_RECENT_SHELF_NAME,
+  characterAddedStamp,
+  characterFaceName,
 } from "#client/features/character/lib/character-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -27,7 +31,7 @@ const REGIMES = [
 ] as const;
 
 async function expectLibraryOutline(page: Page, title: string, hasRecent: boolean): Promise<void> {
-  const content = page.getByRole("main", { name: "Characters content", exact: true });
+  const content = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.characters), exact: true });
   // The shell's topbar owns the screen's one h1; the landing's own title is the first heading under it.
   const mainHeading = content.getByRole("heading", { name: title, level: 2, exact: true });
   await expect(mainHeading).toBeVisible();
@@ -43,7 +47,12 @@ async function expectLibraryOutline(page: Page, title: string, hasRecent: boolea
 
 async function expectAuthoredCharacterDoor(page: Page, coarse: boolean): Promise<void> {
   const library = page.getByRole("list", { name: coarse ? CHARACTER_JUST_ADDED_SHELF_NAME : CHARACTER_LIBRARY_NAME, exact: true });
-  await library.getByRole("button", { name: coarse ? new RegExp(`^${AUTHORED_NAME}, added `, "u") : AUTHORED_NAME, exact: !coarse }).click();
+  await library
+    .getByRole("button", {
+      name: coarse ? nameShape((ago) => characterFaceName(AUTHORED_NAME, characterAddedStamp(ago), false, false)) : AUTHORED_NAME,
+      exact: !coarse,
+    })
+    .click();
   await expect(
     page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }),
   ).toHaveValue(AUTHORED_NAME);
@@ -76,10 +85,12 @@ for (const regime of REGIMES) {
         });
         await mount<typeof ShellAmbientStory>(STORY, {});
         if (regime.coarse) {
-          await page.getByRole("button", { name: "Show Characters overview", exact: true }).click();
+          await page.getByRole("button", { name: screenOverviewDoorName(SECTION_LABELS.characters), exact: true }).click();
         }
         await expect(
-          page.getByRole("main", { name: "Characters content", exact: true }).getByRole("heading", { name: state.heading, exact: true }),
+          page
+            .getByRole("main", { name: contentRegionName(SECTION_LABELS.characters), exact: true })
+            .getByRole("heading", { name: state.heading, exact: true }),
         ).toBeVisible();
         await expectLibraryOutline(page, state.heading, state.kind === "resume");
         const screenshot = testInfo.outputPath("library-outline.png");

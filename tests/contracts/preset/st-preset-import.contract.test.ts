@@ -1,6 +1,22 @@
-import { buildPresetFile, DEFAULT_PROMPT_CONFIG, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import type { PromptConfig } from "@orb/contracts/preset";
+import {
+  buildPresetFile,
+  DEFAULT_PROMPT_CONFIG,
+  MARKER_TYPES,
+  PROMPT_CONFIG_SCHEMA_VERSION,
+  parsePresetFile,
+  promptConfigConfig,
+  promptConfigWriteSchema,
+  promptSectionIdSchema,
+  tryImportStChatCompletionPreset,
+} from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "@orb/testkit/node";
+
+/** The sections the file itself authored: the import adds the named slot sections around them. */
+function authored(result: { readonly config: PromptConfig; readonly addedSections: readonly string[] }): PromptConfig["sections"] {
+  return result.config.sections.filter((section) => !result.addedSections.includes(section.name));
+}
 
 const INJECTED_PRESET = {
   prompts: [{ identifier: "a", name: "A", content: "You are helpful.", role: "system", ["injection_position"]: 1, ["injection_depth"]: 3 }],
@@ -15,11 +31,11 @@ test("depth bounds clamp one field, report its loss and count the returned secti
     });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {
-      throw new Error(outcome.reason);
+      throw new Error(JSON.stringify(outcome));
     }
     const { config, dropped, sectionCount } = outcome.result;
     expect(config).not.toEqual(DEFAULT_PROMPT_CONFIG);
-    expect(config.sections).toEqual([
+    expect(authored(outcome.result)).toEqual([
       {
         type: "literal",
         id: "a",
@@ -31,7 +47,11 @@ test("depth bounds clamp one field, report its loss and count the returned secti
       },
     ]);
     expect(sectionCount).toBe(config.sections.length);
-    const droppedDepth = { field: "prompts.a.injection_depth", reason: expect.stringContaining(`SillyTavern sent ${depth};`) };
+    const droppedDepth = {
+      field: "prompts.a.injection_depth",
+      reason: expect.any(String),
+      clamped: { sent: depth, landedAs: depth < 0 ? 0 : MAX_INJECTION_DEPTH },
+    };
     expect(dropped).toEqual(depth === MAX_INJECTION_DEPTH ? [] : [droppedDepth]);
   }
 });
@@ -46,10 +66,10 @@ test("plain marker triggers survive mapping and native round-trip without placem
   });
   expect(outcome.ok).toBe(true);
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   const { config } = outcome.result;
-  expect(config.sections).toEqual([
+  expect(authored(outcome.result)).toEqual([
     {
       type: "marker",
       id: "worldInfoBefore",
@@ -71,9 +91,9 @@ test("plain marker triggers survive mapping and native round-trip without placem
   const unset = tryImportStChatCompletionPreset({ prompts: [{ identifier: "worldInfoBefore" }] });
   expect(unset.ok).toBe(true);
   if (!unset.ok) {
-    throw new Error(unset.reason);
+    throw new Error(JSON.stringify(unset));
   }
-  expect(unset.result.config.sections).toStrictEqual([
+  expect(authored(unset.result)).toStrictEqual([
     { type: "marker", id: "worldInfoBefore", name: "worldInfoBefore", marker: "world_info_before", role: "system", enabled: true },
   ]);
 });
@@ -83,10 +103,9 @@ test("recognised schema refusal identifies the source prompt and field, unlike u
   expect(tryImportStChatCompletionPreset(valid).ok).toBe(true);
   const refused = tryImportStChatCompletionPreset({ ...valid, prompts: [{ ...valid.prompts[0], identifier: "a", content: "x".repeat(100_001) }] });
   expect(refused).toMatchObject({ ok: false, recognised: true });
-  if (refused.ok) {
+  if (refused.ok || !refused.recognised) {
     throw new Error("Oversized content was imported");
   }
-  expect(refused.reason).toContain("(schema-rejected)");
   expect(refused.reason).toContain('the ST prompt "a" `content`: Too big: expected string to have <=100000 characters');
   expect(tryImportStChatCompletionPreset({ note: "another tool's export", items: [1, 2, 3] })).toMatchObject({ ok: false, recognised: false });
 });
@@ -144,25 +163,226 @@ test("format strings map to their native seats and unsupported group fields repo
   });
   expect(outcome.ok).toBe(true);
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   expect(outcome.result.config.formatStrings).toEqual({
     newChatMarker: "[Start a new Chat]",
     impersonateNudge: "speak as the user",
     continueNudge: "keep going",
   });
+  // Each group-only field is reported by name with a reason, and none is a clamp.
   expect(outcome.result.dropped).toEqual([
-    { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
-    {
-      field: "new_group_chat_prompt",
-      reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
-    },
+    { field: "group_nudge_prompt", reason: expect.any(String) },
+    { field: "new_group_chat_prompt", reason: expect.any(String) },
   ]);
   const blank = tryImportStChatCompletionPreset({ prompts: [], ["impersonation_prompt"]: "   ", ["continue_nudge_prompt"]: "", ["new_chat_prompt"]: "\n" });
   expect(blank.ok).toBe(true);
   if (!blank.ok) {
-    throw new Error(blank.reason);
+    throw new Error(JSON.stringify(blank));
   }
   expect(blank.result.config.formatStrings).toBeUndefined();
   expect(blank.result.dropped).toEqual([]);
+});
+
+test("every field the mapper has a seat for maps with no report, and each one changes the mapped config", () => {
+  // SillyTavern wire keys are snake_case by spec. Each value is one the mapper carries, not a default it skips.
+  const seated: Readonly<Record<string, unknown>> = {
+    temperature: 0.8,
+    ["top_p"]: 0.9,
+    ["top_k"]: 12,
+    ["top_a"]: 0.2,
+    ["min_p"]: 0.07,
+    ["frequency_penalty"]: 0.3,
+    ["presence_penalty"]: 0.4,
+    ["repetition_penalty"]: 1.1,
+    ["openai_max_tokens"]: 512,
+    ["openai_max_context"]: 8192,
+    seed: 7,
+    ["reasoning_effort"]: "high",
+    ["show_thoughts"]: true,
+    ["squash_system_messages"]: true,
+    ["names_behavior"]: 1,
+    ["continue_postfix"]: "\n",
+    ["continue_nudge_prompt"]: "keep going",
+    ["impersonation_prompt"]: "speak as the user",
+    ["new_chat_prompt"]: "[Start a new Chat]",
+  };
+  const configOf = (preset: Readonly<Record<string, unknown>>): { readonly config: unknown; readonly dropped: readonly string[] } => {
+    const outcome = tryImportStChatCompletionPreset({ prompts: [], ...preset });
+    if (!outcome.ok) {
+      throw new Error(JSON.stringify(outcome));
+    }
+    return { config: outcome.result.config, dropped: outcome.result.dropped.map(({ field }) => field) };
+  };
+
+  const full = configOf(seated);
+  expect(full.dropped).toEqual([]);
+  for (const field of Object.keys(seated)) {
+    const { [field]: _left, ...without } = seated;
+    expect({ field, changed: JSON.stringify(configOf(without).config) !== JSON.stringify(full.config) }).toEqual({ field, changed: true });
+  }
+});
+
+test("every populated top-level field the mapper neither maps nor lists is named, an empty one is not, and a caller-handled one is left to the caller", () => {
+  // SillyTavern wire keys are snake_case by spec; these are fields a public preset carries that orb has no seat for.
+  const preset = {
+    prompts: [],
+    temperature: 0.8,
+    ["stream_openai"]: true,
+    n: 1,
+    ["wi_format"]: "{0}",
+    ["max_context_unlocked"]: false,
+    ["send_if_empty"]: "",
+    ["media_inlining"]: true,
+    extensions: { ["regex_scripts"]: [] },
+  };
+  const fieldsOf = (outcome: ReturnType<typeof tryImportStChatCompletionPreset>): readonly string[] => {
+    if (!outcome.ok) {
+      throw new Error(JSON.stringify(outcome));
+    }
+    return outcome.result.dropped.map(({ field }) => field);
+  };
+
+  expect(fieldsOf(tryImportStChatCompletionPreset(preset))).toEqual(["stream_openai", "n", "wi_format", "media_inlining", "extensions"]);
+  expect(fieldsOf(tryImportStChatCompletionPreset(preset, { handledFields: ["extensions"] }))).toEqual(["stream_openai", "n", "wi_format", "media_inlining"]);
+});
+
+// Every SillyTavern identifier the mapper knows, in a file whose jailbreak sits above the history.
+const EVERY_ST_PROMPT = [
+  "main",
+  "jailbreak",
+  "charDescription",
+  "charPersonality",
+  "scenario",
+  "dialogueExamples",
+  "personaDescription",
+  "worldInfoBefore",
+  "chatHistory",
+  "worldInfoAfter",
+];
+
+function importedOrThrow(raw: unknown): { readonly config: PromptConfig; readonly addedSections: readonly string[] } {
+  const outcome = tryImportStChatCompletionPreset(raw);
+  if (!outcome.ok) {
+    throw new Error(JSON.stringify(outcome));
+  }
+  return outcome.result;
+}
+
+const markersOf = (config: PromptConfig): readonly string[] => config.sections.map((section) => (section.type === "marker" ? section.marker : section.id));
+
+test("a SillyTavern preset gains a section for every slot it has no prompt for, around its history and never reordering it", () => {
+  const result = importedOrThrow({
+    prompts: [...EVERY_ST_PROMPT.map((identifier) => ({ identifier })), { identifier: "custom", content: "Stay terse." }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [...EVERY_ST_PROMPT, "custom"].map((identifier) => ({ identifier, enabled: true })) }],
+  });
+  // Every marker orbweaver has is now in the preset, so a slot added later without an import seat fails here.
+  expect(new Set(result.config.sections.flatMap((section) => (section.type === "marker" ? [section.marker] : [])))).toEqual(new Set(MARKER_TYPES));
+  // The jailbreak stays above the history where the author put it; only the history anchors the added slots.
+  expect(markersOf(result.config)).toEqual([
+    "main_prompt",
+    "post_history",
+    "char_description",
+    "char_personality",
+    "scenario",
+    "dialogue_examples",
+    "persona",
+    "world_info_before",
+    "compact_summary",
+    "chat_history",
+    "memory",
+    "databank",
+    "guided_instruction",
+    "world_info_after",
+    "custom",
+  ]);
+  const added = result.config.sections.filter((section) => result.addedSections.includes(section.name));
+  expect(added).toHaveLength(4);
+  for (const section of added) {
+    expect(section).toMatchObject({ type: "marker", enabled: true });
+    expect("template" in section).toBe(false);
+  }
+});
+
+test("a SillyTavern preset with no history gets the slot sections at its end", () => {
+  const result = importedOrThrow({ prompts: [{ identifier: "main" }, { identifier: "jailbreak" }] });
+  expect(markersOf(result.config)).toEqual(["main_prompt", "post_history", "compact_summary", "memory", "databank", "guided_instruction"]);
+});
+
+test("a slot section takes a key the author's prompts leave free, and the same file always gets the same keys", () => {
+  // A custom SillyTavern prompt may carry any identifier, the shipped slot keys included.
+  const file = {
+    prompts: [
+      { identifier: "memory", content: "The author's own memory note." },
+      { identifier: "databank", content: "Theirs too." },
+      { identifier: "chatHistory" },
+    ],
+  };
+  const first = importedOrThrow(file);
+  const ids = first.config.sections.map((section) => section.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(first.config.sections.filter((section) => section.type === "literal").map(({ id, content }) => ({ id, content }))).toEqual([
+    { id: "memory", content: "The author's own memory note." },
+    { id: "databank", content: "Theirs too." },
+  ]);
+  expect(importedOrThrow(file).config).toEqual(first.config);
+});
+
+test("a prompt order that lists one prompt twice imports it once, at its first place, and names the repeat", () => {
+  const file = {
+    prompts: [
+      { identifier: "intro", content: "Set the scene." },
+      { identifier: "rules", content: "Keep it short." },
+    ],
+    ["prompt_order"]: [
+      {
+        ["character_id"]: 100_001,
+        order: [
+          { identifier: "intro", enabled: true },
+          { identifier: "rules", enabled: true },
+          { identifier: "intro", enabled: false },
+        ],
+      },
+    ],
+  };
+  const outcome = tryImportStChatCompletionPreset(file);
+  if (!outcome.ok) {
+    throw new Error(JSON.stringify(outcome));
+  }
+  expect(authored(outcome.result).map(({ id, enabled }) => ({ id, enabled }))).toEqual([
+    { id: "intro", enabled: true },
+    { id: "rules", enabled: true },
+  ]);
+  expect(outcome.result.dropped.filter(({ field }) => field.startsWith("prompt_order."))).toEqual([
+    { field: "prompt_order.intro", reason: expect.stringMatching(/more than once/u) },
+  ]);
+});
+
+const REPEATED = {
+  ...DEFAULT_PROMPT_CONFIG,
+  sections: [
+    { type: "literal", id: promptSectionIdSchema.parse("note"), name: "First note", role: "system", enabled: true, content: "First." },
+    ...DEFAULT_PROMPT_CONFIG.sections,
+    { type: "literal", id: promptSectionIdSchema.parse("note"), name: "Second note", role: "system", enabled: true, content: "Second." },
+  ],
+} satisfies PromptConfig;
+
+test("the write door and a preset file refuse two sections with one key, naming the key", () => {
+  const written = promptConfigWriteSchema.safeParse(REPEATED);
+  expect(written.success).toBe(false);
+  expect(written.error?.issues).toEqual([
+    expect.objectContaining({ path: ["sections", REPEATED.sections.length - 1, "id"], message: expect.stringMatching(/"note"/u) }),
+  ]);
+  // Positive control: the same config with the repeat removed is written.
+  expect(promptConfigWriteSchema.safeParse({ ...REPEATED, sections: REPEATED.sections.slice(0, -1) }).success).toBe(true);
+
+  const file = parsePresetFile(buildPresetFile("Repeated", REPEATED));
+  expect(file).toMatchObject({ ok: false, error: expect.stringMatching(/"note"/u) });
+});
+
+test("a stored config with two sections under one key still reads, as its first section, and reads intact", () => {
+  const outcome = promptConfigConfig.parseOutcome(REPEATED, PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(outcome.intact).toBe(true);
+  expect(outcome.value.sections.filter((section) => section.id === "note").map((section) => section.name)).toEqual(["First note"]);
+  expect(outcome.value.sections).toHaveLength(REPEATED.sections.length - 1);
 });

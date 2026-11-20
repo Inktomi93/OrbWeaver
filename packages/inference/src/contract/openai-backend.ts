@@ -30,6 +30,9 @@ export interface ShapeArgs {
   readonly dialect: Dialect;
   /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
   readonly prefillAllowed: boolean;
+  /** The authored chain of thought rule 5a stamps beside the `prefix` flag on the continue row; `undefined`
+   *  stamps nothing, and a stated seed on a turn that stamps no continue row drops with the drop warning. */
+  readonly prefillReasoning: string | undefined;
   /** Rule 9 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -111,7 +114,7 @@ export interface OpenAiCompatBackend {
 export interface TransportDeps {
   readonly fetch: typeof fetch;
   readonly captureWire?: WireCaptureSink | undefined;
-  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
+  /** Tap the reply bytes onto the capture entry too — the process-tier opt-in, off by default. */
   readonly captureWireReply?: boolean | undefined;
   readonly app: { readonly name: string; readonly url: string };
 }
@@ -131,6 +134,11 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
+  /** {@link ShapeArgs.prefillReasoning}: the continue-row chain of thought; `undefined` stamps nothing. */
+  readonly prefillReasoning?: string | undefined;
+  /** The turn sends a beta-gated request field — the `prefix-flag` prefill stamp or a `strict: true` tool — so a
+   *  row with `features.betaChatPath` builds this call against that route (see `model.ts`). */
+  readonly requiresBetaRoute?: boolean;
   /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
   readonly templateThinking: boolean | undefined;
   /** What body rule 5c tells the template about replaying prior thinking; `undefined` sends nothing. */
@@ -171,10 +179,10 @@ export interface ReachabilityProber {
   /** Whether the server says it is asleep right now. Never cached: a server is put to sleep from outside the app at
    *  any moment, and a sleeping vLLM queues a request without answering, so only a fresh read may send to it. A read
    *  that fails is `false` (the task then meets the server's own answer); a `signal` abort rejects. */
-  readonly asleep: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
+  readonly asleep: (target: SleepTarget, signal: AbortSignal) => Promise<boolean>;
   /** POST the row's wake path, then poll the sleep read until awake or the wake window closes. A `signal` abort
    *  rejects at once with an `aborted` error. */
-  readonly wake: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
+  readonly wake: (target: SleepTarget, signal: AbortSignal) => Promise<boolean>;
 }
 
 export interface RerankDeps {
@@ -195,7 +203,7 @@ export interface TokenTarget {
 
 export interface TokenLexicon {
   /** Each word's tokens, from the cache where held; every missing word is asked once, in parallel, and cached. */
-  readonly lookup: (target: TokenTarget, words: readonly string[], signal?: AbortSignal) => Promise<readonly WordTokens[]>;
+  readonly lookup: (target: TokenTarget, words: readonly string[], signal: AbortSignal) => Promise<readonly WordTokens[]>;
   /** Forget one server's lookups (or every server's), in memory and in the store. */
   readonly forget: (baseUrl: string | undefined) => Promise<void>;
 }

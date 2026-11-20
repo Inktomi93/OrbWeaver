@@ -5,13 +5,17 @@ export type {
   CopyHandoffRegexScriptsArgs,
   CountHandoffRegexScripts,
   ExportCardScripts,
+  ExportPresetScripts,
   ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  ListPresetScriptKeys,
+  PlanPresetScripts,
+  RemoveUnattachedScripts,
   ResolveRegexScriptRoomsOp,
-  ResolveRoomDisplayPolicyOp,
+  ScriptPlan,
 } from "./owner-ops.ts";
 export * from "./schemas.ts";

@@ -102,10 +102,13 @@ export const SAMPLER_ORDER_TOKENS: Readonly<
 };
 
 /** How a delivered trailing-assistant row is continued on this server. `continue-final-message` = vLLM's
- *  `continue_final_message: true` + `add_generation_prompt: false` pair; `deliver` = send the row and hope;
+ *  `continue_final_message: true` + `add_generation_prompt: false` pair; `prefix-flag` = a `prefix: true` field
+ *  stamped on the converted trailing-assistant message (DeepSeek's beta-route continue, live-verified 2026-11-16:
+ *  prod hard-400s the field, `prefix is only available when using beta api`, so the row names a
+ *  {@link EndpointFeatures.betaChatPath} and the turn takes it); `deliver` = send the row and hope;
  *  `none` = the server has no continuation arm. Honoured only when the capability says
  *  `turns.assistantPrefill`. */
-export const PREFILL_MODES = ["continue-final-message", "deliver", "none"] as const;
+export const PREFILL_MODES = ["continue-final-message", "prefix-flag", "deliver", "none"] as const;
 
 /** Whether a tool's `strict: true` input mode rides. `default-on` = strict unless the tool says otherwise (vLLM
  *  guided decoding); `declared-only` = only where the tool asks; `never` = the endpoint has no strict tool input.
@@ -135,8 +138,12 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 /** A server's native model-info API, read beside `/v1/models` for facts that list lacks: the window the
  *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
  *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
- *  `koboldcpp` = `GET /api/extra/version` + `GET /props`. The readers live in `@orb/inference`'s endpoint catalog. */
-export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
+ *  `koboldcpp` = `GET /api/extra/version` + `GET /props`; `nanogpt` = the hosted list's own `?detailed=true` mode,
+ *  read in place of the bare list; `literouter` = the hosted list's own per-model fields, read from the same list;
+ *  `deepseek` = the hosted list's own per-model fields (`context_window`, `max_output_tokens`, `input_modalities`,
+ *  `effort.supported_levels`), read from the same list. The
+ *  readers live in `@orb/inference`'s endpoint catalog. */
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt", "literouter", "deepseek"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 /** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,
@@ -145,9 +152,27 @@ export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
 export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
 
+/** The `/responses` route's reasoning-stream spelling. `summary` (absent ⇒ this) = the OpenAI summary events
+ *  the SDK folds into reasoning parts; `text` = raw `response.reasoning_text.delta` frames, which the SDK's
+ *  chunk union silently DROPS as unknown chunks — the runner then rewrites them onto the summary spelling at
+ *  the fetch seam (`responses-dialect.ts`; MEASURED DeepSeek 2026-11-17: reasoning streams as
+ *  `reasoning_text.delta/done` and no summary events arrive at all). */
+export const RESPONSES_REASONING_STREAMS = ["summary", "text"] as const;
+
 /** The most side-generation items a connection runs at once. An agent-sdk item is its own Claude subprocess, so the
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
+
+/** A declared request path: `/`-led segments of plain path characters, so the URL built from it, joined to the base URL
+ *  or resolved against it, stays on the base URL's origin. No empty segment (`//host` is another host), no `.` or `..`
+ *  segment, and no backslash, `@`, `%`, query, space or control character (the URL parser reads a backslash as `/` and
+ *  drops a tab or newline). */
+const DECLARED_PATH_RE = /^(?:\/(?!\.{1,2}(?:\/|$))[\w\-.~!$&'()*+,;=:]+)+\/?$/u;
+
+// SECURITY: every declared path rides the row's key, so a path the parse admits never names another host. The backends
+// check the built URL's origin again before they send (`onBaseOrigin` in packages/inference/src/backends/http/fetch-json.ts,
+// and the key check's `readUrl`).
+const declaredPathSchema = z.string().regex(DECLARED_PATH_RE, "a declared path is a plain path such as /v1/me, with no host");
 
 export const endpointFeaturesSchema = z
   .object({
@@ -161,23 +186,45 @@ export const endpointFeaturesSchema = z
     images: z.enum(IMAGE_ARMS).optional(),
     modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
     nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+    /** The `/responses` reasoning-stream event spelling; absent ⇒ `summary` (the SDK-native fold). See
+     *  {@link RESPONSES_REASONING_STREAMS}. */
+    responsesReasoningStream: z.enum(RESPONSES_REASONING_STREAMS).optional(),
     /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
      *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
      *  skips the probe; the connection's identity and credential stay this row's. */
     detectServer: z.boolean().optional(),
+    /** The key check's read, a path from the base URL's ORIGIN, for a service whose models list answers without a key;
+     *  absent ⇒ the models list under the base URL. A plain path only ({@link DECLARED_PATH_RE}), because the read
+     *  carries the key. Any row may declare one (a server behind a proxy whose list needs no key); this parse and the
+     *  read's own origin check keep the key on the row's base URL origin. */
+    keyCheckPath: declaredPathSchema.optional(),
+    /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
+     *  so a 403 is a refusal shown in the service's words unless its body's structured `error.code` names the key
+     *  (`invalid_api_key`, `missing_api_key`). Absent ⇒ every 403 judges the key. */
+    forbiddenIsNotCredentialVerdict: z.boolean().optional(),
     /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
-    rerankPath: z.string().optional(),
-    /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
-     *  AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
-    sleep: z.object({ isSleepingPath: z.string(), wakePath: z.string() }).strip().optional(),
-    /** The measured vLLM interlock (§8.1, verify6 M2): a CONTENT prefill with thinking on ⇒ an empty reply, so
+    rerankPath: declaredPathSchema.optional(),
+    /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`), at the server root. Set ⇒ a sleeping
+     *  server reads AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
+    sleep: z.object({ isSleepingPath: declaredPathSchema, wakePath: declaredPathSchema }).strip().optional(),
+    /** The measured vLLM interlock (§8.1): a CONTENT prefill with thinking on ⇒ an empty reply, so
      *  the transport strips the thinking toggle on a prefill turn with `reasoning_dropped_for_prefill`. A row
      *  that leaves it unset gets the raw behaviour — the honest default for an unmeasured server. */
     prefillSuppressesThinking: z.boolean().optional(),
     /** The stream-delta field(s) the server puts reasoning in, read IN ORDER. vLLM ships
-     *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
-     *  every reasoning token, live-verified). Applied by the transport's chunk reshaper. */
+     *  `["reasoning", "reasoning_content"]`: a `reasoning_content`-only read silently drops every reasoning
+     *  token, so both names are read. Applied by the transport's chunk reshaper. */
     reasoningKeys: z.array(z.string().min(1)).optional(),
+    /** A generic effort level rides this server's effort field verbatim, including our `max`: the wire's own
+     *  vocabulary spells that word (`reasoning_effort: "max"`, measured on DeepSeek 2026-11-16 — its `/models`
+     *  `effort.supported_levels` names `max` and the field accepts it). Absent ⇒ the V4 mapping holds and our
+     *  `max` rides as the wire's `xhigh`. */
+    effortMaxLiteral: z.boolean().optional(),
+    /** The route serving this server's beta-gated chat request fields (`prefix`, strict tool mode), as a plain
+     *  path from the base URL's ORIGIN (DeepSeek: `/beta`, live-verified 2026-11-16 — prod 400s `prefix` and
+     *  docs gate strict-mode behind it). Read only on a turn that sends a beta-gated field: the
+     *  `prefix-flag` prefill turn and a turn carrying a `strict: true` tool. Absent ⇒ no separate beta route. */
+    betaChatPath: declaredPathSchema.optional(),
     /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
      *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
      *  only `mirostat_mode`). Folds key by key. */
@@ -223,7 +270,7 @@ export const endpointFeaturesSchema = z
   .strip();
 export type EndpointFeatures = z.infer<typeof endpointFeaturesSchema>;
 
-/** The wire's own defaults — what a row that says nothing gets. Today's `vllm/index.ts:52-53` fan-out. */
+/** The wire's own defaults — what a row that says nothing gets. */
 export const WIRE_DEFAULT_FEATURES: EndpointFeatures = {
   concurrency: { embed: 4, imageEmbed: 4, summarize: 8 },
 };
@@ -250,8 +297,8 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 }
 
 // The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
-//  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
-//  unchanged — F21). EIGHT keys, each with its failure written down:
+//  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311). EIGHT keys,
+//  each with its failure written down:
 //    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation measured as an
 //      unbounded hang; the belt clamps client-side instead.
 //    `stream` / `stream_options` — the stream reducer's contract with the wire.
@@ -259,7 +306,6 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 //    `messages` — the assembled canon.
 //    `continue_final_message` / `add_generation_prompt` — the prefill pair: a stray value folds the next turn
 //      into the previous message or 400s outright; under `features.prefill` they are infra-owned.
-//  Moved here from `contracts/preset::VLLM_BELT_OWNED_PARAMETER_KEYS` with `extras` (§8.1c).
 const BELT_OWNED_BODY_KEYS = [
   "truncate_prompt_tokens",
   "truncation_side",

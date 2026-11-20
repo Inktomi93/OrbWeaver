@@ -14,6 +14,8 @@ export interface RebuildStatsTimelineDeps {
   readonly db: BootDatabaseHandle;
   readonly now: Clock;
   readonly idSource: IdSource;
+  /** Shutdown during boot stops the rebuild between owners. */
+  readonly signal: AbortSignal;
 }
 
 /** Rebuild the rollups of every owner with recorded activity and an empty timeline. Returns the owners rebuilt. */
@@ -21,7 +23,7 @@ export async function rebuildStatsTimelineOnBoot(deps: RebuildStatsTimelineDeps)
   // Logged on both ends: a large library rebuilds before the listener binds, and silence there reads as a stall.
   const startedAt = deps.now();
   getLog(deps.logger).info("boot/rebuild-stats-timeline: checking for owners with an empty stats timeline");
-  const rebuilt = await reconcileOwnersMissingTimeline(deps.db, deps.now, deps.idSource);
+  const rebuilt = await reconcileOwnersMissingTimeline(deps.db, deps.now, deps.idSource, deps.signal);
   getLog(deps.logger).info({ rebuilt, durationMs: deps.now() - startedAt }, "boot/rebuild-stats-timeline: done");
   return rebuilt;
 }

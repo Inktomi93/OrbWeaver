@@ -44,16 +44,16 @@ test("the first rerank on an empty model cache downloads the seeded model and se
     expect(await cachedBytes(harness.modelCacheDir)).toBe(0);
 
     const clients = await harness.roleClientsFor(harness.ownerId);
-    const resolved = await clients.resolved("rerank");
+    const resolved = await clients.resolved("rerank", new AbortController().signal);
     expect(resolved?.model).toBe(SEEDED_RERANKER);
 
-    const first = await clients.rerank(SANITY_QUERY, SANITY_DOCUMENTS);
+    const first = await clients.rerank(SANITY_QUERY, SANITY_DOCUMENTS, { signal: new AbortController().signal });
     expect(await cachedBytes(harness.modelCacheDir)).toBeGreaterThan(0);
     // The served model is correct, not only present: it ranks the document that answers the query first.
     expect(first.hits.toSorted((a, b) => b.score - a.score)[0]?.id).toBe("mars");
 
     const downloaded = await cachedBytes(harness.modelCacheDir);
-    await clients.rerank(SANITY_QUERY, SANITY_DOCUMENTS);
+    await clients.rerank(SANITY_QUERY, SANITY_DOCUMENTS, { signal: new AbortController().signal });
     expect(await cachedBytes(harness.modelCacheDir)).toBe(downloaded);
   } finally {
     await rm(kernelDirectory, { recursive: true, force: true });

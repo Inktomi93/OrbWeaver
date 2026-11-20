@@ -8,16 +8,15 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatImportResult } from "@orb/contracts/import";
 import { chatImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
-
-const IMPORT_FIELD = "file";
 
 /** POST picked `.jsonl` transcripts to the chat-import route and return the server's real per-file result.
  *  Throws on a non-OK response (a whole-batch rejection); per-file failures ride back in the 200 body. */
 export async function importChats(files: readonly File[]): Promise<ChatImportResult> {
   const form = new FormData();
   for (const file of files) {
-    form.append(IMPORT_FIELD, file);
+    form.append(UPLOAD_FILE_FIELD, file);
   }
   const response = await fetch(PORTABILITY_ROUTES.importChat, {
     method: "POST",

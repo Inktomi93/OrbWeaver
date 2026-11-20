@@ -1,5 +1,6 @@
-// `pnpm unwired` reports a member only when neither the TypeScript 7.1 index nor the TypeScript 6 language service
-// finds a production use. A planted two-package tree holds one member of each shape the scan must tell apart.
+// `pnpm unwired` reports a member only when the TypeScript 7.1 index finds no production use, in one pass; the
+// `--cross-check` audit asks the TypeScript 6 language service and must find nothing more. A planted two-package tree
+// holds one member of each shape the scan must tell apart.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { NativeWorld, Sources, scanUnwired, scanWorld, serviceReferences } from "../../../tooling/src/unwired/index.ts";
@@ -99,30 +100,93 @@ const TREE = {
 
 const WORLDS = ["packages/a/tsconfig.json", "packages/b/tsconfig.json"];
 
-test("the unwired scan tells wired, builder-only, test-only, derived-port, cross-package and element-read members apart", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
-  const root = await plantedTree(TREE);
-  const report = scanUnwired({ root, worlds: WORLDS, testWorlds: ["tsconfig.json"], deliberate: [], log: () => undefined });
-  const found = report.unwired.map(({ home, member, kind, tests }) => ({ at: `${home}.${member}`, kind, tests }));
-  expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
-    { at: "Clock.implementedOnly", kind: "builder-only", tests: 0 },
-    { at: "Consumer.intoDeadSlot", kind: "builder-only", tests: 0 },
-    { at: "Copy.unusedLine", kind: "builder-only", tests: 0 },
-    { at: "ImplProps.spare", kind: "unreferenced", tests: 0 },
-    { at: "IndexedPort.viaDeadIndex", kind: "unreferenced", tests: 0 },
-    { at: "PublicProps.spare", kind: "builder-only", tests: 0 },
-    { at: "Seed.stray", kind: "builder-only", tests: 0 },
-    { at: "Service.builderOnly", kind: "builder-only", tests: 0 },
-    { at: "Service.docOnly", kind: "builder-only", tests: 0 },
-    { at: "Service.intoDeadSlot", kind: "builder-only", tests: 0 },
-    { at: "Service.testOnly", kind: "test-only", tests: 1 },
-    { at: "Service.viaDeadIndex", kind: "builder-only", tests: 0 },
+test.for([
+  { pass: "engine one alone", crossCheck: false },
+  { pass: "the cross-check audit", crossCheck: true },
+])(
+  "the unwired scan tells wired, builder-only, test-only, derived-port, cross-package and element-read members apart under $pass",
+  {
+    timeout: 120_000,
+  },
+  async ({ crossCheck }, { plantedTree }) => {
+    const root = await plantedTree(TREE);
+    const report = scanUnwired({ root, worlds: WORLDS, testWorlds: ["tsconfig.json"], deliberate: [], log: () => undefined, crossCheck });
+    const found = report.unwired.map(({ home, member, kind, tests }) => ({ at: `${home}.${member}`, kind, tests }));
+    expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
+      { at: "Clock.implementedOnly", kind: "builder-only", tests: 0 },
+      { at: "Consumer.intoDeadSlot", kind: "builder-only", tests: 0 },
+      { at: "Copy.unusedLine", kind: "builder-only", tests: 0 },
+      { at: "ImplProps.spare", kind: "unreferenced", tests: 0 },
+      { at: "IndexedPort.viaDeadIndex", kind: "unreferenced", tests: 0 },
+      { at: "PublicProps.spare", kind: "builder-only", tests: 0 },
+      { at: "Seed.stray", kind: "builder-only", tests: 0 },
+      { at: "Service.builderOnly", kind: "builder-only", tests: 0 },
+      { at: "Service.docOnly", kind: "builder-only", tests: 0 },
+      { at: "Service.intoDeadSlot", kind: "builder-only", tests: 0 },
+      { at: "Service.testOnly", kind: "test-only", tests: 1 },
+      { at: "Service.viaDeadIndex", kind: "builder-only", tests: 0 },
+    ]);
+    // Engine one follows the composition root's hand-off into the consumer port, a spread into a typed literal and an
+    // `Owner["m"]` member itself, so find-references finds no use it lacks.
+    expect(report.disagreements).toEqual([]);
+  },
+);
+
+// A composition root hands one verb into its sibling through a parameter typed `Verbs["bundle"]`, and a hook hands its
+// settle callbacks to a library's `mutate`. Neither use names the member; a type mention alone, a binding typed by a
+// member but given another value, and a member no slot takes stay reported.
+const SEAMS = {
+  "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
+  "packages/a/src/verbs.ts": [
+    "export interface Verbs {",
+    "  readonly bundle: (name: string) => number;",
+    "  readonly file: (name: string) => number;",
+    "  readonly spareVerb: (name: string) => number;",
+    "  readonly ghost: (name: string) => number;",
+    "}",
+    'export function createFile(bundle: Verbs["bundle"], _spare: Verbs["spareVerb"]): Verbs["file"] {',
+    "  return (name) => bundle(name);",
+    "}",
+    "export function createVerbs(): Verbs {",
+    "  const bundle = (name: string): number => name.length;",
+    "  const spareVerb = (): number => 0;",
+    "  return { bundle, file: createFile(bundle, spareVerb), spareVerb, ghost: () => 9 };",
+    "}",
+    'export const filed = createVerbs().file("x");',
+    // Typed by a member but handed an unrelated value: the binding's reads are not the member's.
+    'export function runWith(fn: Verbs["ghost"]): number {',
+    '  return fn("y");',
+    "}",
+    "export const ran = runWith(() => 7);",
+    'const local: Verbs["ghost"] = () => 8;',
+    'export const localRan = local("z");',
+  ].join("\n"),
+  "packages/a/src/query.d.ts": [
+    'declare module "fx-query" {',
+    "  export interface MutateOptions { onError?: (error: unknown) => void; onSuccess?: () => void }",
+    "  export function mutate(input: string, options?: MutateOptions): void;",
+    "}",
+  ].join("\n"),
+  "packages/a/src/settle.ts": [
+    'import { mutate } from "fx-query";',
+    "export interface Settle {",
+    "  readonly onError: (error: unknown) => void;",
+    "  readonly onSuccess: () => void;",
+    "  readonly onNever: () => void;",
+    "}",
+    'export const fire = (settle: Settle): void => mutate("x", settle);',
+    "export const fired = fire({ onError: () => undefined, onSuccess: () => undefined, onNever: () => undefined });",
+  ].join("\n"),
+};
+
+test("a verb called through a binding typed by it and callbacks handed to a library slot are wired", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(SEAMS);
+  const report = scanUnwired({ root, worlds: [WORLDS[0] as string], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted()).toEqual([
+    "Settle.onNever builder-only",
+    "Verbs.ghost builder-only",
+    "Verbs.spareVerb builder-only",
   ]);
-  expect(report.disagreements).toEqual([]);
-  // Engine one follows the composition root's hand-off into the consumer port, a spread into a typed literal and an
-  // `Owner["m"]` member itself, so none of them needs the flow pass.
-  expect(report.reachedByFlow).toEqual([]);
 });
 
 test("a deliberate entry moves its member out of the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -150,7 +214,7 @@ test("each engine finds the cross-package and derived-port uses on its own", { t
   ]);
   const sites = members.map(({ member }) => member.site);
   const usesFrom = (crossCheck: boolean): string[][] => {
-    const served = serviceReferences(root, WORLDS, sites, { log: () => undefined, crossCheck });
+    const served = serviceReferences(root, WORLDS, sites, { log: () => undefined, crossCheck, lists: NativeWorld.fileLists(root, WORLDS) });
     return sites.map((site) => (served.get(`${site.file}:${site.position}`) ?? []).map((found) => `${found.file}:${sources.line(found)}`).toSorted());
   };
   const expected = [
@@ -175,7 +239,8 @@ test("engine two asks a site only in worlds that add a file spelling its name, a
   const quiet = { file: "shared/shape.ts", position: shape.indexOf("quiet") };
   const spelled = { file: "shared/shape.ts", position: shape.indexOf("spelled") };
   const asked = vi.spyOn(NativeWorld.prototype, "referencesAt");
-  const served = serviceReferences(root, ["narrow/tsconfig.json", "wide/tsconfig.json"], [quiet, spelled, spelled], { log: () => undefined });
+  const worlds = ["narrow/tsconfig.json", "wide/tsconfig.json"];
+  const served = serviceReferences(root, worlds, [quiet, spelled, spelled], { log: () => undefined, lists: NativeWorld.fileLists(root, worlds) });
   const sizes = asked.mock.calls.map(([sites]) => sites.length);
   asked.mockRestore();
   expect(sizes.toSorted((a, b) => a - b)).toEqual([1, 2]);

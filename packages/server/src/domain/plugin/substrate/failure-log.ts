@@ -4,6 +4,7 @@
 
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { PluginFailureLine } from "#infra/plugin-host";
 
 const PLUGIN_FAILURE_KINDS = [
   "activation-failed",
@@ -26,9 +27,15 @@ const ERROR_KINDS: ReadonlySet<PluginFailureKind> = new Set<PluginFailureKind>([
 const CAUSE_MAX_CHARS = 200;
 const TRUNCATION_MARK = "…[truncated]";
 
-export function logPluginFailure(pluginSlug: string, kind: PluginFailureKind, cause: string, logger: Logger): void {
+/** The failure line, for a caller whose guest can repeat it per call: it goes to {@link PluginHostPort.logFailure}. */
+export function pluginFailureLine(pluginSlug: string, kind: PluginFailureKind, cause: string): PluginFailureLine {
   const bounded = cause.length > CAUSE_MAX_CHARS ? `${cause.slice(0, CAUSE_MAX_CHARS)}${TRUNCATION_MARK}` : cause;
-  getLog(logger)[ERROR_KINDS.has(kind) ? "error" : "warn"]({ pluginSlug, kind, cause: bounded }, "plugin: failure");
+  return { level: ERROR_KINDS.has(kind) ? "error" : "warn", fields: { pluginSlug, kind, cause: bounded }, message: "plugin: failure" };
+}
+
+export function logPluginFailure(pluginSlug: string, kind: PluginFailureKind, cause: string, logger: Logger): void {
+  const line = pluginFailureLine(pluginSlug, kind, cause);
+  getLog(logger)[line.level](line.fields, line.message);
 }
 
 /** Classify a rejected guest invocation by the typed error name, which crosses the sandbox and broker intact. */

@@ -13,8 +13,11 @@ import type {
   ReattributeScope,
   RedeemInviteInput,
   RegexTierKey,
+  RestoreMemoryInput,
   RoomOverrides,
+  SaveCorrectionInput,
   SendContentBlock,
+  StrikeMemoryInput,
   ToolCallEditAction,
   ToolCallId,
 } from "@orb/contracts/chat";
@@ -25,7 +28,19 @@ import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatInjectionId, ChatInviteId, ChatTurnId, MessageId, MessageVariantId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatInviteId,
+  ChatTurnId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  PresetId,
+  UserId,
+} from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 // Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
@@ -90,6 +105,9 @@ export type ListForksParams = ChatScopedParams;
 export type GetChatLineageParams = ChatScopedParams;
 
 export type GetChatParams = ChatScopedParams;
+export interface CheckSendAvailabilityParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
+}
 
 /** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
  *  (D22). The `characterId` MUST be a present character seat of THIS chat; a not-in-roster / foreign id is a
@@ -100,6 +118,7 @@ export interface GetMemberCardParams extends ChatScopedParams, ViewerClockParams
 
 /** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). */
 export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;
   /** D121-G / §7.1 — assemble this room as if THIS preset were active, for the preset editor's BOUND Prompt
@@ -117,6 +136,7 @@ export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockPara
  *  owned-or-system UNDER THE HOST and degrades to the host's own default on a stale/unowned id — so a preset
  *  the caller does not own can never be read through a chat. */
 export interface PreviewActionTemplatesParams extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly presetId: PresetId;
 }
 
@@ -130,6 +150,7 @@ export interface GetVariantWireParams extends ChatScopedParams {
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
  *  inspector). `speakerCharacterId` picks the primary speaker the peek shapes for (as `previewAssembly`). */
 export interface GetShapeTraceParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
@@ -137,6 +158,7 @@ export interface GetShapeTraceParams extends ChatScopedParams {
  *  capability (the transcript divider's live source). `speakerCharacterId` picks the primary speaker
  *  the fit shapes for (as `getShapeTrace`), so the preview matches the boundary the next real turn stamps. */
 export interface PreviewContextFitParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
@@ -154,6 +176,11 @@ export type ListMessagesParams = ChatScopedParams & { readonly limit?: number | 
   );
 
 export type ListParticipantsParams = ChatScopedParams;
+
+/** `resolveAuthorRenderPolicy` — the policy content stamped with `characterId` renders at in this room. */
+export interface ResolveAuthorRenderPolicyParams extends ChatScopedParams {
+  readonly characterId: CharacterId;
+}
 
 /** `listMessageVariants` — the full sibling-variant set for one slot (no content). */
 export interface ListMessageVariantsParams extends MessageScopedParams {}
@@ -210,7 +237,7 @@ export interface ImpersonateStreamParams extends ChatScopedParams, ViewerClockPa
   readonly guided?: GuidedSteer | undefined;
   /** The subscription's abort signal (transport-supplied) — cancels the in-flight generation when the client
    *  tears down the stream (unmount / user cancel). Absent in a non-streaming caller (a test driving it directly). */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send). */
@@ -225,6 +252,9 @@ export interface GenerateParams extends ChatScopedParams, ViewerClockParams {
    *  nudge (byte-identical to pre-wand `generate`). */
   readonly afterAssistant?: boolean | undefined;
 }
+
+/** `replyToTail` — start the one round a room's unanswered user line is owed, as that line's send would have. */
+export interface ReplyToTailParams extends ChatScopedParams, ViewerClockParams {}
 
 /** `continueTurn` — extends the tail assistant message in place. */
 export interface ContinueTurnParams extends MessageScopedParams, ViewerClockParams {
@@ -247,6 +277,7 @@ export interface ForceCharacterTurnParams extends ChatScopedParams, ViewerClockP
 
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */
 export interface CompactParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly instructions?: string | undefined;
 }
 
@@ -255,6 +286,7 @@ export type AbortParams = ChatScopedParams;
 
 /** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
 interface GenerateImageFields extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly n?: number | undefined;
   /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
@@ -362,7 +394,19 @@ export interface ForkChatParams extends ChatScopedParams {
  *  wire input fields; `id` set means update, absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams, Readonly<ChatInjectionInput> {}
 
+/** `saveCorrection` — keeps a player's correction as a chat injection in their own words, once per text. */
+export interface SaveCorrectionParams extends ChatScopedParams, Readonly<SaveCorrectionInput> {}
+
 export type ListChatInjectionsParams = ChatScopedParams;
+
+/** `memoryView` — the room's remembered items, clamped to the caller's history floor. */
+export type MemoryViewParams = ChatScopedParams;
+
+/** `strikeMemory` — the host's strike on the item the key names, pinned to the hash the host read. */
+export interface StrikeMemoryParams extends ChatScopedParams, Readonly<StrikeMemoryInput> {}
+
+/** `restoreMemory` — the host's removal of one strike. */
+export interface RestoreMemoryParams extends ChatScopedParams, Readonly<RestoreMemoryInput> {}
 
 export interface DeleteChatInjectionParams extends ChatScopedParams {
   readonly injectionId: ChatInjectionId;
@@ -508,12 +552,14 @@ export interface SetChatDocumentVisibilityParams extends ChatScopedParams {
  *  true-solo room. */
 export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly background: ThemeBackground;
+  /** Cancels the fetch an external source runs. */
+  readonly signal: AbortSignal;
 }
 
-/** `setHostDisplayScripts` — host-only write of the D121-E display-tier room OPTION
- *  (`chatMetadata.hostDisplayScripts`). `true` ⇒ the HOST's display-tier regex scripts render for every
- *  viewer in this room (each viewer's own still apply on top); `false`/absent ⇒ the per-user default, where
- *  a viewer only ever sees their own. RENDER-only on both arms — never canon, never the wire. */
+/** `setHostDisplayScripts` — host-only write of whether the room shares its host's display scripts with members
+ *  (`chatMetadata.hostDisplayScripts`). `true` ⇒ the room's display tiers render for every viewer here (each
+ *  viewer's own still apply on top), which is also what an absent key means; `false` ⇒ a member sees only their
+ *  own. RENDER-only on both sides — never canon, never the wire. */
 export interface SetHostDisplayScriptsParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
@@ -540,6 +586,12 @@ export interface SetRegexAllowParams extends ChatScopedParams {
 
 /** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier. */
 export type ListEffectiveRegexParams = ChatScopedParams;
+
+/** `listDisplayScripts` — the display-pass set one viewer's transcript renders through; `chatId: null` is a
+ *  surface outside any room, where only the viewer's own globals apply. */
+export interface ListDisplayScriptsParams extends ChatActorParams {
+  readonly chatId: ChatId | null;
+}
 
 /** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).
  *  `enabled` is what this ROOM is pinned to; there is no "clear back to inherit" arm, because the host's

@@ -16,18 +16,17 @@ import {
   userSettingsViewSchema,
 } from "@orb/contracts/settings";
 import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { updateCheckSchema, versionIdentitySchema } from "@orb/kit/version-identity";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { adminProcedure, authedProcedure, t } from "../trpc.ts";
+import { adminProcedure, authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 /** Upper bound on a pasted background URL (well past any real image URL; bounds the wire before safeFetch). */
 const MAX_BACKGROUND_URL_LENGTH = 2048;
-/** A theme file is a palette plus optional custom CSS; the cap only fences a hostile upload. */
-const MAX_THEME_FILE_CHARS = 1_000_000;
 const MAX_FILENAME_CHARS = 512;
 
 export const settingsRouter = t.router({
@@ -75,7 +74,9 @@ export const settingsRouter = t.router({
   addExternalBackground: authedProcedure
     .output(backgroundLibraryEntrySchema.strict())
     .input(z.strictObject({ url: z.string().trim().min(1).max(MAX_BACKGROUND_URL_LENGTH) }))
-    .mutation(({ ctx, input }) => ctx.services.settings.addExternalBackground({ principal: ctx.auth, url: input.url })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.settings.addExternalBackground({ principal: ctx.auth, url: input.url, signal: procedureSignal(signal) }),
+    ),
 
   // AppSettings (admin-runtime) — admin-gated at the router; the verb re-checks via the injected guard.
   getAppSettings: adminProcedure.output(effectiveAppConfigSchema).query(({ ctx }) => ctx.services.settings.getAppSettings({ principal: ctx.auth })),
@@ -150,7 +151,7 @@ export const settingsRouter = t.router({
   // refusal reason reaches the user as words.
   importThemeFile: authedProcedure
     .output(themeImportLandingSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_THEME_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
+    .input(z.strictObject({ fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.theme), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.settings.importThemeFile({
         principal: ctx.auth,

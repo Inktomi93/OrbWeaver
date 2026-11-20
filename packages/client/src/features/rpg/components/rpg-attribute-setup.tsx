@@ -8,9 +8,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
 import { canGenerateD20Attributes, rollD20Attributes, standardD20Attributes } from "../lib/attribute-generation.ts";
+import { RPG_ROLL_SCORES_NAME, RPG_STANDARD_ARRAY_NAME } from "../lib/rpg-names.ts";
 
 /** D20 score-entry choices; each generated set is one existing sheet patch. */
 export function RpgAttributeSetup({
@@ -38,7 +39,8 @@ export function RpgAttributeSetup({
     try {
       const scores = rolled ? await rollD20Attributes(async () => (await rollDice.mutateAsync({ chatId, notation: "4d6" })).rolls) : standardD20Attributes();
       await onFill(scores);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error("Couldn't fill the attributes. Your saved scores are unchanged.");
     } finally {
       setBusy(false);
@@ -49,10 +51,10 @@ export function RpgAttributeSetup({
       <Text voice="gloss">Fill Strength through Charisma in that order, then edit any score. These actions replace those scores only.</Text>
       <Row gap="field" wrap={true}>
         <Button variant="outline" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(true)}>
-          Roll 4d6 drop lowest
+          {RPG_ROLL_SCORES_NAME}
         </Button>
         <Button variant="outline" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(false)}>
-          Use standard array
+          {RPG_STANDARD_ARRAY_NAME}
         </Button>
         <Button variant="ghost" size="sm" onClick={(): void => setManual(true)}>
           Enter by hand

@@ -1,8 +1,8 @@
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { backfillGroupCharacters, backfillMemory } from "../substrate/backfill.ts";
-import type { estimateMemoryBackfillCalls } from "../substrate/backfill-estimate.ts";
+import type { backfillGroupCharacters, backfillMemory } from "../memory/backfill/backfill.ts";
+import type { estimateMemoryBackfillCalls } from "../memory/backfill/estimate.ts";
 export interface ChatBoundBackfillOps {
   readonly isMemoryEnabled: IsMemoryEnabledOp;
   readonly emptyMemoryScope: (hostUserId: UserId) => Promise<SQL | null>;

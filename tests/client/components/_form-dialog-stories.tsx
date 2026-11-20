@@ -1,9 +1,10 @@
-import { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot } from "@orb/client/components";
+import { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot, SheetDialog } from "@orb/client/components";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { STORY_CREATE_TITLE } from "./_form-dialog-labels.ts";
 
 /** The production form dialog open from the start with a title, a description and enough fields to scroll a short screen, the shape of a create form. */
 export function FormDialogCreateStory(): ReactElement {
@@ -14,8 +15,8 @@ export function FormDialogCreateStory(): ReactElement {
         description="Runs the chosen job on the cadence below."
         onOpenChange={setOpen}
         open={open}
-        submit={{ label: "Create schedule", onSubmit: (): void => setOpen(false) }}
-        title="Create a schedule"
+        submit={{ label: "Create witness", onSubmit: (): void => setOpen(false) }}
+        title={STORY_CREATE_TITLE}
       >
         {["Kind", "Cadence", "Owner", "Window", "Retries", "Notes"].map((name) => (
           <input aria-label={name} key={name} />
@@ -89,6 +90,30 @@ export function FormDialogBodyStateStory(): ReactElement {
           }}
         />
       </FormDialogRoot>
+    </CtIsolation>
+  );
+}
+
+/** The production commit dialog open from the start under the title the case names, for the title's cut and its reveal. */
+export function FormDialogTitleStory({ title }: { readonly title: string }): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="FormDialog" isolates="isolates the dialog title's cut and reveal from authenticated mutations">
+      <FormDialog onOpenChange={setOpen} open={open} submit={{ label: "Save", onSubmit: (): void => setOpen(false) }} title={title}>
+        <input aria-label="Value" />
+      </FormDialog>
+    </CtIsolation>
+  );
+}
+
+/** The production bottom sheet open from the start under the title the case names. */
+export function SheetDialogTitleStory({ title }: { readonly title: string }): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="SheetDialog" isolates="isolates the sheet title's cut and reveal from authenticated mutations">
+      <SheetDialog onOpenChange={setOpen} open={open} title={title}>
+        <Stack gap="block">Body</Stack>
+      </SheetDialog>
     </CtIsolation>
   );
 }

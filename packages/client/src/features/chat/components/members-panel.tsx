@@ -70,6 +70,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { ContextTabBody, MutedLine } from "#components";
 import { testId } from "#lib";
 import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
@@ -351,7 +352,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
-    <Stack gap="row" minHeight="shrinks" height="fill" data-testid={testId("membersPanel")}>
+    <ContextTabBody kind="fill" data-testid={testId("membersPanel")}>
       {/* A members list scrolls vertically only, so the content wraps at the viewport width and a long member
           name truncates instead of busting the panel width. */}
       <ScrollArea grow={true} className="min-block-0" contentFull={true} wrapContent={true}>
@@ -384,18 +385,18 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                   )
                 }
               />
-              {people.length === 0 ? <Text>No one else is here yet. Share an invite.</Text> : people.map(rowProps)}
+              {people.length === 0 ? <MutedLine>No one else is here yet. Share an invite.</MutedLine> : people.map(rowProps)}
             </Stack>
           ) : null}
 
           {showCharacters ? (
             <Stack gap="row" data-slot="members-characters" role="group" aria-labelledby={charactersLabelId}>
               <SectionHeader labelId={charactersLabelId} kicker="Characters" action={props.charactersAction} />
-              {characters.length === 0 ? <Text>No characters in this chat yet. Add one.</Text> : characters.map(rowProps)}
+              {characters.length === 0 ? <MutedLine>No characters in this chat yet. Add one.</MutedLine> : characters.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>
       </ScrollArea>
-    </Stack>
+    </ContextTabBody>
   );
 }

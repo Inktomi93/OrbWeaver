@@ -208,13 +208,17 @@ export const textVariants = tv({
     // ONE LINE, CLIPPED WITH AN ELLIPSIS (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`). The
     // clip makes the box a scroll container, so as a flex or grid child it already shrinks to zero and needs no
     // `min-inline-0`. `fill` is the line that takes the rest of a row and gives way to its siblings.
+    // `inline` is the same clip for a `span` that sits in a line of prose, where the parent lays text out inline: an inline box ignores
+    // `overflow`, so the run would paint on past its line with no ellipsis, and this arm makes it a box no wider than its parent that sits
+    // on the line's bottom edge. The caller states it, because no class on the parent says whether the parent is a flex or grid box (a
+    // stylesheet or a container-query arm can make it one), and a `display` written on a flex item changes the width its row gives it.
     truncate: {
       true: "truncate",
       fill: "flex-1 truncate",
+      inline: "inline-block truncate align-bottom max-inline-full",
       false: "",
     },
-    // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`). The `min-inline-0` that lets it
-    // shrink below its content stays the caller's.
+    // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`).
     grow: GROW,
     floor: FLOOR,
     push: PUSH,
@@ -241,8 +245,9 @@ export const textVariants = tv({
       wrapRow: "flex flex-wrap items-baseline gap-x-field gap-y-tight",
     },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
-    // the box is sized to its content (a path or an address in a narrow cell).
-    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere", all: "break-all" },
+    // the box is sized to its content (a path or an address in a narrow cell). `word` is prose, so it hyphenates a word it breaks, at the
+    // word's own hyphenation points, instead of splitting it with no mark and leaving a lone letter on the next line.
+    wrap: { word: "wrap-break-word hyphens-auto", anywhere: "wrap-anywhere", all: "break-all" },
     // `preWrap` keeps line breaks and runs of spaces in the string, for a value shown exactly as written; `nowrap` never breaks the run, `normal` wraps at spaces inside a nowrap host (a button).
     whitespace: { nowrap: "whitespace-nowrap", normal: "whitespace-normal", preWrap: "whitespace-pre-wrap" },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.
@@ -258,10 +263,6 @@ export const textVariants = tv({
       true: "tabular-nums",
       false: "",
     },
-    // A mark sized by its container (an initial filling an art slot) takes its own em as the line box, so it centres in
-    // the box instead of riding the voice's line height.
-    artScale: { portrait: "text-art-initial", banner: "text-band-initial" },
-    solidLine: { true: "leading-none", false: "" },
     // A wordmark over live art keeps a dark, theme-derived halo behind its glyphs.
     halo: { true: "text-shadow-wordmark" },
     // The slanted face for words that are not spoken: a character's inner thought, a guide line.
@@ -287,7 +288,6 @@ export const textVariants = tv({
     strike: false,
     truncate: false,
     numeric: false,
-    solidLine: false,
     italic: false,
     selectAll: false,
     pulse: false,

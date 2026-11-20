@@ -11,6 +11,7 @@
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
   ExportCardScripts,
+  ExportPresetScripts,
   ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
@@ -18,24 +19,60 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  ListPresetScriptKeys,
+  PlanPresetScripts,
   PortableRegexScript,
+  RegexScriptRefusal,
   RegexScriptRow,
 } from "@orb/contracts/regex";
+import { toRegexScriptCardWire } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
-import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
+import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND, regexScriptFileNotes } from "#primitives/serde/regex";
+import type { CardLiftPlan, SplitScript } from "../contract/dedup.ts";
+import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
-import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
+import { findDuplicate, planCardLift, planUploadLift, rowKey, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
-import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
+import { listOwnedPresetAttachments, listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
+
+/** The write door on a lift (D53): every row the plan would mint has its find pattern's compile measured, and a
+ *  refused one is neither minted nor attached. Reused rows are not measured again; they are already stored. */
+async function admitPlan(ctx: RegexPortabilityContext, plan: CardLiftPlan): Promise<{ readonly plan: CardLiftPlan; readonly refused: RegexScriptRefusal[] }> {
+  const verdicts = await ctx.probeFindCompiles(
+    plan.inserts.map(({ behavior }) => ({ findRegex: behavior.findRegex, substituteRegex: behavior.substituteRegex })),
+  );
+  const refusedIds = new Set<RegexScriptId>();
+  const refused: RegexScriptRefusal[] = [];
+  for (const [index, row] of plan.inserts.entries()) {
+    const verdict = verdicts[index];
+    if (verdict !== undefined && !verdict.ok) {
+      refusedIds.add(row.id);
+      refused.push({ name: row.name, reason: verdict.reason });
+    }
+  }
+  if (refused.length === 0) {
+    return { plan, refused };
+  }
+  return {
+    plan: { ...plan, inserts: plan.inserts.filter((row) => !refusedIds.has(row.id)), attachIds: plan.attachIds.filter((id) => !refusedIds.has(id)) },
+    refused,
+  };
+}
+
+// Every room an attached script reaches hears of it, so an open room draws an imported script without a reload. A
+// re-import attaches what it already held and fans again, which only refetches.
+async function fanAttached(ctx: RegexPortabilityContext, scriptIds: readonly RegexScriptId[]): Promise<void> {
+  await Promise.all(scriptIds.map((scriptId) => ctx.fanRegexScriptRooms(scriptId)));
+}
 
 /**
  * The card LIFT (the `importLorebook` twin). Reads the owner's library + the carried references THIS owner
@@ -55,12 +92,15 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
     await ensureCharacterOwned(ctx.db, ownerId, characterId);
     const [carriedRows, existing] = await Promise.all([loadOwnedScriptsByIds(ctx.db, ownerId, carried), listOwnedScripts(ctx.db, ownerId)]);
 
-    const plan = planCardLift({
-      existing: existing.map(toRow),
-      carriedIds: carriedRows.map((r) => r.id),
-      scripts,
-      mintId: ctx.newScriptId,
-    });
+    const { plan, refused } = await admitPlan(
+      ctx,
+      planCardLift({
+        existing: existing.map(toRow),
+        carriedIds: carriedRows.map((r) => r.id),
+        scripts,
+        mintId: ctx.newScriptId,
+      }),
+    );
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -74,7 +114,8 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    await fanAttached(ctx, plan.attachIds);
+    return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
 
@@ -91,7 +132,7 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     // preset (nullable ownerId) un-attachable, which is correct — it is read-only by construction.
     await ensurePresetOwned(ctx.db, ownerId, presetId);
     const existing = await listOwnedScripts(ctx.db, ownerId);
-    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+    const { plan, refused } = await admitPlan(ctx, planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId }));
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -105,7 +146,52 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    await fanAttached(ctx, plan.attachIds);
+    return { created: plan.inserts.length, reused: plan.reused, refused };
+  };
+}
+
+/** The preset lifts' dry run: the library read {@link createImportPresetScripts} plans against, the write door's
+ *  compile check it admits a new row through, and the run's own order, so an equal script of an earlier preset reads
+ *  as minted by the upload. Every script is measured, so a refusal is known whichever entry would mint it. */
+export function createPlanPresetScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db" | "probeFindCompiles">>): PlanPresetScripts {
+  const ctx: Pick<RegexPortabilityContext, "db" | "probeFindCompiles"> = { ...input, db: databaseForOwner(input.db) };
+  return async ({ ownerId, presets }) => {
+    const verdicts = await ctx.probeFindCompiles(presets.flat().map(({ findRegex, substituteRegex }) => ({ findRegex, substituteRegex })));
+    let at = 0;
+    const refusals = presets.map((scripts) =>
+      scripts.map(() => {
+        const verdict = verdicts[at];
+        at += 1;
+        return verdict === undefined || verdict.ok ? null : verdict.reason;
+      }),
+    );
+    return planUploadLift((await listOwnedScripts(ctx.db, ownerId)).map(toRow), presets, refusals);
+  };
+}
+
+/** The owner's presets' attached scripts as content keys, in each preset's run order, for a preset import's identity. */
+export function createListPresetScriptKeys(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ListPresetScriptKeys {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId }) => {
+    const keys = new Map<PresetId, string[]>();
+    for (const { presetId, script } of await listOwnedPresetAttachments(db, ownerId)) {
+      keys.set(presetId, [...(keys.get(presetId) ?? []), rowKey(toRow(script))]);
+    }
+    return keys;
+  };
+}
+
+/** The owner's presets' attached scripts on the card wire, in each preset's run order, for a preset export. */
+export function createExportPresetScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportPresetScripts {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId }) => {
+    const scripts = new Map<PresetId, ReturnType<typeof toRegexScriptCardWire>[]>();
+    for (const { presetId, script } of await listOwnedPresetAttachments(db, ownerId)) {
+      const { updatedAt: _updatedAt, ...card } = toRow(script);
+      scripts.set(presetId, [...(scripts.get(presetId) ?? []), toRegexScriptCardWire(card)]);
+    }
+    return scripts;
   };
 }
 
@@ -118,7 +204,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, scripts }): Promise<ImportCardScriptsResult> => {
     const existing = await listOwnedScripts(ctx.db, ownerId);
-    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+    const { plan, refused } = await admitPlan(ctx, planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId }));
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -130,7 +216,8 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    await fanAttached(ctx, plan.attachIds);
+    return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
 
@@ -209,12 +296,20 @@ export function createExportRegexScript(input: DbAssemblyInput<Pick<RegexPortabi
   };
 }
 
+// The write door for one file's new row: a refused find pattern ends the import by name, before anything is written.
+async function requireImportAdmitted(ctx: RegexPortabilityContext, candidate: SplitScript): Promise<void> {
+  const [verdict] = await ctx.probeFindCompiles([{ findRegex: candidate.behavior.findRegex, substituteRegex: candidate.behavior.substituteRegex }]);
+  if (verdict !== undefined && !verdict.ok) {
+    throw new DomainOperationError(REGEX_FIND_TOO_COSTLY, `script ${JSON.stringify(candidate.name)} not imported: ${verdict.reason}`);
+  }
+}
+
 /** The backup-bundle IMPORT half — one file, dedup-gated by the shared rule. Re-importing the same bundle
  *  twice writes nothing the second time; a file whose script is already in the library only (re)asserts its
  *  GLOBAL attachment. */
 export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityContext>): ImportRegexScript {
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, bytes }): Promise<{ readonly created: boolean }> => {
+  return async ({ ownerId, bytes }) => {
     const parsed = parseRegexScriptFile(bytes);
     if (!parsed.ok) {
       throw new DomainOperationError("regex_script_unparseable", portableParseError(REGEX_SCRIPT_SCHEMA_KIND, parsed.reason));
@@ -224,6 +319,9 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     const existing = await listOwnedScripts(ctx.db, ownerId);
     const match = findDuplicate(existing.map(toRow), candidate);
     const at = ctx.now();
+    if (match === null) {
+      await requireImportAdmitted(ctx, candidate);
+    }
     const id = match ?? ctx.newScriptId();
     const stmts: BatchStmt[] =
       match === null
@@ -239,6 +337,9 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: match === null };
+    if (payload.global) {
+      await ctx.fanRegexScriptRooms(id);
+    }
+    return { created: match === null, notes: regexScriptFileNotes(bytes, payload) };
   };
 }

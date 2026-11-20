@@ -2,6 +2,22 @@
 // (`transport/trpc/error-mapping.ts`), and a coded refusal's stated facts on `data.detail`. Clients key on those
 // structured fields, never on message text.
 
+import { CancelledError } from "@tanstack/react-query";
+import { isTRPCClientError } from "@trpc/client";
+
+/** Absorb a tRPC failure that has already reached its surface, or a query read TanStack cancelled, and rethrow every
+ *  other throw. Every entity mutation names its failure surface, so its `mutateAsync` rejection was already toasted,
+ *  logged or stated inline; a query's failure sits in the cache's error state (client-architecture-state-and-gates.md
+ *  §11); and the client's loggerLink (`data/trpc.ts`) logs every failed query or mutation settlement. A mutation's
+ *  `cancelQueries` reverts a first fetch that has no data yet by rejecting it with `CancelledError`, which is the cache
+ *  retiring the read, not a fault. A throw of any other kind is a fault in the caller's own follow-up, and rethrowing it
+ *  lets the unhandled-rejection ring record it. */
+export function rethrowUnlessTrpcFailure(error: unknown): undefined {
+  if (!(isTRPCClientError(error) || error instanceof CancelledError)) {
+    throw error;
+  }
+}
+
 function errorData(error: unknown): unknown {
   return typeof error === "object" && error !== null && "data" in error ? error.data : null;
 }
@@ -10,6 +26,13 @@ function errorData(error: unknown): unknown {
 export function trpcErrorReason(error: unknown): string {
   const data = errorData(error);
   return typeof data === "object" && data !== null && "reason" in data && typeof data.reason === "string" ? (data as { reason: string }).reason : "";
+}
+
+/** The server's sentence on a tRPC error, else `null`. The transport formatter only lets through copy written for the
+ *  reader (a mapped refusal's message or the fixed fault sentence), so a surface may print it as the reason. */
+export function trpcErrorMessage(error: unknown): string | null {
+  const message = typeof error === "object" && error !== null && "message" in error ? error.message : null;
+  return typeof message === "string" && message.trim() !== "" ? message : null;
 }
 
 /** The tRPC error code (`CONFLICT`, `BAD_REQUEST`, …) off `data.code`, else `undefined` for any other value. */

@@ -45,7 +45,7 @@ export async function textRoom(replies: readonly string[], options: Omit<ChatRoo
 }
 
 // The provider path an OpenAI-compatible chat turn posts to, and the default for wireOf and quietOf.
-const CHAT_COMPLETIONS_PATH = "/chat/completions";
+export const CHAT_COMPLETIONS_PATH = "/chat/completions";
 /** The provider path a native Anthropic turn posts to. */
 export const MESSAGES_PATH = "/messages";
 

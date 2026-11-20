@@ -12,7 +12,7 @@ const DRAFT = `I nod. ${CLOSED_SPAN}I wait. ${OPEN_SPAN}`;
 
 async function draftFor(room: Room, principal: Room["host"]): Promise<string> {
   const deltas: string[] = [];
-  for await (const { delta } of room.root.services.chat.impersonateStream({ principal, chatId: room.chatId })) {
+  for await (const { delta } of room.root.services.chat.impersonateStream({ signal: new AbortController().signal, principal, chatId: room.chatId })) {
     deltas.push(delta);
   }
   return deltas.join("");

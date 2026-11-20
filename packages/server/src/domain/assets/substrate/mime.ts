@@ -10,12 +10,13 @@
 //     the ZIP local-file header `PK\x03\x04`) — kit's sniff is image-only, so these dispatch here.
 //   • `text/*` → NO magic exists; the strongest cheap check a text format admits is a strict-UTF-8 decode
 //     (binary garbage fails it). The upload size cap is the route/`maxBytes` belt, not re-checked here.
+// A claim is one type: a comma-joined list is refused, and a picture or video claim must be the bare type.
 // Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
-// verification point `storeBlob` calls when `enforceMagic` is set.
+// verification point `storeBlob` calls when `enforceMagic` is set, and the one a bundle restore runs on its claims.
 
 import type { AssetKind, AssetMedia, AssetUploadRefusalCode } from "@orb/contracts/assets";
-import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
-import { sniffMime } from "@orb/kit/image-sniff";
+import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES, MP4_MIME, WEBM_MIME } from "@orb/contracts/assets";
+import { APNG_MIME, sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
 
 const OCTET_STREAM = "application/octet-stream";
@@ -23,13 +24,14 @@ const IMAGE_PREFIX = "image/";
 // Animated PNG shares the PNG byte signature — the acTL animation chunk sits past the signature, and the
 // magic sniff is container-blind to it — so a browser-supplied `image/apng` claim always sniffs as
 // `image/png`. This is the ONE legitimate claim≠sniff pair for images (animated backgrounds; BG-A).
-const APNG_MIME = "image/apng";
 const PNG_MIME = "image/png";
 const TEXT_PREFIX = "text/";
 const VIDEO_PREFIX = "video/";
-const MP4_MIME = "video/mp4";
-const WEBM_MIME = "video/webm";
 const PDF_MIME = "application/pdf";
+// A plugin bundle is stored under this type, which no signature arm below verifies.
+const ZIP_ARCHIVE_MIME = "application/zip";
+// What separates the entries of a type list. A browser can read a comma-joined `Content-Type` by its last entry.
+const TYPE_LIST_SEPARATOR = ",";
 // The OOXML/OPF zip containers we recognize (docx/epub are DB8 fast-follows; the belt ships with the design).
 const ZIP_CONTAINER_MIMES = new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/epub+zip"]);
 // Stored-XSS: active document/script mimes are NEVER a servable asset type — a stored blob is served
@@ -111,6 +113,34 @@ export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
   refuse(reason, detail, ASSET_UPLOAD_REFUSAL_CODES.wrongMedia);
 }
 
+/** The type a bundle restore stores its bytes under. The filename's kinds and type are claims nothing proved: every kind
+ *  must admit the bytes, image bytes take the sniffed type unless the claim is one the signature bears out (an animated
+ *  PNG keeps `image/apng`), a video claim of the container its bytes are is stored bare, and every other claim must pass
+ *  {@link assertMagicMatches}, as at the upload door. The one
+ *  exception is a ZIP stored as `application/zip`, as a plugin bundle is: that type has no signature arm. */
+export function restoredMime(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): string {
+  for (const kind of kinds) {
+    assertKindAdmits(bytes, kind);
+  }
+  const media = mediaOf(bytes);
+  if (media === "image") {
+    const sniffed = sniffMime(bytes);
+    const base = baseMime(claimedMime);
+    // An upload refuses a picture under the wrong image type; a restore keeps it, because its bytes come from this
+    // app's own earlier store, where older import writers recorded a forced type.
+    return imageClaimHolds(base, sniffed) ? base : sniffed;
+  }
+  // A video claim of the container its bytes are sheds its parameter as a picture's does: the stored type is one bare
+  // type the blob route serves inline. Any other claim over video bytes still meets the signature check below.
+  if (media === "video" && baseMime(claimedMime) === videoContainerOf(bytes)) {
+    return baseMime(claimedMime);
+  }
+  if (!(media === "zip" && claimedMime === ZIP_ARCHIVE_MIME)) {
+    assertMagicMatches(bytes, claimedMime);
+  }
+  return claimedMime;
+}
+
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */
 function matchesAt(bytes: Uint8Array, offset: number, signature: string): boolean {
   if (bytes.length < offset + signature.length) {
@@ -127,6 +157,14 @@ function matchesAt(bytes: Uint8Array, offset: number, signature: string): boolea
 /** True iff `bytes` starts with the given ASCII/byte signature (a short buffer simply fails to match). */
 function startsWith(bytes: Uint8Array, signature: string): boolean {
   return matchesAt(bytes, 0, signature);
+}
+
+// The video container the bytes are, by their leading magic; null for bytes that are neither.
+function videoContainerOf(bytes: Uint8Array): typeof MP4_MIME | typeof WEBM_MIME | null {
+  if (matchesAt(bytes, FTYP_OFFSET, FTYP_SIGNATURE)) {
+    return MP4_MIME;
+  }
+  return startsWith(bytes, EBML_SIGNATURE) ? WEBM_MIME : null;
 }
 
 /** The `video/*` arm — the two container formats we accept (BG-V backgrounds + chat attachments), by
@@ -149,15 +187,23 @@ function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string):
 
 /** True iff `bytes` decodes as strict UTF-8 (the text-family fallback — no signature exists for text). */
 function isValidUtf8(bytes: Uint8Array): boolean {
-  // the owner is `assertMagicMatches`: it reads this `false` and calls
-  // `refuse(...)`, an `AssetContentRejectedError` whose reason the upload door shows the person. The only throw a
-  // fatal `TextDecoder` raises here is invalid UTF-8. Ends if a caller reads this boolean for anything but that refusal.
+  // the owner is `assertMagicMatches`: it reads this `false` and calls `refuse(...)`, an `AssetContentRejectedError`
+  // whose reason the upload door shows the person. A fatal `TextDecoder` says invalid UTF-8 with a `TypeError`.
   try {
     new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     return true;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
     return false;
   }
+}
+
+// Whether the sniffed image type bears out a claimed base type. The animated-PNG edge: `image/apng` bytes carry the
+// PNG signature, so the png sniff matches it.
+function imageClaimHolds(base: string, sniffed: string): boolean {
+  return sniffed === base || (base === APNG_MIME && sniffed === PNG_MIME);
 }
 
 /** The `image/*` arm — sniff the bytes and require they equal the claim, with the one animated-PNG edge.
@@ -177,15 +223,19 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
   if (sniffed === OCTET_STREAM) {
     refuse("its contents are not a PNG, JPEG, GIF or WebP image", `unrecognized magic bytes — claimed ${claimedMime}, no known image signature`);
   }
-  // The animated-PNG edge: `image/apng` bytes carry the PNG signature, so accept the png sniff as a match.
-  if (base === APNG_MIME && sniffed === PNG_MIME) {
-    return;
-  }
-  if (sniffed !== base) {
+  if (!imageClaimHolds(base, sniffed)) {
     refuse(
       `its contents are a ${imageName(sniffed)} image, not the ${imageName(base)} it claims`,
       `magic-byte mismatch — claimed ${claimedMime}, sniffed ${sniffed}`,
     );
+  }
+}
+
+// A picture or video is stored under the type the blob route serves it inline under, which it matches exactly, so the
+// claim must be that bare type: no parameter, no other spelling. A text claim keeps its `charset`; text never serves inline.
+function assertExactMediaType(base: string, claimedMime: string): void {
+  if (claimedMime !== base) {
+    refuse("that file type can't be stored", `refusing ${claimedMime} — a picture or video type is one bare type, ${base}`);
   }
 }
 
@@ -194,6 +244,9 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
  * documents (pdf/zip/text) are covered alongside images — kit's `sniffMime` recognizes images only.
  */
 export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void {
+  if (claimedMime.includes(TYPE_LIST_SEPARATOR)) {
+    refuse("that file type can't be stored", `refusing a list of types ${claimedMime} — a stored asset has one type`);
+  }
   const base = baseMime(claimedMime);
 
   // An active document/script type is never a servable asset — reject before any family check.
@@ -202,11 +255,13 @@ export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void
   }
 
   if (base.startsWith(IMAGE_PREFIX)) {
+    assertExactMediaType(base, claimedMime);
     assertImageMagic(bytes, base, claimedMime);
     return;
   }
 
   if (base.startsWith(VIDEO_PREFIX)) {
+    assertExactMediaType(base, claimedMime);
     assertVideoMagic(bytes, base, claimedMime);
     return;
   }

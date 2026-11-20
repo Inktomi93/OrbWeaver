@@ -11,7 +11,8 @@
 // postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples` the card text, and the `persona`
 // marker another human's persona description.
 // The member-gated read on this path builds NO rendered bytes: `previewContextFit` returns only the boundary id +
-// budget numbers off a ctx it never serializes.
+// budget numbers off a ctx it never serializes. Its gather still runs memory and databank retrieval on the host's
+// encoder, so every preview refuses a host outside the room's consent set, a disabled host like a departed one.
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
@@ -44,6 +45,9 @@ import type {
   MessageView,
   NextTurnConnectionView,
   ParticipantData,
+  RegexDisplayEntry,
+  RenderPolicy,
+  RoomSendAvailability,
   ShapeTrace,
   TeachingIdentity,
   TeachingKnobs,
@@ -56,9 +60,14 @@ import {
   DEFAULT_GROUP_CONFIG,
   NO_HISTORY_FLOOR,
   projectViewForMember,
+  REGEX_VIEWER_SOURCE,
+  resolveHostDisplayScripts,
+  resolveNarratorRenderPolicy,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
+import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
+import type { GenerationCapability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
@@ -75,9 +84,10 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -85,11 +95,12 @@ import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { MacroRenderEnv, TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
-import { ChatNotFoundError } from "../contract/errors.ts";
+import { ChatHostWithoutConsentError, ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type {
   ChatEventBoundsParams,
+  CheckSendAvailabilityParams,
   CountChatsParams,
   GetChatLineageParams,
   GetChatParams,
@@ -97,6 +108,7 @@ import type {
   GetShapeTraceParams,
   GetVariantWireParams,
   ListChatsParams,
+  ListDisplayScriptsParams,
   ListEffectiveRegexParams,
   ListForksParams,
   ListMessagesParams,
@@ -107,17 +119,18 @@ import type {
   PreviewContextFitParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  ResolveAuthorRenderPolicyParams,
 } from "../contract/params.ts";
-import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
+import type { PromptHistoryMemo, PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import type { ChatEventLogRow } from "../persistence/queries.ts";
 import {
@@ -139,7 +152,6 @@ import {
   loadViewerLastTurnAt,
   loadViewerLastTurns,
 } from "../persistence/queries.ts";
-import { assemblyTimeZone, gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import type { fitHistory } from "../substrate/assembly-access.ts";
 import {
   buildAssemblyBudget,
@@ -159,20 +171,24 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
+import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
 import { clampMemberCard, isBelowHistoryFloor, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { scrubChatEventReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
+  hostConsentOf,
   humanSeatPersonasOf,
   lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
-  resolveAnchor,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
-import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
+import { createPromptHistoryMemos } from "../substrate/prompt-history-memo.ts";
+import { drawsOnDisplay, regexAllowOf, resolveHostTierRegexEntries, resolveRegexTiers } from "../substrate/regex-tier.ts";
+import { createSingleFlight } from "../substrate/single-flight.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -218,9 +234,11 @@ type ReadVerbs = Pick<
   | "getVariantWire"
   | "previewContextFit"
   | "listEffectiveRegex"
+  | "listDisplayScripts"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
+  | "resolveAuthorRenderPolicy"
   | "replayLiveTurn"
   | "replayChatEvents"
   | "chatEventBounds"
@@ -235,8 +253,10 @@ type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 /** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews share this resolution. */
 interface PreviewInputs extends RoomInputs {
+  /** The room host the consent read proved; a preview gathers retrieval on its encoder. */
+  readonly hostUserId: ConsentingHostId;
   /** The room host whose connection the preview resolved under (§8.4-3). */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   readonly passageCounter: ReturnType<ChatContext["passageCounter"]>;
   readonly model: ModelId;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
@@ -439,6 +459,20 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
   );
 }
 
+/** The room host a preview may run as. A member's fit read gathers memory and databank retrieval on the host's encoder
+ *  and reads the host's connection, so a disabled host refuses exactly as a departed one does, the rule `loadRoom`
+ *  applies to a turn. Run it before any read of the host's connection. */
+async function requireConsentingHost(ctx: ChatContext, chatId: ChatId): Promise<ConsentingHostId> {
+  const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+  if (consent.kind === "hostless") {
+    throw new ChatNotFoundError(chatId);
+  }
+  if (consent.kind === "withheld") {
+    throw new ChatHostWithoutConsentError(chatId);
+  }
+  return consent.hostUserId;
+}
+
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + seated characters + personas, then the
  *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (leak-free
  *  NOT_FOUND). The seated characters are reordered to put `speakerCharacterId` primary when supplied.
@@ -454,16 +488,18 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *  `previewActionTemplates` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
-async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
-  const participants = await loadParticipants(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(participants);
-  if (hostUserId === null) {
-    throw new ChatNotFoundError(chatId);
-  }
-  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
+async function resolvePreviewInputs(
+  ctx: ChatContext,
+  deps: ReadDeps,
+  chatId: ChatId,
+  opts: PreviewInputsOpts & { readonly signal: AbortSignal },
+): Promise<PreviewInputs> {
+  const hostUserId = await requireConsentingHost(ctx, chatId);
+  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId, signal: opts.signal });
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
   return {
     ...room,
+    hostUserId,
     funderUserId: hostUserId,
     model: connection.model,
     passageCounter: ctx.passageCounter(connection),
@@ -604,9 +640,9 @@ async function previewGatherFields(
   args: {
     readonly chatId: ChatId;
     /** The room's frozen host (D19) — the identity the collection resolves under, exactly as a turn does. */
-    readonly hostUserId: UserId;
+    readonly hostUserId: ConsentingHostId;
     /** The READER — whose chat connection the rpg delivery verdict reads (§8.4-3). */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather
      *  is: the preview must show the bytes the model actually receives, and a host who re-authored a teach on
      *  this preset would otherwise read the shipped default on their own honesty instrument. */
@@ -687,8 +723,9 @@ async function buildPreviewContext(
     readonly guided?: GuidedSteer | undefined;
     /** The viewer's zone, for a preview that hands rendered text back (it must read the clock the turn will). */
     readonly timeZone?: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   },
-): Promise<{ assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>; cardKeepLastX: number | undefined }> {
+): Promise<{ assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>; cardKeepLastX: number | undefined }> {
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
   // the active persona; `{{char}}` = the Ruling-B joined present characters (a preview has no triggering speaker).
@@ -708,10 +745,11 @@ async function buildPreviewContext(
     // that resolved a different posture would be an honesty instrument telling a different story.
     knobs: resolveTeachingKnobs(inputs.metadata, inputs.foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR),
   });
-  const gathered = await gatherAssembleContext(
-    ctx,
+  const gathered = await ctx.gatherAssembleContext(
     {
       chatId,
+      retrieval: "strict",
+      signal: opts.signal,
       runAsUserId: inputs.hostUserId,
       model: inputs.model,
       characterIds: inputs.characterIds,
@@ -845,28 +883,53 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
+/** A member's reading of a room whose host is outside the consent set: the same code a refused send carries. */
+const HOST_UNAVAILABLE: RoomSendAvailability = { available: false, cause: TURN_HOST_UNAVAILABLE_OP_CODE };
+
+// SECURITY: why the host's key was revoked is the host's to read. A member reads every revocation as the one cause the
+// composer renders as the host's line, so the wire never says whether the host revoked it or its endpoint went dark.
+const MEMBER_REVOKED_KEY: RoomSendAvailability = { available: false, cause: REVOKED_KEY_CAUSES.auth_failed };
+
 /** The honest-refusal pre-send gate: the deterministic serveability verdict for the room HOST's chat
- *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer disables SEND on it). A
- *  hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
+ *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer
+ *  disables SEND on it), so a stranger and an unknown room read the same NOT_FOUND before any host read. A hostless
+ *  room is a leak-free NOT_FOUND, as its send is. A host outside the consent set reads `host_unavailable`, the
+ *  reason a member's refused send names, and its connection is never resolved or probed. Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
-  return async ({ principal, chatId }: GetChatParams): Promise<SendAvailability> => {
+  return async ({ principal, chatId, signal }: CheckSendAvailabilityParams): Promise<RoomSendAvailability> => {
     await requireParticipant(ctx, principal, chatId);
-    const participants = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(participants);
-    if (hostUserId === null) {
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
       throw new ChatNotFoundError(chatId);
     }
-    return deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+    if (consent.kind === "withheld") {
+      return HOST_UNAVAILABLE;
+    }
+    const verdict = await deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId, signal });
+    if (verdict.available || principal.userId === consent.hostUserId) {
+      return verdict;
+    }
+    return CRED_REVOKED_REASONS.some((reason) => REVOKED_KEY_CAUSES[reason] === verdict.cause) ? MEMBER_REVOKED_KEY : verdict;
   };
 }
 
+/** No connection the next turn can run on: what a member reads for a host outside the consent set. */
+const NO_NEXT_TURN_CONNECTION: NextTurnConnectionView = { state: "unset" };
+
+/** The connection the room's next turn would run on, for any present member. Same order as
+ *  {@link createCheckSendAvailability}: seat, then host consent, so a disabled host's binding is never read and its
+ *  state and provider label are never described. */
 function createGetNextTurnConnection(ctx: ChatContext, deps: ReadDeps): ChatService["getNextTurnConnection"] {
   return async ({ principal, chatId }: GetChatParams): Promise<NextTurnConnectionView> => {
     await requireParticipant(ctx, principal, chatId);
-    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    if (hostUserId === null) {
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
       throw new ChatNotFoundError(chatId);
     }
+    if (consent.kind === "withheld") {
+      return NO_NEXT_TURN_CONNECTION;
+    }
+    const { hostUserId } = consent;
     const view = await deps.getNextTurnConnection({ funderUserId: hostUserId });
     if (view.state === "unset" || principal.userId === hostUserId) {
       return view;
@@ -948,6 +1011,9 @@ function renderCardField(value: string | null, renderCtx: AssembleContext, rando
  *      SAME leak-free NOT_FOUND (you cannot read an arbitrary character's card through a chat you happen to be
  *      in). Checked against the roster's present character seats, never against the character table directly.
  *
+ *  The card is the host's, so it serves only while the host consents ({@link hostConsentOf}): a disabled host's card
+ *  is withheld with the same NOT_FOUND a hostless room answers, after both checks above.
+ *
  *  The room host always resolves to `full` (`resolveCardVisibility`); every other present member sees the
  *  host-configured level. `clampMemberCard` NULLS every field above the effective level SERVER-SIDE (the
  *  prompt-steering internals — `systemPrompt`/`postHistoryInstructions` — and the character's rendered `lore`
@@ -965,14 +1031,20 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // Belt 2 + the host owner: resolve the room's present roster ONCE — the host (card owner for every load
     // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
     const participants = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(participants);
     const seated = participants.some((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
-    if (hostUserId === null || !seated) {
+    const consent = await hostConsentOf(ctx, participants);
+    if (consent.kind === "hostless" || !seated) {
       throw new ChatNotFoundError(chatId);
     }
+    // A disabled host's card is withheld exactly as a departed host's is: the member gets the hostless answer. The
+    // seat check above runs first, so a stranger and an unknown chat id learn nothing about the host's account.
+    if (consent.kind === "withheld") {
+      throw new ChatHostWithoutConsentError(chatId);
+    }
+    const { hostUserId, consentSet } = consent;
     // Load the card under the HOST's ownership (the seat's card belongs to the host, D18) — the caller-supplied
     // bits `clampMemberCard` needs. A gone/mid-delete card is a leak-free NOT_FOUND (nothing to project).
     const card = await ctx.getCard({ ownerId: hostUserId, characterId });
@@ -980,9 +1052,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       throw new ChatNotFoundError(chatId);
     }
     const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
-    // Same enabled-axis narrowing as `resolvePreviewInputs` above — a member card render is also an honesty
-    // instrument about who the room would actually resolve a persona for.
-    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+    // The anchor persona resolves over the consent set the host check read, the set a live turn resolves personas for.
     const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
@@ -991,8 +1061,8 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
         chatId,
         hostUserId,
         anchorPersonaId: membership.chat.anchorPersonaId,
-        presentHumanUserIds: memberCardPresentHumanUserIds,
-        humanSeats: humanSeatPersonasOf(participants, memberCardPresentHumanUserIds),
+        presentHumanUserIds: consentSet,
+        humanSeats: humanSeatPersonasOf(participants, consentSet),
       }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
@@ -1124,6 +1194,26 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
+/** `resolveAuthorRenderPolicy` — the card frame's policy read. A narrator row is stamped with the room host's synthetic
+ *  group character, which holds no seat, so that id resolves to the room's narrator policy and every other id to its
+ *  own seat. The narrator id is checked before the seats. */
+function createResolveAuthorRenderPolicy(ctx: ChatContext, deps: ReadDeps): ChatService["resolveAuthorRenderPolicy"] {
+  return async ({ principal, chatId, characterId }: ResolveAuthorRenderPolicyParams): Promise<RenderPolicy | undefined> => {
+    await requireParticipant(ctx, principal, chatId);
+    const participants = await deps.loadParticipantViews(chatId);
+    const narrator = resolveNarratorRenderPolicy(participants);
+    if (narrator !== undefined) {
+      // A narrator policy exists only when the roster read found a consenting host, so this is that host.
+      const hostUserId = hostUserIdOf(participants);
+      const author = hostUserId === null ? null : await ctx.findSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
+      if (author?.characterId === characterId) {
+        return narrator.renderPolicy;
+      }
+    }
+    return participants.find((participant) => participant.characterId === characterId)?.renderPolicy;
+  };
+}
+
 /** SHAPE the NEXT turn's wire history off the current canon — the one preamble `previewAssembly`,
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
@@ -1168,12 +1258,66 @@ function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService
   };
 }
 
+/** `listDisplayScripts` — the display-pass set one viewer's transcript renders through (D121-E as amended by
+ *  the two-axis ruling).
+ *
+ *  A display script runs where it is attached, resolved exactly as the turn resolves its prompt-side union
+ *  (`resolveHostTierRegexEntries`: global, preset, each seat, the room, under the host, with the room's levers
+ *  and its master), then the viewer's own globals last, so a viewer can always counter-style what the room
+ *  draws. SECURITY: the room's tiers are the host's library. A non-host member receives them while the room
+ *  shares them, which is the default (owner ruling): `resolveHostDisplayScripts` reads an absent setting as
+ *  shared and only the host's explicit off as withheld. Sharing hands a member the patterns and replacement text
+ *  of the host's display scripts attached to this room's tiers, and nothing from a tier the room's levers turn
+ *  off or from a script attached elsewhere. Off, a member receives none of them. Membership is read per call, so
+ *  a departed member reads nothing. A host's own globals are already the room's global tier, so the viewer tier
+ *  is not added again for the host: the room's levers govern them there. `chatId: null` (a surface outside any
+ *  room) reads the viewer's globals. */
+function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService["listDisplayScripts"] {
+  return async ({ principal, chatId }: ListDisplayScriptsParams): Promise<RegexDisplayEntry[]> => {
+    const viewer = principal.userId;
+    let room: RegexDisplayEntry[] = [];
+    let viewerIsHost = false;
+    if (chatId !== null) {
+      const membership = await requireParticipant(ctx, principal, chatId);
+      viewerIsHost = hostUserIdOf([{ role: membership.role, userId: viewer }]) === viewer;
+      if (viewerIsHost || resolveHostDisplayScripts(membership.chat.metadata.hostDisplayScripts)) {
+        room = await roomDisplayEntries(ctx, deps, chatId, membership.chat.anchorPersonaId);
+      }
+    }
+    const own = viewerIsHost ? [] : (await ctx.resolveRegexSources({ ownerId: viewer, presetId: null, characterIds: [], chatId: null })).hostGlobal;
+    const seen = new Set(room.map((entry) => entry.script.id));
+    const entries = [...room, ...own.filter((script) => !seen.has(script.id)).map((script): RegexDisplayEntry => ({ script, from: REGEX_VIEWER_SOURCE }))];
+    return entries.filter(({ script }) => drawsOnDisplay(script));
+  };
+}
+
+/** The room's resolved tiers in run order, through the preview preamble the room's Regex section reads, so the
+ *  display set and the section name the same preset and seats. A hostless room has no tiers to draw. */
+async function roomDisplayEntries(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, anchorPersonaId: PersonaId | null): Promise<RegexDisplayEntry[]> {
+  if (hostUserIdOf(await loadParticipants(ctx.db, chatId)) === null) {
+    return [];
+  }
+  const inputs = await resolveRoomInputs(ctx, deps, chatId, { anchorPersonaId });
+  const sources = await ctx.resolveRegexSources({
+    ownerId: inputs.hostUserId,
+    presetId: inputs.foreign.presetId ?? null,
+    characterIds: inputs.characterIds,
+    chatId,
+  });
+  return resolveHostTierRegexEntries({ ...sources, allow: regexAllowOf(inputs.metadata) });
+}
+
 /** The EPHEMERAL `PROMPT_HISTORY` leg's env for a PREVIEW build — the same seams a real turn supplies
  *  (`engine/pipeline::promptHistoryEnv`), so what the host reads in `previewAssembly`/`getShapeTrace`/
  *  `previewContextFit` is what the wire would carry. A preview that skipped the leg would show the host a
  *  history the model will never see, which is precisely the lie these reads exist to prevent. `null` when
  *  the host tier resolved no scripts (byte-identical, zero cost). */
-function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleContext, inputs: PreviewInputs): PromptHistoryRegexEnv | null {
+function previewPromptHistoryEnv(
+  ctx: ChatContext,
+  assembleContext: AssembleContext,
+  inputs: PreviewInputs,
+  memo: PromptHistoryMemo | null,
+): PromptHistoryRegexEnv | null {
   const scripts = assembleContext.hostTierRegexScripts ?? [];
   if (scripts.length === 0) {
     return null;
@@ -1181,12 +1325,16 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   return {
     scripts,
     macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
-    applyReplace: ctx.applyRegexReplace,
+    openRegexPass: ctx.openRegexPass,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn(
-        { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err, pass: "prompt", findRegex: script.findRegex },
         "chat: prompt-history regex script failed in a preview build (D53 watchdog)",
       ),
+    room: assembleContext.hostTierRegexRoom ?? NO_SEATS,
+    // A preview shows the next fresh turn, never a continue.
+    continuing: false,
+    memo,
   };
 }
 
@@ -1201,8 +1349,10 @@ async function shapeNextTurn(
   args: {
     readonly chatId: ChatId;
     readonly inputs: PreviewInputs;
-    readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+    readonly assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>;
     readonly assembled: AssembledPrompt;
+    /** The room's memo of the prompt-history leg, for a read every member repeats; `null` runs the leg fresh. */
+    readonly historyMemo: PromptHistoryMemo | null;
   },
 ): Promise<{
   canon: readonly MessageView[];
@@ -1210,7 +1360,7 @@ async function shapeNextTurn(
   shape: Parameters<typeof shapeConvertFit>[0]["shape"];
   passageCounter: PreviewInputs["passageCounter"];
 }> {
-  const { chatId, inputs, assembleContext, assembled } = args;
+  const { chatId, inputs, assembleContext, assembled, historyMemo } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
   // the fit preview returns NUMBERS + one boundary id, never canon bytes: the canon is token-counted and discarded. The fit budget is deliberately room-wide (one shared window), and the boundary id is the ratified id plane.
@@ -1227,7 +1377,9 @@ async function shapeNextTurn(
     inputs.capability === undefined
       ? undefined
       : await cueReplayFor(inputs.capability, resolveCarryReasoning(params, inputs.capability, []), () => loadCanonCues(ctx.db, chatId));
-  const rows = assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [];
+  const rows = assembled.sendHistory
+    ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs, historyMemo))
+    : [];
   const shape = (shapeRows: ReturnType<typeof toShapeCanon>): ReturnType<typeof shapeTurn> =>
     shapeTurn({
       canon: shapeRows,
@@ -1277,7 +1429,7 @@ async function shapeNextTurn(
  *  ASYNC because the conversion resolves user-attachment media (`resolveImageUrl`) — the same per-row cost
  *  the turn pays, and zero I/O on a history with no attachment. */
 async function fitShapedHistory(args: {
-  readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+  readonly assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>;
   readonly assembled: AssembledPrompt;
   readonly capability: GenerationCapability | undefined;
   /** The stored rows and the turn's SHAPE over them ({@link shapeNextTurn}). */
@@ -1286,8 +1438,6 @@ async function fitShapedHistory(args: {
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
     readonly quality: NonNullable<ForeignInputs["chatBehavior"]>["attachmentQuality"];
-    /** The room's frozen host — the owner scope the attachment resolve runs under. */
-    readonly hostUserId: UserId;
     readonly chatId: ChatId;
     /** The rpg gather's keep-last-X card window; `undefined` on a non-game chat ⇒ no window (ABSENT ≠ ZERO). */
     readonly cardKeepLastX: number | undefined;
@@ -1295,6 +1445,7 @@ async function fitShapedHistory(args: {
     readonly canon: readonly MessageView[];
   };
   readonly ctx: ChatContext;
+  readonly signal: AbortSignal;
 }): Promise<{ shaped: ReturnType<typeof shapeTurn>; fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
   const params = args.assembleContext.promptConfig.params;
   const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
@@ -1310,7 +1461,7 @@ async function fitShapedHistory(args: {
     carryToolReasoning: args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation",
     visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
     videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
+    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ chatId: args.convert.chatId, ref, quality: args.convert.quality, signal: args.signal }),
     cardKeepLastX: args.convert.cardKeepLastX,
     canon: args.convert.canon,
     // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
@@ -1328,7 +1479,7 @@ async function fitShapedHistory(args: {
     loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
   };
   const { shaped, fitted, fitBudget } = await shapeConvertFit({
-    passage: { count: args.next.passageCounter, system: [args.assembled.static, args.assembled.dynamic] },
+    passage: { count: args.next.passageCounter, system: [args.assembled.static, args.assembled.dynamic], signal: args.signal },
     canon: args.next.rows,
     shape: args.next.shape,
     convert: (rows) => buildWireHistory(convertEnv, rows),
@@ -1386,25 +1537,27 @@ function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): HistoryBudgetI
  *  `previewActionTemplates` rides, with the same safety (compose resolves it owned-or-system UNDER THE HOST and
  *  degrades to the host's own default on a stale/unowned id). Absent ⇒ byte-identical to every prior preview. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
-  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride, timeZone }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
+  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride, timeZone, signal }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       speakerCharacterId,
       ...(presetOverride === undefined ? {} : { presetOverride }),
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone, signal });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt, historyMemo: null });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
       assembled: prompt,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
     const budget = buildAssemblyBudget({
       slices,
@@ -1433,25 +1586,27 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
  *  squashed run overruns the window traces the survivors the turn shapes, then projects the stage snapshots + the
  *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (the `previewAssembly` dry-run frame). */
 function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
-  return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
+  return async ({ principal, chatId, speakerCharacterId, signal }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       speakerCharacterId,
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled, historyMemo: null });
     const { shaped } = await fitShapedHistory({
       assembleContext,
       assembled,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
@@ -1537,24 +1692,38 @@ function resolveContextFitPreview(env: {
 const NO_CONNECTION = "no-connection" satisfies UnavailableCause;
 const CONTEXT_FIT_UNBOUND: ContextFitUnbound = { unbound: true };
 
+// The room-wide half of a fit: everything but the checkpoint clamp, which is the caller's own.
+type RoomFit =
+  | ContextFitUnbound
+  | { readonly preview: Omit<Parameters<typeof resolveContextFitPreview>[0], "compactSummary" | "coveragePoint">; readonly chatRow: ChatRowView | undefined };
+
+// THE FIT IS SHARED (one run per room and speaker). Every member's client asks for the fit after each turn, and each run
+// passes the whole history through the host's prompt regex: concurrent reads of one room join one run, and a repeated
+// read of an unchanged room reuses the room's last prompt-history output. Each caller still passes its own participant
+// gate before it joins, and applies its own checkpoint clamp to the shared numbers.
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
-  return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
+  const flights = createSingleFlight<RoomFit>();
+  const historyMemos = createPromptHistoryMemos();
+
+  const fitRoom = async (
+    chatId: ChatId,
+    anchorPersonaId: PersonaId | null,
+    speakerCharacterId: CharacterId | null | undefined,
+    signal: AbortSignal,
+  ): Promise<RoomFit> => {
+    // Consent first: a disabled host's connection is neither probed nor reflected back as "unbound".
+    const hostUserId = await requireConsentingHost(ctx, chatId);
     // The same verdict the composer's send gate reads, so the fit and the send button agree on "unbound".
-    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    const availability = hostUserId === null ? null : await deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
-    if (availability !== null && !availability.available && availability.cause === NO_CONNECTION) {
+    const availability = await deps.checkSendAvailability({ funderUserId: hostUserId, chatId, signal });
+    if (!availability.available && availability.cause === NO_CONNECTION) {
       return CONTEXT_FIT_UNBOUND;
     }
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      speakerCharacterId,
-    });
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId, signal, speakerCharacterId });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled, historyMemo: historyMemos.forRoom(chatId) });
     // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
     // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
     const { fitted, budget } = await fitShapedHistory({
@@ -1562,21 +1731,32 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       assembled,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
-    const chatRow = await loadChatRow(ctx.db, chatId);
+    return {
+      preview: { fitted, budget, canon, ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens) },
+      chatRow: await loadChatRow(ctx.db, chatId),
+    };
+  };
+
+  return async ({ principal, chatId, speakerCharacterId, signal }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const room = await flights.run(`${chatId}\u0000${speakerCharacterId ?? ""}`, signal, (shared) =>
+      fitRoom(chatId, membership.chat.anchorPersonaId, speakerCharacterId, shared),
+    );
+    if ("unbound" in room) {
+      return room;
+    }
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
     // same verdict `toChatDetail` applies to the `ChatDetailData` copy of these two fields. The fit NUMBERS stay
     // room-wide (they describe the next turn's budget, which is the host's prompt, not transcript content).
     const checkpointVisible = membership.historyFloorSeq <= NO_HISTORY_FLOOR;
     return resolveContextFitPreview({
-      fitted,
-      budget,
-      canon,
-      compactSummary: checkpointVisible ? (chatRow?.compactSummary ?? null) : null,
-      coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? null) : null,
-      ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
+      ...room.preview,
+      compactSummary: checkpointVisible ? (room.chatRow?.compactSummary ?? null) : null,
+      coveragePoint: checkpointVisible ? (room.chatRow?.compactedAtSeq ?? null) : null,
     });
   };
 }
@@ -1620,15 +1800,16 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
  *  the whole registry makes the readout's row selection a pure client pick — one query per (chat, preset),
  *  one freshness row, no per-row round trip. Nothing persists (the `previewAssembly` dry-run frame). */
 function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatService["previewActionTemplates"] {
-  return async ({ principal, chatId, presetId, timeZone }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
+  return async ({ principal, chatId, presetId, timeZone, signal }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       presetOverride: presetId,
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, timeZone });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, timeZone, signal });
     const config = inputs.foreign.promptConfig;
     return {
       // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can
@@ -1807,9 +1988,11 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getVariantWire: createGetVariantWire(ctx),
     previewContextFit: createPreviewContextFit(ctx, deps),
     listEffectiveRegex: createListEffectiveRegex(ctx, deps),
+    listDisplayScripts: createListDisplayScripts(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
+    resolveAuthorRenderPolicy: createResolveAuthorRenderPolicy(ctx, deps),
 
     replayLiveTurn: createReplayLiveTurn(ctx, deps),
     replayChatEvents: createReplayChatEvents(ctx),

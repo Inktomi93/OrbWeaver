@@ -3,7 +3,7 @@
 // depthPrompt/extensions/refinery are nullable (corrupt ⇒ null). The card projection carries NO regexScripts
 // (D121-E — they are library rows behind `character_regex_scripts`; only the serde boundary re-embeds them).
 
-import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAssetKind } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAsset } from "@orb/contracts/assets";
 import type {
   CharacterCard,
   CharacterDetail,
@@ -26,7 +26,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
-import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
+import { chatRecencyExpr, escapeLikeTerm, loadAssetKinds, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { jsonObjectSchema } from "@orb/kit/json";
@@ -67,6 +67,7 @@ const refinerySignalsReadParser = z
       return null;
     }),
   })
+  .strip()
   .nullable()
   .catch(null);
 const extensionsParser = jsonObjectSchema.nullable().catch(null);
@@ -93,16 +94,18 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     return;
   }
   const rows = await db
-    .select({ id: assets.id, kind: assets.kind })
+    .select({ id: assets.id, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
+  const kinds = await loadAssetKinds(db, assetIds);
   for (const assetId of assetIds) {
     const row = rows.find(({ id }) => id === assetId);
     if (row === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    if (!isPictureAssetKind(row.kind)) {
-      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
+    const held = kinds.get(assetId) ?? [];
+    if (!isPictureAsset({ kinds: held, mime: row.mime })) {
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${held.join(", ")} asset`);
     }
   }
 }
@@ -748,8 +751,19 @@ export async function attachArtIfMissing(
     .update(characters)
     // SQLite evaluates every SET expression against the pre-update row, so this copies the OLD import_hash.
     .set({ avatarAssetId, importTextHash: sql`${characters.importHash}`, importHash, updatedAt: at })
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId)))
+    .where(artlessOwnedCharacter(ownerId, characterId))
     .returning({ id: characters.id });
+  return rows.length > 0;
+}
+
+// The one condition under which an owned character takes imported art, so the dry run's read and the write agree.
+function artlessOwnedCharacter(ownerId: UserId, characterId: CharacterId): SQL | undefined {
+  return and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId));
+}
+
+/** Whether {@link attachArtIfMissing} would give the owner's character art now: it exists and has none. */
+export async function admitsImportedArt(db: Db, ownerId: UserId, characterId: CharacterId): Promise<boolean> {
+  const rows = await db.select({ id: characters.id }).from(characters).where(artlessOwnedCharacter(ownerId, characterId)).limit(1);
   return rows.length > 0;
 }
 

@@ -7,9 +7,11 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import type { Trpc } from "#data";
 import { groupOrdinalQualifiers } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
+import { corpusRoomPairName } from "../lib/corpus-control-names.ts";
 import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -46,7 +48,7 @@ export function CorpusDuplicateCharacters({ pairs }: { readonly pairs: readonly 
           cards can never pair), and it belongs beside the list it explains. */}
       <Muted>The near-duplicate pass's pairs. It compares one card per identical copy, so exact duplicates are counted on the readiness rail instead.</Muted>
       {pairs.length === 0 ? (
-        <Muted>No near-duplicate characters found.</Muted>
+        <MutedLine>No near-duplicate characters found.</MutedLine>
       ) : (
         <Stack gap="row">
           <CapNote noun="pairs" shown={shown.length} total={pairs.length} />
@@ -65,7 +67,7 @@ export function CorpusDuplicateArt({ pairs }: { readonly pairs: readonly ImageDu
   return (
     <Section heading="Duplicate art">
       {pairs.length === 0 ? (
-        <Muted>No reused/near-identical avatars found.</Muted>
+        <MutedLine>No reused/near-identical avatars found.</MutedLine>
       ) : (
         <Stack gap="row">
           <CapNote noun="pairs" shown={shownPairs.length} total={leftover.length} />
@@ -97,7 +99,7 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
   return (
     <Section heading="Duplicate chats">
       {pairs.length === 0 ? (
-        <Muted>No near-duplicate chats found.</Muted>
+        <MutedLine>No near-duplicate chats found.</MutedLine>
       ) : (
         <Stack gap="row">
           {/* THE DOOR SAYS WHERE IT GOES, ONCE (side-eye se-verify-4 N8). A chat pair opens the FIRST room
@@ -205,7 +207,7 @@ function ChatPairRow({
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state. The badge ("forked") is visible text, so it is in the name too.
-      aria-label={`${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${percent(score)} similar: compare rooms${position === undefined ? "" : ` · ${position}`}`}
+      aria-label={corpusRoomPairName({ left, right, badge, similarity: percent(score), position })}
       justify="between"
       variant="ghost"
       width="full"
@@ -236,7 +238,7 @@ function PairFace({
   readonly badge: string | undefined;
 }): ReactElement {
   return (
-    <Row align="center" className="min-inline-0" width="full" gap="field" justify="between">
+    <Row align="center" minWidth="shrinks" width="full" gap="field" justify="between">
       <Text as="span" textAlign="start" truncate={true}>
         {left} ↔ {right}
       </Text>

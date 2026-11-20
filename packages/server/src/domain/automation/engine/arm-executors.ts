@@ -42,9 +42,9 @@ import { readOwnKey, writeOwnKey } from "@orb/kit/objects";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import { GlobalVariableInvalidError } from "../contract/errors.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
+import { resolveNotificationRecipients } from "../persistence/notification-recipients.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
-import { resolveNotificationRecipients } from "../substrate/notification-recipients.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, summarizeSuggestibleArm } from "../substrate/suggestions.ts";
 import { runRunAnalysis } from "./analysis-arm.ts";
 import { applyRuleLoreWrite } from "./lore-write.ts";
@@ -63,7 +63,7 @@ const PAUSED_ARM: ArmOutcome = { ok: false, kind: "paused" };
 
 /** C5 — THE SECOND BELT on a chat-required arm: a typed refusal when the frame has no room.
  *
- *  The FIRST belt is the mint (`substrate/validate.ts`'s owner-global admission matrix, driven by the
+ *  The FIRST belt is the mint (`persistence/validate.ts`'s owner-global admission matrix, driven by the
  *  contracts `AUTOMATION_ARM_SCOPE` Record), which refuses these arms on a chat-less rule so no such rule is
  *  ever stored. This exists anyway, and for the same reason `set_chat_background` re-enters chat's host gate
  *  after `holdsAuthority` already passed (the DEF-11 wall): a non-null assertion here would be a claim about
@@ -273,7 +273,7 @@ async function runPostNotification(
   }
   // The rendered output can expand past the template cap; the `automation-notice` member caps the wire string.
   const message = rendered.text.slice(0, AUTOMATION_NOTICE_MESSAGE_MAX);
-  // The recipient AXIS is resolved in its ONE home (`substrate/notification-recipients`), exhaustively — this
+  // The recipient AXIS is resolved in its ONE home (`persistence/notification-recipients`), exhaustively — this
   // was a binary ternary until C6, and a third member would have fallen silently into the all-members branch.
   // host = the rule author (v1 authors ARE hosts). The ACTOR is the triggering fact's message author, which is
   // why the async-nudge preset rides `messageCommitted`: a `turnCompleted` fact carries no `message`, so under

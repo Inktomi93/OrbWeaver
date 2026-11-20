@@ -1,6 +1,8 @@
 // domain/workloads/engine/runner — `runWorkload`: drive ONE claimed row end-to-end (claim → build the
 // per-dispatch runner context → dispatch inside a detached trace span → stamp the terminal → emit the bus
-// event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing.
+// event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing. A result
+// its kind's schema refuses is never stored: the run fails with `WORKLOAD_RESULT_INVALID`. A transient row that ends
+// deletes its owner's earlier finished transient rows of the kind.
 //
 // PROGRESS has two destinations and ONE write path: every `report()` emits on the bus immediately (the live
 // tail is cheap and in-process), while the DURABLE snapshot rides the heartbeat's own UPDATE, throttled to
@@ -17,14 +19,16 @@ import type {
   WorkloadRunContext,
   WorkloadRunnableRow,
 } from "@orb/contracts/workloads";
+import { WORKLOAD_RESULT_INVALID, WORKLOAD_RESULT_INVALID_REASON, workloadResultSchemaOf } from "@orb/contracts/workloads";
 import { toError } from "@orb/kit/error-message";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
 import type { StoredWorkloadResult, WorkloadClaim } from "../contract/workload-row.ts";
-import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
-import { assertRunAuthority, runAccount } from "../substrate/params.ts";
+import { deleteTerminalTransientWorkloads, heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
+import { assertRunAuthority, releaseUnrun, resolveTransient, runAccount } from "../substrate/params.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
 const SYSTEM_OWNER_ID = userIdSchema.parse("system");
@@ -191,6 +195,18 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
     await finishCancelled(deps, row, deps.now());
     return;
   }
+  // A result the kind's own schema refuses would be stored and then hidden by every read, so it fails the run instead.
+  const stored = workloadResultSchemaOf(row.kind).safeParse(args.result);
+  if (!stored.success) {
+    // Field paths only: a result can carry the owner's file names.
+    getLog(deps.logger).warn(
+      { workloadId: row.id, kind: row.kind, paths: stored.error.issues.map((issue) => issue.path.join(".")) },
+      "workloads: a run's result does not match its kind's schema and is not stored",
+    );
+    const invalid = new DomainOperationError(WORKLOAD_RESULT_INVALID, WORKLOAD_RESULT_INVALID_REASON);
+    invalid.cause = stored.error;
+    throw invalid;
+  }
   const moved = await markTerminal(deps.db, {
     id: row.id,
     status: "succeeded",
@@ -282,6 +298,8 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     signal.addEventListener("abort", onIncomingAbort, { once: true });
   }
 
+  const untrackRun = deps.trackRun(row.id, () => controller.abort());
+
   const lease = createLeaseWriter(deps, row, controller);
   const report: ReportProgress = (progress): void => {
     const at = deps.now();
@@ -299,12 +317,18 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   const cancelTimers = startLeaseTimers(deps, row, controller, lease);
   const contribution = withRequestSpan({ traces: deps.traces, requestId: `workload:${row.id}` }, "workload.run", { kind: row.kind }, async () => {
     // The one point every run passes, so a row no door judged, whatever build stored it, still fails here. It judges the claim, the identity the run executes as.
-    await assertRunAuthority(
-      deps,
-      { caller: null, account: runAccount({ mode: row.mode, ownerId: claim.ownerId, funderUserId: claim.funderUserId }) },
-      row.kind,
-      row.params,
-    );
+    try {
+      await assertRunAuthority(
+        deps,
+        { caller: null, account: runAccount({ mode: row.mode, ownerId: claim.ownerId, funderUserId: claim.funderUserId }) },
+        row.kind,
+        row.params,
+      );
+    } catch (refusal) {
+      // The body never starts, so its own cleanup never runs: the owning domain frees what the row held.
+      await releaseUnrun(deps.contributions, row.kind, row.params, claim.ownerId);
+      throw refusal;
+    }
     return await dispatchAndRun(deps, { ctx, row, report, signal: controller.signal });
   });
   let leaseFailed = false;
@@ -328,6 +352,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
       cancel();
     }
     signal.removeEventListener("abort", onIncomingAbort);
+    untrackRun();
   }
   if (leaseFailed) {
     // A lease failure aborts the contribution, but abort is cooperative. Do not stamp a terminal row while
@@ -343,12 +368,32 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   }
   if (outcome.kind === "failure") {
     await finalizeFailure(deps, row, { aborted: outcome.aborted, err: outcome.err });
-    return;
+  } else {
+    await finalizeOutcome(deps, row, { aborted: controller.signal.aborted, result: outcome.result });
   }
+  await sweepSupersededTransient(deps, row);
+}
+
+async function finalizeOutcome(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, args: { aborted: boolean; result: StoredWorkloadResult }): Promise<void> {
   // owned by finalizeFailure, called from this catch: it marks the row failed, emits the failed event and audits it. Ends if the catch stops calling finalizeFailure.
   try {
-    await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result: outcome.result });
+    await finalizeSuccess(deps, row, args);
   } catch (err) {
-    await finalizeFailure(deps, row, { aborted: controller.signal.aborted, err });
+    await finalizeFailure(deps, row, { aborted: args.aborted, err });
+  }
+}
+
+// A transient row that has ended replaces its owner's earlier finished ones of the kind. Deleting at the end and not at
+// the next start keeps the earlier row readable until this one has a result, so a client still reading it never meets
+// a missing row.
+async function sweepSupersededTransient(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): Promise<void> {
+  if (!resolveTransient(deps.contributions, row.kind, row.params)) {
+    return;
+  }
+  // owned by the log line: the boot sweep deletes what this misses, and the run itself has already ended. Ends if a missed sweep starts to cost more than one stale row until the next boot.
+  try {
+    await deleteTerminalTransientWorkloads(deps.db, { kind: row.kind, ownerId: row.ownerId, exceptId: row.id });
+  } catch (err) {
+    getLog(deps.logger).warn({ err, workloadId: row.id, kind: row.kind }, "workloads: superseded transient rows were not deleted");
   }
 }

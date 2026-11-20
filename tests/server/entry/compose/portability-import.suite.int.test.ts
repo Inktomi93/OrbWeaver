@@ -16,9 +16,11 @@
 // @subject packages/server/src/entry/import/run-profile-dir-import.ts
 import { mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import type { StProfileHandledEntry } from "@orb/contracts/import";
 import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -28,7 +30,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import { principal } from "@orb/testkit/node/helpers";
+import { failOnExportNote, magicBytes, principal } from "@orb/testkit/node/helpers";
 import { strToU8, zipSync } from "fflate";
 import { vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
@@ -113,9 +115,9 @@ test("portable owner binding refuses malformed cards before effects and content-
   if (descriptor === undefined) {
     throw new Error("the production graph omitted the character descriptor");
   }
-  const files = await exportedFiles(descriptor.exportAll(source.userId));
+  const files = await exportedFiles(descriptor.exportAll(source.userId, failOnExportNote));
   expect(files).toHaveLength(1);
-  expect(await exportedFiles(descriptor.exportAll(target.userId))).toEqual([]);
+  expect(await exportedFiles(descriptor.exportAll(target.userId, failOnExportNote))).toEqual([]);
   const file = files[0];
   if (file === undefined) {
     throw new Error("the real exporter produced no card");
@@ -132,9 +134,9 @@ test("portable owner binding refuses malformed cards before effects and content-
   expect(create.mock.calls[0]?.[0].principal.userId).toBe(target.userId);
   expect(await app.services.character.count({ principal: source })).toBe(1);
   expect(await app.services.character.count({ principal: target })).toBe(1);
-  const targetFiles = await exportedFiles(descriptor.exportAll(target.userId));
+  const targetFiles = await exportedFiles(descriptor.exportAll(target.userId, failOnExportNote));
   expect(targetFiles).toHaveLength(1);
-  expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id })).toBeNull();
+  expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id, note: failOnExportNote })).toBeNull();
 });
 
 test("the actual staged bundle isolates malformed cards, counts unsupported files and preserves per-owner idempotency", async () => {
@@ -144,7 +146,7 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
     principal: source,
     input: createCharacterSchema.parse({ handle: "bundle-control", name: "Bundle control", description: "Bundle marker" }),
   });
-  const file = await root.app.exportService.exportCharacter({ principal: source, characterId: character.id });
+  const file = await root.app.exportService.exportCharacter({ principal: source, characterId: character.id, note: failOnExportNote });
   if (file === null) {
     throw new Error("the real owner export was refused");
   }
@@ -157,11 +159,15 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
       box,
       await uploadedWorkload(await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: box.headers, body: Uint8Array.from(bundle) })),
     );
-  const outcome = { status: "succeeded", result: { imported: 1, failed: 1, skipped: 1, notes: [], memoryScope: null } };
+  const outcome = (imported: number, inLibrary: number): object => ({
+    status: "succeeded",
+    result: { imported, inLibrary, failed: 1, skipped: 1, notes: [], memoryScope: null },
+  });
   const sourceCards = await root.app.services.character.count({ principal: source });
   const targetCards = await root.app.services.character.count({ principal: target });
-  expect(await run()).toMatchObject(outcome);
-  expect(await run()).toMatchObject(outcome);
+  expect(await run()).toMatchObject(outcome(1, 0));
+  // The second run finds the card already held and says so instead of counting it imported.
+  expect(await run()).toMatchObject(outcome(0, 1));
   expect(await root.app.services.character.count({ principal: source })).toBe(sourceCards);
   expect(await root.app.services.character.count({ principal: target })).toBe(targetCards + 1);
 });
@@ -174,7 +180,7 @@ test("the real profile driver performs no dry-run writes and a real run writes o
     principal: source,
     input: createCharacterSchema.parse({ handle: "profile-control", name: "Profile control", description: "Profile marker" }),
   });
-  const file = await app.exportService.exportCharacter({ principal: source, characterId: character.id });
+  const file = await app.exportService.exportCharacter({ principal: source, characterId: character.id, note: failOnExportNote });
   if (file === null) {
     throw new Error("the real owner export was refused");
   }
@@ -257,4 +263,60 @@ test("a profile import never overrides a default persona the owner already chose
   await app.services.settings.updateUserSettingsSection({ principal: box.target, input: { section: "seeds", patch: { defaultPersonaId: chosen.id } } });
   await importProfilePersonas(box);
   expect((await app.services.settings.getUserSettings({ principal: box.target })).config.seeds.defaultPersonaId).toBe(chosen.id);
+});
+
+const ST_AVATARS = "User Avatars" satisfies StProfileHandledEntry;
+
+test("a profile import stores each persona avatar under the type its bytes are, whatever its file is named", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  const settings = { ["power_user"]: { personas: { "photo.png": "Photo", "drawn.png": "Drawn" } } };
+  const row = await ranRow(
+    box,
+    await uploadProfile(box, {
+      [ST_SETTINGS_FILE]: JSON.stringify(settings),
+      [`${ST_AVATARS}/photo.png`]: magicBytes("jpeg"),
+      [`${ST_AVATARS}/drawn.png`]: magicBytes("png"),
+    }),
+  );
+  const personas = await app.services.persona.list({ principal: box.target });
+  const avatars = await app.services.assets.listOwned({ principal: box.target, kind: "avatar", limit: ASSET_LIST_LIMIT_MAX });
+  const avatarType = (name: string): string | null => {
+    const assetId = personas.find((persona) => persona.name === name)?.avatarAssetId;
+    return avatars.find((asset) => asset.assetId === assetId)?.mime ?? null;
+  };
+
+  expect({ status: row.status, photo: avatarType("Photo"), drawn: avatarType("Drawn") }).toEqual({
+    status: "succeeded",
+    photo: "image/jpeg",
+    drawn: "image/png",
+  });
+});
+
+test("a persona whose avatar file is not a picture imports without it, the report names the file, and the rest of the profile lands", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  const settings = { ["power_user"]: { personas: { "notes.png": "Notes", "drawn.png": "Drawn" } } };
+  const row = await ranRow(
+    box,
+    await uploadProfile(box, {
+      [ST_SETTINGS_FILE]: JSON.stringify(settings),
+      [`${ST_AVATARS}/notes.png`]: "a harmless note",
+      [`${ST_AVATARS}/drawn.png`]: magicBytes("png"),
+    }),
+  );
+  const reportPath = row.kind === "import-st" && !row.poison ? row.result?.reportPath : undefined;
+  const report = reportPath === undefined ? "" : await readFile(reportPath, "utf8");
+  const personas = await app.services.persona.list({ principal: box.target });
+  const hasArt = (name: string): boolean | null => {
+    const persona = personas.find((candidate) => candidate.name === name);
+    return persona === undefined ? null : persona.avatarAssetId !== null;
+  };
+
+  expect({ status: row.status, notes: hasArt("Notes"), drawn: hasArt("Drawn"), reportNamesFile: report.includes("notes.png") }).toEqual({
+    status: "succeeded",
+    notes: false,
+    drawn: true,
+    reportNamesFile: true,
+  });
 });

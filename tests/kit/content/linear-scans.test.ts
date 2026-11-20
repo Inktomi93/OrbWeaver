@@ -181,3 +181,22 @@ test.each([
   expect(stripped.content).toContain("seen");
   expect(projectBodyForPreview(body)).not.toContain(SECRET);
 });
+
+// A lenient run that fails the element majority holds many block-opening lines; each one used to read the run again.
+test("lenient cards: a run that fails the element majority is read once, not once per opening line", () => {
+  const failing = "<div>\nprose\nprose\n".repeat(8000);
+  expect(elapsedMs(() => tokenizeContent(failing, { lenientHtml: true, committed: true }))).toBeLessThan(BUDGET_MS);
+  expect(tokenizeContent(failing, { lenientHtml: true, committed: true }).map((span) => span.kind)).toEqual(["text"]);
+  // Positive control: a later opening line whose own run has the majority still reads as a card.
+  expect(
+    tokenizeContent("<div>\nprose\nprose\nprose\nprose\n<div>\n<p>a</p>\n<p>b</p>", { lenientHtml: true, committed: true }).map((span) => span.kind),
+  ).toEqual(["text", "card"]);
+});
+
+// Each piece is appended one by one: spreading a list this long into one call's arguments overflows the stack.
+test.each([
+  ["dice stamps in one text", "a [dice: 1d6 → 4] ".repeat(150_000), "dice"],
+  ["images in one text", "a ![](u.png) ".repeat(150_000), "image"],
+])("a reply holding %s is read whole", (_name, body, kind) => {
+  expect(tokenizeContent(body, { committed: true }).filter((span) => span.kind === kind)).toHaveLength(150_000);
+});

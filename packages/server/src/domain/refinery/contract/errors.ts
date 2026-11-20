@@ -59,7 +59,7 @@ export class RefineryOutputBudgetError extends DomainOperationError {
  * and BEFORE any model call, so a refused round costs nothing.
  *
  * THE CLAIM IS A LEASE, so this refusal is bounded even when the holder dies: a crashed round's claim expires
- * and the next `iterate` takes it. See `substrate/round-claim.ts` for the deadline and why it is that number.
+ * and the next `iterate` takes it. See `persistence/round-claim.ts` for the deadline and why it is that number.
  */
 export class RefineryRoundInFlightError extends DomainOperationError {
   constructor() {

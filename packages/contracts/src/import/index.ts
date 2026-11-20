@@ -22,14 +22,27 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
-export type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
+export type {
+  ImportAnswer,
+  ImportKindCounts,
+  ImportPreview,
+  ImportPreviewItem,
+  ImportPreviewKind,
+  ImportPreviewList,
+  ImportPreviewSkip,
+  ImportReuse,
+} from "./preview.ts";
 export {
+  clipImportText,
   IMPORT_PREVIEW_KINDS,
   IMPORT_PREVIEW_LIST_MAX,
   IMPORT_PREVIEW_TEXT_MAX,
+  importPreviewListOf,
   importPreviewSchema,
   mergeImportPreviews,
 } from "./preview.ts";
+export type { ProfileZipRefusal } from "./profile-zip.ts";
+export { profileZipRefusalSchema, profileZipStartedSchema } from "./profile-zip.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 

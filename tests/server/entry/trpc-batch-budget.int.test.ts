@@ -27,7 +27,7 @@ for (const { method, path } of METHODS) {
     const call = async (count: number): Promise<number> => {
       const response = await root.http.request(`/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
         method,
-        headers: { cookie: member.cookie, ...(method === "POST" ? { [CSRF_HEADER]: "1", "content-type": "application/json" } : {}) },
+        headers: { cookie: member.cookie, [CSRF_HEADER]: "1", ...(method === "POST" ? { "content-type": "application/json" } : {}) },
         ...(method === "POST" ? { body: "{}" } : {}),
       });
       await response.arrayBuffer();

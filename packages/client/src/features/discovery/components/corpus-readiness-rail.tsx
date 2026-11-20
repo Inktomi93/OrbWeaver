@@ -46,6 +46,12 @@ import type { ReadinessPassesView } from "../hooks/use-readiness-passes.ts";
 import { useReadinessPasses } from "../hooks/use-readiness-passes.ts";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage, CorpusReadinessStageId } from "../lib/corpus-analysis-state.ts";
+import {
+  CORPUS_BOX_OWNER_RUNS_PASS_TEXT,
+  CORPUS_PASS_RUNNING_TEXT,
+  CORPUS_READINESS_RAIL_NAME,
+  CORPUS_TURN_ON_MEMORY_NAME,
+} from "../lib/corpus-control-names.ts";
 import type { ReadinessAction } from "../lib/corpus-readiness-passes.ts";
 import { READINESS_PASSES } from "../lib/corpus-readiness-passes.ts";
 import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
@@ -83,7 +89,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           what has and has not run". `role="list"`/`role="listitem"` over the layout primitives is the
           house spelling (the search-result list beside it does the same) — it adds the structure without
           disturbing the hairline-row geometry the P2-1 reversal above settled. */}
-      <Stack aria-label="Analysis passes" role="list">
+      <Stack aria-label={CORPUS_READINESS_RAIL_NAME} role="list">
         {stages.map((stage) => (
           // THE PASS'S NAME IS NEVER THE SHRINK VICTIM (#535 N1, a regression of the row's own fix).
           // The datum grew a denominator ("8 families · 242 of 320 characters") while the row was
@@ -98,7 +104,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // what varies is how many lines the row spends, which is the honest thing to trade.
           <Stack paddingBlock="field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
             <Row align="center" wrap={true} gap="row" justify="between">
-              <Row className="min-inline-0" gap="field">
+              <Row minWidth="shrinks" gap="field">
                 <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
                 <Text as="span" className="min-inline-0" voice="label">
                   {stage.label}
@@ -219,17 +225,17 @@ interface ReadinessDoorProps {
 const READINESS_DOORS: Record<ReadinessAction, (props: ReadinessDoorProps) => ReactElement | null> = {
   running: () => (
     <Text as="span" ink="muted" voice="datum">
-      Running
+      {CORPUS_PASS_RUNNING_TEXT}
     </Text>
   ),
   "box-owner-only": () => (
     <Text as="span" ink="muted" voice="gloss">
-      The box owner runs this pass
+      {CORPUS_BOX_OWNER_RUNS_PASS_TEXT}
     </Text>
   ),
   // The visible "Turn on" leads the accessible name, so speech input still matches what the reader sees.
   "turn-on-memory": () => (
-    <Button aria-label="Turn on chat memory" ink="muted" onClick={(): void => openConfigTo("chat-behavior", "memory")} size="sm" variant="ghost">
+    <Button aria-label={CORPUS_TURN_ON_MEMORY_NAME} ink="muted" onClick={(): void => openConfigTo("chat-behavior", "memory")} size="sm" variant="ghost">
       Turn on
     </Button>
   ),

@@ -11,7 +11,27 @@ import type { TrpcRoutes } from "@orb/testkit/ct";
 import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import type { Locator, Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  RULE_ACTION_PICKER_NAME,
+  RULE_ADD_ACTION_NAME,
+  RULE_ADD_NAME,
+  RULE_CAPTURE_TOOL_RESULT_NAME,
+  RULE_CHARACTER_UNAVAILABLE_TEXT,
+  RULE_EDITOR_NAME,
+  RULE_ROOM_WORLD_BOOKS_READ_LABEL,
+  RULE_SPEAKER_FIELD_LABEL,
+  RULE_TOOL_ARGUMENTS_NAME,
+  RULE_TOOL_CATALOG_READ_LABEL,
+  RULE_TOOL_FIELD_NAME,
+  RULE_WORLD_BOOK_NAME,
+  RULE_WORLD_BOOKS_READ_LABEL,
+  ruleCharacterReadout,
+} from "#client/features/automation/lib/automation-names.ts";
+import { armLabel } from "#client/features/automation/lib/rule-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -75,8 +95,8 @@ async function openEditor(page: Page, ruleName: string): Promise<Locator> {
     .getByRole("button")
     .filter({ has: page.getByText(ruleName, { exact: true }) })
     .click();
-  await page.getByRole("button", { name: `Edit ${ruleName}`, exact: true }).click();
-  return page.getByRole("region", { name: "Rule editor", exact: true });
+  await page.getByRole("button", { name: editActionName(ruleName), exact: true }).click();
+  return page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
 }
 
 const MOUNT_PROPS = { width: 960, appearance: appearanceSettingsSchema.parse({}) };
@@ -92,21 +112,21 @@ test("a held tool catalog read shows the loading skeleton, a failed one the erro
   await mount<typeof RuleActionGroupsStory>(STORY, MOUNT_PROPS);
   const editor = await openEditor(page, name);
   // The corpus offers no rule tool, so the tool action is added through the editor's own picker.
-  await editor.getByRole("combobox", { name: "Action to add", exact: true }).click();
-  await page.getByRole("option", { name: /run a tool/iu }).click();
-  await editor.getByRole("button", { name: "Add action", exact: true }).click();
+  await editor.getByRole("combobox", { name: RULE_ACTION_PICKER_NAME, exact: true }).click();
+  await page.getByRole("option", { name: armLabel("run_tool"), exact: true }).click();
+  await editor.getByRole("button", { name: RULE_ADD_ACTION_NAME, exact: true }).click();
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   // The result-capture control and the editable argument template are read-independent and stay standing.
-  await expect(editor.getByRole("button", { name: "Capture tool result", exact: true })).toBeVisible();
-  await expect(editor.getByText("Argument template (JSON)", { exact: true })).toBeVisible();
+  await expect(editor.getByRole("button", { name: RULE_CAPTURE_TOOL_RESULT_NAME, exact: true })).toBeVisible();
+  await expect(editor.getByText(RULE_TOOL_ARGUMENTS_NAME, { exact: true })).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toBeVisible();
-  await expect(editor.getByText("Argument template (JSON)", { exact: true })).toBeVisible();
+  await expect(editor.getByText(queryFailedLabel(RULE_TOOL_CATALOG_READ_LABEL), { exact: true })).toBeVisible();
+  await expect(editor.getByText(RULE_TOOL_ARGUMENTS_NAME, { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toHaveCount(0);
-  await expect(editor.getByText("Tool", { exact: true })).toBeVisible();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(editor.getByText(queryFailedLabel(RULE_TOOL_CATALOG_READ_LABEL), { exact: true })).toHaveCount(0);
+  await expect(editor.getByText(RULE_TOOL_FIELD_NAME, { exact: true })).toBeVisible();
 });
 
 test("a held world book read shows the loading skeleton, a failed one the error block, and Retry shows the World book field", async ({ mount, page }) => {
@@ -127,11 +147,11 @@ test("a held world book read shows the loading skeleton, a failed one the error 
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("Couldn't load world books.", { exact: true })).toBeVisible();
+  await expect(editor.getByText(queryFailedLabel(RULE_WORLD_BOOKS_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(editor.getByText("Couldn't load world books.", { exact: true })).toHaveCount(0);
-  await expect(editor.getByText("World book", { exact: true })).toBeVisible();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(editor.getByText(queryFailedLabel(RULE_WORLD_BOOKS_READ_LABEL), { exact: true })).toHaveCount(0);
+  await expect(editor.getByText(RULE_WORLD_BOOK_NAME, { exact: true })).toBeVisible();
 });
 
 test("a held selected-character read shows the loading skeleton, a failed one the error block with the saved identity kept, and Retry shows the name", async ({
@@ -157,12 +177,12 @@ test("a held selected-character read shows the loading skeleton, a failed one th
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toBeVisible();
-  await expect(editor.getByText(`Speaker: ${character.id}`, { exact: true })).toBeVisible();
+  await expect(editor.getByText(RULE_CHARACTER_UNAVAILABLE_TEXT, { exact: true })).toBeVisible();
+  await expect(editor.getByText(ruleCharacterReadout(RULE_SPEAKER_FIELD_LABEL, character.id), { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toHaveCount(0);
-  await expect(editor.getByText(`Speaker: ${character.name}`, { exact: true })).toBeVisible();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(editor.getByText(RULE_CHARACTER_UNAVAILABLE_TEXT, { exact: true })).toHaveCount(0);
+  await expect(editor.getByText(ruleCharacterReadout(RULE_SPEAKER_FIELD_LABEL, character.name), { exact: true })).toBeVisible();
 });
 
 test("a held room world book read shows the loading skeleton in the preset knob, a failed one the error block, and Retry shows the chooser", async ({
@@ -178,14 +198,19 @@ test("a held room world book read shows the loading skeleton in the preset knob,
     ...serveCorpusProcedures(caller, ["worldInfo.listForChat"], read.intercept),
   });
   await mount<typeof ChatRulesStory>(CHAT_STORY, { chatId, appearance: appearanceSettingsSchema.parse({}) });
-  await page.getByRole("button", { name: "Add a rule", exact: true }).click();
-  await page.getByRole("button", { name: "Auto-add lore entries" }).click();
+  // The catalogue names its presets over the wire, so the lore preset's row is found by the title the server serves.
+  const lore = (await caller.automation.listRulePresets()).find((preset) => preset.id === "autoAddLore");
+  if (lore === undefined) {
+    throw new Error("The rule preset catalogue serves the lore preset");
+  }
+  await page.getByRole("button", { name: RULE_ADD_NAME, exact: true }).click();
+  await page.getByRole("button", { name: lore.title }).click();
   const popover = page.getByRole("dialog");
   await read.hold.requested;
   await expect(popover.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toBeVisible();
+  await expect(popover.getByText(queryFailedLabel(RULE_ROOM_WORLD_BOOKS_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
-  await popover.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toHaveCount(0);
+  await popover.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(popover.getByText(queryFailedLabel(RULE_ROOM_WORLD_BOOKS_READ_LABEL), { exact: true })).toHaveCount(0);
 });

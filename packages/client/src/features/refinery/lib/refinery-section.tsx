@@ -19,7 +19,7 @@ import { useRefineryListHeader } from "../hooks/use-refinery-list-header.tsx";
 import { useRefineryCensus, useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
 import { RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
-import { REFINERY_SETUP_TAB_LABEL, REFINERY_VERSIONS_NAME } from "./refinery-names.ts";
+import { REFINERY_RUNS_TAB_LABEL, REFINERY_SETUP_TAB_LABEL, REFINERY_VERSIONS_NAME } from "./refinery-names.ts";
 import { REFINERY_SECTION_LABEL } from "./refinery-section-label.ts";
 
 /** The Runs · Setup · Versions tab DEFS (delta 2 arm A) — the array lives with
@@ -27,7 +27,7 @@ import { REFINERY_SECTION_LABEL } from "./refinery-section-label.ts";
 const refineryContextTabs: readonly ContextTabDef<RefineryContextState>[] = [
   {
     id: "runs",
-    label: "Runs",
+    label: REFINERY_RUNS_TAB_LABEL,
     defaultTab: () => true,
     body: (state): ReactElement => <RunsTabBody state={state} />,
   },
@@ -85,7 +85,6 @@ export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: REFINERY_SECTION_LABEL, icon: FlaskConical, group: "authoring", mobile: "sheet" },
   // D62's content-first hub: both side panels default collapsed; the persisted override wins thereafter.
-  contentInset: "section",
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Refinery",

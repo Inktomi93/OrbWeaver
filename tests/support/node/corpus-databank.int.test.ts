@@ -67,7 +67,9 @@ test("native databank output suppliers retain envelope, canon, consent and workl
   expect(JSON.stringify(memberViews.active)).not.toContain(hidden.row.name);
   expect(result.departedAttachments).toEqual({ global: true, chats: [], characters: [{ id: result.character.id, name: result.character.name }] });
   expect(nonEmpty(result.handedRoom.participants).some((seat) => seat.characterId === result.character.id)).toBe(false);
-  expect(result.departedActive.find((view) => view.id === created.row.id)?.sources).toEqual(["chat"]);
+  // D64: the departed host's chat document left with the handoff; the new host's own global document still credits.
+  expect(result.departedActive.map((view) => view.id)).not.toContain(created.row.id);
+  expect(result.departedActive.find((view) => view.id === memberGlobal.row.id)?.sources).toEqual(["global"]);
   const member = await root.internalCallerFor(result.memberUserId);
   const caller = await root.internalCallerFor(result.viewerUserId);
   const before = { documents: await root.db.select().from(documents), jobs: await root.db.select().from(workloads) };
@@ -117,7 +119,13 @@ test("native upload and scraper envelopes use the same retained SQL metadata as 
   const principal = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, principal);
   const caller = await root.internalCallerFor(root.ownerId);
-  const uploadParams = { principal, bytes: new TextEncoder().encode("Upload café 🪐."), mime: "text/plain", name: "Upload witness" };
+  const uploadParams = {
+    principal,
+    bytes: new TextEncoder().encode("Upload café 🪐."),
+    mime: "text/plain",
+    name: "Upload witness",
+    signal: new AbortController().signal,
+  };
   const uploaded = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
   const duplicate = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
   expect(duplicate.result).toEqual({ document: uploaded.result.document, outcome: "duplicate", ingest: "skipped" });

@@ -23,6 +23,7 @@ import {
   plugins,
   userSettings,
 } from "@orb/db";
+import { readableJson } from "@orb/db/query";
 import { ASSET_SCHEME } from "@orb/kit/content";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -130,11 +131,11 @@ function jsonValue(column: AnySQLiteColumn, path: string): SQL<string | null> {
 // The snapshot reads through `json_valid`, so one corrupt row reaches `assertParses` with its key instead of
 // failing the whole SELECT without naming the row.
 function readableValue(column: AnySQLiteColumn, path: string): SQL<string | null> {
-  return sql<string | null>`CASE WHEN json_valid(${column}) THEN json_extract(${column}, ${path}) END`;
+  return sql<string | null>`json_extract(${readableJson(column)}, ${path})`;
 }
 
 function readableType(column: AnySQLiteColumn, path: string): SQL<string | null> {
-  return sql<string | null>`CASE WHEN json_valid(${column}) THEN json_type(${column}, ${path}) END`;
+  return sql<string | null>`json_type(${readableJson(column)}, ${path})`;
 }
 
 function jsonValid(column: AnySQLiteColumn): SQL<number | null> {

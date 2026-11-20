@@ -1,6 +1,8 @@
 // Valid bundled avatar pixels enter real storage, native GIF decoding and both image embedding lenses.
+import type { AssetKind } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { assets } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import { readSeedAvatar } from "@orb/default-content";
 import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
@@ -18,7 +20,8 @@ type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface CorpusKnowledgeImages {
   readonly connection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
   readonly cards: readonly Awaited<ReturnType<CorpusCaller["character"]["create"]>>[];
-  readonly assets: readonly (typeof assets.$inferSelect)[];
+  /** Each stored row with the kinds the asset is used as. */
+  readonly assets: readonly (typeof assets.$inferSelect & { readonly kinds: readonly AssetKind[] })[];
   readonly indexed: readonly Awaited<ReturnType<typeof seedIndexedAssetRows>>[];
   readonly repeated: readonly Awaited<ReturnType<typeof seedIndexedAssetRows>>[];
   readonly cardVectors: Awaited<ReturnType<typeof seedEmbeddedCorpusRows>>;
@@ -70,16 +73,21 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
         description: "An illustrated traveller preserves the orbital ledger.",
       }),
     });
-    const updated = await root.services.character.update({ principal, characterId: card.id, input: { avatarAssetId: stored.assetId } });
+    const updated = await root.services.character.update({
+      signal: new AbortController().signal,
+      principal,
+      characterId: card.id,
+      input: { avatarAssetId: stored.assetId },
+    });
     await root.settleBackground();
     const row = await root.db.select().from(assets).where(eq(assets.id, stored.assetId)).get();
     if (row === undefined) {
       throw new Error("native avatar storage left no canonical asset row");
     }
     cards.push(updated);
-    storedRows.push(row);
-    indexed.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
-    repeated.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
+    storedRows.push({ ...row, kinds: (await loadAssetKinds(root.db, [row.id])).get(row.id) ?? [] });
+    indexed.push(await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]));
+    repeated.push(await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]));
   }
   const cardVectors = await seedEmbeddedCorpusRows(root, {
     ownerId: root.ownerId,

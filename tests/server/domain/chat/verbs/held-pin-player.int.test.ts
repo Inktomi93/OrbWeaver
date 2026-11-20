@@ -1,4 +1,5 @@
 // @subject packages/server/src/domain/chat/substrate/participants-humans.ts
+// @subject packages/server/src/domain/chat/persistence/anchor.ts
 // @subject packages/server/src/domain/chat/verbs/read.ts
 // A held pin names the player whose persona it is, through the real invite, pin and leave verbs.
 

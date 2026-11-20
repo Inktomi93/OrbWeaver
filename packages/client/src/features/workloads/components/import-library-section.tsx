@@ -1,5 +1,5 @@
 // import-library-section — the Backup & Restore pane's import half: a dropzone that accepts a .zip
-// portability backup or a bare character card, and a folder picker for an unzipped backup or a SillyTavern
+// portability backup, a zipped SillyTavern profile or a bare character card, and a folder picker for an unzipped backup or a SillyTavern
 // profile. A .zip or a folder runs as background workloads; a bare card imports synchronously. On success
 // the library is already blanket-invalidated; the report renders below, with the memory-build offer for the
 // chats the import wrote (an import enqueues no paid model run on its own).
@@ -32,13 +32,24 @@ import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, Ref } from "react";
 import { useEffect, useRef } from "react";
-import { ImportedChatsMemoryOffer } from "#components";
+import { CommitRow, ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
-import { DIALOG_VERBS, testId } from "#lib";
+import { testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FILE_PICKER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_FOLDER_NOTHING_TITLE,
+  IMPORT_INTRO_LEAD,
+  IMPORT_PROGRESS_NAME,
+  IMPORT_RESULT_NAME,
+  importFilePreflightTitle,
+  importFilesPreflightTitle,
+  importFolderPreflightTitle,
+} from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
@@ -74,11 +85,11 @@ function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): strin
   const first = files[0];
   if (plan !== null) {
     if (plan.files === 0) {
-      return "Nothing in the folder you picked can be imported";
+      return IMPORT_FOLDER_NOTHING_TITLE;
     }
-    return `Import ${String(plan.files)} file${plan.files === 1 ? "" : "s"} from the folder you picked?`;
+    return importFolderPreflightTitle(plan.files);
   }
-  return files.length === 1 && first !== undefined ? `Import “${first.name}”?` : `Import ${String(files.length)} files?`;
+  return files.length === 1 && first !== undefined ? importFilePreflightTitle(first.name) : importFilesPreflightTitle(files.length);
 }
 
 /** The staged selection, its consequence, and the two answers. Its own component so the title is computed
@@ -141,17 +152,16 @@ function ImportPreflight({
           </Text>
         )}
         {/* Pinned to the foot of the pane's scroll, so Import and Cancel stay in reach however tall the review grows. */}
-        <Row justify="start" align="center" wrap={true} gap="field" ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
-          <Button
-            onClick={onConfirm}
-            disabled={preview.status === "reading" || nothingNote !== null}
-            aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
-          >
-            {confirmName(files, plan)}
-          </Button>
-          <Button variant="outline" onClick={onCancel}>
-            {DIALOG_VERBS.cancel}
-          </Button>
+        <Row ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
+          <CommitRow surface="island" onCancel={onCancel}>
+            <Button
+              onClick={onConfirm}
+              disabled={preview.status === "reading" || nothingNote !== null}
+              aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
+            >
+              {confirmName(files, plan)}
+            </Button>
+          </CommitRow>
         </Row>
       </Stack>
     </Card>
@@ -236,18 +246,21 @@ export function ImportLibrarySection(): ReactElement {
     }
   }, [outcome]);
 
+  const previewing = staged?.preview.status === "reading" ? staged.preview.workloadId : null;
+  const previewTracker = previewing === null ? null : <BundleWorkloadTracker key={previewing} workloadId={previewing} {...previewTrack(previewing)} />;
+
   return (
     <Stack gap="block">
       <Text ink="muted" cap="prose">
-        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books, everything) or a single
-        character card, or pick an unzipped backup / SillyTavern profile folder.
+        {IMPORT_INTRO_LEAD} Drop a full .zip export (characters, chats, personas, world books, everything), a zipped SillyTavern profile or a single character
+        card, or pick an unzipped backup / SillyTavern profile folder.
       </Text>
       <FileDropzone
         accept=".zip,.png,.json"
-        aria-label="Import a backup or card file"
+        aria-label={IMPORT_FILE_PICKER_NAME}
         data-testid={testId("backupImportDropzone")}
-        subject="a .zip backup or a character card"
-        hint="A .zip carries your whole library; a .png / .json is a single card"
+        subject="a .zip backup or profile, or a character card"
+        hint="A .zip carries a whole library or SillyTavern profile; a .png / .json is a single card"
         loading={busy}
         success={succeeded}
         maxSizeBytes={importMaxBytes}
@@ -261,6 +274,7 @@ export function ImportLibrarySection(): ReactElement {
         justify="start"
         align="center"
         gap="field"
+        wrap="cq-20"
         onFocusCapture={(event): void => {
           folderPickerRef.current = event.target;
         }}
@@ -296,15 +310,7 @@ export function ImportLibrarySection(): ReactElement {
           onConfirm={confirm}
         />
       )}
-      {staged?.preview.status === "reading" && staged.preview.workloadId !== null ? (
-        <BundleWorkloadTracker
-          key={staged.preview.workloadId}
-          workloadId={staged.preview.workloadId}
-          onProgress={previewTrack.onProgress}
-          onSucceeded={previewTrack.onSucceeded}
-          onFailed={previewTrack.onFailed}
-        />
-      ) : null}
+      {previewTracker}
       <ImportInFlight ref={outcomeRef} state={state} track={track} />
       {outcome !== null ? (
         <Stack aria-label={IMPORT_RESULT_NAME} focusTarget={true} gap="block" ref={resultRef} role="group" tabIndex={-1}>
@@ -319,7 +325,7 @@ export function ImportLibrarySection(): ReactElement {
               <ImportedChatsMemoryOffer scope={outcome.summary.memoryScope} />
               <Row justify="start">
                 <Button variant="outline" onClick={reset}>
-                  Import another
+                  {IMPORT_ANOTHER_NAME}
                 </Button>
               </Row>
             </>

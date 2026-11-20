@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-10
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-From the cb-w1f code review report under reports/code-reviewer: the facet row moves at 100% text (the Empty value moves to the row end on desktop and two rows grow at 320), unlisted and unrendered; the ripple portrait is 96px at 320 and 100% with no record guarding that width; UI-Density-Law's inventory lists neither the wrapRow flow nor Toggle's wrap axis; Toggle wrap and Button wrap are spelled separately.
+Ask ux-reviewer to judge the character facet row's wrap at default text and keep or revert it. Floor the Ripple phone portrait so the row share shrinks it only when enlarged text grows it past the owner-ruled phone width. List the Text `wrapRow` flow and Toggle's wrap in UI-Density-Law §4.3. Move the control wrap classes of Toggle, Button and Select to one constant in `packages/ui/src/lib/`.
 
 ## Why
 
-Each is a visible change or a record that no longer matches the code.
+Each is a visible change no one reviewed, or a record that no longer matches the code.
 
 ## Done when
 
-The facet row change gets a ux-reviewer look and is kept or reverted, the 320 ripple value is recorded or floored, the law inventory lists both, and the two wrap spellings share one home or the difference is cited.
+the ux-reviewer verdict is recorded in the item, the Ripple portrait measures the owner-ruled width at 320px and default text in a component test, the law rows list both wrap axes, and one constant holds the wrap classes.
 
 ## Evidence
 

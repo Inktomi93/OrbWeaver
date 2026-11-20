@@ -1,6 +1,5 @@
-// The catalog ENTRY shapes — what a provider's model list hands the picker and the synthesis. Moved here
-// from `@orb/contracts/connection` (which re-exports them until it is deleted). `ModelCatalogEntry` is the
-// OpenRouter-shaped row (the only catalog that carries modalities/pricing/reasoning); an OpenAI-compatible
+// The catalog ENTRY shapes — what a provider's model list hands the picker and the synthesis.
+// `ModelCatalogEntry` is the OpenRouter-shaped row (the only catalog that carries modalities/pricing/reasoning); an OpenAI-compatible
 // `/v1/models` yields ids (+ a window when the server reports one) into the same shape with the rest null;
 // `AgentSdkModel` is the daemon's `supportedModels()` row, a SEPARATE snapshot never co-mingled.
 
@@ -17,6 +16,10 @@ const googleModelInfoSchema = z
     topK: z.number().optional(),
   })
   .strip();
+
+/** The `supportedParameters` member that says a model takes `tools[]`, OpenRouter's spelling, which a list stating
+ *  tool support in another field is written with too. */
+export const TOOLS_PARAMETER = "tools";
 
 // Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const modelCatalogEntrySchema = z
@@ -61,10 +64,12 @@ export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 
 /** One model-list answer for a provider, saved row or draft. `listed: false` carries WHY — a failed dial and
  *  an empty list both land here with their own reason, so a failure never reads as "listed no models". Both
- *  branches are strict: a stray `models` on `listed: false` is a wrong answer, and it is rejected, not stripped. */
+ *  branches are strict: a stray `models` on `listed: false` is a wrong answer, and it is rejected, not stripped.
+ *  `keyRefused` says the provider refused the key the list was read under, by the rule a chat turn strikes a key by.
+ *  `keyUnchecked` says a list that answers without a key listed, but the row's key check got no verdict on the key. */
 export const modelListingSchema = z.discriminatedUnion("listed", [
-  z.strictObject({ listed: z.literal(true), models: z.array(modelCatalogEntrySchema) }),
-  z.strictObject({ listed: z.literal(false), reason: z.string() }),
+  z.strictObject({ listed: z.literal(true), models: z.array(modelCatalogEntrySchema), keyUnchecked: z.literal(true).optional() }),
+  z.strictObject({ listed: z.literal(false), reason: z.string(), keyRefused: z.literal(true).optional() }),
 ]);
 export type ModelListing = z.infer<typeof modelListingSchema>;
 
@@ -86,8 +91,8 @@ export type AgentSdkModel = z.infer<typeof agentSdkModelSchema>;
 
 /** The `refresh-model-catalog` workload's COUNTS-ONLY result: no provider entry shape leaks into the queue's
  *  wire. `null` = that lane failed (distinct from 0 = a real empty catalog). The agent-sdk lane is `null` BY
- *  DESIGN since the cut-over (inference program §4): the daemon catalog is warmed on demand under a USER's
- *  own token — there is no host credential for a scheduled workload to spawn the runtime with. */
+ *  DESIGN: the daemon catalog is warmed on demand under a USER's own token — there is no host credential for
+ *  a scheduled workload to spawn the runtime with. */
 export interface CatalogRefreshResult {
   readonly models: number | null;
   readonly agentSdkModels: number | null;

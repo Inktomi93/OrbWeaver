@@ -29,6 +29,8 @@ function MediaWithZoom({
   readonly allowExternal: boolean;
 }): ReactElement {
   const [zoomOpen, setZoomOpen] = useState(false);
+  // The reader's click-to-load on the inline copy answers the consent for that source; the zoom is the same picture.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const zoomMedia = block.media === "audio" ? null : block.media;
   return (
     <>
@@ -38,6 +40,7 @@ function MediaWithZoom({
         alt={block.alt}
         {...(block.dims === undefined ? {} : { dims: block.dims })}
         allowExternal={allowExternal}
+        onLoadRequested={(): void => setLoadedUrl(src.url)}
         {...(zoomMedia === null ? {} : { onActivate: () => setZoomOpen(true) })}
       />
       {zoomMedia === null ? null : (
@@ -50,7 +53,7 @@ function MediaWithZoom({
           media={zoomMedia}
           alt={block.alt}
           {...(block.dims === undefined ? {} : { dims: block.dims })}
-          allowExternal={allowExternal}
+          allowExternal={allowExternal || loadedUrl === src.url}
         />
       )}
     </>

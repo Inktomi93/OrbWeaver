@@ -1,0 +1,43 @@
+// What an import says about a file the library already holds: the import found the row by its content, reused it and
+// added nothing (D290). One home, so the chat, card and book doors and the restore summary cannot drift apart. A leaf
+// with no imports, so a spec's node side reads the sentences without loading the component graph.
+
+const NOTHING_ADDED = "Nothing was added.";
+
+/** The book import's notice when the book is already in the library. */
+export const WORLD_INFO_DUPLICATE_BOOK_NOTICE = `That book is already in your library. ${NOTHING_ADDED}`;
+
+/** The chat import's notice when one dropped file is a room the library already holds, named by the room's title. */
+export function chatInLibraryNotice(title: string): string {
+  return `${title} is already in your library. ${NOTHING_ADDED}`;
+}
+
+/** The chat import's notice when every dropped file is a room the library already holds. */
+export function chatsInLibraryNotice(count: number): string {
+  return `${String(count)} chats are already in your library. ${NOTHING_ADDED}`;
+}
+
+/** The card import's notice when one dropped file is a card the library already holds, named by the character's name. */
+export function cardInLibraryNotice(name: string): string {
+  return `${name} is already in your library. ${NOTHING_ADDED}`;
+}
+
+/** The card import's notice when every dropped file is a card the library already holds. */
+export function cardsInLibraryNotice(count: number): string {
+  return `${String(count)} cards are already in your library. ${NOTHING_ADDED}`;
+}
+
+/** A count of files the library already held, as a clause of a summary line. */
+export function inLibraryClause(count: number): string {
+  return `${String(count)} already in your library`;
+}
+
+/** The lead of a batch line when some files were refused: how many of the batch wrote a row, and how many were already
+ *  held. A held file is neither imported nor refused, so it takes its own clause. */
+export function importedOfLead(landed: number, held: number, total: number): string {
+  const lead = `${String(landed)} of ${String(total)} imported`;
+  return held === 0 ? lead : `${lead}, ${inLibraryClause(held)}`;
+}
+
+/** The report's detail beside a file the library already held, and the name of its icon. */
+export const IN_LIBRARY_DETAIL = "Already in your library";

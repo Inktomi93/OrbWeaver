@@ -1,6 +1,6 @@
 // A search whose active generation's connection is deleted between the generation read and the connection resolve answers the
 // re-indexing refusal, and the retrieval degrade turns that refusal into the ruled empty result plus one index-unavailable report.
-// @subject packages/server/src/domain/search/substrate/space.ts
+// @subject packages/server/src/domain/search/persistence/space.ts
 // @subject packages/server/src/domain/search/substrate/retrieval-degrade.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
@@ -56,7 +56,14 @@ async function readyGeneration(held: HeldDb, root: ServerTestHarness): Promise<R
     await admitted(root, job.id);
   }
   await root.settleBackground();
-  const query = { ownerId: principal.userId, query: "orbital ledger", over: "entities", scope: { kind: "owner" }, topN: 5 } as const;
+  const query = {
+    signal: new AbortController().signal,
+    ownerId: principal.userId,
+    query: "orbital ledger",
+    over: "entities",
+    scope: { kind: "owner" },
+    topN: 5,
+  } as const;
   expect((await root.services.search.search(query)).hits).not.toEqual([]);
   // The generation row still names the connection when the search reads it; the race lands before the resolve reads the row.
   const gate = held.hold(/from "user_connections" where "user_connections"\."id" = \? limit/u);

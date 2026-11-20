@@ -8,6 +8,7 @@ import { join } from "node:path";
 import type { Readable } from "node:stream";
 import type { VideoMaxResolution } from "@orb/contracts/inference";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import type { InferenceDeps } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
 import { ffmpegPath } from "node-av/ffmpeg";
 import type { PrepareVideo } from "./contract.ts";
@@ -91,7 +92,7 @@ function videoArguments(input: string, demuxer: string, resolution: VideoMaxReso
 async function collectVideoOutput(
   child: ChildProcessByStdio<null, Readable, Readable>,
   maxBytes: number,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
   scheduleTimeout: ScheduleOp,
 ): Promise<Uint8Array> {
   const chunks: Buffer[] = [];
@@ -133,18 +134,18 @@ async function collectVideoOutput(
   });
   // Demuxer diagnostics contain input-controlled text and local paths; drain without retaining them.
   child.stderr.resume();
-  signal?.addEventListener("abort", stop, { once: true });
+  signal.addEventListener("abort", stop, { once: true });
   const cancelDeadline = scheduleTimeout(() => fail(new Error("The video preparation timed out.")), TRANSCODE_TIMEOUT_MS);
   try {
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       stop();
     }
     await stopped.promise;
   } finally {
     cancelDeadline();
-    signal?.removeEventListener("abort", stop);
+    signal.removeEventListener("abort", stop);
   }
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   if (failure !== undefined) {
     throw failure;
   }
@@ -157,10 +158,10 @@ async function collectVideoOutput(
 
 /** Bind the decoder's owned deadline to the root's timer without replacing the caller's cancellation signal. The root
  *  passes an unref'd timeout, so a pending transcode deadline never holds the process open. */
-export function createVideoPreparer(scheduleTimeout: ScheduleOp): PrepareVideo {
-  return async function prepare(bytes, mime, resolution, options = {}) {
+export function createVideoPreparer(scheduleTimeout: ScheduleOp, childEnv: InferenceDeps["env"]["childProcessEnv"]): PrepareVideo {
+  return async function prepare(bytes, mime, resolution, options) {
     const { signal, maxBytes = ASSET_UPLOAD_MAX_BYTES } = options;
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     if (bytes.byteLength > maxBytes) {
       throw new Error("The video exceeds the attachment byte limit.");
     }
@@ -174,12 +175,12 @@ export function createVideoPreparer(scheduleTimeout: ScheduleOp): PrepareVideo {
     }
     const directory = await mkdtemp(join(tmpdir(), "orb-outbound-video-"));
     try {
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       const input = join(directory, "source");
-      await writeFile(input, bytes, { mode: 0o600, ...(signal === undefined ? {} : { signal }) });
-      signal?.throwIfAborted();
+      await writeFile(input, bytes, { mode: 0o600, signal });
+      signal.throwIfAborted();
       const argv = videoArguments(input, demuxer, resolution, maxBytes);
-      const child = spawn(ffmpegPath(), argv, { cwd: directory, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(ffmpegPath(), argv, { cwd: directory, shell: false, stdio: ["ignore", "pipe", "pipe"], env: childEnv() });
       return await collectVideoOutput(child, maxBytes, signal, scheduleTimeout);
     } finally {
       await rm(directory, { recursive: true, force: true });

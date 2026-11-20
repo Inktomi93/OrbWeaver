@@ -12,8 +12,8 @@
 
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { index, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 
@@ -31,7 +31,7 @@ export const galleryItems = sqliteTable(
     subjectCharacterId: nulFreeText("subject_character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One curation row per (asset, subject). SQLite treats NULL subjects as DISTINCT under a unique index,

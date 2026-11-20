@@ -41,6 +41,7 @@ import type {
   DuplicateChatsOptions,
   ImageFacetKey,
   SimilarityGraphOptions,
+  ThemeNameCeilingOptions,
   ThemeNameEstimateOptions,
   TopKeywordsOptions,
 } from "./params.ts";
@@ -102,7 +103,7 @@ export interface ComputeChatDuplicatesDeps {
 export interface ComputeThemesDeps {
   readonly now: Clock;
   readonly newThemeClusterId: () => ThemeClusterId;
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   /** The funder's Utility-role preset params, folded over the `theme_name` posture (§7.5-3 arm ii). */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** Threaded into the tier-k `msgMidAt` backfill `computeThemes` runs after every replace. */
@@ -146,7 +147,7 @@ export interface DistillCharactersDeps {
   readonly now: Clock;
   /** A distilled summary row stamps the model `rc.resolved("structured")` reports at call time — read per
    *  pass, never a boot-frozen string, so a row is labelled with the model that actually wrote it. */
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   readonly attachCardTagByName: AttachCardTagByNameOp;
   /** The card owner's Utility-role preset params. The whole-library batch has no single owner ⇒ the posture
    *  stands; the on-demand single-card pass folds `opts.ownerId`'s. */
@@ -164,7 +165,7 @@ export interface DiscoveryContext {
   readonly now: Clock;
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   readonly attachCardTagByName: AttachCardTagByNameOp;
   /** The card owner's Utility-role preset params (distill + analyze). */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
@@ -182,7 +183,7 @@ export interface DiscoveryContext {
   /** The cross-domain `similar` seam — search's `similarCharacters`, narrowed to {@link DossierNeighbor} and
    *  bound at the entry root. discovery's only retrieval dependency (analytics ≠ retrieval); enters here so it
    *  threads into the {@link ViewsDeps} the service builds. */
-  readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
+  readonly similar: (userId: UserId, characterId: CharacterId, topN: number, signal: AbortSignal) => Promise<DossierNeighbor[]>;
 }
 
 // ── the verb interface ────────────────────────────────────────────────────────
@@ -231,10 +232,10 @@ export interface DiscoveryService {
 
   // ── analyze (semantic understanding — LLM narrative over the diff + grounded card Q&A) ──────────────
   /** {@link compareCharacters} plus a grounded LLM narrative over the same diff. null on self/foreign/undistilled. */
-  readonly compareCharactersDeep: (userId: UserId, idA: CharacterId, idB: CharacterId) => Promise<CharacterComparisonDeep | null>;
+  readonly compareCharactersDeep: (userId: UserId, idA: CharacterId, idB: CharacterId, signal: AbortSignal) => Promise<CharacterComparisonDeep | null>;
   /** Answer a free-text question about ONE owned/distilled character from its recent PLAYED scenes (SEMANTIC
    *  content only). null when the character isn't owned/distilled. */
-  readonly askCard: (userId: UserId, characterId: CharacterId, question: string) => Promise<AskCardAnswer | null>;
+  readonly askCard: (userId: UserId, characterId: CharacterId, question: string, signal: AbortSignal) => Promise<AskCardAnswer | null>;
 
   // ── swipes (regeneration hotspots — the assistant slots with the most alternate takes in one chat) ──
   /** The owner's chat's assistant slots with \>1 variant (re-rolled spots), most takes first (default 20).
@@ -252,8 +253,10 @@ export interface DiscoveryService {
   readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
   readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
+  /** The most naming calls a {@link computeThemes} at `k` can make once a backfill ahead of it adds digests. Reads only. */
+  readonly countThemeNameCeiling: (opts: ThemeNameCeilingOptions) => Promise<number>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
-  readonly backfillDigestStoryTime: (scope: WorkloadRunScope, signal?: AbortSignal) => Promise<void>;
+  readonly backfillDigestStoryTime: (scope: WorkloadRunScope, signal: AbortSignal) => Promise<void>;
 
   // ── insights (pure-semantics half; owner-scoped reads) ──────────────────────
   /** How the owner's themes shift over STORY time — per-month prevalence (drift), `level` default `scene`. */
@@ -292,7 +295,7 @@ export interface DiscoveryService {
   readonly themeDetail: (userId: UserId, clusterIdx: number, level: ThemeLevel) => Promise<ThemeDetail | null>;
   /** One character's composed DOSSIER — distilled headline facets + portrait↔card alignment (in-RAM cosine) +
    *  nearest neighbours (the injected `similar` search seam). `null` when the character isn't owned/distilled. */
-  readonly characterDossier: (userId: UserId, characterId: CharacterId) => Promise<CharacterDossier | null>;
+  readonly characterDossier: (userId: UserId, characterId: CharacterId, signal: AbortSignal) => Promise<CharacterDossier | null>;
 
   // ── cooccurrence (workload compute + owner-scoped reads) ─────────────────────
   /** Recompute every owner's keyword×keyword cooccurrence + per-character keyword profiles — atomic per-owner replace. */
@@ -324,6 +327,7 @@ export interface DiscoveryWorkloadDeps {
     DiscoveryService,
     | "computeThemes"
     | "countThemeNameCalls"
+    | "countThemeNameCeiling"
     | "distillCharacters"
     | "countDistillCalls"
     | "computeCooccurrence"

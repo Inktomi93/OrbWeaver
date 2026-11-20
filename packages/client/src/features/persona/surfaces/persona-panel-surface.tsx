@@ -30,6 +30,14 @@ import type { SwitchRoom } from "../components/persona-switch-list.tsx";
 import { PersonaSwitchList } from "../components/persona-switch-list.tsx";
 import type { PlayingPersonaState } from "../hooks/use-playing-persona.ts";
 import { useCardPin, useDefaultPersona, usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
+import {
+  PERSONA_MANAGE_NAME,
+  PERSONA_NEW_CHAT_GLOSS,
+  PERSONA_NO_SEAT_GLOSS,
+  PERSONA_PANEL_NAME,
+  PERSONA_PLAYING_AS_LABEL,
+  personaPlayingAsName,
+} from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -107,7 +115,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
     <Popover>
       <PanelTrigger current={playing} />
       {/* aria-label names the popup dialog: it has no visible title element (the body opens with the head). */}
-      <PopoverPopup aria-label="Account & personas" align="end" width="stable" maxHeight="available" side="right">
+      <PopoverPopup aria-label={PERSONA_PANEL_NAME} align="end" width="stable" maxHeight="available" side="right">
         <PersonaPanelAnchor>{sections}</PersonaPanelAnchor>
       </PopoverPopup>
     </Popover>
@@ -152,7 +160,7 @@ function useConnectedToRoomCharacter(chat: ChatDetail | null): SwitchRoom["conne
 /** The rail avatar button that opens the panel — shows the persona playing now. */
 function PanelTrigger({ current }: { readonly current: PersonaListItem | null }): ReactElement {
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
-  const label = current === null ? "Account & personas" : `Playing as ${current.name}`;
+  const label = current === null ? PERSONA_PANEL_NAME : personaPlayingAsName(current.name);
   return (
     <Tooltip>
       <TooltipTrigger
@@ -175,9 +183,9 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
 
 function headGloss(state: PlayingPersonaState): string {
   if (state.chat !== null) {
-    return state.playing === null ? "No persona set. Pick one below." : "Playing as";
+    return state.playing === null ? PERSONA_NO_SEAT_GLOSS : PERSONA_PLAYING_AS_LABEL;
   }
-  return state.newChat?.source === "default" ? "New chats start as (your default)" : "New chats start as (last played)";
+  return state.newChat?.source === "default" ? PERSONA_NEW_CHAT_GLOSS.default : PERSONA_NEW_CHAT_GLOSS.lastPlayed;
 }
 
 /** WHO you play: in a room the seat (an empty seat says so rather than borrowing a persona the room never
@@ -187,11 +195,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Stack gap="field" data-slot="persona-who-head">
-      <Row gap="row" align="center" className="min-inline-0">
+      <Row gap="row" align="center" minWidth="shrinks">
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
-        <Stack className="min-inline-0" grow={true}>
+        <Stack minWidth="shrinks" grow={true}>
           <Text truncate={true} voice="gloss">
             {headGloss(state)}
           </Text>
@@ -247,7 +255,7 @@ function ManageDoor({ presentation }: { readonly presentation: ChromePresentatio
       }}
     >
       <Icon icon={SlidersHorizontal} size="sm" />
-      Manage personas in Settings
+      {PERSONA_MANAGE_NAME}
     </Button>
   );
   return presentation === "bar" ? <PopoverClose render={door} /> : door;

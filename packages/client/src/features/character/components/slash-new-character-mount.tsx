@@ -5,14 +5,16 @@
 
 import { useEffect } from "react";
 import type { SlashCommandMountProps } from "#lib";
-import { setActiveSection } from "#state";
+import { requestNewCharacter, setActiveSection } from "#state";
 
 export function SlashNewCharacterMount({ onRunner }: SlashCommandMountProps): null {
   useEffect(() => {
     onRunner((): void => {
-      // The command opens the Characters section, where a new character starts; no create form exists to route to.
+      // The Characters section mounts the form's host in each of its layouts and takes this request once it is on screen,
+      // so the form opens whether the section was already open or this switch mounts it.
       // Dismissal is the HOST's job (the palette closes before it runs anything), never the runner's.
       setActiveSection("characters");
+      requestNewCharacter();
     });
   }, [onRunner]);
   return null;

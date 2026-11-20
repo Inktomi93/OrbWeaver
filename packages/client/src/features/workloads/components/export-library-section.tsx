@@ -13,6 +13,7 @@ import { useState } from "react";
 import { SettingCheckboxRow, SettingRowGroup, SettingTrackRow } from "#components";
 import { downloadUrl, testId } from "#lib";
 import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model.ts";
+import { EXPORT_DOWNLOAD_NAME, EXPORT_INCLUDE_LEGEND } from "../lib/workloads-names.ts";
 
 /** THE "INCLUDE" GROUP IS A BULK DEFAULT, SO IT SPENDS NO ACCENT (#1110, owner ruling 2026-09-02).
  *  Every exportable kind starts SELECTED — that is the useState seed below and it is the right default —
@@ -48,7 +49,7 @@ export function ExportLibrarySection(): ReactElement {
         Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
       </Text>
       <Fieldset>
-        <FieldsetLegend>Include</FieldsetLegend>
+        <FieldsetLegend>{EXPORT_INCLUDE_LEGEND}</FieldsetLegend>
         {/* Choices share their label track without stacking each mark beneath its label in a narrow host. */}
         <SettingRowGroup kind="choices">
           {EXPORTABLE_KINDS.map((kind) => (
@@ -67,7 +68,7 @@ export function ExportLibrarySection(): ReactElement {
       <Row justify="start">
         <Button disabled={selected.size === 0} onClick={download} data-testid={testId("backupExportButton")}>
           <Icon icon={Download} size="sm" />
-          Download my library
+          {EXPORT_DOWNLOAD_NAME}
         </Button>
       </Row>
     </Stack>

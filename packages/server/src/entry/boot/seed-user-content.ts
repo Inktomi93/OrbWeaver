@@ -3,7 +3,6 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { SeedManifestItem } from "@orb/default-content";
-import type { Clock } from "@orb/kit/time";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterSeedStep } from "#domain/character";
 import type { RosterSeedStepDeps, SeedRosterPreset } from "#domain/roster-preset";
@@ -17,7 +16,6 @@ export interface UserContentSeederDeps {
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */
   readonly enabled: ContentSeedPolicyDeps["enabled"];
   readonly manifest: readonly SeedManifestItem[];
-  readonly now: Clock;
   readonly seededKeys: ContentSeedPolicyDeps["seededKeys"];
   readonly recordSeeded: ContentSeedPolicyDeps["recordSeeded"];
   readonly legacyLatches: SettingsComposedOps["legacyLatches"];
@@ -63,9 +61,8 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
     logger: deps.logger,
     enabled: () => deps.enabled(),
     steps,
-    now: () => deps.now(),
     seededKeys: (userId) => deps.seededKeys(userId),
-    recordSeeded: (userId, keys, at) => deps.recordSeeded(userId, keys, at),
+    recordSeeded: (userId, keys) => deps.recordSeeded(userId, keys),
     legacyLatches: (principal) => deps.legacyLatches(principal),
   });
 }

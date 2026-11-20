@@ -4,7 +4,7 @@
 // `index` is into the SENT slice, mapped back to the CALLER's stable ids. Multimodal sides (a query/document
 // image) ride the ScoreMultiModalParam content array when the capability says `input ∋ image`.
 //
-// THE WINDOW GUARD IS CLIENT-SIDE (#173): the text sides are clamped to `capability.rerank.maxInputTokens`
+// THE WINDOW GUARD IS CLIENT-SIDE: the text sides are clamped to `capability.rerank.maxInputTokens`
 // (query to at most half, each document to what the query left) and the engine is asked for NOTHING — the
 // `truncate_prompt_tokens` knob turned an over-window pair from a fast 400 into an unbounded hang. A clamp is
 // legitimate on a SCORING pass (nothing persisted) and is LOGGED.
@@ -17,7 +17,7 @@ import type { RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
 import type { RerankDeps } from "#src/contract/openai-backend.ts";
 import type { NormalizeImageBytes } from "#src/contract/wire.ts";
-import { authHeaders, fetchJson } from "../http/fetch-json.ts";
+import { authHeaders, fetchJson, onBaseOrigin } from "../http/fetch-json.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
@@ -25,12 +25,10 @@ import { toImageUrl } from "../wire/image-normalize.ts";
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
 const TRAILING_SLASH_RE = /\/$/u;
 
-const rerankResponseSchema = z
-  .object({
-    results: z.array(z.object({ index: z.number(), relevance_score: z.number() }).loose()),
-    usage: z.object({ total_tokens: z.number().optional() }).loose().optional(),
-  })
-  .loose();
+const rerankResponseSchema = z.looseObject({
+  results: z.array(z.looseObject({ index: z.number(), relevance_score: z.number() })),
+  usage: z.looseObject({ total_tokens: z.number().optional() }).optional(),
+});
 type RerankResponse = z.infer<typeof rerankResponseSchema>;
 
 type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
@@ -143,7 +141,7 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
   const { query, documents } = await wireSides(req, docs, sides, deps.normalize);
   const result = await fetchJson({
     fetch: deps.fetch,
-    url: `${connection.baseUrl.replace(TRAILING_SLASH_RE, "")}${path}`,
+    url: onBaseOrigin(connection.baseUrl, `${connection.baseUrl.replace(TRAILING_SLASH_RE, "")}${path}`, label),
     method: "POST",
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     body: {
@@ -155,7 +153,7 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
     },
     secrets: resolvedScrubSet(connection),
     label,
-    ...(req.signal !== undefined ? { signal: req.signal } : {}),
+    signal: req.signal,
   });
   return toResult(rerankResponseSchema.parse(result.json), docs, req);
 }

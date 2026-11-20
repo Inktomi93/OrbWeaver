@@ -13,7 +13,7 @@ import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle, migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createServerHarness, makePluginBundle, migrationsHolding, ownDb } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { sql } from "drizzle-orm";
 
@@ -54,10 +54,10 @@ async function installLabelled(root: ServerTestHarness, label: string): Promise<
 test("a tombstone stored before its task retired still refuses a changed definition, and the same definition re-claims", {
   timeout: PLUGIN_LIFECYCLE_TIMEOUT_MS,
 }, async () => {
-  await using previous = await migrationsBefore(MIGRATION);
+  await using chain = await migrationsHolding(MIGRATION);
   using opened = ownDb(await createDb(":memory:"));
   const db = opened.db;
-  await runMigrations(db, previous.path);
+  await runMigrations(db, chain.paths.rest);
   // 0007 changes data only, so the harness runs on the chain before it and the planted tombstone is that chain's data.
   await using root = await createServerHarness({ db, startJobs: false, pluginSpawn: spawn });
   await db.run(sql`insert into provider_rows (id, label, wire, auth, apis, serves, catalog, metered, definition_hash, origin_kind)
@@ -66,7 +66,7 @@ test("a tombstone stored before its task retired still refuses a changed definit
     sql`insert into plugin_provider_claims (owner_id, provider_id, definition_hash, plugin_id) values (${root.ownerId}, ${PROVIDER}, ${STORED_HASH}, null)`,
   );
 
-  await runMigrations(db, SHIPPED_MIGRATIONS);
+  await runMigrations(db, chain.paths.held);
   const rehash = (): Promise<number> => rehashPluginProviderDefinitionsOnBoot({ db: bootGrantFor(db), logger: root.logger });
   const moved = await rehash();
   const claimsAfterBoot = await db.select().from(pluginProviderClaims);

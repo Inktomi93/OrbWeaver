@@ -16,18 +16,18 @@
 // is an idempotency key.
 
 import type { CardWriteBasis } from "@orb/contracts/character";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, PrepareCanonRetirement } from "@orb/contracts/stats";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchLed, batchMany, isConstraintViolation } from "@orb/db/query";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
+import { DomainUnavailableError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
-import type { CharacterHandoffCopyContext } from "../contract/handoff-copy.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
 // written needs its own name (the refinery schema-library precedent).
@@ -161,7 +161,7 @@ function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
 export async function insertCharacterClaimingProvenance(
   db: Db,
   values: CharacterInsert & { readonly importedFrom: string },
-  accounting: Pick<CharacterHandoffCopyContext, "applyStatsDelta" | "bumpStatsCanonVersion" | "now">,
+  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
 ): Promise<boolean> {
   const unclaimed = notExists(
     db
@@ -178,19 +178,9 @@ export async function insertCharacterClaimingProvenance(
       db,
       values,
       [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed],
-      accounting.bumpStatsCanonVersion,
+      bumpCanonVersion,
     );
-    const now = accounting.now();
-    // Copies become library data even if the later room swap fails; only this guarded insert owns their census.
-    accounting.applyStatsDelta(statements, db, {
-      ownerId: values.ownerId,
-      characterId: null,
-      model: null,
-      provider: null,
-      bucketStart: statsBucketStart(now),
-      now,
-      newCharacter: true,
-    });
+    // A copy counts as a character only once the room swap seats it, so the mint carries no census.
     await db.batch(batchMany(statements));
     return true;
   } catch (err) {
@@ -318,22 +308,43 @@ export async function restoreCardInPlace(
   }
 }
 
+// A writer that outpaces every retirement attempt gets a retry-later answer, never a delete planned from older canon.
+const CHARACTER_DELETE_STARVED = "the character's rooms kept changing while it was deleted; try again shortly";
+
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
- *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards. */
+ *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards.
+ *
+ *  THE STATS RETIREMENT SURROUNDS THE DELETE in one batch: its census decides inside its own statement whether the
+ *  character was counted (held a seat in a started room), and the cascade removes the seats that answer, so it rides
+ *  ahead; the extrema it re-derives read the canon the delete leaves, so that part rides after. */
 export async function deleteOwnedCharacter(
   db: Db,
   characterId: CharacterId,
   ownerId: UserId,
-  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
+  prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>,
 ): Promise<boolean> {
-  const deletion = db
-    .delete(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-    .returning({ id: characters.id });
-  const statements: BatchStmt[] = [];
-  bumpCanonVersion(statements, db, ownerId);
-  const [deleted] = await db.batch(batchLed(deletion, statements));
-  return deleted.length > 0;
+  for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
+    const retirement = await prepareCanonRetirement(db, { kind: "character", ownerId, characterId });
+    const statements: BatchStmt[] = [];
+    retirement.beforeDelete(statements, db);
+    const deleteIndex = statements.length;
+    statements.push(
+      db
+        .delete(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+        .returning({ id: characters.id }),
+    );
+    retirement.afterDelete(statements, db);
+    try {
+      const deleted = (await db.batch(batchMany(statements)))[deleteIndex];
+      return Array.isArray(deleted) && deleted.length > 0;
+    } catch (error) {
+      if (!(await retirement.refused(error))) {
+        throw error;
+      }
+    }
+  }
+  throw new DomainUnavailableError(CHARACTER_DELETE_STARVED);
 }
 
 /** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped.

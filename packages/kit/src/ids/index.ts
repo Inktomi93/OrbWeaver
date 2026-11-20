@@ -12,6 +12,8 @@ declare const brand: unique symbol;
 /** The SECOND phantom key, carried only by {@link VerifiedUserId} — see its doc for why it cannot reuse
  *  `brand` (two disjoint literals on one key reduce the intersection to `never`). */
 declare const sessionVerified: unique symbol;
+/** The phantom key carried only by {@link ConsentingHostId}, distinct for the same reason as `sessionVerified`. */
+declare const hostConsented: unique symbol;
 
 /** A `string` tagged with a phantom `B` marker (erased at runtime). */
 export type Branded<B extends string> = string & { readonly [brand]: B };
@@ -60,6 +62,7 @@ export const ID_PREFIX = {
   chatEvent: "chat_event",
   sessionEntry: "session_entry",
   chatInjection: "chat_injection",
+  chatMemoryStrike: "chat_memory_strike",
   chatParticipant: "chat_participant",
   chatInvite: "chat_invite",
   pendingTurn: "pending_turn",
@@ -93,8 +96,8 @@ export const ID_PREFIX = {
   characterStat: "character_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
-  // One priced compaction pass (`compaction_spend`) — the canon the stats rebuild re-derives that spend from.
-  compactionSpend: "compaction_spend",
+  // One priced model call with no canon row of its own (`spend_ledger`) — the canon the stats rebuild re-derives that spend from.
+  spendLedger: "spend_ledger",
   notification: "notification",
   imageryGeneration: "imagery_generation",
   // One image-provider call: every picture a fanned-out call returns carries the same id (no table of its own).
@@ -161,6 +164,18 @@ export type UserId = Branded<"UserId">;
  * browser-storage read stay plain `UserId` on purpose.
  */
 export type VerifiedUserId = UserId & { readonly [sessionVerified]: true };
+/**
+ * A room host's `UserId` that a consent read just proved: the host is seated, present and enabled (D17). Every op
+ * that resolves a connection or runs model work on a room host's account takes this brand, so a caller that
+ * skipped the consent read fails to compile instead of spending a disabled or departed host's account.
+ *
+ * Assignable to `UserId`, never the reverse, and it carries its own phantom key (see {@link VerifiedUserId}).
+ *
+ * ONE MINT: `hostConsentOf` in `packages/server/src/domain/chat/substrate/participants-humans.ts`, a `castId` that
+ * `orb/no-unsafe-cast` refuses in every other file. A user acting on their own account is not host consent and
+ * stays a plain `UserId`.
+ */
+export type ConsentingHostId = UserId & { readonly [hostConsented]: true };
 /** The BFF session ROW id (NOT the opaque cookie token — that's `SessionToken`). */
 export type SessionId = TypeIdOf<"session">;
 export type UserCredentialId = TypeIdOf<"user_credential">;
@@ -223,6 +238,8 @@ export type ChatEventId = TypeIdOf<"chat_event">;
  * message slot, so the slot id cannot identify the hidden-span scrubber lifetime. */
 export type SessionEntryId = TypeIdOf<"session_entry">;
 export type ChatInjectionId = TypeIdOf<"chat_injection">;
+/** A player's strike on one remembered item (`chat_memory_strikes`): recall leaves that item out of later prompts. */
+export type ChatMemoryStrikeId = TypeIdOf<"chat_memory_strike">;
 export type ChatParticipantId = TypeIdOf<"chat_participant">;
 export type ChatInviteId = TypeIdOf<"chat_invite">;
 export type PendingTurnId = TypeIdOf<"pending_turn">;
@@ -251,7 +268,7 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 export type CharacterStatId = TypeIdOf<"character_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
-export type CompactionSpendId = TypeIdOf<"compaction_spend">;
+export type SpendLedgerId = TypeIdOf<"spend_ledger">;
 
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;

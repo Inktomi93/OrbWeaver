@@ -16,19 +16,20 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { PluginActivationScope, PluginCascadeInvoke, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
 import type {
   ActivateInput,
   ActivateOutcome,
   CrashPolicy,
   PluginActivationContext,
   PluginContext,
+  PluginHostPort,
   PluginProviderLifecycle,
   PluginRegistry,
 } from "../contract/service.ts";
 import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
-import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
+import { invokeFailureKind, logPluginFailure, pluginFailureLine } from "../substrate/failure-log.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
 import { parseInstalledBundle } from "../substrate/manifest.ts";
 
@@ -36,7 +37,12 @@ import { parseInstalledBundle } from "../substrate/manifest.ts";
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the
  *  PL-C ceiling). On the FIRST registrar refusal (a collision is activation-fatal) it unregisters its
  *  OWN partial set before rethrowing, so the throw leaves NO orphan registration (the caller then disposes). */
-function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginInvokeHandler, scope: PluginActivationScope): PluginRegistrationHandle[] {
+function register(
+  ctx: PluginContext,
+  instance: PluginInstance,
+  { invoke, deliver }: { readonly invoke: PluginInvokeHandler; readonly deliver: PluginCascadeInvoke },
+  scope: PluginActivationScope,
+): PluginRegistrationHandle[] {
   const handles: PluginRegistrationHandle[] = [];
   try {
     for (const tool of instance.tools) {
@@ -49,13 +55,13 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
     // fan-out's declared-match + one visibility read serve every handler); a plugin with no `events.on` registers
     // nothing.
     if (instance.events.length > 0) {
-      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, invoke, scope));
+      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, deliver, scope));
     }
     // U8 §5a — the private plugin-event subscriptions wire onto the INSTALLER-scoped resident bus (the events
     // pattern, one plane over); a plugin with no `pubsub.on` registers nothing, and the deregistration handle
     // drops exactly this plugin's subscriptions on deactivate.
     if (instance.pubsub.length > 0) {
-      handles.push(ctx.ops.registrar.subscribePubsub(instance.pubsub, invoke, scope));
+      handles.push(ctx.ops.registrar.subscribePubsub(instance.pubsub, deliver, scope));
     }
     // Macros aggregate the same way (ONE registry entry per plugin — the per-plugin ceiling and the per-turn
     // read are both per-plugin); a plugin with no `macros.register` registers nothing. DISPLAY transforms have
@@ -155,8 +161,9 @@ function durableMainJsLoader(ctx: PluginContext, input: ActivateInput): () => Pr
   };
 }
 
-// A conflict is the host's refusal, never the plugin's fault: busy pools, and teardowns the plugin did not cause (a
-// replaced runtime, a lost broker, shutdown), which the host raises as conflicts so they are never strikes (D347).
+// A conflict is the host's refusal, never the plugin's fault: busy pools, teardowns the plugin did not cause (a
+// replaced runtime, a lost broker, shutdown), which the host raises as conflicts so they are never strikes (D347), and
+// a host call refused because the installer is disabled, which the host raises in place of the guest's rethrow.
 function isHostAdmissionRefusal(error: unknown): boolean {
   return error instanceof DomainConflictError;
 }
@@ -227,32 +234,57 @@ export function createActivate(
     }
 
     const { instance } = outcome;
+    // One guest call. A rejection that is not the host's own refusal is logged here, once, and rethrown. A caller
+    // that gave up on the call at its deadline already logged the overrun.
+    const callGuest = async (
+      ...[handler, argsJson, chat, signal, phase, cascadeDepth]: [
+        ...Parameters<PluginInvokeHandler>,
+        Parameters<PluginHostPort["invoke"]>[5]?,
+        Parameters<PluginHostPort["invoke"]>[6]?,
+      ]
+    ): Promise<string> => {
+      try {
+        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase, cascadeDepth);
+      } catch (err) {
+        if (!isHostAdmissionRefusal(err) && signal.reason !== DEADLINE_ABORT_REASON) {
+          ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
+        }
+        throw err;
+      }
+    };
     // The resident-tool invoke loop under the crash policy: a handler throw/deadline surfaces as
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).
-    const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
+    const invokeAt = (...[handler, argsJson, chat, signal, cascadeDepth]: [...Parameters<PluginInvokeHandler>, number]): Promise<string> =>
       ctx.invocations.run(async () => {
         try {
-          const result = await ctx.host.invoke(instance, handler, argsJson, chat, signal);
+          const result = await callGuest(handler, argsJson, chat, signal, "invocation", cascadeDepth);
           await crashPolicy.recordCleanRun(input.pluginId);
           return result;
         } catch (err) {
           if (isHostAdmissionRefusal(err)) {
             throw err;
           }
-          // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
-          if (signal?.reason !== DEADLINE_ABORT_REASON) {
-            logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
-          }
+          // A call its caller gave up on at a deadline still counts.
           await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
           throw err;
         }
       });
+    const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) => invokeAt(handler, argsJson, chat, signal, 0);
+    // A delivery, a pubsub event or a trigger fact, runs at the cascade depth its cause carried, so what its own command
+    // causes reaches a handler one level deeper. It is detached from the emit or fact that caused it, so nothing above
+    // can cancel it; the invocation budget bounds the handler.
+    const deliver: PluginCascadeInvoke = (handler, argsJson, chat, depth) => invokeAt(handler, argsJson, chat, new AbortController().signal, depth);
+    // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
+    // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled. It runs
+    // in the display phase, so the guest's own host calls may only read too.
+    const invokeForRead: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
+      ctx.invocations.run(() => callGuest(handler, argsJson, chat, signal, "display"));
     const scope: PluginActivationScope = { pluginId: input.pluginId, slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {
-      handles = register(ctx, instance, invoke, scope);
+      handles = register(ctx, instance, { invoke, deliver }, scope);
     } catch (err) {
       // Discard the partial activation: nothing this run registered survives, and the instance is disposed.
       ctx.host.dispose(instance);
@@ -287,7 +319,7 @@ export function createActivate(
       discardActivation(ctx, instance, handles);
       return await activationFailed(providerError, `provider registration failed: ${providerError}`);
     }
-    registry.set(input.pluginId, { instance, handles, invoke });
+    registry.set(input.pluginId, { instance, handles, invoke, invokeForRead });
     return { ok: true };
   };
 }

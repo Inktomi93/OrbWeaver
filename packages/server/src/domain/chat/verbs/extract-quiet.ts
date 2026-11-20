@@ -25,11 +25,11 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
-import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
-import { assemblyTimeZone } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
+import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
+import { firstCharacterIdOf } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 
@@ -108,7 +108,10 @@ export function createExtractQuiet(input: DbAssemblyInput<ExtractQuietDeps>): Ex
     // The funder's Utility-role preset over the `extract_quiet` posture (temp 0.4, 320 out — near-deterministic
     // keyword extraction): this runs on the funder's summarize connection.
     const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveUtilityPresetParams(p.funderUserId));
-    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], posture);
+    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], {
+      ...posture,
+      signal: p.signal,
+    });
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
   };

@@ -1,7 +1,7 @@
 // Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
 import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type {
   CancelWorkloadResult,
@@ -28,6 +28,7 @@ import type {
 } from "./params.ts";
 import type { WorkloadProgressBus } from "./progress-bus.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
+import type { WorkloadReads } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
 type NewWorkloadId = () => WorkloadId;
@@ -37,6 +38,7 @@ type NewWorkloadScheduleId = () => WorkloadScheduleId;
 
 /** The bundle the service root supplies to the workload verbs. */
 export interface WorkloadServiceContext {
+  readonly logger: Logger;
   readonly db: Db;
   /** The per-kind contribution registry, LATE-BOUND (a thunk, like portability's `getPortabilityRegistry`).
    *  The verbs use it as the params VALIDATOR (enqueue + the row read path) — the run bodies belong to the
@@ -54,10 +56,16 @@ export interface WorkloadServiceContext {
   readonly isOwner: IsOwner;
   /** Whether an account is the box owner, read off its row: a stored run has no Principal to ask, only an id. */
   readonly isBoxOwner: (userId: UserId) => Promise<boolean>;
+  /** Whether an account is enabled, read off its row per call: a run answers to an enabled account or none. */
+  readonly isAccountEnabled: ResolveUserEnabled;
   /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
   readonly emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
+  /** Abort a run in flight in this process the moment its cancel is stored. */
+  readonly abortRun: WorkloadProgressBus["abortWorkloadRun"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
   readonly emitUserEvent: EmitUserEvent;
+  /** The rows whose unreadable stored result the log already names, minted once by the service root. */
+  readonly reportedUnreadable: WorkloadReads["reportedUnreadable"];
 }
 
 /**
@@ -69,12 +77,15 @@ export interface WorkloadRunnerDeps {
   /** The root's trace ring each run's `workload.run` root seals into. */
   readonly traces: TraceRing;
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
+  /** Registers each run's abort where {@link WorkloadServiceContext.abortRun} finds it. */
+  readonly trackRun: WorkloadProgressBus["trackWorkloadRun"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
    *  domains' factories). Replaces the retired cross-feature `env` hub — the engine knows no domain. */
   readonly contributions: WorkloadContributions;
   /** The runner judges an owner-only run before its body, so a row stored by any build answers to this. */
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  readonly isAccountEnabled: WorkloadServiceContext["isAccountEnabled"];
   /** Suppress-and-drop audit writer; the engine emits `WORKLOAD_FAILED` on a terminal runtime failure. */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: Clock;
@@ -133,6 +144,8 @@ export interface ReapWorkloadsArgs {
 export interface BootReclaimReport {
   readonly requeued: number;
   readonly reaped: number;
+  /** Rows whose owner had raised a cancel the dead process never finished: boot finished it. */
+  readonly cancelled: number;
 }
 
 /** The boot reclaim's args; `contributions` supplies each kind's declared `resume` policy. */

@@ -1,9 +1,10 @@
 // domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
-// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (cardFromJson). Adds import-specific bits the serde
+// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (readCardJson). Adds import-specific bits the serde
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
-// the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
+// the flatten-to-create-input validation seam, and card tag extraction (readCardJson drops data.tags).
 //
-// Pure: no DB, no fs, no logger. Text that is not JSON returns null; only a defect throws.
+// Pure: no DB, no fs, no logger. Text that is not JSON returns null; a card the import refuses for what it holds
+// (nesting past JSON_MAX_DEPTH, an embedded book the column refuses) throws ImportCardError; any other throw is a defect.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import {
@@ -17,15 +18,16 @@ import {
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
-import { parseJsonText } from "@orb/kit/json";
+import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
+import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
+import type { AssetId, CharacterHandle, CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
+import { JSON_MAX_DEPTH, nestsPastJsonMaxDepth, parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
-import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#primitives/serde/card";
+import { cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, readCardJson, selectBestCharacterBook } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
-import type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
+import type { CardIdentityHashes, CurrentCardIdentity, ExportCurrentCard, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
 import { carriedHandle, requestedHandle } from "./handle.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
@@ -49,6 +51,9 @@ interface ParsedCard {
   /** The asset background an orbweaver export carried, re-linked by its hash at create; null when none. Not
    *  part of the identity. */
   readonly background: ThemeBackground | null;
+  /** Each regex script the reader refused or placement it lost, as one line the import names. Beside the card, never
+   *  in it, so it is not part of the identity. */
+  readonly scriptNotes: readonly string[];
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
@@ -57,6 +62,15 @@ const SEAT_CARD_FALLBACK_NAME = "Imported Character";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+// Narrowed at the parse, so a card whose embedded book the column refuses fails before its character is written.
+function narrowedLoreMetadata(raw: Record<string, unknown>): EntryMetadata | null {
+  const narrowed = narrowedEntryMetadataSchema.safeParse(raw);
+  if (!narrowed.success) {
+    throw new ImportCardError("card_invalid", `the card's embedded world book failed validation:\n${z.prettifyError(narrowed.error)}`);
+  }
+  return narrowed.data;
 }
 
 // selectBestCharacterBook disambiguates a card that embeds a book twice (most-named-entries wins).
@@ -72,7 +86,7 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   }
   const entries = extractLorebook(book).map((entry) => ({
     ...loreEntryColumns(entry),
-    metadata: loreEntryMetadata(entry),
+    metadata: narrowedLoreMetadata(loreEntryMetadata(entry)),
   }));
   if (entries.length === 0) {
     return null;
@@ -175,8 +189,15 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
   if (typeof parsed !== "object" || parsed === null) {
     return null;
   }
+  // Before any walk: the identity hash and the stored planes are walked recursively, so without this a deep card
+  // imports or overflows the stack depending on the host.
+  if (nestsPastJsonMaxDepth(parsed)) {
+    throw new ImportCardError("card_invalid", `the card nests deeper than ${String(JSON_MAX_DEPTH)} levels`);
+  }
+  const read = readCardJson(parsed, fallbackName);
   return {
-    card: cardFromJson(parsed, fallbackName),
+    card: read.card,
+    scriptNotes: read.scriptNotes.map(({ field, reason }) => `\`${field}\` — ${reason}`),
     tags: extractCardTags(parsed),
     book: extractBulkImportLorebook(parsed),
     attachedBooks: extractAttachedBooks(parsed),
@@ -225,11 +246,32 @@ export async function cardPngIdentity(bytes: Uint8Array): Promise<CardIdentityHa
   return parsed === null ? null : { importHash: parsedCardImportHash(parsed), textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) };
 }
 
-/** The owner's character an equal card already landed as, in ONE lookup order for every door. */
-export async function findImportedCharacter(
-  find: FindCharacterByHash,
+/** The current identity of the owner's character `handle` names, or undefined for a card that carries no handle
+ *  (a foreign card, which no row the app wrote can equal). */
+export function currentCardIdentity(exportCurrentCard: ExportCurrentCard, ownerId: UserId, handle: CharacterHandle | null): CurrentCardIdentity | undefined {
+  if (handle === null) {
+    return undefined;
+  }
+  return async () => {
+    const current = await exportCurrentCard({ ownerId, handle });
+    const hashes = current === null ? null : await cardPngIdentity(current.bytes);
+    return current === null || hashes === null ? null : { characterId: current.characterId, hashes };
+  };
+}
+
+// The current export is always a PNG. A JSON card carries no art, so it equals the export's text identity; a PNG
+// card equals the full one.
+function sameCard(incoming: CardIdentityHashes, current: CardIdentityHashes): boolean {
+  return incoming.importHash === current.importHash || (incoming.importHash === incoming.textHash && incoming.textHash === current.textHash);
+}
+
+/** The owner's character an equal card already landed as, in ONE lookup order for every door. The stored keys come
+ *  first; only when they all miss does `current` export the one row the card's carried handle names (D290). */
+export async function findImportedCharacter<Row = CharacterId>(
+  find: FindCharacterByHash<Row>,
   hashes: CardIdentityHashes,
-): Promise<{ readonly characterId: CharacterId; readonly match: ImportedCharacterMatch } | null> {
+  current?: CurrentCardIdentity<Row>,
+): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
   const byContent = await find(hashes.importHash);
   if (byContent !== null) {
     return { characterId: byContent, match: "content" };
@@ -241,7 +283,28 @@ export async function findImportedCharacter(
     }
   }
   const byFile = await find(hashes.fileHash);
-  return byFile === null ? null : { characterId: byFile, match: "file" };
+  if (byFile !== null) {
+    return { characterId: byFile, match: "file" };
+  }
+  const live = current === undefined ? null : await current();
+  return live !== null && sameCard(hashes, live.hashes) ? { characterId: live.characterId, match: "current" } : null;
+}
+
+/** The row a card reuses, the one rule the card write and its dry run share: the row an equal card landed as, where a
+ *  match by text alone (a row from the JSON card, and this is its PNG) holds only when `takeArt` gives the row this
+ *  card's art. `find` sees every row the upload landed before this card as well as the owner's: the write reads the
+ *  database it has been writing, the dry run its record of the rows it would have written. */
+export async function reusedCardRow<Row>(args: {
+  readonly find: FindCharacterByHash<Row>;
+  readonly hashes: CardIdentityHashes;
+  readonly current?: CurrentCardIdentity<Row> | undefined;
+  readonly takeArt: (row: Row) => Promise<boolean>;
+}): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
+  const found = await findImportedCharacter(args.find, args.hashes, args.current);
+  if (found?.match !== "text") {
+    return found;
+  }
+  return (await args.takeArt(found.characterId)) ? found : null;
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */

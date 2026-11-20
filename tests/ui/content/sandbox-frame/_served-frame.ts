@@ -4,7 +4,6 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CardFrameMintResponse } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -12,6 +11,7 @@ import { test as corpusTest } from "@orb/testkit/ct-corpus";
 import type { createCorpusHarness } from "@orb/testkit/node/composed";
 import { captureCookieAuth, createCorpusHarness as openCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import type { z } from "zod";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -20,7 +20,7 @@ const CSP_HEADER = "content-security-policy";
 
 export interface ServedFrame {
   readonly url: string;
-  readonly granted: CardFrameMintResponse["granted"];
+  readonly granted: z.infer<typeof cardFrameMintResponseSchema>["granted"];
   /** The card document's own `Content-Security-Policy`, exactly as the route sent it. */
   readonly csp: string;
   readonly status: number;

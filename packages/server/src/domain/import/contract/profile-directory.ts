@@ -1,20 +1,13 @@
-import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { AdmitsAvatar, StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
-import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
-import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
-import type {
-  FindOwnedThemes,
-  ImportedAppearance,
-  ImportedAppearanceOutcome,
-  ImportThemeOp,
-  NewBackgroundEntryId,
-  OwnedBackgroundHashes,
-} from "@orb/contracts/settings";
+import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
+import type { ImportPresets } from "@orb/contracts/preset";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, PlanPresetScripts, ScriptPlan } from "@orb/contracts/regex";
+import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemes, NewBackgroundEntryId, OwnedBackgroundHashes } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { AttachOwnedBooksByName, FindOwnedBooks, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
@@ -30,7 +23,7 @@ import type {
   CollectResult,
 } from "./collection.ts";
 import type { ImportReport } from "./results.ts";
-import type { AdoptDefaultPersona } from "./service.ts";
+import type { AdoptDefaultPersona, ImportProfileDeps } from "./service.ts";
 
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
@@ -38,33 +31,39 @@ type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) =
 /** The CAS store for BACKGROUND blobs. A separate port from the avatar one (which is deliberately narrowed to
  *  `kind:"avatar"` and returns only an id): a `BackgroundLibraryEntry` needs the content HASH — the picker
  *  builds `blobUrl(hash)` from it with no async id→hash round-trip — and the kind differs. `enforceMagic` is
- *  bound TRUE at the composition root: a background's mime is only extension-derived here, so the bytes are
- *  verified against the claim before they enter the CAS. */
+ *  bound TRUE at the composition root: a picture's mime is its sniffed type and any other file's is its extension's,
+ *  so the bytes are verified against the claim before they enter the CAS. */
 type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | "mime" | "maxBytes">) => Promise<Pick<StoredAsset, "assetId" | "hash">>;
 
-/** What the owner already holds, asked of each owning domain without writing. A dry run's preview names an item
- *  the owner has through these reads, one per kind a character's own lookups do not cover. */
+/** What the owner already holds, asked of each owning domain without writing, for the kinds whose write has no dry
+ *  run of its own. Books, presets, themes and personas are judged by their batch write ops in dry-run mode. */
 export interface ProfileOwnership {
-  readonly findBooks: FindOwnedBooks;
-  readonly findPresets: FindOwnedPresets;
-  readonly findThemes: FindOwnedThemes;
   readonly backgroundHashes: OwnedBackgroundHashes;
-  readonly findPersonas: FindOwnedPersonas;
   readonly findChatHashes: FindImportedChatHashes;
+  /** Whether the avatar store keeps a persona's art, so the dry run compares and flags a persona as the run lands it. */
+  readonly admitsAvatar: AdmitsAvatar;
 }
 
-/** The collected items of each kind the owner already holds. An item is the collected entry itself, never its
- *  source string, so two profiles that share a path keep their own verdicts. */
+/** The collected entries of one kind, each with the answer the dry run reached: the content keys it is compared by
+ *  and, when a run writes nothing for it, why (the owner holds it, or an earlier entry of the upload lands it). An
+ *  entry is the collected object itself, never its source string, so two profiles that share a path keep their own
+ *  verdicts. An entry the dry run did not judge (an aborted run) is absent. */
+type Judged<Entry> = ReadonlyMap<Entry, ImportAnswer>;
+
 export interface ImportOwnership {
-  readonly characters: ReadonlySet<CollectedCard>;
-  readonly chats: ReadonlySet<CollectedChat>;
-  readonly personas: ReadonlySet<CollectedPersona>;
-  readonly worlds: ReadonlySet<CollectedWorld>;
-  readonly presets: ReadonlySet<CollectedPreset>;
-  readonly themes: ReadonlySet<CollectedTheme>;
-  readonly backgrounds: ReadonlySet<CollectedBackground>;
-  readonly groups: ReadonlySet<CollectedGroup>;
-  readonly orphans: ReadonlySet<CollectResult["orphanBundles"][number]>;
+  readonly characters: Judged<CollectedCard>;
+  readonly chats: Judged<CollectedChat>;
+  readonly personas: Judged<CollectedPersona>;
+  readonly worlds: Judged<CollectedWorld>;
+  readonly presets: Judged<CollectedPreset>;
+  /** Per preset the run lifts scripts for, what the lift does with each, in the preset's script order. */
+  readonly presetScripts: ReadonlyMap<CollectedPreset, readonly ScriptPlan[]>;
+  readonly themes: Judged<CollectedTheme>;
+  readonly backgrounds: Judged<CollectedBackground>;
+  readonly groups: Judged<CollectedGroup>;
+  readonly orphans: Judged<CollectResult["orphanBundles"][number]>;
+  /** The personas the run lands without art: their avatar file is missing, or the avatar store refuses it. */
+  readonly personasWithoutArt: ReadonlySet<CollectedPersona>;
 }
 
 export interface ProfileDirImportDeps {
@@ -85,20 +84,21 @@ export interface ProfileDirImportDeps {
   readonly importGlobalScripts?: ImportGlobalScripts;
   /** The preset-scoped regex lift, threaded to the presets verb through the profile ops. Same optionality. */
   readonly importPresetScripts?: ImportPresetScripts;
+  /** Travels with `importPresetScripts`: the dry run asks it what each preset's lift does with each script. */
+  readonly planPresetScripts?: PlanPresetScripts;
   /** The ST NAME-LINK attach (card `extensions.world` primary + charLore auxiliaries → the owner's books,
    *  by exact name). Optional on the same precedent; dangling names are REPORTED per character. */
   readonly attachBooksByName?: AttachOwnedBooksByName;
-  /** The UNATTACHED owner-library book write — the standalone `worlds/*.json` land through this (no character
-   *  attach). Imported BEFORE characters so a future name-link (`extensions.world`) can resolve them. */
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
-  /** The preset domain's own import op — the ST preset wave hands it orb-native `orb.preset` bytes. Optional
-   *  on the `importLorebook` precedent: absent ⇒ the preset plane does not restore and every collected preset
-   *  is reported skipped-with-reason, never silently dropped. */
-  readonly importPreset?: ImportPreset;
-  /** The settings domain's own idempotent theme-import op (`createImportTheme`) — the ST theme wave hands it
-   *  orb-native `orb.theme` bytes. Optional on the `importPreset` precedent: absent ⇒ the theme plane does
-   *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
-  readonly importTheme?: ImportThemeOp;
+  /** The UNATTACHED owner-library book batch write — the standalone `worlds/*.json` land through this (no character
+   *  attach), and the dry run asks it in dry-run mode. Imported BEFORE characters so the name-link
+   *  (`extensions.world`) can resolve them. */
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
+  /** The preset domain's own batch import op — the ST preset wave hands it orb-native `orb.preset` bytes, and the
+   *  dry run asks it in dry-run mode. */
+  readonly importPresets: ImportPresets;
+  /** The settings domain's own batch theme-import op (`createImportTheme`) — the ST theme wave hands it orb-native
+   *  `orb.theme` bytes, and the dry run asks it in dry-run mode. */
+  readonly importThemes: ImportThemes;
   /** The settings-owned null-only default-persona crown (`createAdoptImportedDefaultPersona`). */
   readonly adoptDefaultPersona: AdoptDefaultPersona;
   /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
@@ -109,16 +109,16 @@ export interface ProfileDirImportDeps {
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId?: NewBackgroundEntryId;
-  /** The read-only twins of the write ops above, so a dry run can say what the owner already has. */
+  /** The reads a dry run asks for the kinds whose write has no dry-run mode. */
   readonly ownership: ProfileOwnership;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
+  /** The chat-bundle lookup's ops (D290); the run's import context carries them like every other context. */
+  readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
+  readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
+  readonly ownedChatTitle: ImportProfileDeps["ownedChatTitle"];
   readonly now: Clock;
-  /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
-   *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those
-   *  strings off that box's local `Date`. Explicit here so a test pins it instead of inheriting the host's. */
-  readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
   /** The review's per-collision persona choices; an unlisted collision merges. */
@@ -129,6 +129,7 @@ export interface ProfileCollectRecords
   extends Pick<
     CollectResult,
     | "unreadableCards"
+    | "invalidCards"
     | "unreadableWorlds"
     | "unreadablePresets"
     | "refusedThemes"
@@ -145,6 +146,14 @@ export interface ProfileCollectRecords
   readonly missingGroupChats: ImportReport["missingGroupChats"][number][];
 }
 
+/** One profile directory of the upload with its own collect result. The merged lists on {@link ProfileCollected}
+ *  hold the very same entries; the preview reads this side to name each entry by the profile it sits in. A card's
+ *  library tags and extra books exist only on this side: a filename two profiles share does not share them. */
+export interface CollectedProfile {
+  readonly name: string;
+  readonly result: CollectResult;
+}
+
 export interface ProfileCollected
   extends ProfileCollectRecords,
     Pick<
@@ -157,15 +166,16 @@ export interface ProfileCollected
       | "backgrounds"
       | "appearance"
       | "groups"
-      | "tagsByEntityKey"
       | "orphanBundles"
       | "globalRegexScripts"
-      | "malformedGlobalRegexScripts"
-      | "extraBooksByCardStem"
+      | "globalRegexScriptNotes"
       | "databankFileCount"
       | "galleryImageCount"
     > {
   readonly skipped: number;
+  readonly profiles: readonly CollectedProfile[];
+  /** Entries at the upload's root that the importer cannot open as a profile (`unhandled` holds them too). */
+  readonly rootUnhandled: readonly string[];
 }
 
 export type ProfileWaveOutcomes = Pick<
@@ -181,7 +191,10 @@ export type ProfileWaveOutcomes = Pick<
   | "worldNotes"
   | "backgroundsImported"
   | "skippedBackgrounds"
+  | "skippedPersonaAvatars"
   | "skippedCardTags"
+  | "cardNotes"
+  | "cardBookNotes"
   | "appearanceKeysApplied"
   | "groupsImported"
   | "groupChatsImported"
@@ -191,6 +204,7 @@ export type ProfileWaveOutcomes = Pick<
   | "seatedDisabledMembers"
   | "unresolvedPinnedPersonas"
   | "chatsPersonaHealed"
+  | "skippedChatRows"
   | "personasMergedKeys"
   | "memoryChatIds"
   | "globalRegexScriptsLifted"

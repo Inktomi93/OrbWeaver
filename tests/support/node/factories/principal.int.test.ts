@@ -1,6 +1,6 @@
 // @subject tests/support/node/factories/principal.ts
 
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
@@ -24,7 +24,7 @@ test("the canonical internal Principal delegate preserves row identity, fresh ro
   expect(isAdmin(first)).toBe(true);
   await root.db.update(users).set({ enabled: false }).where(eq(users.id, row.id));
   expect(await principal(root, row.id)).toMatchObject({ userId: row.id, via: "fallback" });
-  const response = await root.http.request("/api/trpc/sessions.me");
+  const response = await root.http.request("/api/trpc/sessions.me", { headers: { [CSRF_HEADER]: "1" } });
   expect(response.status).toBe(401);
   await response.arrayBuffer();
 });

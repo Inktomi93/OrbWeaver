@@ -7,14 +7,15 @@
 // attempt's values.
 
 import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME, rethrowUnlessTrpcFailure } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
 import { ROLE_ITEMS } from "../lib/admin-model.ts";
+import { ADMIN_CREATE_USER_NAME, adminCreateUserLabel } from "../lib/user-admin-names.ts";
 
 export interface AdminCreateUserDialogProps {
   readonly open: boolean;
@@ -54,22 +55,24 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
     <FormDialogPopup
       description="Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later."
       submit={{
-        label: createUser.isPending ? "Creating…" : "Create user",
+        label: adminCreateUserLabel(createUser.isPending),
         disabled: createUser.isPending,
         testKey: "adminCreateUserSubmit",
         onSubmit: (): void => {
           // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         },
       }}
       testKey="adminCreateUserDialog"
-      title="Create user"
+      title={ADMIN_CREATE_USER_NAME}
     >
-      <form.AppField name="handle">{(field): ReactElement => <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />}</form.AppField>
+      <form.AppField name="handle">
+        {(field): ReactElement => <field.TextField label={ACCOUNT_HANDLE_FIELD_NAME} placeholder="e.g. mira" autoComplete="off" />}
+      </form.AppField>
       <form.AppField name="password">
         {(field): ReactElement => (
           <field.TextField
-            label="Password"
+            label={ACCOUNT_PASSWORD_FIELD_NAME}
             description={`At least ${MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet: you can reset it here any time.`}
             type="password"
             autoComplete="new-password"
@@ -81,11 +84,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
           {(field): ReactElement => <field.SelectField label="Role" description="Admins manage users, jobs, and system settings." items={ROLE_ITEMS} />}
         </form.AppField>
       ) : null}
-      {createUser.error === null ? null : (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't create the user. That handle may already be taken.
-        </Text>
-      )}
+      {createUser.error === null ? null : <DialogFailure>Couldn't create the user. That handle may already be taken.</DialogFailure>}
     </FormDialogPopup>
   );
 }

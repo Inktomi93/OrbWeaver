@@ -1,11 +1,12 @@
-// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb and the
-// dead-inside-live verbs run both engines over every world and each write one report under reports/unwired/;
+// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// one over every world, the dead-inside-live verbs run both engines, and each writes one report under reports/unwired/;
 // `removed-keys` reads git only and exits 1 while a deletion branch's removed contract key keeps a sender.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
+import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -18,7 +19,6 @@ import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
-import { TEST_WORLDS } from "./worlds.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
@@ -85,7 +85,7 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
-  scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
+  scan: scan("reports/unwired/unwired.json", scanUnwired),
   fields: scan(
     "reports/unwired/fields.json",
     scanFields,
@@ -222,8 +222,21 @@ function summarizeGroup(group: ClusterGroup, targets: readonly PortTarget[]): Gr
   };
 }
 
+// The checkout that holds `root`: a scan rooted in a package still files its report under the repository's `reports/`,
+// the one place `.gitignore` covers. A root outside any checkout keeps its own.
+function checkoutOf(root: string): string {
+  for (let dir = root; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) {
+      return dir;
+    }
+    if (dirname(dir) === dir) {
+      return root;
+    }
+  }
+}
+
 function write(root: string, out: string, body: unknown): string {
-  const path = resolve(root, out);
+  const path = resolve(checkoutOf(root), out);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(body, null, 1)}\n`);
   return path;

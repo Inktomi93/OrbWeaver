@@ -38,7 +38,7 @@ import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "#s
 import { UI_GUEST_BUDGETS } from "#src/lib/plugin-ui-guest-protocol.ts";
 // This module DRIVES; `ui-guest-realm` BUILDS — the same split `sandbox.ts` and `realm.ts` draw on the server.
 import type { GuestState } from "./ui-guest-realm.ts";
-import { callJsonParse, installRealm, LogRing, makeSeams, post, readError } from "./ui-guest-realm.ts";
+import { callJsonParse, installRealm, LogRing, makeSeams, openCpuWindow, post, readError, withinEventBudget } from "./ui-guest-realm.ts";
 
 /** Every network affordance this THREAD has. Removed once the WASM is loaded — see the file header. */
 const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
@@ -71,23 +71,38 @@ function fixedGuestMemory(): WebAssembly.Memory {
   }
 }
 
+// A browser may define a network name on a prototype of the worker's global rather than on the global itself (Chromium
+// does for `fetch`, which a delete on the global left in place), so each name is deleted wherever the chain holds it. A name that
+// survives is refused before any guest code runs: a boot failure, never a thread that keeps its network.
+function dropNetwork(): void {
+  for (const name of NETWORK_GLOBALS) {
+    for (let holder: object | null = globalThis; holder !== null; holder = Reflect.getPrototypeOf(holder)) {
+      Reflect.deleteProperty(holder, name);
+    }
+  }
+  const kept = NETWORK_GLOBALS.filter((name) => name in globalThis);
+  if (kept.length > 0) {
+    throw new Error(`plugin ui worker: could not remove the thread's network (${kept.join(", ")})`);
+  }
+}
+
 /** Memoized WASM module load — ONE instantiation per worker, exactly as `module.ts` does per process. */
 function loadModule(): Promise<QuickJSWASMModule> {
   modulePromise ??= newQuickJSWASMModuleFromVariant(newVariant(baseVariant, { wasmLocation: wasmUrl, wasmMemory: fixedGuestMemory() }));
   return modulePromise;
 }
 
-/** Run a guest computation to settlement under a CPU budget: install the interrupt handler against REAL
- *  monotonic time, pump the job queue, and contain any throw / deadline / OOM as a message. The client mirror of
+/** Run a guest computation to settlement under a CPU budget: open a CPU window, pump the job queue, and contain any
+ *  throw / deadline / OOM as a message. The client mirror of
  *  `Sandbox.runToSettlement`, minus the settlement race — out here the HOST's wall-clock timer plus
  *  `terminate()` is the outer bound, and it is a stronger one than any in-thread deadline can be (a single
  *  interpreter thread cannot preempt itself once it stops running bytecode; another thread killing it can). */
 async function runToSettlement(state: GuestState, cpuMs: number, produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<string | null> {
   const { ctx } = state;
-  // `performance.now()` — the WORKER's, not the guest's (whose is a throwing stub). The DoS deadline must read
-  // a real monotonic clock so a frozen guest clock can never disable the kill.
-  const startMs = performance.now();
-  ctx.runtime.setInterruptHandler(() => performance.now() - startMs > cpuMs);
+  // The window stays open across the await, so the error read after it runs under this budget too. It is paused for the
+  // await: the guest is parked on a host call or a job, a host result and the job pump each run in a window of their
+  // own, and a slow host call is not this event's CPU.
+  using window = openCpuWindow(ctx, cpuMs);
   // the message is the return value; boot posts it as `ready: false` and deliver as
   // `settled: false`, and the host kills the guest and reports the crash. Ends if a caller stops posting the return value.
   try {
@@ -99,8 +114,11 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
     }
     const handle = result.value;
     const native = ctx.resolvePromise(handle);
-    ctx.runtime.executePendingJobs();
+    // On the interrupt path the result holds the guest's `InternalError`; dispose it either way.
+    ctx.runtime.executePendingJobs().dispose();
+    window.pause();
     const settled = await native;
+    window.resume();
     handle.dispose();
     if (settled.error) {
       const message = readError(ctx, settled.error);
@@ -111,17 +129,13 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
     return null;
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
-  } finally {
-    ctx.runtime.removeInterruptHandler();
   }
 }
 
 async function boot(message: UiGuestBootMessage): Promise<void> {
   const module = await loadModule();
   // The WASM is loaded; the thread no longer needs a network and must not keep one (file header).
-  for (const name of NETWORK_GLOBALS) {
-    Reflect.deleteProperty(globalThis, name);
-  }
+  dropNetwork();
   const ctx = module.newContext();
   ctx.runtime.setMemoryLimit(UI_GUEST_BUDGETS.memoryLimitBytes);
   // MANDATORY — see the budget constant. Without it deep recursion is a host crash, not a contained RangeError.
@@ -133,10 +147,14 @@ async function boot(message: UiGuestBootMessage): Promise<void> {
   // `JSON.parse` cannot interpose on the host's marshalling of the next result.
   using jsonNamespace = ctx.getProp(ctx.global, "JSON");
   const jsonParse = ctx.getProp(jsonNamespace, "parse");
+  // `Error.prototype` the same way, so a guest that later replaces `Error` cannot choose a host error's prototype.
+  using errorConstructor = ctx.getProp(ctx.global, "Error");
+  const errorPrototype = ctx.getProp(errorConstructor, "prototype");
 
   const state: GuestState = {
     ctx,
     jsonParse,
+    errorPrototype,
     handler: null,
     pending: new Map(),
     surfaceIds: new Set(message.surfaceIds),
@@ -176,11 +194,18 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
   }
   state.pending.delete(message.callId);
   state.inFlight -= 1;
-  if (message.ok) {
-    waiting.resolve(message.resultJson);
-    return;
+  // The settle can run guest code (a `then` getter the resolve reads), and it may land outside every event, where no
+  // host wall is armed, so it runs under the event budget. A guest it stops is reported as a crash.
+  const stopped = withinEventBudget(state.ctx, () => {
+    if (message.ok) {
+      waiting.resolve(message.resultJson);
+      return;
+    }
+    waiting.reject(message.code === undefined ? { message: message.message } : { message: message.message, code: message.code });
+  });
+  if (stopped) {
+    post({ kind: "stopped" });
   }
-  waiting.reject(message.message);
 }
 
 globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {

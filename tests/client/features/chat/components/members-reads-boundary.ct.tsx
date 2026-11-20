@@ -27,6 +27,7 @@ import {
   MEMBER_CARD_GONE_TITLE,
   MEMBER_CARD_READ,
   MEMBER_VIEW_CHARACTER_NAME,
+  memberCharacterRowName,
 } from "#client/features/chat/lib/members-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -87,7 +88,7 @@ test("a held member card read shows the loading skeleton, a failed one the error
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(memberCharacterRowName(characterName, false))}`, "u") }).click();
   await page.getByRole("menuitem", { name: MEMBER_VIEW_CHARACTER_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;
@@ -114,7 +115,7 @@ test("a card that left the room is the gone state, not the error block", async (
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(memberCharacterRowName(characterName, false))}`, "u") }).click();
   await page.getByRole("menuitem", { name: MEMBER_VIEW_CHARACTER_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(MEMBER_CARD_GONE_TITLE, { exact: true })).toBeVisible();

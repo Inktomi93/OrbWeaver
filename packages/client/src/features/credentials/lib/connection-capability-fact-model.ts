@@ -5,7 +5,8 @@
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
-import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
+import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow, withDeclaredOverride } from "./connection-fact-model.ts";
+import { FACT_NAMES, VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
  *  mock's invented strings — see `connection-fact-model.ts`'s header. */
@@ -20,6 +21,7 @@ const RAISED_OVERRIDE_SOURCE = (asked: string, floor: string, prior: string): st
   `Your override of ${asked} is under the ${floor}-token minimum, so ${floor} is used. It was ${prior}.`;
 /** A route whose request sends the window runs the preset's Max context, so that is the window's one home. */
 const WINDOW_PATH = "generation.context.window";
+const INPUT_PATH = "generation.input";
 const PRESET_WINDOW_SOURCE = (max: string): string => `Set per preset: Max context tokens (up to ${max})`;
 
 function toolsWith(parallel: boolean): (value: unknown) => boolean {
@@ -38,21 +40,21 @@ const TOOL_CALL_CHOICES: readonly FactChoice[] = [
 const GENERATION_LEAVES: readonly FactLeaf[] = [
   {
     path: WINDOW_PATH,
-    name: "context window",
-    edit: { kind: "number" },
+    name: FACT_NAMES.contextWindow,
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.context.windowEstimated",
   },
   {
     path: "generation.output.maxTokens.max",
-    name: "max output",
-    edit: { kind: "number" },
+    name: FACT_NAMES.maxOutput,
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.output.maxTokensEstimated",
   },
   // The endpoint posture widens an undescribed row to image + video and marks the guess; a server that states
   // its modalities (D292) clears the mark, so the row reads reported only when something reported it.
-  { path: "generation.input", name: "takes", edit: { kind: "list" }, estimatedBy: "generation.modalitiesEstimated" },
+  { path: INPUT_PATH, name: "takes", edit: { kind: "list" }, estimatedBy: "generation.modalitiesEstimated" },
   { path: "generation.output.modalities", name: "gives back", edit: { kind: "list" } },
   { path: "generation.reasoning.enabled", name: "thinking", edit: { kind: "boolean" } },
   { path: "generation.reasoning.mode", name: "thinking dial", edit: { kind: "enum", options: REASONING_MODES } },
@@ -66,7 +68,7 @@ export const VECTOR_WIDTH_FACT_PATH = "embedding.dims";
 const EMBEDDING_LEAVES: readonly FactLeaf[] = [
   {
     path: VECTOR_WIDTH_FACT_PATH,
-    name: "vector width",
+    name: VECTOR_WIDTH_FACT_NAME,
     edit: { kind: "number" },
     format: (value): string => `${String(value)} numbers`,
     estimatedBy: "embedding.dimsEstimated",
@@ -138,6 +140,7 @@ function statedCapabilityRow(
     source,
     overridden,
     setElsewhere,
+    estimated,
     edit: leaf.edit,
     draft: draftOf(leaf.edit, value),
     siblings: siblingsFor(leaf.path, capability),
@@ -179,4 +182,68 @@ export function capabilityFactRows(capability: Capability, declared: DeclaredCap
     rows.push(statedCapabilityRow(leaf, value, { capability, declared, baseline }));
   }
   return rows;
+}
+
+/** Where an image answer comes from: the server or catalog stated it, the fold assumed it, or the user set it. */
+const IMAGE_INPUT_PROVENANCES = ["stated", "assumed", "set"] as const;
+type ImageInputProvenance = (typeof IMAGE_INPUT_PROVENANCES)[number];
+
+/** "Takes images" as one switch over the `takes` fact: the image member of `generation.input`, nothing more. */
+export interface ImageInputSwitch {
+  readonly on: boolean;
+  readonly provenance: ImageInputProvenance;
+  /** The answer before the user's own setting, so a set switch can say what it replaced. */
+  readonly was: boolean;
+  readonly input: readonly string[];
+  readonly row: FactRow;
+}
+
+/** The image switch for a generation model, read through the same row the Advanced `takes` list renders, so the two
+ *  cannot disagree. Embedding and rerank rows have no image answer to give. */
+export function imageInputSwitch(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): ImageInputSwitch | undefined {
+  if (capability.kind !== "generation") {
+    return;
+  }
+  const row = capabilityFactRows(capability, declared, baseline).find((candidate) => candidate.path === INPUT_PATH);
+  if (row === undefined) {
+    return;
+  }
+  const input = capability.generation.input;
+  let provenance: ImageInputProvenance = "stated";
+  if (row.overridden) {
+    provenance = "set";
+  } else if (row.estimated === true) {
+    provenance = "assumed";
+  }
+  return { on: input.includes("image"), provenance, was: baseline.kind === "generation" && baseline.generation.input.includes("image"), input, row };
+}
+
+/** The `declared` block with the image member of `takes` set, every other modality left as the fold reads it. */
+export function withImageInput(declared: DeclaredCapability | null, answer: ImageInputSwitch, on: boolean): DeclaredCapability {
+  const others = answer.input.filter((modality) => modality !== "image");
+  return withDeclaredOverride(declared, answer.row, on ? [...others, "image"] : others);
+}
+
+/** The two limits the history fit and the reply cap run against, keyed by their fact path. */
+const LIMIT_KINDS = ["window", "output"] as const;
+type LimitKind = (typeof LIMIT_KINDS)[number];
+const LIMIT_PATH: Readonly<Record<LimitKind, string>> = { window: WINDOW_PATH, output: MAX_TOKENS_PATH };
+
+/** One limit whose value is a floor guess, with the fact row an override of it writes through. */
+export interface GuessedLimit {
+  readonly kind: LimitKind;
+  readonly row: FactRow;
+}
+
+/** The limits the add dialog asks for, written through the same rows the Advanced tier overrides: none unless the
+ *  context window is a floor guess, then the window and, when it is a guess too, the max output. Most servers state no
+ *  output cap, so a guessed max output alone is left to the preset's own hint and door. A window the preset sets
+ *  (`setElsewhere`) is never a guess. */
+export function guessedLimits(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): readonly GuessedLimit[] {
+  const rows = capabilityFactRows(capability, declared, baseline);
+  const guessed = LIMIT_KINDS.flatMap((kind) => {
+    const row = rows.find((candidate) => candidate.path === LIMIT_PATH[kind]);
+    return row?.estimated === true ? [{ kind, row }] : [];
+  });
+  return guessed.some((limit) => limit.kind === "window") ? guessed : [];
 }

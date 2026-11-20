@@ -17,16 +17,17 @@ import { appSettingsConfig, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, use
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, sql } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
@@ -75,7 +76,7 @@ export function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
 }
 
 /** The owner's background assets keyed by content hash. `(ownerId, hash)` is unique, so each hash names at
- *  most one asset; a hash the owner holds under another kind is absent. */
+ *  most one asset; a hash the owner holds but never stored as a background is absent. */
 export async function ownedBackgroundIdsByHash(db: Db, ownerId: UserId, hashes: readonly string[]): Promise<ReadonlyMap<string, AssetId>> {
   if (hashes.length === 0) {
     return new Map();
@@ -83,12 +84,12 @@ export async function ownedBackgroundIdsByHash(db: Db, ownerId: UserId, hashes: 
   const rows = await db
     .select({ id: assets.id, hash: assets.hash })
     .from(assets)
-    .where(and(eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.hash, [...new Set(hashes)])));
+    .where(and(eq(assets.ownerId, ownerId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]), inArray(assets.hash, [...new Set(hashes)])));
   return new Map(rows.map((row) => [row.hash, row.id]));
 }
 
 /** THE background predicate as EXISTS subqueries that RIDE the UPDATE (atomic with the write): every pinned
- *  id must name an asset this user owns AND whose `kind` is `background`. Ownership alone is not the
+ *  id must name an asset this user owns AND uses as a `background`. Ownership alone is not the
  *  question — a user's own card / avatar / export asset id is owned but is not a background,
  *  and accepting one leaves the background plane semantically corrupt while the write reports success. */
 function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[]): SQL[] {
@@ -97,7 +98,7 @@ function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[])
       db
         .select({ one: sql`1` })
         .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND))),
+        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]))),
     ),
   );
 }
@@ -162,7 +163,7 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
     await insertGuardedUserSettings(db, ownerId, config, at);
     return;
   }
-  requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
+  requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`, STORED_CONFIG_REFUSALS.overwrite);
   const written = await db
     .update(userSettings)
     .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
@@ -209,10 +210,10 @@ export async function replaceUserConfig(db: Db, ownerId: UserId, config: UserSet
   }
 }
 
-function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {
+function toView(row: { key: string; value: JsonValue | UnreadableJsonText; updatedAt: number }): GlobalSettingView {
   return {
     key: row.key,
-    // A corrupt row degrades to null rather than throwing — the read surface must not 500.
+    // A corrupt row, text that is not JSON included, degrades to null rather than throwing — the read surface must not 500.
     value: jsonValueSchema.catch(null).parse(row.value),
     updatedAt: row.updatedAt,
   };
@@ -227,7 +228,8 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
 /** Operator inspection preserves stored JSON without normalizing app overrides or tenant values. */
 export async function readGlobalSettings(handle: DatabaseHandle): Promise<GlobalSettingView[]> {
   const db = databaseForOwner(handle);
-  return await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
+  const rows = await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
+  return rows.map(toView);
 }
 
 /** Upsert one raw global-KV row and return its view. The reserved-key guard + audit live in the verb. */
@@ -245,7 +247,7 @@ export async function upsertGlobalSetting(db: Db, key: string, value: JsonValue,
 }
 
 /** Read the raw stored AppSettings override blob (or undefined if never written); the caller parses it. */
-export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined> {
+export async function readAppOverrideRaw(db: Db): Promise<JsonValue | UnreadableJsonText | undefined> {
   const rows = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, APP_SETTINGS_KEY)).limit(1);
   return rows[0]?.value;
 }
@@ -259,7 +261,7 @@ export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined>
 export async function writeAppOverride(db: Db, value: JsonValue, at: number): Promise<void> {
   const stored = await readAppOverrideRaw(db);
   if (stored !== undefined) {
-    requireIntactStoredConfig(appSettingsConfig.parseOutcome(stored), `the ${APP_SETTINGS_KEY} override row`);
+    requireIntactStoredConfig(appSettingsConfig.parseOutcome(stored), `the ${APP_SETTINGS_KEY} override row`, STORED_CONFIG_REFUSALS.overwrite);
   }
   await db
     .insert(settings)

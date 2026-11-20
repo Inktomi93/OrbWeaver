@@ -2,7 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -48,7 +48,7 @@ const wireEnvelopeSchema = z.object({
   message: z.string().optional(),
   ref: z.object({ channel: z.string() }).optional(),
   cursor: z.number().nullable().optional(),
-  event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
+  event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional(), chatId: typeIdSchema(ID_PREFIX.chat).optional() }).optional(),
 });
 
 export interface Frame {
@@ -77,10 +77,14 @@ export interface Device {
   readonly frames: readonly Frame[];
   /** Each `roomLagged` notice in arrival order: the cursor it carried and how many chat frames had arrived before it. */
   readonly lags: readonly { readonly cursor: number | null; readonly chatFramesBefore: number }[];
-  /** Every `user` room event the socket delivered, in arrival order: its type and the tag it names, if any. */
-  readonly userEvents: readonly { readonly type: string; readonly tagId?: TagId }[];
+  /** Every `user` room event the socket delivered, in arrival order: its type and the tag or chat it names, if any. */
+  readonly userEvents: readonly UserEventRecord[];
   readonly attach: () => Promise<void>;
+  /** Attach the account's own `user` room, and return once the socket confirms it. */
+  readonly attachUser: () => Promise<void>;
   readonly waitFor: (done: (frames: readonly Frame[]) => boolean) => Promise<void>;
+  /** Pull the socket until `done` holds over the `user` room events it has delivered. */
+  readonly waitForUser: (done: (events: readonly UserEventRecord[]) => boolean) => Promise<void>;
   readonly close: () => Promise<void>;
 }
 
@@ -100,11 +104,18 @@ export interface OutsiderDevice {
   readonly close: () => Promise<void>;
 }
 
+/** One `user` room event as the socket delivered it. */
+interface UserEventRecord {
+  readonly type: string;
+  readonly tagId?: TagId;
+  readonly chatId?: ChatId;
+}
+
 /** What one socket has delivered so far, by lane. */
 interface SocketLog {
   readonly frames: Frame[];
   readonly lags: { readonly cursor: number | null; readonly chatFramesBefore: number }[];
-  readonly userEvents: { readonly type: string; readonly tagId?: TagId }[];
+  readonly userEvents: UserEventRecord[];
   readonly controls: Set<string | undefined>;
   readonly attachedChannels: Set<string>;
   readonly barrierTagIds: Set<TagId>;
@@ -136,8 +147,8 @@ function logWireLine(log: SocketLog, line: string): void {
   } else if (envelope.channel !== "user") {
     logControl(log, envelope);
   } else {
-    const { type = "", tagId } = envelope.event ?? {};
-    log.userEvents.push(tagId === undefined ? { type } : { type, tagId });
+    const { type = "", tagId, chatId } = envelope.event ?? {};
+    log.userEvents.push({ type, ...(tagId === undefined ? {} : { tagId }), ...(chatId === undefined ? {} : { chatId }) });
     if (tagId !== undefined) {
       log.barrierTagIds.add(tagId);
     }
@@ -149,7 +160,10 @@ async function openSocket(root: ServerTestHarness, account: Account): Promise<Ro
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await root.http.request(address, { headers: { cookie: account.cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await root.http.request(address, {
+    headers: { cookie: account.cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" },
+    signal: stop.signal,
+  });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the socket omitted its stream");
@@ -196,7 +210,13 @@ function seatedDevice(room: Room, socket: RoomSocket, seat: Seat): Device {
       const caller = await room.root.internalCallerFor(seat.id);
       await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "chat", chatId: room.chatId } });
     },
+    attachUser: async (): Promise<void> => {
+      const caller = await room.root.internalCallerFor(seat.id);
+      await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "user" } });
+      await socket.pullUntil(() => socket.log.attachedChannels.has("user"));
+    },
     waitFor: (done) => socket.pullUntil(() => done(socket.log.frames)),
+    waitForUser: (done) => socket.pullUntil(() => done(socket.log.userEvents)),
     close: socket.close,
   };
 }
@@ -226,8 +246,8 @@ export async function openOutsider(room: Room, account: Account): Promise<Outsid
   };
 }
 
-/** The provider's reply bytes: the opening tokens now, the rest when the test releases them. */
-function heldReply(): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
+/** The provider's reply bytes: the reasoning and the `opening` text tokens now, the rest when the test releases them. */
+function heldReply(opening: readonly string[] = BEFORE_JOIN): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
   const released = Promise.withResolvers<boolean>();
   const encoder = new TextEncoder();
   const line = (body: string): Uint8Array => encoder.encode(`${body}\n\n`);
@@ -240,7 +260,7 @@ function heldReply(): { readonly release: () => void; readonly fail: () => void;
         new ReadableStream<Uint8Array>({
           async start(controller): Promise<void> {
             controller.enqueue(frame({ ["reasoning_content"]: THOUGHT }));
-            for (const content of BEFORE_JOIN) {
+            for (const content of opening) {
               controller.enqueue(frame({ content }));
             }
             if (!(await released.promise)) {
@@ -269,8 +289,8 @@ export interface Room extends AsyncDisposable {
   readonly hostSeat: Seat;
   /** The reply the next provider request streams. */
   readonly reply: () => Reply;
-  /** Arm a fresh held reply for the next turn. */
-  readonly rearm: () => void;
+  /** Arm a fresh held reply for the next turn; `opening` is the text it streams before it waits. */
+  readonly rearm: (opening?: readonly string[]) => void;
   /** Answer every later provider request at once with this finished text. */
   readonly answerWith: (text: string) => void;
   /** Answer every later provider request at once with these tokens, one stream frame each, ending on `finishReason`. */
@@ -338,8 +358,8 @@ export async function openRoom(): Promise<Room> {
     host,
     hostSeat: { id: host.userId, cookie: hostCookie, [heldChair]: true },
     reply: (): Reply => reply,
-    rearm: (): void => {
-      reply = heldReply();
+    rearm: (opening): void => {
+      reply = heldReply(opening);
     },
     answerWith: (text): void => {
       reply = { ...reply, respond: (): Response => coreProse(text) };

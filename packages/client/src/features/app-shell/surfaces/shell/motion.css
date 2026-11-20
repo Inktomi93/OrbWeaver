@@ -72,18 +72,26 @@
    * change while its cap is not binding. A box centred by auto margins sits `max(0, P - cap) / 2` from its parent's
    * start edge, so its delta across a commit is the difference of that for the two parent widths, halved; the sign
    * lives in `--shell-track-shrink`. The cap is the carrier's own: the dial for the transcript's track, the dial
-   * capped at the reading measure for the composer's. The marker carries the rule, one for every carrier. */
+   * capped at the reading measure for the composer's. The parent is the carrier's own too: the transcript's rows sit in the
+   * room less what the thread's scroller gives up to scrollbar gutters (`--orb-message-list-gutter`, which the message list
+   * writes on its scroller, `packages/ui/src/primitives/message-list/scrollbar-gutter.ts`). The marker carries the rule, one for every carrier. */
   .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) :is([data-track="chat"], [data-track="composer"]) {
     --shell-centre-flip-from: calc(
-      (max(0px, var(--shell-room-track) + var(--shell-track-shrink) - var(--shell-track-cap)) - max(0px, var(--shell-room-track) - var(--shell-track-cap))) /
+      (
+        max(0px, var(--shell-track-parent) + var(--shell-track-shrink) - var(--shell-track-cap)) -
+        max(0px, var(--shell-track-parent) - var(--shell-track-cap))
+      ) /
       2
     );
   }
   .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) [data-track="chat"] {
     --shell-track-cap: var(--width-shell-content);
+    /* A track outside the scroller (the empty thread's pager) has no gutter to give up. */
+    --shell-track-parent: calc(var(--shell-room-track) - var(--orb-message-list-gutter, 0px));
   }
   .shell-grid:is([data-list-flip], [data-context-flip], [data-list-settle], [data-context-settle]) [data-track="composer"] {
     --shell-track-cap: var(--composer-track);
+    --shell-track-parent: var(--shell-room-track);
   }
   .shell-grid:is([data-list-flip], [data-context-flip]) :is([data-track="chat"], [data-track="composer"]) {
     animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
@@ -132,16 +140,6 @@
   .shell-main [data-slot="chat-room-body"] {
     --flank-flip-dir: 0;
     --flank-track-delta: calc(var(--dimension-room-flank) - var(--size-control-clearance));
-    /* With A the thread after the toggle and B before it: ((A - min(A, W)) - (B - min(B, W))) / 2, A - B = dir * delta. */
-    --flank-centre-flip-from: calc(
-      (
-        var(--flank-flip-dir) *
-        var(--flank-track-delta) +
-        min(100cqi, var(--width-shell-content)) -
-        min(100cqi + var(--flank-flip-dir) * var(--flank-track-delta), var(--width-shell-content))
-      ) /
-      2
-    );
   }
   .shell-main [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"]:is([data-flank-flip="in"], [data-flank-settle="in"])) {
     --flank-flip-dir: 1;
@@ -149,7 +147,21 @@
   .shell-main [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"]:is([data-flank-flip="out"], [data-flank-settle="out"])) {
     --flank-flip-dir: -1;
   }
-  /* The composer's own cap is its track; `100cqi` is the composer region's width after the toggle, as the thread's is for the rows. */
+  /* With A the rows' parent after the toggle and B before it: ((A - min(A, W)) - (B - min(B, W))) / 2, A - B = dir * delta.
+   * `100cqi` is the thread's width after the toggle, and the rows sit in it less the scroller's gutters, as in the shell's
+   * centre FLIP above. Declared on the track, because the gutter is written on the scroller between the body and the row. */
+  .shell-main [data-slot="chat-room-flank-row"] [data-track="chat"] {
+    --flank-centre-flip-from: calc(
+      (
+        var(--flank-flip-dir) *
+        var(--flank-track-delta) +
+        min(100cqi - var(--orb-message-list-gutter, 0px), var(--width-shell-content)) -
+        min(100cqi - var(--orb-message-list-gutter, 0px) + var(--flank-flip-dir) * var(--flank-track-delta), var(--width-shell-content))
+      ) /
+      2
+    );
+  }
+  /* The composer's own cap is its track; `100cqi` is the composer region's width after the toggle. */
   .shell-main [data-slot="chat-room-composer-region"] [data-track="composer"] {
     --flank-composer-flip-from: calc(
       (

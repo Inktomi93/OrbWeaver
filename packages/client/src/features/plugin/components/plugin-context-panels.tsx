@@ -3,7 +3,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { openConfigTo } from "#state";
 import { takeMovedPanelFocus, usePluginChatPlacement, usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
@@ -21,9 +21,11 @@ import { PluginAnchoredSurfaceList } from "./plugin-anchored-surfaces.tsx";
 /** Ordinary chat panels share Context; moved and hidden panels keep their return controls here. */
 export function PluginContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
-    <QueryBoundary resetKeys={[chatId]} fallback={<SkeletonRows count={3} />} reserveKey="plugin.contextPanels">
-      <ContextPanels chatId={chatId} />
-    </QueryBoundary>
+    <ContextTabBody kind="blocks">
+      <QueryBoundary resetKeys={[chatId]} fallback={<SkeletonRows count={3} />} reserveKey="plugin.contextPanels">
+        <ContextPanels chatId={chatId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

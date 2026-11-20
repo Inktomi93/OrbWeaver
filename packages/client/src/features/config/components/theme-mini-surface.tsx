@@ -57,9 +57,6 @@ import { BASE_PALETTE_STAMP } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { dataThemeOf, resolveThemeScopeTokens } from "#lib";
 
-/** The thumbnail's own comfortable tier — a card is a picture of a PALETTE, not of the viewer's density. */
-const PREVIEW_DENSITY = "comfortable";
-
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
@@ -68,12 +65,12 @@ function MiniRoom(): ReactElement {
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
       <Card className="min-inline-0" padding="none" shape="row">
-        <Row align="center" className="min-inline-0" padding="tight" gap="tight">
+        <Row align="center" minWidth="shrinks" padding="tight" gap="tight">
           <Swatch className="min-inline-0" grow={true} size="line" fill="foreground" shape="pill" />
         </Row>
       </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
-      <Row align="center" className="min-inline-0" gap="tight">
+      <Row align="center" minWidth="shrinks" gap="tight">
         <Swatch className="min-inline-0" grow={true} size="line" fill="muted" shape="pill" />
         <Swatch className="shrink-0" fill="primary" shape="pill" size="dotLg" />
       </Row>
@@ -97,7 +94,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
       </Stack>
     );
   }
-  const resolved = resolveThemeScopeTokens(theme, PREVIEW_DENSITY);
+  const resolved = resolveThemeScopeTokens(theme);
   return (
     <ThemeScope ambientAccent={resolved.ambientAccent} ambientBackground={resolved.ambientBackground} box="fill" tokens={resolved.tokens}>
       <Stack width="full" height="fill" data-slot="theme-mini-surface">

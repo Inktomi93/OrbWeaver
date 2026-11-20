@@ -20,10 +20,10 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Tip } from "#components";
+import { MutedLine, Tip } from "#components";
 import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
+import { applyConfigToken, CONFIG_PLUGIN_TOKEN, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
 import {
   openConfigTo,
@@ -146,7 +146,7 @@ function TokenMenu({
   readonly tokens: readonly ConfigQueryToken[];
 }): ReactElement {
   if (tokens.length === 0) {
-    return <Text voice="gloss">{`No filter matches “${partial}”.`}</Text>;
+    return <MutedLine>{`No filter matches “${partial}”.`}</MutedLine>;
   }
   return (
     <>
@@ -175,7 +175,7 @@ function menuTokens(partial: string, groupNames: readonly string[], pluginSlugs:
   const completions: readonly ConfigQueryToken[] = {
     shelf: shelfCompletions(valued.value).map((name) => ({ token: `@shelf:${name}`, hint: `the ${name} shelf` })),
     in: nameCompletions(valued.value, groupNames).map((name) => ({ token: `@in:${name}`, hint: "a settings group" })),
-    plugin: nameCompletions(valued.value, pluginSlugs).map((name) => ({ token: `@plugin:${name}`, hint: "an installed plugin" })),
+    plugin: nameCompletions(valued.value, pluginSlugs).map((name) => ({ token: `${CONFIG_PLUGIN_TOKEN}${name}`, hint: "an installed plugin" })),
   }[valued.kind];
   return completions.length === 0 ? null : completions;
 }
@@ -218,10 +218,10 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const rowGroups = groups.list().filter((group) => group.useSearchRows !== undefined && visible.has(group.id));
 
   return (
-    <Stack aria-label="Settings search" className="min-inline-0" grow={true} role="search">
+    <Stack aria-label="Settings search" minWidth="shrinks" grow={true} role="search">
       <Command label={CONFIG_SEARCH_NAME} shouldFilter={false}>
         <Row align="center" gap="tight">
-          <Stack className="min-inline-0" grow={true}>
+          <Stack minWidth="shrinks" grow={true}>
             {/* The arrival focus lands on the active group's BAND, not on this box. */}
             <CommandInput
               aria-label={CONFIG_SEARCH_NAME}

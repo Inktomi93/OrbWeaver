@@ -13,7 +13,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { MutedLine } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
 import { connectionHost, DIALOG_VERBS } from "#lib";
@@ -24,7 +25,7 @@ import {
   isClaudeSubscription,
   KEY_STORAGE_OFF_COPY,
   keyStorageBlocks,
-  listsOnDemand,
+  listsUnderDraft,
   modelIdExample,
   namesLoopback,
   needsBaseUrl,
@@ -33,6 +34,7 @@ import {
   savedKeyName,
 } from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, showsApiControl } from "../lib/connections-model.ts";
+import { API_KEY_FIELD_NAME, API_KEY_OPTIONAL_FIELD_NAME, keyRefusedNotice, keyUncheckedNotice, SETUP_TOKEN_FIELD_NAME } from "../lib/credentials-names.ts";
 import { typedModelAllowed } from "../lib/model-picker-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { AdmitPrivateHost } from "./connection-reachability.tsx";
@@ -93,6 +95,18 @@ export function ProviderFields({
   backgroundNote,
 }: ProviderFieldsProps): ReactElement {
   const providerLabel = providerDisplayLabel(provider);
+  const liveKey = form.state.values.key;
+  // The key a hosted list is read under is the one the user committed: a paste (a change of more than a
+  // character at once, which a keystroke never is, and an autofill is) or leaving the field. One being typed is
+  // not read, and a committed key the field no longer holds is not the draft.
+  const [committedKey, setCommittedKey] = useState("");
+  const [seenKey, setSeenKey] = useState(liveKey);
+  if (liveKey !== seenKey) {
+    setSeenKey(liveKey);
+    if (liveKey.length - seenKey.length > 1) {
+      setCommittedKey(liveKey);
+    }
+  }
   if (keyStorageBlocks(provider, keyStorage)) {
     return (
       <EmptyState
@@ -134,8 +148,16 @@ export function ProviderFields({
       ) : null}
       {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
-      <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} />
-      {listsOnDemand(provider) ? (
+      <KeyField
+        form={form}
+        credentials={credentials}
+        provider={provider}
+        held={held}
+        keyStorage={keyStorage}
+        onKeyLeft={setCommittedKey}
+        verdict={keyVerdictOf(modelSource, listOwnerOf(provider, form.state.values.baseUrl))}
+      />
+      {listsUnderDraft(provider) ? (
         <form.Subscribe
           selector={(state): { readonly baseUrl: string; readonly key: string; readonly credentialId: CredentialView["id"] | null } => ({
             baseUrl: state.values.baseUrl,
@@ -159,7 +181,8 @@ export function ProviderFields({
                   : (held?.credential.id ?? null)
               }
               invalidation={invalidation}
-              keyValue={draft.key}
+              keyValue={needsBaseUrl(provider) || draft.key.trim() === committedKey.trim() ? draft.key : ""}
+              listsOnInput={held === null}
               onListing={onListing}
               onUrlRefusal={onUrlRefusal}
               trpc={trpc}
@@ -209,6 +232,20 @@ export function ProviderFields({
   );
 }
 
+/** What the provider said about the draft key, from the list read under it: refused, or no verdict from its key
+ *  check. A refusal marks the key field invalid; neither says anything about the model list. */
+interface KeyVerdict {
+  readonly refused: boolean;
+  readonly notice: string;
+}
+
+function keyVerdictOf(source: ModelCatalogSource, listOwner: string): KeyVerdict | null {
+  if (source.status === "failed" && source.keyRefused === true) {
+    return { refused: true, notice: keyRefusedNotice(listOwner) };
+  }
+  return source.status === "listed" && source.keyUnchecked === true ? { refused: false, notice: keyUncheckedNotice(listOwner) } : null;
+}
+
 /** The key step: the paste field, or — once this dialog saved the key — a line naming the saved row. */
 function KeyField({
   form,
@@ -216,15 +253,30 @@ function KeyField({
   provider,
   held,
   keyStorage,
+  onKeyLeft,
+  verdict,
 }: {
   readonly form: AddConnectionForm;
   readonly credentials: readonly CredentialView[];
   readonly provider: ProviderDef;
   readonly held: HeldKey | null;
   readonly keyStorage: boolean;
+  /** The key field was left: the key it held then. */
+  readonly onKeyLeft: (key: string) => void;
+  readonly verdict: KeyVerdict | null;
 }): ReactElement | null {
   const unavailableId = useId();
+  const verdictId = useId();
+  const keyInput = useRef<HTMLInputElement>(null);
   const [lastChoice, setLastChoice] = useState<CredentialView | null>(null);
+  const refused = verdict?.refused === true;
+  // Focus moves to the refused key once per refusal; the input's description then reads the notice out, so the
+  // notice itself is no live region and is announced once.
+  useEffect(() => {
+    if (refused) {
+      keyInput.current?.focus();
+    }
+  }, [refused]);
   if (held !== null) {
     return (
       <Text data-slot="add-connection-key-held" cap="prose" prose={true} voice="gloss">
@@ -287,7 +339,7 @@ function KeyField({
                   {SAVED_KEY_UNAVAILABLE}
                 </Text>
               ) : null}
-              {available.length === 0 && !unavailable ? <Text voice="gloss">No active saved keys for this provider. Paste a new key below.</Text> : null}
+              {available.length === 0 && !unavailable ? <MutedLine>No active saved keys for this provider. Paste a new key below.</MutedLine> : null}
             </>
           );
         }}
@@ -295,7 +347,7 @@ function KeyField({
       <form.Subscribe selector={(state): CredentialView["id"] | null => state.values.credentialId}>
         {(credentialId): ReactElement | null =>
           credentialId !== null ? null : (
-            <form.AppField name="key">
+            <form.AppField name="key" listeners={{ onBlur: ({ value }): void => onKeyLeft(value) }}>
               {(field): ReactElement => (
                 <field.TextField
                   label={keyLabel(provider)}
@@ -303,12 +355,19 @@ function KeyField({
                   type="password"
                   revealable={true}
                   autoComplete="off"
+                  inputRef={keyInput}
+                  {...(verdict === null ? {} : { describedBy: verdictId, invalid: verdict.refused })}
                 />
               )}
             </form.AppField>
           )
         }
       </form.Subscribe>
+      {verdict === null ? null : (
+        <Text id={verdictId} data-slot="add-connection-key-verdict" tone="warning" cap="prose" prose={true} voice="gloss">
+          {verdict.notice}
+        </Text>
+      )}
     </>
   );
 }
@@ -319,9 +378,9 @@ function unavailableKeyLabel(selected: CredentialView | null): string {
 
 function keyLabel(provider: ProviderDef): string {
   if (provider.auth === "oauthToken") {
-    return "Setup token";
+    return SETUP_TOKEN_FIELD_NAME;
   }
-  return needsKey(provider) ? "API key" : "API key (optional)";
+  return needsKey(provider) ? API_KEY_FIELD_NAME : API_KEY_OPTIONAL_FIELD_NAME;
 }
 
 /** Whose list the picker reads, in the user's words: an endpoint's host once a URL is typed, else the

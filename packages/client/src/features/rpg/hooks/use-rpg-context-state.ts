@@ -17,7 +17,7 @@ import type { RpgGameView, RpgTrackerView } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
-import { useSuspenseQueries, useTRPC } from "#data";
+import { roomRosterOptions, useSuspenseQueries, useTRPC } from "#data";
 import { useRpgRoundPending } from "#state";
 import { SATELLITES_TO_BODY_FONT_SCALE } from "../lib/context-layout.ts";
 
@@ -63,7 +63,7 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   // The chat detail read — the cross-domain source of the rpg pointer AND the viewer identity (cache-first;
   // chat already holds this query). Always present (the panel is inside a committed chat), so single-element.
   const [chatQuery] = useSuspenseQueries({
-    queries: [trpc.chat.getChat.queryOptions({ chatId })],
+    queries: [roomRosterOptions(trpc, { chatId })],
   });
   const chat = chatQuery.data;
   // #40 — a DISENGAGED game (pointer engaged:false) collapses the takeover exactly like a non-game chat

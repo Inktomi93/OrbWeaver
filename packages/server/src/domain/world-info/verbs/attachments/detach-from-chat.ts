@@ -1,7 +1,7 @@
 // verb: detachFromChat — remove a book↔chat attachment (idempotent — `detached:false` when already absent).
 // Room gate: the INJECTED `requireChatHost` (D18 — host authority over room config; the book's owner is NOT
-// re-checked, so the host can always clean the room, e.g. after a host handoff left a prior host's book
-// attached). Only a real removal emits `wiBookDetached` + the user-bus `worldInfoChanged` (fired to the acting
+// re-checked, so the host can always clean the room, including a book another account owns, which the pool
+// already ignores under D64). Only a real removal emits `wiBookDetached` + the user-bus `worldInfoChanged` (fired to the acting
 // host — the book owner is unknown here since it's deliberately not re-checked; the header's every-mutation
 // rule; consistency with the ten sibling mutations) + audits.
 

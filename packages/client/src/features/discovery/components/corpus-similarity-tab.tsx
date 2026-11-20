@@ -15,8 +15,9 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { CORPUS_NO_SIMILARITY_EDGES_TEXT, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CharacterPairRow, CorpusDuplicateArt, CorpusDuplicateCharacters, CorpusDuplicateChats, Muted } from "./corpus-duplicate-rows.tsx";
 
@@ -54,14 +55,16 @@ const MAX_NODES_ITEMS: SelectItems = [
 
 export function CorpusSimilarityTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
-      reserveKey="corpus.similarity"
-    >
-      <SimilarityBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
+        reserveKey="corpus.similarity"
+      >
+        <SimilarityBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -97,13 +100,13 @@ function NearestPairs(): ReactElement {
             duplicate sections above do not (P2-5). */}
         <Muted>Every pair above the threshold, ranked. Not the near-duplicate pass's findings.</Muted>
         <Row wrap={true} gap="block">
-          <ParamSelect items={MIN_SIMILARITY_ITEMS} label="Min similarity" onValueChange={setMinSimilarity} value={minSimilarity} />
+          <ParamSelect items={MIN_SIMILARITY_ITEMS} label={CORPUS_PARAM_NAMES.minSimilarity} onValueChange={setMinSimilarity} value={minSimilarity} />
           <ParamSelect items={MAX_NODES_ITEMS} label="Max nodes" onValueChange={setMaxNodes} value={maxNodes} />
         </Row>
         <QueryBoundary
           resetKeys={[knobs.maxNodes, knobs.minSimilarity]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the similarity graph" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.similarityGraph} onRetry={retry} />}
         >
           <NearestPairsList maxNodes={knobs.maxNodes} minSimilarity={knobs.minSimilarity} />
         </QueryBoundary>
@@ -122,7 +125,7 @@ function NearestPairsList({ minSimilarity, maxNodes }: { readonly minSimilarity:
   );
   const { nodes, edges } = graph;
   if (edges.length === 0) {
-    return <Muted>No similarity edges at this threshold.</Muted>;
+    return <MutedLine>{CORPUS_NO_SIMILARITY_EDGES_TEXT}</MutedLine>;
   }
   const nameById = new Map(nodes.map((node) => [node.characterId, node.name]));
   const ranked = edges.toSorted((a, b) => b.similarity - a.similarity);

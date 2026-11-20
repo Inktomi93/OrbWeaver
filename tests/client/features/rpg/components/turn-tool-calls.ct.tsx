@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
+import { RPG_TOOL_CALL_VERDICT_LABELS, turnToolCallsCount, turnToolCallsName } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgTurnFooterStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgTurnFooterStory";
@@ -36,7 +37,7 @@ async function recordedTurn(root: Root, partial: boolean): Promise<RecordedTurn>
       }
     }
   }
-  throw new Error(`The committed corpus has no ${partial ? "partly recorded" : "recorded and unrecorded"} native game turn`);
+  throw new Error(`The committed corpus has no ${partial ? RPG_TOOL_CALL_VERDICT_LABELS.salvaged : "recorded and unrecorded"} native game turn`);
 }
 
 for (const touch of [false, true]) {
@@ -52,7 +53,7 @@ for (const touch of [false, true]) {
       const rpc = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "chat.getChat", "rpg.listTurnToolCalls"]));
       const component = await mount<typeof RpgTurnFooterStory>(STORY, { message: recorded.message });
       const disclosure = page.locator('[data-slot="turn-tool-calls"]');
-      const trigger = disclosure.getByRole("button", { name: `Game actions on this turn: ${recorded.record.calls.length}`, exact: true });
+      const trigger = disclosure.getByRole("button", { name: turnToolCallsName(turnToolCallsCount(recorded.record.calls.length, false)), exact: true });
       await expect(trigger).toBeVisible();
       await expect(trigger).toHaveText(String(recorded.record.calls.length));
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -87,7 +88,12 @@ for (const touch of [false, true]) {
       const recordedGlyph = await trigger.locator("svg").first().innerHTML();
       await trigger.press("Enter");
       await expect(trigger).toHaveAttribute("aria-expanded", "true");
-      await expect(disclosure.locator('[data-slot="turn-tool-call"]')).toHaveCount(recorded.record.calls.length);
+      const callRows = disclosure.locator('[data-slot="turn-tool-call"]');
+      await expect(callRows).toHaveCount(recorded.record.calls.length);
+      // Each row says its own call's outcome, read from the stored record, not from the row it sits in.
+      for (const [index, call] of recorded.record.calls.entries()) {
+        await expect(callRows.nth(index).getByText(RPG_TOOL_CALL_VERDICT_LABELS[call.verdict], { exact: true })).toBeVisible();
+      }
       await trigger.click();
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
       const reads = rpc.count("rpg.listTurnToolCalls");
@@ -100,14 +106,14 @@ for (const touch of [false, true]) {
       await expect(trigger).toBeVisible();
       expect(rpc.count("rpg.listTurnToolCalls")).toBe(reads);
       await component.update({ message: partial.message });
-      const warning = disclosure.getByRole("button", { name: `Game actions on this turn: ${partial.record.calls.length}, needs attention`, exact: true });
+      const warning = disclosure.getByRole("button", { name: turnToolCallsName(turnToolCallsCount(partial.record.calls.length, true)), exact: true });
       await expect(warning).toBeVisible();
       await expect(warning).toHaveText(String(partial.record.calls.length));
       const warningGlyph = warning.locator("svg").first();
       await expect(warningGlyph).toBeVisible();
       expect(await warningGlyph.innerHTML()).not.toEqual(recordedGlyph);
       await warning.press("Enter");
-      await expect(disclosure.getByText("partly recorded", { exact: true }).first()).toBeVisible();
+      await expect(disclosure.getByText(RPG_TOOL_CALL_VERDICT_LABELS.salvaged, { exact: true }).first()).toBeVisible();
       const issue = partial.record.calls.flatMap((call) => call.issues)[0];
       if (issue === undefined) {
         throw new Error("The native partial outcome has no explanation");

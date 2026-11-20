@@ -101,6 +101,18 @@ test.for([
     verdict: CONNECTION_OP_CODES.baseUrlRefused,
   },
   { name: "a bare identity provider host keeps every port", allowlist: IDP_HOST, url: `http://${IDP_HOST}:6379/v1`, verdict: ADMITTED },
+  {
+    name: "an unreadable entry beside a readable one leaves the readable one in force",
+    allowlist: `${PROXY_HOST}:3128, ${PROXY_HOST}:not-a-port`,
+    url: `http://${PROXY_HOST}:3128/v1`,
+    verdict: ADMITTED,
+  },
+  {
+    name: "an unreadable entry admits nothing on its own",
+    allowlist: `${PROXY_HOST}:not-a-port`,
+    url: `http://${PROXY_HOST}:3128/v1`,
+    verdict: CONNECTION_OP_CODES.baseUrlRefused,
+  },
 ])("EGRESS_ALLOWLIST: $name", async ({ allowlist, url, verdict }) => {
   await using root = await beltRoot([], allowlist);
 

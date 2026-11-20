@@ -16,15 +16,16 @@ const PLUGIN_MESSAGE_MAX_LIMIT = 50;
  * Recent canon projected to the REDUCED plugin view: id/role/authorDisplayName/
  * characterId/seq/content only, oldest→newest, content capped — no economics/promptSnapshot.
  *
- * `opts.visibility` is the VIEWER's whole answer from chat's `resolveViewerVisibility`; only that resolver mints
- * one, so a non-member never reaches this function. Its history floor withholds pre-join rows in the query itself.
+ * `opts.visibility` is the VIEWER's whole answer from chat's `resolveViewerVisibility` for THIS `chatId`; only that
+ * resolver mints one, so a non-member never reaches this function, and an answer for another room reads as this room's
+ * not-found. Its history floor withholds pre-join rows in the query itself.
  * Its `readsHidden` verdict (§3.6 / D106) is `false` for a member, whose bodies lose hidden-class spans
  * (`<lie>`/`<ofilter>`) BEFORE they cross the realm boundary, so an untrusted guest realm running as a non-host
  * member never receives a GM-plane secret; the host reveal plane reads verbatim. Stripping here — not a
  * post-filter — keeps the security predicate at the read.
  */
 export async function loadPluginMessages(db: Db, chatId: ChatId, opts: Parameters<PluginChatReads["listMessages"]>[1]): Promise<readonly PluginMessageView[]> {
-  assertResolvedVisibility(opts.visibility);
+  assertResolvedVisibility(opts.visibility, chatId);
   const { historyFloorSeq, readsHidden } = opts.visibility;
   const limit = Math.min(opts.limit ?? PLUGIN_MESSAGE_DEFAULT_LIMIT, PLUGIN_MESSAGE_MAX_LIMIT);
   const rows = await db

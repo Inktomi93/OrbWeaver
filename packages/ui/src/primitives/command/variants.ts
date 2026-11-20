@@ -1,4 +1,4 @@
-import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, tv } from "#lib";
+import { CAPTION, DISABLED_STATE_ARIA, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, tv } from "#lib";
 
 /**
  * Slot classes for the command seal (ui-package-design §9 command chunk). `root` is a
@@ -56,7 +56,7 @@ export const commandVariants = tv({
     item: `
       flex cursor-default items-center gap-row rounded-control px-row text-body leading-body orb-skip-offscreen outline-none select-none
       min-block-(--size-control-sm)
-      data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-disabled
+      ${DISABLED_STATE_ARIA}
       data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground
     `,
     separator: "my-field border-bs border-border",
@@ -68,8 +68,6 @@ export const commandVariants = tv({
     status: "sr-only",
   },
   variants: {
-    // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
-    elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
     fill: { true: { root: "block-full dialog-short:glass-short:block-auto" } },
     // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row. A roomy dialog's list gives the room a footer

@@ -133,9 +133,10 @@ test.for([
   ],
   [
     "a responsive inset the narrow padding props write",
-    `${PRIMITIVES}export const T = (<Stack className="@max-cq-28:px-tight @max-cq-28:pe-block pbs-row" />);\n`,
-    '`@max-cq-28:px-tight` is `paddingInlineNarrow="tight"`',
+    `${PRIMITIVES}export const T = (<Stack className="@max-cq-28:px-inset-tight @max-cq-28:pe-inset-block pbs-row" />);\n`,
+    '`@max-cq-28:px-inset-tight` is `paddingInlineNarrow="tight"`',
   ],
+  ["a box that may shrink below its content", `${PRIMITIVES}export const T = (<Row className="min-inline-0" />);\n`, '`min-inline-0` is `minWidth="shrinks"`'],
   [
     "an owned class under a guard inside cn",
     `${PRIMITIVES}export const T = (<Row className={cn("flex-wrap", open && "justify-between")} />);\n`,
@@ -254,7 +255,7 @@ test.for([
   ],
   [
     "a class through a same-file wrapper declared below it",
-    `${PRIMITIVES}export const T = (<Pass className="justify-end" />);\nfunction Pass({ className }) { return <Row className={cn("min-inline-0", className)} />; }\n`,
+    `${PRIMITIVES}export const T = (<Pass className="justify-end" />);\nfunction Pass({ className }) { return <Row className={cn("shrink-0", className)} />; }\n`,
     "`className` on Pass",
   ],
   [
@@ -301,7 +302,7 @@ test.for([
     ownedBy(JUSTIFY_END, "justify", "end"),
   ],
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
-  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
+  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-inset-block" />);\n`, '`pe-inset-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
   ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-inset-section" />);\n`, "`-mx-inset-section` is `reach="],
   [
@@ -348,7 +349,7 @@ test("the layout rule reports the stacked box on a Button as its own reshape", a
 });
 
 test.for([
-  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 shrink-0" />);\n`],
+  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="shrink-0" />);\n`],
   ["a plain class in a part's own class prop", `${PRIMITIVES}export const T = (<Row restClassName="min-inline-0" />);\n`],
   ["a plain class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="shrink-0" track="chat" />);\n`],
   ["a plain class under a container step", `${PRIMITIVES}export const T = (<Row className="@cq-32:shrink-0" />);\n`],

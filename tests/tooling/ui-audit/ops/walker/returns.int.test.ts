@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("every capped relational census publishes the complete candidate, judged, emitted, and cap-withheld population", async ({ runCli, scratch }) => {
+test("every capped relational census publishes the complete candidate, judged, emitted, and cap-withheld population", async ({ runSnap, scratch }) => {
   const cohorts = Array.from(
     { length: 14 },
     (_unused, index) =>
@@ -22,7 +22,7 @@ test("every capped relational census publishes the complete candidate, judged, e
     (_unused, index) => `<section role="region" aria-label="pane ${String(index)}" style="height:500px;overflow:hidden"><p>a</p><p>b</p><p>c</p></section>`,
   ).join("");
   await writeFile(join(scratch, "relational-accounting.html"), relationalDocument(`${cohorts}${rows}${panes}`));
-  const res = await runCli("snap", ["--file", join(scratch, "relational-accounting.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "relational-accounting.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = await readAuditReport(res.stdout);

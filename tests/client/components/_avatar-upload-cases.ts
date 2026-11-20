@@ -12,7 +12,7 @@
 import type { StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, blobUrl, storedAssetSchema } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { DEFAULT_UPLOAD_CAPS, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 
 import type { ServedHold } from "@orb/testkit/ct";
@@ -29,6 +29,7 @@ import {
   AVATAR_UPLOADING_NAME,
   AVATAR_WRITE_REFUSED,
 } from "#client/lib/avatar-upload-copy.ts";
+import { REFUSAL_GLYPH_NAME } from "#ui/primitives/file-dropzone/file-dropzone-names.ts";
 
 const ROOT_OPTIONS = {
   env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
@@ -87,7 +88,7 @@ export interface AvatarSurface {
 /** Stores one real, distinct picture through the upload route the page uses. */
 async function storePicture(root: Root): Promise<StoredAsset> {
   const form = new FormData();
-  form.set("file", new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "stored.png", { type: "image/png" }));
+  form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "stored.png", { type: "image/png" }));
   form.set("kind", "avatar");
   const response = await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: form });
   expect(response.status).toBe(200);
@@ -695,7 +696,6 @@ const LAYOUT_HEIGHT_PX = 900;
 const PHONE_WIDTH_PX = 390;
 const DESKTOP_WIDTH_PX = 1440;
 const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") } as const;
-const ERROR_GLYPH_NAME = "Error";
 
 function boxesOf(locator: Locator): Promise<readonly Box[]> {
   return locator.evaluateAll((nodes) =>
@@ -741,7 +741,7 @@ function layoutCase(width: number): AvatarCase {
 
       const line = page.locator('[data-slot="file-dropzone-error"]');
       await expect(line).toHaveText(AVATAR_NOT_A_PICTURE);
-      await expect(line.getByRole("img", { name: ERROR_GLYPH_NAME })).toBeVisible();
+      await expect(line.getByRole("img", { name: REFUSAL_GLYPH_NAME })).toBeVisible();
       const shown = await client.readRefusalLine(line);
       expect(shown.ink).toBe(shown.destructiveInk);
       expect(shown.lines).toBeLessThanOrEqual(MOST_LINES);

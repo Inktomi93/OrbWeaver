@@ -26,11 +26,12 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DestructiveAction, QueryBoundary } from "#components";
+import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
+import { PLUGIN_DISTRIBUTE_ACTION_NAME } from "../lib/plugin-copy.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
 import { useDistributePlugin, useWithdrawPlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -108,13 +109,10 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
     const { name } = state.preview.manifest;
     // useDistributePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't distribute that plugin."), which always returns a message. Ends if it drops its errorToast.
-    distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(
-      (result) => {
-        notify.success(fanoutSentence(result, name));
-        setState({ step: "pick" });
-      },
-      () => undefined,
-    );
+    distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then((result) => {
+      notify.success(fanoutSentence(result, name));
+      setState({ step: "pick" });
+    }, rethrowUnlessTrpcFailure);
   };
 
   return (
@@ -170,7 +168,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
             />
             <Row wrap={true} gap="field" justify="start">
               <Button loading={distribute.isPending} onClick={onDistribute}>
-                Distribute to everyone
+                {PLUGIN_DISTRIBUTE_ACTION_NAME}
               </Button>
               <Button
                 variant="ghost"
@@ -187,9 +185,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
         <Separator />
         <Text voice="label">Published to every account</Text>
         {published.length === 0 ? (
-          <Text cap="prose" prose={true} voice="gloss">
-            Nothing is being given out. Anything you distribute here also lands for people who sign up later.
-          </Text>
+          <MutedLine>Nothing is being given out. Anything you distribute here also lands for people who sign up later.</MutedLine>
         ) : (
           <Stack gap="field">
             {published.map((row) => (

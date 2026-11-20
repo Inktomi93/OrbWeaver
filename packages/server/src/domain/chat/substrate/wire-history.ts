@@ -20,6 +20,12 @@
 // `engine/` → `substrate/` is the legal downward edge; nothing here imports `engine/` or `assembly/` beyond
 // the `assembly-access.ts` DI seam this directory already owns.
 //
+// A MODEL PANEL IS A CARD TO THE WINDOW. In a game, every panel a stored reply wrote (`modelPanels`, the reading the
+// reply frame draws by, D354) joins the `cardKeepLastX` window in document order with the marked cards: the newest ride
+// whole, and an older one collapses to the untitled card stub, `[card]`. Outside a game there is no window, so nothing
+// collapses, panel or card: the room sends what the user arranged, and a preset that wants old panels out of the prompt
+// ships its own prompt-pass regex for them.
+//
 // THE `conversation` CARRY ON OPENROUTER: each stored reply of a same-role run carries its own thinking as its own
 // row, and OpenRouter folds consecutive same-role messages into one upstream message that keeps only the FIRST
 // row's thinking. The later replies' thinking never reaches the model, and nothing reports it. One message
@@ -29,7 +35,7 @@ import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView
 import type { ChatHistoryMessage, GeneratedImage, InferenceRuntime, ToolCallInput, WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
-import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
+import { cardWireStub, contentSpanRaw, modelPanels, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { LoadInlineReplyAssetIdsOp, ResolveTurnImageUrlOp } from "../contract/engine-context.ts";
 import type { ResolvedMediaRef, TurnEconomics } from "../contract/results.ts";
@@ -184,6 +190,83 @@ function resolveFullCards(
     full.add(card);
   }
   return full;
+}
+
+interface LocatedSpan {
+  readonly span: ContentSpan;
+  readonly start: number;
+  readonly end: number;
+}
+
+// Each panel widened to whole non-text spans: a panel's edges sit at tag boundaries, so a span it cuts is an image or a
+// dice roll inside its markup, and the collapse takes it whole. Overlaps merge.
+function panelRanges(content: string, located: readonly LocatedSpan[]): readonly { readonly start: number; readonly end: number }[] {
+  const ranges: { start: number; end: number }[] = [];
+  for (const panel of modelPanels(content)) {
+    let { start, end } = panel;
+    for (const piece of located) {
+      if (piece.span.kind !== "text" && piece.start < end && start < piece.end) {
+        start = Math.min(start, piece.start);
+        end = Math.max(end, piece.end);
+      }
+    }
+    const last = ranges.at(-1);
+    if (last !== undefined && start <= last.end) {
+      last.end = Math.max(last.end, end);
+    } else {
+      ranges.push({ start, end });
+    }
+  }
+  return ranges;
+}
+
+/** A stored reply's spans with each model panel as an untitled card span holding its exact bytes, so the card window
+ *  counts and collapses it as it does a marked card. The spans still join to `content` byte for byte. */
+function panelsAsCards(content: string, spans: readonly ContentSpan[]): readonly ContentSpan[] {
+  let cursor = 0;
+  const located = spans.map((span): LocatedSpan => {
+    const start = cursor;
+    cursor += contentSpanRaw(span).length;
+    return { span, start, end: cursor };
+  });
+  const ranges = panelRanges(content, located);
+  if (ranges.length === 0) {
+    return spans;
+  }
+  const pieces: { readonly start: number; readonly span: ContentSpan }[] = ranges.map(({ start, end }) => {
+    const raw = content.slice(start, end);
+    return { start, span: { kind: "card", title: null, body: raw, origin: "lenient", raw } };
+  });
+  for (const piece of located) {
+    if (piece.span.kind === "text") {
+      pieces.push(...textOutside(content, piece, ranges));
+    } else if (!ranges.some((range) => range.start <= piece.start && piece.end <= range.end)) {
+      pieces.push(piece);
+    }
+  }
+  return pieces.toSorted((a, b) => a.start - b.start).map(({ span }) => span);
+}
+
+// The parts of one text span no panel covers, each its own text span.
+function textOutside(
+  content: string,
+  { start, end }: LocatedSpan,
+  ranges: readonly { readonly start: number; readonly end: number }[],
+): readonly { readonly start: number; readonly span: ContentSpan }[] {
+  const out: { readonly start: number; readonly span: ContentSpan }[] = [];
+  let from = start;
+  for (const range of ranges) {
+    if (range.end > from && range.start < end) {
+      if (range.start > from) {
+        out.push({ start: from, span: { kind: "text", text: content.slice(from, range.start) } });
+      }
+      from = Math.min(range.end, end);
+    }
+  }
+  if (from < end) {
+    out.push({ start: from, span: { kind: "text", text: content.slice(from, end) } });
+  }
+  return out;
 }
 
 /** The stored-card slice the window keeps FULL. Absent window ⇒ all of them (a chat that never opted into
@@ -682,9 +765,17 @@ export async function buildWireHistory(
   },
   shapedHistory: readonly ShapedHistoryRow[],
 ): Promise<WireRow[]> {
+  // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
+  // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
+  const assistantMessageIds = new Set(env.canon.filter((m) => m.role === "assistant").map((m) => m.id));
+  // In a game, a stored reply's model panels join the card window (see the header); with no window they stay text.
+  const panelsWindowed = (h: ShapedHistoryRow): boolean => env.cardKeepLastX !== undefined && h.messageId !== undefined && assistantMessageIds.has(h.messageId);
   // COMMITTED canon (the shaped history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
-  const tokenized = shapedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
+  const tokenized = shapedHistory.map((h) => {
+    const spans = tokenizeContent(h.content, { committed: true });
+    return { h, spans: panelsWindowed(h) ? panelsAsCards(h.content, spans) : spans };
+  });
   // The §6.7 origin read is DEMAND-DRIVEN: only an assistant-delivered row bearing an `asset:` span can ever
   // reach class 2 of `ridesAsModelMedia`, so a history without one asks nothing and pays nothing. The probe
   // is deliberately WIDER than the predicate (it ignores `userAuthored`, which needs the canon fold below):
@@ -698,9 +789,6 @@ export async function buildWireHistory(
     inlineReply: mayCarryInlineReply ? await env.loadInlineReplyAssetIds() : NO_INLINE_REPLY_ASSETS,
     contentSignatures: env.contentSignaturesByMessage,
   };
-  // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
-  // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
-  const assistantMessageIds = new Set(env.canon.filter((m) => m.role === "assistant").map((m) => m.id));
   return await Promise.all(
     tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
@@ -805,7 +893,7 @@ type MeasurePassage = (text: string) => Promise<number>;
 /** Only the failed endpoint lookup triggers estimate fallback. Conversion and shape errors still surface. */
 class PassageCountUnavailable extends Error {}
 
-function turnPassageCounter(count: PassageCounter, signal: AbortSignal | undefined): MeasurePassage {
+function turnPassageCounter(count: PassageCounter, signal: AbortSignal): MeasurePassage {
   const costs = new Map<string, number>();
   return async (text) => {
     if (text === "") {
@@ -820,7 +908,7 @@ function turnPassageCounter(count: PassageCounter, signal: AbortSignal | undefin
       costs.set(text, tokens);
       return tokens;
     } catch (cause) {
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       throw new PassageCountUnavailable("The connection could not count prompt passages.", { cause });
     }
   };
@@ -911,7 +999,7 @@ interface ShapeFitArgs {
   readonly shape: (canon: ShapeCanonRows) => ReturnType<typeof shapeTurn>;
   readonly convert: (history: readonly ShapedHistoryRow[]) => Promise<WireRow[]>;
   readonly budget: Parameters<typeof fitHistory>[1];
-  readonly passage: { readonly count: PassageCounter | null; readonly system: readonly string[]; readonly signal?: AbortSignal | undefined };
+  readonly passage: { readonly count: PassageCounter | null; readonly system: readonly string[]; readonly signal: AbortSignal };
 }
 
 type PassageFitNotice = "context_tokenizer_trimmed" | "context_tokenizer_unavailable";

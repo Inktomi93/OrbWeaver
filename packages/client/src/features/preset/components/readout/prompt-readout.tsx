@@ -41,6 +41,18 @@ import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
+import {
+  PRESET_AFTER_HISTORY_LABEL,
+  PRESET_BEFORE_HISTORY_LABEL,
+  PRESET_BOUND_COSTS_READ_LABEL,
+  PRESET_CHAT_HISTORY_LABEL,
+  PRESET_HIDE_PREVIEW_NAME,
+  PRESET_LITERAL_TEXT_LABEL,
+  PRESET_READOUT_BUDGET_LABEL,
+  PRESET_READOUT_NOT_HOST_PRICED,
+  PRESET_READOUT_PRICING_STATUS,
+  PRESET_SHOW_PREVIEW_NAME,
+} from "#src/features/preset/lib/preset-names.ts";
 import { selectPresetSection } from "#state";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
@@ -82,7 +94,7 @@ function sectionName(section: PromptSection): string {
   if (section.name.trim() !== "") {
     return section.name;
   }
-  return section.type === "marker" ? MARKER_COPY[section.marker].label : "Literal text";
+  return section.type === "marker" ? MARKER_COPY[section.marker].label : PRESET_LITERAL_TEXT_LABEL;
 }
 
 /** The panel, with the binding resolved to its arm. The bound arm is its own component so the read's hook is
@@ -120,13 +132,13 @@ function BoundPricing({
   return (
     <QueryBoundary
       resetKeys={[chatId, presetId]}
-      fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
+      fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRESET_READOUT_PRICING_STATUS} />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (
-          <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={NOT_HOST_STATUS} />
+          <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRESET_READOUT_NOT_HOST_PRICED} />
         ) : (
           <>
-            <QueryErrorState label="the bound chat's costs" onRetry={retry} />
+            <QueryErrorState label={PRESET_BOUND_COSTS_READ_LABEL} onRetry={retry} />
             <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
           </>
         )
@@ -136,9 +148,6 @@ function BoundPricing({
     </QueryBoundary>
   );
 }
-
-const PRICING_STATUS = "Pricing these rows against the bound chat…";
-const NOT_HOST_STATUS = "This chat cannot be priced. Its host resolves the prompt, and you are not it.";
 
 function BoundPricedSections({
   chatId,
@@ -161,9 +170,9 @@ function BoundPricedSections({
  *  readings — never one sentence that describes two of them. */
 function budgetGloss(costs: MaterializedCosts | null): string {
   if (costs !== null) {
-    return "A bar click selects its section. These are the REAL costs in the bound chat. Carriers included; a struck row is switched off and costs nothing.";
+    return "A bar click selects its prompt. These are the REAL costs in the bound chat. Carriers included; a struck row is switched off and costs nothing.";
   }
-  return "A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~, because their cost is the conversation's, not the preset's.";
+  return "A bar click selects its prompt. A struck row is switched off and costs nothing; carriers read ~, because their cost is the conversation's, not the preset's.";
 }
 
 /** The read-independent half — the pivot health and the preview disclosure — in ONE instance across the pricing read, so the
@@ -181,6 +190,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
   }, [previewOpen]);
   // The pivot is structure, not cost, so it reads the zones without the bound chat's pricing.
   const zones = deriveZones(sections, (section) => barTokens(section, null) ?? 0);
+  const previewToggleName = previewOpen ? PRESET_HIDE_PREVIEW_NAME : PRESET_SHOW_PREVIEW_NAME;
 
   return (
     <Stack gap="section">
@@ -188,10 +198,10 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
 
       <Section kicker="Pivot">
         {zones.missingPivot ? (
-          <DatumRow label="Chat history" suffix="add one on the rack" value="missing" />
+          <DatumRow label={PRESET_CHAT_HISTORY_LABEL} suffix="add one from the Add menu" value="missing" />
         ) : (
           <DatumRow
-            label="Chat history"
+            label={PRESET_CHAT_HISTORY_LABEL}
             suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate: only the first splits`}
             value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
           />
@@ -208,7 +218,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
           size="sm"
           type="button"
         >
-          {previewOpen ? "Hide assembled preview" : "Show assembled preview"}
+          {previewToggleName}
         </Button>
         {/* THE DISCLOSURE SCROLLS ITSELF INTO VIEW (side-eye F-13). At 1280×800 the trigger sits at y≈780,
             so opening it rendered the entire preview below the fold and the ONLY feedback was the label
@@ -247,11 +257,11 @@ function PricedSections({
 
   return (
     <>
-      <Section kicker="Budget">
+      <Section kicker={PRESET_READOUT_BUDGET_LABEL}>
         <Stack gap="tight">
           <Row align="center" gap="field">
             <Badge tone="info" size="sm">
-              Setup
+              {PRESET_BEFORE_HISTORY_LABEL}
             </Badge>
             <Text voice="gloss">
               {zones.summaries.setup.enabledCount} on · {formatEstimate(zones.summaries.setup.tokenEstimate)}
@@ -259,7 +269,7 @@ function PricedSections({
           </Row>
           <Row align="center" gap="field">
             <Badge tone="warning" size="sm">
-              Post
+              {PRESET_AFTER_HISTORY_LABEL}
             </Badge>
             <Text voice="gloss">
               {zones.summaries.post.enabledCount} on · {formatEstimate(zones.summaries.post.tokenEstimate)}
@@ -332,7 +342,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
-      <Text ink="inherit" textAlign="start" truncate="fill" strike={off} voice="label">
+      <Text grow={true} ink="inherit" textAlign="start" strike={off} voice="label" wrap="word">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
@@ -346,7 +356,7 @@ function BudgetBar({
           meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
           IN the budget list; what it loses is a meter that was saying nothing about it. */}
       {off ? (
-        <Row className="min-inline-0" grow={true} />
+        <Row minWidth="shrinks" grow={true} />
       ) : (
         <TrackBar accent={accent} grow={true} className="min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
       )}

@@ -1,5 +1,6 @@
-// schema/stats — the four per-owner usage-economics rollups plus the canon-version fence that keeps a
-// concurrent rebuild from replacing a newer live delta (producer: domain/stats). ECONOMICS ONLY
+// schema/stats — the four per-owner usage-economics rollups, the canon-version fence that keeps a
+// concurrent rebuild from replacing a newer live delta, and the spend ledger for priced calls with no canon row
+// of their own (producer: domain/stats). ECONOMICS ONLY
 // (turn counts · words · tokens · cost · cache · timing) — ZERO vector columns (the
 // `stats-no-vector-tables` dep-cruiser rule; the type-enforced economics↔semantics line,
 // docs/law/Knowledge-Cluster.md invariant 5: discovery is semantics, stats is economics, they share no tables).
@@ -15,7 +16,7 @@
 //
 // KEYS: owner_stats PK = `ownerId` NATURAL — the per-user row IS keyed by the user; there is no second id.
 // character_stats / daily_stats / model_stats carry
-// a TypeID `id` PK (minted in `domain/stats/write/*` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
+// a TypeID `id` PK (minted in `packages/server/src/domain/stats/persistence/apply-delta.ts` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
 // (`character`, `(owner, bucketStart)`, `(owner, model, provider)`).
 //
@@ -35,11 +36,13 @@
 // NOT per-character — character_stats omits them.
 
 import type { ProviderId } from "@orb/contracts/inference";
-import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, UserId } from "@orb/kit/ids";
+import { SPEND_LEDGER_KINDS } from "@orb/contracts/stats";
+import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, SpendLedgerId, UserId } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
+import { checkList } from "../query/check-list.ts";
 
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
@@ -47,10 +50,6 @@ import { users } from "./users.ts";
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
 // and the read-side model/latency keys; all three MUST stay aligned.
 const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;
-
-// Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
-// only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
-const NOW_MS = sql`(unixepoch() * 1000)`;
 
 // ── NO NON-NEGATIVE COUNTER CHECK HERE, AND THE PREMISE THAT ASKED FOR ONE IS REFUTED ──
 //
@@ -63,7 +62,7 @@ const NOW_MS = sql`(unixepoch() * 1000)`;
 // editing, not an edge case (`verbs/edit.int.test.ts` editReasoning/clearReasoning, selectVariant,
 // applyProseRewrite; `engine/engine-stats.suite.int.test.ts` the swipe/continue/impersonate drift gate).
 //
-// THE MECHANISM, source-pinned: `domain/stats/write/apply-delta.ts` plants THE DELTA ITSELF as the
+// THE MECHANISM, source-pinned: `packages/server/src/domain/stats/persistence/apply-delta.ts` plants THE DELTA ITSELF as the
 // inserted row (`chats: n(delta.characterChats)`, …) and only the ON CONFLICT arm accumulates
 // (`col + excluded.col`). So a NEGATIVE delta — clearing reasoning, deleting a slot, moving a selection —
 // against a character with no rollup row yet inserts a negative row DIRECTLY, and against an existing one
@@ -98,7 +97,8 @@ export const ownerStats = sqliteTable("owner_stats", {
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
-  // Owner-grain counts. `characters` live-undercounts until a drift-repair reconcile.
+  // Owner-grain counts. `characters` is the owner's characters holding a seat in a started room; a first seat, a delete and
+  // a handoff re-point move it live (packages/server/src/domain/stats/persistence/character-census.ts), and a rebuild counts the same set.
   characters: integer("characters").notNull().default(0),
   chats: integer("chats").notNull().default(0),
   userTurns: integer("user_turns").notNull().default(0),
@@ -135,7 +135,7 @@ export const ownerStats = sqliteTable("owner_stats", {
   firstChatAt: integer("first_chat_at"),
   lastActivityAt: integer("last_activity_at"),
   // MAX-merged freshness stamp (epoch-ms).
-  computedAt: integer("computed_at").notNull().default(NOW_MS),
+  computedAt: stampColumn("computed_at"),
 });
 
 // character_stats — per-character totals, ONE row per character (grouped on `characters.id`
@@ -144,7 +144,7 @@ export const ownerStats = sqliteTable("owner_stats", {
 export const characterStats = sqliteTable(
   "character_stats",
   {
-    // TypeID PK (`character_stat_…`), minted in domain/stats/write/*; brand is type-only, SQL is TEXT.
+    // TypeID PK (`character_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts; brand is type-only, SQL is TEXT.
     id: nulFreeText("id").$type<CharacterStatId>().primaryKey(),
     // The owning character. CASCADE: the rollup dies with its character.
     characterId: nulFreeText("character_id")
@@ -179,7 +179,7 @@ export const characterStats = sqliteTable(
     // Extrema (epoch-ms numbers) — MIN/MAX-merged.
     firstChatAt: integer("first_chat_at"),
     lastActivityAt: integer("last_activity_at"),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // One rollup row per character — the live-delta UPSERT conflict target.
@@ -195,7 +195,7 @@ export const characterStats = sqliteTable(
 export const dailyStats = sqliteTable(
   "daily_stats",
   {
-    // TypeID PK (`daily_stat_…`), minted in domain/stats/write/*.
+    // TypeID PK (`daily_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts.
     id: nulFreeText("id").$type<DailyStatId>().primaryKey(),
     ownerId: nulFreeText("owner_id")
       .$type<UserId>()
@@ -223,7 +223,7 @@ export const dailyStats = sqliteTable(
     genTimeMs: integer("gen_time_ms").notNull().default(0),
     // Set by the canon rebuild; the live upsert never touches it, so a bucket flagged migration-approximate stays flagged.
     messageDatesApprox: integer("message_dates_approx", { mode: "boolean" }).notNull().default(false),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // owner × bucket — the live-delta UPSERT conflict target.
@@ -237,7 +237,7 @@ export const dailyStats = sqliteTable(
 export const modelStats = sqliteTable(
   "model_stats",
   {
-    // TypeID PK (`model_stat_…`), minted in domain/stats/write/*.
+    // TypeID PK (`model_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts.
     id: nulFreeText("id").$type<ModelStatId>().primaryKey(),
     ownerId: nulFreeText("owner_id")
       .$type<UserId>()
@@ -264,10 +264,45 @@ export const modelStats = sqliteTable(
     // Cache economics — owner + MODEL grain.
     cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
     cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // owner × model × provider — the live-delta UPSERT conflict target; relies on `provider` NOT NULL.
     uniqueIndex("model_stats_owner_model_provider_unique").on(table.ownerId, table.model, table.provider),
   ],
+);
+
+// spend_ledger — one row per PRICED model call that leaves no canon row of its own: a compaction pass (its marker is
+// overwritten by the next pass), an image prompt's extraction or caption (the prompt is never persisted), and a paid
+// sample of canon that left the owner's stats scope (a deleted room, or a room whose last seat of the owner's went with
+// a deleted character). It is the only canon the stats rebuild can re-derive that spend from (`rebuild-from-canon.ts`).
+// Stats' own write ops land each row in the same batch as its live delta (`domain/stats/write/ledger-spend.ts`) or as
+// the delete that retires its canon (`domain/stats/persistence/retire-canon.ts`).
+// OWNER-STAMPED (D23): the funding principal is the owner, and no FK reaches it — the spend is that principal's money,
+// not a room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
+// Money already paid stays paid, so no verb deletes a row to lower spend. The one delete is a seat that brings a
+// retired room back into scope: canon carries that spend again, so one retired row per paid sample of the room leaves.
+export const spendLedger = sqliteTable(
+  "spend_ledger",
+  {
+    id: nulFreeText("id").$type<SpendLedgerId>().primaryKey(),
+    // FK users RESTRICT — the same posture as the stats rollups this row feeds.
+    ownerId: nulFreeText("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    // CHECK-gated to the contracts tuple, so the row type and the SQL read the same closed set.
+    kind: text("kind", { enum: SPEND_LEDGER_KINDS }).notNull(),
+    // Fractional USD; only a reported cost is a row (an unpriced call spends nothing to record).
+    costUsd: real("cost_usd").notNull(),
+    // The call's clock — the live delta's `now`, so the rebuild buckets the spend in the same timeline bucket.
+    createdAt: integer("created_at").notNull(),
+    // The model bucket a retired canon sample was paid on, so by-model spend survives a rebuild; NULL for every kind
+    // with no model rollup and for a sample whose model the canon never named.
+    model: nulFreeText("model").$type<ModelId>(),
+    provider: nulFreeText("provider").$type<ProviderId>(),
+    // A retired sample's cost was notional (a subscription wire), counted apart from billed cost on every grain.
+    notional: integer("notional", { mode: "boolean" }).notNull().default(false),
+  },
+  (t) => [index("spend_ledger_owner_idx").on(t.ownerId, t.createdAt), check("spend_ledger_kind_check", sql.raw(`kind in (${checkList(SPEND_LEDGER_KINDS)})`))],
 );

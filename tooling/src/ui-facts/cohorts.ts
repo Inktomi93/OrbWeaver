@@ -1,11 +1,14 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
-import type { Elem, FileFacts, Rendered } from "../eslint/index.ts";
+import { posix } from "node:path";
+import ts from "typescript";
+import type { Elem, FileFacts, Rendered, Source } from "../eslint/index.ts";
 import {
   attrString,
   buttonWithText,
   childrenText,
   componentsIn,
+  constInitializer,
   DESTRUCTIVE_EXEMPT,
   firstLine,
   hasAny,
@@ -13,8 +16,10 @@ import {
   listSlotSurfaces,
   mounted,
   SLOT_HOPS,
+  unwrap,
+  visit,
 } from "../eslint/index.ts";
-import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
+import type { Cell, Cohort, KeptRead, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
 const cell = (value: string, line: number): Cell => ({ value, line });
@@ -212,6 +217,208 @@ function dialogMember(facts: FileFacts, dialog: Elem): Member {
   });
 }
 
+// ── modal popovers ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The cohort name the composition report lists every site of.
+ *
+ * @remarks An anchored popover whose body carries input takes `modal`, by the rule on `Popover` in
+ * packages/ui/src/primitives/popover/popover.tsx. It is a different shape from a centred dialog, so it is counted apart.
+ */
+export const MODAL_POPOVER_COHORT = "modal-popover";
+const POPOVER = "Popover";
+const POPOVER_TRIGGER = "PopoverTrigger";
+const DETACHED_TRIGGER = "detached handle";
+const CONTROLLED_OPEN = "controlled open";
+const NO_TRIGGER = "none";
+const RUNTIME = "runtime";
+const RUNTIME_RENDER = "runtime render";
+
+/** `modal` as written: `true`, Base UI's `trap-focus`, a runtime value, or null when the popover is unfenced. */
+function modalOf(popover: Elem): string | null {
+  const attr = popover.attrs.get("modal");
+  if (attr === undefined) {
+    return null;
+  }
+  const literal = attrString(attr);
+  if (literal !== undefined) {
+    return literal;
+  }
+  const expression =
+    attr.initializer === undefined
+      ? "true"
+      : attr.initializer
+          .getText()
+          .replace(/^\{|\}$/gu, "")
+          .trim();
+  if (expression === "false") {
+    return null;
+  }
+  return expression === "true" ? "true" : RUNTIME;
+}
+
+/** The JSX element nearest above `elem` with the tag, or null. */
+function nearestTag(elem: Elem, tag: string): ts.JsxElement | null {
+  for (let node: ts.Node = elem.element.parent; !ts.isSourceFile(node); node = node.parent) {
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText() === tag) {
+      return node;
+    }
+  }
+  return null;
+}
+
+const jsxTagOf = (element: ts.JsxElement | ts.JsxSelfClosingElement): string => (ts.isJsxElement(element) ? element.openingElement : element).tagName.getText();
+
+/** The element a trigger renders: its own button with no `render`, the tag a literal `render` names, or a runtime render. */
+function renderedTrigger(trigger: Elem): string {
+  const render = trigger.attrs.get("render");
+  if (render === undefined) {
+    return POPOVER_TRIGGER;
+  }
+  const shown = render.initializer !== undefined && ts.isJsxExpression(render.initializer) ? render.initializer.expression : undefined;
+  return shown !== undefined && (ts.isJsxElement(shown) || ts.isJsxSelfClosingElement(shown)) ? jsxTagOf(shown) : RUNTIME_RENDER;
+}
+
+/** What opens the popover: the element its own trigger renders, a trigger elsewhere through a handle, or its `open` prop alone. */
+function triggerOf(facts: FileFacts, popover: Elem): Cell {
+  const trigger = facts.elems.find((elem) => elem.tag === POPOVER_TRIGGER && nearestTag(elem, POPOVER) === popover.element);
+  if (trigger !== undefined) {
+    return cell(renderedTrigger(trigger), trigger.line);
+  }
+  if (popover.attrs.has("handle")) {
+    return cell(DETACHED_TRIGGER, popover.line);
+  }
+  return cell(popover.attrs.has("open") ? CONTROLLED_OPEN : NO_TRIGGER, popover.line);
+}
+
+function modalPopoverMembers(facts: FileFacts): readonly Member[] {
+  return facts.elems.flatMap((elem) => {
+    const modal = elem.tag === POPOVER && elem.kind !== "raw" ? modalOf(elem) : null;
+    return modal === null ? [] : [member(facts, POPOVER, { modal: cell(modal, elem.line), trigger: triggerOf(facts, elem) })];
+  });
+}
+
+// ── notices and muted lines ──────────────────────────────────────────────────────────────────────
+
+const NOTICE = "Notice";
+const MUTED_LINE = "MutedLine";
+const HAND_BUILT = "hand-built";
+// A Card in a colour tone with the soft or outline fill is a status box (UI-Density-Law §4.3, the Card `variant` row).
+const STATUS_FILLS = new Set(["soft", "outline"]);
+const NOTICE_SITES = "packages/client/src/components/notice.tsx";
+const MUTED_LINE_SITES = "packages/client/src/components/muted-line.tsx";
+// The condition of an arm that draws the empty branch of a list.
+const EMPTY_CONDITION = /\.length\s*===?\s*0|\bisEmpty\b/u;
+
+const kept = (path: string, label: string, count: number, reason: string): KeptRead => ({ path, label, value: HAND_BUILT, count, reason });
+const CHOICE_ISLAND = "a choice island: the options a turn offers as a set of buttons, not one condition and its recovery";
+const NOTICE_KEPT: readonly KeptRead[] = [
+  kept(
+    "packages/client/src/features/chat/components/composer-drop-target.tsx",
+    "Card",
+    1,
+    "a drop affordance, not a status box (docs/plans/cross-surface-consistency/design.md, Empty states)",
+  ),
+  kept("packages/client/src/features/chat/components/message-choices-block.tsx", "Card", 1, CHOICE_ISLAND),
+  kept("packages/client/src/features/rpg/components/rpg-choice-echo.tsx", "Card", 1, CHOICE_ISLAND),
+  kept(
+    "packages/client/src/features/refinery/components/payload-view.tsx",
+    "Card",
+    1,
+    "the verdict banner: a run's verdict heading, its prose and its gauge, tinted by the schema author's tone map",
+  ),
+  kept(
+    "packages/client/src/features/rpg/components/rpg-veiled-section.tsx",
+    "Card",
+    2,
+    "a veiled ledger row: a host-only record with its turn and a reveal gate, one row per lie or hidden line",
+  ),
+];
+const VALIDATION_HINT = "a hint that says why the form cannot be saved yet, not the empty line of a list";
+const MUTED_LINE_KEPT: readonly KeptRead[] = [
+  kept("packages/client/src/features/automation/components/rule-editor-actions.tsx", "Text", 1, VALIDATION_HINT),
+  kept("packages/client/src/features/automation/components/rule-list-action-fields.tsx", "Text", 1, VALIDATION_HINT),
+  // One ruling for both reads: a second ruling at the same path would cover the same first read again.
+  kept(
+    "packages/client/src/features/roster-preset/components/roster-picker.tsx",
+    "Text",
+    2,
+    "one state of the rules include line, the save control's description, whose states are one element with one id; and the hint that a roster needs a name to save",
+  ),
+  kept("packages/client/src/features/discovery/components/corpus-compare-tab.tsx", "Text", 1, "the no-value mark in a compared value cell"),
+  kept("packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx", "Text", 1, "the scene hit's own snippet, shown when no window loaded"),
+  kept(
+    "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx",
+    "Text",
+    1,
+    "the body of a preview block button, part of the button's name",
+  ),
+  kept("packages/client/src/features/regex/components/regex-context-body.tsx", "Text", 1, "a destructive warning that the script runs nowhere"),
+];
+
+/** A toned Card with a status fill, written in a feature: a notice the feature drew by hand. */
+function handBuiltNotice(elem: Elem): boolean {
+  const fill = elem.attrs.get("variant");
+  const literal = attrString(fill);
+  return elem.tag === "Card" && elem.attrs.has("tone") && fill !== undefined && (literal === undefined || STATUS_FILLS.has(literal));
+}
+
+function noticeMembers(facts: FileFacts): readonly Member[] {
+  if (facts.source.path === NOTICE_SITES) {
+    return [];
+  }
+  return facts.elems.flatMap((elem) => {
+    if (elem.tag === NOTICE) {
+      return [member(facts, NOTICE, { composite: cell(NOTICE, elem.line), tone: cell(attrString(elem.attrs.get("tone")) ?? RUNTIME, elem.line) })];
+    }
+    return inFeature(facts) && handBuiltNotice(elem)
+      ? [member(facts, "Card", { composite: cell(HAND_BUILT, elem.line), tone: cell(attrString(elem.attrs.get("tone")) ?? RUNTIME, elem.line) })]
+      : [];
+  });
+}
+
+/** The condition that gates the arm the element is drawn in: a ternary's true branch, an `&&` right side, or an `if` that returns it. */
+function armCondition(elem: Elem): ts.Expression | null {
+  let node: ts.Node = elem.element;
+  while (ts.isParenthesizedExpression(node.parent)) {
+    node = node.parent;
+  }
+  const parent = node.parent;
+  if (ts.isConditionalExpression(parent) && parent.whenTrue === node) {
+    return parent.condition;
+  }
+  if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && parent.right === node) {
+    return parent.left;
+  }
+  if (ts.isReturnStatement(parent)) {
+    const block = ts.isBlock(parent.parent) ? parent.parent.parent : parent.parent;
+    return ts.isIfStatement(block) ? block.expression : null;
+  }
+  return null;
+}
+
+function mutedLineMembers(facts: FileFacts): readonly Member[] {
+  if (facts.source.path === MUTED_LINE_SITES) {
+    return [];
+  }
+  const sf = facts.source.sf;
+  return facts.elems.flatMap((elem) => {
+    if (elem.tag === MUTED_LINE) {
+      return [
+        member(facts, MUTED_LINE, {
+          line: cell(MUTED_LINE, elem.line),
+          action: cell(yesNo(elem.attrs.has("action")), elem.line),
+          announce: cell(yesNo(elem.attrs.has("announce")), elem.line),
+        }),
+      ];
+    }
+    const condition = elem.tag === "Text" && inFeature(facts) ? armCondition(elem) : null;
+    return condition !== null && sf !== null && EMPTY_CONDITION.test(condition.getText(sf))
+      ? [member(facts, "Text", { line: cell(HAND_BUILT, elem.line), action: cell(NOT_APPLICABLE, elem.line), announce: cell(NOT_APPLICABLE, elem.line) })]
+      : [];
+  });
+}
+
 // ── destructive actions ──────────────────────────────────────────────────────────────────────────
 
 const DESTRUCTIVE_WORD = /^(?:Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b/iu;
@@ -307,10 +514,11 @@ function headerMembers(facts: FileFacts): readonly Member[] {
 
 const MUTATION_FACTORIES = new Set(["createEntityMutation", "useMutation"]);
 
-function contextTab(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Member {
+/** The columns a CONTEXT body's own component answers: its tabs, where its mutations live, its confirm, its arrival hook and its empty state. */
+function contextTabCells(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Record<string, Cell> {
   const tabs = [...facts.tags].filter((tag) => /^Tabs?[A-Z]?/u.test(tag) && facts.elems.some((elem) => elem.tag === tag && elem.kind === "ui")).sort();
   const mutations = [...facts.calls].filter((call) => MUTATION_FACTORIES.has(call));
-  return member(facts, "file", {
+  return {
     tabs: cell(tabs.length === 0 ? "none" : tabs.join("+"), firstLine(facts, ...tabs)),
     inlineMutations: cell(mutations.length === 0 ? "none" : "defined in the component file", 1),
     confirm: cell(
@@ -318,6 +526,305 @@ function contextTab(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): M
       firstLine(facts, "ConfirmDialog", "DestructiveAction"),
     ),
     ...focusAndEmpty(facts, byPath),
+  };
+}
+
+// ── CONTEXT tab bodies ───────────────────────────────────────────────────────────────────────────
+
+const CONTEXT_TAB_BODY = "ContextTabBody";
+const CONTEXT_MINT = "defineContextTabs";
+const TAB_DEF_TYPE = /\bContextTabDef\b/u;
+// A section's `single` context and a collection's `body` context each register one body, under `body` and `render`.
+const BODY_CONTEXTS: ReadonlyMap<string, string> = new Map([
+  ["single", "body"],
+  ["body", "render"],
+]);
+const HAND_BUILT_ROOT = "hand-built";
+
+/** One body a CONTEXT registration declares: the expression that draws it and the name the census lists it by. */
+interface ContextBody {
+  readonly label: string;
+  readonly line: number;
+  readonly draw: ts.Expression;
+}
+
+function propertyOf(object: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined {
+  for (const property of object.properties) {
+    if (ts.isPropertyAssignment(property) && property.name.getText() === name) {
+      return property.initializer;
+    }
+  }
+  return undefined;
+}
+
+// The type a declaration or a function's return is annotated with, when it carries one.
+const declaredType = (node: ts.Node): ts.TypeNode | undefined =>
+  ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.type : undefined;
+
+/** The object is a tab: it sits in the mint's call or under a declaration typed as a tab definition. */
+function isTabDefinition(object: ts.ObjectLiteralExpression): boolean {
+  for (let node: ts.Node = object.parent; !ts.isSourceFile(node); node = node.parent) {
+    if (ts.isCallExpression(node) && node.expression.getText() === CONTEXT_MINT) {
+      return true;
+    }
+    const type = declaredType(node);
+    if (type !== undefined && TAB_DEF_TYPE.test(type.getText())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The files of the checkout by repo path, `.ts` and `.tsx`, for reading a constant another module declares. */
+type SourcesByPath = ReadonlyMap<string, ts.SourceFile>;
+
+// A string a `const` holds, here or in the module a relative import names; the label falls back to the expression's text.
+function idText(sf: ts.SourceFile, path: string, expression: ts.Expression, sources: SourcesByPath): string {
+  const node = unwrap(expression);
+  if (ts.isStringLiteralLike(node)) {
+    return node.text;
+  }
+  if (!ts.isIdentifier(node)) {
+    return node.getText(sf);
+  }
+  const local = constInitializer(sf, node.text);
+  if (local !== null && ts.isStringLiteralLike(local)) {
+    return local.text;
+  }
+  const specifier = sf.statements.find(
+    (statement): statement is ts.ImportDeclaration =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text.startsWith(".") &&
+      statement.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some((element) => element.name.text === node.text),
+  );
+  const target =
+    specifier === undefined ? undefined : sources.get(posix.normalize(posix.join(posix.dirname(path), (specifier.moduleSpecifier as ts.StringLiteral).text)));
+  const imported = target === undefined ? null : constInitializer(target, node.text);
+  return imported !== null && ts.isStringLiteralLike(imported) ? imported.text : node.text;
+}
+
+/** Every body a file registers: a tab's `body`, a `single` context's `body` and a collection's `body` context's `render`. */
+function contextBodiesIn(facts: FileFacts, sources: SourcesByPath): readonly ContextBody[] {
+  const sf = facts.source.sf;
+  if (sf === null) {
+    return [];
+  }
+  const found: ContextBody[] = [];
+  const line = (node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  visit(sf, (node) => {
+    if (!ts.isObjectLiteralExpression(node)) {
+      return;
+    }
+    const body = propertyOf(node, "body");
+    const id = propertyOf(node, "id");
+    if (body !== undefined && id !== undefined && isTabDefinition(node)) {
+      found.push({ label: idText(sf, facts.source.path, id, sources), line: line(node), draw: body });
+      return;
+    }
+    const kindValue = propertyOf(node, "kind");
+    const kind = kindValue !== undefined && ts.isStringLiteralLike(kindValue) ? kindValue.text : undefined;
+    const slot = kind === undefined ? undefined : BODY_CONTEXTS.get(kind);
+    const draw = slot === undefined ? undefined : propertyOf(node, slot);
+    if (kind !== undefined && draw !== undefined && ts.isPropertyAssignment(node.parent) && node.parent.name.getText() === "context") {
+      found.push({ label: `${kind} context`, line: line(node), draw });
+    }
+  });
+  return found;
+}
+
+// What an expression renders on each of its branches: both arms of `?:`, what `&&` renders when it renders, either side of `||` and `??`.
+// `null`, `undefined` and `false` render nothing, so they draw no root.
+function renderedBy(expression: ts.Expression): readonly ts.Expression[] {
+  const node = unwrap(expression);
+  if (ts.isConditionalExpression(node)) {
+    return [...renderedBy(node.whenTrue), ...renderedBy(node.whenFalse)];
+  }
+  if (ts.isBinaryExpression(node)) {
+    const operator = node.operatorToken.kind;
+    if (operator === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return renderedBy(node.right);
+    }
+    if (operator === ts.SyntaxKind.BarBarToken || operator === ts.SyntaxKind.QuestionQuestionToken) {
+      return [...renderedBy(node.left), ...renderedBy(node.right)];
+    }
+  }
+  const nothing = node.kind === ts.SyntaxKind.NullKeyword || node.kind === ts.SyntaxKind.FalseKeyword || (ts.isIdentifier(node) && node.text === "undefined");
+  return nothing ? [] : [node];
+}
+
+// A component wrapped in `memo(Fn)` or `forwardRef(fn)` renders what its function does.
+const COMPONENT_WRAPPERS: ReadonlySet<string> = new Set(["memo", "forwardRef"]);
+// The registration slots that draw a body; a call through one renders a body the census lists as its own member.
+const DRAW_SLOTS: ReadonlySet<string> = new Set(["body", ...BODY_CONTEXTS.values()]);
+// `Surface` declares a tier on a `display: contents` box, so it draws no box of its own and its children are the roots.
+const BOXLESS_TAGS: ReadonlySet<string> = new Set(["Surface"]);
+// How many component and factory steps the root walk follows from a registration before it reads a root as unread.
+const ROOT_HOPS = 6;
+// What a branch can root in besides an owner kind: a dialog, which portals out of the pane, and a body another registration draws.
+const DIALOG_ROOT = "dialog";
+const DELEGATED_ROOT = "member body";
+
+/** The roots a component or a draw returns: an arrow's expression body, or each `return` of its own body (a nested function's are its own). */
+function branchesOf(node: ts.Node): readonly ts.Expression[] {
+  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && COMPONENT_WRAPPERS.has(node.expression.text)) {
+    const [inner] = node.arguments;
+    return inner === undefined ? [] : branchesOf(inner);
+  }
+  if (!(ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node))) {
+    return ts.isExpression(node) ? renderedBy(node) : [];
+  }
+  const body = node.body;
+  if (body === undefined) {
+    return [];
+  }
+  if (!ts.isBlock(body)) {
+    return renderedBy(body);
+  }
+  const returned: ts.Expression[] = [];
+  const walk = (inner: ts.Node): void => {
+    if (ts.isFunctionLike(inner)) {
+      return;
+    }
+    if (ts.isReturnStatement(inner) && inner.expression !== undefined) {
+      returned.push(...renderedBy(inner.expression));
+    }
+    ts.forEachChild(inner, walk);
+  };
+  ts.forEachChild(body, walk);
+  return returned;
+}
+
+// A declaration in the file by name, at any depth, component or factory: the function, or the initializer a `const` holds.
+function declarationIn(sf: ts.SourceFile, name: string): ts.Node | undefined {
+  let found: ts.Node | undefined;
+  visit(sf, (node) => {
+    if (found !== undefined) {
+      return;
+    }
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) {
+      found = node;
+    } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer !== undefined) {
+      found = unwrap(node.initializer);
+    }
+  });
+  return found;
+}
+
+/** The root each branch of a draw stands on: an owner kind, a dialog, a body another registration draws, or {@link HAND_BUILT_ROOT}. */
+function rootKinds(facts: FileFacts, draw: ts.Node, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const branches = branchesOf(draw);
+  if (branches.length === 0 || hops > ROOT_HOPS) {
+    return [HAND_BUILT_ROOT];
+  }
+  return branches.flatMap((branch) => branchKind(facts, branch, byPath, hops));
+}
+
+function branchKind(facts: FileFacts, root: ts.Expression, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (ts.isArrowFunction(root) || ts.isFunctionExpression(root)) {
+    // A curried factory, as the rpg tabs' `gameTab(label, render)` is, hands back the draw itself.
+    return rootKinds(facts, root, byPath, hops + 1);
+  }
+  if (ts.isCallExpression(root)) {
+    return callKinds(facts, root, byPath, hops);
+  }
+  if (ts.isJsxFragment(root)) {
+    return childKinds(facts, root.children, byPath, hops);
+  }
+  const elem = facts.elems.find((candidate) => candidate.element === root);
+  if (elem === undefined) {
+    return [HAND_BUILT_ROOT];
+  }
+  return elemKinds(facts, elem, byPath, hops);
+}
+
+// A call at a branch's root: a factory declared in the file roots where its returns do, and a registration's own draw slot is delegated.
+function callKinds(facts: FileFacts, call: ts.CallExpression, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (ts.isPropertyAccessExpression(call.expression) && DRAW_SLOTS.has(call.expression.name.text)) {
+    return [DELEGATED_ROOT];
+  }
+  if (ts.isCallExpression(call.expression)) {
+    // `gameTab(label, render)(state)` calls the draw a curried factory hands back.
+    return callKinds(facts, call.expression, byPath, hops + 1);
+  }
+  const sf = facts.source.sf;
+  const factory = sf !== null && ts.isIdentifier(call.expression) ? declarationIn(sf, call.expression.text) : undefined;
+  return factory === undefined ? [HAND_BUILT_ROOT] : rootKinds(facts, factory, byPath, hops + 1);
+}
+
+function elemKinds(facts: FileFacts, elem: Elem, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (elem.tag === CONTEXT_TAB_BODY) {
+    return [attrString(elem.attrs.get("kind")) ?? "sections"];
+  }
+  if (DIALOG_TAGS.has(elem.tag)) {
+    return [DIALOG_ROOT];
+  }
+  if (elem.kind === "ui" && BOXLESS_TAGS.has(elem.tag) && ts.isJsxElement(elem.element)) {
+    return childKinds(facts, elem.element.children, byPath, hops);
+  }
+  return componentKinds(facts, elem, byPath, hops + 1);
+}
+
+// The roots of a box-less parent's children: a dialog beside the body portals out of the pane, so it is no root; nothing else is the body.
+function childKinds(facts: FileFacts, children: ts.NodeArray<ts.JsxChild>, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const kinds = children.flatMap((child): readonly string[] => {
+    if (ts.isJsxText(child)) {
+      return child.containsOnlyTriviaWhiteSpaces ? [] : [HAND_BUILT_ROOT];
+    }
+    if (ts.isJsxExpression(child)) {
+      return child.expression === undefined ? [] : renderedBy(child.expression).flatMap((branch) => branchKind(facts, branch, byPath, hops));
+    }
+    return ts.isJsxFragment(child) ? childKinds(facts, child.children, byPath, hops) : branchKind(facts, child, byPath, hops);
+  });
+  const drawn = kinds.filter((kind) => kind !== DIALOG_ROOT);
+  return drawn.length === 0 ? [HAND_BUILT_ROOT] : drawn;
+}
+
+// A component at a branch's root roots where its own returns do: a same-file one, or one a relative import or `#components` mounts.
+function componentKinds(facts: FileFacts, elem: Elem, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const local = elem.imported === null && facts.source.sf !== null ? declarationIn(facts.source.sf, elem.tag) : undefined;
+  if (local !== undefined) {
+    return rootKinds(facts, local, byPath, hops);
+  }
+  const [next] = mounted(facts, [elem], byPath);
+  const sf = next?.facts.source.sf ?? null;
+  const declared = sf === null ? undefined : declarationIn(sf, elem.imported?.name ?? elem.tag);
+  return next === undefined || declared === undefined ? [HAND_BUILT_ROOT] : rootKinds(next.facts, declared, byPath, hops);
+}
+
+/** The elements a body draws: its own, and those of a same-file factory it calls, as the rpg tabs' shared wrapper is. */
+function bodyElems(facts: FileFacts, draw: ts.Expression): readonly Elem[] {
+  const sf = facts.source.sf;
+  const within = (node: ts.Node): readonly Elem[] => facts.elems.filter((elem) => elem.opening.pos >= node.pos && elem.opening.end <= node.end);
+  const factories = new Set<string>();
+  visit(draw, (node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      factories.add(node.expression.text);
+    }
+  });
+  const declared: ts.Node[] = [];
+  if (sf !== null && factories.size > 0) {
+    visit(sf, (node) => {
+      if ((ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name !== undefined && factories.has(node.name.getText())) {
+        declared.push(node);
+      }
+    });
+  }
+  return [...within(draw), ...declared.flatMap(within)];
+}
+
+function contextBodyMember(facts: FileFacts, body: ContextBody, byPath: ReadonlyMap<string, FileFacts>): Member {
+  // The owner stands at the root of every branch the body returns, through the components it mounts there; one branch without it is hand-built.
+  const kinds = new Set(rootKinds(facts, body.draw, byPath, 0));
+  // A branch that is only a dialog draws no body in the pane.
+  const root = kinds.has(HAND_BUILT_ROOT) || kinds.has(DIALOG_ROOT) ? HAND_BUILT_ROOT : `${CONTEXT_TAB_BODY} ${[...kinds].sort().join("+")}`;
+  // The columns the body's own component answers are read on the first component the registration mounts.
+  const drawn = mounted(facts, bodyElems(facts, body.draw), byPath)[0]?.facts ?? facts;
+  return member(facts, body.label, {
+    root: cell(root, body.line),
+    ...contextTabCells(drawn, byPath),
   });
 }
 
@@ -359,14 +866,14 @@ function rowMenu(facts: FileFacts, elem: Elem): Member {
   });
 }
 
-/** Every composition cohort over the client's TSX files. */
-export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
+/** Every composition cohort over the client's TSX files; `sources` holds every scanned file, so a constant another module declares is read. */
+export function buildCohorts(all: readonly FileFacts[], sources: readonly Source[]): readonly Cohort[] {
   const client = all.filter((facts) => facts.source.layer === "client");
   const byPath = new Map(client.map((facts) => [facts.source.path, facts]));
+  const sourcesByPath: SourcesByPath = new Map(sources.flatMap((source) => (source.sf === null ? [] : [[source.path, source.sf] as const])));
   const feature = client.filter(inFeature);
   const slotted = listSlotSurfaces(all);
   const lists = feature.filter((facts) => slotted.has(facts.source.path));
-  const context = feature.filter((facts) => /(?:^|\/)(?:[a-z-]*context-tabs|[a-z-]*-context-body)\.tsx$/u.test(facts.source.path));
   // Editor pages: the template's users, a hand-spelled column, and the CONTENT surfaces that edit one subject. A field
   // editor component named for what it edits is no page.
   const editors = client.filter(
@@ -389,21 +896,23 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         empty: {
           "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
             value: "none",
-            reason: "the Settings map renders every registered group, populated or not, so it has no empty arm (config-list-surface.tsx header)",
+            reason:
+              "the Settings map renders every config group, a total registry (client-architecture-state-and-gates.md §12, row 3), so the list is never empty and has no empty arm",
           },
         },
         focus: {
-          "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
-            value: "useFocusOnMount",
-            reason: "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
-          },
           "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
+            reason:
+              "the Settings band carries no primary action, so the shared list arrival would fall back to a root with no visible focus; arrival lands on the active group's band, a control with the house ring (UI-Architecture-and-Layout.md §4.3, rule 6)",
+          },
+          "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
+            value: "useFocusOnMount",
+            reason: "arrival lands on the omnibox, because the Corpus LIST is the search omnibox (UI-Architecture-and-Layout.md §4.1)",
           },
           "packages/client/src/features/tag/surfaces/labels-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+            reason: "the Labels finder owns phone arrival, because Labels lands on its LIST on phones (D271); the visible library owns desktop arrival",
           },
         },
       },
@@ -456,10 +965,39 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       ),
     },
     {
+      name: MODAL_POPOVER_COHORT,
+      what: "modal popovers: an anchored popover fenced with `modal` because its body carries input, and what opens it",
+      // A census, not a convention: every site is listed in the composition report with its trigger.
+      columns: [],
+      info: ["modal", "trigger"],
+      members: client.flatMap(modalPopoverMembers),
+    },
+    {
+      name: "notice",
+      what: "status boxes: the Notice composite, and every toned soft or outline Card a feature draws",
+      columns: ["composite"],
+      info: ["tone"],
+      // One notice composite owns a status box (packages/client/src/components/notice.tsx header).
+      defects: { composite: [HAND_BUILT] },
+      keptReads: { composite: NOTICE_KEPT },
+      members: client.flatMap(noticeMembers),
+    },
+    {
+      name: "muted-line",
+      what: "the muted line of a list inside a surface: the MutedLine owner, and every Text a feature draws in an empty arm",
+      columns: ["line"],
+      info: ["action", "announce"],
+      // One owner draws the muted line (packages/client/src/components/muted-line.tsx header).
+      defects: { line: [HAND_BUILT] },
+      keptReads: { line: MUTED_LINE_KEPT },
+      members: client.flatMap(mutedLineMembers),
+    },
+    {
       name: "context-tab",
-      what: "context tab bodies: Tabs shape, mutation home, confirm, focus hook, empty state",
-      columns: ["tabs", "inlineMutations", "confirm", "focus", "empty"],
-      defects: { inlineMutations: ["defined in the component file"] },
+      what: "every body a CONTEXT registration declares: its root, Tabs shape, mutation home, confirm, focus hook, empty state",
+      columns: ["root", "tabs", "inlineMutations", "confirm", "focus", "empty"],
+      // Every registered body draws the one CONTEXT column at its root (UI-Density-Law.md §3.1).
+      defects: { root: [HAND_BUILT_ROOT], inlineMutations: ["defined in the component file"] },
       kept: {
         confirm: {
           [CONFIRM_DIALOG]:
@@ -467,7 +1005,7 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         },
         empty: { [EMPTY_IN_CHILD]: "the empty state is designed in the component the tab body mounts (client-architecture-state-and-gates.md §11)" },
       },
-      members: context.map((facts) => contextTab(facts, byPath)),
+      members: client.flatMap((facts) => contextBodiesIn(facts, sourcesByPath).map((body) => contextBodyMember(facts, body, byPath))),
     },
     {
       name: "editor",

@@ -12,7 +12,7 @@ import { embedPassResultSchema } from "../embeddings/index.ts";
 import { catalogRefreshResultSchema } from "../inference/catalog.ts";
 import { refineryScoreSweepResultSchema, refineScoreSweepWorkloadParams } from "../refinery/index.ts";
 import { reconcileStatsResultSchema } from "../stats/index.ts";
-import { WORKLOAD_RUN_ACCOUNT_NOT_OWNER } from "./admission.ts";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES } from "./admission.ts";
 import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "./axes.ts";
 import type { WorkloadLane, WorkloadProgress } from "./execution.ts";
@@ -272,9 +272,22 @@ export const workloadScheduleRefSchema = z.strictObject({ id: typeIdSchema(ID_PR
 export type WorkloadScheduleRef = z.output<typeof workloadScheduleRefSchema>;
 export const cancelWorkloadResultSchema = z.strictObject({ status: workloadStatusSchema.extract(["cancelling", "cancelled"]).nullable() });
 export type CancelWorkloadResult = z.output<typeof cancelWorkloadResultSchema>;
+/** Whether a count is the calls a run will make, or the most it can make because a stage before it grows its input. */
+const MODEL_CALL_BOUNDS = ["exact", "ceiling"] as const;
+export type ModelCallBound = (typeof MODEL_CALL_BOUNDS)[number];
 /** How many Utility-model calls a run would make over its scope; `calls: null` when the kind calls no such model. */
-export const modelCallEstimateSchema = z.strictObject({ calls: z.int().nonnegative().nullable() });
+export const modelCallEstimateSchema = z.strictObject({ calls: z.int().nonnegative().nullable(), bound: z.enum(MODEL_CALL_BOUNDS) });
 export type ModelCallEstimate = z.output<typeof modelCallEstimateSchema>;
+/** An owning domain's count for a kind that calls a model. */
+export interface ModelCallCount {
+  readonly calls: number;
+  readonly bound: ModelCallBound;
+}
+/** A stage a chain runs before the one being counted, with the calls the estimate door counted for it. */
+export interface PriorStageCount {
+  readonly kind: WorkloadKind;
+  readonly calls: number | null;
+}
 /** Schedule params are stored objects, not clean run params; the start door validates them when fired. */
 export const workloadScheduleViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.workloadSchedule),
@@ -292,7 +305,7 @@ export const workloadScheduleViewSchema = z.strictObject({
 
 /** `workloads.listSchedules`: a stored schedule and the refusal its tick meets, so the holder sees why it starts nothing.
  *  Absent when the run may start; a schedule whose params no longer parse is judged by the tick, not here. */
-export const workloadScheduleListItemSchema = workloadScheduleViewSchema.extend({ refusal: z.literal(WORKLOAD_RUN_ACCOUNT_NOT_OWNER).optional() });
+export const workloadScheduleListItemSchema = workloadScheduleViewSchema.extend({ refusal: z.enum(WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES).optional() });
 
 /** `workloads.list`: the caller's run history. The limit is the ceiling at the trust boundary, never an unbounded fetch. */
 export const workloadListInputSchema = z

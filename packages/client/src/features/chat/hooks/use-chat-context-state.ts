@@ -8,7 +8,7 @@
 // on it. A room has a chat row from the creation click, so the projection is the committed one and `null`
 // means exactly "nothing is open".
 
-import { useMultiHumanCapable, useSuspenseQueries, useTRPC } from "#data";
+import { roomRosterOptions, useMultiHumanCapable, useSuspenseQueries, useTRPC } from "#data";
 import type { CommittedChatContext } from "#lib";
 import { useActiveChatId } from "#state";
 
@@ -28,7 +28,7 @@ export function useChatContextState(): CommittedChatContext | null {
   const multiHumanCapable = useMultiHumanCapable();
   const trpc = useTRPC();
   const chatQueries = useSuspenseQueries({
-    queries: (chatId === null ? [] : [chatId]).map((id) => trpc.chat.getChat.queryOptions({ chatId: id })),
+    queries: (chatId === null ? [] : [chatId]).map((id) => roomRosterOptions(trpc, { chatId: id })),
   });
 
   const chatQuery = chatQueries[0];

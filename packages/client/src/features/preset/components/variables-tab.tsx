@@ -10,6 +10,7 @@ import { EntryListEditor } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_ADD_VARIABLE_NAME } from "../lib/preset-names.ts";
 import { VariableEditorDialog } from "./variable-editor-dialog.tsx";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
@@ -42,7 +43,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
     <form.Subscribe selector={(state): PresetEditorValues => state.values}>
       {(values): ReactElement => (
         <EntryListEditor
-          addLabel="Add variable"
+          addLabel={PRESET_ADD_VARIABLE_NAME}
           editIndex={
             editId === null || !values.variableRowIds.some((row) => row.id === editId) ? null : values.variableRowIds.findIndex((row) => row.id === editId)
           }

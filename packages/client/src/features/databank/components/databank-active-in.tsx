@@ -39,6 +39,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
+import { DATABANK_ACTIVE_IN_READ_LABEL, DATABANK_NOWHERE_YET_TEXT } from "../lib/databank-names.ts";
 import { CharacterAttachments } from "./databank-character-attachments.tsx";
 
 /**
@@ -54,7 +55,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
       <QueryBoundary
         resetKeys={[documentId]}
         fallback={<SkeletonRows count={2} shape="line" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="where this document is active" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={DATABANK_ACTIVE_IN_READ_LABEL} onRetry={retry} />}
       >
         <ActiveInBody documentId={documentId} documentName={documentName} />
       </QueryBoundary>
@@ -80,7 +81,7 @@ function ActiveInBody({ documentId, documentName }: { readonly documentId: Docum
       <CharacterAttachments characters={attachments.characters} documentId={documentId} documentName={documentName} />
       {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
           failed load. */}
-      {nowhere ? <Text voice="gloss">Nowhere yet: attach it to one of your characters, or from a chat's Databank panel.</Text> : null}
+      {nowhere ? <Text voice="gloss">{DATABANK_NOWHERE_YET_TEXT}</Text> : null}
     </Stack>
   );
 }

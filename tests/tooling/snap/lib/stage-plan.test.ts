@@ -133,23 +133,23 @@ function active(over: Partial<StageRow> = {}): StageRow {
 }
 
 test("stageDecision reuses ONLY a healthy, same-sha, non-fresh stage", () => {
-  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true })).toBe("reuse");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true, liveHolders: [] })).toBe("reuse");
 });
 
 test("stageDecision rebuilds when there is no active stage", () => {
-  expect(stageDecision({ targetSha: SHA, row: null, fresh: false, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: null, fresh: false, healthy: true, liveHolders: [] })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds when HEAD moved (a stale sha)", () => {
-  expect(stageDecision({ targetSha: "ffffffffffffffffffffffffffffffffffffffff", row: active(), fresh: false, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: "ffffffffffffffffffffffffffffffffffffffff", row: active(), fresh: false, healthy: true, liveHolders: [] })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds an unhealthy (dead-stack) same-sha stage", () => {
-  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: false })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: false, liveHolders: [] })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds when --fresh is forced even on a healthy same-sha stage", () => {
-  expect(stageDecision({ targetSha: SHA, row: active(), fresh: true, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: true, healthy: true, liveHolders: [] })).toBe("rebuild");
 });
 
 // ── gitignore coverage + version tripwire ───────────────────────────────────────────────────────────────
@@ -175,8 +175,8 @@ test("stagePaths keys the dirty stage under its own fixed dir, distinct from any
 
 test("stageDecision treats a warm dirty stage exactly like any other sha for staleness (rebuilds on a real-sha switch)", () => {
   const dirtyActive = active({ sha: DIRTY_STAGE_KEY, dir: "/repo/.cache/snap-stage/dirty" });
-  expect(stageDecision({ targetSha: DIRTY_STAGE_KEY, row: dirtyActive, fresh: false, healthy: true })).toBe("reuse");
-  expect(stageDecision({ targetSha: SHA, row: dirtyActive, fresh: false, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: DIRTY_STAGE_KEY, row: dirtyActive, fresh: false, healthy: true, liveHolders: [] })).toBe("reuse");
+  expect(stageDecision({ targetSha: SHA, row: dirtyActive, fresh: false, healthy: true, liveHolders: [] })).toBe("rebuild");
 });
 
 // ── the DB-BOUND env allowlist ──────────────────────────────────────────────────────────────────────────
@@ -600,11 +600,20 @@ test("a local-auth stage gets its own dir, so it never boots onto a single-user 
 });
 
 test("stageDecision rebuilds a same-sha stage whose auth mode differs from the one asked for", () => {
-  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true, auth: "local" })).toBe("rebuild");
-  expect(stageDecision({ targetSha: SHA, row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }), fresh: false, healthy: true, auth: "local" })).toBe(
-    "reuse",
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true, auth: "local", liveHolders: [] })).toBe("rebuild");
+  expect(
+    stageDecision({
+      targetSha: SHA,
+      row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }),
+      fresh: false,
+      healthy: true,
+      auth: "local",
+      liveHolders: [],
+    }),
+  ).toBe("reuse");
+  expect(stageDecision({ targetSha: SHA, row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }), fresh: false, healthy: true, liveHolders: [] })).toBe(
+    "rebuild",
   );
-  expect(stageDecision({ targetSha: SHA, row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }), fresh: false, healthy: true })).toBe("rebuild");
 });
 
 test("bandAccess never shares a sibling's same-sha stage across auth modes", () => {

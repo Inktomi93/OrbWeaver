@@ -4,7 +4,19 @@
 
 export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
-export { copyActionName, hideActionName, removeActionName, revealActionName, selectActionName } from "./action-names.ts";
+export {
+  copyActionName,
+  defaultChoiceName,
+  dismissActionName,
+  editActionName,
+  hideActionName,
+  moreActionsName,
+  recentActivityName,
+  removeActionName,
+  removeQuotedTitle,
+  revealActionName,
+  selectActionName,
+} from "./action-names.ts";
 export type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "./ambient-scope.ts";
 export { AmbientScopeContext, PROSE_INK_FIELDS } from "./ambient-scope.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
@@ -15,19 +27,45 @@ export { CARD_CORNERS } from "./card-corners.ts";
 // for the import-order race that shape kills.
 export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
-export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
+export { coarsePointerNow, finePointerNow, useCoarsePointer, useHoverCapable } from "./coarse-pointer-now.ts";
 export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
+export { CONTROL_WRAP } from "./control-wrap.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
-export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
+export {
+  DISABLED_ACTIVE,
+  DISABLED_DIM,
+  DISABLED_DIM_WITHIN,
+  DISABLED_FIELD,
+  DISABLED_FIELD_INK,
+  DISABLED_FIELD_INK_NATIVE,
+  DISABLED_FIELD_INK_WITHIN,
+  DISABLED_FIELD_NATIVE,
+  DISABLED_FIELD_WITHIN,
+  DISABLED_GROUP,
+  DISABLED_INK_WITHIN,
+  DISABLED_MARK,
+  DISABLED_MARK_WITHIN,
+  DISABLED_POINTER,
+  DISABLED_SELECTION,
+  DISABLED_SOLID,
+  DISABLED_STATE,
+  DISABLED_STATE_ARIA,
+  DISABLED_STATE_NATIVE,
+  DISABLED_SWITCH,
+  DISABLED_SWITCH_THUMB,
+  DISABLED_UNDIMMED,
+} from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export { CONTROL_INSET, FLOOR, GROW, PASS_THROUGH, PUSH, RUN_INSET, SELF, WRAP } from "./flex-share.ts";
+export { FOCUS_LANDING_ATTRIBUTE } from "./focus-landing.ts";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,
   FOCUS_RING_DESTRUCTIVE,
   FOCUS_RING_HAS,
   FOCUS_RING_INSET,
+  FOCUS_RING_LANDING,
   FOCUS_RING_NONE,
   FOCUS_RING_ON_POPOVER,
   FOCUS_RING_ON_SIDEBAR,
@@ -38,7 +76,7 @@ export {
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
 export { GROUND, WALLPAPER_PLATE } from "./ground.ts";
-export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
+export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_SWAP, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
 export { createKeyboardInsetReader, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export {
   createLiveTokenStore,
@@ -55,7 +93,7 @@ export { declaresOverlay, OVERLAY_RELATION_ATTRIBUTE } from "./overlay-relation.
 export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
 export { CORNER, PINNED, PLACED } from "./placed.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
-export { ITEM_ROW, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
+export { ITEM_ROW, ITEM_ROW_FRAME, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
 export {
   type PortalContainer,
   PortalContainerContext,
@@ -89,11 +127,11 @@ export {
 export { ARRIVAL, COLOR_MOTION, OPEN_TURN, PULSE } from "./state-motion.ts";
 export { TEXT_ALIGN } from "./text-align.ts";
 export { INKS, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";
-export { TONE_OUTLINE, TONE_SOFT, TONE_TINT_HOVER, TONE_TINT_PRESS } from "./tone-skin.ts";
+export { TONE_OUTLINE, TONE_SOFT, TONE_TINT, TONE_TINT_HOVER, TONE_TINT_PRESS } from "./tone-skin.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePinnedBarCap } from "./use-pinned-bar-cap.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { type ToneStamp, type VariantStampProps, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";
-export { CAP, CENTRED, HEIGHT, MAX_HEIGHT, MIN_HEIGHT, MIN_WIDTH, PICTURE_SIZE, TITLE_FLOOR, WIDTH } from "./width.ts";
+export { CAP, CENTRED, FILLS_MEASURE, HEIGHT, MAX_HEIGHT, MIN_HEIGHT, MIN_WIDTH, PICTURE_SIZE, TITLE_FLOOR, WIDTH } from "./width.ts";

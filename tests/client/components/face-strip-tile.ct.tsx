@@ -26,6 +26,17 @@ test("the popup the overflow tile opens is a dialog with the overflow label as i
 });
 
 for (const caption of [true, false]) {
+  test(`${caption ? "a captioned" : "an uncaptioned"} overflow tile's name holds the text it shows`, async ({ mount, page }) => {
+    const component = await mount<typeof FaceStripTileStory>(STORY, { caption });
+    await expect(component.locator("[data-face-overflow]")).toBeVisible();
+    const result = await accessibilityScan(page);
+    const tileNodes = (rules: typeof result.violations): readonly string[] =>
+      (rules.find(({ id }) => id === LABEL_MISMATCH)?.nodes ?? []).map(({ html }) => html).filter((html) => html.includes("data-face-overflow"));
+    expect(tileNodes(result.violations)).toEqual([]);
+    // The rule judged the tile: a tile the scan skipped would pass the line above too.
+    expect(tileNodes(result.passes)).toHaveLength(1);
+  });
+
   test(`${caption ? "a captioned" : "an uncaptioned"} strip seats its overflow tile level with its faces`, async ({ mount }) => {
     const component = await mount<typeof FaceStripTileStory>(STORY, { caption });
     const tile = component.locator("[data-face-overflow]");

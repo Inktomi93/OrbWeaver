@@ -5,13 +5,13 @@
 //
 // The id is HALF OF THE CREDENTIAL AAD (`${userId}|${provider}`), which is why built-ins are bare and
 // runtime rows are namespaced (`plugin:<name>/<id>`): a plugin row can never shadow a built-in id and
-// inherit its sealed rows (F8/F9, §5.9-1). A rename orphans the credentials sealed under the old id by
+// inherit its sealed rows (§5.9). A rename orphans the credentials sealed under the old id by
 // construction; the pane says so.
 
 import type { LookupText } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
-import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
+import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_IMAGE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
 import type { ProviderId } from "./provider-id.ts";
 import { isPluginProviderId } from "./provider-id.ts";
 import type { ProviderDef } from "./provider-schema.ts";
@@ -20,7 +20,7 @@ import type { Task } from "./tasks.ts";
 import { WIRE_DEFS } from "./wires.ts";
 
 // A built-in row's id is bare — a plugin row's is namespaced. The parse refuses the other spelling in each
-//  place so the two populations can never cross (§5.9-1 (a)/(b)).
+//  place so the two populations can never cross (§5.9).
 const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProviderId(row.id), {
   message: "a built-in provider id is bare, never plugin:-namespaced",
   path: ["id"],
@@ -41,13 +41,21 @@ export function exampleBaseUrl(providerId: ProviderId): string | undefined {
   return BUILTIN_EXAMPLE_BASE_URLS[providerId];
 }
 
+const IMAGE_BASE_BY_ID: ReadonlyMap<string, string> = new Map(Object.entries(BUILTIN_IMAGE_BASE_URLS));
+
+/** The base URL a connection's image generation is sent to when its built-in row names one apart from the chat base
+ *  URL; `undefined` for every other row, a plugin, admin or Custom row included. */
+export function builtinImageBaseUrl(providerId: LookupText<ProviderId>): string | undefined {
+  return IMAGE_BASE_BY_ID.get(providerId);
+}
+
 /** The apis a provider's rows may pick — the ONE coherence home (no `assertCoherent` matrix, no client
  *  mirror): the picker offers this, the write validates against it, resolve re-checks it. */
 export function coherentApis(provider: ProviderDef): readonly ChatApi[] {
   return provider.apis;
 }
 
-/** Provider-level: what the PICKER may offer — the wire's ceiling ∩ the row's narrowing (F5). */
+/** Provider-level: what the PICKER may offer — the wire's ceiling ∩ the row's narrowing. */
 export function providerTasks(provider: ProviderDef): readonly Task[] {
   const wire: readonly Task[] = WIRE_DEFS[provider.wire].serves;
   return provider.serves === undefined ? wire : wire.filter((task) => provider.serves?.includes(task) === true);

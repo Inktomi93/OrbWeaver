@@ -43,18 +43,21 @@ import type { StatementToken } from "@orb/db/wiring";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatData, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
+import { buildGreetingSeed } from "../persistence/greeting-seed.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
-import { resolveAnchor } from "../substrate/participants-humans.ts";
+import type { SaveGreetingTexts } from "../substrate/greeting-regex.ts";
+import { regexAllowOf } from "../substrate/regex-tier.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
@@ -63,6 +66,7 @@ interface StartChatDeps {
   readonly emit: ChatServiceDeps["emit"];
   readonly prepareCreationEvent: ChatServiceDeps["prepareCreationEvent"];
   readonly loadParticipantViews: LoadParticipantViewsOp;
+  readonly saveGreetingTexts: SaveGreetingTexts;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
@@ -117,9 +121,9 @@ async function loadGreetings(
   ctx: ChatContext,
   hostUserId: UserId,
   characterIds: readonly CharacterId[],
-): Promise<{ characterId: CharacterId; text: string }[]> {
+): Promise<{ characterId: CharacterId; characterName: string; text: string }[]> {
   const cards = await Promise.all(characterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
-  return characterIds.map((characterId, i) => ({ characterId, text: cards[i]?.greetings[0]?.text ?? "" }));
+  return characterIds.map((characterId, i) => ({ characterId, characterName: cards[i]?.name ?? "", text: cards[i]?.greetings[0]?.text ?? "" }));
 }
 
 /** A chat started with no characters seats the caller's welcome assistant, so the room has someone to answer.
@@ -204,8 +208,21 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     });
 
     const targets = greetTargets(policy, characterIds);
-    const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets) : [];
-    // A founding room has no canon, so its greetings land at seq 1..N (`substrate/greeting-seed` — shared with
+    const cardGreetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets) : [];
+    // A born room has no levers set, so every tier the host attached runs on its greetings.
+    // The founding seats as a present roster reads them, before the batch writes them.
+    const seats = participantRows.map(({ kind, role, userId, characterId, activePersonaId }) => ({
+      kind,
+      role: captureParticipantRole(role),
+      userId: userId ?? null,
+      characterId: characterId ?? null,
+      activePersonaId: activePersonaId ?? null,
+    }));
+    const greetings = await deps.saveGreetingTexts(
+      { chatId, participants: seats, anchorPersonaId: anchor, regexAllow: regexAllowOf(undefined) },
+      cardGreetings,
+    );
+    // A founding room has no canon, so its greetings land at seq 1..N (`persistence/greeting-seed` — shared with
     // the roster verb's F6 in-window join greeting, which appends at the live canon head instead).
     const seed = buildGreetingSeed(ctx, { chatId, now, startSeq: 0, greetings });
     const gameBirth = planGameBirth(ctx, chatId, startAsGame);

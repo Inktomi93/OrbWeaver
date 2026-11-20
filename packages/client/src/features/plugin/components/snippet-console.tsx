@@ -31,8 +31,10 @@ import { Textarea } from "@orb/ui/textarea";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { MutedLine } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useRunSnippet } from "../lib/plugin-mutations.ts";
 
 type SnippetResult = inferOutput<Trpc["plugin"]["runSnippet"]>;
@@ -68,7 +70,7 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
     setResult(null);
     // useRunSnippet (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't run that snippet."). Ends if that mutation drops its errorToast.
-    runSnippet.mutateAsync({ chatId, code }).then(setResult, () => undefined);
+    runSnippet.mutateAsync({ chatId, code }).then(setResult, rethrowUnlessTrpcFailure);
   };
 
   return (
@@ -118,7 +120,7 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
 
   return (
     <Stack aria-label="Snippet output" gap="block" role="status">
-      {result.logLines.length === 0 ? <Text voice="gloss">It ran and logged nothing.</Text> : <LogViewer maxHeight="scrollMd" lines={[...result.logLines]} />}
+      {result.logLines.length === 0 ? <MutedLine>It ran and logged nothing.</MutedLine> : <LogViewer maxHeight="scrollMd" lines={[...result.logLines]} />}
       {result.error === undefined ? null : (
         <Text tone="destructive" voice="gloss">
           {result.error}

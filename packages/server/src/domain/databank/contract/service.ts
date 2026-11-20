@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -37,8 +37,8 @@ import type {
   PurgeDocumentVectorsOp,
   StoreResult,
 } from "@orb/contracts/embeddings";
-import type { ExtractTextOp } from "@orb/contracts/extraction";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { ExtractorVersions, ExtractTextOp } from "@orb/contracts/extraction";
+import type { Can, Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -86,10 +86,6 @@ type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Pr
 /** Enqueue a `databank-reindex` workload (the panel/verb-driven derived-layer maintenance). */
 type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: ReindexMode }) => Promise<{ readonly workloadId: WorkloadId }>;
 
-/** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
- *  nor `chats`, so the panel's host/member branch asks chat. */
-type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
-
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
  *  into, and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
@@ -100,7 +96,7 @@ type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 export const NO_EMBED_SPACE_MODEL = "";
 
 /** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
-type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
+type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal: AbortSignal }) => Promise<StoreResult>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
@@ -179,14 +175,16 @@ export interface DatabankContext {
    *  (verbs/list.ts states the declared limit and its escalation path). */
   readonly chunkCountsByOwner: CountDocumentChunksByOwnerOp;
   readonly extractText: ExtractTextOp;
-  /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
-  readonly extractorVersion: string;
+  /** The current `infra/extraction` version of each format — the re-extract-on-upgrade selection predicate
+   *  compares a document's stamp with its own format's entry. */
+  readonly extractorVersions: ExtractorVersions;
   /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound.
    *  THROWS on any refusal or fetch failure; the verb collapses that to a leak-free `ScrapeFailedError` without
    *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal
    *  leaves one log record). The scraper adds ZERO guard logic of its own. */
   readonly fetchUrl: ScopedEgress["fetchWebDocument"];
-  readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
+  /** Resolving the live space can wake the owner's encoder, so the read takes the caller's signal. */
+  readonly getActiveEmbedSpace: (ownerId: UserId, signal: AbortSignal) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
@@ -197,6 +195,8 @@ export interface DatabankContext {
    *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
   readonly ensureChatMember: RequireParticipantOp;
   readonly resolveChatHost: ResolveChatHostOp;
+  /** The disabled-account read the D85 union narrows a room's crediting members by. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
   /** The leak-safe reverse-room read `listAttachments` names its rooms through — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
    *  guards above are: D18 rooms scope on `chat_participants`, and databank reads neither the roster nor
@@ -206,7 +206,7 @@ export interface DatabankContext {
   /** The `search.documents` lens (DB6) — the ONE retrieval capability databank consumes for the chat GATHER
    *  (cluster boundary: databank never re-implements cosine). Scope resolves inside the lens via the resolver
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */
-  readonly searchDocuments: SearchDocumentsOp;
+  readonly searchDocuments: SearchDocumentsOp<AbortSignal>;
 }
 
 export type DatabankAssemblyContext = DbAssemblyInput<DatabankContext>;
@@ -218,7 +218,7 @@ export interface DatabankService {
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
-  readonly createFromText: CreateDocumentFromText;
+  readonly createFromText: CreateDocumentFromText<AbortSignal>;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon
    *  pipeline. A refused/failed fetch throws a leak-free `ScrapeFailedError` (BAD_REQUEST); never retried. */
   readonly scrapeWeb: (params: ScrapeWebParams) => Promise<UploadResult>;

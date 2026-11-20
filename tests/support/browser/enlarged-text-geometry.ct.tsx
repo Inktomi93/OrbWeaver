@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 import type { ComponentProps } from "react";
 import { enlargedTextFindings, enlargedTextGeometry } from "./enlarged-text-geometry.ts";
-import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
+import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_COVER_CONTROL_NAME, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
 import type {
   SurfaceCutValueStory,
   SurfaceDeclaredOverlayStory,
@@ -66,12 +66,13 @@ test("the probe still fails a control an open dialog's layers stand over", async
   await mount<typeof SurfaceLeavingCoverStory>(LEAVING_STORY, { cover: "standing" });
   await expect(page.getByRole("alertdialog")).toBeVisible();
   // The open modal hides the page from the accessibility tree, so the scope is found by its element.
-  expect(await enlargedTextFindings(page.locator("main"))).toEqual([expect.stringMatching(/^button "Restore" \[.*\] is covered at its centre by div /u)]);
+  const covered = new RegExp(String.raw`^button "${RegExp.escape(LEAVING_COVER_CONTROL_NAME)}" \[.*\] is covered at its centre by div `, "u");
+  expect(await enlargedTextFindings(page.locator("main"))).toEqual([expect.stringMatching(covered)]);
 });
 
 test("the probe fails a picker whose value is cut with an ellipsis", async ({ mount, page }) => {
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "value" });
-  await expect(page.getByRole("combobox", { name: "Connection", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connection", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(VALUE_CUT)]);
 });
 
@@ -101,7 +102,7 @@ test("the probe stays silent for a facet preview line the design truncates", asy
 
 test("the probe fails a picker cut inside a list row's actions", async ({ mount, page }) => {
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: ACTIONS_ROW, cut: "action" });
-  await expect(page.getByRole("combobox", { name: "Connection", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connection", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(VALUE_CUT)]);
 });
 

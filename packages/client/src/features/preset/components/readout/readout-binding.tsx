@@ -7,12 +7,9 @@
 // not two homes.
 
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { Tip } from "#components";
+import { Notice } from "#components";
 import type { ReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 
 /** The binding chip — the readout's own header row, above the per-view panel (the mock draws it exactly
@@ -35,22 +32,16 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
     );
   }
   return (
-    <Card tone="info" variant="soft">
-      <Row align="center" gap="field" justify="between">
-        <Row align="baseline" className="min-inline-0" gap="field">
-          <Text voice="gloss">inspecting against:</Text>
-          <Text truncate={true} voice="label">
-            {binding.chatTitle}
-          </Text>
-        </Row>
-        {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
-          asked for, so it says what it does (and why) to a reader who cannot see the glyph. */}
-        <Tip text="Dismiss: fall back to the chat-free token view">
-          <Button aria-label={`Dismiss the binding to ${binding.chatTitle}`} variant="ghost" onClick={binding.dismiss} square={true} type="button">
-            <Icon icon={X} size="xs" />
-          </Button>
-        </Tip>
-      </Row>
-    </Card>
+    <Notice
+      // The dismiss is a LABELLED control, not a decoration: its whole job is reversing a binding the user never asked
+      // for, so it says what it does (and why) to a reader who cannot see the glyph.
+      dismiss={{
+        name: `Dismiss the binding to ${binding.chatTitle}`,
+        hint: "Dismiss: fall back to the chat-free token view",
+        onDismiss: binding.dismiss,
+      }}
+      title={`Inspecting against ${binding.chatTitle}`}
+      tone="info"
+    />
   );
 }

@@ -1,12 +1,11 @@
 // The notifications cross-boundary wire surface — the CLOSED `NotificationEvent` discriminated union and
 // the read-only `PresenceView`. Invite/kick/host-handoff/automation-notice/plugin-disabled ride a per-user
 // durable inbox (a non-member can't subscribe to a chat's bus), so this node is the wire shape that domain
-// persists. Not every member is about a second human, though the transport belt still assumes so: the
+// persists. Not every member is about a second human, though the transport belt assumes so: the
 // owner-addressed `plugin-disabled` (`domain/plugin/activation/crash-policy.ts`), the owner-GLOBAL
-// `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) and now
+// `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) and
 // `plugins-awaiting-consent` are all deliverable on a single-user box and all swallowed there by the
-// multi-human refusal on the router + the socket room. That is a stated gap, not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
-// it returns.)
+// multi-human refusal on the router + the socket room. That is a stated gap, not a fit.
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every member declares `.strip()` — no `z.looseObject`, no `z.unknown()`.
 
@@ -112,7 +111,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
       recipientUserId: recipientUserIdSchema,
       chatId: chatIdSchema,
       /** What accepting would copy into the recipient's library, frozen at nominate. All-zero = the room
-       *  transfers and nothing else does (the built D64 drop), which the confirm says in as many words. */
+       *  transfers and nothing else does (D64), which the confirm says in as many words. */
       offer: handoffOfferContentsSchema,
     })
     .strip(),
@@ -126,7 +125,8 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     .strip(),
   // A host-offline DEFERRED AI turn (chat `pending_turns`, Part III §5) that a drain PERMANENTLY dropped —
   // delivered to the frozen `triggeredBy` member so their owed reply never silently vanishes. `reason`:
-  // `consent` (the host's D17 consent belt refused the by-proxy hosted turn) | `chat-gone` (the room is gone).
+  // `consent` (the turn's frozen host is outside the room's consent set at drain time: disabled, or no longer
+  // present) | `chat-gone` (the room, or its host seat, is gone).
   // A budget/transient drain outcome RE-QUEUES (no notification), so this is only the terminal-verdict path.
   z
     .object({
@@ -148,7 +148,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("automation-notice"),
       recipientUserId: recipientUserIdSchema,
-      /** The room the notice is about, or NULL when there is none — an owner-GLOBAL automation rule (C5) has
+      /** The room the notice is about, or NULL when there is none — an owner-GLOBAL automation rule has
        *  no chat, and its author still has to learn that it auto-disabled itself after 20 consecutive errors.
        *  Without the null arm that notice could not be constructed at all, so a rotting global rule would go
        *  silent in the ONE surface built to make rot visible (the transient `ruleAutoDisabled` bus event is
@@ -178,9 +178,9 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     })
     .strip(),
   // THE STANDING CONSENT ASK, AGGREGATED. Installed plugins the recipient has not answered
-  // yet — a fresh boot lands NINE of them (installed, disabled, empty grant, `pending_reconsent` raised:
-  // `entry/boot/seed-example-plugins.ts`) and, before this member existed, nothing ever asked. It is ONE
-  // row per recipient, never one per plugin (owner ruling): nine inbox rows for one decision is
+  // yet — a fresh boot lands several of them (installed, disabled, empty grant, `pending_reconsent` raised:
+  // `entry/boot/seed-example-plugins.ts`). It is ONE
+  // row per recipient, never one per plugin (owner ruling): a row per plugin for one decision is
   // the spam that trains dismissal, and the per-plugin approve/deny surface already exists (Settings →
   // Plugins, which sorts the pending rows first).
   //
@@ -207,18 +207,15 @@ export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationType = NotificationEvent["type"];
 
 // ── the RUNTIME tuple ─────────────────────────────────────────────────────────────────
-// The union above exported only its derived TYPE, so `@orb/db`'s `notifications` schema — which needs the
-// members as VALUES to build its `type in (…)` CHECK — hand-spelled its own tuple, and the db test then
-// proved the two agreed by reaching into zod's internal discriminated-union option shape
-// (`.options[].shape.type.value`, flagged FABRICATION-OK). A respelling plus an introspection test is what
-// this package exports real tuples to avoid (`USER_ROLES`, `PARTICIPANT_KINDS` and friends).
+// The db `notifications` schema needs the members as VALUES to build its `type in (…)` CHECK, so this
+// package exports the tuple rather than letting a downstream schema respell it (`USER_ROLES`,
+// `PARTICIPANT_KINDS` and friends are the same shape).
 //
 // BOTH DIRECTIONS ARE COMPILE-TIME, and it takes two halves because a drizzle `text({ enum })` column
 // needs a NON-EMPTY TUPLE type, which rules out deriving the values from a mapped Record at runtime:
 //   • NO NON-MEMBER — `satisfies readonly NotificationType[]` here (a typo fails `tsc` on this line);
 //   • NO MISSING MEMBER — needs a type-level `Exclude<NotificationType, …>` proof.
-// Between them the tuple cannot drift from the union, which is strictly stronger than the runtime
-// assertion (over zod's internal option shape) this replaces.
+// Between them the tuple cannot drift from the union.
 
 /** Every `NotificationEvent` discriminant as VALUES — the db `notifications.type` column's enum + CHECK
  *  list, and anything else that needs to enumerate the axis at runtime. Provably the whole union. */
@@ -237,7 +234,7 @@ export const NOTIFICATION_TYPES = [
  *  the durable inbox columns the client needs to render + page. A cross-boundary READ MODEL (it is what the
  *  `notifications.list` query returns AND what the multiplexed socket's `notifications` room frame nests, so
  *  `@orb/contracts/stream` must be able to name it), which is why it homes here rather than in the
- *  `notifications` domain's server-only `contract/` — that file is now a door onto this declaration. */
+ *  `notifications` domain's server-only `contract/` — that file is a door onto this declaration. */
 interface InboxViewFields {
   readonly id: NotificationId;
   /** THIS ROW IS STILL WAITING ON A DECISION — an invite nobody has accepted or declined, a host

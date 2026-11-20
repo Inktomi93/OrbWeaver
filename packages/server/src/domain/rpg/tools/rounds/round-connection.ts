@@ -1,9 +1,10 @@
 // The state rounds' connection seam: the one structured-output call, the room preset window, and the funder's chat
-// connection resolved the way the turn resolves its own.
+// connection resolved the way the turn resolves its own. A round runs on a turn's connection (the turn refuses a
+// disabled host) or for a host who asked in person (populate, resync, promote), so none spends a disabled account.
 
 import type { Resolved } from "@orb/inference";
 import { isResolveRefusal, runStructuredChat, withPresetWindow } from "@orb/inference";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId } from "@orb/kit/ids";
 import type { ExtractCtx, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
@@ -43,10 +44,12 @@ export async function roomWindowed(deps: RpgRoundsDeps, chatId: ChatId, conn: Re
  *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
  *  delivery verdict describes. `null` on a `no-connection` / requirement refusal; anything else (a DB fault)
  *  RETHROWS. */
-export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: UserId): Promise<Resolved<"chat"> | null> {
+export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: ConsentingHostId): Promise<Resolved<"chat"> | null> {
   const funder = await deps.resolveHostPrincipal(funderUserId);
   try {
-    return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;
+    // The delivery and fit verdicts read under no request signal yet, so nothing above can cancel this resolve; it
+    // keeps its own deadline.
+    return (await deps.connection.resolve({ task: "chat", principal: funder, signal: new AbortController().signal })).resolved as Resolved<"chat">;
   } catch (err) {
     if (isResolveRefusal(err)) {
       return null;

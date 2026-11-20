@@ -117,6 +117,18 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
   expect(report.disagreements).toEqual([{ key: "packages/a/src/outside.ts:HealthSchema.at#2", uses: ["packages/a/src/outside.ts:35"] }]);
 });
 
+test("the fields log gives each world's tally and the literal stage a wall time", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(TREE);
+  const lines: string[] = [];
+  scanFields({ root, worlds: [WORLD], testWorlds: ["tsconfig.json"], deliberate: [], log: (line) => lines.push(line) });
+  const duration = /\d\.\ds$/;
+  const fieldLines = lines.filter((line) => line.includes(" fields"));
+  expect(fieldLines.map((line) => line.split(":")[0])).toEqual([WORLD, "tsconfig.json"]);
+  expect(fieldLines.map((line) => duration.test(line))).toEqual([true, true]);
+  const stage = lines.filter((line) => line.startsWith("literal stage"));
+  expect(stage.map((line) => duration.test(line))).toEqual([true]);
+});
+
 test("a field the deliberate list names leaves the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
   const reason = "read by an external consumer";

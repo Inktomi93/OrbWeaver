@@ -54,7 +54,7 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
 /** A muted read-only provenance row (`kicker` name + `datumMono` value). The name half takes the kicker's
  *  semibold: it was micro-caps-muted at REGULAR weight, one axis short of the register it was imitating
  *  (#573 — the near-kicker class the owner ruled takes semibold rather than a fifteenth voice). */
-function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
+export function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
     <Row gap="row" align="center" wrap={true}>
       <Text voice="kicker">{label}</Text>

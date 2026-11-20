@@ -237,7 +237,7 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
   const canonBeforeDraft = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
   const variantsBeforeDraft = await h.root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id)).orderBy(messageVariants.idx);
   let draft = "";
-  for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
+  for await (const { delta } of h.root.services.chat.impersonateStream({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId })) {
     draft += delta;
   }
   expect(draft).toBe("the user speaks next");

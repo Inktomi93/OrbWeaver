@@ -4,12 +4,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { slugifyHandle } from "@orb/kit/slug";
 import { abortProcedure } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
-import {
-  CHARACTER_EDITOR_NAME,
-  CHARACTER_HERO_NAME_FIELD_NAME,
-  CHARACTER_LIBRARY_NAME,
-  CHARACTER_SEARCH_NAME,
-} from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";

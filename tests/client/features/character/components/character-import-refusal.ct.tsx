@@ -17,7 +17,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
-import { CARD_IMPORT_REFUSED_MANY, CARD_IMPORT_REFUSED_ONE, cardImportPartialLine } from "#client/lib/card-import-copy.ts";
+import { CARD_IMPORT_REFUSED_MANY, CARD_IMPORT_REFUSED_ONE } from "#client/lib/card-import-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const ROOT_OPTIONS = {
@@ -127,17 +127,23 @@ interface PartialCase {
   readonly file: { readonly name: string; readonly mimeType: string; readonly buffer: Buffer };
   /** The reason the route answers with when the server's own cannot be provoked from a component spec. */
   readonly refusedAs?: FailedCardReason;
+  /** The toast's sentence for one file refused for this reason, spelled out so a swapped or reworded sentence fails here. */
+  readonly clause: string;
 }
 
 // A total `Record` over the wire's reason tuple, so a new reason fails `tsc` until it has a case here.
 const PARTIAL_CASES: Record<FailedCardReason, PartialCase> = {
-  [UNREADABLE]: { name: "a picture", file: picture("portrait.png") },
-  [INVALID]: { name: "a card whose data is invalid", file: { name: "overlong.json", mimeType: "application/json", buffer: OVERLONG_CARD } },
-  ["failed"]: { name: "a file the server's storage refuses", file: picture("portrait.png"), refusedAs: "failed" },
+  [UNREADABLE]: { name: "a picture", file: picture("portrait.png"), clause: "One file isn't a character card Orbweaver can read" },
+  [INVALID]: {
+    name: "a card whose data is invalid",
+    file: { name: "overlong.json", mimeType: "application/json", buffer: OVERLONG_CARD },
+    clause: "One file is a character card, but its data is incomplete or invalid",
+  },
+  ["failed"]: { name: "a file the server's storage refuses", file: picture("portrait.png"), refusedAs: "failed", clause: "Orbweaver couldn't import one file" },
 };
 
 for (const reason of FAILED_CARD_REASONS) {
-  const { name, file, refusedAs } = PARTIAL_CASES[reason];
+  const { name, file, refusedAs, clause } = PARTIAL_CASES[reason];
   test(`a card beside ${name} imports, and the toast says that file's reason in the client's words`, async ({ corpus, mount, page }) => {
     await using root = await createServerHarness(ROOT_OPTIONS);
     await routeAuthConfig(page, corpus.auth.signedInConfig);
@@ -146,10 +152,10 @@ for (const reason of FAILED_CARD_REASONS) {
     await dropOnImportDialog(page, [{ name: "keeper.json", mimeType: "application/json", buffer: GOOD_CARD }, file]);
 
     const toast = page.locator(TOAST_ROOT);
-    await expect(toast).toContainText(cardImportPartialLine(1, [{ filename: file.name, reason }]));
+    await expect(toast).toContainText(`1 of 2 imported. ${clause}: ${file.name}.`);
     // Another reason's sentence for the same file is not what the person is told.
     for (const other of FAILED_CARD_REASONS.filter((candidate) => candidate !== reason)) {
-      await expect(toast).not.toContainText(cardImportPartialLine(1, [{ filename: file.name, reason: other }]));
+      await expect(toast).not.toContainText(PARTIAL_CASES[other].clause);
     }
     expect(sent()).toBe(1);
   });
@@ -166,10 +172,7 @@ test("a batch refused for two reasons says each reason's sentence once, naming t
 
   const toast = page.locator(TOAST_ROOT);
   await expect(toast).toContainText(
-    cardImportPartialLine(1, [
-      { filename: unreadable.name, reason: UNREADABLE },
-      { filename: invalid.name, reason: INVALID },
-    ]),
+    `1 of 3 imported. ${PARTIAL_CASES[UNREADABLE].clause}: ${unreadable.name}. ${PARTIAL_CASES[INVALID].clause}: ${invalid.name}.`,
   );
   // Each file is named under its own reason only, so no sentence lists both files together.
   await expect(toast).not.toContainText(`${unreadable.name}, ${invalid.name}`);

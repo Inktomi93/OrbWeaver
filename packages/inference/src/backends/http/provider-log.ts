@@ -8,6 +8,11 @@ import type { InferenceLog } from "#src/deps.ts";
 
 /** The event an embed backend emits when it shortens an input to the engine's window; the one spelling both backends and their suites use. */
 export const EMBED_CLAMPED_EVENT = "provider.embed-clamped";
+/** The turn's two receipt events — the one spelling the emitters below and the suites that pin the receipts use. */
+export const PROVIDER_SAMPLING_EVENT = "provider.sampling";
+export const PROVIDER_CAPABILITY_EVENT = "provider.capability";
+/** The explicit-cache placement line; the turn span's event shares this name deliberately (`turn-span.ts`). */
+export const PROVIDER_CACHE_EVENT = "provider.cache";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
 export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
@@ -16,11 +21,11 @@ export function providerLogger(log: InferenceLog, wire: string, providerId: stri
   };
   return {
     emit,
-    cache: (entry) => emit("info", "provider.cache", { ...entry }),
+    cache: (entry) => emit("info", PROVIDER_CACHE_EVENT, { ...entry }),
     sampling: (entry) =>
-      emit("debug", "provider.sampling", { turnId: entry.turnId, requested: entry.requested, applied: entry.applied, dropped: [...entry.dropped] }),
+      emit("debug", PROVIDER_SAMPLING_EVENT, { turnId: entry.turnId, requested: entry.requested, applied: entry.applied, dropped: [...entry.dropped] }),
     capability: (entry) =>
-      emit("debug", "provider.capability", {
+      emit("debug", PROVIDER_CAPABILITY_EVENT, {
         turnId: entry.turnId,
         api: entry.api,
         providerId: entry.providerId,

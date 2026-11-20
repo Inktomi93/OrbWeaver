@@ -2,6 +2,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import { jsonValueSchema } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
@@ -99,7 +100,7 @@ export async function coreSdkRoom(
         ids: sdkIds,
         ...server,
         sdkSpawn: (input) => {
-          const runtime = input.env["CLAUDE_CONFIG_DIR"];
+          const runtime = input.env[CLAUDE_CONFIG_DIR_ENV];
           if (runtime === undefined) {
             throw new Error("the actual native SDK spawn has no materialized configuration directory");
           }

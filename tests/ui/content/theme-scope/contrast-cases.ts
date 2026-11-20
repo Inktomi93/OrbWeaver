@@ -120,3 +120,6 @@ export function keepsHue(painted: Oklch, hue: number): boolean {
 
 /** The tones whose marks carry meaning on their own: each one's zone meter fill and status Card edge are judged at 3:1. */
 export const TONE_MARK_ACCENTS = ["info", "warning"] as const;
+
+/** The selected-row story's title: test-authored row text, read by the story and the case that judges its contrast. */
+export const SELECTED_ROW_TITLE = "Witness row";

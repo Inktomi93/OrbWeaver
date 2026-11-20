@@ -13,7 +13,7 @@ import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contrac
 import type { EditImageParams, EditImageSource } from "../contract/params.ts";
 import type { GeneratedPicture } from "../contract/results.ts";
 import type { ImageryContext, ImageryService, ResolvedGenerateImage } from "../contract/service.ts";
-import { runGeneration, sumCost } from "../substrate/generate-core.ts";
+import { runGeneration, sumCost } from "../persistence/generate-core.ts";
 import { SIZE_PRESETS } from "../substrate/size.ts";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */
@@ -31,9 +31,9 @@ async function resolveSourceBytes(ctx: ImageryContext, caller: Principal, source
 }
 
 /** Resolve the generateImage role + capability; a resolve failure wraps into `ImageryNotConfiguredError`. */
-async function resolveOrThrow(ctx: ImageryContext, caller: Principal): Promise<ResolvedGenerateImage> {
+async function resolveOrThrow(ctx: ImageryContext, caller: Principal, signal: AbortSignal): Promise<ResolvedGenerateImage> {
   try {
-    return await ctx.resolveGenerateImage(caller);
+    return await ctx.resolveGenerateImage(caller, signal);
   } catch (err) {
     const error = new ImageryNotConfiguredError("imagery: no generateImage role is configured for this caller");
     error.cause = err;
@@ -47,7 +47,7 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
     // `chatId` is the caller's claim about where the edit was made: it is recorded as provenance only for a chat the
     // caller takes part in, and dropped otherwise (the edit itself is the caller's own asset either way).
     const chatId = p.chatId !== undefined && (await ctx.callerInChat(p.caller, p.chatId)) ? p.chatId : null;
-    const resolution = await resolveOrThrow(ctx, p.caller);
+    const resolution = await resolveOrThrow(ctx, p.caller, p.signal);
     // The capability gate — the asymmetric posture: an explicit edit on a non-edit model THROWS.
     if (!acceptsImageEdit(resolution.capability)) {
       throw new ImageEditUnsupportedError(`imagery: model "${resolution.connection.model}" cannot edit images (input.imageEdit is not set)`);
@@ -62,6 +62,7 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
         // Omit `size` by default — let the backend preserve the source dimensions (forcing a preset crops/distorts).
         ...(p.size !== undefined ? { size: SIZE_PRESETS[p.size] } : {}),
         edit: { image: imageBytes, ...(p.mask !== undefined ? { mask: p.mask.bytes } : {}) },
+        signal: p.signal,
       },
       {
         owner: p.caller,

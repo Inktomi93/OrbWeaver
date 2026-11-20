@@ -14,3 +14,13 @@ test.for([
   await expect(run).toExitWith(0);
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
 });
+
+// `.gitignore` covers only the checkout's own `reports/`, so a scan rooted in a package must not leave a stray there.
+test("a scan rooted inside a checkout files its report under the checkout's reports", async ({ runCli, plantedTree }) => {
+  const checkout = await plantedTree({ ".git/HEAD": "ref: refs/heads/main\n", "packages/inference/package.json": "{}" });
+  const pkg = join(checkout, "packages/inference");
+  const run = await runCli("unwired", ["scan", `--root=${pkg}`]);
+  await expect(run).toExitWith(0);
+  expect(existsSync(join(checkout, MEMBER_REPORT))).toBe(true);
+  expect(existsSync(join(pkg, "reports"))).toBe(false);
+});

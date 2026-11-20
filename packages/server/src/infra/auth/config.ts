@@ -32,7 +32,7 @@ export function authConfigFromEnv(record: Env): AuthConfig {
     ...(record.FORWARD_AUTH_GROUPS_HEADER !== undefined ? { forwardGroupsHeader: record.FORWARD_AUTH_GROUPS_HEADER } : {}),
     ...(record.FORWARD_AUTH_UID_HEADER !== undefined ? { forwardUidHeader: record.FORWARD_AUTH_UID_HEADER } : {}),
     ...(record.FORWARD_AUTH_EMAIL_HEADER !== undefined ? { forwardEmailHeader: record.FORWARD_AUTH_EMAIL_HEADER } : {}),
-    forwardTrustedProxies: parseCsv(record.FORWARD_AUTH_TRUSTED_PROXIES),
+    forwardTrustedProxies: record.FORWARD_AUTH_TRUSTED_PROXIES,
     // The parse is `foundation/env`'s, not a fourth CSV split: the ranges the boot warning names and the
     // ranges the peer gate matches must be the SAME list or the operator is reading a lie.
     fallbackTrustedPeers: parseOwnerFallbackTrustedPeers(record.AUTH_FALLBACK_TRUSTED_PEERS),

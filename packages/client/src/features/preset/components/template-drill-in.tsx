@@ -22,22 +22,23 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { ArrowLeft, Icon, TriangleAlert } from "@orb/ui/icons";
+import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { Notice } from "#components";
 import { CAPPED_FIELD_MAX_ROWS, showsCappedFieldCounter } from "#forms";
 import type { AppFormInstance } from "#forms/editor";
 import { CappedFieldCounter } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_BACK_TO_ACTIONS_NAME, presetTemplateEditorName } from "../lib/preset-names.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
-import { isGuidedActionKind, proseTemplateDraft } from "../lib/template-rows.ts";
+import { isGuidedActionKind, proseTemplateDraft, TEMPLATE_KIND_LABEL } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
@@ -64,11 +65,11 @@ export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillIn
   const backRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(backRef);
   return (
-    <Stack aria-label={`${def.label}: template editor`} gap="section" role="region">
+    <Stack aria-label={presetTemplateEditorName(def.label)} gap="section" role="region">
       <Row align="center" gap="row">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
-          Back to actions
+          {PRESET_BACK_TO_ACTIONS_NAME}
         </Button>
       </Row>
 
@@ -82,10 +83,9 @@ export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillIn
           <Heading level={3} voice="label">
             {def.label}
           </Heading>
-          {/* The SAME chip the list row wears (crunch items 7/14) — outlined neutral, one kind vocabulary
-              drawn one way on both surfaces. */}
+          {/* The kind's display word, the same one the list's group kicker wears, never the wire word. */}
           <Badge variant="outline" size="sm">
-            {def.kind}
+            {TEMPLATE_KIND_LABEL[def.kind]}
           </Badge>
         </Row>
         {/* DESCRIPTIVE ONLY — never a control (§5.0, owner-ratified). */}
@@ -395,16 +395,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
         <form.Subscribe selector={(state): string => state.values.guidedActions?.[guidedKind].prompt ?? ""}>
           {(prompt): ReactElement | null =>
             !guidedFooterState(prompt).missingInputLint ? null : (
-              // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
-              // belongs to the four-voice grammar (§2).
-              <Card tone="warning" variant="soft">
-                <Row align="center" gap="field">
-                  <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                  <Text voice="label">
-                    No {GUIDED_INPUT_TOKEN}: what you type when you fire {def.label} will not land anywhere.
-                  </Text>
-                </Row>
-              </Card>
+              <Notice title={`No ${GUIDED_INPUT_TOKEN}: what you type when you fire ${def.label} will not land anywhere.`} tone="warning" />
             )
           }
         </form.Subscribe>

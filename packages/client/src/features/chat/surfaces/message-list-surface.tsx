@@ -16,7 +16,9 @@ import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { CurrentStack } from "@orb/ui/current";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MESSAGE_LIST_LEADING_SLOT, MessageList } from "@orb/ui/message-list";
@@ -27,15 +29,27 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
+import {
+  roomRosterOptions,
+  SkeletonRows,
+  useChatBus,
+  useDisplayScripts,
+  useGatedQuery,
+  usePrefetchDisplayScripts,
+  useRenderPolicyFloor,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
-import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { buildParticipantsById, displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
+import { isLiveTurnPhase, useGhostSpeakerCharacterId, useTurnPhase } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
+import { RoomReadFailure } from "../components/room-read-failure.tsx";
+import { RowHandover } from "../components/row-handover.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -45,17 +59,20 @@ import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
+import { useRoomSheetSources } from "../hooks/use-room-sheets.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
+import { CHAT_EMPTY_THREAD_TITLE, CHAT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
+import { displayDepthsOf } from "../lib/display-row.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
-import { buildParticipantsById } from "../lib/roster.ts";
+import { roomSheetsBefore } from "../lib/room-sheets.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
 import { CHAT_PRINT_COVERAGE } from "../lib/transcript-copy.ts";
 
@@ -99,6 +116,14 @@ export interface MessageListSurfaceProps {
   readonly leading?: ReactNode;
 }
 
+function TranscriptLoading(): ReactElement {
+  return (
+    <Track of={Stack} track="chat" data-slot="transcript-loading" plate="loading">
+      <SkeletonRows count={3} />
+    </Track>
+  );
+}
+
 /** The scrolling chat transcript for one chat. */
 export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -122,11 +147,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // bands on a photo. The timing was never the defect: #454's rAF sampler proves the skeleton paints
         // on the first room frame of a Resume; it was invisible, so Resume — the most-pressed action in the
         // app — read as an empty room for ~400ms. Both classes are inert on a plain background.
-        fallback={
-          <Track of={Stack} track="chat" data-slot="transcript-loading" plate="loading">
-            <SkeletonRows count={3} />
-          </Track>
-        }
+        fallback={<TranscriptLoading />}
         // THE ERROR STATE IS PART OF THE COLUMN TOO (#681) — the same argument as the fallback directly
         // above, for the state on the other side of the same read. It took the transcript's TRACK and a
         // surface of its own; over art it had neither, so the muted "Couldn't load…" line and its Retry
@@ -135,11 +156,9 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // control, and `muted-foreground` is floored against `card` (the `error` plate states the ink
         // routing in full). Both classes are inert on a plain background.
         // The track is a box around the state, so the plate rides the component's own `plate`.
-        renderError={(_error, retry): ReactElement => (
-          <Track of={Stack} track="chat">
-            <QueryErrorState label="this conversation" onRetry={retry} plate="error" />
-          </Track>
-        )}
+        // A not-found answer keeps the loading rows, never the plate: the room surface reads that answer as gone and leaves, and its
+        // verdict can land a commit after this boundary catches, so a plate here would show for a room that is already leaving.
+        renderError={(error, retry): ReactElement => (trpcErrorCode(error) === "NOT_FOUND" ? <TranscriptLoading /> : <RoomReadFailure onRetry={retry} />)}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
@@ -175,6 +194,12 @@ interface ChatThreadProps {
 type CanonPage = Pick<inferOutput<Trpc["chat"]["listMessages"]>, "messages" | "identities">;
 type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 
+// A game room's card wrap from its `immersiveHtml` read: on wraps naked HTML into cards, and a read that landed OFF lets
+// each row say its card markup is not drawn as one. An unsettled read is neither.
+function gameCardWrap(isGame: boolean, immersiveHtml: boolean | undefined): { readonly lenientHtmlCards: boolean; readonly gameCardsOff: boolean } {
+  return { lenientHtmlCards: isGame && immersiveHtml === true, gameCardsOff: isGame && immersiveHtml === false };
+}
+
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
 function ChatThread({
   chatId,
@@ -194,7 +219,7 @@ function ChatThread({
   readonly history: ReactNode;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chatDetail } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
   // Merge the two CHAT IDENTITY wire halves (D137: the chat-level participant floor ∪ this page's own stamped
@@ -217,14 +242,16 @@ function ChatThread({
   // #40 — a DISENGAGED game (pointer engaged:false) reads like a non-game chat (one predicate home).
   const isGame = isRpgEngaged(chatDetail.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
-  const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
+  const { lenientHtmlCards, gameCardsOff } = gameCardWrap(isGame, gameQuery.data?.publicConfig.immersiveHtml);
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);
+  const roomStanding = roomStandingOf(chatDetail.participants);
   const behaviorPrefs = useChatBehaviorPrefs();
   const phase = useTurnPhase(chatId);
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
   // uses, so the ghost's immersive decoration matches what the canonical row will show once it settles.
-  const ghostSpeakerCharacterId = useTurnSpeakerCharacterId(chatId);
+  const ghostSpeakerCharacterId = useGhostSpeakerCharacterId(chatId);
   // THE ONE PLACE THE ROOM DIAL IS STILL THE HONEST SOURCE (D129): the GHOST is an in-flight turn with no
   // committed row, so there is no declared kind to read — the kind this round WILL be born with is exactly
   // what the dial says. Every settled row reads its own `message.kind` instead. The ghost must resolve
@@ -240,26 +267,35 @@ function ChatThread({
     characterAvatarsById,
     kind: ghostKind,
   });
-  // Macros only: the ghost renders untransformed by the viewer's display scripts, so none ride this context.
+  // The settled rows' display set rides the ghost too, so a reply streams as it will settle and its committed
+  // row reads the ghost's last display-pass answer from the cache instead of blinking at commit.
   const ghostRenderContext = resolveMessageRenderContext({
     participants,
     characterNamesById,
     personaNamesById,
     anchorPersonaId: chatDetail.anchorPersonaId,
+    displayScripts,
+    room: roomStanding,
   });
   // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
   // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change
-  // tier at commit. Only the tier crosses: the ghost pins its markdown trust, external-media verdict and
-  // frame delivery at the stream floor (`ghost-message-row.tsx`'s header states why). `authorUserId: null`
-  // is the assistant arm — a generation is never the viewer's own input.
-  const ghostCardTier = resolveRowRenderPolicy({
+  // tier at commit. Of the trust axes only the tier crosses: the ghost pins its markdown trust, external-media verdict
+  // and frame delivery at the stream floor (`ghost-message-row.tsx`'s header states why). The held-cards fact crosses
+  // too; it is a notice, not a trust axis. `authorUserId: null` is the assistant arm — a generation is never the
+  // viewer's own input.
+  const ghostPolicy = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
     characterId: ghostSpeakerCharacterId,
     viewerUserId,
     participants,
+    kind: ghostKind,
+    narrator: chatDetail.narratorRender,
+    installForbidsExternalMedia,
     lenientHtmlCards,
-  }).cardTier;
+    gameCardsOff,
+    viewerIsHost: chatDetail.viewerIsHost,
+  });
   // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
   // roster it already read: a room with no user row is still steppable, and the seated characters' cards say
   // what the alternates are. Per-row it is a map lookup (`resolveGreetingBinding`), so the N card reads are N
@@ -268,13 +304,40 @@ function ChatThread({
   const seatedCharacterIds = [...participants.keys()];
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost);
-  const items = useMessageItems(messages, chatId);
+  const { items, ghostKey, rowDrawn } = useMessageItems(messages, chatId, !edges.later);
+  const displayDepths = displayDepthsOf(items, edges);
   const liveCardRows = liveCardRowIds(items, (view) =>
-    resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
+    resolveRowRenderPolicy({
+      role: view.role,
+      authorUserId: view.authorUserId,
+      characterId: view.characterId,
+      viewerUserId,
+      participants,
+      kind: view.kind,
+      narrator: chatDetail.narratorRender,
+      installForbidsExternalMedia,
+      lenientHtmlCards,
+    }),
+  );
+  // The room's stylesheet cascade, each source at the tier its own row draws at.
+  const roomSources = useRoomSheetSources(chatId, messages, (view) =>
+    resolveRowRenderPolicy({
+      role: view.role,
+      authorUserId: view.authorUserId,
+      characterId: view.characterId,
+      viewerUserId,
+      participants,
+      kind: view.kind,
+      narrator: chatDetail.narratorRender,
+      installForbidsExternalMedia,
+      lenientHtmlCards,
+      gameCardsOff,
+      viewerIsHost: chatDetail.viewerIsHost,
+    }),
   );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
-  const newArrivalKeys = useNewArrivalKeys(items, chatId);
+  const newArrivalKeys = useNewArrivalKeys(items, chatId, ghostKey);
 
   const live = isLiveTurnPhase(phase);
 
@@ -333,75 +396,97 @@ function ChatThread({
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = fit?.compactSummary ?? null;
 
-  // Identity stays with its row even when a short turn crosses the transcript edge.
+  // The live turn's row: on its own item while it streams, then over its committed row's item until that row draws.
+  const ghostRow = (enterMotion: boolean, displayDepth: number | undefined): ReactElement => (
+    <GhostMessageRow
+      chatId={chatId}
+      chatStyle={chatStyle}
+      streaming={phase === "streaming" || phase === "stopping"}
+      attribution={ghostAttribution}
+      speakerCharacterId={ghostSpeakerCharacterId}
+      renderContext={ghostRenderContext}
+      messageKind={ghostKind}
+      displayDepth={displayDepth}
+      avatarSize={messageAppearance.avatarSize}
+      avatarShape={messageAppearance.avatarShape}
+      avatarAspect={messageAppearance.avatarAspect}
+      avatarRing={messageAppearance.avatarRing}
+      showInChatAvatars={messageAppearance.showInChatAvatars}
+      showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+      colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+      cardTier={ghostPolicy.cardTier}
+      heldCards={ghostPolicy.heldCards}
+      generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
+      holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
+      roomSheets={roomSheetsBefore(roomSources, Number.POSITIVE_INFINITY)}
+      smoothStreamCps={behaviorPrefs.smoothStreamCps}
+      reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
+      enterMotion={enterMotion}
+      stickyAttribution={true}
+    />
+  );
+  // Identity stays with its row even when a short turn crosses the transcript edge. Every item renders through the one
+  // hand-over shape, so the ghost and its committed row keep their elements when one takes the other's place.
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
-      <GhostMessageRow
-        chatId={chatId}
-        chatStyle={chatStyle}
-        streaming={phase === "streaming" || phase === "stopping"}
-        attribution={ghostAttribution}
-        speakerCharacterId={ghostSpeakerCharacterId}
-        renderContext={ghostRenderContext}
-        avatarSize={messageAppearance.avatarSize}
-        avatarShape={messageAppearance.avatarShape}
-        avatarAspect={messageAppearance.avatarAspect}
-        avatarRing={messageAppearance.avatarRing}
-        showInChatAvatars={messageAppearance.showInChatAvatars}
-        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
-        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        cardTier={ghostCardTier}
-        generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
-        smoothStream={behaviorPrefs.smoothStream}
-        smoothStreamCps={behaviorPrefs.smoothStreamCps}
-        reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
-        enterMotion={newArrivalKeys.has(item.id)}
-        stickyAttribution={true}
-      />
+      <RowHandover ghost={ghostRow(newArrivalKeys.has(item.id), displayDepths.ghost)} row={null} onDrawn={undefined} />
     ) : (
-      <MessageRow
-        message={item.view}
-        neighbours={moveNeighboursAt(
-          messages,
-          messages.findIndex((message) => message.id === item.view.id),
-          edges,
-        )}
-        chatStyle={chatStyle}
-        stickyAttribution={true}
-        {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
-          // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
-          const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
-          return greeting === undefined ? {} : { greeting };
-        })()}
-        avatarSize={messageAppearance.avatarSize}
-        avatarShape={messageAppearance.avatarShape}
-        avatarAspect={messageAppearance.avatarAspect}
-        avatarRing={messageAppearance.avatarRing}
-        showInChatAvatars={messageAppearance.showInChatAvatars}
-        autoFixMarkdown={messageAppearance.autoFixMarkdown}
-        displayScripts={displayScripts}
-        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
-        metadataVisibility={messageAppearance.metadataVisibility}
-        viewerIsHost={chatDetail.viewerIsHost}
-        messageActions={messageAppearance.messageActions}
-        showSwipes={item.view.id === lastRowId}
-        lastRow={item.view.id === lastRowId}
-        contextBoundary={item.view.id === contextBoundaryMessageId}
-        contextBoundaryLabel={contextBoundaryLabel}
-        contextBoundaryCompactSummary={contextBoundaryCompactSummary}
-        participants={participants}
-        characterNamesById={characterNamesById}
-        personaNamesById={personaNamesById}
-        personaAvatarsById={personaAvatarsById}
-        characterAvatarsById={characterAvatarsById}
-        activePersonaId={activePersonaId}
-        anchorPersonaId={chatDetail.anchorPersonaId}
-        viewerUserId={viewerUserId}
-        lenientHtmlCards={lenientHtmlCards}
-        enterMotion={newArrivalKeys.has(item.view.id)}
-        surfaceContributors={surfaceContributors}
-        toolRenderers={toolRenderers}
+      <RowHandover
+        ghost={item.underGhost ? ghostRow(false, displayDepths.rows.get(item.view.id)) : null}
+        onDrawn={(): void => {
+          rowDrawn(item.view.id);
+        }}
+        row={
+          <MessageRow
+            message={item.view}
+            neighbours={moveNeighboursAt(
+              messages,
+              messages.findIndex((message) => message.id === item.view.id),
+              edges,
+            )}
+            chatStyle={chatStyle}
+            stickyAttribution={true}
+            {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
+              // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
+              const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
+              return greeting === undefined ? {} : { greeting };
+            })()}
+            avatarSize={messageAppearance.avatarSize}
+            avatarShape={messageAppearance.avatarShape}
+            avatarAspect={messageAppearance.avatarAspect}
+            avatarRing={messageAppearance.avatarRing}
+            showInChatAvatars={messageAppearance.showInChatAvatars}
+            autoFixMarkdown={messageAppearance.autoFixMarkdown}
+            displayScripts={displayScripts}
+            roomStanding={roomStanding}
+            displayDepth={displayDepths.rows.get(item.view.id)}
+            colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+            showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+            metadataVisibility={messageAppearance.metadataVisibility}
+            viewerIsHost={chatDetail.viewerIsHost}
+            messageActions={messageAppearance.messageActions}
+            showSwipes={item.view.id === lastRowId}
+            lastRow={item.view.id === lastRowId}
+            contextBoundary={item.view.id === contextBoundaryMessageId}
+            contextBoundaryLabel={contextBoundaryLabel}
+            contextBoundaryCompactSummary={contextBoundaryCompactSummary}
+            participants={participants}
+            narratorRender={chatDetail.narratorRender}
+            characterNamesById={characterNamesById}
+            personaNamesById={personaNamesById}
+            personaAvatarsById={personaAvatarsById}
+            characterAvatarsById={characterAvatarsById}
+            activePersonaId={activePersonaId}
+            anchorPersonaId={chatDetail.anchorPersonaId}
+            viewerUserId={viewerUserId}
+            lenientHtmlCards={lenientHtmlCards}
+            gameCardsOff={gameCardsOff}
+            roomSheets={roomSheetsBefore(roomSources, item.view.seq)}
+            enterMotion={newArrivalKeys.has(item.key)}
+            surfaceContributors={surfaceContributors}
+            toolRenderers={toolRenderers}
+          />
+        }
       />
     );
 
@@ -431,11 +516,11 @@ function ChatThread({
         <PrintCoverage edges={edges} />
         <MessageList
           ref={listHandleRef}
-          ariaLabel="Conversation messages"
+          ariaLabel={CHAT_TRANSCRIPT_NAME}
           items={items}
           getItemKey={messageItemKey}
           estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
-          keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
+          keepMounted={(item): boolean => item.kind === "message" && liveCardRows.has(item.view.id)}
           renderItem={(item): ReactNode => {
             const highlighted =
               item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;
@@ -479,11 +564,6 @@ function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactEle
 
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
-  return (
-    <Stack align="center" justify="center" padding="section" height="fill">
-      {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
-          the one line standing in for a whole transcript is the last thing that should recede. */}
-      <Text>No messages yet.</Text>
-    </Stack>
-  );
+  // No action: the composer under the transcript is the next step.
+  return <EmptyState action={null} push="blockCentre" title={CHAT_EMPTY_THREAD_TITLE} />;
 }

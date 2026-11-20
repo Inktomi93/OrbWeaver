@@ -5,7 +5,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { PluginCardDataUnwritableError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginRuntimeDeps, PluginRuntimeOps, PluginSuggestionExecutor } from "../contract/runtime-ports.ts";
 import { recordPluginFetchedAsset } from "../persistence/plugin-assets.ts";
 import { createShowcaseVersionReader } from "../substrate/showcase-version.ts";
@@ -16,9 +16,9 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
   const deps: PluginRuntimeDeps = { ...input, db: databaseForOwner(input.db) };
   const { db, now, imagery, assets, resolveOwnerPrincipal } = deps;
   return {
-    ingestDatabank: async ({ installerUserId, name, text }): ReturnType<PluginRuntimeOps["ingestDatabank"]> => {
+    ingestDatabank: async ({ installerUserId, name, text, signal }): ReturnType<PluginRuntimeOps["ingestDatabank"]> => {
       const principal = await resolveOwnerPrincipal(installerUserId);
-      const { document } = await deps.databankCreateFromText({ principal, name, text });
+      const { document } = await deps.databankCreateFromText({ principal, name, text, signal });
       return { documentId: document.id };
     },
     requestTurn: async ({ triggeredBy, chatId, automationDepth, speakerCharacterId, guided }): ReturnType<PluginRuntimeOps["requestTurn"]> => {
@@ -33,7 +33,7 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
       });
     },
-    generatePicture: async ({ authorUserId, chatId, args }): ReturnType<PluginRuntimeOps["generatePicture"]> => {
+    generatePicture: async ({ authorUserId, chatId, args, signal }): ReturnType<PluginRuntimeOps["generatePicture"]> => {
       const p = generateImageActionArgsSchema.parse(args);
       const caller = await resolveOwnerPrincipal(authorUserId);
       const picture = await imagery.generatePicture({
@@ -47,6 +47,7 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         ...(p.negative !== undefined ? { negative: p.negative } : {}),
         ...(p.size !== undefined ? { size: p.size } : {}),
         ...(p.subjectCharacterId !== undefined ? { subjectCharacterId: p.subjectCharacterId } : {}),
+        signal,
       });
       const first = picture.images[0];
       if (first === undefined) {
@@ -58,8 +59,11 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
       setCardData: async ({ installerUserId, slug, characterId, data }): ReturnType<PluginRuntimeOps["cardState"]["setCardData"]> => {
         const id = typeIdSchema(ID_PREFIX.character).parse(characterId);
         const written = await deps.writeCardData({ characterId: id, ownerId: installerUserId, slug }, data);
-        if (!written) {
+        if (written === "absent") {
           throw new PluginNotFoundError({ characterId: id });
+        }
+        if (written === "unwritable") {
+          throw new PluginCardDataUnwritableError();
         }
       },
       getCardData: async ({ installerUserId, slug, characterId }): ReturnType<PluginRuntimeOps["cardState"]["getCardData"]> => {

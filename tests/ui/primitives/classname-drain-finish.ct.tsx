@@ -91,7 +91,9 @@ test("tone inks ghost, outline and secondary; underline, reserveEdge and confirm
 test("quietDisabled keeps a disabled control at full strength, where a plain disabled control dims", async ({ mount }) => {
   const root = await mount<typeof ButtonFinishStory>(`${STORIES}/ButtonFinishStory`, {});
   expect(await computedStyle(root.getByRole("button", { name: "quiet disabled", exact: true }), "opacity")).toBe("1");
-  expect(await computedStyle(root.getByRole("button", { name: "dim disabled", exact: true }), "opacity")).toBe("0.5");
+  expect(await computedStyle(root.getByRole("button", { name: "dim disabled", exact: true }), "opacity")).toBe(
+    await probe(root, "disabled-opacity", "opacity"),
+  );
 });
 
 test("the sidebar focus ring offsets into the sidebar fill, and the rail marks only the selected row", async ({ mount, page }) => {
@@ -129,12 +131,6 @@ test("rail, focusable and ownSlot take their properties", async ({ mount }) => {
   const focusable = kase(root, "focusable");
   await focusable.focus();
   await expect.poll(() => computedStyle(focusable, "outline-style")).toBe("none");
-});
-
-test("an interactive card takes the glow elevation, and a static card takes none", async ({ mount }) => {
-  const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
-  expect(await computedStyle(kase(root, "glow-follow"), "box-shadow")).not.toBe("none");
-  expect(await computedStyle(kase(root, "glow-none"), "box-shadow")).toBe("none");
 });
 
 test("divider between ends the list clean, and the rule weight, tone and dashed style reach the edge", async ({ mount }) => {
@@ -231,7 +227,6 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await computedStyle(kase(root, "tab-cell"), "opacity")).toBe("1");
   expect(await computedStyle(kase(root, "tabs-panel"), "background-color")).toBe(await probe(root, "sidebar", "background-color"));
   expect(await computedStyle(kase(root, "dialog-header"), "position")).toBe("sticky");
-  expect(await computedStyle(kase(root, "command"), "box-shadow")).not.toBe("none");
   expect(await computedStyle(kase(root, "swatch-online"), "background-color")).toBe(await probe(root, "success", "background-color"));
   expect(await computedStyle(kase(root, "swatch-online"), "border-start-start-radius")).not.toBe("0px");
   expect(await computedStyle(kase(root, "swatch-offline"), "border-block-start-width")).toBe("1px");

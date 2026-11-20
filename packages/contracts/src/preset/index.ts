@@ -12,23 +12,26 @@
 //   • owner-ops.ts — the owner-operation types other domains inject (the preset domain implements them).
 //   • portability.ts — the preset import outcome exposed by transport.
 
+import { everyRow } from "@orb/kit/guards";
 import type { Branded, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
+import { parseJsonText } from "@orb/kit/json";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
-import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
+import type { CapabilityKnob, GenerationCapability, EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
 import {
   capabilityTargetSchema,
   EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
   REASONING_DISPLAY_MODES,
   SAMPLER_KNOBS,
   samplerOrderSchema,
+  statesKnob,
   userRoleHandlingSchema,
   VERBOSITY_LEVELS,
 } from "#inference";
@@ -44,6 +47,7 @@ import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
 import { emittedWarningSchema } from "../inference/warnings.ts";
 import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
+import type { RegexScriptCard, StRegexScriptFields } from "../regex/schemas.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -102,24 +106,36 @@ const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_
 
 /** The documented headless subscription credential env (`claude setup-token`). */
 export const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
+/** The other auth, identity, routing and config-directory names the agent SDK child's environment owns. */
+export const ANTHROPIC_API_KEY_ENV = "ANTHROPIC_API_KEY";
+export const ANTHROPIC_AUTH_TOKEN_ENV = "ANTHROPIC_AUTH_TOKEN";
+export const ANTHROPIC_BASE_URL_ENV = "ANTHROPIC_BASE_URL";
+export const ANTHROPIC_IDENTITY_TOKEN_ENV = "ANTHROPIC_IDENTITY_TOKEN";
+export const ANTHROPIC_IDENTITY_TOKEN_FILE_ENV = "ANTHROPIC_IDENTITY_TOKEN_FILE";
+export const ANTHROPIC_SERVICE_ACCOUNT_ID_ENV = "ANTHROPIC_SERVICE_ACCOUNT_ID";
+export const CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR";
+export const ANTHROPIC_CONFIG_DIR_ENV = "ANTHROPIC_CONFIG_DIR";
+const ANTHROPIC_DEFAULT_OPUS_MODEL_ENV = "ANTHROPIC_DEFAULT_OPUS_MODEL";
+const ANTHROPIC_DEFAULT_SONNET_MODEL_ENV = "ANTHROPIC_DEFAULT_SONNET_MODEL";
+const ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
 
 /** Every key the agent SDK child's environment owns (D8): the host-owned names above, auth and identity, routing, the
  *  config directory and model selection. A preset can neither set nor unset one, and the server's boot scrub deletes
  *  each from its own environment, so no process it starts outside that child inherits one. */
 export const RESERVED_CLAUDE_ENV_KEYS = [
   ...HOST_OWNED_CLAUDE_ENV_KEYS,
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
+  ANTHROPIC_API_KEY_ENV,
+  ANTHROPIC_AUTH_TOKEN_ENV,
+  ANTHROPIC_BASE_URL_ENV,
   CLAUDE_OAUTH_TOKEN_ENV,
-  "ANTHROPIC_IDENTITY_TOKEN",
-  "ANTHROPIC_IDENTITY_TOKEN_FILE",
-  "ANTHROPIC_SERVICE_ACCOUNT_ID",
-  "CLAUDE_CONFIG_DIR",
-  "ANTHROPIC_CONFIG_DIR",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL",
-  "ANTHROPIC_DEFAULT_SONNET_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+  ANTHROPIC_IDENTITY_TOKEN_ENV,
+  ANTHROPIC_IDENTITY_TOKEN_FILE_ENV,
+  ANTHROPIC_SERVICE_ACCOUNT_ID_ENV,
+  CLAUDE_CONFIG_DIR_ENV,
+  ANTHROPIC_CONFIG_DIR_ENV,
+  ANTHROPIC_DEFAULT_OPUS_MODEL_ENV,
+  ANTHROPIC_DEFAULT_SONNET_MODEL_ENV,
+  ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV,
 ] as const;
 
 // A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a
@@ -156,12 +172,10 @@ const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine(
     }
   }
 });
-/** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling,
- *  option 2). Two schemas wear it and they are
- *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
- *  spliced into a turn. It supersedes the old `MAX_FORMAT_STRING_LENGTH` (same value, renamed rather than aliased —
- *  a second spelling of one cap is the drift this constant exists to prevent), and the guided prompt was
- *  UNCAPPED until this ruling: a `z.string()` that reached both the preset row and the model wire unbounded.
+/** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling).
+ *  Two schemas wear it and they are the same kind of thing: a `formatStrings` slot and a
+ *  `guidedActions.*.prompt` are both macro-carrying text spliced into a turn, and both reach the preset row and
+ *  the model wire. One number, one spelling: a second spelling of one cap is the drift this constant prevents.
  *
  *  EXPORTED because the editor must wear it: `formatStringsSchema` is also the READ path (`parsePromptConfig`
  *  degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap format string is not a bounced field —
@@ -255,9 +269,8 @@ export const SIDE_GEN_POSTURES = {
   // Imagery quiet keyword-extraction: low temp for a near-deterministic extraction, a budget sized for a
   // keyword list, not prose.
   extract_quiet: { temperature: 0.4, maxOutputTokens: 320, effort: NO_REASONING },
-  // Managed-compaction marker: low-temp + bounded (a faithful summary, not creative writing). Historically
-  // this passed ONLY a temperature (the output length floored through quiet_generate, which it rides) — so
-  // the encoding carries NO `maxOutputTokens`, and the quiet_generate floor still supplies the length.
+  // Managed-compaction marker: low-temp + bounded (a faithful summary, not creative writing). The encoding
+  // carries NO `maxOutputTokens`: the quiet_generate floor supplies the length.
   compaction: { temperature: 0.3 },
   // Library distillation (card → filterable facets): near-deterministic guided decode, a budget sized for
   // the compact structured payload.
@@ -276,8 +289,7 @@ export const SIDE_GEN_POSTURES = {
   // guidance/lore ops), not creative prose — the quiet_generate floor's class (temp 0.3, 1024 out).
   rule_analysis: { temperature: 0.3, maxOutputTokens: 1024 },
   // Vision caption / avatar analysis: near-deterministic classification with a budget sized for the
-  // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
-  // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home.
+  // sentence plus sixteen short structured fields. This IS the avatar analysis call's floor, and its own home.
   caption: { temperature: 0.2, maxOutputTokens: 512, effort: NO_REASONING },
   // ── Refinery stage postures (R1; study §5.3's values). The caller is always the card owner, so the owner's
   //    Utility-role preset always applies (no mixed-owner batch arm here). ──
@@ -315,22 +327,21 @@ export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 export const COMPACTION_MODES = ["auto", "managed"] as const;
 export type CompactionMode = (typeof COMPACTION_MODES)[number];
 
-// What a reply may CARRY (inference program §6.7): `text+image` asks a model whose capability says
+// What a reply may CARRY: `text+image` asks a model whose capability says
 // `output.modalities ∋ image` to answer with interleaved pictures (the funnel emits `modalities` on the wire
 // only then; on a text-only model the knob drops with `sampling_knob_dropped`). GLOBAL like every gen
 // setting (D154) — the per-room desire is a recorded fork (F23), not a knob.
 const REPLY_MEDIA = ["text", "text+image"] as const;
 
-// REASONING CARRY (inference program §8.8) — how much of the model's OWN prior thinking rides back into the
+// REASONING CARRY — how much of the model's OWN prior thinking rides back into the
 // next request. ORDERED, and the order is the point: `capability.reasoning.replay` gates the rungs from the
 // top, so a wire that accepts nothing drops the knob to `off` while a wire that accepts prose still honours
-// both rungs (in prose form). SillyTavern models these as two unrelated controls in two panels
-// (`power_user.reasoning.add_to_prompts` + `oai_settings.tool_reasoning_mode`); conflating the axes is the
-// defect, splitting the PANELS is not the fix.
+// both rungs (in prose form). Replay scope and display are INDEPENDENT axes: conflating them is the defect
+// (splitting the panels is not the fix).
 //   • `off`          — never replay. The default: most providers advise against cross-turn replay.
-//   • `tool-chain`   — replay within the ACTIVE tool chain only (ST's `promptIdx > lastUserIdx` fence, which
-//                      is the honest boundary: a tool chain is ONE logical turn, and a model that signed its
-//                      thinking loses verified reasoning every hop without it — a CORRECTNESS property).
+//   • `tool-chain`   — replay within the ACTIVE tool chain only — a tool chain is ONE logical turn, and a model
+//                      that signed its thinking loses verified reasoning every hop without it (a CORRECTNESS
+//                      property).
 //   • `conversation` — additionally replay prior TURNS' thinking, materialized onto their assistant rows.
 // GLOBAL and preset-owned like every gen setting (D154).
 const CARRY_REASONING_MODES = ["off", "tool-chain", "conversation"] as const;
@@ -366,8 +377,8 @@ const ADAPTIVE_DECAY_MAX = 0.99;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
 // The managed-compaction VERBATIM TAIL: the newest N canon rows kept literal when the SDK owns context and
-// nothing trims — everything older is compacted (`maxSeq - tail`). Was the engine's `MANAGED_VERBATIM_TAIL=8`
-// const (the missing 4th compaction knob); a value outside these bounds drops at parse → the engine floor.
+// nothing trims — everything older is compacted (`maxSeq - tail`). A value outside these bounds drops at
+// parse → the engine floor (`MANAGED_VERBATIM_TAIL`).
 const COMPACTION_VERBATIM_TAIL_MIN = 1;
 const COMPACTION_VERBATIM_TAIL_MAX = 100;
 
@@ -473,12 +484,10 @@ const generationKnobSchemas = {
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // `z.strictObject` rejects unknown keys (a typo'd knob is a real bug; `.catch({})` at the params field bounds
-// the blast radius). HISTORICAL NOTE: this site used `.strict()` on a plain `z.object` because an early Zod v4
-// `z.strictObject` inflated the inferred type with an index-signature tag that propagated through `.optional()`
-// and tripped `noPropertyAccessFromIndexSignature`. FIXED UPSTREAM — on 4.4.3 `$strict` is byte-identical to
-// `$strip` (`zod/v4/core/schemas.d.ts`: `{ out: {}; in: {} }`), verified type-level under this repo's own strict
-// flags. Either spelling is fine now; `z.strictObject` is the direct one (`.strict()` is tagged legacy-compat in
-// the installed d.ts), so new strict boundaries should use it.
+// the blast radius). On zod 4.4.3 `$strict` is byte-identical to `$strip` (`zod/v4/core/schemas.d.ts`:
+// `{ out: {}; in: {} }`), verified type-level under this repo's own strict flags, so the two spellings are
+// interchangeable; `.strict()` is tagged legacy-compat in the installed d.ts, so new strict boundaries should
+// use `z.strictObject`.
 export const userIntentSchema = z.strictObject({
   quality: z.enum(QUALITY_LEVELS).optional(),
 
@@ -487,6 +496,12 @@ export const userIntentSchema = z.strictObject({
   thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
   // How much of the model's own prior thinking rides back (§8.8). Absent ⇒ `CARRY_REASONING_DEFAULT`.
   carryReasoning: z.enum(CARRY_REASONING_MODES).optional(),
+  // The authored chain of thought the model CONTINUES FROM on a prefilled reply (§8.8 seed): rule 5a stamps it
+  // on the continue row and the model answers from it. A partial seed that stops mid-thought is completed by
+  // the model in its own reasoning (measured 6/6, `docs/law/deepseek-api-surface.md`); a finished one is
+  // adopted whole (3/3, response reasoning empty). Rides only a turn that ends on the assistant's half-started
+  // row; every other route drops it with its own notice.
+  reasoningSeed: z.string().optional(),
 
   maxOutputTokens: generationKnobSchemas.maxOutputTokens,
   maxContextTokens: generationKnobSchemas.maxContextTokens,
@@ -572,6 +587,103 @@ export const userIntentSchema = z.strictObject({
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
 
+// A generation runs only on the controls its model takes (D68). The editor hides every other control and the
+// preset keeps its value, so `statedIntent` removes the value where a generation forms its params, and no reader
+// downstream ever sees it: no body field, no clamp, no warning, no recorded param.
+
+type Advanced = NonNullable<UserIntent["advanced"]>;
+
+// `ours`: a setting of this app, not of the model (caps, compaction, replay, message handling), so it always passes.
+type IntentControl = CapabilityKnob | "ours";
+
+// The Reasoning switch stores its off as `effort: "none"`; every other effort value is the level select.
+const EFFORT_OFF = "none";
+
+const INTENT_CONTROL: { readonly [K in Exclude<keyof UserIntent, "effort" | "advanced">]-?: IntentControl } = {
+  quality: "quality",
+  thinkingBudgetTokens: "thinkingBudgetTokens",
+  thinkingDisplay: "thinkingDisplay",
+  carryReasoning: "carryReasoning",
+  reasoningSeed: "reasoningSeed",
+  maxOutputTokens: "ours",
+  maxContextTokens: "ours",
+  providerContextCompression: "providerContextCompression",
+  responseCache: "ours",
+  temperature: "temperature",
+  topP: "topP",
+  topK: "topK",
+  minP: "minP",
+  topA: "topA",
+  frequencyPenalty: "frequencyPenalty",
+  presencePenalty: "presencePenalty",
+  repetitionPenalty: "repetitionPenalty",
+  repetitionPenaltyRange: "repetitionPenaltyRange",
+  typicalP: "typicalP",
+  topNSigma: "topNSigma",
+  xtcProbability: "xtcProbability",
+  xtcThreshold: "xtcThreshold",
+  dryMultiplier: "dryMultiplier",
+  dryBase: "dryBase",
+  dryAllowedLength: "dryAllowedLength",
+  dryPenaltyLastN: "dryPenaltyLastN",
+  drySequenceBreakers: "drySequenceBreakers",
+  mirostatMode: "mirostatMode",
+  mirostatTau: "mirostatTau",
+  mirostatEta: "mirostatEta",
+  dynatempRange: "dynatempRange",
+  dynatempExponent: "dynatempExponent",
+  smoothingFactor: "smoothingFactor",
+  smoothingCurve: "smoothingCurve",
+  adaptiveTarget: "adaptiveTarget",
+  adaptiveDecay: "adaptiveDecay",
+  minKeep: "minKeep",
+  bannedStrings: "bannedStrings",
+  banEos: "banEos",
+  samplerOrder: "samplerOrder",
+  seed: "seed",
+  logitBias: "logitBias",
+  stop: "stop",
+  verbosity: "verbosity",
+  replyMedia: "replyMedia",
+  compaction: "ours",
+};
+
+const ADVANCED_CONTROL: { readonly [K in keyof Advanced]-?: IntentControl } = {
+  claudeEnv: "ours",
+  squashSystemMessages: "ours",
+  roleHandling: "ours",
+  parallelToolCalls: "parallelToolCalls",
+};
+
+function applies(capability: GenerationCapability, control: IntentControl): boolean {
+  return control === "ours" || statesKnob(capability, control);
+}
+
+function statedFields<T extends object>(source: T, controls: { readonly [K in keyof T]-?: IntentControl }, capability: GenerationCapability): Partial<T> {
+  const kept: Partial<T> = {};
+  // `Object.keys` is typed `string[]`; the keys of `source` are exactly `keyof T` (the `stripUndefined` posture).
+  for (const key of Object.keys(source) as (keyof T)[]) {
+    if (applies(capability, controls[key])) {
+      kept[key] = source[key];
+    }
+  }
+  return kept;
+}
+
+/** The params a generation on `capability` runs with: `intent` minus every value whose control the model does not
+ *  take. The stored preset is untouched, so a model that takes the control uses the value again. */
+export function statedIntent(intent: UserIntent, capability: GenerationCapability): UserIntent {
+  const { effort, advanced, ...rest } = intent;
+  const stated: UserIntent = statedFields(rest, INTENT_CONTROL, capability);
+  const effortControl: CapabilityKnob = effort === EFFORT_OFF ? "reasoning" : "effort";
+  const statedAdvanced = advanced === undefined ? undefined : statedFields(advanced, ADVANCED_CONTROL, capability);
+  return {
+    ...stated,
+    ...(effort !== undefined && statesKnob(capability, effortControl) ? { effort } : {}),
+    ...(statedAdvanced === undefined || Object.keys(statedAdvanced).length === 0 ? {} : { advanced: statedAdvanced }),
+  };
+}
+
 // What a non-chat model role takes from its preset (D304): generation params plus its inline reasoning tag pair,
 // which splits a prose reply; never other prompt structure.
 // The two tuples partition `UserIntent`'s keys ,
@@ -585,6 +697,7 @@ const CHAT_ONLY_INTENT_FIELDS = [
   "quality",
   "thinkingDisplay",
   "carryReasoning",
+  "reasoningSeed",
   "providerContextCompression",
   "verbosity",
   "replyMedia",
@@ -621,7 +734,7 @@ export type ReadOptionalPresetConfig = (userId: UserId, id: PresetId) => Promise
 
 const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
-/** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
+/** A tag pair as the stream splitter carries it: trimmed (an imported pair wraps the tags in newlines), and
  *  only when it is an XML-shaped `<x>`/`</x>`. `undefined` for any other pair, which would split nothing. The same
  *  shape rule as the openai-compat splitter (`think-tags.ts`). */
 export function splittableTagPair(pair: ReasoningTagPair | undefined): ReasoningTagPair | undefined {
@@ -671,9 +784,9 @@ export const GUIDED_IMPERSONATE_PERSONS = ["first", "second", "third"] as const 
 export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
 export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS) satisfies z.ZodType<GuidedActionKind>;
 
-// The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` (census
-// rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
-// can never disagree. Revising one is a `text` + `version` edit in `./prose`; `tests/contracts/prose/prose-baseline.repo.int.test.ts` fails the edit unless the version rises.
+// The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` and read
+// here, so the shipped default, the registry row and the editor's ghosted placeholder can never disagree.
+// Revising one is a `text` + `version` edit in `./prose`; `tests/contracts/prose/prose-baseline.repo.int.test.ts` fails the edit unless the version rises.
 //
 // Greeting studio — the guided-action machinery pointed at a BASE greeting text (the card's own
 // opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
@@ -692,27 +805,23 @@ const GREETING_NEW_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.greetingNe
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-// A guided action carries its TEMPLATE + delivery role and NOTHING about sampling: the per-template
-// sampling override (temperature/topP/maxOutputTokens) was DELETED (owner ruling) — a guided
-// generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
-// a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
-// parses and simply loses it.
+// A guided action carries its TEMPLATE + delivery role and NOTHING about sampling: a guided generation runs at
+// the preset's normal generation params, exactly like every other turn. Unknown keys on a stored blob are
+// STRIPPED by this non-strict object, so a stored `sampling` key parses and is dropped.
 const guidedActionConfigSchema = z
   .object({
     /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
      *
-     *  CAPPED at the shared injection-template max (owner ruling). It was an unbounded `z.string()` —
-     *  the one authored text field in this contract with no ceiling, reaching BOTH the preset row and the model's
-     *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
-     *  functional sibling `formatStrings` has always carried this same number; they are one class. */
+     *  CAPPED at the shared injection-template max (owner ruling): it reaches BOTH the preset row and the model's
+     *  system block (`assembly/macros.ts` resolveGuidedInstruction). Its functional sibling `formatStrings` carries
+     *  the same number; they are one class. */
     prompt: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH),
     /** Conversation role the resolved text is delivered with; `system` rides the `guided_instruction` marker
      *  wherever the prompt order places it, `user`/`assistant` push as an in-chat injection. */
     role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
     /** In-chat delivery DEPTH for a `user`/`assistant` role: 0 = the tail (with `assistant` that IS the
      *  prefill-shaped position — prefill is a POSITION, not a role), N = N turns back. ABSENT (never
-     *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
-     *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
+     *  `.default()`) ⇒ 0, so every stored blob keeps its exact bytes. Inert on a `system`
      *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
     depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
   })
@@ -764,14 +873,10 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Rewrite toggle catalog — the "toggle options to guide it" the Rewrite modal renders (owner ruling).
-// Adapted (not ported) from the ST Guided-Generations rewrite family: the *Corrections*
-// tool itself ships no toggle catalog (only a free-text instruction + include-history + selection-scope),
-// so the guiding vocabulary here is lifted from the sibling **editIntros** transform catalog
-// (`prompts.json editIntros.options`), which IS the source's "one-click steer without prose-writing" set.
 // Only the transforms that make sense for a MID-CONVERSATION reply correction are kept: prose STYLE and
 // TENSE. The perspective/gender options are excluded — they reframe {{user}} in an OPENING and belong to
 // the greeting-studio surface, not a reply rewrite. `concise`/`expand` are the two universal
-// correction-length fragments the Corrections OOC prompt implies ("change it to reflect …").
+// correction-length fragments a reply correction implies ("change it to reflect …").
 //
 // Registry-as-data (the databank SCRAPER_KINDS / steer-library precedent — "substrate not a type home":
 // contracts owns the shape+data both the client chips and the server's composer need). Each toggle = a
@@ -781,18 +886,17 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 // D172). They are host-editable prose slots
 // (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
 // already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
-// (`@orb/kit/guided`) — selected fragments join `. ` (the source's exact editIntros join) in CATALOG
-// ORDER, then the user's free-text instruction is appended, producing the ONE steer string that becomes
-// `{{input}}` inside the preset's `rewrite` template. Layering:
+// (`@orb/kit/guided`) — selected fragments join `. ` in CATALOG ORDER, then the user's free-text instruction
+// is appended, producing the ONE steer string that becomes `{{input}}` inside the preset's `rewrite`
+// template. Layering:
 //   preset rewrite template  ⊃  (resolved slot fragments joined) + free-text instruction
-// which mirrors the source's editIntros layering (options joined `". "` → filled into the task template).
 // The WIRE carries only the picked ids (`guidedSteerSchema.rewriteToggles`), never the fragment text — the
 // `gameSteer` doctrine, so a host's override is the bytes the model actually got and the capture proves it.
 export interface RewriteToggle {
   readonly id: RewriteToggleId;
   readonly label: string;
   /** The prose slot whose resolved text this toggle contributes to the composed steer (no trailing period —
-   *  the composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
+   *  the composer joins with `. ` and terminates the whole steer). */
   readonly slot: ProseSlotId;
 }
 
@@ -802,7 +906,8 @@ export interface RewriteToggle {
 export const REWRITE_TOGGLE_IDS = ["concise", "expand", "novella", "internet-rp", "literary", "past-tense", "present-tense"] as const;
 export type RewriteToggleId = (typeof REWRITE_TOGGLE_IDS)[number];
 
-export const REWRITE_TOGGLES = [
+/** One row per `REWRITE_TOGGLE_IDS` member, which `everyRow` holds; a row whose id is not in the tuple fails to assign. */
+export const REWRITE_TOGGLES = everyRow<RewriteToggle, "id">()([
   { id: "concise", label: "More concise", slot: "preset.rewriteToggle.concise" },
   { id: "expand", label: "Expand", slot: "preset.rewriteToggle.expand" },
   { id: "novella", label: "Novella prose", slot: "preset.rewriteToggle.novella" },
@@ -810,20 +915,14 @@ export const REWRITE_TOGGLES = [
   { id: "literary", label: "Literary style", slot: "preset.rewriteToggle.literary" },
   { id: "past-tense", label: "Past tense", slot: "preset.rewriteToggle.pastTense" },
   { id: "present-tense", label: "Present tense", slot: "preset.rewriteToggle.presentTense" },
-] as const satisfies readonly RewriteToggle[];
-
-/** tsc-forced exhaustiveness: a wire id with no catalog row surfaces HERE (the `TEMPLATE_DEFS` precedent).
- *  The other direction is `satisfies` — a catalog row whose id is not in the tuple fails to assign. */
-type UncataloguedRewriteToggleId = Exclude<RewriteToggleId, (typeof REWRITE_TOGGLES)[number]["id"]>;
-const [_rewriteTogglesAreExhaustive]: [[UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId] = [true];
+]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Greeting transform catalog — the greeting studio's one-click steer set. Adapted (not ported)
-// from the ST Guided-Generations editIntros transform catalog (`prompts.json editIntros.options`): the
-// 4-axis catalog (perspective / tense / style / gender) that IS the source's "steer an OPENING without
-// prose-writing" ergonomic. Unlike REWRITE_TOGGLES (which drops the perspective/gender axes as nonsensical
-// for a mid-conversation reply), the greeting studio keeps ALL FOUR — they reframe the user's viewpoint in
-// an opening, which is exactly the greeting-authoring surface.
+// Greeting transform catalog — the greeting studio's one-click steer set, a 4-axis catalog
+// (perspective / tense / style / gender): the "steer an OPENING without prose-writing" ergonomic.
+// Unlike REWRITE_TOGGLES (which drops the perspective/gender axes as nonsensical for a mid-conversation
+// reply), the greeting studio keeps ALL FOUR — they reframe the user's viewpoint in an opening, which is
+// exactly the greeting-authoring surface.
 //
 // Registry-as-data (the REWRITE_TOGGLES / databank SCRAPER_KINDS precedent — "substrate not a type home":
 // contracts owns the shape+data both the client chips and the server's composer need). Each transform = a
@@ -847,7 +946,7 @@ export interface GreetingTransform {
   readonly axis: GreetingTransformAxis;
   readonly label: string;
   /** The prose slot whose resolved text this transform contributes to the composed steer (no trailing
-   *  period — the composer joins with `. ` and terminates the whole steer, the source's editIntros join). */
+   *  period — the composer joins with `. ` and terminates the whole steer). */
   readonly slot: ProseSlotId;
 }
 
@@ -872,7 +971,8 @@ export const GREETING_TRANSFORM_IDS = [
 /** Id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
 export type GreetingTransformId = (typeof GREETING_TRANSFORM_IDS)[number];
 
-export const GREETING_TRANSFORMS = [
+/** One row per `GREETING_TRANSFORM_IDS` member, which `everyRow` holds; a row whose id is not in the tuple fails to assign. */
+export const GREETING_TRANSFORMS = everyRow<GreetingTransform, "id">()([
   // ── perspective ──
   { id: "first-person-standard", axis: "perspective", label: "First person (I/me)", slot: "preset.greetingTransform.firstPersonStandard" },
   { id: "first-person-by-name", axis: "perspective", label: "First person (by name)", slot: "preset.greetingTransform.firstPersonByName" },
@@ -891,11 +991,7 @@ export const GREETING_TRANSFORMS = [
   { id: "he-him", axis: "gender", label: "He/him", slot: "preset.greetingTransform.heHim" },
   { id: "she-her", axis: "gender", label: "She/her", slot: "preset.greetingTransform.sheHer" },
   { id: "they-them", axis: "gender", label: "They/them", slot: "preset.greetingTransform.theyThem" },
-] as const satisfies readonly GreetingTransform[];
-
-/** tsc-forced exhaustiveness, both directions (the `REWRITE_TOGGLES` pin). */
-type UncataloguedGreetingTransformId = Exclude<GreetingTransformId, (typeof GREETING_TRANSFORMS)[number]["id"]>;
-const [_greetingTransformsAreExhaustive]: [[UncataloguedGreetingTransformId] extends [never] ? true : UncataloguedGreetingTransformId] = [true];
+]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
@@ -903,9 +999,9 @@ const [_greetingTransformsAreExhaustive]: [[UncataloguedGreetingTransformId] ext
 // `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-// `customParameters` LEFT THE PRESET (inference program §8.1c): extra body fields are the CONNECTION's `extras`
-// column (where the quirk lives), and the belt-owned keys are `BELT_OWNED_BODY_KEYS` in
-// `@orb/contracts/inference/features.ts` beside the endpoint feature schema. The preset keeps sampling only.
+// Extra body fields are the CONNECTION's `extras` column (where the quirk lives), not the preset's; the
+// belt-owned keys are `BELT_OWNED_BODY_KEYS` in `@orb/contracts/inference/features.ts` beside the endpoint
+// feature schema. The preset keeps sampling only.
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PromptConfig — the `presets.config` blob: an ordered (= array index) list of sections + generation
@@ -1052,8 +1148,52 @@ const templatedMarkerSection = z
 const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
 export type PromptSection = z.infer<typeof promptSectionSchema>;
 
+// Every section key that appears more than once, in first-appearance order. The editor, the assembly readout and
+// the token costs key a section by its id, so two sections with one key would be edited and priced as one.
+function repeatedSectionIds(sections: readonly { readonly id: string }[]): readonly string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const { id } of sections) {
+    if (seen.has(id)) {
+      repeated.add(id);
+    }
+    seen.add(id);
+  }
+  return [...repeated];
+}
+
+// The first section of each key. The read path keeps a stored blob readable this way, and the next save writes it
+// back without the repeats; the write and file doors refuse a repeat instead (`repeatedSectionIds`).
+function firstOfEachSectionId<S extends { readonly id: string }>(sections: S[]): S[] {
+  const seen = new Set<string>();
+  return sections.filter(({ id }) => {
+    if (seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
+}
+
+function repeatedSectionMessage(id: string): string {
+  return `Two sections share the key "${id}". Each section needs its own key.`;
+}
+
+// The stored and imported section list: bounded, with a repeated key read as its first section.
+const readSectionsSchema = z.array(promptSectionSchema).max(MAX_SECTIONS).transform(firstOfEachSectionId);
+
+// The authored section list: a repeated key is refused by name.
+const writeSectionsSchema = z
+  .array(promptSectionSchema)
+  .max(MAX_SECTIONS)
+  .superRefine((sections, ctx): void => {
+    for (const id of repeatedSectionIds(sections)) {
+      ctx.addIssue({ code: "custom", path: [sections.findLastIndex((section) => section.id === id), "id"], message: repeatedSectionMessage(id) });
+    }
+  });
+
 /** The FALLBACK the assembler uses when a preset doesn't supply a `formatStrings.<key>` — one PROSE-1 slot
- *  each (census rows 45-48), so the bytes are authored once in `./prose`. The KEYS are the editable/importable
+ *  each, so the bytes are authored once in `./prose`. The KEYS are the editable/importable
  *  format-string vocabulary (the ST import mapper keys off this
  *  literal); the VALUES are read from the registry.
  *
@@ -1108,49 +1248,42 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // Registry-as-data (the REWRITE_TOGGLES / GREETING_TRANSFORMS precedent — contracts owns the shape+data both
 // the client rows and any server consumer need). The Actions view DERIVES groups, rows, kind badges and
 // drill-in FIELDS from this table: a new template is one enum member + one row here (the D117
-// registration-cost shape), never a new editor. The client's old `GUIDED_ACTION_COPY` map is retired INTO
-// `label`/`fires` (G11) — one home for the copy.
+// registration-cost shape), never a new editor. `label`/`fires` are the ONE home for the row copy.
 //
-// SCOPE (WIDENED by the owner ruling — "templates need to have one home in presets not
-// scattered between that and settings or hiding in code"): `guidedActions` ∪ the ACTION-shaped
-// `formatStrings` ∪ `PRESET_PROSE_SLOT_IDS` (the turn-wire framings, which used to be `UserSettings.prose`
-// rows and a `const` in `assembly/shape.ts`). The original scope line read "the ACTIONS-VIEW set only" and was
-// scoped to things a USER ACTION fires; the ruling makes the tab the one home for authorable prompt TEXT,
-// which is a superset. A row's `kind` still says which it is. WIDENED AGAIN by the same ruling read
-// to its end ("we are putting everything in presets"): the eleven rpg steering-reminder teaches re-homed here
-// from `rpg_games.config.prose`, so the set is now every `PRESET_PROSE_SLOT_ID` whatever domain authored it.
-// `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (per the
-// census), so a row would mint the second home the census exists to prevent. Marker templates
+// SCOPE (owner ruling — "templates need to have one home in presets not scattered between that and settings
+// or hiding in code"): `guidedActions` ∪ the ACTION-shaped `formatStrings` ∪ every `PRESET_PROSE_SLOT_ID`,
+// whatever domain authored it (the rpg steering-reminder teaches are promptConfig prose like the rest). The
+// tab is the one home for authorable prompt TEXT, and a row's `kind` says which kind it is.
+// `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor, so a row
+// would mint the second home the one-home rule prevents. Marker templates
 // (scenario/personality/…) likewise keep their section home.
 //
 // `label`/`fires` are the ROW's copy (per-kind: `response` and `swipe` are two rows), distinct from the
 // PROSE-1 slot's `title`/`fires` (per-SLOT copy — those two kinds SHARE one slot, so slot copy cannot name a
 // row). `defaultSlot` is the one pointer between them: the ghost/placeholder bytes always come from PROSE-1.
 
-// `teach` (added with the rpg re-home) is the sixth kind and the only one that does NOT fire on a user
-// action: a teach is standing copy the GAME TURN's steering reminder composes — it teaches the model an output
-// grammar (`<lie …/>`, `:::card`, `:::choices`) or labels a block of tracked state. It is its own kind rather
-// than more `format` rows because a group kicker is what tells a preset author "these eleven only do anything on
-// a game turn"; folding them into Format would put game vocabulary under the New-chat marker with nothing on
-// screen saying so.
+// `teach` is the kind that does NOT fire on a user action: a teach is standing copy the GAME TURN's steering
+// reminder composes — it teaches the model an output grammar (`<lie …/>`, `:::card`, `:::choices`) or labels a
+// block of tracked state. It is its own kind rather than more `format` rows because a group kicker is what tells
+// a preset author "these only do anything on a game turn"; folding them into Format would put game vocabulary
+// under the New-chat marker with nothing on screen saying so.
 // `extract` is the WRITE-surface twin of `teach` (PROSE-1 S4): a `teach` row shapes what the NARRATOR is told
 // the tracked values mean; an `extract` row shapes what the EXTRACTOR is told to write back — the per-plane
-// teaching, the six state tools' descriptions, the two state-round system framings, and the born-state
+// teaching, the state tools' descriptions, the two state-round system framings, and the born-state
 // (populate) round's own header/teaching/user-turn blocks. Its own kind rather
 // than more `teach` rows because the two groups fire on different CALLS (the character turn vs the state
 // round) and a host tuning one has no reason to read the other.
-// `group` (added with the F4 re-home) is the wire framings a GROUP round puts around content — the
-// co-speaker card headings, the per-speaker/narrator round nudges + speaker-tag instruction, and the person
-// heading over each other present human's persona. Its own kind rather than more `format` rows for the exact
-// reason `teach` is: the kicker is what tells a preset author "these only do anything in a room of several
-// characters or several humans"; folding them into Format would bury group vocabulary under the New-chat
-// marker with nothing on screen saying so. Like `format`/`nudge` they fire on the shape of the WIRE (a
-// merged/narrator round, a multi-human room), never on a user action.
+// `group` is the wire framings a GROUP round puts around content — the co-speaker card headings, the
+// per-speaker/narrator round nudges + speaker-tag instruction, and the person heading over each other present
+// human's persona. Its own kind rather than more `format` rows for the exact reason `teach` is: the kicker is
+// what tells a preset author "these only do anything in a room of several characters or several humans";
+// folding them into Format would bury group vocabulary under the New-chat marker with nothing on screen saying
+// so. Like `format`/`nudge` they fire on the shape of the WIRE (a merged/narrator round, a multi-human room),
+// never on a user action.
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "group", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
-/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA).
- *  Today that is `extract` alone: its 40 rows
+/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA): the `extract` rows
  *  render as collapsed disclosure bands, one per member here, in THIS tuple's order. Membership is DECLARED
  *  per def (`TemplateDef.cluster`) rather than derived from the slot-id dot-prefixes, because the grouping
  *  follows what a HOST TUNES TOGETHER, not the engineering id structure (`rpg.extract.plane.party` clusters
@@ -1207,7 +1340,12 @@ export interface TemplateDef {
  *  vocabulary for that template. */
 const STEER_CAPS: readonly TemplateCapability[] = [{ kind: "role" }, { kind: "depth" }, { kind: "tokens", tokens: ["{{input}}"] }];
 
-export const TEMPLATE_DEFS = [
+/** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
+ *  excluded by the scope boundary (it lives in the WI section editor). */
+type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
+/** `everyRow` holds a row for every `RegistryTemplateId`, so a new guided kind or format string with no row fails `tsc`
+ *  naming the missing id, not as a silently absent row in the Actions view. */
+export const TEMPLATE_DEFS = everyRow<TemplateDef, "id", RegistryTemplateId>()([
   {
     id: "response",
     kind: "steer",
@@ -1227,7 +1365,7 @@ export const TEMPLATE_DEFS = [
   },
   { id: "opening", kind: "steer", label: "Greeting", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
   // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner ruling) ────
-  // The seven toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
+  // The toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
   // under the Rewrite row they compose into: their bytes reach the model INSIDE that steer, by exactly the
   // delivery `TEMPLATE_KIND_DELIVERY.steer` already states (a system-role steer rides the
   // `{{guided_instruction}}` marker). A new kind would have had to restate that sentence, which is the
@@ -1323,7 +1461,7 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "preset.guided.greetingNew",
   },
   // ── THE GREETING STUDIO'S ONE-CLICK STEER VOCABULARY (the same ARM B ruling) ──────────────────────────
-  // The fourteen transform sentences the studio joins into the greeting steer, across its four axes
+  // The transform sentences the studio joins into the greeting steer, across its four axes
   // (perspective / tense / style / gender — the axis groups the CHIPS, so it lives on the catalog row, not
   // here). `studio` kind for the same reason the toggles are `steer`: these bytes reach the model inside the
   // `greeting_rewrite`/`greeting_new` steer, which is the delivery that kind already states. `caps: []`.
@@ -1524,9 +1662,9 @@ export const TEMPLATE_DEFS = [
   // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling — D132(B) amendment) ─────────────────────
   // The `chat.group.*` slots a group room puts around content: the merged/narrator co-speaker card headings,
   // the per-speaker/narrator round nudges + the speaker-tag instruction, and the person heading of a
-  // multi-human room's people block. Re-homed user →
-  // preset by the F4 ruling arm (a) — they resolve during the turn's own context build where the preset IS in
-  // scope, so their storage is `promptConfig.prose` and each ghosts its own slot's bytes (`defaultSlot === id`).
+  // multi-human room's people block. Their storage is `promptConfig.prose` because they resolve during the
+  // turn's own context build, where the preset IS in scope, and each ghosts its own slot's bytes
+  // (`defaultSlot === id`).
   // `group` kind (not `format`) so the "Group rounds" kicker tells a preset author these only fire in a
   // group room. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
   // member — the editor offers them as chips and lints their absence; `speakerTags` carries no macro token.
@@ -1587,12 +1725,12 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "chat.group.speakerTags",
   },
   // ── THE GAME-TURN TEACHES (owner ruling, "we are putting everything in presets") ────────────────
-  // The slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
-  // ruling re-homed them to `promptConfig.prose`, which is what puts them here — a preset-homed prose slot with
-  // no row is a slot no host can reach, and the two-sided coverage test in `tests/contracts/prose/preset-storage.contract.test.ts` REDs on it.
+  // The slots the rpg steering reminder composes. They live on `promptConfig.prose`, which is what puts them
+  // here — a preset-homed prose slot with no row is a slot no host can reach, and the two-sided coverage test
+  // in `tests/contracts/prose/preset-storage.contract.test.ts` REDs on it.
   // Each row's `fires` states its GATE, because most of these are conditional on a per-game feature knob: the
   // copy is authored on the preset, the FIRING is still the game's.
-  // The seven `names-only` teaches declare `{{user}}`/`{{char}}` as token vocabulary — the identity registry
+  // The `names-only` teaches declare `{{user}}`/`{{char}}` as token vocabulary — the identity registry
   // really does resolve them in an override (`resolveTeach`), so the chips are a true statement, not decoration.
   {
     id: "rpg.reminder.steeringLicense",
@@ -1618,8 +1756,8 @@ export const TEMPLATE_DEFS = [
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.reminder.omniscienceTeach",
   },
-  // The pair's `fires` glosses FRONT-LOAD the discriminator: they used to differ only in their final word
-  // ("…interactivity allowed"/"…off"), so at any one-line truncation the two rows read byte-identically.
+  // The pair's `fires` glosses FRONT-LOAD the discriminator: at any one-line truncation the two rows would
+  // otherwise read identically.
   {
     id: "rpg.card.askInteractive",
     kind: "teach",
@@ -1703,7 +1841,7 @@ export const TEMPLATE_DEFS = [
     caps: [],
     defaultSlot: "rpg.delta.sceneOpensHeading",
   },
-  // ── THE EXTRACTION SEAM (PROSE-1 S4, census 11-26 + 29-36) ───────────────────────────────────────────────
+  // ── THE EXTRACTION SEAM (PROSE-1 S4) ───────────────────────────────────────────────────────────────
   // The write surface's own prose: what the state round is told to record, per plane, per tool. Several rows
   // carry a PRE-SUBSTITUTION token vocabulary — this game's tracker catalogue, the resolved ref lists, the
   // worked example's keys — which the seam splices as DATA (never the macro engine, which has no binding to
@@ -1893,9 +2031,8 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "rpg.extract.journal.customLabels",
     cluster: "planes",
   },
-  // ROW 27 and the reconcile rule both tail the plane teaching on every extraction — their `fires` glosses
-  // FRONT-LOAD what tells them apart (the identical-truncation defect the askInteractive/askStatic pair had:
-  // two rows whose one-line glosses differ only past the ellipsis read as the same row).
+  // The reconcile rule tails the plane teaching on every extraction — both rows' `fires` glosses FRONT-LOAD
+  // what tells them apart, because two rows whose one-line glosses differ only past the ellipsis read as one.
   {
     id: "rpg.extract.stateTrackingGuide",
     kind: "extract",
@@ -2133,14 +2270,14 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "rpg.extract.refs.closing",
     cluster: "refs",
   },
-  // ── THE BORN-STATE ROUND (the populate census rows 1-7) ──────────────────────────────────────────────────
+  // ── THE BORN-STATE ROUND ──────────────────────────────────────────────────────────────────────────
   // The host's one card-read click: its system framing, the identity-sheet clause, the invent-nothing doctrine,
   // and the three user-turn blocks (plus the blank-card stand-in). `extract` kind — they shape what a WRITE
   // surface is told to record, which is the kind's own definition; the round they fire on is what each `fires`
   // gloss front-loads ("Born-state round …"), because the `round` band holds both this round and the turn-loop
   // extraction and a row that only said "Opens the system prompt" would read as either.
   // CLUSTER `round` rather than a seventh TEMPLATE_CLUSTERS member: a new band member is a `tsc` error in the
-  // client's `TEMPLATE_CLUSTER_LABEL` until labeled, and these seven ARE round framings — the band's own noun.
+  // client's `TEMPLATE_CLUSTER_LABEL` until labeled, and these rows ARE round framings — the band's own noun.
   {
     id: "rpg.populate.systemHeader",
     kind: "extract",
@@ -2204,18 +2341,10 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "rpg.populate.targetLine",
     cluster: "round",
   },
-] as const satisfies readonly TemplateDef[];
-
-/** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
- *  excluded by the scope boundary (it lives in the WI section editor). */
-type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
-/** tsc-forced exhaustiveness: a new guided kind or format string with no `TEMPLATE_DEFS` row surfaces HERE
- *  as the missing id, not as a silently absent row in the Actions view. */
-type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)[number]["id"]>;
-const [_templateDefsAreExhaustive]: [[UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId] = [true];
+]);
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
- *  PROSE-1 slot (census 49, adapted): the override stays `promptConfig.compaction.instructions`; the
+ *  PROSE-1 slot: the override stays `promptConfig.compaction.instructions`; the
  *  slot is what gives the default a version, a staleness signal and registry coverage from ONE place. */
 export const DEFAULT_COMPACT_INSTRUCTIONS = PRESET_PROSE_SLOTS[PRESET_COMPACTION_SLOT_ID].text;
 
@@ -2224,15 +2353,15 @@ export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
 
 /** How many newest canon rows managed compaction keeps VERBATIM on the no-fit-boundary (agent-sdk) path —
  *  the engine floor `params.compaction.verbatimTail` overrides. Homed HERE, beside the knob's own bounds,
- *  because it now has TWO consumers (the engine's coverage point AND the deck's blank-means-default
- *  placeholder, redesign G4) and the schema's doc already claimed it was derived from one const. */
+ *  because it has TWO consumers (the engine's coverage point AND the deck's blank-means-default
+ *  placeholder) and both must read one number. */
 export const MANAGED_VERBATIM_TAIL = 8;
 
 /** The RESOLVED default compaction mode — the ONE home BOTH consumers read: the engine's
  *  `resolveEffectiveCompaction` (unset ⇒ this) AND the preset UI's unset placeholder. `"managed"` per the owner
  *  ruling: compaction is a SAFETY property (no chat may error from context growth), and `auto` (the SDK's native
- *  compaction) cannot be the safe floor while its functioning on non-Anthropic backends is UNVERIFIED (the probe-1
- *  gap) — so an unconfigured chat gets OUR durable managed marker, never nothing. */
+ *  compaction) cannot be the safe floor while its functioning on non-Anthropic backends is UNVERIFIED — so an
+ *  unconfigured chat gets OUR durable managed marker, never nothing. */
 export const DEFAULT_COMPACTION_MODE = "managed" as const satisfies CompactionMode;
 
 /** The default inline-reasoning tag pair (`reasoningParse`) — the `<think>` convention. ONE pair, no registry;
@@ -2243,15 +2372,11 @@ export const THINK_SUFFIX_DEFAULT = "</think>";
 const macro = (name: string): string => `{{${name}}}`;
 
 export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
-  // THE STARTER FRAMING LIVES HERE, NOT IN A STORED `template`. It used to be
-  // materialized as a VALUE on `DEFAULT_PROMPT_CONFIG`'s main section, so the untouched built-in preset
-  // opened with a full-weight body and a `custom` cue — the exact F2/§5.2a defect the redesign exists to
-  // kill, on the one preset every user meets first. Moving the bytes to the marker's DEFAULT makes the
-  // built-in's section carry `template: undefined`, which the editor ghosts as a placeholder and the
-  // `custom` cue derives honestly from. The WIRE is unchanged: the assembler already resolves
-  // `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]` (`assembly/assemble.ts`), so the same bytes go
-  // out — a marker-less ST import now inherits this framing instead of nothing, which is the same "the
-  // built-in default rides" rule every other marker already followed.
+  // THE STARTER FRAMING LIVES HERE, NOT IN A STORED `template`: the built-in's main section carries
+  // `template: undefined`, which the editor ghosts as a placeholder and the `custom` cue derives honestly from.
+  // The WIRE is unchanged: the assembler resolves `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]`
+  // (`assembly/assemble.ts`), so the same bytes go out and a marker-less ST import inherits this framing —
+  // the same "the built-in default rides" rule every other marker follows.
   // The ADDRESS clause is not filler (owner-ruled). `{{user}}` resolves to a persona NAME, and a
   // default persona's name is a LABEL, not a name its owner picked — so a model reaching for a vocative
   // produced "Goodnight, You." The clause is deliberately CONDITIONAL rather than a name ban: a persona the
@@ -2259,8 +2384,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // It lives HERE, on the marker defaults — BOTH of them, verbatim and identically (see
   // {@link NARRATOR_MAIN_PROMPT_TEMPLATE}) — and not in a PROSE-1 slot: the only identity-framing slot
   // (`chat.assembly.anchorIdentity`) fires solely on a persona SWAP, the default persona block ships
-  // deliberately unframed, and PROSE-1's own census leaves this template un-slotted (row 52) precisely
-  // because the per-section `template` override IS its edit path.
+  // deliberately unframed, and the per-section `template` override IS this template's edit path.
   // THIS entry is the PER-SPEAKER/SOLO text — the mode-aware pick is made where the default RESOLVES
   // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below. It names no
   // single perspective (owner ruling): in a group room `{{char}}` binds the whole roster and the round cue names
@@ -2295,8 +2419,8 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
  *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling —
  *  see the comment above): the vocative defect is a property of `{{user}}`, not of the turn's mode.
  *
- *  A host's per-section `template` override is ONE stored text and REPLACES both arms (row 52: the override
- *  IS the edit path; there is no per-mode override slot). */
+ *  A host's per-section `template` override is ONE stored text and REPLACES both arms: the override
+ *  IS the edit path; there is no per-mode override slot. */
 export const NARRATOR_MAIN_PROMPT_TEMPLATE =
   "You are the narrator of an immersive, ongoing roleplay with {{user}}, voicing {{char}} and the world around them. " +
   "Give each speaking character a distinct, consistent voice. " +
@@ -2462,7 +2586,7 @@ const formatStringsSchema = z
 export const promptConfigSchema = z
   .object({
     schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
-    sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
+    sections: readSectionsSchema,
     // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
     // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
     params: userIntentSchema.catch({}).default({}),
@@ -2509,18 +2633,9 @@ export const promptConfigSchema = z
 export type PromptConfig = z.infer<typeof promptConfigSchema>;
 
 // ── THE PIPELINE ORDER (the ONE declaration of what runs when) ─────────────────────────────────────
-// The order the prompt-side and reply-side transforms execute in is a FACT OF THE ENGINE, and it used to
-// live in two places that could not check each other: the executors (`domain/chat/engine/pipeline.ts`'s
-// `applyReceiveTransforms` + `@orb/server/primitives/post-process`) and a hand-numbered list of rows in the
-// preset editor's Transforms readout. The list drifted, as a hand-numbered list of someone else's order
-// always does, and the readout printed FOUR untruths at once: `REASONING` before the post-process block
-// (the engine runs it after), the three receive switches in exactly reverse execution order, and
-// `collapseNewlines` on the reply lane at all — it is an ASSEMBLE transform (`applyAssemblePostProcess`,
-// on the rendered system halves) that the reply path never calls.
-//
-// So the order is DECLARED ONCE, here, and CONSUMED: `applyReceivePostProcess`/`applyAssemblePostProcess`
-// iterate the two flag tuples below (they no longer carry their own if-chains), and the readout renders
-// its rows off the lanes (it no longer carries slot numbers at all). It lives in `contracts` because it
+// The order the prompt-side and reply-side transforms execute in is a FACT OF THE ENGINE, declared once here
+// and CONSUMED: `applyReceivePostProcess`/`applyAssemblePostProcess` iterate the two flag tuples below,
+// and the preset editor's Transforms readout renders its rows off the lanes. It lives in `contracts` because it
 // is the one shape both the server executor and the client readout must agree on, and the cake gives them
 // no lower shared home that can see `postProcess`'s keys.
 //
@@ -2532,9 +2647,8 @@ export type PromptConfig = z.infer<typeof promptConfigSchema>;
 /** One post-process switch, by the side of the pipeline it runs on. */
 export type PostProcessFlag = keyof NonNullable<PromptConfig["postProcess"]>;
 
-// WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch cannot enter
-//  `postProcess` without answering the question `collapseNewlines` was silently answered wrong on (it sat
-//  in the reply readout while the reply path never calls it), and a renamed one fails `tsc` here.
+// WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch must answer the lane
+// question and a renamed one fails `tsc` here (`collapseNewlines` is the assemble one: the reply path never calls it).
 const POST_PROCESS_LANE = {
   singleLine: "receive",
   dropIncompleteSentence: "receive",
@@ -2565,14 +2679,14 @@ export const ASSEMBLE_POST_PROCESS_ORDER = ["collapseNewlines"] as const satisfi
 export type PromptPipelineStep =
   | { readonly kind: "native-reasoning" }
   | { readonly kind: "reasoning-parse" }
-  | { readonly kind: "regex"; readonly placement: RegexPlacement }
+  | { readonly kind: "regex"; readonly pass: RegexPass; readonly targets: readonly RegexTarget[] }
   | { readonly kind: "post-process"; readonly flag: PostProcessFlag };
 
 /** A step's STABLE identity — the key a total label map is keyed by and the token an order pin compares.
  *  Never a rendered string (the copy is the client's), and never an index (the index IS the drift). */
 export function pipelineStepKey(step: PromptPipelineStep): string {
   if (step.kind === "regex") {
-    return `regex:${step.placement}`;
+    return `regex:${step.pass}:${step.targets.join("+")}`;
   }
   if (step.kind === "post-process") {
     return `post-process:${step.flag}`;
@@ -2580,28 +2694,27 @@ export function pipelineStepKey(step: PromptPipelineStep): string {
   return step.kind;
 }
 
-/** THE PROMPT-SIDE LANE. `USER_INPUT` rewrites the draft before it is persisted, `WORLD_INFO` rewrites each
- *  entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD, and
- *  only then does `PROMPT_HISTORY` rewrite the assembled transcript on its way to the wire — the one
- *  prompt-side stage whose output never becomes canon. */
+/** THE PROMPT-SIDE LANE. The save pass rewrites the draft before it is persisted, the prompt pass rewrites each
+ *  world-info entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD,
+ *  and only then does the prompt pass rewrite the assembled transcript on its way to the wire, the stage whose
+ *  output never becomes canon. */
 export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
-  { kind: "regex", placement: "USER_INPUT" },
-  { kind: "regex", placement: "WORLD_INFO" },
+  { kind: "regex", pass: "save", targets: ["USER_INPUT"] },
+  { kind: "regex", pass: "prompt", targets: ["WORLD_INFO"] },
   ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "PROMPT_HISTORY" },
+  { kind: "regex", pass: "prompt", targets: ["USER_INPUT", "AI_OUTPUT"] },
 ];
 
-/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
- *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
- *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
- *  wire. */
+/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the save
+ *  pass over the content, the post-process block, then the save pass over the demuxed reasoning, and last,
+ *  client-side, the display pass, which changes what you read and never touches the wire. */
 export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "native-reasoning" },
   { kind: "reasoning-parse" },
-  { kind: "regex", placement: "AI_OUTPUT" },
+  { kind: "regex", pass: "save", targets: ["AI_OUTPUT"] },
   ...RECEIVE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "REASONING" },
-  { kind: "regex", placement: "DISPLAY" },
+  { kind: "regex", pass: "save", targets: ["REASONING"] },
+  { kind: "regex", pass: "display", targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"] },
 ];
 
 /** One PROSE slot whose pre-substitution token IS its payload slot — the `FormatCarrierToken` sibling for the
@@ -2625,8 +2738,7 @@ export interface ProseCarrierToken {
  *  WHY A SECOND LIST rather than a row in `FORMAT_STRING_CARRIER_TOKENS`: that enum keys off `FormatStringKey`
  *  and its loop reads `config.formatStrings`. These frames are `kind:"format"` rows in the same Templates tab,
  *  but their STORAGE is `promptConfig.prose[<slot id>].text` — a different field with a different key type, so
- *  the enum structurally cannot absorb them. The enforcement split used to track exactly that plumbing
- *  difference; it no longer does.
+ *  the enum structurally cannot absorb them.
  *
  *  WHAT DID NOT CHANGE: PROSE-1's general `requiredMacros` stays a LINT (`contracts/prose-slot` — "a lint in
  *  the editor, never a block"). That posture is ruled and correct for VOICE macros, whose absence weakens
@@ -2670,7 +2782,7 @@ export function proseCarrierMisses(prose: ProseOverrides): readonly ProseCarrier
 export const promptConfigWriteSchema = promptConfigSchema
   // The read schema's `.catch({})` heals a stored blob; on a write it would silently reset every knob over one
   // stray key, so the write door takes `params` strictly and refuses (Spine-Config "Degrading is read-only").
-  .extend({ params: userIntentSchema.default({}) })
+  .extend({ params: userIntentSchema.default({}), sections: writeSectionsSchema })
   .superRefine((config, ctx): void => {
     const formatStrings = config.formatStrings;
     if (formatStrings !== undefined) {
@@ -3003,16 +3115,13 @@ const ST_NAMES_NONE = -1;
 const ST_NAMES_DEFAULT = 0;
 const ST_NAMES_COMPLETION = 1;
 const ST_NAMES_CONTENT = 2;
-// ST's own default is 0 = "off" (`top_a_openai: 0`, SillyTavern/public/scripts/openai.js:418) — the same
-// sentinel discipline as `min_p`. It read `1` here while the field was being DROPPED, so nothing depended
-// on it; carrying the knob (G1) makes the sentinel load-bearing, and 1 would have inverted it (dropping a
-// deliberate 1 and importing an "off" 0 as an explicit knob).
+// ST's own default is 0 = "off" (`top_a_openai`) — the same sentinel discipline as `min_p`. The sentinel is
+// load-bearing: 1 would invert it (dropping a deliberate 1 and importing an "off" 0 as an explicit knob).
 const ST_TOP_A_DEFAULT = 0;
 const ST_MIN_P_DEFAULT = 0;
 const ST_DISABLED_NUMERIC = 0; // ST top_k 0 / seed -1 / max 0 = disabled/unset
 
-/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
-const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
+const ST_MARKERS = {
   main: "main_prompt",
   jailbreak: "post_history",
   charDescription: "char_description",
@@ -3023,7 +3132,83 @@ const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
   chatHistory: "chat_history",
   worldInfoBefore: "world_info_before",
   worldInfoAfter: "world_info_after",
-};
+} as const satisfies Record<string, MarkerType>;
+/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
+const ST_IDENTIFIER_TO_MARKER: Readonly<Record<string, MarkerType>> = ST_MARKERS;
+
+/** The templated slots no SillyTavern prompt identifier maps to, which only orb fills. */
+type OrbOnlySlot = Exclude<TemplatedMarker, (typeof ST_MARKERS)[keyof typeof ST_MARKERS]>;
+const ST_MAPPED_MARKERS: ReadonlySet<MarkerType> = new Set(Object.values(ST_MARKERS));
+const ORB_ONLY_SLOTS = TEMPLATED_MARKERS.filter((marker): marker is OrbOnlySlot => !ST_MAPPED_MARKERS.has(marker));
+
+type MarkerSection = Extract<PromptSection, { type: "marker" }>;
+const isPivotSection = (section: PromptSection): boolean => section.type === "marker" && section.marker === "chat_history";
+
+/** The summary slot as an import seats it. The shipped default holds no summary section, since the assembler adds an
+ *  implicit one just before the pivot (`assembly/assemble.ts` withImplicitCompactSummary), so the import seats it there. */
+const IMPORTED_SUMMARY_SECTION = {
+  type: "marker",
+  id: mintPromptSectionId("compact-summary"),
+  name: "Summary",
+  marker: "compact_summary",
+  role: "system",
+  enabled: true,
+} as const satisfies MarkerSection;
+
+/** Each orb-only slot's section, in the shipped default's order, and whether it sits before the pivot there. A slot
+ *  the default does not seat, other than the summary, has no section to add and is left out. */
+interface SlotSeat {
+  readonly section: MarkerSection;
+  readonly beforePivot: boolean;
+}
+
+function orbSlotSeats(): readonly SlotSeat[] {
+  const seeded = DEFAULT_PROMPT_CONFIG.sections;
+  const pivot = seeded.findIndex(isPivotSection);
+  const seats = ORB_ONLY_SLOTS.flatMap((slot): (SlotSeat & { readonly index: number })[] => {
+    const index = seeded.findIndex((candidate) => candidate.type === "marker" && candidate.marker === slot);
+    const seed = seeded[index];
+    if (seed?.type === "marker") {
+      return [{ section: seed, beforePivot: index < pivot, index }];
+    }
+    return slot === IMPORTED_SUMMARY_SECTION.marker ? [{ section: IMPORTED_SUMMARY_SECTION, beforePivot: true, index: pivot }] : [];
+  });
+  return seats.sort((a, b) => a.index - b.index).map(({ section, beforePivot }) => ({ section, beforePivot }));
+}
+const ORB_SLOT_SECTIONS = orbSlotSeats();
+
+/** The first key from `base` no section already holds, so the slot's id is the same on every import of one file. */
+function freeSectionId(base: PromptSectionId, taken: ReadonlySet<string>): PromptSectionId {
+  let id = base;
+  for (let n = 2; taken.has(id); n += 1) {
+    id = mintPromptSectionId(`${base}-${String(n)}`);
+  }
+  return id;
+}
+
+/**
+ * The author's sections with a section for each orb-only slot (memory, databank, the summary, the guided instruction),
+ * so retrieval reaches the prompt on an imported preset. The author's entries keep their order: only `chat_history`
+ * anchors, the summary directly before it and the rest directly after it in the shipped default's order; a file with
+ * no `chat_history` gets them all at the end. Each is a real section, visible, switchable and movable in the editor,
+ * and carries no template, so the slot's built-in default renders.
+ */
+function withOrbSlots(sections: readonly PromptSection[]): { readonly sections: PromptSection[]; readonly added: readonly string[] } {
+  const taken = new Set<string>(sections.map((section) => section.id));
+  const seat = (section: MarkerSection): MarkerSection => {
+    const id = freeSectionId(section.id, taken);
+    taken.add(id);
+    return { ...section, id };
+  };
+  const before = ORB_SLOT_SECTIONS.filter((slot) => slot.beforePivot).map((slot) => seat(slot.section));
+  const after = ORB_SLOT_SECTIONS.filter((slot) => !slot.beforePivot).map((slot) => seat(slot.section));
+  const pivot = sections.findIndex(isPivotSection);
+  const placed =
+    pivot < 0
+      ? [...sections, ...before, ...after]
+      : [...sections.slice(0, pivot), ...before, ...sections.slice(pivot, pivot + 1), ...after, ...sections.slice(pivot + 1)];
+  return { sections: placed, added: [...before, ...after].map((section) => section.name) };
+}
 
 const PLAIN_MARKER_SET: ReadonlySet<string> = new Set(PLAIN_MARKERS);
 const OVERRIDABLE_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["main_prompt", "post_history"]);
@@ -3065,16 +3250,21 @@ const stPresetSchema = z.looseObject({
   prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }).strip()).optional(),
 });
 
+/** A SillyTavern field the import reports. A field that was imported with its value brought into range carries
+ *  `clamped`, which a door reads instead of matching the reason's text; every other entry found no seat. */
 export interface StDroppedField {
   field: string;
   reason: string;
+  clamped?: { readonly sent: number; readonly landedAs: number };
 }
 
-export interface StImportResult {
+interface StImportResult {
   config: PromptConfig;
   dropped: StDroppedField[];
   /** How many sections the import produced (markers + literals). */
   sectionCount: number;
+  /** The names of the sections the import added for orb's own slots, which the file has no prompt for. */
+  addedSections: readonly string[];
 }
 
 type StPrompt = z.infer<typeof stPromptSchema>;
@@ -3103,16 +3293,17 @@ function triggerOf(prompt: StPrompt): GenerationType[] | undefined {
 /**
  * Clamp ONE foreign ST number into the bound the orb schema actually stores, recording every adjustment on
  * `dropped`. A foreign value carried through unclamped fails the whole-config schema at the parse
- * seam below, and the lenient parser answers that by returning DEFAULT_PROMPT_CONFIG — so before this, an
- * `injection_depth` of MAX_INJECTION_DEPTH + 1 silently replaced the user's entire preset with orb's
- * default while `dropped` stayed empty. A per-value clamp degrades ONE field, visibly.
+ * seam below, and the lenient parser answers that by returning DEFAULT_PROMPT_CONFIG — so one out-of-range
+ * `injection_depth` would silently replace the user's entire preset with orb's default while `dropped`
+ * stayed empty. A per-value clamp degrades ONE field, visibly.
  */
 function clampForeignValue(value: number, [min, max]: readonly [number, number], field: string, dropped: StDroppedField[]): number {
   const clamped = Math.min(Math.max(Math.round(value), min), max);
   if (clamped !== value) {
     dropped.push({
       field,
-      reason: `SillyTavern sent ${value}; orb stores a whole number between ${min} and ${max}, so it was imported as ${clamped}.`,
+      reason: `The file sets ${value}. This app keeps whole numbers from ${min} to ${max}, so it was imported as ${clamped}.`,
+      clamped: { sent: value, landedAs: clamped },
     });
   }
   return clamped;
@@ -3201,69 +3392,6 @@ function pickOrder(orders: StOrderGroup[]): StOrderGroup["order"] {
   return orders.reduce((best, o): StOrderGroup => (o.order.length > best.order.length ? o : best)).order;
 }
 
-const readNum = (raw: Record<string, unknown>, k: string): number | undefined => {
-  const v = raw[k];
-  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
-};
-const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
-  if (v !== undefined) {
-    out[k] = v;
-  }
-};
-const setNumAbove = (out: Record<string, unknown>, k: string, v: number | undefined, floor: number): void => {
-  if (v !== undefined && v > floor) {
-    out[k] = v;
-  }
-};
-
-/** Map ST sampling/behavior scalars onto UserIntent. Every scalar ST carries now HAS a home (G1 closed the
- *  last one, `top_a`); the remaining drops are TOP-LEVEL fields, reported by `DROPPABLE_FIELDS`. */
-function mapParams(raw: Record<string, unknown>): UserIntent {
-  const out: Record<string, unknown> = {};
-  setNum(out, "temperature", readNum(raw, "temperature"));
-  setNum(out, "topP", readNum(raw, "top_p"));
-  setNumAbove(out, "topK", readNum(raw, "top_k"), ST_DISABLED_NUMERIC); // ST 0 = disabled
-  setNum(out, "frequencyPenalty", readNum(raw, "frequency_penalty"));
-  setNum(out, "presencePenalty", readNum(raw, "presence_penalty"));
-  setNum(out, "repetitionPenalty", readNum(raw, "repetition_penalty"));
-  // ST's default (0) means "off", so only carry a non-default value.
-  const minP = readNum(raw, "min_p");
-  if (minP !== undefined && minP !== ST_MIN_P_DEFAULT) {
-    out["minP"] = minP;
-  }
-  setNumAbove(out, "maxOutputTokens", readNum(raw, "openai_max_tokens"), ST_DISABLED_NUMERIC);
-  setNumAbove(out, "maxContextTokens", readNum(raw, "openai_max_context"), ST_DISABLED_NUMERIC);
-
-  const seed = readNum(raw, "seed");
-  if (seed !== undefined && seed >= ST_DISABLED_NUMERIC) {
-    out["seed"] = seed; // ST -1 = random/unset
-  }
-  const effort = raw["reasoning_effort"];
-  if (typeof effort === "string" && (EFFORT_LEVELS as readonly string[]).includes(effort)) {
-    out["effort"] = effort;
-  }
-  const showThoughts = raw["show_thoughts"];
-  if (typeof showThoughts === "boolean") {
-    out["thinkingDisplay"] = showThoughts ? "summarized" : "omitted";
-  }
-
-  // Only carry a `true` (ST's default `false` = "no preference", never pinned).
-  if (raw["squash_system_messages"] === true) {
-    out["advanced"] = { squashSystemMessages: true };
-  }
-
-  // G1 (redesign §10): `top_a` HAS sampling vocab (`userIntentSchema.topA`) and now an editor — the drop
-  // was a stale claim contradicting the schema two hundred lines up. Mapped exactly like `min_p`: ST's
-  // default (0 = off) is not carried.
-  const topA = readNum(raw, "top_a");
-  if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
-    out["topA"] = topA;
-  }
-
-  // `.catch({})` keeps a stray field from sinking the whole blob.
-  return userIntentSchema.catch({}).parse(out);
-}
-
 const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
   "": "none",
   " ": "space",
@@ -3273,25 +3401,185 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
-  { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
+  {
+    field: "group_nudge_prompt",
+    reason: "SillyTavern uses it to nudge the next speaker in a group chat. Here nudges are set per chat, so it was not imported.",
+  },
   // `new_chat_prompt` is NOT here: its orb seat EXISTS —
   // `formatStrings.newChatMarker`, the history-START boundary the assembler reads
-  // (`assembly/context.ts` newChatMarkerCandidate / G9) — so `collectFormatStrings` maps it.
+  // (`assembly/context.ts` newChatMarkerCandidate) — so `collectFormatStrings` maps it.
   // The GROUP variant stays dropped with the truthful reason: ST fires it only in group chats, and orb's
   // one boundary key is ROOM-AGNOSTIC — landing a group-only string on it would inject group framing into
   // every SOLO chat, a different behavior than the author recorded, not a translation.
   {
     field: "new_group_chat_prompt",
-    reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
+    reason:
+      "SillyTavern uses it to open a new group chat. Here one opening line, from the new chat prompt, serves every chat, so a group-only line was not imported.",
   },
-  { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
-  { field: "bias_preset_selected", reason: "no logit-bias presets" },
-  { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
-  { field: "assistant_impersonation", reason: "no impersonation prefill" },
-  { field: "wrap_in_quotes", reason: "no quote-wrapping knob" },
-  { field: "function_calling", reason: "no tool-calling in chat presets" },
-  { field: "enable_web_search", reason: "no web-search knob" },
+  {
+    field: "new_example_chat_prompt",
+    reason: "SillyTavern uses it to mark where example dialogue starts. This app has no separate line for that, so it was not imported.",
+  },
+  {
+    field: "bias_preset_selected",
+    reason: "SillyTavern uses it to pick a saved logit bias preset. This app has no saved logit bias presets, so it was not imported.",
+  },
+  { field: "assistant_prefill", reason: "SillyTavern starts the reply with this text. Not every provider supports that, so it was not imported." },
+  {
+    field: "assistant_impersonation",
+    reason: "SillyTavern starts an impersonated reply with this text. This app has no such prefill, so it was not imported.",
+  },
+  { field: "wrap_in_quotes", reason: "SillyTavern uses it to wrap your message in quotes. This app has no such setting, so it was not imported." },
+  {
+    field: "function_calling",
+    reason: "SillyTavern uses it to let the model call tools. Chat presets here do not switch tool calling on, so it was not imported.",
+  },
+  { field: "enable_web_search", reason: "SillyTavern uses it to turn on web search. This app has no such setting, so it was not imported." },
 ];
+
+/** The reason for a populated top-level field the mapper neither maps nor lists. */
+const UNUSED_FIELD_REASON = "This app does not use this SillyTavern setting, so it was not imported.";
+
+/** Where the mapped ST fields land: the sampling intent, the format strings, the two prompt-config knobs, and what
+ *  a field lost on the way in. */
+interface StSeats {
+  readonly params: Record<string, unknown>;
+  readonly formatStrings: Record<string, string>;
+  readonly dropped: StDroppedField[];
+  namesBehavior?: NamesBehavior;
+  continuePostfix?: ContinuePostfix;
+}
+
+type StSeatReader = (value: unknown, seats: StSeats, field: string) => void;
+
+type NumericKnob = keyof typeof generationKnobSchemas;
+
+/** Judge one foreign number against the stored knob's own schema, alone, so no field can sink another: a value in
+ *  range lands as sent; one past the range, or a fraction where a whole number is stored, lands at the nearest stored
+ *  value and is reported as clamped; a whole number past the safe integers, or one the schema still refuses at its
+ *  bound (an exclusive one), is left out. */
+function judgeKnob(key: NumericKnob, value: number, field: string, seats: StSeats): void {
+  const stored = generationKnobSchemas[key].unwrap();
+  const whole = stored.format === "safeint";
+  // Clamping such a value to the largest safe integer would store a number the file never meant.
+  if (whole && !Number.isSafeInteger(Math.round(value))) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, past the largest whole number this app stores, so it was left out.` });
+    return;
+  }
+  const landed = Math.min(
+    Math.max(whole ? Math.round(value) : value, stored.minValue ?? Number.NEGATIVE_INFINITY),
+    stored.maxValue ?? Number.POSITIVE_INFINITY,
+  );
+  if (!stored.safeParse(landed).success) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, which this app cannot store here, so it was left out.` });
+    return;
+  }
+  seats.params[key] = landed;
+  if (landed !== value) {
+    seats.dropped.push({
+      field,
+      reason: `SillyTavern sent ${value}; it was imported as ${landed}, the nearest value this app stores.`,
+      clamped: { sent: value, landedAs: landed },
+    });
+  }
+}
+
+/** A sampler or limit. Absent or null carries nothing, and so does a value SillyTavern itself reads as off (`isOff`);
+ *  a value that is not a finite number is left out and named. */
+const intoKnob =
+  (key: NumericKnob, isOff: (n: number) => boolean = (): boolean => false): StSeatReader =>
+  (value, seats, field): void => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      seats.dropped.push({ field, reason: "it is not a number, so it was left out." });
+      return;
+    }
+    if (!isOff(value)) {
+      judgeKnob(key, value, field, seats);
+    }
+  };
+
+/** ST disables the knob at or below this. */
+const offAtOrBelow =
+  (floor: number) =>
+  (n: number): boolean =>
+    n <= floor;
+
+/** A prompt-string slot. A blank slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`, and each is
+ *  bounded to the schema max so a hostile import cannot smuggle an oversized nudge. */
+const intoFormatString =
+  (slot: string): StSeatReader =>
+  (value, seats): void => {
+    if (typeof value === "string" && value.trim().length > 0) {
+      seats.formatStrings[slot] = value.slice(0, MAX_INJECTION_TEMPLATE_LENGTH);
+    }
+  };
+
+// Every top-level ST field the mapper reads, with the seat it lands on, in one table: the unrecognised-field report
+// reads its keys, so a field the mapper reads is never reported as lost and a listed field always has a reader.
+// `new_chat_prompt` lands on `formatStrings.newChatMarker`, the history-start boundary the assembler reads.
+const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
+  temperature: intoKnob("temperature"),
+  top_p: intoKnob("topP"),
+  top_k: intoKnob("topK", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  frequency_penalty: intoKnob("frequencyPenalty"),
+  presence_penalty: intoKnob("presencePenalty"),
+  repetition_penalty: intoKnob("repetitionPenalty"),
+  // A default that means "off" is "no preference", so only another value is carried.
+  min_p: intoKnob("minP", (n) => n === ST_MIN_P_DEFAULT),
+  top_a: intoKnob("topA", (n) => n === ST_TOP_A_DEFAULT),
+  openai_max_tokens: intoKnob("maxOutputTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  openai_max_context: intoKnob("maxContextTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  // ST -1 is random, so only a seed of 0 or more is carried.
+  seed: intoKnob("seed", (n) => n < ST_DISABLED_NUMERIC),
+  reasoning_effort: (value, seats): void => {
+    if (typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value)) {
+      seats.params["effort"] = value;
+    }
+  },
+  show_thoughts: (value, seats): void => {
+    if (typeof value === "boolean") {
+      seats.params["thinkingDisplay"] = value ? "summarized" : "omitted";
+    }
+  },
+  // Only a `true` is carried: ST's default `false` is "no preference".
+  squash_system_messages: (value, seats): void => {
+    if (value === true) {
+      seats.params["advanced"] = { squashSystemMessages: true };
+    }
+  },
+  names_behavior: (value, seats): void => {
+    const names = namesBehaviorOf(value);
+    if (names !== undefined) {
+      seats.namesBehavior = names;
+    }
+  },
+  continue_postfix: (value, seats): void => {
+    const postfix = typeof value === "string" ? ST_CONTINUE_POSTFIX[value] : undefined;
+    if (postfix !== undefined) {
+      seats.continuePostfix = postfix;
+    }
+  },
+  continue_nudge_prompt: intoFormatString("continueNudge"),
+  impersonation_prompt: intoFormatString("impersonateNudge"),
+  new_chat_prompt: intoFormatString("newChatMarker"),
+};
+
+/** Map every top-level ST field the mapper has a seat for. */
+function mapSeats(raw: Record<string, unknown>): StSeats {
+  const seats: StSeats = { params: {}, formatStrings: {}, dropped: [] };
+  for (const [field, read] of Object.entries(ST_FIELD_SEATS)) {
+    read(raw[field], seats, field);
+  }
+  return seats;
+}
+
+// The fields read structurally (the prompt list and its order) plus every field with a seat.
+const MAPPED_FIELDS: ReadonlySet<string> = new Set([...Object.keys(stPresetSchema.shape), ...Object.keys(ST_FIELD_SEATS)]);
+
+const DROPPABLE_FIELD_NAMES: ReadonlySet<string> = new Set(DROPPABLE_FIELDS.map(({ field }) => field));
 
 /** A dropped field is "meaningful" (worth reporting) when it carries a real value. */
 function isMeaningful(v: unknown): boolean {
@@ -3324,6 +3612,8 @@ function buildWalk(order: StOrderGroup["order"], prompts: StPrompt[]): { identif
   }));
 }
 
+const REPEATED_PROMPT_REASON = "The prompt order lists this prompt more than once. It was imported once, at its first place.";
+
 /** Build the section list from the id→prompt map walked in the authored order, or name the first prompt whose
  *  identifier cannot key a section (the import refuses it rather than inventing a key). */
 function buildSections(
@@ -3332,48 +3622,43 @@ function buildSections(
   dropped: StDroppedField[],
 ): PromptSection[] | { readonly unkeyed: string } {
   const sections: PromptSection[] = [];
+  const placed = new Set<string>();
   for (const entry of walk) {
     const prompt = byId.get(entry.identifier);
-    if (prompt !== undefined) {
-      const id = promptSectionIdSchema.safeParse(prompt.identifier);
-      if (!id.success) {
-        return { unkeyed: prompt.identifier };
-      }
-      sections.push(sectionFromPrompt(prompt, id.data, entry.enabled, dropped));
+    if (prompt === undefined) {
+      continue;
     }
+    // A section key is unique per preset, so a repeated identifier keeps its first place in the walk.
+    if (placed.has(prompt.identifier)) {
+      dropped.push({ field: `prompt_order.${prompt.identifier}`, reason: REPEATED_PROMPT_REASON });
+      continue;
+    }
+    const id = promptSectionIdSchema.safeParse(prompt.identifier);
+    if (!id.success) {
+      return { unkeyed: prompt.identifier };
+    }
+    placed.add(prompt.identifier);
+    sections.push(sectionFromPrompt(prompt, id.data, entry.enabled, dropped));
   }
   return sections;
 }
 
-/** The top-level ST fields with no neo home that carry a meaningful value (reported to the user). */
-function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField[] {
+/** The top-level ST fields with no neo home that carry a meaningful value (reported to the user): the listed ones
+ *  with their reasons, then every other populated field the mapper does not read. `handled` names the fields the
+ *  caller reads itself. */
+function collectDroppableFields(rawObj: Record<string, unknown>, handled: readonly string[]): StDroppedField[] {
   const out: StDroppedField[] = [];
   for (const { field, reason } of DROPPABLE_FIELDS) {
     if (isMeaningful(rawObj[field])) {
       out.push({ field, reason });
     }
   }
-  return out;
-}
-
-/** Map ST's prompt-string slots onto the preset's `formatStrings`. `impersonation_prompt` →
- *  `impersonateNudge` (previously dropped), `continue_nudge_prompt` → `continueNudge`, and
- *  `new_chat_prompt` → `newChatMarker` (the history-START boundary the assembler reads — the seat exists, so it
- *  is mapped rather than dropped). A blank/absent
- *  slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max
- *  so a hostile import can't smuggle an oversized nudge. */
-function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["formatStrings"] {
-  const out: Record<string, string> = {};
-  const take = (key: string, slot: string): void => {
-    const v = rawObj[key];
-    if (typeof v === "string" && v.trim().length > 0) {
-      out[slot] = v.slice(0, MAX_INJECTION_TEMPLATE_LENGTH);
+  for (const [field, value] of Object.entries(rawObj)) {
+    if (!(MAPPED_FIELDS.has(field) || DROPPABLE_FIELD_NAMES.has(field) || handled.includes(field)) && isPopulatedValue(value)) {
+      out.push({ field, reason: UNUSED_FIELD_REASON });
     }
-  };
-  take("continue_nudge_prompt", "continueNudge");
-  take("impersonation_prompt", "impersonateNudge");
-  take("new_chat_prompt", "newChatMarker");
-  return Object.keys(out).length > 0 ? out : undefined;
+  }
+  return out;
 }
 
 // ── The ST `power_user` GENERATION-adjacent knobs (owner ruling) ────────────────────────
@@ -3395,15 +3680,9 @@ function stStopStrings(powerUser: Record<string, unknown>): string[] | undefined
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return;
   }
-  let parsed: unknown;
-  // ST mirror — JSON.parse of custom_stopping_strings
-  // yields nothing on failure, mirroring ST's own reader. Consumer: stStopStrings returns undefined, caller
-  // treats it as "no stop strings". Ends if the caller stops consuming the undefined return.
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return;
-  }
+  // ST mirror — a custom_stopping_strings value that is not JSON yields nothing, as ST's own reader does; the caller
+  // treats undefined as "no stop strings".
+  const parsed = parseJsonText(raw);
   if (!Array.isArray(parsed)) {
     return;
   }
@@ -3448,21 +3727,30 @@ function stReasoningParse(powerUser: Record<string, unknown>): PromptConfig["rea
 // `power_user` keys that are GENERATION-adjacent (so they would belong on a preset) but have no orb seat at
 // all. Reported on the LIVE preset's dropped list so the operator sees them exactly where they'd have landed.
 const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
-  { field: "token_padding", reason: "ST reserves context headroom for its own tokenizer's inaccuracy; orb budgets from provider-reported usage" },
-  { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
-  { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
-  { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
+  {
+    field: "token_padding",
+    reason: "SillyTavern pads its token count to allow for its own counting error. This app counts from what the provider reports, so it was not imported.",
+  },
+  { field: "tokenizer", reason: "SillyTavern uses it to choose which tokenizer counts tokens. This app counts through the provider, so it was not imported." },
+  {
+    field: "custom_stopping_strings_macro",
+    reason: "SillyTavern expands macros inside stop strings. Here stop strings are literal text, so the macros were not imported. The strings themselves were.",
+  },
+  {
+    field: "auto_continue",
+    reason: "SillyTavern keeps continuing a reply until it reaches the length limit. This app has no such loop, so it was not imported.",
+  },
   // BY DESIGN, not deferred (owner ruling, reaffirmed: "we are never running text-complete") —
   // these three are text-completion prompt-format state, and orb has no text-completion mode to spend them in.
-  { field: "context", reason: "text-completion context template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "instruct", reason: "text-completion instruct template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "sysprompt", reason: "text-completion system-prompt template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
+  { field: "context", reason: "SillyTavern's context template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "instruct", reason: "SillyTavern's instruct template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "sysprompt", reason: "SillyTavern's system prompt template for text completion. This app does not use text completion, so it was not imported." },
 ];
 
-/** A `power_user` value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a
- *  non-empty object (the three template blobs are objects and are ALWAYS present in a real profile, so an
+/** A value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a non-empty object or
+ *  array (the three `power_user` template blobs are objects and are always present in a real profile, so an
  *  object counts only when it carries keys). */
-function isMeaningfulPowerUserValue(value: unknown): boolean {
+function isPopulatedValue(value: unknown): boolean {
   if (value !== null && typeof value === "object") {
     return Object.keys(value).length > 0;
   }
@@ -3484,7 +3772,7 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
     stop: stStopStrings(pu),
     postProcess: stPostProcess(pu),
     reasoningParse: stReasoningParse(pu),
-    dropped: DROPPABLE_POWER_USER_FIELDS.filter(({ field }) => isMeaningfulPowerUserValue(pu[field])),
+    dropped: DROPPABLE_POWER_USER_FIELDS.filter(({ field }) => isPopulatedValue(pu[field])),
   };
 }
 
@@ -3495,10 +3783,21 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
  *  "the reader stopped" tells the owner their SillyTavern preset was not a SillyTavern preset.
  *
  *  `recognised` is the discriminant on purpose: it is the question the caller is actually asking, and it
- *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. */
+ *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. An unclaimed file has no
+ *  reason of its own: the door that refuses it says what it reads. */
+/** What the caller adds to {@link tryImportStChatCompletionPreset}'s read of the preset. */
+export interface StImportOptions {
+  /** ST's global `settings.json.power_user` blob, supplied only for the live `oai_settings` preset: its
+   *  generation-adjacent knobs fold onto the config and its seat-less ones join `dropped`. A saved preset file
+   *  carries none of them. */
+  readonly powerUser?: unknown;
+  /** Top-level fields the caller reads itself, so they are not reported as unrecognised. */
+  readonly handledFields?: readonly string[];
+}
+
 export type StImportOutcome =
   | { readonly ok: true; readonly result: StImportResult }
-  | { readonly ok: false; readonly recognised: false; readonly reason: string }
+  | { readonly ok: false; readonly recognised: false }
   | { readonly ok: false; readonly recognised: true; readonly reason: string };
 
 /** Render a `schema-rejected` outcome's issue for the ST import door: resolve a `sections.<n>…`
@@ -3529,20 +3828,19 @@ function stSchemaRejection(
   return {
     ok: false,
     recognised: true,
-    reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure})${detail}, so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+    reason: `This SillyTavern preset has a value this app cannot store${detail}, so nothing was imported. Importing it would have replaced it with the default preset without telling you.`,
   };
 }
 
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
  *  OUTCOME — the one home for both refusals and their diagnostic reasons.
  *
- *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
- *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
- *  seat-less ones join `dropped`. Omitted for a saved preset FILE, which carries none of them. */
-export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportOutcome {
+ *  Every populated top-level field the mapper neither maps nor lists joins `dropped` by name, except the
+ *  `handledFields` the caller reads itself. */
+export function tryImportStChatCompletionPreset(raw: unknown, options: StImportOptions = {}): StImportOutcome {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
-    return { ok: false, recognised: false, reason: "Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order)." };
+    return { ok: false, recognised: false };
   }
   const data = parsed.data;
   const rawObj: Record<string, unknown> = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -3553,7 +3851,7 @@ export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknow
 
   const dropped: StDroppedField[] = [];
   const sections = buildSections(byId, walk, dropped);
-  return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, powerUser) : unkeyedRefusal(sections.unkeyed);
+  return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, options) : unkeyedRefusal(sections.unkeyed);
 }
 
 function unkeyedRefusal(identifier: string): StImportOutcome {
@@ -3565,24 +3863,30 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 }
 
 /** The mapped config's validated outcome once every section is keyed. */
-function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], powerUser: unknown): StImportOutcome {
-  const params = mapParams(rawObj);
-  dropped.push(...collectDroppableFields(rawObj));
+function stConfigOutcome(rawObj: Record<string, unknown>, authored: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
+  const { sections, added } = withOrbSlots(authored);
+  // The read schema keeps a repeated key's first section, which here would silently drop a section the import built.
+  const [repeated] = repeatedSectionIds(sections);
+  if (repeated !== undefined) {
+    return { ok: false, recognised: true, reason: `${repeatedSectionMessage(repeated)} Nothing was imported.` };
+  }
+  const seats = mapSeats(rawObj);
+  // Each param was judged alone against its own schema, so the whole set is never parsed (and dropped) as one.
+  const { params } = seats;
+  dropped.push(...seats.dropped, ...collectDroppableFields(rawObj, options.handledFields ?? []));
 
-  const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);
-  const rawPostfix = rawObj["continue_postfix"];
-  const continuePostfix = typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
-  const formatStrings = collectFormatStrings(rawObj);
+  const { namesBehavior, continuePostfix } = seats;
+  const formatStrings = Object.keys(seats.formatStrings).length > 0 ? seats.formatStrings : undefined;
 
   // The GLOBAL `power_user` half of ST's generation config (live preset only — see the section above).
-  const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(powerUser);
+  const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(options.powerUser);
   dropped.push(...powerUserDropped);
 
   // Construct + validate through the canonical walk — but read its PROVENANCE, not just its value.
   // An IMPORT is a FILE, not a stored blob: the lenient contract (`parsePromptConfig`, whose degrade is
-  // right for a corrupt STORED blob) answered a single out-of-bounds foreign value by returning
-  // DEFAULT_PROMPT_CONFIG, and the caller had no signal — no throw, `dropped` empty, `sectionCount` still
-  // reporting the sections the importer BUILT. The per-value clamps above fix the known triggers;
+  // right for a corrupt STORED blob) answers a single out-of-bounds foreign value by returning
+  // DEFAULT_PROMPT_CONFIG with no signal — no throw, an empty `dropped`, `sectionCount` still
+  // reporting the sections the importer BUILT. The per-value clamps above cover the known triggers;
   // refusing a non-intact parse closes the class for every foreign field that can still exceed a bound.
   const outcome = promptConfigConfig.parseOutcome({
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
@@ -3600,14 +3904,18 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
   const config = outcome.value;
 
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
-  // the disagreement was invisible and made the silent-default failure above look like a success.
-  return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
+  // the disagreement would be invisible and a silent-default failure would look like a success.
+  return { ok: true, result: { config, dropped, sectionCount: config.sections.length, addedSections: added } };
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
 // `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
 // the previous codebase never launched, so no foreign preset file exists to import.
 export { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
+
+/** The kind every owned preset is born with: a new or copied preset, a fork of the system default, and every
+ *  import. `kind` is a free-text label the library row's subtitle prints, and nothing branches on it. */
+export const OWNED_PRESET_KIND = "generation";
 
 export interface PresetFile {
   schemaKind: typeof PRESET_SCHEMA_KIND;
@@ -3617,15 +3925,19 @@ export interface PresetFile {
   schemaVersion: number;
   name: string;
   config: PromptConfig;
+  /** The preset's attached regex scripts in its run order, on the card wire in both spellings. A file written before
+   *  the export carried them has none, and its import compares the preset by its config alone. */
+  regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[];
 }
 
-/** Build the export payload for a preset (name + its full config). */
-export function buildPresetFile(name: string, config: PromptConfig): PresetFile {
+/** Build the export payload for a preset: its name, its full config and, from an export, its attached scripts. */
+export function buildPresetFile(name: string, config: PromptConfig, regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[]): PresetFile {
   return {
     schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     name,
     config,
+    ...(regexScripts === undefined ? {} : { regexScripts }),
   };
 }
 
@@ -3643,6 +3955,9 @@ export function presetContentKey(config: unknown): string {
  *  then STRICTLY validates the lifted config via `promptConfigSchema` directly: a structurally-wrong config
  *  is REJECTED (not degraded to DEFAULT) so a broken file errors loudly instead of silently importing as an
  *  empty preset — the deliberate contrast with `parsePromptConfig`'s lenient degrade-to-default. */
+// A file is an author's write, so a repeated section key is refused by name rather than read as its first.
+const presetFileConfigSchema = promptConfigSchema.extend({ sections: writeSectionsSchema });
+
 export function parsePresetFile(raw: unknown): ParsePresetResult {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error: "Not a JSON object." };
@@ -3666,10 +3981,10 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
       ? envelopeVersion
       : probeSchemaVersion((rawConfig as Record<string, unknown>)["schemaVersion"]);
   const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion, CONFIG_LIFTS);
-  const result = promptConfigSchema.safeParse(lifted?.config);
+  const result = presetFileConfigSchema.safeParse(lifted?.config);
   if (!result.success) {
-    // `z.prettifyError` (not `issues[0].message`): the old hand-flatten printed "Too small: expected string to
-    // have >=1 characters" with NO path, so an operator importing a 500-section preset was told a field was bad
+    // `z.prettifyError` (not `issues[0].message`): the flattened form prints "Too small: expected string to
+    // have >=1 characters" with NO path, so an operator importing a 500-section preset is told a field was bad
     // without being told WHICH. prettify carries `→ at sections[0].id` for every issue (paths are relative to
     // the `config` blob — this parse runs on the lifted blob, not the envelope). The import dialog
     // renders this string in prose flow, so the line breaks collapse into one readable run.
@@ -3683,8 +3998,15 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   return { ok: true, name, config: result.data };
 }
 
-export type { CopyPresetToUser, ExportPresets, FindOwnedPresets, ImportPreset, PresetReadable } from "./owner-ops.ts";
-export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
+export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetImportFile, PresetReadable } from "./owner-ops.ts";
+export {
+  PRESET_IMPORT_ACCEPTS,
+  type PresetFilePreview,
+  type PresetImportOutcome,
+  presetFilePreviewSchema,
+  presetImportOutcomeSchema,
+  ST_PRESET_SCRIPT_LIST_FIELD,
+} from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.
 export const userIntentViewSchema = userIntentSchema.extend({
@@ -3749,8 +4071,9 @@ export interface PresetSummary {
    *
    * IT IS THE READ-TIME TWIN OF THE WRITE REFUSAL, and that is the whole point of putting it on the wire.
    * A config write derived from this read is refused with `stored_config_unreadable`
-   * (`#primitives/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
-   * got a generic save failure — the refusal was correct and completely invisible until it was too late.
+   * (`#primitives/stored-config`); without this field in the payload the editor shows a defaults-looking form,
+   * accepts typing into it, and answers with a generic save failure — the refusal correct and invisible until
+   * too late.
    * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
    * guard makes (`packages/server/src/domain/preset/substrate/views.ts`), so the state the editor renders cannot disagree with the refusal
    * the write would produce.
@@ -3828,24 +4151,12 @@ export interface EffectiveKnobReading {
   readonly provenance: EffectiveProvenance;
 }
 
-/** The stored non-slider knobs (lists, the sampler order, the EOS ban) the deck's staleness row also names. */
-export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder", "bannedStrings", "banEos"] as const;
-export type StaleCollectionKnob = (typeof STALE_COLLECTION_KNOBS)[number];
-
-/** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is
- *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. A
- *  collection knob's `value` is its display form. */
-export interface StaleKnob {
-  readonly knob: EffectiveKnob | StaleCollectionKnob;
-  readonly value: number | string;
-}
-
 /** ONE knob the quality dial feeds, as the dial declares it — NOT as the funnel resolved it. The Params
  *  surface's "quality mapping" datum ("deep → effort high · temp 1.0") answers "what does this dial DO",
  *  which is a fact about the dial and stays true whether or not an explicit knob currently overrides it.
  *  Projected server-side because `QUALITY_SAMPLING`/`QUALITY_EFFORT` are funnel vocabulary the client is
- *  banned from importing (redesign §12) — the previous client derivation could only see knobs the funnel
- *  happened to attribute to the dial, so an overridden dial rendered "everything is overridden" instead of
+ *  banned from importing (redesign §12): a client derivation can only see knobs the funnel
+ *  happened to attribute to the dial, so an overridden dial renders "everything is overridden" instead of
  *  its mapping. */
 export interface QualityMappingEntry {
   readonly knob: EffectiveKnob;
@@ -3868,7 +4179,6 @@ export interface EffectivePreset {
   /** Only the knobs that actually resolve; an absent knob means the funnel produces NOTHING for it on this
    *  model (nothing to ghost — the honest empty, never a fabricated default). */
   readonly knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>>;
-  readonly stale: readonly StaleKnob[];
   /** What the QUALITY dial feeds, per the dial's own table — `null` with no dial set. */
   readonly qualityMapping: QualityMapping | null;
 }
@@ -3895,10 +4205,6 @@ const effectiveKnobReadingSchema = z.strictObject({
   value: effectiveKnobValueSchema,
   provenance: z.enum(EFFECTIVE_PROVENANCES),
 }) satisfies z.ZodType<EffectiveKnobReading>;
-const staleKnobSchema = z.strictObject({
-  knob: z.enum([...EFFECTIVE_KNOBS, ...STALE_COLLECTION_KNOBS]),
-  value: effectiveKnobValueSchema,
-}) satisfies z.ZodType<StaleKnob>;
 const qualityMappingEntrySchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<QualityMappingEntry>;
 const qualityMappingSchema = z.strictObject({
   quality: z.string(),
@@ -3910,7 +4216,6 @@ export const effectivePresetSchema = z.strictObject({
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId("ModelId"),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
-  stale: z.array(staleKnobSchema).readonly(),
   qualityMapping: qualityMappingSchema.nullable(),
 }) satisfies z.ZodType<EffectivePreset>;
 

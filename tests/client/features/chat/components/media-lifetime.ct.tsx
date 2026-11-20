@@ -2,7 +2,10 @@ import { blobUrl } from "@orb/contracts/assets";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { lightboxName } from "#ui/content/lightbox/control-labels.ts";
+import { externalMediaLoadName } from "#ui/content/message-media/message-media-names.ts";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
@@ -18,7 +21,7 @@ const ROOM_READS = [
   "plugin.listDisplayTransforms",
   "plugin.listSurfaces",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
 ] as const;
 
 test("Tide retains zoom for identical snapshots and closes obsolete media on message replacement", async ({
@@ -59,7 +62,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     chatId,
   });
   await expect(page.locator('[data-slot="message-bubble-train"]').filter({ hasText: "Lead paragraph" })).toBeVisible();
-  await page.getByRole("button", { name: /^External media: load from / }).click();
+  await page.getByRole("button", { name: nameShape(externalMediaLoadName) }).click();
   const firstImage = page.getByRole("img", { name: "First witness", exact: true });
   await expect.poll(() => firstImage.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(
@@ -71,7 +74,9 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await page.getByRole("button", { name: "First witness", exact: true }).click();
   const zoom = page.getByRole("dialog");
   await expect(zoom).toBeVisible();
-  await zoom.getByRole("button", { name: /^External media: load from / }).click();
+  await expect(page.getByRole("dialog", { name: lightboxName("image", "First witness"), exact: true })).toBeVisible();
+  // The reader already agreed to load this picture inline, so the zoom shows it without asking again.
+  await expect(zoom.getByRole("button", { name: nameShape(externalMediaLoadName) })).toHaveCount(0);
   await expect
     .poll(() =>
       zoom.getByRole("img", { name: "First witness", exact: true }).evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
@@ -93,7 +98,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await component.update({ chatId, revision: 2 });
   await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("2");
   await expect(zoom).toHaveCount(0);
-  await page.getByRole("button", { name: /^External media: load from / }).click();
+  await page.getByRole("button", { name: nameShape(externalMediaLoadName) }).click();
   const replacement = page.getByRole("img", { name: "Replacement witness", exact: true });
   await expect.poll(() => replacement.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(
@@ -104,7 +109,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   ).toBe(true);
   await page.getByRole("button", { name: "Replacement witness", exact: true }).click();
   await expect(zoom).toBeVisible();
-  await zoom.getByRole("button", { name: /^External media: load from / }).click();
+  await expect(zoom.getByRole("button", { name: nameShape(externalMediaLoadName) })).toHaveCount(0);
   await expect
     .poll(() =>
       zoom.getByRole("img", { name: "Replacement witness", exact: true }).evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),

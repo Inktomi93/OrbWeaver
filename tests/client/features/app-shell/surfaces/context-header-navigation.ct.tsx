@@ -1,10 +1,11 @@
 // The production chat's resolved context tabs remain reachable without scrolling the header strip.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextTabsMenuName, contextToggleLabel } from "@orb/client/lib";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -27,7 +28,7 @@ for (const hasTouch of [false, true]) {
       await expect(strip).toBeVisible();
       const labels = await strip.getByRole("tab").allTextContents();
       expect(labels.length).toBeGreaterThan(2);
-      const choose = header.getByRole("button", { name: "All Chat tabs", exact: true });
+      const choose = header.getByRole("button", { name: contextTabsMenuName(CHAT_CONTEXT_TABLIST_NAME), exact: true });
       await header.screenshot({ path: testInfo.outputPath("narrow-header.png") });
       await expect(choose).toBeVisible();
       await choose.click();

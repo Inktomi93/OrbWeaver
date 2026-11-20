@@ -3,6 +3,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { SELECTED_ROW_TITLE } from "./state-attribute-cases.ts";
 
 /** One row per state attribute, and a plain row beside them as the control. Both rows count their clicks apart, so a dead handler reads as zero on the plain row and a leaking disabled row reads as one on its own. */
 export function StateAttributeStory(): ReactElement {
@@ -11,7 +12,7 @@ export function StateAttributeStory(): ReactElement {
   return (
     <CtIsolation subject="ListRow state attributes" isolates="Selected, expanded and disabled rows style and behave from the attributes alone">
       <ListRow clickable={true} onClick={(): void => setClicks(clicks + 1)} title="Plain" />
-      <ListRow clickable={true} data-selected="" title="Selected" />
+      <ListRow clickable={true} data-selected="" title={SELECTED_ROW_TITLE} />
       <ListRow aria-expanded={true} clickable={true} title="Expanded" />
       <ListRow aria-expanded={true} clickable={true} rowTint="row" title="Expanded row tint" />
       <ListRow clickable={true} rowTint="row" title="Plain row tint" />

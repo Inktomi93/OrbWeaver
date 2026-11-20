@@ -1,6 +1,6 @@
 // @subject packages/client/src/features/chat/components/member-card-viewer.tsx
 // The viewer's header names the card. Where Close takes its own line under the title, the title keeps the dialog's whole width
-// instead of ceding it to a Close that is no longer beside it.
+// instead of ceding it to a Close that is no longer beside it. A greeting's stylesheet prints no CSS there.
 
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -10,6 +10,34 @@ import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { MemberCardViewerStory } from "./_member-card-viewer-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_member-card-viewer-stories/MemberCardViewerStory";
+
+// A greeting that opens with a stylesheet, as a card author writes one for a styled first message.
+const STYLED_GREETING_CSS = "member-card-greeting-mark";
+const STYLED_GREETING_PROSE = "The archivist opens the door.";
+
+test("a greeting's stylesheet prints no CSS in the viewer: its prose draws unstyled", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  const host = await root.internalCallerFor(root.ownerId);
+  const rooms = (await host.chat.listChats({ limit: 100 })).items;
+  const details = await Promise.all(rooms.map((item) => host.chat.getChat({ chatId: item.id })));
+  const room = details.find((chat) => chat.viewerIsHost && chat.participants.some((person) => person.kind === "character"));
+  const characterId = room?.participants.find((person) => person.kind === "character")?.characterId ?? undefined;
+  if (room === undefined || characterId === undefined) {
+    throw new Error("The corpus has no hosted room with a character");
+  }
+  await host.character.update({
+    characterId,
+    input: { greetings: [{ text: `<style>.${STYLED_GREETING_CSS}{color:red}\n\n.${STYLED_GREETING_CSS} b{margin:0}</style>${STYLED_GREETING_PROSE}` }] },
+  });
+  await seedShellState(page, { activeSection: "chats" });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(host, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, "chat.getMemberCard"]));
+  await mount<typeof MemberCardViewerStory>(STORY, { chatId: room.id, characterId });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(STYLED_GREETING_PROSE, { exact: false })).toBeVisible();
+  expect((await dialog.textContent()) ?? "").not.toContain(STYLED_GREETING_CSS);
+});
 
 test.describe("the member card viewer's title at a 390 phone and 300% text", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

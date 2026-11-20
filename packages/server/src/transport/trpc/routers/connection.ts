@@ -40,7 +40,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { catalogRefreshOutcomeSchema, connectionCapabilityViewSchema } from "#domain/connection";
-import { adminProcedure, authedProcedure, t } from "../trpc.ts";
+import { adminProcedure, authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 const connectionId = connectionRefSchema.shape.connectionId;
 /** A label is a short user-facing name (the pane auto-mints `<provider> · <model>`). */
@@ -91,8 +91,12 @@ export const connectionRouter = t.router({
   resolveChatCapability: authedProcedure
     .input(z.strictObject({ target: capabilityTargetSchema.optional() }).optional())
     .output(strictTwin(resolvedConnectionViewSchema))
-    .query(({ ctx, input }) =>
-      ctx.services.connection.resolveChatCapability({ principal: ctx.auth, ...(input?.target !== undefined ? { target: input.target } : {}) }),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.resolveChatCapability({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        ...(input?.target !== undefined ? { target: input.target } : {}),
+      }),
     ),
 
   // The logit-bias editor's live display: what each word tokenizes to on the targeted connection's server.
@@ -101,20 +105,40 @@ export const connectionRouter = t.router({
       z.strictObject({ target: capabilityTargetSchema.optional(), words: z.array(z.string().min(1).max(TOKENIZE_WORD_CHARS_MAX)).max(TOKENIZE_WORDS_MAX) }),
     )
     .output(strictTwin(tokenizeResultSchema))
-    .query(({ ctx, input }) =>
-      ctx.services.connection.tokenizeWords({ principal: ctx.auth, words: input.words, ...(input.target !== undefined ? { target: input.target } : {}) }),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.tokenizeWords({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        words: input.words,
+        ...(input.target !== undefined ? { target: input.target } : {}),
+      }),
     ),
 
+  // `listFacts` fetches the server's model list and the reads that load no model, never a per-model probe: the add
+  // dialog's read right after a save, which must not load or wake a local model only to learn its limits.
   capabilities: authedProcedure
-    .input(z.strictObject({ connectionId }))
+    .input(z.strictObject({ connectionId, listFacts: z.literal(true).optional() }))
     .output(strictTwin(connectionCapabilityViewSchema))
-    .query(({ ctx, input }) => ctx.services.connection.capabilities({ principal: ctx.auth, connectionId: input.connectionId })),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.capabilities({
+        principal: ctx.auth,
+        connectionId: input.connectionId,
+        signal: procedureSignal(signal),
+        ...(input.listFacts === undefined ? {} : { listFacts: input.listFacts }),
+      }),
+    ),
 
   // ── Model roles (`connection_bindings`; "binding" is a schema word — the pane says "Model roles", §5.3a)
   listBindings: authedProcedure
     .input(listBindingsInputSchema)
     .output(strictTwin(z.array(bindingViewSchema).readonly()))
-    .query(({ ctx, input }) => ctx.services.connection.listBindings({ principal: ctx.auth, ...(input?.actor !== undefined ? { actor: input.actor } : {}) })),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.listBindings({
+        principal: ctx.auth,
+        signal: procedureSignal(signal),
+        ...(input?.actor !== undefined ? { actor: input.actor } : {}),
+      }),
+    ),
 
   setBinding: authedProcedure
     .input(z.strictObject({ task: routableTaskSchema, connectionId: connectionId.nullable(), actor: bindingActorSchema.optional() }))
@@ -148,13 +172,17 @@ export const connectionRouter = t.router({
       ),
     )
     .output(embedSpaceChangePreviewSchema)
-    .mutation(({ ctx, input }) => ctx.services.connection.previewEmbedSpaceChange({ principal: ctx.auth, change: input.change })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.connection.previewEmbedSpaceChange({ principal: ctx.auth, change: input.change, signal: procedureSignal(signal) }),
+    ),
 
   // ── catalogs
   catalogModels: authedProcedure
     .input(z.strictObject({ connectionId }))
     .output(strictTwin(modelListingSchema))
-    .query(({ ctx, input }) => ctx.services.connection.catalogModels({ principal: ctx.auth, connectionId: input.connectionId })),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.catalogModels({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+    ),
 
   // The add dialog's model list for a row that does not exist yet, fetched SERVER-SIDE (a browser cannot reach a
   // user's loopback box, §7.4): the provider being authored, its key (a saved credential by id, the caller's,
@@ -170,7 +198,7 @@ export const connectionRouter = t.router({
       }),
     )
     .output(strictTwin(modelListingSchema))
-    .mutation(({ ctx, input }) => ctx.services.connection.draftCatalogModels({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input, signal }) => ctx.services.connection.draftCatalogModels({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
 
   refreshCatalog: adminProcedure
     .input(z.strictObject({ providerId: providerIdSchema }))
@@ -181,12 +209,16 @@ export const connectionRouter = t.router({
   probe: authedProcedure
     .input(z.strictObject({ connectionId }))
     .output(credentialHealthSchema)
-    .mutation(({ ctx, input, signal }) => ctx.services.connection.probe({ principal: ctx.auth, connectionId: input.connectionId, signal })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.connection.probe({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+    ),
 
   accountCredits: authedProcedure
     .input(z.strictObject({ connectionId }))
     .output(accountCreditsSchema)
-    .query(({ ctx, input, signal }) => ctx.services.connection.accountCredits({ principal: ctx.auth, connectionId: input.connectionId, signal })),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.accountCredits({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+    ),
 
   generationCost: authedProcedure
     .input(
@@ -197,19 +229,28 @@ export const connectionRouter = t.router({
     )
     .output(generationCostSchema)
     .query(({ ctx, input, signal }) =>
-      ctx.services.connection.generationCost({ principal: ctx.auth, connectionId: input.connectionId, generationId: input.generationId, signal }),
+      ctx.services.connection.generationCost({
+        principal: ctx.auth,
+        connectionId: input.connectionId,
+        generationId: input.generationId,
+        signal: procedureSignal(signal),
+      }),
     ),
 
   // The `claude-sub` row's runtime auth check: a tiny generation, so a mutation (§8.4-6).
   verifyAuth: authedProcedure
     .input(z.strictObject({ connectionId }))
     .output(verifyAuthResultSchema)
-    .mutation(({ ctx, input, signal }) => ctx.services.connection.verifyAuth({ principal: ctx.auth, connectionId: input.connectionId, signal })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.connection.verifyAuth({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+    ),
 
   inspectEndpoint: authedProcedure
     .input(z.strictObject({ connectionId }))
     .output(strictTwin(endpointInspectionSchema))
-    .mutation(({ ctx, input, signal }) => ctx.services.connection.inspectEndpoint({ principal: ctx.auth, connectionId: input.connectionId, signal })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.connection.inspectEndpoint({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+    ),
 
   // ── providers: what the picker may offer the caller (every row it may use, with its wire's build state, §5.3a)
   providersAvailable: authedProcedure

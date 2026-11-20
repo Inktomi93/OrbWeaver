@@ -13,10 +13,12 @@ const SECTION_ID = "admin-system-tuning";
 export const systemTuningSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "admin",
+  // Deployment runtime tuning and the upload caps: inside the Admin group's Advanced fold.
+  advanced: true,
   nav: SYSTEM_TUNING_SUBCATEGORY,
   owns: {
     tier: "app",
-    keys: ["promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "promptCacheMinDepth"],
+    keys: ["promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "maxImageBytes", "promptCacheMinDepth"],
   },
   body: (anchorId) => <SystemTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

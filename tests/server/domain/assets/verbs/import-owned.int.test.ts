@@ -2,7 +2,7 @@
 
 import { ASSET_LIST_LIMIT_MAX, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -30,7 +30,7 @@ test("foreign malformed bytes and absence share the same refusal before import; 
   let own: Principal;
   try {
     const response = await harness.http.request(`/api/trpc/assets.listOwned?input=${encodeURIComponent(JSON.stringify({ limit: 1 }))}`, {
-      headers: { "x-authentik-username": row.handle, "x-authentik-uid": subject },
+      headers: { "x-authentik-username": row.handle, "x-authentik-uid": subject, [CSRF_HEADER]: "1" },
     });
     await response.arrayBuffer();
     expect(response.status).toBe(200);

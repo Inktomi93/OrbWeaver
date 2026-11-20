@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 1
+rank: 9
 ---
 
 # Cross-surface visual consistency
@@ -25,7 +25,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 3 | Enlarged text | with the push barrier, 1299 |
 | 4 | Chat styles match the Moonlit reference | 0913 |
 | 5 | Page templates | the page-template tier |
-| 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
+| 6 | Visible labels and accessible names | Landed: tests read each name from its production home, and `pnpm label-census` reports the sites that do not |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
 | 6a | The type-law composites that change judged surfaces, because acceptance scores them | 1769, 1775, 1776, 1777 |
 | 7 | Comparative acceptance | The composition acceptance across families passed; [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews 0908 and 0909 run inside them |
@@ -57,18 +57,18 @@ Each group below carries one decision, convert or keep. Each convert links the w
 
 #### Dialogs
 
-The owner is the composite family in `docs/law/client-architecture-lockdown.md`: `FormDialog` and `FlowDialog` for a dialog that commits, `DismissDialog`, `ContentDialog`, `ViewerDialog` and `PickerDialog` for the rest, and `ModalHost` for registry modals. [2579](../../work/2579-the-dialog-census-counts-modal-popovers.md) adds a census cohort for the kept modal popovers so they are counted.
+The owner is the composite family in `docs/law/client-architecture-lockdown.md`: `FormDialog` and `FlowDialog` for a dialog that commits, `DismissDialog`, `ContentDialog`, `ViewerDialog` and `PickerDialog` for the rest, and `ModalHost` for registry modals. A census cohort counts the kept modal popovers.
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |
-| Raw dialogs in `packages/ui` | Convert (exit only) | Both sit in `packages/ui`, below the client composites, so they keep the raw primitive; each gains a visible close control because every dialog needs a way out | [2577](../../work/2577-the-lightbox-and-the-immersive-card-dialog-show.md) |
-| Phone sheet chrome written twice | Convert | The phone sheet chrome (keyboard provider, popup, title and close row) is written twice; one sheet composite owns it | [2578](../../work/2578-one-sheet-composite-draws-the-phone-drawer-chrome.md) |
+| Raw dialogs in `packages/ui` | Converted (exit only) | Both sit in `packages/ui`, below the client composites, so they keep the raw primitive; each has a visible close control because every dialog needs a way out | - |
+| Phone sheet chrome | Converted | One sheet composite owns the phone sheet chrome: keyboard provider, popup, title and close row | - |
 | Anchored popovers that carry input: `packages/client/src/components/editable-tag-chip.tsx`, `packages/client/src/features/app-shell/components/bug-report-button.tsx`, `packages/client/src/features/chat/components/talkativeness-popover.tsx`, `packages/client/src/features/chat/components/add-member-popover.tsx`, `packages/client/src/features/refinery/components/start-session-door.tsx`, `packages/client/src/features/refinery/components/character-door.tsx`, `packages/client/src/features/automation/components/rule-preset-picker.tsx`, `packages/client/src/features/rpg/components/rpg-pack-rows.tsx` | Keep | An anchored popover that carries input is not a centered dialog: the trigger stays in view and the popover traps focus | |
-| Commit footers built inside a dismiss dialog | Convert | A dialog that commits is `FormDialog` or `FlowDialog`, which own Cancel and the submit; the composite gains a second stage, a footer that stands down and a variable submit | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
-| Picker footer lead | Convert | `PickerDialog` takes the `footerLead` that `FormDialogPopup` already has | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
-| Registry modal footers built by each body | Convert | The registry path has no explicit-submit owner, so each body builds a footer; `ModalDefinition` gains a host-drawn submit footer | [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md) |
+| Commit footers built inside a dismiss dialog | Converted | A dialog that commits is `FormDialog` or `FlowDialog`, which own Cancel and the submit; the composite has a second stage, a footer that stands down and a variable submit; owner: `CommitFooter` in `packages/client/src/components/form-dialog.tsx` | |
+| Picker footer lead | Converted | `PickerDialog` takes the `footerLead` that `FormDialogPopup` already has | |
+| Registry modal footers built by each body | Converted | A modal definition declares its submit and the host draws the form, Cancel and the submit in the dialog and the sheet | - |
 | Dismiss as the action of an `EmptyState`: `packages/client/src/features/chat/components/add-chat-book-dialog.tsx`, `packages/client/src/features/chat/components/add-chat-document-dialog.tsx`, `packages/client/src/features/chat/components/add-chat-script-dialog.tsx` | Keep | `DialogClose` is the action of an `EmptyState`; the action slot is the owner and leaving is the one action available | |
-| Dialog lint scope | Convert | `orb/dialog-via-composite` matches only `Dialog` and `DialogPopup`; it also refuses `DialogFooter` and `DialogClose` in a feature outside an `EmptyState` action once 2580 and 2581 land | [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) |
+| Dialog lint scope | Converted | `orb/dialog-via-composite` matches only `Dialog` and `DialogPopup`; it also refuses `DialogFooter` and `DialogClose` in a feature outside an `EmptyState` action | |
 
 #### Empty states
 
@@ -76,15 +76,15 @@ The owner of a surface's own empty state is `EmptyState` with an action. The emp
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |
-| Hand-built pane empty states | Convert | A pane's empty state built by hand; `EmptyState` takes the clear-filters, Reload or composer action | [2583](../../work/2583-hand-built-pane-empty-states-move-to-emptystate.md) |
+| Pane empty states | Converted | A pane's empty state is `EmptyState`, which takes the clear-filters, Reload or composer action; a shelf tile states emptiness at shelf weight (`docs/law/UI-Density-Law.md`) | - |
 | Empty prose in the thread and the documents rail: `packages/client/src/features/chat/surfaces/message-list-surface.tsx`, `packages/client/src/features/databank/components/home-documents-tile-body.tsx` | Keep | The thread stays readable prose and the documents tile is a rail, not a pane; each comment cites a ruling that 2583 checks, and the site converts if the citation does not resolve | |
 | Drop affordance: `packages/client/src/features/chat/components/composer-drop-target.tsx` | Keep | A drop affordance, not an empty state; listed because it has the same markup shape | |
 | Provider-blocked look-alike: `packages/client/src/features/credentials/components/add-connection-provider-fields.tsx` | Keep | Look-alike: the provider-blocked branch already uses `EmptyState` | |
-| Inline muted empty lines | Convert | An inline muted sentence with an optional ghost action is one shape with one client-shared owner; filter-miss lines are included, and the surface's own empty state stays `EmptyState` | [2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) |
+| Inline muted empty lines | Converted | An inline muted sentence with an optional ghost action is one shape with one client-shared owner, `packages/client/src/components/muted-line.tsx`; filter-miss lines are included, and the surface's own empty state stays `EmptyState` | |
 
 #### Card sites
 
-`Card` is for islands, heroes, editor regions and plates. A row uses `ListRow`, a callout uses one notice composite, and settings rows use `SettingRowGroup`. The two placeholders that also use `Card` (`rpg-map-tab.tsx`, `composer-drop-target.tsx`) are decided under Empty states.
+`Card` is for islands, heroes, editor regions and plates. A row uses `ListRow`, a callout uses one notice composite, and settings rows use `SettingRowGroup`. The placeholder that also uses `Card` (`composer-drop-target.tsx`) is decided under Empty states.
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |
@@ -92,8 +92,8 @@ The owner of a surface's own empty state is `EmptyState` with an action. The emp
 | Interactive pack-row cards | Convert | The one interactive `Card` in a feature list is the anti-pattern the law names | [2585](../../work/2585-expandable-and-stateful-sub-entity-rows-use-the.md) |
 | Tiles that adopt `CollectionGrid`: `packages/client/src/features/config/components/theme-editor.tsx`, `packages/client/src/features/config/components/theme-mini-surface.tsx`, `packages/client/src/features/discovery/components/corpus-family-map.tsx` | Convert | Tiles are `CollectionGrid` cells and the plan's Collection grid step already adopts them | |
 | Islands and groups: `packages/client/src/features/rpg/components/rpg-status-tab.tsx`, `packages/client/src/features/rpg/components/rpg-quests-tab.tsx`, `packages/client/src/features/character/components/character-facet-editor.tsx`, `packages/client/src/features/workloads/components/import-library-section.tsx`, `packages/client/src/components/user-macro-editor-dialog.tsx` | Keep | An island or a group, not a row | |
-| Hand-spelled callouts and status boxes | Convert | Each spells one shape by hand (tone, icon, one line, optional action) with no owner; one notice composite owns it | [2586](../../work/2586-one-notice-composite-owns-callouts-and-status-boxes.md) |
-| Chat settings groups | Convert | Settings rows have `SettingRowGroup` as their plan home | [2587](../../work/2587-settings-groups-in-the-chat-settings-sections-use.md) |
+| Hand-spelled callouts and status boxes | Converted | Each spelled one shape by hand (tone, icon, one line, optional action); `packages/client/src/components/notice.tsx` owns it | |
+| Chat settings blocks: `packages/client/src/features/chat/components/assembly-preview-panel.tsx`, `packages/client/src/features/chat/components/prose-settings-section.tsx` | Keep | A budget meter and template editor regions, the image prompts among them; none is a label-and-control row, so `SettingRowGroup` does not fit | |
 | Islands, heroes and editor regions: `packages/client/src/features/auth/anchors/login-shell-anchor.tsx`, `packages/client/src/features/discovery/components/corpus-family-map.tsx`, `packages/client/src/features/discovery/components/corpus-understanding-invitation.tsx`, `packages/client/src/features/refinery/components/refinery-start-pane.tsx`, `packages/client/src/features/refinery/components/teaching-state.tsx`, `packages/client/src/features/automation/components/rule-editor.tsx`, `packages/client/src/features/persona/components/persona-editor.tsx`, `packages/client/src/features/user-admin/components/share-card.tsx`, `packages/client/src/features/discovery/surfaces/corpus-dossier-surface.tsx`, `packages/client/src/features/refinery/components/apply-outcome.tsx`, `packages/client/src/features/refinery/components/schema-editor-panes.tsx`, `packages/client/src/features/chat/components/home-hearth-room.tsx`, `packages/client/src/features/preset/components/macro-text.tsx`, `packages/client/src/features/plugin/components/plugin-leaf-nodes.tsx` | Keep | An island, hero or editor region is what `Card` is for | |
 | Meters, stat cells, skeleton plates and placeholders: `packages/client/src/features/automation/components/clock-meter.tsx`, `packages/client/src/features/automation/components/needle-meter.tsx`, `packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx`, `packages/client/src/features/rpg/components/rpg-act-rail.tsx`, `packages/client/src/features/rpg/components/rpg-inventory-tab.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/ambient-strip.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/npc-card-slots.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/tracker-blocks.tsx`, `packages/client/src/features/rpg/components/rpg-stat-profile-editor.tsx`, `packages/client/src/features/discovery/components/corpus-home-skeleton.tsx`, `packages/client/src/features/chat/components/ghost-message-row.tsx`, `packages/client/src/features/automation/components/rules-section.tsx`, `packages/client/src/features/chat/components/injections-manager.tsx`, `packages/client/src/features/character/components/character-library-welcome.tsx` | Keep | `Card` as a meter, stat cell, skeleton plate or placeholder; no other owner is ruled and none is needed | |
 
@@ -104,13 +104,11 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 | Group | Decision | Reason | Item |
 | - | - | - | - |
 | Bodies already on `ContextTabBody`: `packages/client/src/features/databank/components/databank-context-body.tsx`, `packages/client/src/features/refinery/components/context-tabs.tsx`, `packages/client/src/features/regex/components/regex-context-body.tsx`, `packages/client/src/features/world-info/components/world-info-context-body.tsx` | Keep | The body already uses the owner | |
-| Roots that spell the CONTEXT inset per file | Convert | The CONTEXT panel viewport has one inset in the density table and each root spells it per file, most without the block padding; `ContextTabBody` gains the kinds they need (own scroll, height fill) | [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) |
-| Roots not yet read | Convert, after a read | The root is not read to its end; 2588 reads each and puts it on a `ContextTabBody` kind or records why its root differs | [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) |
+| Roots that spell the CONTEXT inset per file | Converted | The CONTEXT panel viewport has one inset in the density table and each root spells it per file, most without the block padding; `ContextTabBody` gains the kinds they need (own scroll, height fill); owner: `packages/client/src/components/context-tab-body.tsx` | |
+| Roots not yet read | Converted | Each root was read and is on a `ContextTabBody` kind or records why its root differs | |
 | Definitions with no body: `packages/client/src/features/home/lib/home-section.tsx`, `packages/client/src/features/plugin/lib/extensions-section.tsx`, `packages/client/src/features/roster-preset/lib/roster-collection.tsx`, `packages/client/src/features/config/lib/config-context.tsx` | Keep | The definition has no body to draw | |
 
 #### Order
-
-[2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) runs after the prose-cap codemod. [2578](../../work/2578-one-sheet-composite-draws-the-phone-drawer-chrome.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md) are sequenced with the plugin area. The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md).
 
 ### Template API
 
@@ -119,7 +117,8 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 | `ListPage` | instrument | `ref` (the focus target), `label` (names the root as a region), `skipTo` (the skip link's label), `lead` (above the search row), `search` (the search control), `searchAside` (controls on the search row), `filters` (below the search row), `body` (`scroll`: the body scrolls; `bounded`: the body is a bounded column whose content scrolls itself; `pane`: the whole pane scrolls), children | `LibraryListFrame` and `LibraryListLayout`; `LibraryListRows` keeps the rows and their radiogroup contract, `LibrarySurfaceShell` keeps the boundary |
 | `DetailHeader` | inherits its host's tier | `title`, `step` (`title` for a member or document name, `masthead` for a workbench's one opening statement), `kicker`, `meta` (state marks beside the name), `actions` (the subject's own verbs), `deferToShell` (the visible name and the Back stand down where the topbar prints them; the heading stays in the outline), children (lines under the name) | the hand-built identity rows |
 | `SettingsPane` | form | `title` (the pane's heading node), children (the sections) | the sections branch of `GroupBody` |
-| `EditorPage` | `form` or `instrument`, from `kind` | `kind` (`form`: the column breathes past `@cq-64`; `instrument`: a control-track instrument holds the narrow cap), `inset` (`none`, `block`, `section`), and the `Stack` props except `className` | the hand-spelled centered column |
+| `ContentPane` | declares none; its body's template declares one | `measure` (`column`: the editor column, wider past `@cq-64`; `instrument`: the narrow cap; `{ full: "<reason>" }`: the whole pane), `band` (the pinned band across the pane), `foot` (a box under the scroller that never scrolls away), `inset` (the body's block inset: `section`, `block`, `none`), `gap`, or `parts` laid with `ContentPaneBand` and `ContentPaneBody`; the scroller takes the `div` props | the section inset on the shell region, each root's own scroller, and each band's own span and column |
+| `EditorPage` | `form` or `instrument`, from `kind` | `kind` (`form`: takes the pane's column; `instrument`: a control-track instrument holds the narrow cap inside it), `inset` (`none`, `block`, `section`), and the `Stack` props except `className` | the hand-spelled centered column |
 | `CollectionGrid` | inherits its host's tier | `label` (the list's name), `cols` (`auto`, `cellShelf`, `pairWide`), `gap` (`tight`, `row`), `items`, `itemKey`, `renderItem`; each cell is a `listitem` wrapper | the hand-built list grids |
 
 `DetailHeader` and `CollectionGrid` render no `Surface`: they sit inside a page that already declares a tier, and a same-tier nested `Surface` is refused by the surface census. Every LIST pane takes the one pane gap, `row`.
@@ -127,6 +126,8 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 ### Lint
 
 `orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, a `Grid` with `role="list"`, and a `FieldLayout` with `orientation="horizontal"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule. Its rows do: `SettingRowGroup` and `SettingTrackRow` own the only horizontal `FieldLayout`, so a feature that spells one has hand-built a settings row.
+
+`orb/content-pane-scroller` refuses a vertical `scroll` on a `Stack`, `Container` or `Text` in `packages/client/src/features/**/surfaces/`, so a CONTENT body sits on `ContentPane`. The chat room surface is outside its scope until `docs/work/3610-decide-whether-the-chat-composer-shares-the-transcript.md` is decided.
 
 ### Judgment sites
 
@@ -346,3 +347,16 @@ Keep the Insights presentation choice explicit and retain accounting caveats ins
 Include the image dialog's lower form in the primary mobile walkthrough. Cold startup, failed aggregate runs and unavailable evidence remain unqualified.
 
 The automated walkthrough plan supplies repeatable collection; independent comparative acceptance remains required here.
+
+### Settings keep one control per real choice
+
+A setting exists only when a reader would change it and its effect is visible. Each call below compares SillyTavern and the Moonlit Echoes theme, the reference this app matches.
+
+| Call | SillyTavern | Moonlit Echoes | Ruling | Reason |
+| - | - | - | - | - |
+| Stop strings: a user setting or a preset value | `custom_stopping_strings` is a user-wide power-user setting in Advanced Formatting, not part of a sampler preset | No setting | A user setting; the turn adds it to the preset's own stop list, and the hint says so | It matches SillyTavern, and the preset already carries its own list |
+| Reading and effects knobs | Not applicable | Keeps message letter spacing, justified paragraphs (for CJK text), the avatar border and the reasoning icon; name size inherits the message size; no prose shadow, no grain | Keep letter spacing, justify with a CJK hint, the avatar ring and the reasoning icon; name size follows the message size; no prose shadow; grain stays the one Texture choice | Each kept knob is a real Moonlit choice; a separate name size is not |
+| The "in new chats" defaults | Not applicable | Not applicable | Wording: each label says it is the default for every chat you host that has not set its own | A chat with no value inherits the default (`packages/contracts/src/chat/metadata.ts`); a stamp at creation would reverse that |
+| Where expert tuning lives | Not applicable | Not applicable | Each settings group's Advanced fold (`CONFIG_ADVANCED_FOLD_NAME` in `packages/client/src/state/config-group-registry.ts`), on Admin, Chat behavior and Jobs | The fold already exists per group; a new top-level group would add a shelf |
+| Accessibility outside the fold | Reduced Motion shows in plain view | Not applicable | A visible Accessibility section: reduce motion, increase contrast and following the device's reduced transparency | A reader who needs these should not have to find a fold |
+| Corpus tuning for admins only | Not applicable | Not applicable | Stays per user, in the Jobs Advanced fold | Admin-only moves the scope from the user to the install and needs new install settings |

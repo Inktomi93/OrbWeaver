@@ -16,7 +16,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { revealContextPanel, setChatContextSectionOpen } from "#state";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
@@ -29,7 +29,7 @@ const SETTINGS_TAB: ChatContextTabId = "settings";
  *  renders the chat-options menu — the same wiring the topbar trail used before the D111 relocation. */
 export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const characters = filterCharacters(chat?.participants ?? []).map((c) => ({ characterId: c.characterId, name: c.displayName }));
   const owned = new Set(chat?.viewerOwnedCharacterIds);
   const galleryCharacters = characters.filter((c) => owned.has(c.characterId));

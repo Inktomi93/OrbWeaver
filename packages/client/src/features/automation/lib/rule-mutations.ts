@@ -24,6 +24,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, withProcedureInput } from "#data";
 import { ruleDraftOwnerCurrent } from "#state";
+import { RULE_CREATE_FAILED_TOAST, RULE_SAVE_FAILED_TOAST } from "./automation-names.ts";
 
 /** The `listRules` read this section reconciles — tRPC-inferred (`readonly RuleView[]`), so the optimistic
  *  enable/disable patch below stays honest against the wire shape. */
@@ -82,7 +83,7 @@ export const useCreateRule = createEntityMutation<
   },
   // The owner-global key is shared across sign-ins; an old settle must not refetch the new viewer's list.
   invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
-  errorToast: "Couldn't create that rule. Your draft is kept.",
+  errorToast: RULE_CREATE_FAILED_TOAST,
 });
 
 /** Cache scope is local metadata, explicitly excluded from the strict update payload. */
@@ -98,7 +99,7 @@ export const useUpdateRule = createEntityMutation<
     update: (old, row) => echoRule(old, row),
   },
   invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
-  errorToast: "Couldn't save that rule. Your draft is kept.",
+  errorToast: RULE_SAVE_FAILED_TOAST,
 });
 
 /** Ordering covers the complete selected scope, including the author's global scope. */

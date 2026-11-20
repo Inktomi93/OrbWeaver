@@ -1,3 +1,4 @@
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -5,10 +6,10 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
-  NEW_PRESET_KIND,
   NEW_PRESET_NAME,
   PRESET_ACTIVATE_NAME,
   PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_ACTIVE_STATUS,
   PRESET_NAME_FIELD_NAME,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_NAME,
@@ -92,7 +93,7 @@ for (const regime of REGIMES) {
       // This isolated body has no app-root user bus; a fresh production mount reads the persisted active arm.
       await mounted.unmount();
       await mount<typeof PresetActionGroupsStory>(STORY, props);
-      await expect(page.getByText("Active", { exact: true })).toBeVisible();
+      await expect(page.getByText(PRESET_ACTIVE_STATUS, { exact: true })).toBeVisible();
       await expect(activate).toHaveCount(0);
       await expect(rename).toBeVisible();
       await expect(reset).toBeVisible();
@@ -127,7 +128,7 @@ for (const regime of REGIMES) {
       await create.focus();
       await page.keyboard.press("Enter");
       await expect.poll(async () => (await caller.preset.list()).length).toBe(before.length + 1);
-      expect(calls.lastInput("preset.create")).toEqual({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND });
+      expect(calls.lastInput("preset.create")).toEqual({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND });
     });
   });
 }

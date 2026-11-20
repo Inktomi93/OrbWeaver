@@ -8,7 +8,7 @@
 // mapping at all, so a CT could have gone green against a toast the app never renders.
 
 import type { createToastManager } from "@orb/ui/toast";
-import type { Notify, NotifyInput } from "./notify.ts";
+import type { Notify, NotifyInput, NotifyNotice } from "./notify.ts";
 import { toNotice } from "./notify.ts";
 
 type ToastManager = ReturnType<typeof createToastManager>;
@@ -18,13 +18,24 @@ type ToastManager = ReturnType<typeof createToastManager>;
  *  fit in five seconds (side-eye INFRA-WARN-DEAF P2-2). Title-only notices keep the default. */
 const DESCRIBED_NOTICE_TIMEOUT_MS = 12_000;
 
-/** Builds the toast-backed `Notify`. `type` is what the toast seal tints and glyphs; `priority: "high"`
- *  is reserved for `error` (Base UI promotes it to `role="alertdialog"`). */
+/** A persistent notice never auto-dismisses (Base UI's timeout 0); a described one gets the longer life; a title-only one keeps the default. */
+function timeoutOf({ description, persistent }: NotifyNotice): number | undefined {
+  if (persistent === true) {
+    return 0;
+  }
+  return description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS;
+}
+
+/** Builds the toast-backed `Notify`. `type` is what the toast seal tints, glyphs and announces. It never sends Base UI's `priority`, which
+ *  would add a second, hidden alert node beside the notice's own. */
 export function createToastNotify(toastManager: ToastManager): Notify {
-  function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined, priority: "high" | undefined): void {
-    const { title, description, action } = toNotice(notice);
+  function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined): void {
+    const resolved = toNotice(notice);
+    const { title, description, action } = resolved;
     // The user has acted on the notice, so the action dismisses it — after the handler runs, once, here for every caller.
+    // A named notice passes its id through: Base UI updates a showing toast with that id in place.
     const id = toastManager.add({
+      ...(resolved.id === undefined ? {} : { id: resolved.id }),
       actionProps:
         action === undefined
           ? undefined
@@ -36,8 +47,7 @@ export function createToastNotify(toastManager: ToastManager): Notify {
               },
             },
       description,
-      priority,
-      timeout: description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS,
+      timeout: timeoutOf(resolved),
       title,
       type,
     });
@@ -45,16 +55,16 @@ export function createToastNotify(toastManager: ToastManager): Notify {
 
   return {
     error: (notice): void => {
-      add(notice, "error", "high");
+      add(notice, "error");
     },
     info: (notice): void => {
-      add(notice, undefined, undefined);
+      add(notice, undefined);
     },
     success: (notice): void => {
-      add(notice, "success", undefined);
+      add(notice, "success");
     },
     warn: (notice): void => {
-      add(notice, "warning", undefined);
+      add(notice, "warning");
     },
   };
 }

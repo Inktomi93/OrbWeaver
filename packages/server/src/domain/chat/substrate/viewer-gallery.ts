@@ -4,7 +4,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
-import { characterIdsOf, firstCharacterIdOf } from "../persistence/participant.ts";
+import { characterIdsOf, firstCharacterIdOf } from "./participant-actor.ts";
 
 type RosterSeats = Parameters<typeof characterIdsOf>[0];
 

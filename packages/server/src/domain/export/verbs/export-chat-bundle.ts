@@ -33,6 +33,7 @@ import {
   characters,
   chatGenerationObservations,
   chatInjections,
+  chatMemoryStrikes,
   chatParticipants,
   chats,
   chatTags,
@@ -43,16 +44,19 @@ import {
 } from "@orb/db";
 import { assetIdsInContent } from "@orb/kit/content";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import { resolveStrikeSpan } from "@orb/kit/recall";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type {
   PortableChat,
   PortableChatInjection,
   PortableChatMessage,
   PortableChatVariant,
+  PortableMemoryStrike,
   PortableRpgGame,
   PortableSeatCard,
 } from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
+import { identityOnlyExportNote } from "#primitives/stored-config";
 import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/params.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
@@ -101,7 +105,7 @@ async function loadSeatCards(args: {
   for (const [characterId, handle] of handleById) {
     let identity = cache.get(characterId);
     if (identity === undefined) {
-      const card = await exportCharacter({ principal: params.principal, characterId });
+      const card = await exportCharacter({ principal: params.principal, characterId, note: identityOnlyExportNote });
       identity = card === null ? null : await ctx.cardPngIdentity(card.bytes);
       cache.set(characterId, identity);
     }
@@ -154,6 +158,38 @@ async function loadPersonaNames(ctx: ExportContext, ids: readonly PersonaId[]): 
     .from(personas)
     .where(inArray(personas.id, [...ids]));
   return new Map<PersonaId, string>(rows.map((r) => [r.id, r.name]));
+}
+
+/** The host's memory strikes as positions. A strike whose endpoint message is gone travels on the struck turns that
+ *  survive: its span resolves as recall resolves it ({@link resolveStrikeSpan}), and each end moves inward to the
+ *  nearest carried message inside it, so a deleted edge message never drops the strike from a backup. A strike with no
+ *  carried message left in its span is left out. A strike names a span in every bucket and its character only records
+ *  which copy was struck, so a strike whose character holds no seat here (or was deleted) travels as a shared one
+ *  rather than being lost. */
+async function loadMemoryStrikes(args: {
+  readonly ctx: ExportContext;
+  readonly chatId: ChatId;
+  readonly slots: readonly { readonly id: MessageId; readonly seq: number }[];
+  readonly handleById: ReadonlyMap<CharacterId, CharacterHandle>;
+}): Promise<Pick<PortableChat, "memoryStrikes">> {
+  const rows = await args.ctx.db
+    .select()
+    .from(chatMemoryStrikes)
+    .where(eq(chatMemoryStrikes.chatId, args.chatId))
+    .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id));
+  const seqOf = new Map<MessageId, number>(args.slots.map((slot) => [slot.id, slot.seq]));
+  const strikes = rows.flatMap((row): PortableMemoryStrike[] => {
+    const span = resolveStrikeSpan(row, { seqStart: seqOf.get(row.messageStartId), seqEnd: seqOf.get(row.messageEndId) });
+    const inside = (slot: { readonly seq: number }): boolean => slot.seq >= span.seqStart && slot.seq <= span.seqEnd;
+    const startMessageIndex = args.slots.findIndex(inside);
+    const endMessageIndex = args.slots.findLastIndex(inside);
+    if (startMessageIndex === -1) {
+      return [];
+    }
+    const characterHandle = row.scopedCharacterId === null ? null : (args.handleById.get(row.scopedCharacterId) ?? null);
+    return [{ characterHandle, tier: row.tier, startMessageIndex, endMessageIndex, topicAnchor: row.topicAnchor, createdAt: row.createdAt }];
+  });
+  return strikes.length === 0 ? {} : { memoryStrikes: strikes };
 }
 
 /** The content hash of each of the exporter's own assets the transcript's inline images name. An asset of
@@ -411,13 +447,17 @@ export function createExportChatBundle(ctx: ExportContext, exportCharacter: Expo
     const { portable, messageIndexById, variantPositionById } = buildCanon({ slots, variantsByMessage, handleById, personaNameById });
 
     const rpg = rawRpg === null ? null : toPortableRpg({ game: rawRpg, messageIndexById, variantPositionById, handleById });
-    const inlineAssets = await loadInlineAssetHashes(ctx, params.principal.userId, portable);
+    const [inlineAssets, memoryStrikes] = await Promise.all([
+      loadInlineAssetHashes(ctx, params.principal.userId, portable),
+      loadMemoryStrikes({ ctx, chatId: params.chatId, slots, handleById }),
+    ]);
     const bundle: PortableChat = {
       title: chat.title ?? "",
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
       starred: chat.starred,
       archived: chat.archived,
+      everShared: chat.everShared,
       compactSummary: chat.compactSummary,
       compactedAtSeq: chat.compactedAtSeq,
       // The room blob rides VERBATIM (its own read seam validates it on the way back in).
@@ -434,6 +474,7 @@ export function createExportChatBundle(ctx: ExportContext, exportCharacter: Expo
         ? {}
         : { pendingGenerationObservations: portableObservations({ rows: observations, messageIndexById, variantPositionById }) }),
       ...inlineAssets,
+      ...memoryStrikes,
       rpg,
     };
     // A FLAT, human-meaningful download name (the `exportChat` slug shape) — the single-chat HTTP door serves

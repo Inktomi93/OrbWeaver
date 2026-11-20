@@ -28,38 +28,35 @@
 // CONTEXT panel — see `regex-context-body.tsx`.
 //
 // AND THE WIDTH GOES TO THE SCENT (a ruled fork): the subtitle LEADS with the find pattern (`regexRowScent`),
-// and the pipeline stages ride the subtitle's own lead slot as glyphs carrying their labels
-// (`REGEX_PLACEMENT_GLYPHS`) instead of a line of prose.
+// and the two axes ride the subtitle's own lead slot as the shared glyph strip (`RegexAxesGlyphs`) instead of a
+// line of prose. It rides `subtitleLead`, not `markers`: a variable-width mark on the title line steals the name's
+// width on exactly the rows that carry one.
 //
 // ONE CONTAINER AT EVERY SIZE: the sealed `VirtualList`, so a row keeps its identity, and its focus, however many scripts
 // arrive or leave. Its window is the pane's free space, floored by the primitive itself when the chrome above leaves little.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Download, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { selectActionName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { RowDeleteFocus } from "#components";
-import { LibraryRow, useRowDeleteFocus } from "#components";
+import { LibraryRow, MutedLine, RegexAxesGlyphs, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
   downloadTextFile,
   ESTIMATED_ROW_PX,
   notify,
-  REGEX_PLACEMENT_GLYPHS,
-  REGEX_PLACEMENT_LABELS,
   ROW_EXPORT_NAME,
-  regexPlacementStages,
   regexRowScent,
+  regexRunsNowhere,
   regexScriptTitle,
   rowActionSubject,
   rowQualifiers,
@@ -76,6 +73,7 @@ import {
 import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
 import { REGEX_GROUP_LABEL } from "../lib/regex-names.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
+import { RegexUnattachedSweep } from "./regex-unattached-sweep.tsx";
 
 /** How many §12.2 cluster slots THIS list reserves per row: ONE — the kebab at rest, the bulk checkbox
  *  while bulk mode runs. It declared two while the global switch lived here (see the header). */
@@ -167,11 +165,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       // feedback a keyboard reader receives. `role="status"` rides the
       // MESSAGE, never the row container — a live region around the list would announce every row on every
       // keystroke. Same fix, same words, in the tag and world-info arms.
-      return needle === "" ? null : (
-        <Text role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      );
+      return needle === "" ? null : <MutedLine announce={true}>No scripts match that filter.</MutedLine>;
     }
     return (
       <VirtualList
@@ -195,6 +189,13 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   return (
     <>
       {/* THE LIST ROOT: the fallback focus, and the landing's free space handed to the window. */}
+      <RegexUnattachedSweep
+        onDeleted={(ids): void => {
+          if (view.selectedId !== null && ids.includes(view.selectedId)) {
+            clearCollectionSelection();
+          }
+        }}
+      />
       <Stack focusTarget={true} grow={true} ref={listRootRef} tabIndex={-1}>
         {rows}
       </Stack>
@@ -240,10 +241,9 @@ function RegexCollectionRow({
   // between a present lead and the scent (the accname-concatenation guard), so an empty-but-present lead
   // would prepend a stray space to every such row's subtitle. `regexRowScent` says "runs nowhere" in words
   // for exactly that state, which is the state that needs words rather than a strip of zero marks.
-  const stages = regexPlacementStages(script.placement);
   const scent = {
     subtitle: regexRowScent(script, timeLib.formatRelative),
-    ...(stages.length === 0 ? {} : { subtitleLead: <RegexPlacementGlyphs stages={stages} /> }),
+    ...(regexRunsNowhere(script) ? {} : { subtitleLead: <RegexAxesGlyphs passes={script.passes} targets={script.targets} /> }),
   };
 
   if (bulkActive) {
@@ -287,56 +287,3 @@ function RegexCollectionRow({
     />
   );
 }
-
-/**
- * THE PIPELINE STAGES A SCRIPT BITES ON, as the subtitle's LEAD (a ruled fork).
- *
- * A script bites on a SET, so the strip draws every member, in pipeline order — never one of them, and
- * never a count standing in for the set. The glyphs are the shared `REGEX_PLACEMENT_GLYPHS` presentation
- * of the SAME `RegexPlacement` map the labels key off, and each carries its own label as its accessible
- * name, so the set survives verbatim for a screen reader while costing one glyph each instead of a line of
- * words in a narrow column.
- *
- * The strip rides `subtitleLead` (not `markers`): a variable-width mark on the TITLE line steals the name's
- * width on exactly the rows that carry one, which is the defect this whole pass exists to close. The
- * subtitle line has the slack the title line does not (`ListRow.subtitleLead`, the databank precedent).
- *
- * The EMPTY set never reaches here — the caller omits the slot rather than rendering an empty strip (a
- * strip of zero glyphs is indistinguishable from one that failed to load, and it would still cost the
- * separator space `ListRow` puts after a present lead).
- */
-function RegexPlacementGlyphs({ stages }: { readonly stages: readonly RegexPlacement[] }): ReactElement {
-  return (
-    // `as="span"`: this renders INSIDE the subtitle's own span, so the wrapper must be phrasing content.
-    // Each glyph's label is its accessible name; the editor's `Runs on` field names the stages in words.
-    <Text as="span" className="align-middle" flow="clusterTight">
-      {stages.map((stage) => PLACEMENT_GLYPH_NODES[stage])}
-    </Text>
-  );
-}
-
-/** One placement's glyph as an element, keyed by the stage it draws — see {@link PLACEMENT_GLYPH_NODES}. */
-const glyphNode = (stage: RegexPlacement): ReactElement => (
-  <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
-);
-
-/** ONE `<Icon>` element per placement, built ONCE at module scope.
- *
- *  A React element is an immutable description, so the same objects can appear in every row's strip — and
- *  the strip is the one thing on this surface that multiplies, so expanding the band would otherwise construct
- *  an element per stage per mounted row synchronously inside the same tick as the disclosure. The claim is structural: the elements are built once per module instead of once per
- *  rendered stage. The `key` is baked into
- *  each element because these are rendered from a `.map` — an element carrying its own key is exactly how a
- *  hoisted node stays legal in a list.
- *
- *  Spelled as an exhaustive computed-key Record over the SAME two one-home maps (`REGEX_PLACEMENT_GLYPHS` +
- *  `REGEX_PLACEMENT_LABELS`), never a derived-and-cast object: a new `RegexPlacement` fails `tsc` here the
- *  way it does in every other presentation of the axis. */
-const PLACEMENT_GLYPH_NODES: Record<RegexPlacement, ReactElement> = {
-  ["USER_INPUT"]: glyphNode("USER_INPUT"),
-  ["WORLD_INFO"]: glyphNode("WORLD_INFO"),
-  ["PROMPT_HISTORY"]: glyphNode("PROMPT_HISTORY"),
-  ["REASONING"]: glyphNode("REASONING"),
-  ["AI_OUTPUT"]: glyphNode("AI_OUTPUT"),
-  ["DISPLAY"]: glyphNode("DISPLAY"),
-};

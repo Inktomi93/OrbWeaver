@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-17
+updated: 2026-11-15
 ---
 
 # UI-Architecture-and-Layout
@@ -12,7 +12,7 @@ updated: 2026-10-17
 >
 > **§-map:** §0–§4b → `UI-Architecture-and-Layout.md` · §5–§6.3.1 → `ui-architecture-state-and-stack.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.10 → `UI-Primitives-and-Reuse.md`.
 >
-> D66 overrides conflicting D62 text: use the LIST's `.shell-panel-header` band, one primary **New** control, hidden message actions at rest, and autosaving editors. No Save/Set/Discard.
+> D66 overrides conflicting D62 text: use the LIST's `.shell-panel-header` band on the `--dimension-chrome-row` baseline, one primary **New** control (not a ghost `+`), hidden message actions at rest, and autosaving editors. No Save/Set/Discard.
 
 ### 0.5 The primitive index
 
@@ -80,21 +80,19 @@ neo enforced the UI boundaries with lint. orbweaver makes them **resolver physic
 
 ### 2. `@orb/ui` — the one home for components
 
-A workspace package = the "one home"; the *package* IS the registry (shadcn's external registry mechanism is not used; components are hand-authored over Base UI).
+The `@orb/ui` package is the one home and the registry; components are hand-authored over Base UI, with no shadcn registry.
 
 **The code is the doc.** Tree + per-primitive structure: `packages/ui/src` (`primitives/` · `layout/` · `charts/` · `markdown/` · `stream/` · `content/` · `code-editor/` · `diff/` · `tokens/` · `lib/` · `styles/`). Public surface: the **explicit `exports` map** in `packages/ui/package.json` — one subpath per group, deliberately **no root barrel** (a flat `@orb/ui` import would defeat tree-shaking and blur the seal boundaries). Deps (the sealed satellites) live only in that package.json; structure is enforced by `orb/ui-*` lint and the primitive topology test (§13.7). Per-primitive file contract + authoring rules: §13.7–§13.8.
 
 The law that survives any file-level churn:
 
 - **Base UI (`@base-ui/react`, 1.x stable) is THE headless primitive** (D42; the `@base-ui-components/react` name is the dead rc-era package — biome-banned). It replaces Radix: the explicit `Positioner` part kills the portal weirdness, the `render` prop replaces the `asChild`/Slot footgun, exit-animation is built in.
-- **`react` AND `react-dom` are peers** — Base UI requires the react-dom peer. The client remains the renderer; ui never bundles React.
-- **Variants are tailwind-variants union types** (`VariantProps<typeof xVariants>`; tv `slots` for multi-part primitives) — the ONLY styling-variation path; a bad variant is a `tsc` error. Ad-hoc `className` styling on a primitive is gate-banned. `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib`.
+- **Variants are tailwind-variants union types** (`VariantProps<typeof xVariants>`; tv `slots` for multi-part primitives) — the ONLY styling-variation path; a bad variant is a `tsc` error. Ad-hoc `className` styling on a primitive is gate-banned.
 - **Base-UI-vs-anything stays reversible** — the headless lib is an impl detail *inside* each primitive dir; swapping it is a `@orb/ui`-internal change, app untouched.
-- **tokens/ becomes a package of its own only on a 2nd consumer.**
 
 #### 2.1 `@orb/client` — the feature-slice tree
 
-The tree below is committed law: `tests/client/feature-layout.suite.test.ts` enforces the per-feature shape once a slice has code; `data/`, `forms/`, `state/` follow the §13.1 contracts. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, plus `data/`+`forms/` elevated to top-level peers of `state/`.
+The tree below is committed law: `tests/client/feature-layout.suite.test.ts` enforces the per-feature shape once a slice has code; `data/`, `forms/`, `state/` follow the §13.1 contracts. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers: `@orb/ui` is the shared-component layer) — flat feature-slice, plus `data/`+`forms/` elevated to top-level peers of `state/`.
 
 ```
 packages/client/
@@ -140,8 +138,6 @@ packages/client/
     styles/ globals.css · test-ids.ts in lib/ (§11.5)
 ```
 
-- **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony.
-
 ### 3. Tokens — DTCG single source, derived theme
 
 The highest-leverage enforcement move, engine-agnostic:
@@ -169,7 +165,7 @@ SURFACE  — containment CONSUMER. Pure content; queries `@container` variants. 
 CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
-- **Viewport `@media` is allowed ONLY in `app-shell`** (the shell tier). Capability and preference queries (`pointer`, `hover`, `prefers-*`) live in the token and shell layers (§4b axis 3). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
+- **Viewport `@media` is allowed ONLY in `app-shell`** (the shell tier). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
 - **`@orb/ui/layout` owns `container-type`** — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>`, the `container` prop and an outer `Dialog`, `AlertDialog` or `Drawer` root in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render a container owner, or the dialog box it anchors (a `*Dialog` or `*Drawer` element). Both rules resolve a JSX name through its import: an alias or a re-export counts, a same-named local component does not.
 - **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each own such an element; their anchor renders inside it, so the query reads the width left after the inset. The `anchors/` file still provides the container; the surface still declares none.
@@ -215,8 +211,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             The persisted per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Characters · You (D271).
-         A bottom sheet opened from the tab bar ends above the bar (`--drawer-bottom-inset`, set on the phone
-         shell's portal root from `--dimension-rail` plus the device inset), and a second tap on its tab closes it.
+         A bottom sheet opened from the tab bar ends above the bar (`--drawer-bottom-inset`); the bar stays in
+         view, inert under the sheet's scrim (ui-surface-and-interaction-rules §2.12).
          Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity, whose
@@ -224,7 +220,18 @@ MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Charact
          CONTEXT → sheet; single column.
 ```
 
-**The mobile one-shell rule** (`packages/client/src/state/panel-resolve.ts`). A list-bearing section with nothing selected shows its LIST as the screen: docked in flow, no sheet, no scrim. A selection pushes CONTENT over it, and the topbar Back returns. The user's own close of the LIST (the topbar toggle) wins over this default. A section whose selection seam declares a `"content"` phone landing lands on its CONTENT instead; only Corpus Insights declares one (`packages/client/src/state/corpus-selection-store.ts`). `packages/client/src/state/section-list-projection.ts` is the one home of the "is the LIST the screen" question.
+**The CONTENT body.** `ContentPane` (`packages/client/src/components/content-pane.tsx`) owns every CONTENT body's layout. A section's content root sits on it.
+
+- The pane box is the body's one scroller, so the scroll edge is the pane edge and the wheel works across the whole pane.
+- The section inset is padding inside the scroller, on the body and the band. The shell region carries no inset.
+- The body centres one column: `column` (the editor column, wider past `@cq-64`), `instrument` (the narrow cap for a control track), or `full` with a stated reason.
+- An optional pinned band spans the pane with its ground and hairline. Its content rides the column.
+- A band under a provider the pane cannot hold uses `parts` with `ContentPaneBand` and `ContentPaneBody` below it.
+- The chat room's transcript track and the page-scale plugin shell lay their own frame.
+
+`tests/client/components/platform-page-templates.suite.ct.tsx` pins the scroll edge, the inset, the column measures and the band against resolved tokens.
+
+**The mobile one-shell rule** (`packages/client/src/state/panel-resolve.ts`). A list-bearing section with nothing selected shows its LIST as the screen: docked in flow, no sheet, no scrim. A selection pushes CONTENT over it, and the topbar Back returns. The user's own close of the LIST (the topbar toggle) wins over this default. A section whose selection seam declares a `"content"` phone landing lands on its CONTENT instead; only Corpus Insights declares one (`packages/client/src/state/corpus-selection-store.ts`). `packages/client/src/state/section-list-projection.ts` is the one home of the "is the LIST the screen" question. The full-screen phone Context sheet covers the shell, so it inerts the tab bar and the LIST behind it, keeps focus in the sheet and gives both back on close (`tests/client/features/app-shell/surfaces/platform-sheet-inert.suite.ct.tsx`).
 
 D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench: an `Explore | Insights | Labels` switch over one LIST / CONTENT / CONTEXT anatomy. The switch heads the LIST, and heads CONTENT while the LIST is off screen. Its phone landing policy follows the active mode:
 
@@ -240,7 +247,6 @@ Explore CONTENT owns the understanding pass. Empty finder and analysis tabs link
 
 Labels uses one visible word for manual labels. Its Usage rail retains the shared Context bracket even when it contains one view. A destructive decision belongs to the finder, which survives row removal. The confirm names the unused labels and owns mutation failure feedback. New-label creation reserves names across delayed library refreshes.
 
-- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28).
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
 - **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. A desktop panel opens and closes from one `PanelEdgeControl` (`packages/client/src/components/panel-edge-control.tsx`) at its header row's screen-edge corner. One node serves docked, collapsed and floating-sheet states, so it never moves under the pointer, and it is the sheet's one dismiss. The topbar carries no panel toggle on a desktop. The control sits in the document beside its panel, so the keyboard reaches it where it is drawn. A phone sheet carries its own dismiss, and a phone keeps its doors in the topbar. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
@@ -266,9 +272,6 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
 | User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin · This install, the member-visible install version) + COLLECTIONS shelf (Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the persona switcher's head and foot below.) |
 | Identity widget | persona `rail.end` chrome (`personaChrome` in `packages/client/src/features/persona/lib/persona-chrome.tsx`) | the persona switcher + Account strip; the account facts (handle · role · sign-out) are `PersonaAccountFoot` (`packages/client/src/features/persona/components/persona-account-foot.tsx`), NOT a settings pane and NOT a modal (§B, You ⊃ Identity) |
-
-> \[!NOTE]
-> D66 (A1/A2) amends the LIST "header row": it is the shared `.shell-panel-header` band on the `--dimension-chrome-row` baseline, and its create affordance is the panel's ONE `primary` **New** button, not a ghost `+`. D66 wins on conflict.
 
 Per-section grid:
 
@@ -325,11 +328,10 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT fires only on the `/`↔`/login` commit, never on in-app section switches — §6.1 trap 2). Utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe (`_r_` prefix); an entity-id-derived name must be sanitized.
 - **`ref` as a prop (no `forwardRef`)** — biome-enforced (`noReactForwardRef`).
 - **Resource preloading (`preload`/`preinit`) where the need is predictable** — preinit the palette CSS on theme switch (kills the FOUC), preload the code-editor/Shiki chunk when a code block is likely. Measured wins only, never speculative sprays.
-- **Chrome Performance Tracks (Scheduler + Components lanes) verify this doc's priority claims** — confirm a pane switch renders in the Transition lane (not Blocking) and Stop stays responsive mid-stream.
 
 **The View-Transition CONTRACT — what is captured, what stays live, and how long a float lives.**
 
-- **CONTENT-ONLY CAPTURE.** The document root opts OUT and `.shell-content` is the single named region (`packages/client/src/features/app-shell/surfaces/shell.css`'s `THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE` block is that ruling's one home). During a swap the rail, the topbar, the panels and **every portalled float** — dialogs, drawers, popovers, menus, tooltips, toasts — are neither snapshotted nor hidden: they paint LIVE and stay hit-testable, because the shell's portal root is a SIBLING of `.shell-grid`, not a child of the captured region.
+- **CONTENT-ONLY CAPTURE.** The document root opts OUT, and one named region renders at a time: `.shell-content`, or on a phone the LIST when the LIST is the screen. The view-transition block in `packages/client/src/features/app-shell/surfaces/shell/content.css` is that ruling's one home. During a swap the rail, the topbar and the docked panels paint LIVE outside the captured region; a float over it follows ui-surface-and-interaction-rules §5.7.
 - **THE LIFETIME RULE.** A float whose SUBJECT is the content being left (an image lightbox for a message in this room) is CONTENT-SCOPED and does not outlive the swap. A float reachable from — and about — anywhere (the ⌘K palette, the You sheet, a session-recovery prompt) is GLOBAL and survives it. The shell's modal slots DECLARE it: `MODAL_CONTENT_LIFETIME` (`packages/client/src/state/modal-slot-ids.ts`) is a `Record<ModalSlotId, …>`, so a new slot fails `tsc` until it says which it is, and it is APPLIED in exactly one place, `withContentSwap` (`packages/client/src/state/shell-store.ts`); every content-swapping action runs its write through it, so the float's removal and the new content land in one commit.
 - **WHO ACTUALLY STRANDS A FLOAT.** A house modal inerts and `aria-hidden`s the whole background, so the swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav` bridge, an async mutation completion, a slash/plugin command runner, the session-recovery resume.
 - **A FEATURE-OWNED FLOAT CLOSES ITSELF.** A popover/menu is not a modal slot, so `withContentSwap` does not reach it, and Base UI's outside-press close does not fire when the navigation was raised by a control INSIDE the float. It closes in the same handler that navigates. A hidden `<Activity>` pane stays MOUNTED, so a float anchored in it keeps painting from the portal root while its anchor is `display:none`.
@@ -337,7 +339,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 **SKIP (redundant with TanStack — do NOT bolt on).** `orb/no-legacy-react-api` refuses the form-state hooks, `<form action>` and a `document.title` write; `orb/no-use-promise` refuses `use()` on a thenable by its type.
 
 - **React 19 form Actions / `useActionState` / `useFormStatus`** — TanStack Form owns form state (§6.1).
-- **`useOptimistic`** — TanStack Query's optimistic flow owns it (§13.1). No second path.
+- **`useOptimistic`** — TanStack Query's optimistic flow owns it (§13.1).
 - **`<form action>` / server actions** — orbweaver is tRPC + Query.
 - **`use()` on raw promises** — `useSuspenseQuery`/`useSuspenseQueries` (§13.1) own suspend-on-async; `use()` over a hand-made fetch promise reinvents Query's cache with none of its invalidation.
 
@@ -356,9 +358,9 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer`/`inModal`/`isMobile`/`narrow` prop (`orb/no-layout-context-props` refuses them on JSX in `packages/client/src` and `packages/ui/src`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale, emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4).
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale, emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. That hit area is centred and out of flow, so it overhangs a narrower control: keep it inside the row's inline inset by fixing the row, never by shrinking the hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4).
 
-The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
+The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. A `hover:` class (`hover:bg-accent`) stays legal in features: it compiles hover-gated (ui-surface-and-interaction-rules §4). The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 

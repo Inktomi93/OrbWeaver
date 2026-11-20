@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/admin/verbs/session-policy.ts
 // @subject packages/server/src/entry/compose/admin.ts
 // @subject packages/server/src/foundation/observability/audit.ts
-// @subject packages/server/src/domain/admin/substrate/audited-write.ts
+// @subject packages/server/src/domain/admin/persistence/audited-write.ts
 
 import { auditLogs, users } from "@orb/db";
 import type { SocketId } from "@orb/kit/ids";

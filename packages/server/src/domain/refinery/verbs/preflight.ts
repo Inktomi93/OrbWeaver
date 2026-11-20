@@ -25,9 +25,9 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { StagePrompts } from "../contract/prompts.ts";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
+import { resolveStageResolution } from "../persistence/stage-resolution.ts";
 import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
-import { resolveStageResolution } from "../substrate/stage-resolution.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 function inputEstimateOf(prompts: StagePrompts): number {
@@ -74,7 +74,7 @@ function stagePromptsOf(stage: RefineryStage, resolution: Awaited<ReturnType<typ
 }
 
 export function createPreflight(ctx: RefineryContext): RefineryService["preflight"] {
-  return async ({ principal, sessionId }) => {
+  return async ({ principal, sessionId, signal }) => {
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
@@ -91,7 +91,11 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     // The working overlay mirrors the engine's (cleared entries shrink it, exactly as a run would see).
     const working = rewritePayload.fields.length === 0 ? session.originalCard : overlayRewrite(session.originalCard, rewritePayload);
 
-    const facts = await summarizerFactsOf(await ctx.roleClientsFor(ownerId), presetParams, { ownerId, resolveStructuredBinding: ctx.resolveStructuredBinding });
+    const facts = await summarizerFactsOf(await ctx.roleClientsFor(ownerId), presetParams, {
+      ownerId,
+      resolveStructuredBinding: ctx.resolveStructuredBinding,
+      signal,
+    });
     const resolutions = await Promise.all(REFINERY_STAGES.map((stage) => resolveStageResolution(ctx, { ownerId, stage, session })));
     const stages: StagePreflight[] = REFINERY_STAGES.map((stage, i) => {
       const resolution = resolutions[i] ?? { kind: "fixed" as const };

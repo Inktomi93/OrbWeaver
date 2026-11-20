@@ -141,8 +141,8 @@ catalog:
   mysql2: 3.24.6
   "@libsql/client": ^0.18.0
   # --- server ---
-  hono: ^4.13.13
-  "@hono/node-server": ^2.1.5
+  hono: ^4.13.18
+  "@hono/node-server": ^2.1.8
   openid-client: ^6.8.8
   isomorphic-git: 1.44.3
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
@@ -206,6 +206,10 @@ catalog:
   # every provider package's own `@ai-sdk/provider` dependency at install, so the stack moves together.
   ai: 7.0.148
   "@ai-sdk/provider": 4.0.31
+  # The `/responses` protocol transport (§8.1, `apis.ts` revival ruling). NOT the newest 4.x: 4.0.99 is the
+  # newest whose `@ai-sdk/provider` / `@ai-sdk/provider-utils` dependencies are EXACTLY the stack's patched
+  # pins below, so it dedupes onto the patched copies instead of nesting drift (the stack moves together).
+  "@ai-sdk/openai": 4.0.99
   "@ai-sdk/openai-compatible": 3.0.75
   "@ai-sdk/google": 4.0.102
   "@ai-sdk/anthropic": 4.0.85
@@ -240,6 +244,12 @@ catalog:
   "@tanstack/react-virtual": ^3.14.21
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
   streamdown: ^2.7.1
+  # The parse Streamdown runs, at the ranges Streamdown declares: the root's kit-reading differential
+  #   (tests/ui/markdown/kit-reading-differential.dom.test.ts) holds the kit's Markdown reading to it.
+  unified: ^11.0.5
+  "remark-parse": ^11.0.0
+  "remark-rehype": ^11.1.2
+  remend: 1.4.0
   # KaTeX math stack for @orb/ui/markdown's plugins.math (Streamdown ships mermaid bundled but NOT
   #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
   #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
@@ -378,6 +388,10 @@ packageExtensions:
     dependencies:
       typescript: "npm:typescript@7.1.0-beta"
 
+# An override is for a version pnpm would not choose from the declared ranges: one module identity across peer
+# resolutions, a version outside the parent's range, or two lines that must resolve as one. A transitive fix inside its
+# parent's declared range needs none: `pnpm update <name>` reaches every depth and moves it in the lockfile, where it
+# stays. Scope an override to its parent chain when the name exists on more than one major line.
 overrides:
   # Drizzle's private SQL members require one module identity across every libsql peer resolution.
   "@libsql/client": "catalog:"
@@ -387,28 +401,6 @@ overrides:
   "@libsql/client@0.18.0>libsql": "0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-win32-x64-msvc": "npm:@libsql/win32-x64-msvc@0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-linux-arm64-musl": "npm:@libsql/linux-arm64-musl@0.6.0-pre.43"
-  # fast-uri is a pure transitive of ajv (nested under @modelcontextprotocol/sdk, itself under
-  # @anthropic-ai/claude-agent-sdk) — no workspace package.json declares it, so `pnpm update` cannot
-  # reach it (it only bumps packages declared by name in a manifest). Pin to a version already inside
-  # ajv's own declared `fast-uri: ^3.0.1` range to clear GHSA-v2hh-gcrm-f6hx / GHSA-7p8r-x3mc-p8w7 /
-  # GHSA-4c8g-83qw-93j6 (host-confusion via backslash/IDN authority parsing, all patched by 3.1.5).
-  # Falls away on its own once ajv's declared floor moves past 3.1.5.
-  fast-uri: ^3.1.5
-  # ip-address is a pure transitive of express-rate-limit (same @modelcontextprotocol/sdk chain as
-  # above) — same "no manifest names it" reason `pnpm update` can't reach it. Pin to a version already
-  # inside express-rate-limit's own declared `ip-address: ^10.2.0` range to clear GHSA-mwp4-54f8-5fhr /
-  # GHSA-4xrf-jv44-h6hh / GHSA-22jq-vg5j-6vgg (leading-zero-octet decode / CIDR-suffix / NAT64
-  # special-use SSRF bypasses, all patched by 10.3.1). Falls away once express-rate-limit's declared
-  # floor moves past 10.3.1.
-  ip-address: ^10.3.1
-  # @modelcontextprotocol/sdk declares its OWN `@hono/node-server: ^1.19.9` (a separate major line from
-  # our own catalog `@hono/node-server: ^2.0.6` dep, so pnpm cannot dedupe the two) — same "no manifest
-  # names the 1.x line by itself" reason `pnpm update` can't reach it. Pin to a version already inside
-  # that declared range to clear GHSA-frvp-7c67-39w9 (Windows encoded-backslash path traversal in
-  # serve-static, patched by 1.19.15). Falls away once @modelcontextprotocol/sdk's declared floor moves
-  # past 1.19.15. SCOPED to the mcp-sdk>@hono/node-server chain — a bare `"@hono/node-server":` key
-  # collapses BOTH major lines onto the 1.x pin, silently downgrading our own direct 2.x dependency.
-  "@modelcontextprotocol/sdk>@hono/node-server": ^1.19.15
   # @huggingface/transformers@4.2.0 declares its own `sharp: ^0.34.5` dependency (matching our own
   # pre-bump floor), which resolves to a separate 0.34.5 tree alongside our catalog `sharp: ^0.35.0` —
   # duplicating the GHSA-f88m-g3jw-g9cj-vulnerable version instead of deduping onto the fixed one.
@@ -436,7 +428,6 @@ peerDependencyRules:
 auditConfig:
   ignoreGhsas:
     - GHSA-2p57-rm9w-gvfp # ip, via node-av's WebRTC code, never loaded
-    - GHSA-86w9-cpqp-85rv # node-forge, acme-client runs on its native crypto interface
     - GHSA-ggr8-5vv4-36mx # deepmerge-ts, html-to-text merges only a fixed options constant
     - GHSA-w5hq-g745-h8pq # uuid, typeid-js calls v7; the advisory covers v3, v5 and v6
     - GHSA-67mh-4wv8-2f99 # esbuild, drizzle-kit dev dependency, dev server never started
@@ -510,7 +501,7 @@ patchedDependencies:
   "drizzle-kit@0.31.11": patches/drizzle-kit@0.31.11.patch
   "drizzle-orm@0.45.4": patches/drizzle-orm@0.45.4.patch
   "gel@2.2.1": patches/gel@2.2.1.patch
-  "hono@4.13.13": patches/hono@4.13.13.patch
+  "hono@4.13.18": patches/hono@4.13.18.patch
   "lighthouse@13.5.0": patches/lighthouse@13.5.0.patch
   "mutation-testing-report-schema@3.8.4": patches/mutation-testing-report-schema@3.8.4.patch
   "onnxruntime-common@1.30.0": patches/onnxruntime-common@1.30.0.patch

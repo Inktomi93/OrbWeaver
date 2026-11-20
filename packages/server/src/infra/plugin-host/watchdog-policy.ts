@@ -12,11 +12,19 @@ export interface BrokerLiveness {
   /** Consecutive judgements that found nothing new from the broker. */
   readonly misses: number;
   readonly rssBytes?: number;
+  /** When the watchdog was told to stop, on the same clock as `now`. */
+  readonly stoppedAt?: number;
 }
 
 export function brokerWatchdogFailure(now: number, memoryLimitBytes: number, state: BrokerLiveness): string | null {
   if (state.rssBytes !== undefined && state.rssBytes > memoryLimitBytes) {
     return `plugin broker: RSS ${state.rssBytes} exceeded the configured ${memoryLimitBytes}-byte watchdog ceiling`;
+  }
+  // A stopping broker is ended by wall time, not only by judged intervals: a lagging watchdog judges late, and the app
+  // ends the watchdog a second after this bound, which would leave a hung broker with no supervisor. A false end does
+  // no harm at stop.
+  if (state.stoppedAt !== undefined && now - state.stoppedAt >= PLUGIN_BROKER_LIVENESS_BOUND_MS) {
+    return `plugin broker: still running ${PLUGIN_BROKER_LIVENESS_BOUND_MS}ms after its stop; terminating it`;
   }
   if (!state.heard) {
     return now - state.startedAt > PLUGIN_BROKER_STARTUP_TIMEOUT_MS ? "plugin broker: no memory heartbeat arrived before the startup deadline" : null;

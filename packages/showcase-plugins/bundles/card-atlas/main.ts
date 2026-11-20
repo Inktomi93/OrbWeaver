@@ -2182,6 +2182,12 @@ function tileTags(result: AtlasRow): readonly string[] {
   return ["nsfw", ...result.tags.filter((tag) => tag !== "nsfw")].slice(0, TAGS_PER_ROW_MAX);
 }
 
+/** What the browse grid says with no tiles. */
+const EMPTY_LINE = {
+  noSearch: "No cards to show.",
+  noMatch: "No cards matched this search.",
+};
+
 /** Publish the browse page. `sourceKey` names WHICH hub's sort menu to publish — the picked hub during the
  *  immediate-feedback publish (its menu must swap the moment the select changes), the session's afterward,
  *  the default before any search. `loading` drives the grid's SKELETON (#799): true on the pre-wire publish
@@ -2195,8 +2201,10 @@ async function publishBrowse(status: string, sourceKey?: SourceKey, loading = fa
     stage: "browse",
     status,
     loading,
-    // The pager's buttons are disabled until a search has produced a session to page.
-    noSearch: session === null,
+    // The pager shows only when the executed search has another page to go to.
+    multiPage: session !== null && session.totalPages > 1,
+    // Before any search the shelf is neutral (a failed first search lands here too); after one it names the verdict.
+    emptyLine: session === null ? EMPTY_LINE.noSearch : EMPTY_LINE.noMatch,
     sortOptions: SOURCES[menuKey].sortOptions,
     pageLabel: session === null || session.totalPages <= 1 ? "" : `Page ${session.page} of ${session.totalPages}`,
     tiles: rows.map((result, i) => {
@@ -2357,24 +2365,25 @@ function registerAtlasPage(sfwOn: boolean): void {
                 tilesFrom: { $state: "tiles" },
                 tileAction: "open_result",
                 aspect: "portrait",
-                // Lifecycle guidance lives in the bound status above; an empty shelf must not claim
-                // the person has never searched when a hub has already failed or returned no matches.
-                empty: "No cards to show.",
+                // Lifecycle guidance lives in the bound status above; the empty line only says whether a
+                // completed search matched nothing, so it never claims the person has not searched.
+                empty: { $state: "emptyLine" },
                 // The LOADING third of the three-states law (#799). It is reachable at the static tier
                 // because every handler here already publishes BEFORE it floats its wire work (the
                 // settlement wall): that first publish sets this true, the continuation's sets it false.
                 loading: { $state: "loading" },
               },
               // The pager — one control for every hub, whatever shape the provider pages in (see the
-              // header's paging note). Structural (the vocabulary has no conditional visibility), so the
-              // handlers answer honestly at the edges instead of the buttons hiding.
+              // header's paging note). It shows only while there is a second page, and the handlers still
+              // answer honestly at the first and last page.
               {
                 kind: "row",
                 gap: "field",
+                when: { $state: "multiPage" },
                 children: [
-                  { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline", disabled: { $state: "noSearch" } },
+                  { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline" },
                   { kind: "text", voice: "gloss", value: { $state: "pageLabel" } },
-                  { kind: "button", actionId: "next_page", label: "Next", variant: "outline", disabled: { $state: "noSearch" } },
+                  { kind: "button", actionId: "next_page", label: "Next", variant: "outline" },
                 ],
               },
             ],
@@ -2516,7 +2525,8 @@ async function searchAction(values: Readonly<Record<string, string>>): Promise<v
 }
 
 /** `prev_page`/`next_page`: page the EXECUTED search (the session), never a half-edited form. Edge clicks
- *  answer in the status line — the pager is structural, so honesty lives in the handler. */
+ *  answer in the status line — the pager shows Previous on page one and Next on the last page, so honesty
+ *  lives in the handler. */
 async function pageAction(delta: number): Promise<void> {
   if (session === null) {
     await publishBrowse("Search first — then page through the results.");

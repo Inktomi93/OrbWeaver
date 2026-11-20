@@ -13,7 +13,13 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { PRESET_ACTIVATE_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_ACTIVATE_NAME,
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_ACTIVE_STATUS,
+  PRESET_EDITOR_NAME,
+  presetActivateRowName,
+} from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActivationStory } from "./_preset-activation-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-activation-stories/PresetActivationStory";
@@ -34,7 +40,6 @@ const STREAM_ROUTES: TrpcRoutes<"stream.attach" | "stream.detach"> = {
 };
 const TOAST_WINDOW_MS = 300;
 const PRESET_NAME = "Activation target preset";
-const ACTIVE_STATUS = /^Active$/u;
 
 /** Carries the server's own `settingsChanged` event to the page, so the settings write that activates a preset reaches the rows. */
 async function forwardSettingsEvent(page: Page, root: ServerTestHarness): Promise<AsyncDisposable & { readonly listening: Promise<void> }> {
@@ -93,6 +98,7 @@ test("pressing a row's radio activates its preset: the radio is checked and stil
     .filter({ has: page.getByRole("button", { name: preset.name, exact: true }) })
     .getByRole("radio");
   await events.listening;
+  await expect(radio).toHaveAccessibleName(presetActivateRowName(preset.name));
   await expect(radio).not.toBeChecked();
 
   await radio.click();
@@ -118,7 +124,7 @@ test("pressing the editor header's Activate leaves focus on the status that now 
   const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
   await expect(editor).toBeVisible();
   const activate = editor.getByRole("button", { name: PRESET_ACTIVATE_NAME, exact: true });
-  const status = editor.getByRole("status").filter({ hasText: ACTIVE_STATUS });
+  const status = editor.getByRole("status").filter({ hasText: new RegExp(`^${RegExp.escape(PRESET_ACTIVE_STATUS)}$`, "u") });
   await expect(status).toHaveCount(0);
 
   await activate.focus();
@@ -126,7 +132,7 @@ test("pressing the editor header's Activate leaves focus on the status that now 
 
   await expect(activate).toHaveCount(0);
   await expect(status).toBeFocused();
-  await expect(status).toMatchAriaSnapshot("- status: Active");
+  await expect(status).toMatchAriaSnapshot(`- status: ${PRESET_ACTIVE_STATUS}`);
   await absenceWindow(page, TOAST_WINDOW_MS);
   expect(await toasts()).toBe(0);
   expect((await caller.settings.getUserSettings()).config.seeds.defaultPresetId).toBe(preset.id);

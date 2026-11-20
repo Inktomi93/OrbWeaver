@@ -1,5 +1,5 @@
-// @orb/contracts/plugin/frame — the wire for the PLUGIN-FRAME DOORWAY and the frame's postMessage BRIDGE
-// (U7, seam 13). Two separate boundaries live here because both are crossed by the same
+// @orb/contracts/plugin/frame — the wire for the PLUGIN-FRAME DOORWAY and the frame's postMessage BRIDGE.
+// Two separate boundaries live here because both are crossed by the same
 // untrusted document and neither may be spelled twice:
 //
 //   1. THE DOORWAY (client ↔ server, HTTP). `POST /api/plugin-frame` mints a per-user handle for one registered
@@ -107,8 +107,6 @@ export const pluginFrameMintResponseSchema = z.strictObject({
   url: frameDocumentUrlSchema(PLUGIN_FRAME_ROUTE),
   expiresInMs: z.int().positive(),
 });
-/** Type twin of {@link pluginFrameMintResponseSchema}. */
-export type PluginFrameMintResponse = z.infer<typeof pluginFrameMintResponseSchema>;
 
 // ── The postMessage BRIDGE ────────────────────────────────────────────────────────────────────────────────────
 

@@ -30,7 +30,7 @@ import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 export function CorpusContextHeader(): ReactElement {
   const subject = useSelectedCorpusDestination();
   return (
-    <Row align="center" gap="field" className="min-inline-0">
+    <Row align="center" gap="field" minWidth="shrinks">
       <Icon icon={Library} size="sm" />
       {/* D271: owner-wide context must never read as a description of the selected artifact. */}
       <Text truncate={true} voice="promoted">

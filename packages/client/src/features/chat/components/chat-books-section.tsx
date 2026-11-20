@@ -4,7 +4,7 @@
 // could only ever carry the books someone else's code had put there.
 //
 // ATTACHMENT IS THE ROOM'S CONSENT, SO THE RACK SAYS SO. `domain/automation` refuses an
-// `insert_world_info_entry` rule at MINT (`substrate/validate.ts`) and again at FIRE
+// `insert_world_info_entry` rule at MINT (`persistence/validate.ts`) and again at FIRE
 // (`engine/arm-executors.ts:110` — "the attachment IS the room's consent") unless the target book is
 // attached to that chat. Attaching therefore grants this room's rules WRITE reach into the book, not just a
 // read of it, and the gloss states that in words before the host ever opens the picker. It is not the only
@@ -34,7 +34,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RowActionsMenu } from "#components";
+import { MutedLine, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName } from "#lib";
@@ -90,11 +90,11 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
       {attached.length === 0 ? (
         // Never render nothing: "no books attached" is the normal starting state, and a blank block reads as
         // a failed load (empty states are load-bearing).
-        <Text voice="gloss">
+        <MutedLine>
           {isHost
             ? "No world books are attached to this chat yet."
             : "No world books are attached to this chat yet. The host attaches the ones this room carries."}
-        </Text>
+        </MutedLine>
       ) : (
         <Stack gap="tight">
           {attached.map((book) => (

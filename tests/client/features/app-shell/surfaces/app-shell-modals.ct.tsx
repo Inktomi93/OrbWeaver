@@ -8,14 +8,18 @@ import type { ThemeId } from "@orb/kit/ids";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { pickerShowingLine } from "#client/components/shared-control-names.ts";
+import { YOU_SHEET_MORE_HEADING } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
+import { dialogTitleWords, expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -125,9 +129,10 @@ const FIELD_IN_VIEW_RATIO = 0.98;
 async function expectTitleCloseAndFieldOnScreen(dialog: Locator, title: string): Promise<void> {
   const heading = dialog.getByRole("heading", { name: title, exact: true });
   await expect(heading).toBeInViewport({ ratio: 1 });
-  await expect(heading).toHaveCSS("white-space", "nowrap");
-  await expect(heading).toHaveCSS("text-overflow", "ellipsis");
-  await expect.poll(() => dialog.getByRole("button", { name: "Close", exact: true }).evaluate(takesPressAtCentre)).toBe(true);
+  const words = dialogTitleWords(dialog, title);
+  await expect(words).toHaveCSS("white-space", "nowrap");
+  await expect(words).toHaveCSS("text-overflow", "ellipsis");
+  await expect.poll(() => dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).evaluate(takesPressAtCentre)).toBe(true);
   // A centred popup lands on a half pixel, which the viewport test rounds against the field.
   await expect(dialog.getByRole("combobox")).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
 }
@@ -139,7 +144,7 @@ const DOOR_TIMEOUT_MS = 2000;
  *  the button moved there, or the landing's own New chat when the shell keeps the list off screen. */
 async function openNewChatFromList(page: Page): Promise<void> {
   const list = page.locator('.shell-panel[data-panel-side="list"]');
-  const inline = list.getByRole("button", { name: "New", exact: true });
+  const inline = list.getByRole("button", { name: BAND_NEW_LABEL, exact: true });
   const bandMenu = list.locator(LIST_BAND_MENU);
   const landing = page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
   await expect(async () => {
@@ -242,7 +247,7 @@ test.describe("on the corpus owner's own settings", () => {
   test("closing New chat returns focus to the Chats list's New button that opened it", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
-    const opener = page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: "New", exact: true });
+    const opener = page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: BAND_NEW_LABEL, exact: true });
     await opener.focus();
     await opener.press("Enter");
     await expect(page.getByRole("dialog")).toBeVisible();
@@ -290,25 +295,26 @@ test.describe("on the corpus owner's own settings", () => {
         await dialog
           .locator("button[aria-pressed]")
           .last()
-          .evaluate((button) => {
+          .evaluate((button, cancel) => {
             const strip = button.parentElement;
-            // The arm's own region carries the floor; a submit arm wraps it in a form, so it is found by its slot, not by its place.
-            const region = button.closest('[role="dialog"]')?.querySelector('[data-slot="add-document-arm"]');
-            const footer = region?.querySelector('[data-slot="dialog-footer"]');
+            // The arm's own region carries the floor, and the host's one footer follows it.
+            const popup = button.closest('[role="dialog"]');
+            const region = popup?.querySelector('[data-slot="add-document-arm"]');
+            const footer = popup?.querySelector('[data-slot="dialog-footer"]');
             const regionBox = region?.getBoundingClientRect();
             const floor = region === null || region === undefined ? 0 : Number.parseFloat(getComputedStyle(region).minHeight);
             return {
               strip: strip?.getBoundingClientRect().y ?? Number.NaN,
-              footerGap: (regionBox?.bottom ?? Number.NaN) - (footer?.getBoundingClientRect().bottom ?? Number.NaN),
+              footerGap: (footer?.getBoundingClientRect().top ?? Number.NaN) - (regionBox?.bottom ?? Number.NaN),
               regionShort: floor - (regionBox?.height ?? Number.NaN),
-              cancels: [...(region?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === "Cancel").length,
+              cancels: [...(footer?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === cancel).length,
             };
-          }),
+          }, DIALOG_VERBS.cancel),
       );
     }
     const ys = arms.map((arm) => arm.strip);
     expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(1);
-    // Every arm hangs its footer at the same distance from the reserved floor, so a short arm leaves no void under Cancel.
+    // Every arm ends at its reserved floor and the footer follows at the same distance, so Cancel holds one y across modes.
     const gaps = arms.map((arm) => arm.footerGap);
     expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(1);
     expect(arms.map((arm) => ({ floorKept: arm.regionShort <= 1, cancels: arm.cancels }))).toStrictEqual(arms.map(() => ({ floorKept: true, cancels: 1 })));
@@ -318,7 +324,7 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(label).toBeVisible();
     const fontPx = (locator: Locator): Promise<number> => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     expect(await fontPx(teaching)).toBeGreaterThanOrEqual(await fontPx(label));
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     await expect(dialog).toHaveCount(0);
   });
 
@@ -327,7 +333,7 @@ test.describe("on the corpus owner's own settings", () => {
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "addDocument" });
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Close", exact: true })).not.toBeFocused();
+    await expect(dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true })).not.toBeFocused();
     // The host's body anchor: inside the popup, not its frame, and out of the tab order so Tab still starts at the first control.
     await expect
       .poll(() =>
@@ -483,8 +489,9 @@ test.describe("on the corpus owner's own settings", () => {
       await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "command" });
       const heading = page.getByRole("dialog").getByRole("heading", { name: COMMAND_MODAL_TITLE, exact: true });
       await expect(heading).toBeVisible();
-      await expect(heading).toHaveCSS("white-space", "normal");
-      await expect(heading).toHaveCSS("text-overflow", "clip");
+      const words = dialogTitleWords(page.getByRole("dialog"), COMMAND_MODAL_TITLE);
+      await expect(words).toHaveCSS("white-space", "normal");
+      await expect(words).toHaveCSS("text-overflow", "clip");
     });
   }
 
@@ -521,7 +528,7 @@ test.describe("on the corpus owner's own settings", () => {
   test("the You drawer keeps the More doors above the inbox, however long the inbox runs", async ({ mount, page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });
-    const more = page.getByRole("group", { name: "More", exact: true });
+    const more = page.getByRole("group", { name: YOU_SHEET_MORE_HEADING, exact: true });
     const inbox = page.locator('[data-slot="drawer-popup"] [role="group"][aria-labelledby="notifications-inbox-heading"]');
     await expect(more).toBeVisible();
     await expect(inbox).toBeAttached();
@@ -592,7 +599,7 @@ test.describe("New chat over a library longer than one page, at 844x390", () => 
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
     const dialog = page.getByRole("dialog");
     // The positive control: the census line is on screen, so the rows below are counted beside it.
-    await expect(dialog.getByText(/^Showing \d+ of \d+$/u)).toBeVisible();
+    await expect(dialog.getByText(nameShape((count) => pickerShowingLine(count, count)))).toBeVisible();
     await expect.poll(() => dialog.locator('[data-slot="command-list"]').evaluate(wholeRowCount)).toBeGreaterThanOrEqual(3);
   });
 });

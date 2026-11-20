@@ -231,7 +231,7 @@ test("defaults resolves every schema axis instead of stale values or omitted acc
   expect(args.errors).toEqual([]);
   expect(args.appearance).toEqual(expected);
   expect({ ...expected, avatarSize: nondefaultAvatarSize }).not.toEqual(expected);
-  const omittedPreferences = Object.fromEntries(Object.entries(expected).filter(([key]) => key !== "reducedTransparency" && key !== "increasedContrast"));
+  const omittedPreferences = Object.fromEntries(Object.entries(expected).filter(([key]) => key !== "reducedMotion" && key !== "increasedContrast"));
   expect(omittedPreferences).not.toEqual(expected);
 });
 
@@ -242,7 +242,7 @@ test("defaults resets the shim's saved axes and background selection but retains
   const account = {
     ...defaults,
     avatarSize: nondefaultAvatarSize,
-    reducedTransparency: "on",
+    reducedMotion: "on",
     increasedContrast: "off",
     backgroundImageKind: "asset",
     backgroundAssetId: "owned-asset",
@@ -265,6 +265,8 @@ test("defaults resets the shim's saved axes and background selection but retains
   expect(appearanceOf(body)).toBe(account);
   expect(account.backgroundAssetHash).toBe("owned-hash");
   expect(appearanceBootHintPatch(args.appearance)).toEqual(appearanceBootHintPatch(defaults));
+  // The control: the account's own axes project differently, so the reset above is not a projection that drops every axis.
+  expect(appearanceBootHintPatch(args.appearance)).not.toEqual(appearanceBootHintPatch(account));
 });
 
 test("defaults composes with explicit patches in argv order and help distinguishes schema values from curated patches", () => {

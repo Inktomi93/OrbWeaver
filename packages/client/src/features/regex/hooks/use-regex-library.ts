@@ -9,6 +9,7 @@ import type { ImportScriptFileResult, RegexScriptRow } from "@orb/contracts/rege
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { refusalOr } from "#lib";
 
 export const useCreateRegexScript = createEntityMutation<inferInput<Trpc["regex"]["createScript"]>, RegexScriptRow>({
   options: (trpc) => trpc.regex.createScript.mutationOptions(),
@@ -51,7 +52,7 @@ export const useDetachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"
 // ── The BULK arm (REGX2) ──────────────────────────────────────────────────────────────────────────────
 // One mutation per batch verb, `busDriven` like every sibling: each server verb emits ONE `regexChanged`
 // for the whole batch, so a 20-script gesture repaints the library once instead of twenty times. Every one
-// answers `{affected}` — the count the server actually changed, which is what the toast says.
+// answers `{affected}`, the count the server actually changed, which is what the toast says.
 
 /** The batch verbs' shared answer, DERIVED from the wire rather than re-spelled. NOT exported (the house
  *  shape for a client-feature derived type): a consumer re-derives it from the same proc. */
@@ -71,12 +72,11 @@ export const useBulkSetRegexGlobal = createEntityMutation<inferInput<Trpc["regex
   errorToast: "Couldn't change those scripts' global scope.",
 });
 
-// The tier flags + depth scope are NOT in the placement input: the server re-derives them from the placement
-// set (`@orb/kit/regex`), so the whole point is that no flag rides along.
-export const useBulkSetRegexPlacement = createEntityMutation<inferInput<Trpc["regex"]["bulkSetPlacement"]>, RegexBulkOutcome>({
-  options: (trpc) => trpc.regex.bulkSetPlacement.mutationOptions(),
+// The axes verb also answers which scripts a when-saved result cleared, so it carries its own answer.
+export const useBulkSetRegexAxes = createEntityMutation<inferInput<Trpc["regex"]["bulkSetAxes"]>, inferOutput<Trpc["regex"]["bulkSetAxes"]>>({
+  options: (trpc) => trpc.regex.bulkSetAxes.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't change where those scripts run.",
+  errorToast: "Couldn't change what those scripts change or when.",
 });
 
 export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["regex"]["bulkRemove"]>, RegexBulkOutcome>({
@@ -85,11 +85,19 @@ export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["r
   errorToast: "Couldn't delete those scripts.",
 });
 
+/** The library's sweep of the scripts attached nowhere. The server deletes only the named scripts that are still
+ *  attached nowhere, so its `affected` count is the honest answer. */
+export const useRemoveUnattachedRegexScripts = createEntityMutation<inferInput<Trpc["regex"]["removeUnattached"]>, RegexBulkOutcome>({
+  options: (trpc) => trpc.regex.removeUnattached.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't delete the unattached scripts.",
+});
+
 /** The single-entity IMPORT door's mutation (REGX2 · D121-D `band=Import`) — the file's TEXT, through the
  *  same thin-arm verb the backup bundle calls. `created:false` ⇒ it deduped onto a script already in the
  *  library, which is a success, not a failure. */
 export const useImportRegexScriptFile = createEntityMutation<inferInput<Trpc["regex"]["importScriptFile"]>, ImportScriptFileResult>({
   options: (trpc) => trpc.regex.importScriptFile.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't import that script.",
+  errorToast: refusalOr("Couldn't import that script."),
 });

@@ -1,22 +1,25 @@
 // @subject packages/client/src/features/chat/components/art-slot.tsx
 // A message avatar's touch reach survives the transcript scroller's clip and stays clear of the bubble in every chat style and
 // density, and the composer keeps the start edge the transcript rows take, at the narrowest phone, a phone and a desktop.
+
+import { viewImageActionName } from "@orb/client/lib";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { CHAT_OPTIONS_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { MESSAGE_SELECT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROLES = ["user", "assistant"] as const;
-const IMAGE_ACTION = /^View .+'s image$/;
+const IMAGE_ACTION = nameShape(viewImageActionName);
 const ROW = '[data-slot="message-row"]';
 const PHONES = [
   { name: "320", viewport: { width: 320, height: 700 }, coarse: true },
@@ -289,9 +292,9 @@ forEachNonEmpty(
             const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density });
             await mount<typeof ChatRoomShellStory>(STORY, { chatId });
             await setRootFontScale(page, channelName("fontScale"), cell.factor);
-            await page.getByRole("button", { name: "Chat options", exact: true }).click();
+            await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
             await page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME, exact: true }).click();
-            await expect(page.getByRole("checkbox", { name: "Select message" }).first()).toBeVisible();
+            await expect(page.getByRole("checkbox", { name: MESSAGE_SELECT_NAME }).first()).toBeVisible();
             for (const role of ROLES) {
               const opener = await openerOf(page, messageIds.get(role));
               if (!cell.coarse) {

@@ -6,8 +6,8 @@
 // raw-original read, so the full-size original is served from the per-user CAS directly; `getMetadata` is
 // still the gate before any byte read.
 
-import type { VariantKind } from "@orb/contracts/assets";
-import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
+import type { InlineServedMime, VariantKind } from "@orb/contracts/assets";
+import { BLOB_ROUTE, INLINE_SERVED_MIMES, variantKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
@@ -30,27 +30,18 @@ const DEFAULT_VARIANT_KIND: VariantKind = "icon";
 // Serve-boundary neutralization. A blob is served from the app's OWN origin, so a stored HTML/JS/SVG
 // asset navigated-to or `<script src=/api/blob/…>`-chained would execute with the owner's cookies: the app
 // CSP's `script-src 'self'` permits the same-origin script chain and `nosniff` does not help (text/javascript
-// is a real script type). So only PASSIVE MEDIA (image/video/audio) is served inline with its real type;
-// everything else — HTML, script, SVG, PDF, text, an octet-stream — is forced to a downloaded octet-stream so
-// it can never render as an active same-origin document. This holds regardless of how the bytes were stored
-// (the upload magic belt also rejects the active classes, but a non-magic-enforced write must still be safe).
+// is a real script type). So only a stored type that EQUALS one of `INLINE_SERVED_MIMES` is served inline,
+// under that exact value; everything else — HTML, script, SVG, PDF, text, an octet-stream, and any type with a
+// parameter, a comma or a different spelling — is forced to a downloaded octet-stream. An exact match and
+// never a prefix or family test, because a browser can read a comma-joined `Content-Type` by its LAST entry, so
+// a stored `audio/x, text/html` echoed into the header renders as a document. This holds regardless of how the
+// bytes were stored: several internal writers store without the signature check.
 const OCTET_STREAM = "application/octet-stream";
 const NOSNIFF = "nosniff";
 const ATTACHMENT = "attachment";
-const INLINE_MEDIA_PREFIXES = ["image/", "video/", "audio/"] as const;
-// image/svg+xml carries the `image/` prefix but is a scriptable XML DOCUMENT (SVG runs `<script>`), so it is
-// the one media-prefixed type that must NOT serve inline. Kept explicit rather than folded into the prefix
-// test so the exception is legible at the call site.
-const NEVER_INLINE_MEDIA = new Set(["image/svg+xml"]);
 
-/** True iff the mime is passive media safe to render inline in the app's own origin (never an active
- *  document/script). The `; charset=…`/`; codecs=…` parameter is stripped before the family test. */
-function isInlineServable(mime: string): boolean {
-  const base = (mime.split(";")[0] ?? "").trim().toLowerCase();
-  if (NEVER_INLINE_MEDIA.has(base)) {
-    return false;
-  }
-  return INLINE_MEDIA_PREFIXES.some((prefix) => base.startsWith(prefix));
+function isInlineServable(mime: string): mime is InlineServedMime {
+  return INLINE_SERVED_MIMES.some((served) => served === mime);
 }
 
 /** The `infra/storage` CAS slice the blob route reads originals from (per-user keyed). */

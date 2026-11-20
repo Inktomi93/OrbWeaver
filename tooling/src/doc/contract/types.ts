@@ -28,8 +28,31 @@ interface StrandedCommit extends GitFailure {
 /** How a commit ended: the new `HEAD`, git's own words, or a commit stranded in history. */
 export type CommitOutcome = { readonly ok: true; readonly sha: string } | GitFailure | StrandedCommit;
 
+/** What a write touched, and among those paths the ones it brought into existence. A failed commit deletes only
+ *  `created`: a path the pre-write snapshot never saw is not proof the write made it, since another process may
+ *  have. */
+export interface WrittenPaths {
+  readonly written: readonly string[];
+  readonly created: readonly string[];
+}
+
 /** How staging paths in the checkout's real index ended. */
 export type StageOutcome = { readonly ok: true } | GitFailure;
+
+/** One line of a text file that cites the doc at `target`, by its path or, for an ADR, by `D<n>`. */
+export interface CitingLine {
+  readonly path: string;
+  /** 1-based. */
+  readonly line: number;
+  readonly target: string;
+  readonly text: string;
+}
+
+/** An item file a retitle moved: the name that went and the name that arrived. */
+export interface RenamedItem {
+  readonly from: string;
+  readonly to: string;
+}
 
 /** One tracked markdown file under a tree the tool governs, with its bytes. */
 export interface GovernedDoc {

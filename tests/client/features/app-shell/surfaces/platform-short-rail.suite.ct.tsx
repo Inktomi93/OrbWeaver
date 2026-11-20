@@ -1,4 +1,6 @@
 // The production rail keeps its brand/footer fixed while short desktop layouts scroll section navigation.
+
+import { YOU_TAB_LABEL } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { LAYOUT_SUBPIXEL_PX, resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -321,7 +323,7 @@ async function withinViewport(control: Locator): Promise<void> {
 async function portraitPointer(page: Page, rail: Locator): Promise<void> {
   await expect(rail.locator(".shell-rail-sections")).toHaveCSS("display", "contents");
   await expect(rail.getByRole("button")).toHaveCount(4);
-  await rail.getByRole("button", { name: "You", exact: true }).click();
+  await rail.getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();

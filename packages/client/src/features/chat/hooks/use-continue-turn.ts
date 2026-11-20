@@ -1,7 +1,7 @@
-// `useContinueTurn` — the composer's EMPTY-Enter turn actions (continue + W-E generate). With
-// `continueOnSend`, an empty Send on an assistant-tailed transcript extends that reply via `chat.continueTurn`
-// (the same verb the wand's fireContinue drives). With `generateOnEmptySend` (W-E), an empty Send on a
-// committed NON-assistant tail prompts a fresh reply via `chat.generate` — the fork-at-user-tail / empty-chat
+// `useContinueTurn` — the composer's EMPTY-Enter turn actions (continue + generate). With `emptyEnterReplies`,
+// an empty Send on an assistant-tailed transcript extends that reply via `chat.continueTurn` (the same verb the
+// wand's fireContinue drives), and an empty Send on a committed NON-assistant tail prompts a fresh reply via
+// `chat.generate` — the fork-at-user-tail / empty-chat
 // convenience. Both are bus-driven like every other turn mutation (they stream into the ghost and settle
 // through the canon invalidation); the pure `resolveEmptySendAction` classifier picks which arm fires.
 //
@@ -9,7 +9,7 @@
 // door of each is `use-guided-actions.ts`). NOT the #539 echo class,
 // which was two controls in ONE home where one carried a strict subset of the other's payload. These two are
 // different AFFORDANCE KINDS on different planes: this hook is a SETTINGS-GATED KEYBOARD GESTURE (an empty
-// Send, off entirely unless `continueOnSend`/`generateOnEmptySend` is on) that fires the BARE verb, while the
+// Send, off entirely unless `emptyEnterReplies` is on) that fires the BARE verb, while the
 // wand's `fireContinue`/`fireResponse` are always-present composer ICONS whose payload carries the guided
 // steer (and, for generate, `speakerCharacterId` + the `afterAssistant` responseNudge). Neither can stand in
 // for the other: retiring this one would delete the no-pointer path and silently strand two shipped user
@@ -38,19 +38,27 @@ const useGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["genera
 export interface UseContinueTurnResult {
   readonly continueTurn: (chatId: ChatId, messageId: MessageId) => void;
   /** W-E — empty-Enter generate on a committed non-assistant tail (a plain reply, no steer). The tail is
-   *  never an assistant turn on this arm, so no `afterAssistant`/responseNudge is passed. */
-  readonly generateReply: (chatId: ChatId) => void;
+   *  never an assistant turn on this arm, so no `afterAssistant`/responseNudge is passed. The reply-failure line's
+   *  retry is this same call; it passes `settle` to state its own outcome. */
+  readonly generateReply: (chatId: ChatId, settle?: GenerateSettle) => void;
   readonly isPending: boolean;
 }
 
-export function useContinueTurn(): UseContinueTurnResult {
+/** A caller's own handling of one generate's outcome, beside the hook's. */
+interface GenerateSettle {
+  readonly onError: (error: unknown) => void;
+  readonly onSuccess: () => void;
+}
+
+/** `failureShownInline` names the line that states a generate failure while that line is up, so no toast repeats it. */
+export function useContinueTurn(failureShownInline?: string): UseContinueTurnResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const mutation = useContinueTurnMutation({ trpc, invalidation });
-  const generate = useGenerateMutation({ trpc, invalidation });
+  const generate = useGenerateMutation({ trpc, invalidation, failureShownInline });
   return {
     continueTurn: (chatId, messageId): void => mutation.mutate({ chatId, messageId, timeZone: viewerTimeZone() }),
-    generateReply: (chatId): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }),
+    generateReply: (chatId, settle): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }, settle),
     isPending: mutation.isPending || generate.isPending,
   };
 }

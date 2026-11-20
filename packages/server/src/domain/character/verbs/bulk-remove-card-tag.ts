@@ -12,7 +12,7 @@
 // first rejection (see `bulkAddCardTag`'s header for the full mechanism, and why a rethrow launders a
 // partial success into one opaque failure).
 
-import type { CharacterBulkTagResult } from "@orb/contracts/character";
+import type { CharacterBulkResult } from "@orb/contracts/character";
 import type { BulkRemoveCardTagParams } from "../contract/params.ts";
 import type { BulkTagOutcome } from "../contract/results.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
@@ -20,7 +20,7 @@ import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildBulkTagResult } from "../substrate/bulk-tag-result.ts";
 
 export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService["bulkRemoveCardTag"] {
-  return async ({ principal, tagName, characterIds }: BulkRemoveCardTagParams): Promise<CharacterBulkTagResult> => {
+  return async ({ principal, tagName, characterIds }: BulkRemoveCardTagParams): Promise<CharacterBulkResult> => {
     const ownerId = principal.userId;
     const name = tagName.trim();
     if (name === "") {

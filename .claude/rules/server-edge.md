@@ -26,8 +26,8 @@ paths:
 - CSRF protection must cover every mutating route on every credential path. The forward-auth proxy's header can be ambient too (Spine-Identity-and-Auth invariant 9).
   `tests/server/entry/http/csrf-route-coverage.int.test.ts` drives every mutating route the composed app serves.
   Only a route in `CSRF_EXEMPT_ROUTES` (`packages/server/src/entry/auth/csrf-exemptions.ts`) skips the check.
-- A route serving a response with its own CSP adds its path pattern to `servesOwnPolicy`
-  (`packages/server/src/entry/http/security-headers.ts`), gated on the actual response header, never a context flag.
+- A route serving a response with its own CSP adds a row to `OWN_POLICY_ROUTES` and registers through `registerOwnPolicyRoute`
+  (`packages/server/src/entry/http/security-headers.ts`). Its handler returns the policy beside its body; the registrar writes the header and exempts the path.
   `tests/server/entry/http/own-policy-routes.int.test.ts` drives each registered route.
 - In `packages/server/src/entry/rate-limit-gate.ts`, guards run in order and each later guard only fires if the earlier ones
   did not throw. A test on guard N is vacuous unless every earlier guard passes. Drive a path where the

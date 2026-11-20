@@ -1,4 +1,4 @@
-// The `generateImage` task on the openai-compat wire — ONE task, the wire ARM chosen from the row (§6.7):
+// The `generateImage` task on the openai-compat wire — ONE task, the wire ARM chosen from the row:
 //   • `images-api` — the SDK's `ImageModelV4.doGenerate` (OpenAI `/v1/images/generations` + `/edits`,
 //     OpenRouter `/images`), base64 bytes back;
 //   • `chat-modalities` — a chat `doGenerate` with `modalities: ["text","image"]`, the pictures on the reply's
@@ -9,7 +9,7 @@
 
 import type { ImageModelV4File } from "@ai-sdk/provider";
 import type { GenerationUsage, ResolvedWarning, ResponseCache, TokenDetails, TokenUsage } from "@orb/contracts/inference";
-import { acceptsImageEdit } from "@orb/contracts/inference";
+import { acceptsImageEdit, builtinImageBaseUrl } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
 import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet } from "#contract";
@@ -31,32 +31,36 @@ const DEFAULT_N = 1;
 const PNG_MEDIA = "image/png";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const imageTokenDetailFieldsSchema = z.object({
-  text_tokens: reportedCount,
-  image_tokens: reportedCount,
-  audio_tokens: reportedCount,
-  video_tokens: reportedCount,
-  file_tokens: reportedCount,
-  cached_tokens: reportedCount,
-  cache_write_tokens: reportedCount,
-  reasoning_tokens: reportedCount,
-});
+const imageTokenDetailFieldsSchema = z
+  .object({
+    text_tokens: reportedCount,
+    image_tokens: reportedCount,
+    audio_tokens: reportedCount,
+    video_tokens: reportedCount,
+    file_tokens: reportedCount,
+    cached_tokens: reportedCount,
+    cache_write_tokens: reportedCount,
+    reasoning_tokens: reportedCount,
+  })
+  .strip();
 const imageTokenDetailSchema = imageTokenDetailFieldsSchema.nullish().catch(null);
-const imageResponseSchema = z.object({
-  usage: z
-    .looseObject({
-      input_tokens: reportedCount,
-      output_tokens: reportedCount,
-      prompt_tokens: reportedCount,
-      completion_tokens: reportedCount,
-      input_tokens_details: imageTokenDetailSchema,
-      output_tokens_details: imageTokenDetailSchema,
-      prompt_tokens_details: imageTokenDetailSchema,
-      completion_tokens_details: imageTokenDetailSchema,
-    })
-    .nullish()
-    .catch(null),
-});
+const imageResponseSchema = z
+  .object({
+    usage: z
+      .looseObject({
+        input_tokens: reportedCount,
+        output_tokens: reportedCount,
+        prompt_tokens: reportedCount,
+        completion_tokens: reportedCount,
+        input_tokens_details: imageTokenDetailSchema,
+        output_tokens_details: imageTokenDetailSchema,
+        prompt_tokens_details: imageTokenDetailSchema,
+        completion_tokens_details: imageTokenDetailSchema,
+      })
+      .nullish()
+      .catch(null),
+  })
+  .strip();
 const IMAGE_USAGE_MODALITIES = [
   ["text_tokens", "text"],
   ["image_tokens", "image"],
@@ -189,7 +193,7 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
     files: files.length > 0 ? files : undefined,
     mask,
     providerOptions: {},
-    ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+    abortSignal: req.signal,
   });
   const images: GeneratedImage[] = result.images.map((image) => ({
     url: undefined,
@@ -234,7 +238,7 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
         ],
       },
     ],
-    ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+    abortSignal: req.signal,
   });
   const images = result.content.flatMap((part) => (part.type === "file" ? (generatedImageOf(part) ?? []) : []));
   if (images.length === 0) {
@@ -248,6 +252,16 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
   return { images, model: req.connection.model, usage: { ...usage, servedModel: result.response?.modelId ?? null }, warnings };
 }
 
+// SECURITY: the image host receives the row's key, and only `builtinImageBaseUrl` names one, so a plugin, admin or
+// Custom connection, even one on the same chat base URL, stays on its own base URL. The SDK joins a fixed path under
+// this base, so no URL it builds leaves the base's origin. A redirect is followed (`configuredEndpointFetchFor` in
+// packages/server/src/infra/network/egress.ts): the fetch drops `Authorization` on a cross-origin hop, so the bearer key
+// stays, but a row's own credential header in `transport.headers` would be forwarded to the redirect's host.
+function imageConnection(connection: ImageGenerateRequest["connection"]): ImageGenerateRequest["connection"] {
+  const imageBase = builtinImageBaseUrl(connection.providerId);
+  return imageBase === undefined ? connection : { ...connection, baseUrl: imageBase };
+}
+
 export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, deps: ImagesDeps): Promise<ImageGenerateResult> {
   const { connection } = req;
   const label = `${connection.providerId} generateImage (${connection.model})`;
@@ -257,7 +271,7 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
   }
   const warnings: ResolvedWarning[] = [];
   const call: ModelCall = {
-    connection,
+    connection: imageConnection(connection),
     deps: deps.transport,
     label,
     api: "generateImage",

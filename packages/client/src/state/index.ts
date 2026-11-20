@@ -11,6 +11,7 @@ export {
   clearRoomInvite,
   enterCreatedChat,
   goToLanding,
+  holdRoomForSend,
   type NewChatIntent,
   openChatMoment,
   openNewChatPicker,
@@ -58,9 +59,11 @@ export {
   useTagFilter,
 } from "./character-library-store.ts";
 export {
+  CHARACTER_TRUST_TAB_ID,
   characterSectionSelection,
   clearCharacterFacet,
   clearCharacterSelection,
+  openCharacterTrust,
   selectCharacter,
   selectCharacterFacet,
   useSelectedCharacterFacetId,
@@ -82,8 +85,12 @@ export { clearChatMoment, consumeChatMoment, useChatMoment } from "./chat-moment
 export { consumeReturnFocus, useReturnedChat } from "./chat-return-store.ts";
 export {
   chatStream,
+  heldGhostMessageId,
   isLiveTurnPhase,
   subscribeUserMessageCommitted,
+  useGhostExtendsMessageId,
+  useGhostSpeakerCharacterId,
+  useHeldGhost,
   useRecallState,
   useSwipeTargetMessageId,
   useTurnCommittedMessageId,
@@ -100,6 +107,7 @@ export { CommandPaletteSourceRegistryContext } from "./command-palette-source-re
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
 export type { ComposerDraftSnapshot, ComposerDraftWrite } from "./composer-draft-store.ts";
 export {
+  clearComposerDraft,
   readComposerDraft,
   readComposerDraftSnapshot,
   replaceComposerDraft,
@@ -108,10 +116,20 @@ export {
   useComposerDraftRevision,
 } from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
+export { notePendingAttachments, takePendingAttachments } from "./composer-pending-attachments.ts";
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
-export { CONFIG_GROUP_IDS, CONFIG_SHELVES, MULTI_USER_CONFIG_SUB } from "./config-group-ids.ts";
+export {
+  CONFIG_GROUP_IDS,
+  CONFIG_SHELVES,
+  DEFAULT_HTML_STEP_CONFIG_SETTING,
+  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+  MEDIA_TRUST_CONFIG_SUB,
+  MESSAGE_HANDLING_CONFIG_SUB,
+  MULTI_USER_CONFIG_SUB,
+  RUN_CARD_SCRIPTS_CONFIG_SETTING,
+} from "./config-group-ids.ts";
 export { setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,
@@ -125,7 +143,15 @@ export type {
   SettingsViewerView,
   SettingTeach,
 } from "./config-group-registry.ts";
-export { configSettingControlId, configSettingLabel, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
+export {
+  CONFIG_ADVANCED_FOLD_NAME,
+  configSettingControlId,
+  configSettingLabel,
+  isCollectionGroup,
+  isPlaceholderGroup,
+  isTeachNone,
+  rendersOwnBody,
+} from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
   arriveAtConfigGroup,
@@ -222,8 +248,10 @@ export {
   GAME_MODE_OFF_LABEL,
   GAME_MODE_ON_LABEL,
   GAME_MODE_RESUME_LABEL,
+  GAME_SETTINGS_TAB_ID,
   onGameModeStarted,
   onGameModeStopped,
+  openGameSettings,
 } from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export type { HomeTileId } from "./home-tile-ids.ts";
@@ -285,13 +313,14 @@ export {
 } from "./message-selection-store.ts";
 export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 export { MessageToolsRendererRegistryProvider } from "./message-tools-renderer-registry-provider.tsx";
-export type { ModalDefinition } from "./modal-registry.ts";
+export type { ModalCommit, ModalDefinition } from "./modal-registry.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
+export { onNewCharacterRequest, requestNewCharacter, takeNewCharacterRequest } from "./new-character-request-store.ts";
 export type { PanelMode, PanelName } from "./panel-resolve.ts";
-export { resolvePanelMode } from "./panel-resolve.ts";
+export { contextAutoOverlay, resolvePanelMode } from "./panel-resolve.ts";
 export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
 export { clearPluginCommandArgs, openPluginCommandArgs, usePluginCommandArgsSubject } from "./plugin-command-args-store.ts";
@@ -365,6 +394,7 @@ export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export {
   LIST_OFF_SCREEN_HINT,
   useSectionBackTarget,
+  useSectionContextMode,
   useSectionHasSelection,
   useSectionListIsScreen,
   useSectionListMode,
@@ -389,6 +419,7 @@ export {
   useUnsavedSaveSections,
 } from "./settings-save-status-store.ts";
 export { clearShellContentFocus, requestShellContentFocus, usePendingShellContentFocus } from "./shell-content-focus-store.ts";
+export { shellHeading, shellHeadingRef, shellLeadControl, shellLeadControlRef } from "./shell-heading-anchor.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
@@ -401,6 +432,7 @@ export {
   revealContextPanel,
   revealContextPanelBesideContent,
   setActiveSection,
+  setContextContentConstrained,
   setContextTab,
   setMobileViewport,
   setNarrowViewport,

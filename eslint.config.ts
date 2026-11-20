@@ -13,13 +13,18 @@ import {
   DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
+  exportedRosters,
   homeReasons,
   homes,
+  lazy,
   listSlotSurfacePaths,
   memberNamed,
   OWNED_ROOT_ACQUISITIONS,
+  posixPath,
+  productionModules,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
+import { TEST_WORLDS, worldSpecs } from "@orb/tooling/floor/testing/test-worlds";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { MEDIA_QUERIES, TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -47,7 +52,13 @@ import { appearanceChannelVocabulary } from "./packages/client/appearance-channe
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
-import { ROLE_DATA_RESTRICTIONS } from "./tooling/src/eslint/security-policy.ts";
+import {
+  CHAT_ART_GATE_RESTRICTION,
+  CHAT_ART_GATE_SOURCES,
+  ROLE_DATA_RESTRICTIONS,
+  SERVER_IMPORT_HOMES,
+  SERVER_SOURCE_ROOT,
+} from "./tooling/src/eslint/security-policy.ts";
 import { classOwners } from "./tooling/src/eslint/ui-classes/class-owners.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -117,8 +128,9 @@ const RESTRICTED_CLASSES = [
   },
   {
     // A neutral colour mixes alpha by hand the same way: the page inks and grounds, borders and fills. A step is named
-    // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`).
-    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/[^\s]+$`,
+    // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`). The one step a colour
+    // may carry is the derived disabled step, whose composite D355's solve judges; only the disabled home may spell it.
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/(?!\(--opacity-disabled\)$)[^\s]+$`,
     message:
       "An opacity modifier on a neutral colour; paint an opaque role or colour token, or an element opacity step such as opacity-receded (opacity-<step> in tokens.json).",
   },
@@ -224,6 +236,14 @@ const PAINT_CLASSES = {
   pattern: String.raw`^(?:[^\s]*:)?!?-?(?:rounded-(?:[xytrbsel]{1,2}-)?(?:none|xs|sm|md|lg|xl|2xl|3xl)|shadow-(?:xs|sm|md|lg|xl|2xl|inner|none)|border-(?:[xytrbse]-)?\d+|border-[xytrbse]|(?:ring|outline)-\d+|opacity-\d+|z-(?:\d+|auto)|(?:translate-[xyz]|rotate|scale(?:-[xy])?|skew-[xy])-(?:\d+(?:\/\d+)?|px|full)|clip-[^\s]+|bg-(?:gradient|linear|radial|conic)-[^\s]+)$`,
   message:
     "A raw radius, shadow, border, opacity, z-index, gradient, transform or clip class in the client; take it from a primitive prop or variant, or add the variant in @orb/ui.",
+};
+
+/** The disabled look's one home (D355): every other file composes its constants. */
+const DISABLED_STATE_HOME = "packages/ui/src/lib/disabled-state.ts";
+/** The disabled step as a utility or a colour alpha, or an opacity, fill, ink, edge or shadow behind any disabled variant. Pointer and cursor stay legal. */
+const DISABLED_LOOK_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?!?opacity-disabled!?$|^[^\s]*\/\(--opacity-disabled\)$|^(?:[^\s:]*:)*[^\s:]*disabled[^\s:]*:(?:[^\s:]*:)*!?-?(?:opacity|bg|text|border|fill|stroke|shadow|ring|outline)-[^\s]+$`,
+  message: `A hand-spelled disabled look; compose the control kind's constant from ${DISABLED_STATE_HOME} (D355).`,
 };
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
@@ -395,9 +415,13 @@ const PROCESS_ADAPTER_HOMES = ["tooling/src/floor/host/platform.ts", "tooling/sr
 // A cast compiles over any brand, so the load-emulation brand keeps its one construction door here: the RESULT line it
 // feeds must not echo an argv the browser never received.
 const LOAD_EMULATION_MINT_HOME = "tooling/src/snap/ops/session.ts";
+// The brand is named bare, behind a namespace, or through an `import("...")` type. A local alias and an import rename
+// are refused where they are declared, because a cast through the alias names no brand.
+const LOAD_EMULATION_TYPE =
+  ":matches(TSTypeReference[typeName.name='AppliedLoadEmulation'], TSTypeReference[typeName.right.name='AppliedLoadEmulation'], TSImportType[qualifier.name='AppliedLoadEmulation'], TSImportType[qualifier.right.name='AppliedLoadEmulation']).typeAnnotation";
 const LOAD_EMULATION_CAST_RESTRICTION = {
-  selector: ":matches(TSAsExpression, TSTypeAssertion) > TSTypeReference.typeAnnotation[typeName.name='AppliedLoadEmulation']",
-  message: `Only applyLoadEmulation (${LOAD_EMULATION_MINT_HOME}) mints an AppliedLoadEmulation, from what each page was sent. Take the value it returns.`,
+  selector: `:matches(TSAsExpression, TSTypeAssertion) > ${LOAD_EMULATION_TYPE}, TSTypeAliasDeclaration > ${LOAD_EMULATION_TYPE}, ImportSpecifier[imported.name='AppliedLoadEmulation'][local.name!='AppliedLoadEmulation']`,
+  message: `Only applyLoadEmulation (${LOAD_EMULATION_MINT_HOME}) mints an AppliedLoadEmulation, from what each page was sent. Take the value it returns, under its own name.`,
 };
 
 // A walker segment is a template literal, which consumes a single backslash: `/\s+/` there emits `/s+/`, a regex over the
@@ -562,7 +586,25 @@ const FIRST_ALERT_RESTRICTION = {
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
 
-const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+// `TEST_WORLDS` are the test worlds, each one typed program. A file two worlds name takes the earlier world's project,
+// the one a list of all three gave it.
+const TEST_TYPED_SOURCE = ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"];
+
+// A tsconfig `include` or `exclude` spec as globs: a spec whose last segment has no wildcard names a file or a directory.
+const worldGlobs = (specs: readonly string[]): string[] =>
+  specs.flatMap((spec) => (spec.split("/").at(-1)?.includes("*") === true ? [spec] : [spec, `${spec}/**`]));
+
+// A world's parser block, matched from the `include` and `exclude` its tsconfig resolves to, so a part that lints one
+// world's files builds that world's program alone. A project list would build each earlier program to look for the file.
+function testWorldParser(world: string): FlatConfig.Config {
+  const { include, exclude } = worldSpecs(ROOT, world);
+  return {
+    files: TEST_TYPED_SOURCE.flatMap((scope) => worldGlobs(include).map((spec) => [scope, spec])),
+    // Playwright's declaration files are linted without a program.
+    ignores: [...worldGlobs(exclude), "playwright/**/*.d.{ts,mts,cts}"],
+    languageOptions: { parserOptions: { project: [world], projectService: false, tsconfigRootDir: ROOT } },
+  };
+}
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
 
@@ -624,25 +666,23 @@ const ASYNC_SAFETY_RULES: Linter.RulesRecord = {
   "@typescript-eslint/no-deprecated": "error",
 };
 
-const SETTINGS_TABLE_IMPORT = {
-  regex: "^@orb/db(?:/(?:schema|index))?$",
-  importNames: ["settings"],
-  message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
-};
-
-const PNG_CHUNK_IMPORT = {
-  regex: "^@orb/kit/png-card-chunk(?:/|$)",
-  importNames: ["readCardChunk", "writeCardChunk", "isPng"],
-  message: "Use the import or export domain for PNG card-chunk operations.",
-};
-
-// A canon read accepts only the visibility answer chat's resolver minted, so the minter has that one caller.
-const VISIBILITY_MINT_HOME = "packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
-const VISIBILITY_MINT_IMPORT = {
-  regex: "viewer-visibility-registry(?:\\.ts)?$",
-  importNames: ["mintViewerVisibility"],
-  message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
-};
+// The server import restriction blocks, generated from SERVER_IMPORT_HOMES: one block refuses every row outside every
+// home, and each row's block lifts that row alone for its homes. The art gate's block comes last and keeps every row,
+// because a later block's options replace the earlier ones for its files; its files sit in no home.
+type ServerImportRow = (typeof SERVER_IMPORT_HOMES)[number];
+const serverImportGlob = (home: string): string => (home.endsWith("/") ? `${home}**/*.{ts,tsx}` : home);
+const serverImportRules = (lifted: ServerImportRow | null, ...added: readonly object[]): Linter.RulesRecord => ({
+  "no-restricted-imports": ["error", { patterns: [...SERVER_IMPORT_HOMES.filter((row) => row !== lifted).map(({ restriction }) => restriction), ...added] }],
+});
+const SERVER_IMPORT_BLOCKS: FlatConfig.Config[] = [
+  {
+    files: [serverImportGlob(SERVER_SOURCE_ROOT)],
+    ignores: SERVER_IMPORT_HOMES.flatMap(({ homes: owned }) => owned.map(serverImportGlob)),
+    rules: serverImportRules(null),
+  },
+  ...SERVER_IMPORT_HOMES.map((row): FlatConfig.Config => ({ files: row.homes.map(serverImportGlob), rules: serverImportRules(row) })),
+  { files: [...CHAT_ART_GATE_SOURCES], rules: serverImportRules(null, CHAT_ART_GATE_RESTRICTION) },
+];
 
 // A NUL is not text in this app: a free-string TEXT column is `nulFreeText` (`packages/db/src/custom-types/index.ts`),
 // which removes NUL on its way to the driver, because the libSQL client reads a TEXT value back cut at its first NUL.
@@ -653,12 +693,24 @@ const NUL_FREE_TEXT_MESSAGE =
 const PLAIN_TEXT_COLUMN_SYNTAX = [
   { selector: "CallExpression[callee.name='text'][arguments.length=1]", message: NUL_FREE_TEXT_MESSAGE },
   {
-    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property[key.name=/^(mode|enum)$/]))",
+    // A `mode` exempts the column only when it is "json": `mode: "text"` is the plain column spelled out.
+    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property:matches([key.name='mode'][value.value='json'], [key.name='enum'])))",
     message: NUL_FREE_TEXT_MESSAGE,
   },
   {
     selector: "ImportDeclaration[source.value='drizzle-orm/sqlite-core'] ImportSpecifier[imported.name='text'][local.name!='text']",
     message: "Import drizzle's text under its own name, so the free-string column check sees every use of it.",
+  },
+];
+
+// A row stamp comes from the injected clock: `stampColumn` (`packages/db/src/custom-types/index.ts`) makes the insert
+// state it. A wall-clock SQL expression in a schema file, inline or hoisted into a const, would stamp a row by SQLite time.
+const WALL_CLOCK_SQL = String.raw`/unixepoch|current_timestamp|current_time|current_date|datetime\(\s*'now'/i`;
+const STAMP_DEFAULT_SYNTAX = [
+  {
+    selector: `TemplateElement[value.raw=${WALL_CLOCK_SQL}], Literal[value=${WALL_CLOCK_SQL}]`,
+    message:
+      'A row stamp is stampColumn from "../custom-types/index.ts", which each insert states from the injected clock; a schema file spells no wall-clock SQL.',
   },
 ];
 
@@ -680,50 +732,80 @@ const MODULE_LOADER_SYNTAX = [
   },
 ];
 
-// What a privilege role means is encoded once, in `@orb/contracts/identity` (`isHostRole`, `userRoleSatisfies`), the
-// file every reader shares, `can()` included (Spine-Identity-and-Auth.md invariant 6). These selectors refuse, in the
-// server and the client, a role literal (`host`, `member`, `owner`, `admin`) tested against an operand named for a role:
-// a `role`, `globalRole` or `viewerRole` field (optional chains too), a variable such as `derivedRole`, or a decoded
-// `participantRoleValue(...)`. The forms: an equality on either side, a `switch` case, an array literal's `includes` and an
-// `in` over an object literal. A message role (`user`, `assistant`) is not a privilege role and is not seen.
-const ROLE_LITERAL = "/^(host|member|owner|admin)$/";
-const ROLE_OPERAND = (side: string): string =>
-  [
-    `[${side}.property.name=/[rR]ole$/]`,
-    `[${side}.expression.property.name=/[rR]ole$/]`,
-    `[${side}.name=/[rR]ole$/]`,
-    `[${side}.callee.name=/[rR]oleValue$/]`,
-  ].join(", ");
-const ROLE_COMPARISON_MESSAGE =
-  "Test a privilege role through isHostRole or userRoleSatisfies from @orb/contracts/identity, the one encoding can() decides with (Spine-Identity-and-Auth.md invariant 6).";
-const ROLE_COMPARISON_SYNTAX = [
-  {
-    selector: `BinaryExpression[operator=/^[!=]==$/]:matches(${ROLE_OPERAND("left")}, ${ROLE_OPERAND("right")}):matches([left.value=${ROLE_LITERAL}], [right.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `SwitchStatement:matches(${ROLE_OPERAND("discriminant")}) > SwitchCase[test.value=${ROLE_LITERAL}]`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `CallExpression[callee.property.name='includes'][callee.object.type='ArrayExpression']:matches(${ROLE_OPERAND("arguments.0")}):matches([callee.object.elements.0.value=${ROLE_LITERAL}], [callee.object.elements.1.value=${ROLE_LITERAL}], [callee.object.elements.2.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `BinaryExpression[operator='in'][right.type='ObjectExpression']:matches(${ROLE_OPERAND("left")}):matches([right.properties.0.key.name=${ROLE_LITERAL}], [right.properties.0.key.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-];
+// What a role means is encoded once, in the identity contracts (Spine-Identity-and-Auth.md invariant 6); every other
+// package source asks them through `orb/no-role-comparison`.
+const ROLE_MEANING_HOME = homes("packages/contracts/src/identity/index.ts");
+// The account role chip: its label, its tone and whether it shows beside the handle. That is a view field, the data
+// projection class of D121 clause (A)(2), and a client display read is never an authorization (D121 clause A).
+const ROLE_DISPLAY_HOME = homes("packages/client/src/components/user-role-status.ts");
 
-const SERVER_SYNTAX = [
+// An optional cancel is one a caller can drop without a word, and a dropped cancel never reaches the provider call or
+// the workload. A signal is required on every member and parameter; a caller with nothing above it creates one and
+// says why. The signal is `AbortSignal`, bare or as `globalThis.AbortSignal`, or the `Signal` type parameter the
+// isomorphic packages bind it through. Refused: an optional member or parameter, a union with `undefined` or `null`, a
+// defaulted parameter, a local alias (a field typed by it escapes every other arm), `Partial<>` over a bag that holds
+// a signal, and an optional inline bag that holds one. A bag behind a named type is out of a selector's reach.
+// The union arm reads direct members through the sibling combinator, so a nullable function type whose parameter is a
+// signal is not a finding.
+const ABORT_SIGNAL_NAME = ":matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'])";
+const SIGNAL_TYPE = "TSTypeReference:matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'], [typeName.name='Signal'])";
+const OPTIONAL_SLOT = ":matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation";
+const SIGNAL_MEMBER = "TSPropertySignature[key.name='signal']";
+const EMPTY_MEMBER = ":matches(TSUndefinedKeyword, TSNullKeyword)";
+const OPTIONAL_SIGNAL_SYNTAX = {
+  selector: [
+    `${OPTIONAL_SLOT} > ${SIGNAL_TYPE}`,
+    `TSUnionType > ${SIGNAL_TYPE} ~ ${EMPTY_MEMBER}`,
+    `TSUnionType > ${EMPTY_MEMBER} ~ ${SIGNAL_TYPE}`,
+    `AssignmentPattern > Identifier > TSTypeAnnotation > ${SIGNAL_TYPE}`,
+    `TSTypeAliasDeclaration > TSTypeReference.typeAnnotation${ABORT_SIGNAL_NAME}`,
+    `TSTypeReference[typeName.name='Partial'] ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSIntersectionType > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+  ].join(", "),
+  message:
+    "Require the AbortSignal: thread the caller's real signal, and where none exists above, create one with a comment that says why (docs/law/Spine-TypeScript-and-Patterns.md).",
+};
+
+const SERVER_BASE_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
   ...MODULE_LOADER_SYNTAX,
-  ...ROLE_COMPARISON_SYNTAX,
+  OPTIONAL_SIGNAL_SYNTAX,
 ];
+// A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
+// key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
+// source names its environment inline: an inheriting child takes `childProcessEnv` from the env foundation, and the
+// agent-SDK and plugin children pass their own built record. Seen: a bare named import (`spawn`, `new Worker`) and
+// the `seam ?? spawn` fallback; a member call or a renamed import is a review question. esquery 1.7 never matches a
+// `:has(> …)` child form, so the `env` property is found under any call or `new` inside the launch: an options
+// record built by an inner call that holds an `env` key passes too.
+const CHILD_LAUNCHER_NAME = "/^(spawn|spawnSync|exec|execSync|execFile|execFileSync|fork)$/";
+const CHILD_ENV_SYNTAX = {
+  selector: `:matches(CallExpression:matches([callee.name=${CHILD_LAUNCHER_NAME}], [callee.type='LogicalExpression'][callee.right.name=${CHILD_LAUNCHER_NAME}]), NewExpression[callee.name='Worker']):not(:has(:matches(CallExpression, NewExpression) > ObjectExpression > Property:matches([key.name='env'], [key.value='env'])))`,
+  message:
+    "Pass `env` inline: an inheriting child takes childProcessEnv from packages/server/src/foundation/env/index.ts; a child without it inherits every reserved and secret name.",
+};
+const SERVER_SYNTAX = [...SERVER_BASE_SYNTAX, CHILD_ENV_SYNTAX];
+// The packaged-FFmpeg probe runs only from `entry/check-media.ts` at install and image build, before any app secret is
+// loaded, and the image copies that file without the env foundation it would need to import.
+const CHILD_ENV_EXEMPT_HOME = homes("packages/server/src/infra/media/runtime/index.ts");
 
+// A route with its own content security policy hands that policy to the registrar in its one home, which writes the
+// header and exempts the route from the app policy in the same call. A handler that writes the header itself on an
+// unregistered route is overwritten by the app policy with nothing red. Literal spellings only: a computed name is a
+// review question.
+const OWN_POLICY_HEADER_HOME = homes("packages/server/src/entry/http/security-headers.ts");
+const OWN_POLICY_HEADER_NAME = "/^content-security-policy$/i";
+const OWN_POLICY_HEADER_SYNTAX = {
+  selector: `:matches(Literal[value=${OWN_POLICY_HEADER_NAME}], TemplateLiteral[expressions.length=0] > TemplateElement[value.cooked=${OWN_POLICY_HEADER_NAME}])`,
+  message:
+    "Return the route's policy to registerOwnPolicyRoute in packages/server/src/entry/http/security-headers.ts; that file alone writes the Content-Security-Policy header.",
+};
+// Every server source but the header's home refuses the name; inference serves no response.
+const SERVER_SOURCE_SYNTAX = [...SERVER_SYNTAX, OWN_POLICY_HEADER_SYNTAX];
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
 // Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,
@@ -825,7 +907,7 @@ const TRACK_STAMP_SYNTAX = {
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
 
-const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX, ...ROLE_COMPARISON_SYNTAX];
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -1002,16 +1084,13 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       },
     }),
   ),
+  // Reversed, so the earlier world's block comes last and its project wins a file two worlds name.
+  ...TEST_WORLDS.toReversed().map(testWorldParser),
   {
-    files: ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"],
+    files: TEST_TYPED_SOURCE,
     ignores: ["**/*.d.{ts,mts,cts}"],
-    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
     // Async test doubles implement Promise contracts without asynchronous work.
     rules: ASYNC_SAFETY_RULES,
-  },
-  {
-    files: ["tests/**/*.d.{ts,mts,cts}"],
-    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
   },
   {
     // The patched plugin of the old config under-reported these two on literal operands; without the patch they report less.
@@ -1158,7 +1237,9 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     files: ["packages/client/src/**/*.{ts,tsx}"],
     plugins: { "@tanstack/query": pluginQuery, "@tanstack/router": pluginRouter },
     rules: {
-      "@tanstack/query/exhaustive-deps": "error",
+      // A display pass's queue slot (`use-display-text.ts`) is a scheduling hint the query function reads, never an
+      // input to its answer: rows whose pass is equal share one cached answer, whichever row asked first.
+      "@tanstack/query/exhaustive-deps": ["error", { allowlist: { types: ["DisplayQueueSlot"] } }],
       "@tanstack/query/no-unstable-deps": "error",
       "@tanstack/query/no-void-query-fn": "error",
       "@tanstack/query/stable-query-client": "error",
@@ -1176,23 +1257,34 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       {
         name: "ui",
         files: ["packages/ui/src/**/*.{ts,tsx}"],
-        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
-        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**", DISABLED_STATE_HOME],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, DISABLED_LOOK_CLASSES],
       },
-      { name: "ui", files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"], ignores: [], restrict: [VIEWPORT_CLASSES] },
+      { name: "ui", files: [DISABLED_STATE_HOME], ignores: [], restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES] },
+      {
+        name: "ui",
+        files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"],
+        ignores: [],
+        restrict: [VIEWPORT_CLASSES, DISABLED_LOOK_CLASSES],
+      },
       // The app shell is the one home of viewport and pointer variants.
-      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES, PAINT_CLASSES] },
+      {
+        name: "client",
+        files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"],
+        ignores: [],
+        restrict: [WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
+      },
       {
         name: "client",
         files: ["packages/client/src/features/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/app-shell/**"],
-        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
+        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
       },
       {
         name: "client",
         files: ["packages/client/src/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/**"],
-        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
       },
     ] as const
   ).map(({ name, files, ignores, restrict }): FlatConfig.Config => {
@@ -1232,6 +1324,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   {
     files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
     plugins: { drizzle },
+    // The plugin matches a receiver by its last member name, so `db` also covers `ctx.db`, `deps.db` and `this.db`;
+    // every database handle in these trees is named `db`, and an empty list would flag every Map and Set `delete`.
     rules: {
       "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
       "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
@@ -1319,7 +1413,10 @@ if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefin
 }
 const UNSUPPORTED_AT_FLOOR = unsupportedAtFloor(BROWSER_TARGETS);
 // The page script and what it imports statically run before the polyfills are installed (packages/client/src/entry.ts), so nothing there is trusted.
-const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) => relative(ROOT, file));
+// A `files` pattern matches with `/` only, so the native relative path is rewritten on Windows.
+const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) =>
+  posixPath(relative(ROOT, file)),
+);
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
@@ -1817,6 +1914,9 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The form submission focus adapter resolves the first aria-invalid control after native form validation.",
   },
 ] as const;
+// One read of production source for every test-authoring index, made when the first of them is asked for.
+const PRODUCTION_MODULES = lazy(() => productionModules(ROOT));
+
 const localPlugin = createOrbPlugin({
   domLookupHomes: DOM_LOOKUP_HOMES,
   baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
@@ -1829,8 +1929,9 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   shellSlots: shellOwnedSlots(ROOT),
-  exportedLabels: exportedLabels(ROOT),
-  exportedProductionValues: exportedProductionValues(ROOT),
+  exportedLabels: lazy(() => exportedLabels(ROOT, PRODUCTION_MODULES())),
+  exportedProductionValues: lazy(() => exportedProductionValues(ROOT, PRODUCTION_MODULES())),
+  exportedRosters: lazy(() => exportedRosters(ROOT, PRODUCTION_MODULES())),
   appearanceVocabulary: appearanceChannelVocabulary(),
   browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
   browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,
@@ -1885,7 +1986,8 @@ const RAW_STORAGE_HOMES = homes(
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
 );
-// The read-only DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port.
+// The DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port. Each takes ReadOnlyDb, so a write
+// from a probe fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts).
 const DEBUG_DB_PROBES = "packages/server/src/foundation/observability/debug/inspect/**";
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
@@ -1933,16 +2035,18 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/trpc-output-declared-keys": "error" },
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error", "orb/narrowed-json-brand": "error" } },
-    {
-      files: ["packages/contracts/src/**/*.{ts,tsx}", "packages/server/src/transport/**/*.{ts,tsx}"],
-      rules: { "orb/wire-object-declares-mode": "error" },
-    },
+    // No exempt file: a room token minted or cast anywhere would vouch for a gate or a claim in every verb (D166).
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/room-token-mint": "error" } },
+    { files: ["packages/server/src/**/*.{ts,tsx}"], rules: { "orb/viewer-visibility-parameter-checked": "error" } },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/wire-object-declares-mode": "error" } },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },
-    // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
+    // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`). The owner-CSS rename
+    // table is outside too: its rows name channels the manifest retired, so an owner theme written against them still loads.
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/client/**/*.{ts,tsx}", "tests/ui/**/*.{ts,tsx}"],
+      ignores: homes("packages/client/src/owner-css/renames.ts"),
       rules: { "orb/appearance-name-in-manifest": "error" },
     },
     {
@@ -1966,7 +2070,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: homes("packages/server/src/entry/compose/automation-watcher.ts", "packages/server/src/transport/trpc/index.ts"),
+      ignores: homes(
+        "packages/server/src/entry/compose/automation-watcher.ts",
+        "packages/server/src/entry/compose/turn-ends.ts",
+        "packages/server/src/transport/trpc/index.ts",
+      ),
       rules: { "orb/firehose-import-allowlist": "error" },
     },
     {
@@ -2022,8 +2130,22 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
       // The composites themselves: each types the way out a raw dialog could lose.
-      ignores: homes("packages/client/src/components/content-dialog.tsx", "packages/client/src/components/form-dialog.tsx"),
+      ignores: homes(
+        "packages/client/src/components/commit-row.tsx",
+        "packages/client/src/components/content-dialog.tsx",
+        "packages/client/src/components/form-dialog.tsx",
+      ),
       rules: { "orb/dialog-via-composite": "error" },
+    },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
+      rules: { "orb/dialog-failure-via-owner": "error" },
+    },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
+      // The composite that wraps the drawer primitive.
+      ignores: homes("packages/client/src/components/sheet-dialog.tsx"),
+      rules: { "orb/sheet-via-composite": "error" },
     },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/no-query-state-ladder": "error" } },
     {
@@ -2033,6 +2155,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/required-dialog-home": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
+    {
+      files: ["packages/client/src/features/**/surfaces/**/*.tsx"],
+      // The room lays its transcript and composer track itself, pending the track decision in docs/work/3610-decide-whether-the-chat-composer-shares-the-transcript.md.
+      ignores: homes("packages/client/src/features/chat/surfaces/chat-room-surface.tsx"),
+      rules: { "orb/content-pane-scroller": "error" },
+    },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
     // The surfaces a section mounts in its `list` slot: the same set the composition census reads.
     { files: [...listSlotSurfacePaths(ROOT)], rules: { "orb/library-surface-row": "error" } },
@@ -2258,6 +2386,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/closed-vocabulary": "error" },
     },
     {
+      files: ["packages/*/src/**/*.{ts,tsx}"],
+      ignores: [...ROLE_MEANING_HOME, ...ROLE_DISPLAY_HOME],
+      rules: { "orb/no-role-comparison": "error" },
+    },
+    {
       files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
     },
@@ -2297,18 +2430,28 @@ const SUSPENSE_INFINITE_IMPORT = {
   importNames: ["useSuspenseInfiniteQuery"],
   message: "A paged suspending read belongs to createCollectionSurface; the files in SUSPENSE_INFINITE_HOMES (eslint.config.ts) name why they cannot use it.",
 };
+// The kit executor runs a regex script on the calling thread, and a find pattern can backtrack for minutes. The client
+// runs it only in the display-pass Worker's two engine modules; kit regex is one module that also carries the gate
+// and the labels features read, so the refusal is by name (depcruise `display-scripts-off-main-thread` holds the modules).
+const REGEX_EXECUTOR_HOMES = homes("packages/client/src/lib/display-styled.ts", "packages/client/src/lib/regex-instrumented.ts");
+const REGEX_EXECUTOR_IMPORT = {
+  name: "@orb/kit/regex",
+  importNames: ["executeRegexScripts"],
+  message: "Run a regex script in the display-pass Worker: useDisplayText for a row, runRegexPreview for the editor's preview.",
+};
 const refuseImports = (...paths: readonly object[]): Linter.RulesRecord => ({ "no-restricted-imports": ["error", { paths }] });
 const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   { files: REACT_SOURCE, plugins: { orb: localPlugin }, rules: { "orb/no-manual-memo": "error", "orb/no-use-promise": "error" } },
   // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
   {
     files: [CLIENT_SRC],
-    ignores: [...homes(INFINITE_QUERY_HOME, SUSPENSE_READS_HOME), ...Object.keys(SUSPENSE_INFINITE_HOMES)],
-    rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT),
+    ignores: [...homes(INFINITE_QUERY_HOME, SUSPENSE_READS_HOME), ...Object.keys(SUSPENSE_INFINITE_HOMES), ...REGEX_EXECUTOR_HOMES],
+    rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT, REGEX_EXECUTOR_IMPORT),
   },
-  { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT) },
-  { files: [INFINITE_QUERY_HOME], rules: refuseImports(SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT) },
-  { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT) },
+  { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: [INFINITE_QUERY_HOME], rules: refuseImports(SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: REGEX_EXECUTOR_HOMES, rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT) },
 ];
 
 // Files whose module state is one process's by construction: each is its own process root or a documented
@@ -2347,44 +2490,47 @@ export default [
   ...LOCAL_RULE_BLOCKS,
   ...CLIENT_DOM_LOCK_BLOCKS,
   ...UI_LAW_BLOCKS,
-  {
-    files: ["packages/server/src/**/*.{ts,tsx}"],
-    ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**", VISIBILITY_MINT_HOME],
-    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT, VISIBILITY_MINT_IMPORT] }] },
-  },
-  { files: [VISIBILITY_MINT_HOME], rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] } },
-  {
-    files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
-  },
-  {
-    files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
-  },
+  ...SERVER_IMPORT_BLOCKS,
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
-    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES],
-    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
+    ignores: [
+      ...SERVER_CLOCK_HOME,
+      ...STREAM_ROUTER_HOME,
+      ...IMPERSONATE_STREAM_HOME,
+      ...DOMAIN_CONTRACT_SOURCES,
+      ...OWN_POLICY_HEADER_HOME,
+      ...CHILD_ENV_EXEMPT_HOME,
+    ],
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
   },
   {
-    files: DOMAIN_CONTRACT_SOURCES,
-    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
+    files: CHILD_ENV_EXEMPT_HOME,
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_BASE_SYNTAX, OWN_POLICY_HEADER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
   },
-  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
-  { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
-  { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
+  { files: OWN_POLICY_HEADER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) } },
+  {
+    files: DOMAIN_CONTRACT_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
+  },
+  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
+  { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, SERVER_STREAM_SYNTAX) } },
+  { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
-  { files: DB_SCHEMA_SOURCES, rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX) } },
+  {
+    files: DB_SCHEMA_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX, ...STAMP_DEFAULT_SYNTAX) },
+  },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,
-    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX) },
   },
+  { files: KIT_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(OPTIONAL_SIGNAL_SYNTAX) } },
   {
     files: rootSources("@contracts"),
     rules: {
-      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX, {
         selector:
           "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
         message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",
@@ -2407,7 +2553,7 @@ export default [
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, {
         selector:
           "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
         message:
@@ -2448,19 +2594,28 @@ export default [
     rules: { "orb/enforcement-claim-cites-checker": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/disable-directive-reason": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
     rules: { "orb/assumes-single-replica": "error" },
   },
   {
-    files: rootSources("@server"),
+    files: rootSources("@server", "@inference"),
     ignores: MODULE_STATE_OWN_PROCESS,
     plugins: { orb: localPlugin },
     rules: { "orb/no-module-state": "error" },
   },
   { files: rootSources("@server", "@inference"), plugins: { orb: localPlugin }, rules: { "orb/detached-work-traced": "error" } },
-  { files: rootSources("@server", "@inference", "@db"), plugins: { orb: localPlugin }, rules: { "orb/no-blind-catch": "error" } },
+  {
+    files: rootSources("@server", "@inference", "@db", "@client", "@kit", "@contracts", "@ui"),
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-blind-catch": "error" },
+  },
   { files: [...rootSources("@tooling"), ...PLAYWRIGHT_TESTS], plugins: { orb: localPlugin }, rules: { "orb/evaluate-no-scope-capture": "error" } },
   {
     files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
@@ -2531,9 +2686,10 @@ export default [
     files: ["tests/**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: {
-      "orb/ct-negative-only-case": ["error", { absence: false }],
+      "orb/ct-negative-only-case": ["error", { absence: false, literal: true }],
       "orb/no-bare-throw-assertion": "error",
       "orb/no-filtered-case-table": "error",
+      "orb/no-subject-derived-expected": "error",
       "orb/no-tail-recorder-read": "error",
       "orb/owned-root-alias": "error",
     },
@@ -2541,7 +2697,7 @@ export default [
   {
     files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"],
     plugins: { orb: localPlugin },
-    rules: { "orb/ct-negative-only-case": ["error", { absence: true }] },
+    rules: { "orb/ct-negative-only-case": ["error", { absence: true, literal: true }] },
   },
   {
     // Spine-Testing §9 governs product tests; a tooling suite's literal is its tool's input.
@@ -2572,6 +2728,7 @@ export default [
     plugins: { orb: localPlugin },
     rules: { "orb/no-hand-copied-label": ["error", { scope: "all" }] },
   },
+  { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/no-restated-roster": "error" } },
   { files: ["tests/ui/**/*-stories.tsx", "tests/client/**/*-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-root-composition": "error" } },
   {
     files: ["tests/**/*-stories.tsx", "tests/**/*.stories.tsx"],
@@ -2655,6 +2812,7 @@ export default [
         LOAD_EMULATION_CAST_RESTRICTION,
         ...OWNED_DB_RESTRICTIONS,
         ...EMPTY_POPULATION_RESTRICTIONS,
+        ...TEST_DETERMINISM_SYNTAX,
       ),
     },
   },
@@ -2674,9 +2832,9 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
-    files: ["tests/e2e/*.spec.ts"],
+    files: ["tests/e2e/**/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, FIRST_ALERT_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),

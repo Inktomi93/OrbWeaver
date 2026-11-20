@@ -11,6 +11,7 @@ import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
 import { CONFIRMED_ACTION_MINT_HOMES } from "./tooling/src/eslint/ui-feature-policy.ts";
+import { exactPathPattern } from "./tooling/src/floor/paths/exact-path-pattern.ts";
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -46,6 +47,7 @@ const ENTRY_DRIVERS = {
   "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
   "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
   "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
+  "boot/report-regex-two-axis.ts": "reads the scripts migration 0020 rewrites, before and after boot/migrate.ts runs it",
 } as const satisfies Readonly<Record<string, string>>;
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
@@ -55,6 +57,12 @@ const BOOT_GRANT_IMPORTERS = {
   "^packages/server/src/entry/lifecycle\\.ts$": "mints the grant once and hands it to the cross-owner boot steps",
   "^tooling/src/seed/": "seed tools run the same boot steps against the database they build",
   "^tests/support/": "the testkit boots whole servers through the boot steps and hands suites the grant through `bootGrantFor`",
+} as const satisfies Readonly<Record<string, string>>;
+// The only importers of chat's viewer visibility registry, each with the reason. The registry holds the mint and the
+// check over one identity set, so its importers are named by module; the ESLint import restriction names the mint.
+const VISIBILITY_REGISTRY_IMPORTERS = {
+  "^packages/server/src/domain/chat/verbs/resolve-viewer-visibility\\.ts$": "the one resolver mints every answer",
+  "^packages/server/src/domain/chat/persistence/plugin-reads\\.ts$": "the plugin canon read takes an answer from its caller and checks it",
 } as const satisfies Readonly<Record<string, string>>;
 // The only server, db and inference importers of `node:module`, each with the reason; both call `.resolve` only.
 const MODULE_LOADER_RESOLVERS = {
@@ -93,7 +101,7 @@ const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|n
 const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 // Native roots include helpers while preserving the compiler's DOM, E2E and browser-support exclusions.
-const NODE_TEST_PATHS = `^(?:${nodeTestRoots.map((file) => RegExp.escape(file)).join("|")})$`;
+const NODE_TEST_PATHS = exactPathPattern(nodeTestRoots);
 // The whole-tree reachable rules over thousands of test files cost minutes, so each one is split into a direct rule over
 // the test files and a reachable rule over the few files a test can enter that the direct rule does not read. The split
 // holds only while a test enters nothing outside the sets below, so a closed-imports rule refuses every other entry.
@@ -131,9 +139,22 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/components/_entry-list-labels\\.ts$": "the add label the entry-list rebase story authors and its spec finds the button by",
+  "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
+  "^tests/client/components/_notice-labels\\.ts$": "the notice words and control names the notice story authors and its spec locates them by",
+  "^tests/client/components/_muted-line-labels\\.ts$": "the line and action label the muted-line story authors and its spec locates them by",
+  "^tests/client/data/_plugin-frame-src-names\\.ts$": "the button name the plugin frame story authors and its revoke spec presses",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+  "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
+  "^tests/client/features/preset/components/_guessed-limits-probe\\.ts$":
+    "the navigation probe names the guessed-limits preset story authors and its spec reads the door's request by",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
+  "^tests/ui/primitives/disabled-signal-cases\\.ts$": "the control kinds and states the disabled-signal story renders and its spec reads",
+  "^tests/ui/primitives/float-shadow-cases\\.ts$": "the anchored floats and options the float-shadow story mounts and its spec opens and reads",
+  "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
+  "^tests/ui/primitives/toast/one-alert-names\\.ts$": "the control name and notice title the one-alert story authors and its spec locates them by",
+  "^tests/ui/primitives/tooltip/keyboard-focus-names\\.ts$": "the control names and hints the tooltip rail story authors and its focus spec locates them by",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
@@ -149,6 +170,8 @@ const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escap
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
+// The fixed slots a subsystem import may start from: every fixed slot but persistence/, which holds queries only.
+const MEDIATING_SLOTS = "(contract|verbs|substrate)";
 function moduleShapes(pkg: keyof typeof GROUPING_DIRS): { own: string[]; internal: string[] } {
   const root = `packages/${pkg}/src/`;
   const grouping: readonly string[] = GROUPING_DIRS[pkg];
@@ -190,6 +213,13 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/client/src/features/credentials/lib/connection-editor-model.ts",
   "packages/client/src/features/credentials/lib/connections-model.ts",
   "packages/ui/src/primitives/icons/orb-web.ts",
+  // The lib barrel deliberately omits the display pipeline that runs scripts on the calling thread; only the
+  // Worker-backed display hook reads it.
+  "packages/client/src/features/chat/hooks/use-display-text.ts",
+  // The editor preview's read of the same Worker runner.
+  "packages/client/src/features/regex/hooks/use-regex-preview.ts",
+  // The display row's call shape, a type of the same pipeline the lib barrel omits.
+  "packages/client/src/features/chat/lib/display-row.ts",
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
@@ -277,6 +307,23 @@ const LAYER_DIRECTION = [
   }),
 );
 
+// The markdown render that keeps raw HTML unsanitized feeds only a frame document (D354); any other importer could
+// put its output in the main document.
+const UI_FRAME_MARKDOWN_FRAME_ONLY: IForbiddenRuleType = {
+  name: "ui-frame-markdown-frame-only",
+  severity: "error",
+  // The test renders the frame lift in node: the one production importer builds its document only in a mounted effect
+  // behind the card-frame mint, so no node test can reach the lift through it.
+  from: {
+    pathNot: [
+      "^packages/ui/src/markdown/frame/",
+      "^packages/client/src/features/chat/components/reply-frame\\.tsx$",
+      "^tests/ui/markdown/frame-lift\\.dom\\.test\\.ts$",
+    ],
+  },
+  to: { path: "^packages/ui/src/markdown/frame/" },
+};
+
 const UI_SATELLITE_OWNERS = [
   { name: "charts", libraries: "echarts|echarts-for-react", owners: ["charts/"] },
   { name: "virtual", libraries: "@tanstack/react-virtual|@tanstack/virtual-core", owners: ["primitives/(virtual-list|message-list|media-grid)/"] },
@@ -356,10 +403,10 @@ const SERVER_TEST_PRIMITIVES = `${SRV}primitives/`;
 function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>): string[] {
   return Object.values(exports)
     .filter((target) => typeof target === "string")
-    .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, `packages/${pkg}/`))}$`);
+    .map((target) => target.replace(/^\.\//u, `packages/${pkg}/`));
 }
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
-const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
+const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, exactPathPattern(exportedDoors("server", serverPackage.exports))];
 // The production files a suite may import directly for a Spine-Testing §9 import: a constant, limit, id, error class
 // or pure rule that production executes, or a class or function its own module's unit suite drives directly when no
 // door runs the behavior it pins. A door forwards only what production consumes through it, so `pnpm knip:prod`
@@ -371,22 +418,37 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/entry/http/security-headers.ts": "OWN_POLICY_ROUTES: the own-policy route registration, one suite case per member",
   "packages/server/src/entry/http/plugin-frame.ts": "PLUGIN_FRAME_CSP and PLUGIN_FRAME_ASSET_CSP: the policies the plugin frame routes write",
   "packages/server/src/entry/http/card-frame.ts": "CARD_FRAME_FLOOR_CSP: the policy the card frame serves a document with no character under",
+  "packages/server/src/entry/http/frame-handle-store.ts":
+    "CARD_FRAME_CEILINGS and FRAME_HANDLE_TTL_MS: the card store's ceilings and lifetime, which the ceiling suite sizes its fills and expiries by",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/chat/persistence/import-landing.ts":
+    "LANDING_STAGE_ROWS and LANDING_STAGE_CHARS: the rows and text one import landing stage commits, which landing suites size a room of several stages by",
+  "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts":
+    "CHUNK: the rows one rebuild page reads, which the rebuild yield suite sizes a library of several pages by",
+  "packages/server/src/domain/automation/contract/analysis.ts":
+    "ANALYSIS_PROTECT_TAIL: the newest rows a durable-write analysis route stays behind, which the lore route suite sizes its smallest settled span by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
+  "packages/inference/src/backends/http/abort-wait.ts":
+    "RESOLUTION_ABORTED_MESSAGE: the refusal a cancelled connection resolve throws, which tells it from a later call's abort",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/server/src/domain/settings/contract/keys.ts":
     "APP_SETTINGS_KEY: the settings row the app override lives in, which the whole-blob guard suite plants a newer build's blob into",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/client/src/features/credentials/lib/credentials-names.ts": "SAVED_KEYS_EMPTY_TITLE and SAVED_KEYS_EMPTY_DESCRIPTION: the Saved keys empty state",
+  "packages/client/src/features/rpg/lib/rpg-names.ts":
+    "RPG_CONTEXT_TAB_LABELS and the Game tab tracker row names: the game tabs e2e opens and the tracker controls the chat suite measures",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
   "packages/client/src/features/character/lib/greeting-copy.ts":
     "the greeting strip's control names: the add and remove buttons and the numbered greeting label",
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
+  "packages/server/src/domain/chat/engine/provider-wait.ts":
+    "PROVIDER_WAIT_NOTICE_MS: the first-token delay the provider-wait suite holds a turn just short of and just past",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/search/substrate/instructions.ts":
     "SCOPE_INSTRUCTIONS: the per-scope retrieval and rerank instructions the image search suite reads the request prefix against",
@@ -394,6 +456,8 @@ const TEST_CONSTANT_HOMES = {
     "nearestCharacters: the D20 owner predicate, reached with no generation because every door passes one and a generation already hashes its owner",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/domain/assets/substrate/portable-asset-file.ts":
+    "buildPortableAssetFilename and hashAssetBytes: the bundle filename codec the restore suite names a forged asset file with",
   "packages/server/src/entry/boot/disclaimer.ts": "BOOT_DISCLAIMER_TOPICS: the topic order the disclaimer block follows",
   "packages/server/src/infra/network/contract/egress.ts": "SSRF_BLOCKED: the mark every connect-time firewall refusal opens with",
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
@@ -402,8 +466,15 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/plugin/substrate/snippet-gate.ts": "SNIPPET_CONCURRENCY_PER_USER: the admission ceiling a release case must exceed",
+  "packages/server/src/domain/plugin/substrate/surface-state.ts": "PLUGIN_SURFACE_STATE_MAX_KEYS: the key cap a refusal case must fill",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/chat/contract/results.ts":
+    "TurnRequest, TurnEconomics and TurnStreamChunk: the turn shapes the bridge suite builds a request from and asserts the final chunk of, which the chat door does not forward",
+  "packages/server/src/domain/chat/engine/pipeline.ts":
+    "aggregateEconomics: the per-leg economics fold its unit suite drives directly, which the chat door does not forward",
+  "packages/server/src/domain/chat/persistence/canon-write.ts":
+    "appendVariantStatements: the canon writer's variant statements its persistence suite commits against the real sidecar column",
   "packages/server/src/domain/discovery/substrate/hub-math.ts":
     "computeGroupHubs and HUB_YIELD_WORK_BUDGET: the hub math whose yield budget and cancellation the suite holds it to",
   "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
@@ -415,6 +486,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/verbs/upstream-probes.ts": "UPSTREAM_ANSWER_TTL_MS: the probe answer lifetime",
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
   "packages/server/src/primitives/serde/databank/index.ts": "DATABANK_SCHEMA_KIND: the sibling envelope kind a chat bundle refuses as foreign",
+  "packages/server/src/primitives/serde/chat/index.ts":
+    "CHAT_SLICE_BUDGET: the text one turn of the loop translates, which the translation yield suite floors its turns by",
   "packages/server/src/infra/plugin-host/budgets.ts": "PLUGIN_ASSET_MAX_BYTES: the fetched-asset byte cap the image-cap suite sends one byte past",
   "packages/server/src/infra/plugin-host/cpu-guard.ts":
     "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context, to plant the missed site no door can reach",
@@ -427,15 +500,22 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/infra/plugin-host/process-protocol.ts":
     "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog; PLUGIN_BROKER_SYNC_TIMEOUT_MS: the synchronous seam bound the command bounds suite counts; channelFullBridgeResult and channelFullResponse: the refusal frames the channel suite routes",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
+  "packages/server/src/infra/plugin-host/sync-channel.ts":
+    "createSyncChannel: the Worker's reused call buffers its unit suite drives, whose identity no door shows inside the broker's Worker",
   "packages/server/src/infra/plugin-host/warm-runtime-pool.ts": "WarmRuntimePool: the runtime pool its unit suite constructs with a failing retirement",
+  "packages/server/src/infra/plugin-host/watchdog-policy.ts":
+    "brokerWatchdogFailure: the watchdog's judgement its unit suite drives with an injected clock, which no door reaches inside the watchdog process",
   "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",
   "packages/server/src/infra/upstream-update/adapter.ts": "parseLatestRelease and parseMainHead: the pure release and head parsers",
   "packages/server/src/entry/compose/portability.ts":
     "LIFECYCLE_DOORS, NON_PORTABLE_CANON and PORTABLE_CANON_TABLES: the D329 portability registries their suites check",
   "packages/server/src/entry/contract/portability.ts": "NON_PORTABLE_CLASSES and the registry value shapes: the D329 portability vocabulary",
+  "packages/server/src/primitives/regex/compile-probe.ts": "FIND_COMPILE_LIMIT_MS: the compile cost limit the write door's refusal names",
   "packages/contracts/src/chat/bus.ts": "CHAT_WARNING_CODES and PROVIDER_ADJUSTMENT_KINDS: the warning vocabularies",
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
+  "packages/contracts/src/inference/builtin-providers.ts":
+    "BUILTIN_PROVIDER_ROWS: the built-in row table whose literal ids key the sampler-source table, so a new row fails to compile there",
   "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
   "packages/contracts/src/refinery/core.ts": "SCORE_MIN and SCORE_MAX: the score scale a custom score schema must keep",
   "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
@@ -443,6 +523,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/prose-slot/index.ts": "proseOverrideFromLegacy: the legacy text lift",
   "packages/contracts/src/rpg/actor.ts":
     "rpgActorIdentitySchema, rpgActorVolatileSchema, rpgInventoryItemSchema and rpgRelationshipSchema: the actor part parsers",
+  "packages/contracts/src/rpg/snapshot.ts": "RPG_PLOT_ACTS_MAX: the plot act maximum the stored plot and the scene patch share",
   "packages/contracts/src/rpg/structured-round.ts": "RPG_STATE_CHANGES_FIELD: the structured round's state field",
   "packages/contracts/src/rpg/trace.ts": "rpgTraceEventSchema: the trace event parser",
   "packages/contracts/src/rpg/tracker.ts": "rpgTrackerValueSchema: the tracker value parser",
@@ -452,6 +533,12 @@ const TEST_CONSTANT_HOMES = {
   "packages/inference/src/backends/wire/cache-control.ts":
     "ANTHROPIC_PROVIDER_NAME: the provider name an OpenRouter Claude request is pinned to, which no inference door forwards",
   "packages/inference/src/backends/http/provider-log.ts": "EMBED_CLAMPED_EVENT: the log event both embed backends emit when they shorten an input",
+  "packages/inference/src/backends/openai-compat/think-tags.ts":
+    "thinkTagMiddleware: the middleware gate its stream-split unit suite drives over a synthetic part stream, which no inference door forwards",
+  "packages/inference/src/backends/v4/stream.ts":
+    "drainStream: the V4 fold its unit suite drives over a synthetic part stream, which no inference door forwards",
+  "packages/inference/src/backends/v4/result.ts":
+    "toChatResult: the drained-stream → ChatResult fold its unit suite asserts the absent-key rule through, which no inference door forwards",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
@@ -465,6 +552,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
   "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
+  "packages/client/src/features/chat/lib/composer-tail-copy.ts": "waitingForLabel and REPLY_NOW_NAME: the words of the line under the composer",
   "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
   "packages/client/src/lib/context-pane-names.ts":
@@ -474,6 +562,9 @@ const TEST_CONSTANT_HOMES = {
     "TRAIL_OVERFLOW_LABEL and BAND_OVERFLOW_LABEL: the More triggers an action folds into when its row runs out of room, which the walk presses it through",
   "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
   "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
+  "packages/client/src/lib/list-band-names.ts": "BAND_NEW_LABEL: the list band's New door, which a section case opens its create form by",
+  "packages/client/src/lib/account-field-names.ts":
+    "ACCOUNT_HANDLE_FIELD_NAME and ACCOUNT_PASSWORD_FIELD_NAME: the account fields sign-in, invite and create-user forms print",
   "packages/client/src/features/imagery/lib/imagine-names.ts":
     "IMAGINE_MODE_NAME and its siblings: the imagine options' field names and the imagery dialogs' titles and edit door",
   "packages/client/src/features/chat/lib/appearance-avatars-model.ts":
@@ -482,12 +573,17 @@ const TEST_CONSTANT_HOMES = {
     "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
     "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts":
+    "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
-  "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",
+  "packages/client/src/features/workloads/lib/import-library-names.ts":
+    "IMPORT_FOLDER_NAME and its siblings: the import section's doors, its preflight report and the persona review's answers",
+  "packages/client/src/features/workloads/lib/workloads-names.ts":
+    "WORKLOAD_JOB_FIELD_NAME and its siblings: the Jobs, Schedules, export and tuning sections' names",
   "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",
   "packages/ui/src/primitives/color-field/color-field-names.ts":
     "COLOR_HEX_FIELD_NAME and colorPickerName: the colour field's hex box and picker names, which the Look walk records the popup by",
@@ -495,7 +591,23 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/character/lib/character-actions.ts":
     "CHARACTER_ACTIONS: the character verb registry whose labels the row menu, context kebab and bulk bar print",
   "packages/ui/src/primitives/toast/toast-names.ts": "TOAST_CLOSE_NAME and its siblings: the names a toast prints",
+  "packages/ui/src/primitives/macro-textarea/macro-textarea-names.ts": "MACRO_SUGGESTIONS_NAME: the macro completion list's name",
+  "packages/ui/src/primitives/log-viewer/log-viewer-names.ts": "UNNAMED_LOG_NAME: the name a log viewer prints for a log with no name",
+  "packages/ui/src/primitives/file-dropzone/file-dropzone-names.ts": "REFUSAL_GLYPH_NAME: the glyph that leads a file control's refusal line",
+  "packages/ui/src/primitives/number-field/number-field-names.ts": "the stepper verbs and the bounds sentence a number field is named and described by",
+  "packages/ui/src/primitives/hint-trigger/hint-trigger-names.ts": "hintTriggerName: the name a hint trigger and its popup carry for the row they annotate",
+  "packages/ui/src/code-editor/code-editor-names.ts": "DIAGNOSTIC_SEVERITY_LABEL: the severity words the code editor announces a diagnostic with",
+  "packages/ui/src/content/lightbox/control-labels.ts": "lightboxName: the name a media viewer dialog carries for what it shows",
+  "packages/ui/src/content/message-media/message-media-names.ts":
+    "MEDIA_UNAVAILABLE_TEXT and externalMediaLoadName: the tile a message image that cannot load prints, and the click-to-load placeholder",
+  "packages/client/src/lib/image-size-copy.ts":
+    "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
+  "packages/client/src/forms/editor/bound-fields/macro-field-names.ts": "macroTokenCountLine: the estimated token count a macro field prints under its value",
+  "packages/client/src/forms/editor/bound-fields/secret-field-names.ts":
+    "REVEAL_SECRET_NAME and CONCEAL_SECRET_NAME: the reveal press beside a secret field, which the add-connection spec moves focus to",
+  "packages/client/src/features/rpg/lib/tracker-names.ts":
+    "trackerFieldName and the tracker value names: the per-carrier field and rest-button names the rpg panels print",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",
   "packages/client/src/features/character/lib/character-names.ts":
@@ -504,12 +616,18 @@ const TEST_CONSTANT_HOMES = {
     "characterRefusalCopy: the copy a coded character refusal raises, which a notice case reads its expected toast from",
   "packages/client/src/features/chat/lib/warning-notice.ts":
     "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
+  "packages/client/src/features/chat/lib/regex-stop-copy.ts":
+    "the On screen roster's marks and reasons for a script this browser stopped or a server pass skipped",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
+  "packages/client/src/features/notifications/lib/notifications-copy.ts":
+    "DEFERRED_TURN_HOST_UNAVAILABLE_COPY: the notice a dropped queued reply raises when its host is unavailable, which the inbox case reads its expected row from",
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
   "packages/client/src/routes/route-pending-names.ts":
     "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
+  "packages/client/src/components/model-run-confirm-copy.ts":
+    "MODEL_RUN_ESTIMATE_FAILED: the notice title a paid run raises when its call count cannot be read, which the schedule save case reads",
   "packages/client/src/features/chat/lib/transcript-copy.ts":
     "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
@@ -518,15 +636,24 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_ATTACH_BOOK_NAME and its siblings: the This-chat tab's attach doors, pickers, empty states and refusals",
   "packages/client/src/features/chat/lib/chat-settings-names.ts":
     "CHAT_ADD_INJECTION_NAME and its siblings: the This-chat tab's injection, override, prose and group form names",
+  "packages/client/src/features/chat/lib/memory-view-copy.ts":
+    "memoryStrikeName and its siblings: the Memory tab's control names, who-remembers lines and status subjects",
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
+  "packages/client/src/lib/chat-launch-names.ts": "NO_CHAT_SELECTED_TITLE: the Chats section's no-selection state a dead room returns the reader to",
+  "packages/client/src/lib/chat-title.ts": "deriveChatTitle: the title a room's heading and its chat list row print, which a room case finds the open room by",
   "packages/client/src/features/chat/lib/message-action-names.ts":
     "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
   "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile, add dialog and landing names",
+  "packages/client/src/features/databank/lib/databank-copy.ts": "DATABANK_INGEST_GLOSS: the gloss the Home Documents tile teaches an empty bank with",
+  "packages/client/src/features/databank/lib/databank-section-label.ts":
+    "DATABANK_SECTION_LABEL: the section's label, which the Home tile's open-section door names",
+  "packages/client/src/features/discovery/lib/corpus-search-targets.ts":
+    "CORPUS_SEARCH_TARGETS: the closed set of Corpus search targets, one suite case per kind and label",
   "packages/client/src/features/databank/lib/databank-upload-copy.ts":
     "DOCUMENT_UPLOAD_FAILURE: the add dialog's sentence for each refusal code of an uploaded file",
   "packages/client/src/features/config/lib/theme-import-copy.ts":
@@ -537,30 +664,70 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/app-shell/lib/app-shell-names.ts":
+    "BUG_REPORT_NAME and its siblings: the bug report door and form, the command chip, the skip link, the You sheet groups and the Background section's names",
+  "packages/client/src/features/user-admin/lib/user-admin-names.ts":
+    "ADMIN_CREATE_USER_NAME and its siblings: the Admin pane's create-user, approvals, sessions, embed and reset names and its override field names",
+  "packages/client/src/features/auth/lib/pending-join-names.ts":
+    "PENDING_JOIN_NOT_NOW_NAME and its siblings: the sign-in card's headings and presses, and the invite arms' headings, notes and persona field",
+  "packages/client/src/features/discovery/lib/character-facet.ts": "characterFacetLine: the genre, tone and setting line a browse row prints",
+  "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the distilled-against-library phrasing the Corpus list band prints",
+  "packages/client/src/features/refinery/lib/reason-copy.ts":
+    "DROP_REASON_COPY: the refusal text each dropped field's chip and note print, which the review and action-group suites read",
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
   "packages/client/src/lib/avatar-upload-copy.ts":
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
+  "packages/client/src/lib/turn-refusal-copy.ts":
+    "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/lib/revoked-key-copy.ts":
+    "REVOKED_KEY_COPY: what the Saved keys row, the connection badge, the Model roles readout and the composer say per revocation reason",
+  "packages/client/src/lib/display-pass-copy.ts":
+    "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
+  "packages/client/src/components/framed-link-names.ts": "FRAMED_LINK_CONFIRM_LABEL: the confirm a link clicked inside a routed card or reply frame opens",
+  "packages/client/src/components/framed-link-pace.ts":
+    "FRAMED_LINK_FREE_CANCELS and FRAMED_LINK_FIRST_WAIT_MS: the pace at which a routed frame's links raise the confirm again after Cancels",
+  "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
+  "packages/client/src/lib/in-library-copy.ts":
+    "chatInLibraryNotice and its siblings: what the chat, card and book imports and the restore summary say for a file the library already holds",
+  "packages/client/src/lib/config-search-tokens.ts": "CONFIG_PLUGIN_TOKEN: the Settings map's plugin narrowing token a completion row leads with",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
+  "packages/client/src/features/refinery/lib/schema-draft.ts":
+    "refusalSentenceOf: the sentence a JSON bound refusal code reads as, which the schema editor and its refusal note both print",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
+  "packages/client/src/features/refinery/lib/render-plan.ts":
+    "scopeChipLabelOf: the pure rule, over contracts' renderHintOf, that names the field the scope dialog's checkbox prints",
+  "packages/client/src/features/plugin/lib/plugin-surface-names.ts": "PLUGIN_SEARCH_SUBMIT_NAME: the plugin browse search's submit button",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
+    "approveLabel, enablePluginLabel, showInChatSwitchName, PLUGIN_ON_STATUS_LABEL, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action, status and switch names required by the no-copied-label contract",
   "packages/client/src/features/automation/lib/rule-copy.ts": "ruleEnabledSwitchName: the per-rule enable switch name",
+  "packages/client/src/features/automation/lib/automation-names.ts":
+    "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",
   "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
+  "packages/client/src/features/workloads/lib/workloads-result-copy.ts":
+    "INDEX_SKIPPED_LABEL and INGEST_SKIPPED_LABEL: the words a finished index or databank job prints after its skipped count",
+  "packages/client/src/features/config/lib/appearance-looks-nav.ts":
+    "APPEARANCE_LOOKS_SUBCATEGORY: the Looks section's model, whose heading its pane and its stability test both read",
+  "packages/client/src/features/workloads/lib/workloads-failure-copy.ts":
+    "OTHERS_CONTROLS_HIDDEN_TEXT: the line a delegated admin reads when the account list fails",
   "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
   "packages/client/src/features/chat/lib/regex-section-model.ts":
     "regexScriptEverywhereSwitchName and regexTierAllowedSwitchName: the regex script and tier switch names",
   "packages/client/src/features/user-admin/lib/admin-model.ts":
     "userEnabledFieldName and adminSaveName: the per-account enabled switch and the admin override row Save names",
   "packages/client/src/features/user-admin/lib/system-tuning-nav.ts": "SYSTEM_TUNING_SUBCATEGORY: the System tuning section label its admin Save names",
+  "packages/client/src/features/user-admin/lib/rate-limits-nav.ts": "RATE_LIMITS_SUBCATEGORY: the Rate limits section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/memory-tuning-nav.ts": "MEMORY_TUNING_SUBCATEGORY: the Memory tuning section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/system-config-nav.ts":
+    "MEDIA_TRUST_SUBCATEGORY, MULTI_USER_SUBCATEGORY and OPERATIONS_SUBCATEGORY: the section labels their admin Reset names",
   "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":
     "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",
@@ -571,7 +738,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME and TAG_FILTER_NAME: the Labels finder's list and filter names",
-  "packages/client/src/features/stats/lib/analytics-names.ts": "ANALYTICS_SEARCH_NAME: the Insights leaderboard list's search name",
+  "packages/client/src/features/stats/lib/analytics-names.ts":
+    "ANALYTICS_LEADERBOARD_NAME and its siblings: the Insights leaderboard list, models tab and figure names",
   "packages/client/src/features/stats/lib/analytics-copy.ts":
     "APPROX_DATES_MARK and APPROX_DATES_NOTE: the mark and note Insights prints for approximate message dates",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
@@ -583,10 +751,21 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
 } as const satisfies Readonly<Record<string, string>>;
-const TEST_CONSTANT_HOME_PATHS = Object.keys(TEST_CONSTANT_HOMES).map((path) => `^${RegExp.escape(path)}$`);
+const TEST_CONSTANT_HOME_PATHS = [exactPathPattern(Object.keys(TEST_CONSTANT_HOMES))];
 // The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
 // from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
+  // A hand-built media resolver admits another member's picture only when its owner is enabled, which sessions answers.
+  "tests/server/domain/chat/persistence/attachment-origin-links.int.test.ts": {
+    "domain/sessions": "createResolveUserEnabled: the disabled-account read compose hands the media resolver",
+  },
+  "tests/server/domain/chat/verbs/media-and-imagery-authority.int.test.ts": {
+    "domain/sessions": "createResolveUserEnabled: the disabled-account read compose hands the media resolver",
+  },
+  // The claim-ordering suite covers every claiming family, and the rpg family's refusal carries rpg's own code.
+  "tests/server/domain/chat/verbs/claim-after-refusal.suite.int.test.ts": {
+    "domain/rpg": "RPG_OP_CODES: the already-a-game refusal the rpg family's claim case asserts",
+  },
   // A rule's image size must reach the provider as the preset's dimensions, which imagery owns.
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
@@ -618,6 +797,32 @@ const SERVER_TEST_REACHES = {
     "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
     "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
   },
+  // A reader that skips a room an import is still landing is proven against a room of several landing stages, sized by
+  // the chat import's own stage bound.
+  "tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits and one cleanup chunk deletes",
+  },
+  "tests/server/foundation/observability/debug/persistence/import-landing-list.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/world-info/persistence/import-landing-reach.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/stats/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/discovery/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/import/persistence/import-stats-equal-rebuild.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/import/persistence/large-chat-yields.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the most rows one landing stage commits between two turns of the loop",
+  },
+  "tests/server/domain/import/persistence/large-chat-translation-yields.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_CHARS: the most text one landing stage carries, which floors the turns the write takes before its room lands",
+  },
   "tests/server/domain/sessions/persistence/users.int.test.ts": {
     "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
   },
@@ -626,6 +831,11 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/domain/assets/persistence/materialization-boundaries.int.test.ts": {
     "domain/chat": "CHAT_OP_CODES: the refusal the settings background materialization raises through the chat-owned code table",
+  },
+  // The seeded-background rewrite runs the card and room halves the composition root injects beside settings' own.
+  "tests/server/domain/settings/persistence/unreadable-settings-rewrite.int.test.ts": {
+    "domain/character": "migrateSeededCardBackgrounds: the card half of the rewrite the composition root injects",
+    "domain/chat": "migrateSeededRoomBackgrounds: the room half of the rewrite the composition root injects",
   },
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
@@ -640,6 +850,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
     "foundation/data-layout":
       "DATA_LAYOUT_DIRS, LEGACY_ENTRIES and DB_FILE_NAME: the legacy names, their targets and the layout directories exist only in this module, and no testkit door supplies them",
+  },
+  "tests/server/entry/boot/persistence/unreadable-settings-boot.int.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the env key the spawned server entry reads its database location from",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
@@ -668,6 +881,12 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/foundation/env/record/secret-file.int.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
+  },
+  "tests/server/foundation/env/record/env-name-case.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key in another letter case and reads it back",
+  },
+  "tests/server/foundation/env/record/child-refused-names.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key in each letter case the child environment refuses",
   },
   "tests/server/foundation/observability/bug-report-diagnostics.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key by its production name",
@@ -777,13 +996,15 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
 // reaches a story through the registries `@orb/testkit/browser` composes. A type-only import of any door stays legal.
 const SOURCE = "^packages/[^/]+/src/";
 const PACKAGE_DOORS = [
-  ...exportedDoors("client", clientPackage.exports),
-  ...exportedDoors("contracts", contractsPackage.exports),
-  ...exportedDoors("db", dbPackage.exports),
-  ...exportedDoors("inference", inferencePackage.exports),
-  ...exportedDoors("kit", kitPackage.exports),
-  ...exportedDoors("server", serverPackage.exports),
-  ...exportedDoors("ui", uiPackage.exports),
+  exactPathPattern([
+    ...exportedDoors("client", clientPackage.exports),
+    ...exportedDoors("contracts", contractsPackage.exports),
+    ...exportedDoors("db", dbPackage.exports),
+    ...exportedDoors("inference", inferencePackage.exports),
+    ...exportedDoors("kit", kitPackage.exports),
+    ...exportedDoors("server", serverPackage.exports),
+    ...exportedDoors("ui", uiPackage.exports),
+  ]),
 ];
 const TEST_TYPE_CONTRACT = "\\.test-d\\.ts$";
 const RUNTIME_ONLY: DependencyType[] = ["type-only", "type-import"];
@@ -798,6 +1019,11 @@ const PACKAGE_TEST_REACHES = {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",
   },
+  "tests/db/schema/regex-two-axis.repo.int.test.ts": {
+    "packages/server/src/entry/boot/index.ts":
+      "runBootMigrations: the case proves boot names every script migration 0020 rewrites, and only the persistence tier may seed the old shape",
+    "packages/server/src/foundation/observability/index.ts": "createLogger: the boot lines are read off the logger's own ring",
+  },
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
@@ -806,6 +1032,14 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/auth/components/pending-join-fixtures.ts": {
     "packages/contracts/src/chat/roster.ts":
       "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
+  },
+  "tests/client/features/character/components/bulk-remove-refusal.ct.tsx": {
+    "packages/db/src/index.ts":
+      "characters: the table a storage trigger refuses one card's delete on, so the case runs the server's own per-card failure; no client door reaches the database",
+  },
+  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
+    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
+      "UI_GUEST_BUDGETS.eventCpuMs: a case holds a host call past one event's CPU budget, and the lib door forwards only the walls that sum it",
   },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
@@ -818,6 +1052,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",
+  },
+  "tests/client/lib/display-styled.dom.test.ts": {
+    "packages/client/src/lib/message-render.ts":
+      "renderStyledMessageForDisplay: the display pass on the calling thread, the same per-script step the Worker runs; its browser door is useDisplayText, so the lib door forwards only its types",
   },
   "tests/client/features/character/components/_tag-row-stories.tsx": {
     "packages/client/src/features/character/components/character-tags-row.tsx":
@@ -845,6 +1083,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/talkativeness-popover.tsx":
       "TalkativenessPopover: the chip and popover a Members row renders, which only the row's menu opens and no door forwards",
     "packages/client/src/features/chat/lib/member-rows.ts": "MemberCharacterRow: the seat view the popover takes, which no door forwards",
+  },
+  "tests/client/features/chat/components/_member-row-name-stories.tsx": {
+    "packages/client/src/features/chat/components/member-row.tsx": "MemberRow: one Members row, which only the Members panel renders and no door forwards",
+    "packages/client/src/features/chat/lib/member-rows.ts": "MemberCharacterRow and MemberPersonRow: the seat views the row takes, which no door forwards",
   },
   "tests/client/lib/platform-polyfills.test.ts": {
     "packages/client/src/lib/platform-polyfills.ts": "the polyfill entry main.tsx imports for its side effect; it exports nothing for a door to forward",
@@ -879,6 +1121,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/continue-on-empty.ts": "resolveEmptySendAction: the feature-private empty-send dispatch",
     "packages/client/src/features/chat/lib/gen-duration.ts": "durationLabel and genDurationLabel: the feature-private duration formatting",
   },
+  "tests/client/features/chat/components/appearance-row-subjects.ct.tsx": {
+    "packages/client/src/lib/appearance-invariant-manifest.ts":
+      "APPEARANCE_HISTORICAL_ROWS: the subject selectors the rated matrix judges on the transcript; the lib door forwards only the bridge contract production reads",
+  },
   "tests/client/features/chat/components/chat-style-skins.ct.tsx": {
     "packages/client/src/lib/row-qualifiers.ts": "viewImageActionName: the portrait viewer opener accessible name",
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
@@ -890,6 +1136,38 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/lib/move-neighbours.test.ts": {
     "packages/client/src/features/chat/lib/move-neighbours.ts": "moveNeighboursAt and moveReasons: the pure edge and generating gates the move arrows read",
+  },
+  "tests/client/features/chat/lib/display-row.test.ts": {
+    "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
+  },
+  "tests/client/features/chat/lib/reply-parts.test.ts": {
+    "packages/client/src/features/chat/lib/reply-parts.ts":
+      "replyLayout and carriedRoomSheets: the feature-private split of a styled reply into frame runs and the room sheets it carries",
+  },
+  "tests/client/features/chat/lib/room-sheets.test.ts": {
+    "packages/client/src/features/chat/lib/room-sheets.ts":
+      "roomSheetSources and roomSheetsBefore: the feature-private choice of which rows' stylesheets a room carries",
+  },
+  "tests/client/features/chat/lib/panel-reads.test.ts": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "readPanels and PANEL_READ_MAX_CHARS: the bounded panel read every drawn body takes",
+  },
+  "tests/client/features/chat/lib/split-paragraphs.test.ts": {
+    "packages/client/src/features/chat/lib/split-paragraphs.ts": "splitIntoTrainParagraphs: the feature-private split of a reply into Tide's bubbles",
+  },
+  "tests/client/features/chat/components/styled-reply-frame.ct.tsx": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "REPLY_CARRY_BUDGET_CHARS: the carry budget the over-budget reply is sized past",
+  },
+  "tests/ui/markdown/kit-reading-differential.dom.test.ts": {
+    "packages/ui/src/markdown/math.ts": "MARKDOWN_MATH_PLUGIN: the math parse the renderer appends, which the differential's own parse must run",
+    "packages/ui/src/markdown/policy.ts":
+      "MARKDOWN_REMARK_PLUGINS: the renderer's remark plugins, which no door forwards, so the differential parses as the renderer does",
+    "packages/ui/src/markdown/tail-hold.ts": "holdAmbiguousTail: the streamed transcript's tail hold, which the streamed axis runs before the repair",
+  },
+  "tests/ui/markdown/frame-lift.dom.test.ts": {
+    "packages/ui/src/markdown/frame/frame-document-context.ts":
+      "FrameDocumentContext: the frame-document flag FrameMarkdown requires, which only useFrameDocument sets inside a mounted effect, so a node render of the frame lift supplies it directly",
+    "packages/ui/src/markdown/frame/raw-text-lift.ts":
+      "liftRawText: the stand-in the lift picks, which no render shows when a reply names it only behind an escape",
   },
   "tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles whose pinned band height the suite holds",
@@ -909,6 +1187,9 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/message-avatar-reach.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles that paint an avatar, whose touch reach the suite holds",
+  },
+  "tests/client/features/chat/components/message-row-header-long-name.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles that seat the avatar chip in the message header",
   },
   "tests/client/features/chat/components/_context-divider-stories.tsx": {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
@@ -953,6 +1234,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/saved-replies-retry.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_ACTIONS_MENU_NAME: the row menu trigger that opens the saved-replies door",
   },
+  "tests/client/features/chat/components/_memory-view-stories.tsx": {
+    "packages/client/src/features/chat/components/memory-view-tab.tsx":
+      "MemoryViewTab: the Memory tab body, which only the chats section renders and no door forwards",
+  },
   "tests/client/features/chat/components/_chat-forks-stories.tsx": {
     "packages/client/src/features/chat/components/settings-context-tab.tsx":
       "CommittedSettingsTab: the This-chat tab body, which only the chats section renders and no door forwards",
@@ -976,8 +1261,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
   },
-  "tests/client/features/refinery/components/platform-action-groups.suite.ct.tsx": {
-    "packages/client/src/features/refinery/lib/reason-copy.ts": "DROP_REASON_COPY: production queue refusal text used by rendered action-group assertions",
+  "tests/client/features/workloads/hooks/use-library-import.dom.test.ts": {
+    "packages/client/src/features/workloads/hooks/use-library-import.ts":
+      "useLibraryImport: the feature-private folder-preview run, whose late-event and answer-ordering rules only its own callbacks can be driven through",
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
@@ -996,6 +1282,15 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/preset/lib/template-addresses.test.ts": {
     "packages/client/src/features/preset/lib/template-rows.ts": "templateGroups, templateRowById and templateStoredText: the feature-private template model",
+  },
+  "tests/client/features/preset/components/template-drill-in-kind.ct.tsx": {
+    "packages/client/src/features/preset/lib/template-rows.ts": "TEMPLATE_KIND_LABEL: the display word a template's kind chip and its list kicker print",
+  },
+  "tests/client/features/preset/components/preset-advanced-reach.ct.tsx": {
+    "packages/client/src/features/preset/lib/sampling-knob-catalog.ts": "SAMPLING_FLAG_LABELS: the Word bias group's accessible name",
+  },
+  "tests/client/features/preset/components/sampler-order-grip-pairing.ct.tsx": {
+    "packages/client/src/features/preset/lib/sampling-knob-catalog.ts": "SAMPLING_FLAG_LABELS: the sampler order list's accessible name",
   },
   "tests/client/features/config/lib/theme-css-warnings.test.ts": {
     "packages/client/src/features/config/lib/theme-css-warnings.ts":
@@ -1521,6 +1816,24 @@ const CLIENT_BOUNDARIES = [
     from: { path: `${CLIENT}features/plugin/lib/ui-guest/ui-guest\\.worker\\.ts$` },
     to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
   },
+  {
+    name: "display-pass-worker-no-react",
+    comment: "React refresh reads window at load; the display-pass Worker cannot reach React modules through any chain.",
+    severity: "error",
+    from: { path: `${CLIENT}lib/display-pass\\.worker\\.ts$` },
+    to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
+  },
+  {
+    name: "display-scripts-off-main-thread",
+    comment:
+      "message-render.ts, display-styled.ts and regex-instrumented.ts run regex scripts on the calling thread; a browser surface reads the display pipeline through useDisplayText and the editor's preview through runRegexPreview, which run them in the display-pass Worker.",
+    severity: "error",
+    from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}features/chat/hooks/use-display-text\\.ts$`] },
+    to: {
+      path: [`${CLIENT}lib/message-render\\.ts$`, `${CLIENT}lib/display-styled\\.ts$`, `${CLIENT}lib/regex-instrumented\\.ts$`],
+      dependencyTypesNot: ["type-only"],
+    },
+  },
 ] satisfies IForbiddenRuleType[];
 
 const SERVER_AUTHORITY = [
@@ -1745,6 +2058,29 @@ const DOMAIN_AUTHORITY = [
     to: { path: `${SRV}domain/$1/verbs/`, dependencyTypesNot: ["type-only"] },
   },
   {
+    name: "domain-contract-types-only",
+    comment:
+      "A domain's contract/ is its typed surface with no logic (Core-0 §4), and every consumer that derives from it loads what it imports at runtime. A type from anywhere stays legal; a runtime import reaches only the contract itself, @orb/contracts, @orb/kit and the server primitives.",
+    severity: "error",
+    from: { path: `${SRV}domain/([^/]+)/contract/` },
+    to: {
+      path: [`${SRV}(domain|infra|foundation|transport|entry)/`, DB, INFERENCE],
+      pathNot: `${SRV}domain/$1/contract/`,
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
+    name: "domain-substrate-no-io",
+    comment:
+      "substrate/ holds pure feature-local helpers with zero I/O (Core-0-Architecture-and-Structure.md §4): row access lives in persistence/, a database handle comes from @orb/db only through persistence/ or a root composition file, and infra/ is reached through injected ops. A type from anywhere stays legal.",
+    severity: "error",
+    from: { path: `${SRV}domain/.+/substrate/` },
+    to: {
+      path: [DB, `${SRV}domain/.+/persistence/`, `${SRV}infra/`],
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
     name: "domain-substrate-mediates-subsystems",
     comment: "Root composition surfaces may assemble subsystems; verbs receive them through substrate injection.",
     severity: "error",
@@ -1788,7 +2124,7 @@ const DOMAIN_AUTHORITY = [
     severity: "error",
     from: {
       pathNot:
-        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants)))|entry/(auth/seam|compose/chat))\\.ts$",
+        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants|start-chat)))|entry/(auth/seam|compose/chat))\\.ts$",
     },
     to: { path: "^packages/server/src/primitives/role-data/index\\.ts$" },
   },
@@ -1828,6 +2164,13 @@ const DOMAIN_AUTHORITY = [
     to: { path: "^packages/server/src/entry/auth/principal-mint\\.ts$" },
   },
   {
+    name: "viewer-visibility-registry-importers",
+    comment: "Only the resolver mints a viewer visibility answer and only a read that takes one checks it, by any specifier or barrel.",
+    severity: "error",
+    from: { pathNot: Object.keys(VISIBILITY_REGISTRY_IMPORTERS) },
+    to: { path: `${SRV}domain/chat/substrate/viewer-visibility-registry\\.ts$` },
+  },
+  {
     name: "chat-engine-authority-context",
     comment: "The turn engine receives frozen facts and bound ports, never request authority, even through type edges or barrels (D19).",
     severity: "error",
@@ -1836,10 +2179,11 @@ const DOMAIN_AUTHORITY = [
   },
   {
     name: "domain-no-cross-subsystem",
+    comment: "A named subsystem reaches another only through substrate/. persistence/ is database access (Core-0 §4), so it reaches no subsystem at all.",
     severity: "error",
     from: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
-      pathNot: [`${SRV}domain/[^/]+/${FIXED_SLOTS}/`],
+      pathNot: [`${SRV}domain/[^/]+/${MEDIATING_SLOTS}/`],
     },
     to: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
@@ -2032,6 +2376,7 @@ const config = {
     ...LAYER_DIRECTION,
     ...CLIENT_BOUNDARIES,
     ...UI_SATELLITE_OWNERS,
+    UI_FRAME_MARKDOWN_FRAME_ONLY,
     ...SERVER_AUTHORITY,
     ...DOMAIN_AUTHORITY,
     ...EXECUTOR_BOUNDARIES,

@@ -11,13 +11,14 @@ import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
-import { selectActionName } from "@orb/ui/lib";
+import { editActionName, selectActionName } from "@orb/ui/lib";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
   BACKGROUND_FROM_URL_NAME,
   BACKGROUND_GRID_NAME,
   BACKGROUND_URL_FIELD_NAME,
+  CHARACTER_SEARCH_NAME,
   CORNER_RADIUS_NAME,
   createTagName,
   editTagName,
@@ -33,6 +34,7 @@ import {
   CHARACTER_ADD_TAG_NAME,
   CHARACTER_CHATS_TAB_LABEL,
   CHARACTER_CONNECT_PERSONA_NAME,
+  CHARACTER_CONTEXT_TABLIST_NAME,
   CHARACTER_DELETE_TITLE,
   CHARACTER_DESCRIPTION_FIELD_NAME,
   CHARACTER_DUPLICATE_TITLE,
@@ -50,11 +52,12 @@ import {
   CHARACTER_LIBRARY_NAME,
   CHARACTER_LINK_BOOK_NAME,
   CHARACTER_LINKS_TAB_LABEL,
+  CHARACTER_LOOK_TAB_LABEL,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
   CHARACTER_NO_SNAPSHOTS_TEXT,
+  CHARACTER_OVERVIEW_TAB_LABEL,
   CHARACTER_RESTORE_SNAPSHOT_TITLE,
-  CHARACTER_SEARCH_NAME,
   CHARACTER_SELECT_MULTIPLE_NAME,
   CHARACTER_SHOW_ARCHIVED_NAME,
   CHARACTER_SHOW_FAVORITES_NAME,
@@ -65,7 +68,11 @@ import {
   CHARACTER_TAG_VOCABULARY_NAME,
   characterBulkDeleteTitle,
   characterBulkTagTitle,
+  characterFiltersClosedName,
+  characterFiltersOpenName,
+  characterShowMoreTagsName,
 } from "#client/features/character/lib/character-names.ts";
+import { characterRowQualifier } from "#client/features/character/lib/character-row-qualifier.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { GREETING_EDIT_NAME, GREETING_MAKE_NEW_NAME, GREETING_STUDIO_NAME, greetingOrdinalLabel } from "#client/features/character/lib/greeting-copy.ts";
 import {
@@ -82,6 +89,7 @@ import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/ed
 import { censusSuffix } from "#client/lib/census-title.ts";
 import { LIST_PANEL_NOUN, listPaneLabel, panelCloseName, panelEdgeName, screenListDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -110,7 +118,6 @@ import { holdTrpcProcedure } from "./trpc.ts";
 
 const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
-const TABLIST_NAME = "Character";
 const UNEXERCISED_ACTIONS = [
   "greeting Rewrite and transform permutations",
   "portrait OS file chooser",
@@ -228,8 +235,7 @@ async function contextTab(flow: CharacterFlow, name: string): Promise<Locator> {
   const context = page.locator(CONTEXT);
   await openContext(flow);
   expectSubject(flow, name, "tab");
-  // eslint-disable-next-line orb/no-hand-copied-label -- The Character context tablist is not RPG's NPC journal type label.
-  const tab = context.getByRole("tablist", { name: TABLIST_NAME, exact: true }).getByRole("tab", { name, exact: true });
+  const tab = context.getByRole("tablist", { name: CHARACTER_CONTEXT_TABLIST_NAME, exact: true }).getByRole("tab", { name, exact: true });
   await tab.scrollIntoViewIfNeeded();
   await flow.action(`characters-tab-${name}`, {
     action: async (): Promise<void> => {
@@ -264,7 +270,7 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   await flow.page.keyboard.press("Escape");
   await expect(options).toBeHidden();
 
-  const disclosure = list.getByRole("button", { name: /show more filters/u });
+  const disclosure = list.getByRole("button", { name: namePattern(characterFiltersClosedName(NAME_HOLE, false), characterFiltersClosedName(NAME_HOLE, true)) });
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
@@ -275,14 +281,14 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   if (leadingTag !== undefined) {
     await filters.getByText(leadingTag.name, { exact: true }).waitFor({ state: "visible" });
   }
-  const more = filters.getByRole("button", { name: /^Show \d+ more tags$/u });
+  const more = filters.getByRole("button", { name: namePattern(characterShowMoreTagsName(NAME_HOLE)) });
   if (await more.isVisible()) {
     await more.click();
     const vocabulary = filters.getByRole("region", { name: CHARACTER_TAG_VOCABULARY_NAME, exact: true });
     await record(flow, "expanded-tag-vocabulary", filters, [filters.getByRole("searchbox", { name: CHARACTER_FILTER_TAGS_NAME, exact: true }), vocabulary]);
     await filters.getByRole("button", { name: CHARACTER_FEWER_TAGS_NAME, exact: true }).click();
   }
-  const fewerFilters = filters.getByRole("button", { name: /hide the tag vocabulary/u });
+  const fewerFilters = filters.getByRole("button", { name: characterFiltersOpenName(true), exact: true });
   if (await fewerFilters.isVisible()) {
     await fewerFilters.click();
   }
@@ -316,7 +322,7 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
     await openList(flow);
     // A phone trail folds New into its More menu once grown text leaves no room for it.
     await pressOverflowed(page, {
-      inline: page.getByRole("button", { name: /^(?:New|New character)$/u }),
+      inline: page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
       overflow: page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
       name: CHARACTER_NEW_NAME,
     });
@@ -371,7 +377,7 @@ async function libraryWalk(flow: CharacterFlow): Promise<void> {
   const cancel = flow.page.getByRole("dialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await walkDoor(flow, {
     id: "new-dialog",
-    trigger: flow.page.getByRole("button", { name: /^(?:New|New character)$/u }),
+    trigger: flow.page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
     body: flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true }),
     exit: cancel,
   });
@@ -451,7 +457,7 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
     }
     await walkScope(flow, form, `facet-${facet.id}`);
     observe(flow, facet.id, "visited", "Registered facet drill walked and left through Back");
-    const overview = await contextTab(flow, "Overview");
+    const overview = await contextTab(flow, CHARACTER_OVERVIEW_TAB_LABEL);
     await checkpoint(flow, `facet-inspector-${facet.id}`, overview);
     await dismissContext(flow);
     await back.click();
@@ -590,7 +596,7 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
 }
 
 async function lookJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
-  const look = await contextTab(flow, "Look");
+  const look = await contextTab(flow, CHARACTER_LOOK_TAB_LABEL);
   const font = look.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   await expect(font).toBeVisible();
   const colours = await look.locator('[data-slot="color-field-trigger"]').all();
@@ -705,7 +711,7 @@ async function historyFailureJourney(flow: CharacterFlow, name: string): Promise
 }
 
 async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
-  const look = await contextTab(flow, "Look");
+  const look = await contextTab(flow, CHARACTER_LOOK_TAB_LABEL);
   const before = await flow.client.character.get.query({ characterId });
   const next = alternateFont(before.themeOverride?.font);
   const font = look.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
@@ -730,7 +736,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
 }
 
 async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
-  await contextTab(flow, "Overview");
+  await contextTab(flow, CHARACTER_OVERVIEW_TAB_LABEL);
   const button = flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true });
   await button.click();
   let menu = flow.page.getByRole("menu");
@@ -878,7 +884,7 @@ function completedCommand(flow: CharacterFlow, id: (typeof COMMAND_ACTION_IDS)[n
 }
 
 async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
-  await contextTab(flow, "Overview");
+  await contextTab(flow, CHARACTER_OVERVIEW_TAB_LABEL);
   await flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true }).click();
   return flow.page.getByRole("menu");
 }
@@ -887,7 +893,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
   await openList(flow);
   // A phone trail folds New into its More menu once grown text leaves no room for it.
   await pressOverflowed(flow.page, {
-    inline: flow.page.getByRole("button", { name: /^(?:New|New character)$/u }),
+    inline: flow.page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
     overflow: flow.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
     name: CHARACTER_NEW_NAME,
   });
@@ -1067,7 +1073,9 @@ async function exportCommandCharacter(flow: CharacterFlow, card: SourceCharacter
 
 async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceCharacter, copy: SourceCharacter): Promise<void> {
   const library = await openList(flow);
-  const disclosure = library.getByRole("button", { name: /show more filters/u });
+  const disclosure = library.getByRole("button", {
+    name: namePattern(characterFiltersClosedName(NAME_HOLE, false), characterFiltersClosedName(NAME_HOLE, true)),
+  });
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
@@ -1139,7 +1147,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
   const personaRow = content.getByRole("button", { name: persona.name, exact: true });
   await personaRow.scrollIntoViewIfNeeded();
   await personaRow.click();
-  const editor = content.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
+  const editor = content.getByRole("group", { name: editActionName(persona.name), exact: true });
   await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(persona.name);
   await expect(editor.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true })).toHaveValue(
     "A disposable native command witness for {{user}} and {{char}}.",
@@ -1333,7 +1341,8 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
   try {
     const original = await sourceCharacter(flow);
     flow.provenance.original = original.id;
-    const rowName = original.nameIsAmbiguous ? `${original.name} · ${original.handle}` : original.name;
+    const qualifier = characterRowQualifier(original);
+    const rowName = qualifier === undefined ? original.name : `${original.name} · ${qualifier}`;
     if (area === "library") {
       await listJourney(flow, original.name, rowName);
       await libraryWalk(flow);

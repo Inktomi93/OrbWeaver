@@ -7,14 +7,23 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
+import { isPlainObject } from "@orb/kit/guards";
+import type { ChatId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
-import type { QueryClient } from "@tanstack/react-query";
-import type { TRPCClient, TRPCClientErrorLike } from "@trpc/client";
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
-import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import type { DataTag, QueryClient, UnusedSkipTokenOptions } from "@tanstack/react-query";
+import type { HTTPLinkOptions, TRPCClient, TRPCClientErrorLike } from "@trpc/client";
+import { createTRPCClient, httpBatchLink, httpLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
+import type { inferOutput, TRPCOptionsProxy, TRPCQueryKey, TRPCQueryOptionsResult } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { formatTrpcOp, IS_DEV } from "#lib";
+import { formatTrpcOp, IS_DEV, refusalOfAnswer } from "#lib";
 import { PostEventSource } from "./bus/post-event-source.ts";
+
+declare module "@trpc/client" {
+  interface OperationContext {
+    /** Send this operation alone instead of in a batch; {@link createTrpcClient} states which reads set it. */
+    readonly skipBatch?: boolean;
+  }
+}
 
 /** The one mount path (mirrors `entry/app.ts` TRPC_ENDPOINT). */
 const TRPC_URL = "/api/trpc";
@@ -39,18 +48,38 @@ export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
-/** Refuse a non-JSON answer to a tRPC call with an error that names the HTTP status, instead of letting the
- *  batch link's JSON parse report `Unexpected token '<'`. A page here came from something in front of the app
- *  (a proxy or login redirect), never from the tRPC mount, which always answers JSON. */
+/** Whether a failed answer's JSON body is a tRPC envelope (`result` or `error`, alone or one per batched call), which the
+ *  link reads itself. A proxy's JSON error page is not one. */
+async function carriesTrpcEnvelope(response: Response): Promise<boolean> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    // `Response.json()` rejects a body that is not JSON text with a `SyntaxError`; any other throw is a failed read.
+    if (error instanceof SyntaxError) {
+      return false;
+    }
+    throw error;
+  }
+  const isEnvelope = (entry: unknown): boolean => isPlainObject(entry) && ("result" in entry || "error" in entry);
+  return Array.isArray(body) ? body.every(isEnvelope) : isEnvelope(body);
+}
+
+/** Refuse an answer that is not a tRPC answer with a {@link RequestRefusedError} of the kind its status names, instead of
+ *  letting the batch link's JSON parse report `Unexpected token '<'` or "Unable to transform response from server". The
+ *  tRPC mount answers JSON envelopes for every call it reads; what arrives otherwise is the mount's own bare refusal (an
+ *  over-size body, a non-JSON content type, a blocked address) or a page from something in front of the app (a proxy or
+ *  login redirect, in HTML or in a JSON error body of its own). The link wraps what this throws, so a caller reads the
+ *  typed error with `requestRefusalOf`. */
 const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> = async (input, init) => {
   // The link's init type allows an explicit `undefined` signal; the DOM type (exactOptionalPropertyTypes) does not.
   const response = await fetch(input, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("json")) {
+  // A success is read by the link as it is; only a failed JSON answer is checked for being the app's own envelope.
+  if (contentType.includes("json") && (response.ok || (await carriesTrpcEnvelope(response.clone())))) {
     return response;
   }
-  const where = response.redirected ? ` after a redirect to ${response.url}` : "";
-  throw new Error(`The server answered HTTP ${response.status}${where} with ${contentType === "" ? "no content type" : contentType} instead of JSON`);
+  throw refusalOfAnswer(response);
 };
 
 /**
@@ -72,8 +101,8 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  * `httpBatchLink` — NOT `httpBatchStreamLink` — is a DELIBERATE, probed choice (2026-08-02), not
  * un-migrated legacy. The stream link's per-response flushing on mixed-speed batches is real, but it
  * costs two things on THIS stack:
- *   1. It silently kills `responseMeta`'s error visibility. The tRPC server's jsonl branch (11.18.0,
- *      the pinned version) calls `initResponse({ …, errors: [] })` — hardcoded empty, because the head
+ *   1. It silently kills `responseMeta`'s error visibility. The tRPC server's jsonl branch (11.23.0,
+ *      the installed version) calls `initResponse({ …, errors: [] })` — hardcoded empty, because the head
  *      is flushed before any procedure resolves (`resolveResponse`, the
  *      `info.accept === "application/jsonl"` branch). Our
  *      `entry/app.ts` mounts `responseMeta: ({ errors }) => rateLimitResponseMeta(errors)`, so
@@ -86,8 +115,23 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  *      every client CT that drives a query failed with "Stream closed before head was
  *      received", until the stub grows a jsonl producer.
  * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).
+ *
+ * A batch is one response written after its slowest call settles, so a fast read batched beside a slow one
+ * waits for it. A read that gates a paint or an input therefore skips batching: an operation whose context carries
+ * `skipBatch` ({@link RIDES_ALONE}) rides an `httpLink` built from the same options as the batch link, so it passes
+ * the same server checks (the mount reads the method, content type and CSRF header per request, never the batch flag).
+ * The room's reads are those reads: the roster ({@link roomRosterOptions}) draws the composer and must never wait
+ * for the transcript, and the transcript ({@link roomTailOptions}, the anchored window) draws the rows and must
+ * never wait for the composer's endpoint probes.
  */
 export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
+  // One option set for both request links, so a header or fetch rule added here reaches the unbatched link too.
+  const request = {
+    url,
+    methodOverride: "POST",
+    fetch: jsonOnlyFetch,
+    headers: () => ({ [CSRF_HEADER]: "1" }),
+  } as const satisfies HTTPLinkOptions<AppRouter["_def"]["_config"]["$types"]>;
   return createTRPCClient<AppRouter>({
     links: [
       splitLink({
@@ -107,18 +151,51 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
           }),
           // Query inputs can exceed a URL ceiling; POST preserves them under the server's JSON-body cap.
           // TanStack Query owns read caching, and the mount already admits native method overrides.
-          httpBatchLink({
-            url,
-            maxItems: TRPC_BATCH_MAX_ITEMS,
-            maxURLLength: TRPC_BATCH_MAX_URL_LENGTH,
-            methodOverride: "POST",
-            fetch: jsonOnlyFetch,
-            headers: () => ({ [CSRF_HEADER]: "1" }),
+          splitLink({
+            condition: (op) => op.context.skipBatch === true,
+            true: httpLink(request),
+            false: httpBatchLink({ ...request, maxItems: TRPC_BATCH_MAX_ITEMS, maxURLLength: TRPC_BATCH_MAX_URL_LENGTH }),
           }),
         ],
       }),
     ],
   });
+}
+
+/**
+ * The request options that send one read alone, never in a batch. The one home of the `skipBatch` context object:
+ * every read that gates a surface's first paint spreads or passes this, so a batch's slowest call never holds it.
+ */
+export const RIDES_ALONE = { trpc: { context: { skipBatch: true } } } as const;
+
+type RoomRoster = inferOutput<Trpc["chat"]["getChat"]>;
+type RoomTail = inferOutput<Trpc["chat"]["listMessages"]>;
+
+/** What a room read's `queryOptions` returns, spelled once because `useExplicitReturnType` needs it on each helper. */
+type RoomReadOptions<TData> = UnusedSkipTokenOptions<TData, TrpcReadError, TData, TRPCQueryKey> &
+  TRPCQueryOptionsResult & { readonly queryKey: DataTag<TRPCQueryKey, TData, TrpcReadError> };
+
+/**
+ * The room's roster read (`chat.getChat`), the one spelling every reader and warmer of that key uses.
+ *
+ * @remarks
+ * It rides alone, never batched, whichever reader starts the fetch: the room draws its composer from this read,
+ * and a batch would hold it until the room's transcript read answers.
+ */
+export function roomRosterOptions(trpc: Trpc, input: { readonly chatId: ChatId }): RoomReadOptions<RoomRoster> {
+  return trpc.chat.getChat.queryOptions(input, RIDES_ALONE);
+}
+
+/**
+ * The room's transcript tail (`chat.listMessages` with no cursor), the one spelling every reader of that key uses.
+ *
+ * @remarks
+ * It rides alone, whichever reader starts the fetch: the room's rows draw from this read, and the composer that
+ * mounts beside it sends the chat engine's endpoint probe, which can leave in the same tick and which a batch
+ * would make the rows wait for.
+ */
+export function roomTailOptions(trpc: Trpc, input: { readonly chatId: ChatId }): RoomReadOptions<RoomTail> {
+  return trpc.chat.listMessages.queryOptions(input, RIDES_ALONE);
 }
 
 /**

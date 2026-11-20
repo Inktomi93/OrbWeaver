@@ -22,6 +22,11 @@ interface RefineryActorParams {
   readonly principal: Principal;
 }
 
+/** A verb that reaches the owner's model or fetches carries the request's cancel. */
+interface RefineryCallParams extends RefineryActorParams {
+  readonly signal: AbortSignal;
+}
+
 export interface StartSessionParams extends RefineryActorParams {
   readonly characterId: CharacterId;
   /** Optional roster label (bounded by `refinerySessionNameSchema` at the verb); absent/null ⇒ unnamed. */
@@ -64,7 +69,7 @@ export interface DeleteSessionParams extends RefineryActorParams {
   readonly sessionId: RefinerySessionId;
 }
 
-export interface RunStageParams extends RefineryActorParams {
+export interface RunStageParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
   readonly stage: RefineryStage;
   /** OPERATE-BACK (schema-renderer §16.1 — "checkout an earlier commit"): analyze THIS session rewrite
@@ -73,7 +78,7 @@ export interface RunStageParams extends RefineryActorParams {
   readonly rewriteRunId?: RefineryRunId | undefined;
 }
 
-export interface IterateParams extends RefineryActorParams {
+export interface IterateParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
   /** Loop guidance for THIS and later rounds — persisted onto the session (parsed via
    *  `refineryGuidanceSchema`); absent ⇒ the session's stored guidance stands. */
@@ -96,7 +101,7 @@ export interface AcceptedField {
   readonly confirmDiverged?: true | undefined;
 }
 
-export interface ApplyFieldsParams extends RefineryActorParams {
+export interface ApplyFieldsParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
   /** Explicit per-field accept — apply is NEVER automatic and never all-fields-by-default (belt 10). */
   readonly accepts: readonly AcceptedField[];
@@ -117,7 +122,7 @@ export interface DecideRewriteParams extends RefineryActorParams {
 /** `applyAsCopy` — the branch-off terminal act (schema-renderer §17): the SAME reviewed accept set, but
  *  the write arm creates a NEW character (duplicate chassis + patch overlay) and the live card is never
  *  touched. `name` defaults to `"<name> (refined)"`. */
-export interface ApplyAsCopyParams extends RefineryActorParams {
+export interface ApplyAsCopyParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
   readonly accepts: readonly AcceptedField[];
   readonly name?: string | undefined;
@@ -145,7 +150,7 @@ export type ScoreSweepOptions = WorkloadRunScope & {
    *  re-scores every card. See `refineScoreSweepWorkloadParams`. */
   readonly rescoreAll: boolean;
   readonly report: ReportProgress;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 };
 
 /** Count scope cannot be substituted for an executing sweep's authority. */
@@ -153,7 +158,7 @@ export type ScoreSweepEstimateOptions = WorkloadEstimateScope & { readonly resco
 
 /** `preflight` — the output-budget readout (schema-renderer §8): resolved per call so a preset edit
  *  shows up on the next read (the D126 discipline). WARN-only; never blocks a run. */
-export interface PreflightParams extends RefineryActorParams {
+export interface PreflightParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
 }
 
@@ -183,14 +188,14 @@ export type ListSchemasParams = RefineryActorParams;
 /** `generateSchema` — NL → a draft schema document (never persisted; the client holds the draft). `arm`
  *  picks the authoring PIPELINE (single enforced call · stepwise · structure-then-hints); absent
  *  = `REFINERY_FORGE_ARM_DEFAULT`. */
-export interface GenerateSchemaParams extends RefineryActorParams {
+export interface GenerateSchemaParams extends RefineryCallParams {
   readonly description: string;
   readonly stage: RefinerySchemaStage;
   readonly arm?: RefineryForgeArm | undefined;
 }
 
 /** `refineSchema` — one conversational iteration over the CURRENT draft ("add a severity enum"). */
-export interface RefineSchemaParams extends RefineryActorParams {
+export interface RefineSchemaParams extends RefineryCallParams {
   readonly schema: Record<string, unknown>;
   readonly instruction: string;
   readonly stage: RefinerySchemaStage;
@@ -199,7 +204,7 @@ export interface RefineSchemaParams extends RefineryActorParams {
 
 /** `testSchema` — a DRILL: run the stage once against an owned card under the draft schema; returns the
  *  payload for preview rendering. Writes NO run row, stamps NOTHING. */
-export interface TestSchemaParams extends RefineryActorParams {
+export interface TestSchemaParams extends RefineryCallParams {
   readonly schema: Record<string, unknown>;
   readonly stage: RefinerySchemaStage;
   readonly characterId: CharacterId;
@@ -207,7 +212,7 @@ export interface TestSchemaParams extends RefineryActorParams {
 
 /** `previewSchemaPlan` — what the caller's bound Utility model would do with a draft schema. Reads the draft only:
  *  no row, no model call. */
-export interface PreviewSchemaPlanParams extends RefineryActorParams {
+export interface PreviewSchemaPlanParams extends RefineryCallParams {
   readonly schema: Record<string, unknown>;
   readonly stage: RefinerySchemaStage;
 }

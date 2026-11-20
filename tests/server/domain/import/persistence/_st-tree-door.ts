@@ -3,9 +3,19 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { ImportPreview, ImportPreviewKind } from "@orb/contracts/import";
-import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import {
+  cardImportResultSchema,
+  encodePersonaCollisionChoices,
+  importStartedSchema,
+  PERSONA_COLLISION_FIELD,
+  ST_SETTINGS_FILE,
+  TREE_DRY_RUN_FIELD,
+  TREE_DRY_RUN_VALUE,
+  TREE_FILE_FIELD,
+} from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -26,7 +36,9 @@ export type Files = Readonly<Record<string, Bytes>>;
 
 // The owner's default content seeds in the background after the first authed request. Settling it here keeps a
 // test's before/after row deltas from racing the seed.
-export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJobs"> = {}): Promise<ServerTestHarness> {
+export async function harness(
+  options: Pick<ServerHarnessOptions, "db" | "startJobs" | "providerFetch" | "ownerId" | "clock" | "ids"> = {},
+): Promise<ServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
@@ -43,12 +55,34 @@ export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJ
 }
 
 // SillyTavern wire text is snake_case by spec, so the fixtures are raw JSON text.
-function cardJson(name: string): string {
+export function cardJson(name: string): string {
   return `{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":${JSON.stringify(name)},"description":"${name.slice(0, 40)} keeps the light.","first_mes":"The lamp is lit."}}`;
 }
 
+/** A card PNG. Every call is the same picture: the id varies only the bytes the card chunk replaces, which are not art. */
 export function cardPng(root: ServerTestHarness, name: string): Uint8Array {
   return writeCardChunk(new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))), cardJson(name));
+}
+
+// One zero-length private ancillary chunk (`abCd`) ahead of IEND makes a different picture of the same pixels.
+const ABCD_CHUNK = Uint8Array.from([0x00, 0x00, 0x00, 0x00, 0x61, 0x62, 0x43, 0x64, 0x78, 0x06, 0xe9, 0xb3]);
+const IEND_CHUNK_BYTES = 12;
+
+/** The card {@link cardPng} writes, under other art. */
+export function cardPngUnderOtherArt(root: ServerTestHarness, name: string): Uint8Array {
+  const png = new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  return writeCardChunk(Uint8Array.from([...png.slice(0, -IEND_CHUNK_BYTES), ...ABCD_CHUNK, ...png.slice(-IEND_CHUNK_BYTES)]), cardJson(name));
+}
+
+/** One card file through the Characters dialog door. */
+export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<CardImportResult> {
+  const form = new FormData();
+  form.append(UPLOAD_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
+  const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
+  expect(response.status).toBe(200);
+  const result = cardImportResultSchema.parse(await response.json());
+  expect(result.failed).toEqual([]);
+  return result;
 }
 
 export function settings(personas: Readonly<Record<string, string>>): string {
@@ -65,13 +99,22 @@ export function chatOf(text: string): string {
 export const CHAT = chatOf("Aria greets you.");
 export const WORLD = '{"entries":{"0":{"uid":0,"key":["eldoria"],"comment":"Eldoria","content":"A forest.","order":100}}}';
 
+interface PostOptions {
+  readonly headers?: Readonly<Record<string, string>>;
+  /** The owner's answers to the persona collision review. */
+  readonly choices?: PersonaCollisionChoices;
+}
+
 export async function post(
   root: ServerTestHarness,
   files: Files,
   dryRunFields: readonly (string | File)[],
-  headers: Readonly<Record<string, string>> = CSRF_HEADERS,
+  { headers = CSRF_HEADERS, choices = {} }: PostOptions = {},
 ): Promise<Response> {
   const form = new FormData();
+  for (const choice of encodePersonaCollisionChoices(choices)) {
+    form.append(PERSONA_COLLISION_FIELD, choice);
+  }
   for (const [path, bytes] of Object.entries(files)) {
     const relPath = path.startsWith("/") ? path.slice(1) : `${WRAPPER}/${path}`;
     form.append(TREE_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], relPath), relPath);
@@ -82,9 +125,15 @@ export async function post(
   return await root.http.request(PORTABILITY_ROUTES.importTree, { method: "POST", headers, body: form });
 }
 
-/** Post the folder and stop at the admitted row: nothing has read the staged tree yet. */
-export async function admit(root: ServerTestHarness, files: Files, dryRunFields: readonly string[] = []): Promise<WorkloadId> {
-  const response = await post(root, files, dryRunFields);
+/** Post the folder and stop at the admitted row: nothing has read the staged tree yet. `choices` are the owner's
+ *  answers to the persona collision review, which the dry run and the run both honor. */
+export async function admit(
+  root: ServerTestHarness,
+  files: Files,
+  dryRunFields: readonly string[] = [],
+  choices: PersonaCollisionChoices = {},
+): Promise<WorkloadId> {
+  const response = await post(root, files, dryRunFields, { choices });
   expect(response.status).toBe(202);
   return importStartedSchema.parse(await response.json()).workloadId;
 }
@@ -108,8 +157,8 @@ export async function finish(root: ServerTestHarness, id: WorkloadId): Promise<I
   return (await finishRun(root, id)).preview;
 }
 
-export async function dryRun(root: ServerTestHarness, files: Files): Promise<ImportPreview> {
-  const preview = await finish(root, await admit(root, files, [TREE_DRY_RUN_VALUE]));
+export async function dryRun(root: ServerTestHarness, files: Files, choices: PersonaCollisionChoices = {}): Promise<ImportPreview> {
+  const preview = await finish(root, await admit(root, files, [TREE_DRY_RUN_VALUE], choices));
   if (preview === undefined) {
     throw new Error("a dry run reported no preview");
   }
@@ -154,12 +203,12 @@ export async function storedBlobs(root: ServerTestHarness): Promise<readonly str
 
 const KIND_GROUP = (name: string, member: string, leaf: string): string => JSON.stringify({ name, members: [member], chats: [leaf] });
 // A saved ST chat-completion preset; the text makes two presets differ in content.
-const presetOf = (text: string): string =>
+export const presetOf = (text: string): string =>
   JSON.stringify({
     prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
     ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
   });
-const themeOf = (name: string, surface: string): string => JSON.stringify({ name, ["blur_tint_color"]: surface });
+export const themeOf = (name: string, surface: string): string => JSON.stringify({ name, ["blur_tint_color"]: surface });
 
 /** What a folder holds of each kind, named as the preview names it. */
 export type KindNames = Readonly<Record<ImportPreviewKind, readonly string[]>>;

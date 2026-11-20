@@ -9,6 +9,7 @@ import { Pencil } from "@orb/ui/icons";
 import type { SelectOption } from "@orb/ui/select";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
+import { PRESET_LITERAL_TEXT_LABEL } from "./preset-names.ts";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
 const SECTION_KINDS = ["literal", "templatedMarker", "plainMarker"] as const;
@@ -73,7 +74,7 @@ export function headerCopy(section: PromptSection): { readonly label: string; re
     const copy = MARKER_COPY[section.marker];
     return { label: named === "" ? copy.label : named, oneLiner: copy.oneLiner };
   }
-  return { label: named === "" ? "Literal text" : named, oneLiner: "Your own text, sent exactly as written." };
+  return { label: named === "" ? PRESET_LITERAL_TEXT_LABEL : named, oneLiner: "Your own text, sent exactly as written." };
 }
 
 /** A section's enable switch, on its rack row and in its drill-in: `Enabled: <section>`, one stable name per section
@@ -184,7 +185,7 @@ export function addableSections(sections: readonly PromptSection[]): readonly Ad
     marker,
     label: MARKER_COPY[marker].label,
   }));
-  return [{ marker: null, label: "Literal text" }, ...markers];
+  return [{ marker: null, label: PRESET_LITERAL_TEXT_LABEL }, ...markers];
 }
 
 /** Build a fresh section to append. Markers seed their default framing implicitly; a literal starts

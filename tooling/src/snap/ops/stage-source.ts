@@ -7,7 +7,7 @@
 import { constants, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { createDb, localPath, preCloseHousekeeping } from "@orb/db";
+import { localPath } from "@orb/db/local-path";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DATA_LAYOUT_DIRS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -143,6 +143,8 @@ export async function cloneMigratedStageDb(
   paths: Pick<StagePaths, "databaseUrl" | "assetsDir">,
   options: StageCloneOptions = {},
 ): Promise<StageDbProvenance> {
+  // The libSQL client and the boot graph load only for a migrated clone: every snap invocation imports this module.
+  const { createDb, preCloseHousekeeping } = await import("@orb/db");
   const { runBootMigrations } = await import("@orb/server/entry/boot");
   const { env } = await import("@orb/server/foundation/env");
   const { createLogger } = await import("@orb/server/foundation/observability");

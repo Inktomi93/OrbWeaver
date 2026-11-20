@@ -1,8 +1,8 @@
-import { IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
-import { MAX_NEGATIVE_CHARS } from "@orb/contracts/imagery";
+import { IMAGE_NEGATIVE_PROMPT_FIELD_NAME, IMAGE_SIZE_FIELD_NAME, IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
+import { MAX_IMAGE_COUNT, MAX_NEGATIVE_CHARS, MIN_IMAGE_COUNT } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { resolvedLength, settledBox } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, settledBox, toggleStripLayout } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -10,7 +10,15 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
+import {
+  IMAGINE_COUNT_NAME,
+  IMAGINE_GENERATE_NAME,
+  IMAGINE_HOST_PAYS_TEXT,
+  IMAGINE_MORE_OPTIONS_NAME,
+  IMAGINE_PROMPT_NAME,
+  IMAGINE_YOU_PAY_TEXT,
+  imagineGenerateCountLabel,
+} from "#client/features/imagery/lib/imagine-names.ts";
 import type { ImagineOptionsStory } from "./_imagine-options-stories.tsx";
 
 const STORY = "tests/client/features/imagery/components/_imagine-options-stories/ImagineOptionsStory";
@@ -39,8 +47,8 @@ test("the options stay collapsed until asked for, and an untouched form sends on
   const calls = await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await expect(page.getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true })).toHaveValue(SEED_PROMPT);
-  await expect(page.getByRole("textbox", { name: "Negative prompt", exact: true })).toBeHidden();
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true })).toBeHidden();
+  await page.getByRole("button", { name: IMAGINE_GENERATE_NAME, exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);
   const input = calls.lastInput("chat.generateImage");
   expect(input).toMatchObject({ chatId, mode: "free", prompt: SEED_PROMPT, n: 1 });
@@ -52,14 +60,35 @@ test("count, size and negative chosen in the options travel on the mutation inpu
   const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
   const calls = await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
-  await page.getByRole("button", { name: "More options", exact: true }).click();
-  await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "3", exact: true }).click();
-  await page.getByRole("group", { name: "Image size", exact: true }).getByRole("button", { name: IMAGE_SIZE_LABELS.portrait, exact: true }).click();
-  await page.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("  extra fingers  ");
+  await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+  await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "3", exact: true }).click();
+  await page.getByRole("group", { name: IMAGE_SIZE_FIELD_NAME, exact: true }).getByRole("button", { name: IMAGE_SIZE_LABELS.portrait, exact: true }).click();
+  await page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true }).fill("  extra fingers  ");
   await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
-  await page.getByRole("button", { name: "Generate 3 images", exact: true }).click();
+  await page.getByRole("button", { name: imagineGenerateCountLabel(3), exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);
   expect(calls.lastInput("chat.generateImage")).toMatchObject({ chatId, n: 3, size: "portrait", negative: "extra fingers" });
+});
+
+test.describe("on a phone at the browser's enlarged text", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  for (const scale of PLATFORM_TEXT_SCALES) {
+    // The count digits cannot be cut, so this is a control: the filled count strip holds one cell per count, inside the strip, at every size.
+    test(`at ${String(scale * 100)}% text the picture count strip holds a cell for each count inside the strip`, async ({ corpus, mount, page }) => {
+      await using _textSize = await setPlatformTextSize(page, scale);
+      const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
+      await routeImagine(page);
+      await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
+      await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+      const counts = page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true });
+      await expect(counts).toBeVisible();
+      const layout = await toggleStripLayout(counts);
+      expect(layout.cutWords).toHaveLength(MAX_IMAGE_COUNT - MIN_IMAGE_COUNT + 1);
+      expect(layout.cutWords.filter((cut) => cut > 0)).toEqual([]);
+      expect(layout.pastStrip).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    });
+  }
 });
 
 // A room both people sit in. The host is whoever the room read says it is for each of them, never assumed from the corpus.
@@ -78,21 +107,24 @@ async function sharedRoomViewers(corpus: CorpusPlayback): Promise<{ readonly cha
 }
 
 async function pickCount(page: Page, count: string): Promise<void> {
-  await page.getByRole("button", { name: "More options", exact: true }).click();
-  await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: count, exact: true }).click();
+  await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+  await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: count, exact: true }).click();
 }
 
 test("a room member is told the host pays, a host is told they do, and both read the room's picture sentence", async ({ corpus, mount, page }) => {
   const { chatId, host, member } = await sharedRoomViewers(corpus);
-  for (const [viewer, payer] of [
-    [member, /host pays/u],
-    [host, /You pay/u],
+  for (const [viewer, hostPays] of [
+    [member, true],
+    [host, false],
   ] as const) {
     await routeImagine(page, viewer);
     const mounted = await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
     await expect(page.locator('[data-slot="imagine-room-pictures-note"]')).toHaveText(ROOM_PICTURES_NOTE);
     await pickCount(page, "3");
-    await expect(page.locator('[data-slot="imagine-count-spend"]')).toHaveText(payer);
+    // Who pays is the behavior under test: the viewer's own payer is named and the other one is not.
+    const spend = page.locator('[data-slot="imagine-count-spend"]');
+    await expect(spend).toContainText(hostPays ? IMAGINE_HOST_PAYS_TEXT : IMAGINE_YOU_PAY_TEXT);
+    await expect(spend).not.toContainText(hostPays ? IMAGINE_YOU_PAY_TEXT : IMAGINE_HOST_PAYS_TEXT);
     await mounted.unmount();
   }
 });
@@ -120,10 +152,10 @@ test("the spend line is a live region that is mounted before it has words", asyn
   const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
   await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
-  await page.getByRole("button", { name: "More options", exact: true }).click();
+  await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
   const status = page.getByRole("status");
   await expect(status).toHaveText("");
-  await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "2", exact: true }).click();
+  await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "2", exact: true }).click();
   await expect(status).toContainText("2 images");
 });
 
@@ -132,9 +164,12 @@ test("the count stays in the Generate label with the options collapsed", async (
   await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await pickCount(page, "4");
-  await page.getByRole("button", { name: "More options", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Negative prompt", exact: true })).toBeHidden();
-  await expect(page.getByRole("button", { name: "Generate 4 images", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+  await expect(page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true })).toBeHidden();
+  // The label's own template is the subject: the chosen count is in the name, and the name is no longer the single-image one.
+  const generate = page.getByRole("button", { name: IMAGINE_GENERATE_NAME });
+  await expect(generate).toHaveAccessibleName(/\b4\b/u);
+  await expect(generate).not.toHaveAccessibleName(IMAGINE_GENERATE_NAME);
 });
 
 test.describe("on a phone", () => {
@@ -143,8 +178,8 @@ test.describe("on a phone", () => {
     const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
     await routeImagine(page);
     await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
-    await page.getByRole("button", { name: "More options", exact: true }).click();
-    const group = page.getByRole("group", { name: "Number of images", exact: true });
+    await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+    const group = page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true });
     const toggles = group.getByRole("button");
     const floor = await resolvedLength(page, TOKENS["size.touch-target"].value, group);
     for (let index = 0; index < (await toggles.count()); index += 1) {
@@ -159,14 +194,14 @@ test("choosing a count above one moves nothing above the charge line, and the ne
   const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
   await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
-  await page.getByRole("button", { name: "More options", exact: true }).click();
-  const size = page.getByRole("group", { name: "Image size", exact: true });
+  await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+  const size = page.getByRole("group", { name: IMAGE_SIZE_FIELD_NAME, exact: true });
   const before = await settledBox(size);
-  await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "3", exact: true }).click();
+  await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "3", exact: true }).click();
   await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
   expect((await settledBox(size)).y).toBe(before.y);
 
-  const negative = page.getByRole("textbox", { name: "Negative prompt", exact: true });
+  const negative = page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true });
   await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.5));
   await expect(page.getByText(`${MAX_NEGATIVE_CHARS * 0.5}/${MAX_NEGATIVE_CHARS}`, { exact: true })).toHaveCount(0);
   await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.9));

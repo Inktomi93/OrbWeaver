@@ -12,8 +12,12 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { MessageRenderContext } from "#lib";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
+import { useDisplayText } from "../hooks/use-display-text.ts";
 import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
+import { reasoningDisplayRow } from "../lib/display-row.ts";
 import {
   MESSAGE_REASONING_CANCEL_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
@@ -59,7 +63,8 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
     try {
       await edit.mutateAsync({ chatId: message.chatId, messageId: message.id, reasoning: draft });
       onDone();
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // Stay in the field so the reader can retry without retyping.
     }
   };
@@ -105,14 +110,21 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
 
 export interface MessageReasoningProps {
   readonly message: MessageView;
-  /** The reasoning after the display macro pass; the editor works on the stored bytes, never this. */
-  readonly displayText: string;
+  /** The room's display context. The block shows the reasoning through the display pass, the same one the
+   *  ghost's live trace gets, so `{{char}}`/`{{user}}` read identically before and after commit; the editor
+   *  works on the stored bytes. */
+  readonly renderContext: MessageRenderContext;
+  /** The row's display depth (`displayDepthsOf`); the block is the row's `REASONING` target at that depth. */
+  readonly displayDepth: number | undefined;
   readonly showIcon: boolean;
   /** The viewer is the message's author or the room host. */
   readonly canEdit: boolean;
 }
 
-export function MessageReasoning({ message, displayText, showIcon, canEdit }: MessageReasoningProps): ReactElement {
+export function MessageReasoning({ message, renderContext, displayDepth, showIcon, canEdit }: MessageReasoningProps): ReactElement {
+  // The block opens collapsed, so it is not held while its scripts run.
+  const display = useDisplayText(message.reasoning ?? "", renderContext, { ...reasoningDisplayRow(message, displayDepth), order: message.seq });
+  const displayText = display.text;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const clear = useClearReasoningMutation({ trpc, invalidation, failureShownInline: "the clear-reasoning confirm's alert line" });

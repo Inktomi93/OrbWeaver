@@ -19,8 +19,9 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
+import { roomRosterOptions } from "#data";
 import type { ContributorRegistry } from "#lib";
-import { CORPUS_MODES, deriveChatTitle, isCorpusMode } from "#lib";
+import { CORPUS_MODES, deriveChatTitle, isCorpusMode, rethrowUnlessTrpcFailure } from "#lib";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "#src/lib/agent-bridge.ts";
 import { markAgentNavigation } from "#src/lib/motion-stats.ts";
 import type { ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionId } from "#state";
@@ -139,8 +140,9 @@ async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: Q
     return null;
   }
   // The parse decides whether the caller named an opaque id or a display title; anything else falls through to the honest miss.
-  // null sends `openChat` on to `resolveListedChat`, whose failed list query and whose miss both return an `ok:false` NavResult the caller reads (the `page === null` and "no chat matches" returns). Ends if `openChat` stops falling through to the list arm.
-  const chat = await queryClient.query(trpc.chat.getChat.queryOptions({ chatId: parsed.data })).catch(() => null);
+  // A failed read (a tRPC failure) sends `openChat` on to `resolveListedChat`, whose failed list query and whose miss
+  // both return an `ok:false` NavResult the caller reads.
+  const chat = await queryClient.query(roomRosterOptions(trpc, { chatId: parsed.data })).catch(rethrowUnlessTrpcFailure);
   return chat?.id ?? null;
 }
 
@@ -163,9 +165,10 @@ function resolveActiveChat(): NavResult {
 async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: QueryClient): Promise<NavResult> {
   // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
   // query the chat list uses, so this reads/populates the identical cache entry.
-  // the `page === null` check on the next line returns `{ ok: false, reason: "chat list query failed — …" }`, the NavResult the caller reads as the verdict. Ends if that null check stops returning the failure.
-  const page = await queryClient.query(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
-  if (page === null) {
+  // A failed read (a tRPC failure) returns `{ ok: false, reason: "chat list query failed — …" }`, the NavResult the
+  // caller reads as the verdict.
+  const page = await queryClient.query(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(rethrowUnlessTrpcFailure);
+  if (page === undefined) {
     return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
   }
   const chats = page.items;
@@ -323,18 +326,21 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       // harness run that uses this bridge. Anything that is no character id falls through to the honest name arm.
       const characterId = characterIdSchema.safeParse(idOrName);
       if (characterId.success) {
-        // null skips the id arm and falls into the name-search read below, whose `page === null` check returns `{ ok: false, reason: "character list query failed — …" }` as the NavResult the caller reads. Ends if the id arm stops falling through to that search.
-        const byId = await queryClient.query(trpc.character.get.queryOptions({ characterId: characterId.data })).catch(() => null);
-        if (byId !== null) {
+        // A failed read (a tRPC failure) skips the id arm and falls into the name-search read below.
+        const byId = await queryClient.query(trpc.character.get.queryOptions({ characterId: characterId.data })).catch(rethrowUnlessTrpcFailure);
+        if (byId !== undefined) {
           markAgentNavigation();
           setActiveSection("characters");
           selectCharacter(byId.id);
           return OK;
         }
       }
-      // the `page === null` check on the next lines returns `{ ok: false, reason: "character list query failed — …" }`, the NavResult the caller reads as the verdict. Ends if that null check stops returning the failure.
-      const page = await queryClient.query(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);
-      if (page === null) {
+      // A failed read (a tRPC failure) returns `{ ok: false, reason: "character list query failed — …" }`, the NavResult
+      // the caller reads as the verdict.
+      const page = await queryClient
+        .query(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName }))
+        .catch(rethrowUnlessTrpcFailure);
+      if (page === undefined) {
         return { ok: false, reason: "character list query failed — cannot resolve the character" };
       }
       // Names are NOT unique — REFUSE loudly on a multi-match (openChat's ambiguity contract), so the

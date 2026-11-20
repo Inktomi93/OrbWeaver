@@ -21,7 +21,6 @@ import type { SettingsService } from "#domain/settings";
 import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
 import type { AuditWiring, Logger } from "#foundation/observability";
-import { EXTRACTOR_VERSION } from "#infra/extraction";
 import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
@@ -49,6 +48,8 @@ export interface DatabankComposeDeps {
   readonly loadAssetBytes: DatabankAssemblyContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankAssemblyContext["extractText"];
+  /** The table `extractText` stamps from; the banner and the re-extract sweep compare stamps against the same one. */
+  readonly extractorVersions: DatabankAssemblyContext["extractorVersions"];
   /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
    *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
   readonly roleClientsFor: LiveEmbedSpaceDeps["roleClientsFor"];
@@ -57,6 +58,7 @@ export interface DatabankComposeDeps {
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
    *  (chunk params for ingest + retrieval params for gather), replacing the schema-default stub. */
   readonly loadUserSettings: SettingsService["loadUserSettings"];
+  readonly resolveUserEnabled: DatabankAssemblyContext["resolveUserEnabled"];
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the regex precedent).
    *  Threaded here because every databank junction write has a member-visible projection in the rooms
    *  that credit the document (the D85 rack), and `databankChanged` is a per-USER channel that never
@@ -74,7 +76,7 @@ export interface DatabankComposeResult {
 }
 
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
-  const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
+  const { db, now, audit, embeddings, extractText, extractorVersions, search, workloads, loadUserSettings } = deps;
   const chatGuards = createWiredChatGuards({ db, can });
   const databankCtx: DatabankAssemblyContext = {
     logger: deps.logger,
@@ -101,7 +103,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     countChunks: embeddings.countDocumentChunks,
     chunkCountsByOwner: embeddings.countDocumentChunksByOwner,
     extractText,
-    extractorVersion: EXTRACTOR_VERSION,
+    extractorVersions,
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: deps.fetchWebDocument,
@@ -140,6 +142,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     ensureChatHost: chatGuards.requireHost,
     ensureChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
+    resolveUserEnabled: deps.resolveUserEnabled,
     // The SHARED leak-safe reverse-room read — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
     // roster names PRESENT rooms only.

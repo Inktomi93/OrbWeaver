@@ -10,7 +10,7 @@ import { getLog } from "#foundation/observability";
 import { isUnresolvableBinding } from "#primitives/embedding-generation";
 import { EmbedFailedError } from "../contract/errors.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
-import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
+import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../persistence/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
 
 /** One target the sync may move: its task, and the role its vectors are embedded through. */
@@ -29,11 +29,16 @@ type Proof =
  * reports, and so is an embedder that does not answer or refuses the row's key: an unchecked width is never accepted. An unresolvable binding
  * skips the target (its first write after it can resolve moves it).
  */
-async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget, previewConnection?: UserConnection): Promise<Proof> {
+async function prove(
+  ctx: EmbeddingsContext,
+  ownerId: UserId,
+  target: SyncTarget,
+  call: { readonly signal: AbortSignal; readonly previewConnection?: UserConnection },
+): Promise<Proof> {
   let truncatable = false;
   let assumed = false;
   try {
-    const move = await pendingTargetMove(ctx, { ownerId, ...target, previewConnection });
+    const move = await pendingTargetMove(ctx, { ownerId, ...target, previewConnection: call.previewConnection, signal: call.signal });
     if (!move.moves) {
       return { kind: "skip" };
     }
@@ -76,13 +81,16 @@ function probeRefusal(ctx: EmbeddingsContext, error: unknown, scope: { readonly 
   return { kind: "unreachable" };
 }
 
-export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMoveOp {
-  return async ({ ownerId, task, via, connection }) => await prove(ctx, ownerId, { task, via }, connection);
+export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMoveOp<AbortSignal> {
+  return async ({ ownerId, task, via, connection, signal }) => await prove(ctx, ownerId, { task, via }, { signal, previewConnection: connection });
 }
 
 export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsService["syncTargetGenerations"] {
   return async (ownerId: UserId): Promise<EmbedMoveRefusal | null> => {
-    const image = await resolveImageSpace(ctx, ownerId).catch((error: unknown) => {
+    // Runs inside the owner's write queue, which must prove every target before it moves any; no request cancel may
+    // stop it half-proved, and each resolve keeps its own deadline.
+    const signal = new AbortController().signal;
+    const image = await resolveImageSpace(ctx, ownerId, signal).catch((error: unknown) => {
       if (isUnresolvableBinding(error)) {
         return null;
       }
@@ -92,7 +100,7 @@ export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsS
     // Every move is proved before any is made: a switch purges the old index, so a refusal must find both untouched.
     const proofs: { readonly target: SyncTarget; readonly proof: Proof }[] = [];
     for (const target of targets) {
-      const proof = await prove(ctx, ownerId, target);
+      const proof = await prove(ctx, ownerId, target, { signal });
       if (proof.kind === "refused") {
         return { ...proof.refusal, task: target.task };
       }

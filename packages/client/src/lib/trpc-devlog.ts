@@ -5,6 +5,7 @@
 import { isPrimitive } from "@orb/kit/guards";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
+import { requestRefusalOf } from "./request-refused.ts";
 
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally
@@ -56,7 +57,11 @@ function compactJson(value: unknown): string {
   try {
     const str = JSON.stringify(value);
     return str.length > INPUT_MAX_CHARS ? `${str.slice(0, INPUT_TRUNCATE_AT)}…` : str;
-  } catch {
+  } catch (error) {
+    // `JSON.stringify` refuses a cycle or a BigInt with a `TypeError`; any other throw is a fault.
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
     return "[unserializable]";
   }
 }
@@ -97,8 +102,10 @@ export function formatTrpcOp(entry: TrpcOpLogEntry): void {
   }
   const ms = `${Math.round(entry.elapsedMs)}ms`;
   if (entry.result instanceof Error) {
+    // A refused request's headline is plain words; the raw status and content type ride only this line.
+    const detail = requestRefusalOf(entry.result)?.detail;
     console.error(
-      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`,
+      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}${detail === undefined ? "" : ` (${detail})`}`,
       CONSOLE_STYLES.prefix,
       CONSOLE_STYLES.error,
       CONSOLE_STYLES.muted,

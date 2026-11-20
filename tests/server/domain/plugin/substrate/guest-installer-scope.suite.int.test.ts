@@ -29,6 +29,7 @@ import {
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
 
@@ -197,17 +198,31 @@ test("library ingests land in the installer's own library, stamped with the call
   await using o = await owners();
   const { pluginId, run } = await o.guest(o.owner, "library-feeder");
   const source = await ownCharacter(o.root, o.owner, "exported-keeper");
-  const exported = await o.root.app.exportService.exportCharacter({ principal: o.owner, characterId: source, format: "json" });
+  const exported = await o.root.app.exportService.exportCharacter({ principal: o.owner, characterId: source, format: "json", note: failOnExportNote });
   if (exported === null) {
     throw new Error("the owner's own character did not export");
   }
   const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
+  // The owner's unchanged card is already in the library: the ingest reuses that row and stamps nothing, because a
+  // stamp there would be an import updating an owned row (D290).
+  const reused = z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
+  expect(reused.characterId).toBe(source);
+  expect((await o.root.services.character.get({ principal: o.owner, characterId: source })).importedFrom).toBeNull();
+  // The source moves on after its export, so the card is an older one and the ingest writes it beside the source.
+  await o.root.services.character.update({
+    signal: new AbortController().signal,
+    principal: o.owner,
+    characterId: source,
+    input: { description: "A keeper, since edited." },
+  });
 
   const document = z
     .object({ documentId: typeIdSchema(ID_PREFIX.document) })
     .parse(reported(await run("ingestDocument", { doc: { name: "Ledger", text: "A guest wrote this." } })));
-  expect((await o.root.services.databank.get({ principal: o.owner, id: document.documentId })).name).toBe("Ledger");
-  await expect(o.root.services.databank.get({ principal: o.stranger, id: document.documentId })).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect((await o.root.services.databank.get({ signal: new AbortController().signal, principal: o.owner, id: document.documentId })).name).toBe("Ledger");
+  await expect(o.root.services.databank.get({ signal: new AbortController().signal, principal: o.stranger, id: document.documentId })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
 
   const character = z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
   const detail = await o.root.services.character.get({ principal: o.owner, characterId: character.characterId });
@@ -219,11 +234,18 @@ test("a non-owner installer's character ingest runs under that installer's own p
   await using o = await owners();
   const { run } = await o.guest(o.stranger, "stranger-feeder");
   const source = await ownCharacter(o.root, o.stranger, "stranger-keeper");
-  const exported = await o.root.app.exportService.exportCharacter({ principal: o.stranger, characterId: source, format: "json" });
+  const exported = await o.root.app.exportService.exportCharacter({ principal: o.stranger, characterId: source, format: "json", note: failOnExportNote });
   if (exported === null) {
     throw new Error("the stranger's own character did not export");
   }
   const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
+  // The source moves on after its export, so the card is an older one and the ingest writes it beside the source (D290).
+  await o.root.services.character.update({
+    signal: new AbortController().signal,
+    principal: o.stranger,
+    characterId: source,
+    input: { description: "A keeper, since edited." },
+  });
   const create = vi.spyOn(o.root.services.character, "create");
   z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
   expect(create).toHaveBeenCalledTimes(1);

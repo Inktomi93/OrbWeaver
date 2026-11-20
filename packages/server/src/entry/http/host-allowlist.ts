@@ -22,7 +22,7 @@ export interface HostAllowlistDeps {
   /** Picks the fix the refusal names (`settingInstruction`): the container's env file, or setup and `.env`. */
   readonly inContainer: boolean;
   readonly notice: HostNotAllowedNotice;
-  /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose `X-Forwarded-Host` is read. */
+  /** The deployment's trusted hops (`FORWARD_AUTH_TRUSTED_PROXIES`), the only peers whose `X-Forwarded-Host` is read. */
   readonly trustedProxies: readonly string[];
 }
 

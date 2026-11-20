@@ -7,24 +7,24 @@
       "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "7290d4bbda00166e6d70876a93aa176d08705c0dd5b44a88d51610fc7de801cf",
-      "manifest.json": "f2d089693977927289de8a194061a7897ef887a15fd95ac826e4888d07a6c64a"
+      "main.js": "fe2dc5e8dcc5b7428b40a8a6de27589be13e099004f6d36415c513bba804e801",
+      "manifest.json": "b30eee2fed79d36e24597515effdaa644b9921f29f9bb732630a5cb0f0800669"
     },
     "draft-polish": {
       "main.js": "ffc6f850db735c80676b63aaa348f637d423de63e8ede855ad155dc738b205d3",
-      "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
+      "manifest.json": "eb6aa3d4ec3ec9ec62195dfde2fcb1456214c51f81c1518fb2037f586fc17413"
     },
     "keepsake-camera": {
-      "main.js": "5eae398df2f596bddbac3ee6a46c6d42dd31a9cc15774c4ad2e7b7c2c6c91fba",
-      "manifest.json": "aa75117db9699c40186d7f582b8187c6dfec639286bd0e87e5e715371302e903"
+      "main.js": "cf2438c8a620c8644258003098a1a8b7356f38cb162a8ba86d1040213598b15f",
+      "manifest.json": "30e317b39c1b9006145beb670f1b622b8f159b9a5372ee5c3f4ff45403c9c0d8"
     },
     "oracle-deck": {
-      "main.js": "2542d71b59b12fae5daf8baa3bd2f6d7b116ef3c5b9c6a3e934a5c050eb2e604",
-      "manifest.json": "a473458ed8493e0cfff236dbbfae2ffd27df0ee8453559025ebf5eb1e1c15ab2"
+      "main.js": "274f6a30ed6bb46138cb875a595322c3d5208a6f8853d8709ed4a988fcadb390",
+      "manifest.json": "0b07f052dbe517d957afb422ddb539229c6e9b53613484ccd3c4514495498038"
     },
     "pocket-arcade": {
       "main.js": "a413e647aa73ef47576eb899c45a75213a1e991ba2f0028684be48f4be61fce9",
-      "manifest.json": "d8125de0d922976d01a2ef4832c63cd0d121025db7c2fc1c067fc3dcd83d8158"
+      "manifest.json": "45c30cbad02ed84231ad410ce3789e4e5b834b25c677737a8ccd4979b234881e"
     },
     "research-familiar": {
       "main.js": "f3afce00311d2dcfc85ecd9590009eff068bd62db9fe4f8b6eed345583652a98",
@@ -37,7 +37,7 @@
     },
     "story-clocks": {
       "main.js": "6ad1a2570cd9eadc8cfd1154d66639221b9fb507808613eac0ed98ab37f893d7",
-      "manifest.json": "e7f1965cfdf921e191bef559cb0fee181fbd865c85f814f7862c8b68b20b59af"
+      "manifest.json": "ae064a3e2c00c18139d1447cea47c0458b5c218fed9ce8a16b02ebaeabe98270"
     }
   }
 }

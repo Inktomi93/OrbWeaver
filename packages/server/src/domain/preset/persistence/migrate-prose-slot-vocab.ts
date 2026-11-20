@@ -27,9 +27,8 @@
 //  • SIBLING-PRESERVING — no other key is named by the statement, so every other prose override, every
 //    section, and every param survives. SQLite's json functions re-serialize the object, so KEY ORDER is not
 //    preserved; the blob is parsed by `parsePromptConfig` at every read seam and never compared as bytes.
-//  • FAIL-OPEN ON GARBAGE — a config that is not JSON at all is left for the read seam's own degrade-to-
-//    default; see the `json_valid` note on the predicate for why that guard is NESTED rather than a sibling
-//    AND term.
+//  • FAIL-OPEN ON GARBAGE — a config that is not JSON at all reaches the json functions only through
+//    {@link readableJson}, so it matches nothing and is left for the read seam to report unreadable.
 //
 // The value is NOT re-minted through `json(...)` (the boolean hazard): the override is an OBJECT, and
 // `json_extract`'s object result is a documented JSON-subtyped value that `json_set` inserts as JSON, not as a
@@ -37,6 +36,7 @@
 // override would abort boot, the one thing this step must never do.
 
 import { presets } from "@orb/db";
+import { readableJson } from "@orb/db/query";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
@@ -57,11 +57,8 @@ export async function migrateProseSlotVocab(handle: BootDatabaseHandle): Promise
     .set({
       config: sql`json_remove(json_set(${presets.config}, ${NEW_PROSE_PATH}, json_extract(${presets.config}, ${OLD_PROSE_PATH})), ${OLD_PROSE_PATH})`,
     })
-    // The `json_valid` guard is INSIDE `json_type`'s first argument, not a sibling AND term: SQLite may
-    // reorder AND operands, and `json_type` on a non-JSON string RAISES — which at this call site would abort
-    // boot on one corrupt row. A blob that is not JSON resolves to `'{}'`, matches nothing, and is left for
-    // `parsePromptConfig`'s degrade-to-`DEFAULT_PROMPT_CONFIG`.
-    .where(sql`json_type(CASE WHEN json_valid(${presets.config}) THEN ${presets.config} ELSE '{}' END, ${OLD_PROSE_PATH}) is not null`)
+    // A blob that is not JSON matches nothing and is left for the preset read to report unreadable.
+    .where(sql`json_type(${readableJson(presets.config)}, ${OLD_PROSE_PATH}) is not null`)
     .returning({ id: presets.id });
   return rows.length;
 }

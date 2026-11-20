@@ -12,7 +12,6 @@ import type { IndicatorDotProps } from "@orb/ui/indicator-dot";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
@@ -20,15 +19,17 @@ import { useId, useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
-  allowBackgroundSwitchName,
   backgroundRepairs,
   bindRefusal,
+  CONNECTIONS_LIST_ADDRESS,
   connectionHost,
   connectionSummary,
   EMBED_REFUSAL_SLOTS,
   embedderCheckingText,
   embedRefusalOf,
   embedRefusalText,
+  embedWindowNotice,
+  openConnectionName,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
@@ -37,13 +38,16 @@ import {
   roleStatus,
   VECTOR_ROLES,
 } from "#lib";
-import { openConfigTo } from "#state";
-import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
+import { openConfigTo, requestConnectionEditor } from "#state";
+import { useSetBinding } from "./connection-role-mutations.ts";
 import { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
+import { connectionRolePickerName } from "./shared-control-names.ts";
 import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 
 const UNSET_VALUE = "";
+/** The disabled reason on a bound connection whose model can no longer serve the role. */
+const STRANDED_BOUND_REASON = "Its model can't do this job now. Pick another connection.";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 
@@ -99,11 +103,13 @@ const READOUT_TONE = {
 //     actually failed, and a chat model that cannot embed is not broken.
 //  3. THE INLINE BACKGROUND REFUSAL is stated twice and they are not duplicates. In the PICKER it is the
 //     option's own disabled reason (`bindRefusal`), so a user scanning the list learns why a row is
-//     unpickable without picking it. In the ROW it is the REPAIR — the same sentence plus the switch that
-//     resolves it — because §5.3a makes the slot the FIRST enforcement point ("so the user learns at
+//     unpickable without picking it. In the ROW it is the REPAIR — the same sentence plus a door to the
+//     connection's editor — because §5.3a makes the slot the FIRST enforcement point ("so the user learns at
 //     authoring time") and a refusal with no adjacent remedy sends the user to the connection list to find a
-//     switch nobody has told them the name of. Resolve's `canFund` still re-checks: the flag can flip after
-//     the binding is written, so this is the friendly gate and never the only one.
+//     switch nobody has told them the name of. The door opens the editor rather than carrying a switch of
+//     its own: one control sets the flag, so no surface wonders which of two toggles wins. Resolve's
+//     `canFund` still re-checks: the flag can flip after the binding is written, so this is the friendly
+//     gate and never the only one.
 //
 // THE ROW ITSELF is `components/connection-role-slot.tsx`, shared with a rule's editor.
 //
@@ -150,8 +156,7 @@ export function ConnectionRoleSlot({
   const headingId = useId();
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
-  const update = useUpdateConnection(deps);
-  const pickerLabel = `${row.label} connection`;
+  const pickerLabel = connectionRolePickerName(row.label);
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
   const pickerRef = useRef<HTMLButtonElement>(null);
   const reindex = useReindexConfirm((): boolean => {
@@ -178,10 +183,7 @@ export function ConnectionRoleSlot({
   const unsetText = unsetLabel ?? (row.optional ? "None" : "Not set");
   const items = [
     { label: unsetText, value: UNSET_VALUE },
-    ...compatible.map((connection) => {
-      const refusal = bindRefusal(connection, row.task);
-      return { label: connectionSummary(connection), value: connection.id, ...(refusal === null ? {} : { disabled: true, description: refusal }) };
-    }),
+    ...connectionItems({ connections, compatible, task: row.task, boundId: view?.binding?.connectionId ?? null }),
   ];
 
   const factsOf = (connectionId: UserConnectionId): RoleConnectionFacts | null => {
@@ -204,10 +206,10 @@ export function ConnectionRoleSlot({
       <Stack aria-busy={shownCheck !== null} gap="tight">
         {/* One placement for every role: the picker ends the heading row, and below one container width the picker sits under the heading. */}
         <Row align="center" alignBelow="stretch-cq-32" gap="field" justify="between" stackBelow="cq-32">
-          <Row align="center" className="min-inline-0" gap="field">
+          <Row align="center" minWidth="shrinks" gap="field">
             <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
             {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. The heading wraps inside its own box, so its last word never runs under the hint's touch target; in a narrow slot a heading that cannot share its line with the hint leaves the hint the line under it. */}
-            <Row align="center" className="min-inline-0" gap="tight" wrap="cq-20">
+            <Row align="center" minWidth="shrinks" gap="tight" wrap="cq-20">
               <Text className="min-inline-0" id={headingId} voice="label" wrap="word">
                 {row.heading}
               </Text>
@@ -220,7 +222,7 @@ export function ConnectionRoleSlot({
               aria-label={pickerLabel}
               id={controlId}
               items={items}
-              layout="hugWrap"
+              layout="hug"
               value={current}
               disabled={setBinding.isPending || reindex.asking}
               onValueChange={(value): void => {
@@ -263,21 +265,42 @@ export function ConnectionRoleSlot({
               {row.standingEffect}
             </Text>
           )}
+          <EmbedWindowNote own={isVectorRole} task={row.task} view={view} />
           <EmbedderNote check={shownCheck} refused={embedRefusal} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
-            <BackgroundRepair
-              key={connection.id}
-              connection={connection}
-              pending={update.isPending}
-              onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
-            />
+            <BackgroundRepair key={connection.id} connection={connection} />
           ))}
         </Stack>
       </Stack>
       {children}
     </Stack>
   );
+}
+
+/** The picker's connection items: each compatible connection, disabled with its refusal where it has one, then the bound
+ *  connection when it is not among them. A binding made before its model stopped serving the role (a model whose list
+ *  now says it makes images, bound to Chat) would otherwise have no item, and the closed Select would print its raw id. */
+function connectionItems({
+  connections,
+  compatible,
+  task,
+  boundId,
+}: {
+  readonly connections: readonly ConnectionListItem[];
+  readonly compatible: readonly ConnectionListItem[];
+  readonly task: RoleRow["task"];
+  readonly boundId: UserConnectionId | null;
+}): readonly { readonly label: string; readonly value: string; readonly disabled?: true; readonly description?: string }[] {
+  const items = compatible.map((connection) => {
+    const refusal = bindRefusal(connection, task);
+    return { label: connectionSummary(connection), value: connection.id, ...(refusal === null ? {} : { disabled: true as const, description: refusal }) };
+  });
+  const stranded =
+    boundId === null || compatible.some((connection) => connection.id === boundId) ? undefined : connections.find((connection) => connection.id === boundId);
+  return stranded === undefined
+    ? items
+    : [...items, { label: connectionSummary(stranded), value: stranded.id, disabled: true, description: STRANDED_BOUND_REASON }];
 }
 
 /** A failed pick's handler: the server undid a write onto an embedder whose width it could not accept or could not
@@ -302,6 +325,25 @@ interface SlotEmbedRefusal {
 /** The pick being checked: the write's own check, else the change the server is still sizing before the confirm. */
 function shownCheckOf<T>(writeCheck: T | null, sizing: boolean, sized: T | null): T | null {
   return writeCheck ?? (sizing ? sized : null);
+}
+
+/** What the user's own text embedder's window means for a long card. It reads the persisted binding, like the readout: a
+ *  pick the picker only shows has not changed what is indexed. */
+function EmbedWindowNote({
+  own,
+  task,
+  view,
+}: {
+  readonly own: boolean;
+  readonly task: RoleRow["task"];
+  readonly view: BindingView | null;
+}): ReactElement | null {
+  const notice = own && task === "embed" ? embedWindowNotice(view?.resolved?.capability ?? null) : null;
+  return notice === null ? null : (
+    <Text voice="gloss" cap="prose" tone="info" data-embed-window-notice="">
+      {notice}
+    </Text>
+  );
 }
 
 /** The row's embedder line: that the server is checking the pick, else the last refusal. */
@@ -403,28 +445,25 @@ function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequire
   );
 }
 
-/** §5.3a's inline repair: the refusal sentence `bindRefusal` already returns, plus the switch that resolves
- *  it. The switch writes the SAME `allowBackground` field the connection row's switch writes and names it
- *  the same way, so a user who meets the refusal on either surface meets one switch, not two. */
-function BackgroundRepair({
-  connection,
-  pending,
-  onAllow,
-}: {
-  readonly connection: ConnectionListItem;
-  readonly pending: boolean;
-  readonly onAllow: () => void;
-}): ReactElement {
-  const label = allowBackgroundSwitchName(connection);
+/** §5.3a's inline repair: the connection's background state and the door to its editor, where the one switch
+ *  that sets it lives. The slot never writes the flag itself. */
+function BackgroundRepair({ connection }: { readonly connection: ConnectionListItem }): ReactElement {
   return (
-    <Stack gap="tight">
-      <Text voice="gloss">{connectionSummary(connection)} doesn&apos;t allow background work. Turn it on to use it here.</Text>
-      <Row gap="field" align="center">
-        <Switch aria-label={label} checked={false} disabled={pending} onCheckedChange={(): void => onAllow()} />
-        <Text voice="gloss" as="span">
-          {label}
-        </Text>
-      </Row>
-    </Stack>
+    <Row align="center" gap="field" justify="between" wrap={true}>
+      <Text voice="gloss" cap="prose">
+        {connectionSummary(connection)} doesn&apos;t allow background work. Turn it on in its settings to use it here.
+      </Text>
+      <Button
+        variant="ghost"
+        onClick={(): void => {
+          openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
+          requestConnectionEditor(connection.id);
+        }}
+        size="sm"
+        type="button"
+      >
+        {openConnectionName(connection)}
+      </Button>
+    </Row>
   );
 }

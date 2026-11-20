@@ -6,7 +6,7 @@ import { settings } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { eq, sql } from "drizzle-orm";
 import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 
@@ -21,7 +21,7 @@ export function createSettingsKvPort(handle: DatabaseHandle, prefix: SettingsTen
     }
   };
   return {
-    read: async (key): Promise<JsonValue | undefined> => {
+    read: async (key): Promise<JsonValue | UnreadableJsonText | undefined> => {
       requireNamespace(key);
       const rows = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, key)).limit(1);
       return rows[0]?.value;

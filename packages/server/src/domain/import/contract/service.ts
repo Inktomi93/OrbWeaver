@@ -2,19 +2,21 @@
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
-import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { BulkImportChatsOp, FindImportedChatHashes, ImportMemoryStrikesOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
-import type { ImportPreset } from "@orb/contracts/preset";
+import type { ImportPresets } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportPresetScripts } from "@orb/contracts/regex";
 import type { ImportRpgGame } from "@orb/contracts/rpg";
-import type { ImportThemeOp } from "@orb/contracts/settings";
+import type { ImportThemes } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebook, HasPrimaryBook, LinkCarriedBooks } from "@orb/contracts/world-info";
+import type { Cancellation } from "@orb/kit/guards";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
+import type { ExportCurrentCard, ExportCurrentChats, OwnedChatTitle } from "./identity.ts";
 import type {
   ImportCharacterInput,
   ImportChatsInput,
@@ -74,6 +76,11 @@ type AttachImportedArt = (args: {
   readonly importHash: string;
 }) => Promise<boolean>;
 
+/** Character-owned: whether {@link AttachImportedArt} would give the owner's character art now, asked without writing,
+ *  so a dry run follows the write. */
+type AdmitsImportedArt = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
+type CharacterName = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<string | null>;
+
 /** Enqueues the owner's post-import text `index` pass (embeds no chat memory and calls no Utility model).
  *  An import never enqueues `memory-backfill`: the client offers that build over the result's `memoryChatIds`,
  *  behind the model-run confirm, so an import spends nothing paid without a yes. */
@@ -98,12 +105,6 @@ export type AdoptDefaultPersona = (ownerId: UserId, personaId: PersonaId) => Pro
 
 export interface ImportProfileDeps {
   readonly now: Clock;
-  /** The IANA zone SillyTavern's zone-less wall-clock timestamps (`send_date`'s human forms, the filename /
-   *  header `create_date`) were written against — ST builds them off the local `Date` of the box it ran on.
-   *  INJECTED, never read ambiently down in the parser: the composition root resolves it (`hostTimeZone()`,
-   *  correct whenever a corpus is imported on the box that produced it). Absent ⇒ the
-   *  serde's `"UTC"` default. */
-  readonly stWallClockZone?: string;
   readonly personaByUserName: Map<string, PersonaId>;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
@@ -117,20 +118,30 @@ export interface ImportProfileDeps {
   /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
    *  through the `ImportedChatRemap` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
+  /** The room's memory strikes, re-linked through the same remap as the campaign. Absent ⇒ that plane does not
+   *  restore, and the outcome names the loss. */
+  readonly importMemoryStrikes?: ImportMemoryStrikesOp;
   readonly findOwnedAssetIdsByHash?: FindOwnedAssetIdsByHashOp;
-  /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
-   *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on
-   *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
+  /** A chat bundle's lookup for a room the app wrote, which carries no stored key (D290): when the bundle's own key
+   *  is not held under its primary (`heldChatHashes`), it compares with the current export of each candidate room
+   *  (`exportCurrentChats`). Required: an unwired lookup would twin every room the app wrote on a restore. */
+  readonly heldChatHashes: FindImportedChatHashes;
+  readonly exportCurrentChats: ExportCurrentChats;
+  /** The chat file door names each room by what the owner calls it now, a held room included. */
+  readonly ownedChatTitle: OwnedChatTitle;
+  /** Preset-owned batch import op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
+   *  domain keeps its one serde AND its one collision rule and import owns neither. OPTIONAL on the
+   *  `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
    *  composition always wires it; a card-only wiring has no use for it). */
-  readonly importPreset?: ImportPreset;
-  /** Settings-owned theme import op — the ST theme wave hands it orb-native `orb.theme` BYTES, so the
-   *  settings domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither.
-   *  OPTIONAL on the `importPreset` precedent: absent ⇒ the theme plane simply does not restore. */
-  readonly importTheme?: ImportThemeOp;
+  readonly importPresets?: ImportPresets;
+  /** Settings-owned batch theme import op — the ST theme wave hands it orb-native `orb.theme` BYTES, so the
+   *  settings domain keeps its one serde AND its one collision rule and import owns neither. OPTIONAL on the
+   *  `importPresets` precedent: absent ⇒ the theme plane simply does not restore. */
+  readonly importThemes?: ImportThemes;
   /** Crowns the imported default persona only where the owner has none. The ST profile import is its only caller. */
   readonly adoptDefaultPersona: AdoptDefaultPersona;
   /** Regex-owned PRESET lift — a collected preset's own `extensions.regex_scripts` become library rows +
-   *  a `preset_regex_scripts` attachment, AFTER `importPreset` returns the row id. OPTIONAL on the
+   *  a `preset_regex_scripts` attachment, AFTER `importPresets` returns the row id. OPTIONAL on the
    *  `importCardScripts` precedent: absent ⇒ the scripts are reported skipped-with-reason, never silent. */
   readonly importPresetScripts?: ImportPresetScripts;
 }
@@ -144,6 +155,12 @@ export interface ImportContext {
   readonly findByName: FindCharacterByName;
   readonly storeAsset: StoreImportAsset;
   readonly attachImportedArt: AttachImportedArt;
+  readonly admitsImportedArt: AdmitsImportedArt;
+  /** The owned character's current name, which a held card is named by; null when the row is gone. */
+  readonly characterName: CharacterName;
+  /** The lookup's last step: the current card of the owned row a carried handle names (D290). Required, so every
+   *  door that imports a card finds a row the app wrote. */
+  readonly exportCurrentCard: ExportCurrentCard;
   readonly attachCardTag: AttachImportedCardTag;
   /** Optional: the card-only upload path skips embedded books. Destructive on a character that already holds a
    *  primary book, so the card-import verb gates it behind `hasPrimaryBook`. */
@@ -194,11 +211,11 @@ export interface ImportService {
     readonly collisions?: PersonaCollisionChoices | undefined;
   }) => Promise<ImportPersonasResult>;
   /** Imports a profile's ST presets (already mapped to the orb-native file by the collector) through the
-   *  preset domain's own idempotent import op. Per-preset isolation. Requires ctx.profile. */
-  readonly importPresets: (input: { readonly presets: readonly CollectedPreset[] }) => Promise<ImportPresetsResult>;
+   *  preset domain's own batch import op. Per-preset script isolation. Requires ctx.profile. */
+  readonly importPresets: (input: { readonly presets: readonly CollectedPreset[]; readonly signal: Cancellation }) => Promise<ImportPresetsResult>;
   /** Imports a profile's ST UI themes (already mapped to an orb `ThemeOverride` by the collector) through the
-   *  settings domain's own idempotent theme-import op. Per-theme isolation. Requires ctx.profile. */
-  readonly importThemes: (input: { readonly themes: readonly CollectedTheme[] }) => Promise<ImportThemesResult>;
+   *  settings domain's own batch theme-import op, one file per theme. Requires ctx.profile. */
+  readonly importThemes: (input: { readonly themes: readonly CollectedTheme[]; readonly signal: Cancellation }) => Promise<ImportThemesResult>;
   /** Imports a profile's ST GROUPS as multi-character rooms — one room per group transcript, seated from the
    *  group's member cards resolved BY CARD FILENAME. Per-group and per-member isolation. Requires ctx.profile.
    *  Runs AFTER the character wave (the filename → characterId map is its input). */

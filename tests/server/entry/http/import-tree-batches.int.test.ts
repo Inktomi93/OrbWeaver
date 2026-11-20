@@ -11,6 +11,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -20,7 +21,6 @@ import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-const ASSET_FILE_FIELD = "file";
 const WRAPPER = "backup";
 
 /** One exported backup entry: its archive path and exact bytes. */
@@ -42,10 +42,10 @@ async function exportedBackup(root: ServerTestHarness): Promise<readonly BackupE
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.createTheme(createThemeInputSchema.parse({ name: "Batch night", override: {} }));
   await caller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Batch tidy", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Batch tidy", findRegex: "a", replaceString: "b", targets: ["AI_OUTPUT"], passes: ["save"] }),
   });
   const art = new FormData();
-  art.set(ASSET_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "aria.png", { type: "image/png" }));
+  art.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "aria.png", { type: "image/png" }));
   art.set("kind", "avatar");
   const upload = await root.http.request(ASSET_UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: art });
   expect(upload.status).toBe(200);
@@ -69,7 +69,7 @@ async function exportedBackup(root: ServerTestHarness): Promise<readonly BackupE
       }),
     );
     // Every lone-sniff shape needs real entries, or a refusal would only prove an empty upload.
-    const planes = (["assets", "character", "chat", "theme", "regex"] as const).map((kind) => PORTABLE_DIRECTORIES[kind]);
+    const planes = (["assets", "character", "chat", "theme", "regex"] as const satisfies readonly PortableKind[]).map((kind) => PORTABLE_DIRECTORIES[kind]);
     expect(planes.filter((dir) => !entries.some((entry) => entry.path.startsWith(dir)))).toEqual([]);
     return entries;
   } finally {
@@ -132,8 +132,8 @@ test("every upload of a split native backup restores through the native importer
     if (workload.kind !== "import-bundle" || workload.poison || workload.result === null) {
       throw new Error("a declared native upload has no canonical bundle result");
     }
-    // Native dedupe counts as imported, so a restore of the exporter's own library imports every entry.
-    expect(workload.result).toMatchObject({ imported: upload.length, skipped: 0, failed: 0 });
+    // A restore of the exporter's own library finds every entry already held, and counts it so (D290).
+    expect(workload.result).toMatchObject({ imported: 0, inLibrary: upload.length, skipped: 0, failed: 0 });
   }
   expect(await root.services.workloads.list({ caller: principal, kind: "import-st" })).toEqual([]);
 });

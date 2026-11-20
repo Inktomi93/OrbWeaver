@@ -88,6 +88,7 @@ function chatTurnInputOf(args: {
     ...(req.tools !== undefined ? { tools: req.tools } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
     ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
+    ...(req.prefillReasoning !== undefined ? { prefillReasoning: req.prefillReasoning } : {}),
     onDelta,
     signal: req.signal,
   };
@@ -117,9 +118,8 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       costUsd: result.usage.costUsd,
       costProvenance: result.usage.costProvenance,
       costDetails: result.usage.costDetails,
-      // The replayable reasoning blocks (A1) — stored on the variant; the assembly reads them back.
-      reasoningParts: result.reasoningParts ?? null,
       ...(result.textSignatures === undefined ? {} : { textSignatures: result.textSignatures }),
+      ...(result.sources === undefined ? {} : { sources: result.sources }),
       maxOutputTokens: result.usage.maxOutputTokens,
       // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
       // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
@@ -133,6 +133,7 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       stopReason: result.stopReason,
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
+      systemFingerprint: result.systemFingerprint ?? null,
       // §5.3c class 3 — the per-provider sidecar, already NARROWED by the runtime to the closed union
       // (`backends/wire/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
       // per-vendor spelling is backend knowledge, and re-deriving it here would put provider shape above the
@@ -144,8 +145,11 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       // does not know) and the span emission; carrying them is all this bridge may honestly do.
       ...(result.images !== undefined ? { replyImages: result.images } : {}),
       // §8.8: the depth's replayable thinking, carried across the seam so the engine's tool loop can hand it
-      // back on the next leg. The wire produced them honestly (never gated on the carry knob) — WHETHER they
-      // ride back is the pipeline's decision, off the one funnel answer.
+      // back on the next leg, and stored on the variant (`reasoning_parts`) for the assembly to read back. The
+      // wire produced them honestly (never gated on the carry knob) — WHETHER they ride back is the pipeline's
+      // decision, off the one funnel answer. This spread is the field's ONE writer: the `reasoningParts: … ??
+      // null` this chunk used to carry above was the same field spelled a second way, disagreeing only on a
+      // turn that produced none.
       ...(result.reasoningParts !== undefined ? { reasoningParts: result.reasoningParts } : {}),
     },
   };

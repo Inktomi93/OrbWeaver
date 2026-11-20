@@ -14,7 +14,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
-import { isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../substrate/participant-actor.ts";
 import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
 // A cross-encoder spends a few tokens of its window on the pair's own markers ([CLS] q [SEP] d [SEP]).
@@ -42,7 +42,7 @@ interface RerankPickParams {
   /** Forwarded to the `natural` fallback only. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
   readonly rng: RandomSource;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The query and one `Name: line` document per candidate, each cut to the bound model's window. The query
@@ -79,7 +79,10 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
     query,
     named.map((c) => ({ id: speakerKey(c.ref), name: c.name, line: params.characterLines.get(c.ref.characterId) ?? "" })),
   );
-  const result = await reranker.rerank(fitted.query, fitted.documents, reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : undefined);
+  const result = await reranker.rerank(fitted.query, fitted.documents, {
+    ...(reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : {}),
+    signal: params.signal,
+  });
   return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
 
@@ -89,7 +92,7 @@ async function rankOrNull(params: RerankPickParams, line: TranscriptLine, named:
   try {
     return await rankKeys(params, line, named);
   } catch (error) {
-    if (error instanceof ProviderError || error instanceof DomainNoCredentialError || params.signal?.aborted === true) {
+    if (error instanceof ProviderError || error instanceof DomainNoCredentialError || params.signal.aborted) {
       return null;
     }
     throw error;
@@ -116,7 +119,7 @@ function orderAddressed(addressed: readonly CharacterId[], ranked: readonly stri
 export async function rerankPick(params: RerankPickParams): Promise<SmartArbitrationResult> {
   // Read through a call: the signal flips asynchronously, so a narrowed property read would go stale. A turn
   // already cancelled picks nobody, so no rule below (not even a name in the line) can schedule a speaker.
-  const cancelled = (): boolean => params.signal?.aborted === true;
+  const cancelled = (): boolean => params.signal.aborted;
   if (cancelled()) {
     return CANCELLED;
   }

@@ -1,11 +1,100 @@
 // The accessible names the Characters section prints on its library, editor and dialogs. A zero-import leaf, so a spec's
 // node side reads them without loading the component graph.
 
+/** Each card facet's row and drill-in heading, keyed by facet id; `character-card-facets.ts` reads one per row. */
+export const CHARACTER_FACET_LABELS = {
+  description: "Description",
+  personality: "Personality",
+  scenario: "Scenario",
+  exampleMessages: "Example messages",
+  creatorNotes: "Creator notes",
+  systemPrompt: "System prompt",
+  postHistoryInstructions: "Post-history instructions",
+  depthPrompt: "Note at depth",
+  regexScripts: "Regex scripts",
+  provenance: "Provenance",
+} as const;
+
+/** The landing's title once the library has someone to resume. */
+export const CHARACTER_LANDING_RESUME_TITLE = "Pick up where you left off";
+
+/** The landing's starred shelf, named with the server's starred count. */
+export function characterStarredShelfName(count: number): string {
+  return `Starred · ${String(count)}`;
+}
+
+/** The word a Recently chatted face's stamp line opens with, before how long ago and how many chats. */
+export const CHARACTER_CHATTED_STAMP_LEAD = "chatted";
+
+/** The stamp line under a Just added face: how long ago the character joined the library. */
+export function characterAddedStamp(ago: string): string {
+  return `added ${ago}`;
+}
+
+/** A landing face's name says what the press does, so a resume face and the library row it sits beside are two
+ *  offers, not two doors with one name (WCAG 2.5.3). `starred` rides the tail, so the verb leads in both arms. */
+export function characterFaceName(name: string, stamp: string | null, starred: boolean, resumes: boolean): string {
+  const offer = resumes ? `Resume the chat with ${name}` : name;
+  // The visible stamp ("chatted 3h ago · 4 chats") is part of the button's label, so the name carries every word of it (WCAG 2.5.3).
+  const stamped = stamp === null ? offer : `${offer}, ${stamp}`;
+  return starred ? `${stamped}, starred` : stamped;
+}
+
+/** The Look tab's select item that follows the global theme. */
+export const CHARACTER_INHERIT_LABEL = "Inherit";
+
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
+/** The Context pane's header tablist, named for the artifact. */
+export const CHARACTER_CONTEXT_TABLIST_NAME = "Character";
+
+/** The context pane's overview card and drilled facet tab. */
+export const CHARACTER_OVERVIEW_TAB_LABEL = "Overview";
+
+/** The context pane's appearance tab. */
+export const CHARACTER_LOOK_TAB_LABEL = "Look";
+
+/** The context pane's card trust tab. */
+export const CHARACTER_TRUST_TAB_LABEL = "Trust";
+
+/** The Trust tab's external-media switch: on blocks this character's remote media, off follows the install. */
+export const CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL = "Block external media for this character";
+
+/** The Trust tab's HTML-trust ladder control. */
+export const CHARACTER_HTML_TRUST_LABEL = "HTML rendering";
+
+/** The closed filter disclosure names what it opens, not the act: collapsed, nothing else on the rail says
+ *  Favorites, Archived or a tag vocabulary exist. It must stay one rail cell wide, because a wider cell wraps
+ *  at the docked width. The open arm says how to put the filters away, since its contents are on screen. */
+export const CHARACTER_FILTERS_CLOSED_LABEL = "Favorites, archived & tags";
+
+/** The closed label on a library with no tags yet, so the door never promises a vocabulary it cannot open. */
+export const CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS = "Favorites & archived";
+
+/** The filter disclosure's open label. */
+export const CHARACTER_FEWER_FILTERS_LABEL = "Fewer filters";
+
+/** The open disclosure's name, which says what closing it puts away. */
+export function characterFiltersOpenName(hasTags: boolean): string {
+  return hasTags ? "Fewer filters: hide the tag vocabulary" : "Fewer filters: hide the filter options";
+}
+
+/** The closed disclosure's name: its visible label, then what opening it does. */
+export function characterFiltersClosedName(closedLabel: string, noTagsYet: boolean): string {
+  return noTagsYet ? `${closedLabel}: show more filters, no tags yet` : `${closedLabel}: show more filters`;
+}
+
+/** The filter rail's door to the tags that do not fit, by how many are hidden. */
+export function characterShowMoreTagsName(count: string): string {
+  return `Show ${count} more tags`;
+}
+
 /** The band's icon-only door to the import dialog, and that dialog's name. */
 export const CHARACTER_IMPORT_NAME = "Import a character card";
+
+/** The create dialog's supporting line under its title. */
+export const CHARACTER_NEW_DESCRIPTION = "Give them a name and a one-line description. You can flesh out the rest in the editor.";
 
 /** The create dialog's name field. */
 export const CHARACTER_NAME_FIELD_NAME = "Character name";
@@ -15,9 +104,6 @@ export const CHARACTER_DESCRIPTION_FIELD_NAME = "Character description";
 
 /** The library list's default name. */
 export const CHARACTER_LIBRARY_NAME = "Character library";
-
-/** The library's search box. */
-export const CHARACTER_SEARCH_NAME = "Search characters";
 
 /** The library's sort select. */
 export const CHARACTER_SORT_NAME = "Sort characters";
@@ -36,6 +122,11 @@ export const CHARACTER_SHOW_FAVORITES_NAME = "Show only favorites";
 
 /** The tag filter box in the library's filter rail. */
 export const CHARACTER_FILTER_TAGS_NAME = "Filter tags";
+
+/** A tri-state tag chip's name: the tag, the state it is in, then what a press does. */
+export function characterTagFilterName(tag: string, state: string, next: string): string {
+  return `Filter by ${tag}: ${state}: ${next}`;
+}
 
 /** The exit of the expanded tag vocabulary. */
 export const CHARACTER_FEWER_TAGS_NAME = "Show fewer tags";
@@ -110,6 +201,12 @@ export const CHARACTER_DESCRIPTION_FACET_NAME = "Description";
 
 /** The Creator notes facet's field. */
 export const CHARACTER_CREATOR_NOTES_FACET_NAME = "Creator notes";
+
+/** The Provenance facet's creator field, and the detail panel's readout of it. */
+export const CHARACTER_CREATOR_FIELD_NAME = "Creator";
+
+/** The Provenance facet's card version field, and the detail panel's readout of it. */
+export const CHARACTER_CARD_VERSION_FIELD_NAME = "Card version";
 
 /** The failure an editor save raises, from the form submit and the save mutation alike. */
 export const CHARACTER_SAVE_FAILURE = "Couldn't save the character.";

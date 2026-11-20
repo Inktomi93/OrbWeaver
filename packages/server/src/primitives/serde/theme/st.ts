@@ -95,18 +95,18 @@ const UNMAPPED_REASONS: readonly StThemeLeftover[] = [
   },
   {
     field: "shadow_color",
-    reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme colour",
-    place: appearanceSettings("shadowEffects"),
+    reason: "orb draws its own text halo over a background image, derived from the theme; there is no shadow colour to set",
+    place: NO_EQUIVALENT,
   },
   {
     field: "shadow_width",
-    reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme value",
-    place: appearanceSettings("shadowEffects"),
+    reason: "orb draws its own text halo over a background image, derived from the theme; there is no shadow width to set",
+    place: NO_EQUIVALENT,
   },
   {
     field: "blur_strength",
-    reason: "glass blur is the viewer's own `appearance.blurSurfaces` treatment, not a theme value",
-    place: appearanceSettings("blurSurfaces", "blurStrength"),
+    reason: "glass is the viewer's own `appearance.blurSurfaces` treatment at one fixed strength, not a theme value",
+    place: appearanceSettings("blurSurfaces"),
   },
   {
     field: "custom_css",
@@ -128,7 +128,7 @@ const UNMAPPED_REASONS: readonly StThemeLeftover[] = [
     reason: `row anatomy is \`appearance.chatStyle\` (a theme may not force a row skin — D71/TD O-4)${ERGONOMICS_SUFFIX}`,
     place: appearanceSettings("chatStyle"),
   },
-  { field: "noShadows", reason: `\`appearance.shadowEffects\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("shadowEffects") },
+  { field: "noShadows", reason: "orb draws its own text halo over a background image and nowhere else; there is no switch to set", place: NO_EQUIVALENT },
   { field: "timer_enabled", reason: `\`appearance.showGenerationTimer\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showGenerationTimer") },
   { field: "timestamps_enabled", reason: `\`appearance.showTimestamps\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showTimestamps") },
   { field: "timestamp_model_icon", reason: `\`appearance.showModelIcon\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showModelIcon") },

@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { CLOUDFLARED_PIN } from "@orb/server/infra/relay";
 import { expect, test } from "@orb/testkit/tooling";
 import { parse } from "yaml";
 import { z } from "zod";
@@ -435,6 +436,16 @@ test("the runtime installs system certificate authorities for the pinned relay's
   expect(runtime).toMatch(/apt-get install[^\n]+\bca-certificates\b/u);
 });
 
+test("the runtime drops the base image's npm, which neither the entrypoint nor the command runs", ({ repoRoot }) => {
+  const runtime = read(repoRoot, "Dockerfile").split(/^FROM .* AS runtime$/mu)[1] ?? "";
+  expect(runtime).toMatch(/^RUN rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/bin\/npm \/usr\/local\/bin\/npx$/mu);
+  const launch = [...runtime.matchAll(/^(?:ENTRYPOINT|CMD|HEALTHCHECK[^\n]*\n\s*CMD) (.+)$/gmu)].map(([, command]) => command);
+  expect(launch).toHaveLength(3);
+  for (const source of [...launch, read(repoRoot, "docker/entrypoint.sh")]) {
+    expect(source).not.toMatch(/\b(?:npm|npx|corepack)\b/u);
+  }
+});
+
 test("compose publishes on loopback by default, ships a credentialed login mode, and keeps secrets out of the tracked env file", ({ repoRoot }) => {
   const compose = read(repoRoot, "docker-compose.yaml");
   const env = read(repoRoot, "docker/orbweaver.env");
@@ -637,6 +648,15 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
   expect(services["cloudflared"]?.ports ?? []).toEqual([]);
   expect(services["cloudflared"]?.environment?.["TUNNEL_TOKEN"]).toBe("placeholder-token");
   expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
+});
+
+// The tunnel overlay's image and the share relay's download are two artifacts of one cloudflared release. A pin moved
+// on one side alone leaves the other on the older release, so the image tag must name the relay pin's version, and the
+// image stays pinned by digest.
+test("the tunnel overlay runs the cloudflared release the share relay pins", ({ repoRoot }) => {
+  const overlay = parse(read(repoRoot, "docker/compose.cloudflared.yaml")) as { services: { cloudflared: { image: string } } };
+  const image = /^cloudflare\/cloudflared:(?<tag>[^@]+)@sha256:[0-9a-f]{64}$/u.exec(overlay.services.cloudflared.image);
+  expect(image?.groups?.["tag"], overlay.services.cloudflared.image).toBe(CLOUDFLARED_PIN.version);
 });
 
 // The sandbox is PERMISSIVE by owner ruling: the point of the dev container is to run without prompts, and its

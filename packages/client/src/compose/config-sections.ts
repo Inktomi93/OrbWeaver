@@ -10,9 +10,14 @@
 // DOOR ORDER IS RENDER ORDER: within a group, sections render in the order they appear below.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { appearanceBackgroundSection, appearanceEffectsSection, appearanceReadingSection, appearanceSizingSection } from "#features/app-shell";
+import {
+  appearanceAccessibilitySection,
+  appearanceBackgroundSection,
+  appearanceEffectsSection,
+  appearanceReadingSection,
+  appearanceSizingSection,
+} from "#features/app-shell";
 import { automationBudgetSection, automationLibraryRulesSection } from "#features/automation";
-import { librarySettingsSection } from "#features/character";
 import {
   appearanceAvatarsSection,
   appearanceMessageDetailsSection,
@@ -21,7 +26,6 @@ import {
   chatMessageHandlingSection,
   chatStreamingSection,
   databankSettingsSection,
-  imageryTemplatesSection,
   memorySettingsSection,
   proseSettingsSection,
 } from "#features/chat";
@@ -68,7 +72,7 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   automationBudgetSection,
   // chat-behavior ← the DECOMPOSED chat-behavior pane (SET-SEAMS stage 2) leading, then the sections that
   // were already contributions: chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
-  // databank ④ (retrieval), imagery (prompt templates). The two chat-owned knob groups come FIRST, which
+  // databank ④ (retrieval), prose (the model-facing wording, image prompts included). The two chat-owned knob groups come FIRST, which
   // reproduces the pre-split pane exactly (its own sections rendered above the contributed ones).
   chatMessageHandlingSection,
   chatStreamingSection,
@@ -76,7 +80,6 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   chatAttachmentQualitySection,
   worldInfoSettingsSection,
   databankSettingsSection,
-  imageryTemplatesSection,
   proseSettingsSection,
   // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2 merged `system` INTO
   // `admin`, "system's sections becoming the first group"), in their pre-merge pane order …
@@ -108,18 +111,19 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   // appearance ← LOOKS leads (#866 S4/#297 — the first appearance decision; the theme picker + builder
   // folded in from the retired `theme` modal), then the DECOMPOSED appearance pane (SET-SEAMS stage 1) in
   // its pre-split order. Each section is owned by the feature that READS its knobs (§6): settings owns the
-  // theme (D114), chat renders the message chrome, app-shell paints sizing/reading/effects/background, and
-  // character reads the library page size. The `advanced` sections render inside the group's
-  // "Customize this look" fold (collapsed by default — the #297 explicit custom arm).
+  // theme (D114), chat renders the message chrome, and app-shell paints accessibility/sizing/reading/effects/
+  // background. Accessibility stays outside the fold, so nobody who needs it has to open one. The `advanced`
+  // sections render inside the group's "Customize this look" fold (collapsed by default — the #297 explicit
+  // custom arm).
   appearanceLooksSection,
   appearanceMessageStyleSection,
   appearanceAvatarsSection,
   appearanceSizingSection,
   appearanceMessageDetailsSection,
   appearanceBackgroundSection,
+  appearanceAccessibilitySection,
   appearanceReadingSection,
   appearanceEffectsSection,
-  librarySettingsSection,
   // plugins ← Installed, then Add-a-plugin (both UNGATED — everyone has their own plugins, D147), then the
   // admin half (D147 clause (d), `when: viewer.isAdmin`) LAST: your plugins first, the deployment-wide one
   // after — the order a person meets them in (§6.8).

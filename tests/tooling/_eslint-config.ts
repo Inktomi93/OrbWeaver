@@ -1,6 +1,12 @@
 // A resolved flat config read off `ESLint#calculateConfigForFile`, which types its result `any`. Each piece is
 // checked as it is read, so a probe that feeds it to `Linter` gets the repo's rule levels and plugins or a throw.
-import type { ESLint, Linter } from "eslint";
+import { join } from "node:path";
+import type { Linter } from "eslint";
+import { ESLint } from "eslint";
+
+// The repository config loads here, once per worker and outside any case: its cold load can outlast a case's time
+// limit on a busy box, and every later instance in the worker reuses the loaded modules.
+await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: join(import.meta.dirname, "../..") }).calculateConfigForFile("eslint.config.ts");
 
 export interface ResolvedConfig {
   readonly plugins: Record<string, ESLint.Plugin>;

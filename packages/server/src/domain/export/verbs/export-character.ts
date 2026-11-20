@@ -4,18 +4,24 @@
 //
 // Ownership is `principal.userId`. `fetchOwned` puts the owner predicate in the WHERE, so a non-owner or
 // missing character both collapse to `undefined` → the verb returns `null` (404 at the HTTP layer).
+//
+// An embedded lore entry whose stored metadata is not JSON is written without it and reported to `note`.
 
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
+import { PORTABLE_EXPORT_CARRY } from "@orb/contracts/portability";
 import { tagStatusSchema } from "@orb/contracts/tag";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
 import { fetchOwned, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { and, eq } from "drizzle-orm";
 import { isMissingFile } from "#primitives/errno";
 import type { ExportWorldEntry } from "#primitives/serde/card";
 import { buildCardV3 } from "#primitives/serde/card";
+import { STORED_CONFIG_UNREADABLE } from "#primitives/stored-config";
 import type { ExportCharacterParams } from "../contract/params.ts";
 import type { ExportedCard } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
@@ -37,6 +43,40 @@ function parseDepthPrompt(raw: unknown): CardDepthPrompt | null {
   }
   const parsed = cardDepthPromptSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
+}
+
+type EmbeddedEntryRow = Pick<typeof worldEntries.$inferSelect, "id" | "content" | "keys" | "enabled" | "priority" | "title" | "ignoreBudget" | "metadata">;
+
+// The primary book's entries as the card embeds them, de-duped by id; an entry whose stored metadata is not JSON is
+// written without it and reported to `note` under the card's name.
+function embeddedEntries(rows: readonly EmbeddedEntryRow[], cardName: string, note: ExportCharacterParams["note"]): ExportWorldEntry[] {
+  const seen = new Set<string>();
+  const entries: ExportWorldEntry[] = [];
+  for (const entry of rows) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+    seen.add(entry.id);
+    if (entry.metadata instanceof UnreadableJsonText) {
+      note({
+        kind: "character",
+        item: `${cardName}: ${entry.title}`,
+        code: STORED_CONFIG_UNREADABLE,
+        failure: VERSIONED_PARSE_FAILURES.notJson,
+        carried: PORTABLE_EXPORT_CARRY.withoutMetadata,
+      });
+    }
+    entries.push({
+      keys: parseStringArray(entry.keys),
+      content: entry.content,
+      enabled: entry.enabled,
+      priority: entry.priority,
+      title: entry.title,
+      ignoreBudget: entry.ignoreBudget,
+      metadata: parseRecord(entry.metadata),
+    });
+  }
+  return entries;
 }
 
 export function createExportCharacter(ctx: ExportContext): ExportService["exportCharacter"] {
@@ -61,7 +101,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     }
   }
 
-  return async ({ principal, characterId, format }: ExportCharacterParams): Promise<ExportedCard | null> => {
+  return async ({ principal, characterId, format, note }: ExportCharacterParams): Promise<ExportedCard | null> => {
     const ownerId = principal.userId;
     const charRow = await fetchOwned(ctx.db, characters, characterId, ownerId);
     if (charRow === undefined) {
@@ -116,23 +156,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .from(characterBooks)
       .where(eq(characterBooks.characterId, characterId));
 
-    const seen = new Set<string>();
-    const entries: ExportWorldEntry[] = [];
-    for (const entry of entryRows) {
-      if (seen.has(entry.id)) {
-        continue;
-      }
-      seen.add(entry.id);
-      entries.push({
-        keys: parseStringArray(entry.keys),
-        content: entry.content,
-        enabled: entry.enabled,
-        priority: entry.priority,
-        title: entry.title,
-        ignoreBudget: entry.ignoreBudget,
-        metadata: parseRecord(entry.metadata),
-      });
-    }
+    const entries = embeddedEntries(entryRows, charRow.name, note);
 
     // D121-E: the card's regex scripts are LIBRARY ROWS behind `character_regex_scripts`, so the RE-EMBED is
     // an injected regex-domain op rather than a column read. It returns both halves of the wire: the ST

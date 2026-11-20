@@ -21,7 +21,11 @@ async function resolvePersonaRooms(db: Db, personaId: PersonaId): Promise<ChatId
       .select({ chatId: chatParticipants.chatId })
       .from(chatParticipants)
       .where(and(eq(chatParticipants.activePersonaId, personaId), isNull(chatParticipants.leftSeq))),
-    db.select({ chatId: chats.id }).from(chats).where(eq(chats.anchorPersonaId, personaId)),
+    // The anchor is a room-row pointer, not a seat, so it reaches a room an import is still landing unless excluded.
+    db
+      .select({ chatId: chats.id })
+      .from(chats)
+      .where(and(eq(chats.anchorPersonaId, personaId), isNull(chats.landingAt))),
   ]);
   return [...seated.map((row) => row.chatId), ...anchored.map((row) => row.chatId)];
 }

@@ -31,6 +31,7 @@
 // accepted cost is the boundary burst — up to 2×limit across an hour boundary — which is the right direction
 // to be imprecise in for a ceiling nobody legitimate approaches.
 
+import { DomainRateLimitError } from "@orb/kit/errors";
 import type { PluginId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { PluginRateFloor } from "../contract/ops.ts";
@@ -62,6 +63,12 @@ export const PLUGIN_QUIET_LLM_PER_HOUR = 30;
  *  ceiling. This is its own per-plugin budget: retrieval is cheaper than `llm.quiet` generation and must not
  *  starve the separate `net.fetch` browse budget. The fixed-window boundary can admit 240 across two hours. */
 export const PLUGIN_SEARCH_QUERY_PER_HOUR = 120;
+
+/** `pubsub.emit` calls per plugin per hour. An emit wakes each subscriber as a new invocation with a fresh CPU account,
+ *  and a plugin may subscribe to its own channel or to a sibling that answers it, so the emit is what buys a plugin
+ *  guest CPU on demand: a self-publishing plugin held a core without pause until this floor. One every 10 seconds
+ *  sustained, the `net.fetch` cadence, is above any announcement a person's play produces. */
+export const PLUGIN_PUBSUB_EMIT_PER_HOUR = 360;
 
 /** Sweep threshold — one entry per plugin that has ever used the capability in this process, each dead after
  *  its window. A bounded lazy sweep keeps a long-lived process from accumulating rows for uninstalled plugins
@@ -105,7 +112,7 @@ export function createPluginRateFloor(now: () => number, spec: { readonly capabi
         return;
       }
       if (current.count >= spec.limit) {
-        throw new Error(`plugin host: ${spec.capability} is limited to ${spec.limit} calls per hour for this plugin`);
+        throw new DomainRateLimitError(`plugin host: ${spec.capability} is limited to ${spec.limit} calls per hour for this plugin`);
       }
       // Claimed. The increment is the RECORD half of check-and-claim and happens before any caller await.
       current.count += 1;

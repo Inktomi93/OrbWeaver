@@ -3,6 +3,7 @@
 // applies its own copy of the plugin's `netHosts`, never a host list the broker sent.
 
 import type { PluginBridge, PluginInvocationLiveness } from "@orb/contracts/plugin";
+import { DomainUnavailableError } from "@orb/kit/errors";
 import type { SafeFetchOptions, ScopedEgress } from "../network/contract/egress.ts";
 
 import { isAllowedImageBuffer } from "../network/image-guard.ts";
@@ -40,7 +41,7 @@ export function createPluginNetEgress(netHosts: readonly string[], bridge: Plugi
       const res = await fetchImpl(url, buildAssetFetchOptions(netHosts, cancel.signal));
       if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
         res.dispose?.();
-        throw new Error(`plugin host: net.fetchAsset got a non-2xx response (HTTP ${res.status})`);
+        throw new DomainUnavailableError(`plugin host: net.fetchAsset got a non-2xx response (HTTP ${res.status})`);
       }
       const bytes = await res.bytes();
       // Magic-byte sniff plus the dimension/pixel bomb caps; the remote Content-Type is never trusted, and the

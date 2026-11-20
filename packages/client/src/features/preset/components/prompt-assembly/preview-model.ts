@@ -8,6 +8,7 @@ import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import type { MacroRun } from "@orb/kit/macro";
 import { scanMacroRuns } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import { PRESET_LITERAL_TEXT_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 
@@ -90,7 +91,7 @@ function sectionName(section: PromptSection): string {
     const copy = MARKER_COPY[section.marker];
     return section.name.trim() === "" ? copy.label : section.name;
   }
-  return section.name.trim() === "" ? "Literal text" : section.name;
+  return section.name.trim() === "" ? PRESET_LITERAL_TEXT_LABEL : section.name;
 }
 
 /** Build the display block for a section (name + tokens, or a plain-marker hint). */

@@ -23,9 +23,9 @@ test("a token-usage backfill result stored with the retired owner census keys st
   expect(parse.safeParse({ ...stored, neverDeclared: 1 }).success).toBe(false);
 });
 
-test("a bundle import result stored before imports carried a scope reads as having none", () => {
+test("a bundle import result stored before imports carried a scope or a held count reads as having neither", () => {
   const stored = { imported: 2, skipped: 0, failed: 0, notes: [] };
-  expect(workloadResultSchemaOf("import-bundle").parse(stored)).toEqual({ ...stored, memoryScope: null });
+  expect(workloadResultSchemaOf("import-bundle").parse(stored)).toEqual({ ...stored, inLibrary: 0, memoryScope: null });
 });
 
 test("a stored group config carrying the retired groupCharacterId keeps its mode, while the write door still refuses the key", () => {

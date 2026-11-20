@@ -12,14 +12,19 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
 import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
+import { deadlineSignal } from "../backends/http/abort-flatten.ts";
+import { judgesTheKey } from "../backends/http/error-classify.ts";
+import { authHeaders, fetchJson, keyCheckUrl, SERVER_READ_TIMEOUT_MS } from "../backends/http/fetch-json.ts";
 import { resolvedScrubSet } from "../backends/http/sanitize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/model-listing.ts";
 import { curatedIdsFor, curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import type { CatalogListingDeps } from "../contract/catalog.ts";
+import type { ProviderScrubSet } from "../contract/errors.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { CatalogDraft } from "../contract/runtime.ts";
+import type { CatalogDraft, EndpointModel } from "../contract/runtime.ts";
 import { fetchEndpointModels } from "./endpoint.ts";
 import { listGoogleModels } from "./google.ts";
 
@@ -43,12 +48,65 @@ function builtinListing(provider: ProviderDef): ModelListing {
   return listingOf(builtinCatalog(provider));
 }
 
+/** An endpoint list row as a catalog entry: the facts its reader stated, every other field unknown. Stated tool support
+ *  rides `supportedParameters` as OpenRouter's entries carry it, so the picker reads one seat. */
+function endpointCatalogEntry(row: EndpointModel): ModelCatalogEntry {
+  return {
+    ...bareCatalogEntry(row),
+    ...(row.listedPrice?.prompt === undefined ? {} : { promptPrice: row.listedPrice.prompt }),
+    ...(row.listedPrice?.completion === undefined ? {} : { completionPrice: row.listedPrice.completion }),
+    ...(row.input === undefined ? {} : { inputModalities: [...row.input] }),
+    ...(row.output === undefined ? {} : { outputModalities: [...row.output] }),
+    ...(row.tools === undefined ? {} : { supportedParameters: [TOOLS_PARAMETER] }),
+    ...(row.maxCompletionTokens === undefined ? {} : { maxCompletionTokens: row.maxCompletionTokens }),
+  };
+}
+
 /** A wire whose list authenticates only through a branded `ResolvedSecret` cannot take a raw draft key. */
 function savedCredentialOnly(provider: ProviderDef): ModelListing {
   return { listed: false, reason: `${provider.label} lists its models only under a saved credential` };
 }
 
+interface KeyVerdictTarget {
+  readonly provider: ProviderDef;
+  readonly baseUrl: string;
+  readonly secret: string | null;
+  readonly headers: Readonly<Record<string, string>> | undefined;
+  readonly secrets: ProviderScrubSet;
+  readonly signal: AbortSignal;
+}
+
 export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogDraft) => Promise<ModelListing> {
+  // A row whose models list answers without a key (NanoGPT) states its key check (`features.keyCheckPath`, a free keyed
+  // read), so a draft key is judged there by the rule a chat turn strikes by: a refusal names the key, and a check
+  // that got no verdict (a timeout, a 5xx, the network) marks the list unchecked and never blocks the add.
+  const withKeyVerdict = async (listing: ModelListing, target: KeyVerdictTarget): Promise<ModelListing> => {
+    const path = target.provider.features?.keyCheckPath;
+    if (!listing.listed || path === undefined || target.secret === null || target.secret === "") {
+      return listing;
+    }
+    const read = deadlineSignal(target.signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
+    try {
+      await fetchJson({
+        fetch: deps.fetch,
+        url: keyCheckUrl(target.baseUrl, path),
+        headers: authHeaders(target.secret, target.headers),
+        secrets: target.secrets,
+        label: `${target.provider.id} key check`,
+        signal: read.signal,
+      });
+      return listing;
+    } catch (err) {
+      const forbiddenIsNotCredentialVerdict = target.provider.features?.forbiddenIsNotCredentialVerdict === true;
+      if (err instanceof ProviderError && judgesTheKey(err, forbiddenIsNotCredentialVerdict)) {
+        return failedListing(err, target.secrets, forbiddenIsNotCredentialVerdict);
+      }
+      return { ...listing, keyUnchecked: true };
+    } finally {
+      read.dispose();
+    }
+  };
+
   const credentialFor = (draft: CatalogDraft, provider: ProviderDef, credentialId: ResolvedSecret["credentialId"]): Promise<ResolvedSecret> =>
     deps.resolveCredential({ credentialId, ownerId: draft.principal.userId, providerId: provider.id });
 
@@ -74,6 +132,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
           secret: key,
           secrets: resolvedScrubSet({ credential: { secret: key }, transport: null }),
           label: `${provider.id} models`,
+          signal: draft.signal,
         },
         deps.fetch,
       );
@@ -89,6 +148,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
         credential,
         transport: draft.headers === undefined ? null : { headers: draft.headers },
       },
+      signal: draft.signal,
     });
   };
 
@@ -108,15 +168,23 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
         secret,
         headers: draft.headers,
         secrets,
+        signal: draft.signal,
         modelInfoApi: provider.features?.modelInfoApi,
         warn: (message) => {
           deps.warn({ providerId: provider.id }, message);
         },
       });
-      return listingOf(rows.map((row) => bareCatalogEntry(row)));
+      return await withKeyVerdict(listingOf(rows.map(endpointCatalogEntry)), {
+        provider,
+        baseUrl,
+        secret,
+        headers: draft.headers,
+        secrets,
+        signal: draft.signal,
+      });
       // a failed dial is returned as `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts); the model picker (client credentials/lib/model-picker-model.ts) turns it into its failed arm with the reason and a retry, and the pane offers a typed id. Ends if callers require a successful catalog.
     } catch (err) {
-      return failedListing(err, secrets);
+      return failedListing(err, secrets, provider.features?.forbiddenIsNotCredentialVerdict === true);
     }
   };
 
@@ -130,7 +198,11 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     }
     if (provider.dialect === "openrouter") {
       const warmed = await deps.warmOpenRouter();
-      return warmed.ok ? listingOf(warmed.value) : { listed: false, reason: warmed.reason };
+      if (warmed.ok) {
+        return listingOf(warmed.value);
+      }
+      // A catalog that lost only its embeddings or rerank list still lists the chat models it holds.
+      return warmed.partial === null ? { listed: false, reason: warmed.reason } : listingOf(warmed.partial);
     }
     switch (provider.wire) {
       case "agent-sdk":

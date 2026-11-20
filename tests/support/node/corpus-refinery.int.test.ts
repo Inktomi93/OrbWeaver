@@ -6,6 +6,7 @@ import {
   forgeDesignEnvelopeSchema,
   REFINERY_FORGE_ARMS,
   REFINERY_STAGES,
+  refinerySchemaDocumentSchema,
   refinerySessionViewSchema,
 } from "@orb/contracts/refinery";
 import { assertReferentialIntegrity } from "@orb/db";
@@ -241,9 +242,14 @@ test("the forge renders a final document refusal for the author without losing t
   const design = forgeDesignEnvelopeSchema.parse(JSON.parse(raw));
   replies.set("refinery_schema_design", JSON.stringify({ ...design, name: "not a valid identifier!!!" }));
   const before = physical.requests.length;
+  const invalidName = refinerySchemaDocumentSchema.safeParse({ name: "not a valid identifier!!!", description: "", stage: "score", schema: draft.schema });
+  const nameRefusal = invalidName.error?.issues[0]?.message;
+  if (nameRefusal === undefined) {
+    throw new Error("The belt accepted the invalid name");
+  }
   expect(await caller.refinery.generateSchema({ stage: "score", description: "Explain the keeper's score.", arm: "single" })).toEqual({
     kind: "failed",
-    message: "That design didn't pass the schema checks: ✖ name must match ^[a-zA-Z_][a-zA-Z0-9_]*$\n  → at name",
+    message: expect.stringContaining(`✖ ${nameRefusal}\n  → at name`),
     raw: JSON.stringify(draft.schema, null, 2),
   });
   expect(physical.requests.length - before).toBe(1);

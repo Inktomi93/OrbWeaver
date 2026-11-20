@@ -10,15 +10,16 @@
 // Schedules on ONE scroll surface, so an accent fill here made two at rest. Jobs keeps the accent: "Run a
 // workload…" is the pane's reason to exist, scheduling is the follow-on.
 // Reads workloads.listSchedules (server-scoped: a plain user sees only their own; owner/admin sees every
-// owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule; the
-// server re-gates regardless.
+// owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule, and only the box
+// owner is offered the switch, Edit and Delete on the box owner's schedules (`viewerActsOnRow`, D17); the server
+// re-gates regardless.
 //
 // A settings-SECTION CONTRIBUTION at the `workloads` anchor since SET-SEAMS stage 3, owned by
 // features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
 import { userRoleSatisfies } from "@orb/contracts/identity";
-import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -32,10 +33,19 @@ import { useState } from "react";
 import { DestructiveAction, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
-import { UNRESOLVED_OWNER_HANDLE, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName, scheduleQualifier } from "../lib/workloads-schedule-model.ts";
+import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
+import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, scheduleNextRunLine, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
+import {
+  SCHEDULE_PAUSED_LABEL,
+  scheduleDeleteName,
+  scheduleEditName,
+  scheduleEnabledSwitchName,
+  scheduleName,
+  scheduleQualifier,
+} from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
@@ -76,6 +86,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   const [editing, setEditing] = useState<ScheduleItem | null>(null);
 
   const handleByUserId = new Map<string, string>(users.map((user) => [user.id, user.handle]));
+  const boxOwnerId = users.find((user) => userRoleSatisfies(user.role, "owner"))?.id;
   const ownerHandleFor = (schedule: ScheduleItem): string | null => {
     if (schedule.ownerId === viewer.userId) {
       return null;
@@ -93,16 +104,32 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
           </Text>
           {schedules.length === 0 ? null : (
             <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
-              New schedule…
+              {`${SCHEDULE_NEW_NAME}…`}
             </Button>
           )}
         </Row>
+        {!viewerIsOwner && usersQuery.isError ? (
+          <Row align="center" gap="row" wrap={true}>
+            <Text role="status" ink="muted" voice="label">
+              {OTHERS_CONTROLS_HIDDEN_TEXT}
+            </Text>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(): void => {
+                usersQuery.refetch().catch(globalThis.reportError);
+              }}
+            >
+              {DIALOG_VERBS.retry}
+            </Button>
+          </Row>
+        ) : null}
         {schedules.length === 0 ? (
           <EmptyState
             title="No schedules yet. Recurring jobs you set up appear here."
             action={
               <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
-                New schedule
+                {SCHEDULE_NEW_NAME}
               </Button>
             }
           />
@@ -113,6 +140,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
                 key={schedule.id}
                 schedule={schedule}
                 ownerHandle={ownerHandleFor(schedule)}
+                viewerActs={viewerActsOnRow(schedule, { userId: viewer.userId, isOwner: viewerIsOwner }, boxOwnerId)}
                 onToggle={(enabled): void => setEnabled.mutate({ id: schedule.id, enabled })}
                 onEdit={(): void => setEditing(schedule)}
                 onDelete={(): void => deleteSchedule.mutate({ id: schedule.id })}
@@ -139,56 +167,66 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   );
 }
 
-/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge, an enable Switch + Edit + Delete. */
+/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge,
+ *  and, when the viewer may act on it, an enable Switch + Edit + Delete. */
 function ScheduleRow({
   schedule,
   ownerHandle,
+  viewerActs,
   onToggle,
   onEdit,
   onDelete,
 }: {
   readonly schedule: ScheduleItem;
   readonly ownerHandle: string | null;
+  readonly viewerActs: boolean;
   readonly onToggle: (enabled: boolean) => void;
   readonly onEdit: () => void;
   readonly onDelete: () => void;
 }): ReactElement {
-  const identity = { kind: schedule.kind, cadence: schedule.cadence, ownerHandle };
+  const identity = { kind: schedule.kind, cadence: schedule.cadence, ownerHandle, mode: schedule.mode };
   const name = scheduleName(identity);
   // ONE CADENCE VOCABULARY (side-eye 2026-08-08 P3). `formatRelative` flips to an absolute date past its
   // horizon, so two adjacent rows read "Next in 6d" and "Next Sep 7, 2026" — the same field in two
   // languages, and the reader has to work out that they are the same kind of fact. The absolute stamp is the
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
-  const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : "Paused";
-  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read. The title
-  // already states the cadence and the owner.
+  const nextRun = schedule.enabled ? scheduleNextRunLine(timeLib.formatDateTime(schedule.nextRunAt)) : SCHEDULE_PAUSED_LABEL;
+  const refusalSentence = schedule.refusal === undefined ? null : WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES[schedule.refusal];
+  const refusal = refusalSentence === null || schedule.enabled ? refusalSentence : `${SCHEDULE_PAUSED_LABEL} · ${refusalSentence}`;
+  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a
+  // paused one keeps its Paused state in front of it: resuming a refused schedule must not hide that it is paused.
+  // The title already states the cadence and the owner.
   return (
     <ListRow
       title={WORKLOAD_KIND_LABELS[schedule.kind]}
       titleQualifier={scheduleQualifier(identity)}
-      subtitle={schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}
-      subtitleWrap={schedule.refusal !== undefined}
+      subtitle={refusal ?? nextRun}
+      subtitleWrap={refusal !== null}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
-          {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
-          <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
-          <Button variant="outline" size="sm" aria-label={scheduleEditName(identity)} onClick={onEdit}>
-            Edit
-          </Button>
-          {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
-              of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
-              user N identical buttons and no way to tell which row they are about to destroy. */}
-          <DestructiveAction
-            confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
-            onConfirm={onDelete}
-            trigger={
-              <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
-                Delete
+          {schedule.mode === "bulk" ? <Badge>{WORKLOAD_BULK_BADGE}</Badge> : null}
+          {viewerActs ? (
+            <>
+              <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
+              <Button variant="outline" size="sm" aria-label={scheduleEditName(identity)} onClick={onEdit}>
+                Edit
               </Button>
-            }
-          />
+              {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
+                  of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
+                  user N identical buttons and no way to tell which row they are about to destroy. */}
+              <DestructiveAction
+                confirm={{ confirmLabel: SCHEDULE_DELETE_CONFIRM_NAME, description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
+                onConfirm={onDelete}
+                trigger={
+                  <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
+                    Delete
+                  </Button>
+                }
+              />
+            </>
+          ) : null}
         </Row>
       }
     />

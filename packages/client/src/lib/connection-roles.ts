@@ -3,12 +3,13 @@
 // barrel-free, because node-side CT specs import it; the rendered row is `components/connection-role-slot.tsx`.
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
-import { CONNECTION_LABEL_SEPARATOR, canFund, requirementMet } from "@orb/contracts/inference";
+import { CONNECTION_LABEL_SEPARATOR, canFund, requirementMet, taskDef } from "@orb/contracts/inference";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
 import { itemSwitchName } from "./item-switch-names.ts";
+import { REVOKED_KEY_COPY } from "./revoked-key-copy.ts";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
   chat: "Chat",
@@ -39,6 +40,7 @@ interface RoleRequirement {
 }
 
 const NEEDS_PROSE: RoleRequirement = { label: "prose", requires: { output: ["text"] }, unmet: "summaries will skip" };
+const NEEDS_REPLY_PROSE: RoleRequirement = { label: "prose", requires: { output: ["text"] }, unmet: "replies cannot run" };
 const NEEDS_STRUCTURED: RoleRequirement = { label: "structured JSON", requires: { structured: true }, unmet: "structured extraction will skip" };
 const NEEDS_CAPTION_INPUT: RoleRequirement = { label: "image input", requires: { input: ["image"] }, unmet: "image captions will skip" };
 const NEEDS_IMAGE_OUTPUT: RoleRequirement = { label: "image output", requires: { output: ["image"] }, unmet: "/imagine will say it can't run" };
@@ -82,7 +84,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     description:
       "The main conversation model. Every turn you trigger runs on it. Game mode writes its state through this model's tool calls; a model without them keeps a game read-only.",
     optional: false,
-    requirements: [],
+    requirements: [NEEDS_REPLY_PROSE],
   },
   summarize: {
     task: "summarize",
@@ -139,20 +141,37 @@ const ROLE_RENDER_ORDER: readonly RoutableTask[] = ["chat", "summarize", "genera
 /** The role rows in render order; a routable task missing from the order list is a `tsc`-visible gap in the test. */
 export const ROLE_ROWS_ORDERED: readonly RoleRow[] = ROLE_RENDER_ORDER.map((task) => ROLE_ROWS[task]);
 
+const NO_BREAK_SPACE_CODE_POINT = 0xa0;
+const ZERO_WIDTH_SPACE_CODE_POINT = 0x20_0b;
+const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
+const ZERO_WIDTH_SPACE = String.fromCodePoint(ZERO_WIDTH_SPACE_CODE_POINT);
+/** The separator with its leading space made unbreakable, so a wrapped label never starts a line on the dot. */
+const BOUND_SEPARATOR = `${NO_BREAK_SPACE}${CONNECTION_LABEL_SEPARATOR.trimStart()}`;
+
 /** A connection row's one-line identity, the one label Model roles' picker, readout and repair all show:
  *  `<label> · <model name>` when the label was not auto-minted from the model. The model reads by its own name,
- *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`). */
+ *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`).
+ *
+ *  The text is for reading, not storing: the separator's dot is bound to the provider before it, and a slash is a
+ *  zero-width place to break, because the browser offers none after one and would split a model id inside a name.
+ *  Both characters are invisible to the accessible name, which whitespace-normalizing matchers read unchanged. */
 export function connectionSummary(row: { readonly label: string; readonly model: string }): string {
   const name = row.model.slice(row.model.lastIndexOf("/") + 1);
-  return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+  const text = labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+  return text.replaceAll(CONNECTION_LABEL_SEPARATOR, BOUND_SEPARATOR).replaceAll("/", `/${ZERO_WIDTH_SPACE}`);
 }
 
 /** The connection setting that lets unattended work run on a row. */
 export const ALLOW_BACKGROUND_SETTING = "Allow background work";
 
-/** Every switch that writes a row's `allowBackground` — its list row, its editor, the Model-roles repair — reads this one name. */
+/** The name of a row's one `allowBackground` switch, which lives in its editor; every other surface shows the state and {@link openConnectionName}. */
 export function allowBackgroundSwitchName(row: { readonly label: string; readonly model: string }): string {
   return itemSwitchName(ALLOW_BACKGROUND_SETTING, connectionSummary(row));
+}
+
+/** The door that opens one connection's editor from outside the Connections list. */
+export function openConnectionName(row: { readonly label: string; readonly model: string }): string {
+  return `Open ${connectionSummary(row)}`;
 }
 
 // A retained label must name the complete current model, not its provider or a partial model name.
@@ -222,6 +241,7 @@ export function bindRefusal(row: { readonly allowBackground: boolean }, task: Ro
 /** The `listBindings` view as this model READS it — structural, so the pure lib never imports the trpc
  *  inference type. */
 export interface RoleBindingView {
+  readonly task: RoutableTask;
   readonly binding: { readonly connectionId: UserConnectionId | null } | null;
   readonly resolved: { readonly connectionId: UserConnectionId; readonly capability: Capability } | null;
   readonly unavailableCause: UnavailableCause | null;
@@ -252,11 +272,16 @@ type RoleReadout =
  *  unreachable, and a map makes a new `UnavailableCause` member a `tsc` error here instead of a row with no words. */
 const UNAVAILABLE_CLAUSES: Record<UnavailableCause, string> = {
   "no-connection": "the connection it pointed at is gone",
+  "key-rejected": REVOKED_KEY_COPY.auth_failed.roleClause,
+  "key-revoked-unreachable": REVOKED_KEY_COPY.unreachable.roleClause,
+  "key-revoked-by-user": REVOKED_KEY_COPY.user.roleClause,
   // The host arm below wins whenever the row HAS a URL; this is the hosted-provider fallback.
   "endpoint-unreachable": "the server isn't answering",
   "runtime-missing": "the Claude runtime isn't installed on this server",
   "background-refused": "this connection doesn't allow background work",
-  "requirement-unmet": "this model can't do this job",
+  // Spoken by the role's own requirement instead (`unmetRequirementClause`); this is the clause for a role that states
+  // none, where the model is the wrong kind.
+  "requirement-unmet": "this model is the wrong kind for this role; pick another model for this role",
   unavailable: "this connection isn't available on this server",
   "model-load-failed": "its built-in model failed to load on this server; the next use tries again",
 };
@@ -268,9 +293,27 @@ const UNAVAILABLE_UNKNOWN = "it isn't available right now";
  *  Named rather than blank: a readout that says nothing reads as "a turn uses <empty>". */
 const UNLISTED_CONNECTION = "a connection that is no longer listed";
 
-function unavailableClause(cause: UnavailableCause | null, host: string | null): string {
+// What the role needs that its bound model lacks, from the role's own requirement (`TASK_DEFS`), with the way out.
+function unmetRequirementClause(task: RoutableTask): string {
+  const requires = taskDef(task).requires;
+  if (requires?.output?.includes("text") === true) {
+    return "this model doesn't write text, and this role needs text; pick another model for this role";
+  }
+  if (requires?.output?.includes("image") === true) {
+    return "this model doesn't make images; pick another model for this role";
+  }
+  if (requires?.input?.includes("image") === true) {
+    return "this model can't read images; pick another model for this role";
+  }
+  return UNAVAILABLE_CLAUSES["requirement-unmet"];
+}
+
+function unavailableClause(cause: UnavailableCause | null, host: string | null, task: RoutableTask): string {
   if (cause === "endpoint-unreachable" && host !== null) {
     return `can't reach ${host}`;
+  }
+  if (cause === "requirement-unmet") {
+    return unmetRequirementClause(task);
   }
   return cause === null ? UNAVAILABLE_UNKNOWN : UNAVAILABLE_CLAUSES[cause];
 }
@@ -293,8 +336,12 @@ export function roleReadout(args: {
   readonly draftConnectionId: UserConnectionId | null | undefined;
   readonly factsOf: (connectionId: UserConnectionId) => RoleConnectionFacts | null;
 }): RoleReadout {
-  const resolved = args.view?.resolved ?? null;
-  const bound = args.view?.binding?.connectionId ?? null;
+  const { view } = args;
+  if (view === null) {
+    return { kind: "unset" };
+  }
+  const resolved = view.resolved;
+  const bound = view.binding?.connectionId ?? null;
   if (resolved !== null) {
     const facts = args.factsOf(resolved.connectionId);
     const connection = facts === null ? UNLISTED_CONNECTION : facts.label;
@@ -308,7 +355,7 @@ export function roleReadout(args: {
     return { kind: "unset" };
   }
   const facts = args.factsOf(bound);
-  return { kind: "blocked", cause: unavailableClause(args.view?.unavailableCause ?? null, facts === null ? null : facts.host) };
+  return { kind: "blocked", cause: unavailableClause(view.unavailableCause, facts === null ? null : facts.host, view.task) };
 }
 
 /** The per-role status dot's ONE axis: WOULD A TURN RUN. A failed requirement is deliberately NOT this —
@@ -355,10 +402,10 @@ export function roleRequirementVerdicts(row: RoleRow, capability: Capability | n
 }
 
 /** The connections a Model-roles row REFUSES only because the row's `allowBackground` is off — §5.3a's
- *  inline repair: the refusal plus the switch that resolves it, right there, because the slot is the FIRST
- *  enforcement point and a refusal with no adjacent remedy sends the user hunting for a switch nobody
- *  named. GATED ON THE ROLE HAVING NOTHING RUNNING: a role a turn already runs on has no problem to
- *  repair, and four background rows each offering the same switch would be noise, not help. */
+ *  inline repair: the refusal plus a door to the connection's editor, where its one switch lives, because the
+ *  slot is the FIRST enforcement point and a refusal with no adjacent remedy sends the user hunting for a
+ *  switch nobody named. GATED ON THE ROLE HAVING NOTHING RUNNING: a role a turn already runs on has no
+ *  problem to repair, and four background rows each offering the same door would be noise, not help. */
 export function backgroundRepairs<T extends { readonly id: string; readonly allowBackground: boolean; readonly tasks: readonly Task[] }>(args: {
   readonly row: RoleRow;
   readonly connections: readonly T[];

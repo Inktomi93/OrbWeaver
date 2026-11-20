@@ -2,7 +2,8 @@
 
 import type { Cancellation } from "@orb/kit/guards";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { PortableFile } from "#portability";
+import type { ImportAnswer } from "#import";
+import type { PortableExportNotes, PortableFile } from "#portability";
 import type { AttachedBookRef } from "../character/index.ts";
 import type { HandoffCardPair } from "../chat/handoff-context.ts";
 import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "./schemas.ts";
@@ -25,18 +26,21 @@ export type BulkImportLorebook = (args: {
  *  not the caller's answers `false`. */
 export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
 
-/** Lands a lone book with no character attach, additively: equal content under the same name reuses the owned
- *  row; different content lands as a fresh book under the next free name. Never edits an owned book. */
-export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
-
-/** For each book, in order, whether the owner holds one {@link ImportStandaloneLorebook} would reuse for it. A read:
- *  it writes nothing, and it loads the owner's library once for the whole list. Once `signal` aborts it stops and
- *  returns the answers so far, which the aborted caller discards. */
-export type FindOwnedBooks = (args: {
+interface LorebookImportBatch {
   readonly ownerId: UserId;
   readonly books: readonly BulkImportLorebookInput[];
   readonly signal: Cancellation;
-}) => Promise<readonly boolean[]>;
+}
+
+/** Lands lone books with no character attach, additively and in order: a book whose entries equal an owned book's,
+ *  or a book an earlier one of the batch lands, reuses that row under any name; different content lands as a fresh
+ *  book under the next free name. Never edits an owned book. A single-file door is a batch of one. With `dryRun` it
+ *  writes nothing and answers, per book, what the write does with it (`"library"`, `"upload"` or `null` for a new
+ *  book) with the book's content key. Once `signal` aborts it stops after the book in hand and returns what it has. */
+export interface ImportStandaloneLorebooks {
+  (args: LorebookImportBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: LorebookImportBatch & { readonly dryRun: false }): Promise<readonly BulkImportLorebookResult[]>;
+}
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows, role
  *  preserved). Reference-carry: the world_books themselves are never cloned; zero attachments is a no-op.
@@ -64,8 +68,8 @@ export type LinkCarriedBooks = (args: {
 }) => Promise<LinkCarriedBooksResult>;
 
 /** Attach the owner's books to a character by name, the SillyTavern name-link: a card's `extensions.world`
- *  names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries. A name the same import's
- *  worlds wave landed binds that row through `landed`. Any other name resolves by exact owned name,
+ *  names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries. A name this same import
+ *  landed binds that row through `landed`. Any other name resolves by exact owned name,
  *  newest-wins, never fuzzy; a dangling name is returned in `missing`. `role` is the desired role; a `primary`
  *  request demotes to auxiliary when the character already holds a primary. */
 export type AttachOwnedBooksByName = (args: {
@@ -73,7 +77,7 @@ export type AttachOwnedBooksByName = (args: {
   readonly characterId: CharacterId;
   readonly names: readonly string[];
   readonly role: WorldBookRole;
-  /** The books this import's worlds wave landed, keyed by the name the profile calls each one. */
+  /** The books this import landed, keyed by the name the profile calls each one. */
   readonly landed: ReadonlyMap<string, WorldBookId>;
 }) => Promise<{ readonly linked: number; readonly missing: readonly string[] }>;
 
@@ -85,8 +89,13 @@ export interface ImportWorldInfoPort {
 }
 
 /** Export one owned book (and its entries) as the portable `worlds/*.json` file, or null when the book is not
- *  the caller's or is absent. */
-export type ExportWorldBook = (args: { readonly ownerId: UserId; readonly bookId: WorldBookId }) => Promise<PortableFile | null>;
+ *  the caller's or is absent. An entry whose stored metadata cannot be read is written without it and reported to
+ *  `note`. */
+export type ExportWorldBook = (args: {
+  readonly ownerId: UserId;
+  readonly bookId: WorldBookId;
+  readonly note: PortableExportNotes;
+}) => Promise<PortableFile | null>;
 
 /** Every book the owner owns, the enumeration the bundle descriptor's `exportAll` streams over. */
 export type ListOwnedBookIds = (args: { readonly ownerId: UserId }) => Promise<readonly WorldBookId[]>;

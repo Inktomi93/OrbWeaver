@@ -1,6 +1,7 @@
 // Settings edits and portability imports must share the same per-user write owner.
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 
 test("a held backup import preserves a concurrent section edit while another user keeps writing", async () => {
   using held = await freshHeldDb();
@@ -18,7 +19,7 @@ test("a held backup import preserves a concurrent section edit while another use
   await root.services.settings.updateUserSettingsSection({ principal: donor, input: { section: "appearance", patch: { fontScale: 1.4 } } });
   await root.services.settings.updateUserSettingsSection({ principal: donor, input: { section: "chat", patch: { offerChoices: false } } });
   const exported: Parameters<typeof descriptor.importFile>[1][] = [];
-  for await (const written of descriptor.exportAll(donor.userId)) {
+  for await (const written of descriptor.exportAll(donor.userId, failOnExportNote)) {
     exported.push(written);
   }
   const [file] = exported;

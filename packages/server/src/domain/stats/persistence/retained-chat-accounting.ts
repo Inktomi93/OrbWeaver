@@ -7,11 +7,13 @@ import {
   chatGenerationObservations,
   chatParticipants,
   chats,
-  compactionSpend,
+  dailyStats,
   embeddingCalls,
   messages,
   messageVariants,
+  modelStats,
   ownerStats,
+  spendLedger,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { immutableCollection, rowTuple, ROW_TUPLE_ALIAS as TUPLE_ALIAS } from "@orb/db/query";
@@ -24,6 +26,7 @@ import type { RetainedOwnersRead } from "../contract/retained-chat-accounting.ts
 import { RETAINED_CHAT_OWNERS_ALIAS } from "../contract/retained-chat-accounting.ts";
 import { retainedRebaseProjection } from "../substrate/retained-chat-accounting.ts";
 import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "./owner-chat-scope.ts";
+import { BUCKET_COLUMNS, emptied, MODEL_COLUMNS } from "./rollup-grains.ts";
 
 /** Compose-built private accounting scope; caller has already admitted the retained source operation. */
 export function createResolveRetainedChatAccountingScope(input: DatabaseHandle): ResolveRetainedChatAccountingScope<SQL> {
@@ -165,16 +168,17 @@ function ownerActivity(ownerId: UserId): SQL {
   const roomIds = ownerChatIds(ownerId);
   const messageIds = sql`select id from messages where chat_id in (${roomIds})`;
   return sql`select max(at) from (
-    select updated_at as at from chats where id in (${roomIds})
-    union all select created_at as at from messages where id in (${messageIds})
+    select created_at as at from messages where id in (${messageIds})
     union all ${retainedLegActivity(messageIds)}
-    union all select ${compactionSpend.createdAt} as at from ${compactionSpend} where ${compactionSpend.ownerId} = ${ownerId}
+    union all select ${spendLedger.createdAt} as at from ${spendLedger} where ${spendLedger.ownerId} = ${ownerId}
     union all select ${embeddingCalls.createdAt} as at from ${embeddingCalls} where ${embeddingCalls.ownerId} = ${ownerId}
     union all select ${chatGenerationObservations.observedAt} as at from ${chatGenerationObservations} where ${chatGenerationObservations.funderUserId} = ${ownerId}
   )`;
 }
 
-/** Money and counters were already rebased; extrema must read the committed-in-batch retained relations. */
+/** Money and counters were already rebased; extrema must read the committed-in-batch retained relations. A timeline
+ *  bucket or model row the counters left all zero is deleted too: a rebuild writes a row only for a grain something
+ *  still lands on, so the live rollups must not show an empty one. */
 export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db> = (batch, db, scope): void => {
   for (const ownerId of scope.ownerIds) {
     batch.push(
@@ -187,6 +191,8 @@ export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db>
         where m.chat_id in (${ownerChatIds(ownerId)}))`,
         })
         .where(eq(ownerStats.ownerId, ownerId)),
+      db.delete(dailyStats).where(and(eq(dailyStats.ownerId, ownerId), ...emptied(dailyStats, BUCKET_COLUMNS))),
+      db.delete(modelStats).where(and(eq(modelStats.ownerId, ownerId), ...emptied(modelStats, MODEL_COLUMNS))),
     );
   }
   for (const characterId of scope.characterIds) {
@@ -198,8 +204,7 @@ export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db>
         .set({
           firstChatAt: sql`(select min(created_at) from chats where id in (${roomIds}))`,
           lastActivityAt: sql`(select max(at) from (
-        select updated_at as at from chats where id in (${roomIds})
-        union all select created_at as at from messages where id in (${messageIds})
+        select created_at as at from messages where id in (${messageIds})
         union all ${retainedLegActivity(messageIds)}
       ))`,
         })

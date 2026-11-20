@@ -29,18 +29,16 @@ import { tokenProvenanceSchema } from "./token-provenance.ts";
 
 const SEQ_MIN = 0;
 
-/** Variant-grain token accounting provenance. This is the one canonical vocabulary shared by provider
- * turns, imports, canon, rollups, and rendering: a number without this origin is not honest accounting. */
-/** WHY a `message_assets` link exists (inference program §5.3b): `attached` = a user turn's upload;
+/** WHY a `message_assets` link exists: `attached` = a user turn's upload;
  *  `illustration` = a narrator `/imagine` post; `generated-post` = a caller-authored generated-picture post;
- *  `inline-reply` = a picture the model itself emitted mid-turn (§6.7) — the ONLY origin the wire-history
+ *  `inline-reply` = a picture the model itself emitted mid-turn — the ONLY origin the wire-history
  *  projection sends back as an assistant image part. `assets.kind` (`attachment` vs `generated`) cannot
  *  separate these three generated-image placements; this per-LINK column is the reason it exists. NOT NULL,
  *  no default — every writer stamps it. */
 export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "generated-post", "inline-reply"] as const;
 export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
 
-/** The ONE origin `substrate/wire-history` rides back to the model as an assistant image part (§6.7) —
+/** The ONE origin `substrate/wire-history` rides back to the model as an assistant image part —
  *  named because three sites must agree on it exactly: the commit that STAMPS it (the turn's inline-reply
  *  asset rows), the loader that reads the origin set, and the predicate that admits it. A fourth spelling of
  *  the literal is how a fence silently widens to every assistant-row asset. */
@@ -64,8 +62,26 @@ const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROV
  *  callers) references, homed HERE so the wire ceiling and the backstop never drift. */
 export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
 
+/** The most characters (UTF-16 code units, `String.length`) one stored variant's content or reasoning may hold.
+ *  Every canon writer refuses a longer text with {@link MESSAGE_TOO_LONG_OP_CODE} and never truncates it.
+ *
+ *  @remarks Sized from the owner's library of 101,434 variants: the largest content is 264,216 characters, the
+ *  99.9th percentile 15,071, the median 2,298, the largest AI reply 66,889 and the largest reasoning 20,517. Every
+ *  row over 50,000 is a user message in an imported SillyTavern chat. A real row over the cap moves this number;
+ *  it never shortens the row. */
+export const MESSAGE_TEXT_MAX_CHARS = 4_000_000;
+
+/** The `DomainOperationError.code` a canon write refuses an over-{@link MESSAGE_TEXT_MAX_CHARS} text with; the
+ *  server's `CHAT_OP_CODES.messageTooLong` derives this literal. */
+export const MESSAGE_TOO_LONG_OP_CODE = "message_too_long" as const;
+
+/** The `DomainOperationError.code` a send or commit refuses with when the macro pass over its draft exceeds the
+ *  macro engine's byte budget, which would otherwise render the typed text as empty; the server's
+ *  `CHAT_OP_CODES.messageMacroBudget` derives this literal. */
+export const MESSAGE_MACRO_BUDGET_OP_CODE = "message_macro_budget" as const;
+
 /** The PER-WIRE opaque provenance a `reasoning` part carries so the next leg of a tool loop — or a
- *  `carryReasoning: "conversation"` replay of a prior turn (§8.8) — can hand the model back its own verified
+ *  `carryReasoning: "conversation"` replay of a prior turn — can hand the model back its own verified
  *  thinking. CLOSED by wire, never an open bag: each arm is exactly what that provider's SDK reads off a
  *  replayed reasoning part, spelled in the provider's own vocabulary.
  *
@@ -85,7 +101,7 @@ export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
  *
  *  DELIBERATELY NOT ON `MessageView`: the parts are HOST-SIDE replay material, not a render surface, and a
  *  signature / encrypted-reasoning blob has no business crossing to a browser. The assembly reads them
- *  through the engine's own `loadReasoningParts` op instead (§8.8). */
+ *  through the engine's own `loadReasoningParts` op instead. */
 export interface ReasoningPartMeta {
   readonly google?: { readonly thoughtSignature: string } | undefined;
   readonly anthropic?: { readonly signature?: string | undefined; readonly redactedData?: string | undefined } | undefined;
@@ -126,11 +142,8 @@ export const chatReasoningPartSchema = z
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
- *  The column was an OPEN blob (`Record<string, unknown>`) until §5.3c class 3 closed it onto
- *  {@link variantMetadataSchema}, so nothing bound its writers to its readers — the exact shape that let this
- *  key be READ by three sites while only the ST import ever WROTE it (the same column already cost one
- *  nested-shape fidelity bug, `server/primitives/serde/chat` §variantMetadata). The type is now the binding and this
- *  constant is the key's one spelling: the live turn's writer
+ *  The column is closed onto {@link variantMetadataSchema}, so the type binds its writers to its readers and
+ *  this constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
  *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/persistence/rebuild-from-canon.ts`
  *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
@@ -142,23 +155,28 @@ export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
  *  `domain/import`'s token-usage backfill reads (`substrate/token-usage.ts`
  *  `recordedTokenCountFromMetadata`). It is a DECLARED key of this sidecar rather than foreign residue for
  *  exactly that reason: it has a named live reader, so closing the column has to bind that reader too or the
- *  backfill silently degrades every `exactRecovered` row to `estimated`. §5.3c's table named only the
- *  reasoning window because it enumerated the LIVE-TURN writer; the tree has two keys with readers. */
+ *  backfill silently degrades every `exactRecovered` row to `estimated`. */
 export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
+
+/** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's vendor FINGERPRINT (the
+ *  OpenAI-compatible `system_fingerprint`): the backend's own model-mix identity for that generation, which the
+ *  normalized usage core cannot express and no `message_variants` column holds. An operator reads it to tell a
+ *  reloaded backend from a stable one across a room's turns, and the turn's `provider.finish` span attribute
+ *  reports the same value live. A TOP-LEVEL key rather than a {@link variantProviderMetadataSchema} arm: every
+ *  wire that reports one spells it the same, and the arm union dispatches on a provider literal this fact does
+ *  not carry. Absent when the wire reports none — never an empty string standing in for one. */
+export const VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY = "system_fingerprint";
 
 // Strip mode: also reads stored rows and upstream responses.
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
  *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
  *
  *  WHAT MAY LIVE IN AN ARM — the admission rule, because a sidecar with no rule becomes the open bag again
- *  wearing types: ONLY a fact the NORMALIZED core cannot carry (§5.3c's own sentence). A field whose value
+ *  wearing types: ONLY a fact the NORMALIZED core cannot carry. A field whose value
  *  the same `message_variants` row already stores in a COLUMN is not provenance, it is a second home for one
- *  number, and the two drift. That rule retired three fields when the producing fold landed
- *  (`backends/wire/provider-metadata.ts`): OpenRouter's `cache` receipt (every V4 wire folds
- *  `prompt_tokens_details.cached_tokens` into `usage.inputTokens.cacheRead` → `cache_read_tokens`), its
- *  `upstreamGeneration` (that is `generation_id`, its own column), and the anthropic arm's
- *  `cacheReadTokens`/`cacheWriteTokens` (`cache_read_tokens`/`cache_write_tokens`). Anthropic's REAL
- *  unnormalizable fact is the ephemeral cache-creation TTL split, which is why its arm now carries the same
+ *  number, and the two drift: OpenRouter's `cache` receipt is `cache_read_tokens`, its
+ *  `upstreamGeneration` is `generation_id`, and a cache read/write count has its own column. Anthropic's REAL
+ *  unnormalizable fact is the ephemeral cache-creation TTL split, which is why its arm carries the same
  *  two fields the subscription arm does — one vocabulary for one concept.
  *
  *  Every arm below has a live producer; an arm nobody writes is the "contract landed, wiring didn't" shape
@@ -185,7 +203,7 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
        *  `cache_write_tokens` is their SUM — the split itself has no normalized home. */
       cacheCreation5mTokens: z.number().optional(),
       cacheCreation1hTokens: z.number().optional(),
-      /** Server-side web-search calls the SDK billed for this turn — dropped from `ChatUsage` by §5.3c
+      /** Server-side web-search calls the SDK billed for this turn — dropped from `ChatUsage`
        *  precisely because it is Anthropic-shaped, and landed here instead of nowhere. */
       webSearchRequests: z.number().optional(),
       warmSpareClaimed: z.boolean().optional(),
@@ -216,7 +234,7 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
 
 // Strip mode: also reads stored rows and upstream responses.
 /** A PLUGIN provider's arm. Its `provider` is a PATTERN (`plugin:<namespace>/<id>`), not a literal — plugin
- *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue` per §5.3c: storable
+ *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue`: storable
  *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture).
  *
  *  A TEMPLATE LITERAL, never `z.string().regex(…)`, and the difference is the union's whole promise: a bare
@@ -232,7 +250,7 @@ const pluginProviderMetadataSchema = z
   })
   .strip();
 
-/** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
+/** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries: a CLOSED union of NAMED shapes —
  *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
  *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the open-bag class).
  *
@@ -252,6 +270,47 @@ export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSche
 /** Host-only replay provenance, matched against the selected variant's exact canonical content. */
 const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() }).strip();
 export type TextSignature = z.infer<typeof textSignatureSchema>;
+
+// Strip mode: also reads stored rows.
+/** ONE source a turn cited, with its span in the reply — the ONE spelling the fold emits
+ *  (`ChatResult.sources`), the engine stores (`message_variants.metadata.sources`) and
+ *  {@link parseVariantMetadata} returns. An entry never carries a wire's own `startIndex`/`endIndex`:
+ *  the two wires that report citations measure from different origins, so the arrival points are
+ *  normalized at the fold and every consumer reads one frame.
+ *
+ *  NO DOCUMENT MEMBER, on purpose: a `sourceType: "document"` arm is refused rather than widened,
+ *  because no producer in this graph builds one — the OpenRouter provider emits `url` sources only and
+ *  Anthropic's document citations need a document content block this app never sends. A member no
+ *  producer builds is a member to delete. */
+export interface ChatSource {
+  readonly url: string;
+  /** Absent when the wire named none. OpenRouter substitutes `""` for a missing title; the fold maps that
+   *  to absent. */
+  readonly title?: string | undefined;
+  /** Where the cited span starts, as an offset into the turn's reply text. */
+  readonly atChars: number;
+  /** Where it ends, where the wire supplied a span; the end is exclusive, matching every offset in this file. */
+  readonly endChars?: number | undefined;
+  /** The supporting passage, where the wire supplied one. */
+  readonly citedText?: string | undefined;
+}
+
+const chatSourceSchema = z
+  .object({
+    url: z.url(),
+    title: z.string().optional(),
+    atChars: z.number().int().nonnegative(),
+    endChars: z.number().int().nonnegative().optional(),
+    citedText: z.string().optional(),
+  })
+  .strip() satisfies z.ZodType<ChatSource>;
+
+/** THE READ SEAM for a stored source list: one malformed ENTRY drops and its neighbours survive, so a row
+ *  whose citation blob went bad still lists its other citations instead of degrading the whole sidecar to
+ *  `{}` (the `versioned-config` rule: heal element-wise, never whole-array). */
+const chatSourcesSchema = z
+  .array(chatSourceSchema.nullable().catch(null))
+  .transform((entries): readonly ChatSource[] => entries.filter((entry): entry is ChatSource => entry !== null));
 // Strip mode: also reads stored rows.
 /** The handle a provider gives one tool call, kept verbatim to join the call to its result and for signed replay.
  *  @remarks Provider-local and reusable across exchanges; the host names an occurrence by turn and ordinal. */
@@ -286,10 +345,11 @@ const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 
 // Strip mode: also reads stored rows.
-// `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
-//  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
+//  `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
+//  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, the turn's cited sources, and the ST
+//  import's foreign residue.
 //
-//  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
+//  A PARSED JSON sidecar with a zod schema at the read seam and a producer-side parse on
 //  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
 //  (`db/schema/chat.ts`), every reader goes through {@link parseVariantMetadata}, and every writer builds
 //  this object rather than a bag, so the SQL rollup readers'
@@ -298,13 +358,14 @@ export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 //  `importResidue` is the ST import's OWN doorway and the reason closing this type is not a data drop: an ST
 //  `swipe_info[i].extra` carries arbitrary foreign keys (`api`, `bias`, `send_date`, a tool's own residue)
 //  which the import preserved verbatim by flattening them into this column. They keep landing — under ONE
-//  named, `JsonValue`-typed field, which is §5.3c class 4: declared-OPAQUE provenance, never compared,
+//  named, `JsonValue`-typed field, which is declared-OPAQUE provenance: never compared,
 //  switched on or joined, and unreadable by key without an explicit narrow. Flattening them back into the
 //  modeled level is what let a foreign file's `providerMetadata` key masquerade as ours.
 const variantMetadataSchema = z
   .object({
     [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
+    [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: z.string().optional(),
     /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
      *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
     systemTokens: z.number().optional(),
@@ -321,6 +382,12 @@ const variantMetadataSchema = z
       )
       .optional(),
     importResidue: jsonValueSchema.optional(),
+    /** Every source the turn CITED, in arrival order and never deduplicated — one URL cited for two spans is
+     *  two facts, and a consumer that wants a distinct URL set collapses it itself. Spans are offsets into the
+     *  variant's own reply text (`content`, before any host post-transform rewrites it), so a reader never has
+     *  to know which wire produced an entry. Absent on a turn that cited nothing: an unreported fact stays
+     *  absent, never an empty array. */
+    sources: chatSourcesSchema.optional(),
   })
   .strip();
 /** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader
@@ -331,7 +398,7 @@ export type VariantMetadata = z.infer<typeof variantMetadataSchema>;
  *  shared stand-in that then looks like real recorded provenance. */
 const EMPTY_VARIANT_METADATA: VariantMetadata = Object.freeze({});
 
-/** THE READ SEAM for `message_variants.metadata` (§5.3c class 3 — the `macroFreezes`/`toolCalls`/
+/** THE READ SEAM for `message_variants.metadata` (the `macroFreezes`/`toolCalls`/
  *  `handoffOffer` idiom). A malformed, absent or foreign-shaped blob DEGRADES to `{}`; it never throws,
  *  because a history read must not fail on one old row whose shape nobody models, and it is never the
  *  drizzle `$type` cast — the annotation states the contract, this function proves it. */
@@ -409,7 +476,7 @@ export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSche
 export type StandaloneVariableDeltas = StandaloneVariableDelta[];
 export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema) satisfies z.ZodType<StandaloneVariableDeltas>;
 
-/** The per-turn user-macro random-pick draw record (WAVE MU delivery) — the read-parse boundary for
+/** The per-turn user-macro random-pick draw record — the read-parse boundary for
  *  `message_variants.macro_draws`: macro name → input name → the drawn option value (a bare string per
  *  input). Written at turn commit (the frozen ∪ fresh effective record) in the SAME atomic batch as the
  *  variant; the swipe/continue path replays it as kit's `frozenDraws` so a re-generation of the same slot
@@ -569,7 +636,7 @@ export interface MessageView {
   model: ModelId | null;
   provider: ProviderId | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
-   *  words, OPAQUE provenance never compared or switched on (inference program §5.3c class 4). */
+   *  words, OPAQUE provenance never compared or switched on. */
   finishReason: NormalizedFinishReason | null;
   stopReason: string | null;
   terminalReason: string | null;
@@ -580,12 +647,12 @@ export interface MessageView {
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
   contextWindow: number | null;
-  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
+  /** The history-budget fit-pass boundary: the id of the earliest message actually included in the
    *  assembled history for this generation. Null = nothing was dropped / the fit-pass never ran. Powers
    *  a client "last-in-context boundary" divider. */
   contextBoundaryMessageId: MessageId | null;
   costUsd: number | null;
-  /** WHERE `costUsd` came from — the SAME tuple as {@link tokenProvenance} (§5.3c never mints a second
+  /** WHERE `costUsd` came from — the SAME tuple as {@link tokenProvenance} (never a second
    *  accounting vocabulary). `measured` = the wire reported a figure, `estimated` = catalog/declared pricing
    *  × normalized tokens, `unrecorded` = neither. The cost pill needs it to say whether its number is a
    *  receipt or an estimate, and the commit-time view has always carried it — this is the read half. */
@@ -605,7 +672,7 @@ export interface MessageView {
   /** WHETHER this swipe ever carried a connection id. `recorded` + null means the referenced connection was
    *  deleted; `unrecorded` + null means no connection was recorded for this variant. */
   connectionAttributionProvenance: ConnectionAttributionProvenance;
-  /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the
+  /** WHICH of the funder's connection rows generated this swipe — SET NULL after the
    *  row is deleted. Interpret null together with {@link connectionAttributionProvenance}; owner-scoped lookup
    *  failure alone never proves deletion. */
   connectionId: UserConnectionId | null;
@@ -621,10 +688,9 @@ export interface MessageView {
 // needs, because every renderable surface (display + the assembled prompt) resolves the NAME live off the
 // stamp. `messages` is the explicit slot set (a per-row correction). `mine` is SERVER-resolved — every
 // user-role slot in the chat the CALLER authored, optionally floored at `fromSeq` — and exists because a
-// client cannot enumerate what it cannot page: the panel's affordance used to assemble ids from the last
-// 100 messages, so a wrong-persona stretch older than that was unreachable (FINAL-Persona §A.7 named the
-// limitation and pre-authorized this arm). `mine` is a SELF-stamp: the rows it resolves are the caller's
-// own, so it widens reach, never authority (the verb's author-or-host belt is unchanged).
+// client cannot enumerate what it cannot page: a panel that assembled ids from the last page of messages
+// could not reach a wrong-persona stretch older than that. `mine` is a SELF-stamp: the rows it resolves are
+// the caller's own, so it widens reach, never authority (the verb's author-or-host belt is unchanged).
 export const reattributeScopeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("messages"), messageIds: z.array(typeIdSchema(ID_PREFIX.message)) }),
   z.strictObject({ kind: z.literal("mine"), fromSeq: z.int().min(SEQ_MIN).optional() }),

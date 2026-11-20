@@ -1,9 +1,9 @@
 // backends/wire/embedding-decode — the ONE decoder for an OpenAI-dialect embeddings payload
 // (`number[]` for `encoding_format:"float"`, or a base64 string) into the `Float32Array` the vector store
-// consumes, WITH the two structural checks the hand-rolled copies did not have.
+// consumes, refusing the two payload defects that would otherwise decode silently.
 //
-// WHY IT IS A GUARD AND NOT JUST A CONVERSION. Both properties below were violated silently before this
-// module existed (the embed and image runners each carried their own copy of the conversion):
+// WHY IT IS A GUARD AND NOT JUST A CONVERSION: neither property below is visible in the payload, and both
+// fail silently downstream:
 //
 //   • ALIGNMENT — `new Float32Array(buf)` THROWS a raw host `RangeError` when the byte length is not a
 //     multiple of 4. A truncated or otherwise corrupt base64 body therefore escaped the provider tier as an

@@ -3,7 +3,7 @@
 // @subject packages/server/src/transport/trpc/routers/automation.ts
 import { once } from "node:events";
 import { createServer } from "node:http";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -25,7 +25,9 @@ test("lost mounted HTTP response after real commit recovers one unchanged birth 
   const other = await root.actor();
   const { chat } = await owner.chat.startChat({ characterIds: [], opening: "none" });
   const birth = { ...body, chatId: chat.id, creationRequestId: root.idSource.typeId(ID_PREFIX.automationRuleCreation) };
-  const forgedCatalog = await root.http.request(`/api/trpc/automation.listRuleTools?input=${encodeURIComponent(JSON.stringify({ userId: other.id }))}`);
+  const forgedCatalog = await root.http.request(`/api/trpc/automation.listRuleTools?input=${encodeURIComponent(JSON.stringify({ userId: other.id }))}`, {
+    headers: { [CSRF_HEADER]: "1" },
+  });
   expect(forgedCatalog.status).toBe(400);
   await forgedCatalog.arrayBuffer();
 

@@ -16,7 +16,9 @@ test("a real member's send credits the retained host cohort and speaker, never t
   const member = await h.root.principalFor((await h.root.actor()).id);
   const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
   await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
-  const hostBinding = (await h.root.services.connection.listBindings({ principal: h.owner })).find((binding) => binding.task === "chat")?.binding;
+  const hostBinding = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    (binding) => binding.task === "chat",
+  )?.binding;
   if (hostBinding === undefined || hostBinding === null || hostBinding.connectionId === null) {
     throw new Error("the actual funding room has no saved host connection");
   }

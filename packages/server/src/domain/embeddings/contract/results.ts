@@ -33,9 +33,11 @@ export interface ExistingCaptionedRow {
  *  `belowFloor` is `true` ONLY when both edges are known AND the shorter one is under the floor — an
  *  unparseable header of a known format is NOT below-floor (the floor is a dimension gate, not a decode gate),
  *  so `width`/`height` are `null` there and the asset embeds as before. `recognized` is `false` when the bytes
- *  carry no known image signature at all: the stored file is not an image. */
+ *  carry no known image signature at all: the stored file is not an image. `complete` is `false` when they do,
+ *  but the format's structure ends past the last byte: the stored file was cut short. */
 export interface ImageAdmissionVerdict {
   readonly recognized: boolean;
+  readonly complete: boolean;
   readonly belowFloor: boolean;
   readonly width: number | null;
   readonly height: number | null;

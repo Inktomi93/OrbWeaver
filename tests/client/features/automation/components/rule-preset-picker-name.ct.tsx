@@ -7,6 +7,7 @@ import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { RULE_ADD_NAME } from "#client/features/automation/lib/automation-names.ts";
 import type { ChatRulesStory } from "./_rule-action-groups-stories.tsx";
 
 const CHAT_STORY = "tests/client/features/automation/components/_rule-action-groups-stories/ChatRulesStory";
@@ -44,7 +45,7 @@ test("a rule preset row's name contains its title and its sentence", async ({ mo
   }
   await routeTrpc(page, serveCorpusProcedures(caller, READS));
   await mount<typeof ChatRulesStory>(CHAT_STORY, { chatId, appearance: appearanceSettingsSchema.parse({}) });
-  await page.getByRole("button", { name: "Add a rule", exact: true }).click();
+  await page.getByRole("button", { name: RULE_ADD_NAME, exact: true }).click();
   const row = page.getByRole("dialog").getByRole("button", { name: first.title });
   await expect(row).toBeVisible();
   const name = await row.evaluate((button) => button.textContent);

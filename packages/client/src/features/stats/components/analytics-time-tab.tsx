@@ -12,10 +12,11 @@ import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
+import { ANALYTICS_TOKENS_PER_DAY_NAME, ANALYTICS_TURNS_PER_DAY_NAME } from "../lib/analytics-names.ts";
 import {
   activityHeatmapMatrix,
   dailyTokenBuckets,
@@ -34,16 +35,18 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 export function AnalyticsTimeTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsTimeTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
-        reserveKey="analytics.time"
-      >
-        <TimeBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsTimeTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="datum" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
+          reserveKey="analytics.time"
+        >
+          <TimeBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -66,14 +69,14 @@ function TimeBody(): ReactElement {
       {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print
           raw digits while the stat rows printed "1.2M" — one surface, two number vocabularies (P2f). */}
       <Section heading="Daily replies">
-        <Histogram buckets={dailyTurnBuckets(timeline.days, timeLib)} countFormatter={formatCompact} label="Assistant turns per day" />
+        <Histogram buckets={dailyTurnBuckets(timeline.days, timeLib)} countFormatter={formatCompact} label={ANALYTICS_TURNS_PER_DAY_NAME} />
       </Section>
 
       <Section heading="Daily tokens">
         {tokenBuckets.length === 0 ? (
-          <Text voice="gloss">No output token accounting recorded in this period.</Text>
+          <MutedLine>No output token accounting recorded in this period.</MutedLine>
         ) : (
-          <Histogram buckets={tokenBuckets} countFormatter={(count): string => formatCount(count, tokensOutProvenance)} label="Output tokens per day" />
+          <Histogram buckets={tokenBuckets} countFormatter={(count): string => formatCount(count, tokensOutProvenance)} label={ANALYTICS_TOKENS_PER_DAY_NAME} />
         )}
         <Text voice="gloss">Aggregate only. Days with unrecorded output tokens are omitted. {UNRECORDED_NOTE}</Text>
       </Section>

@@ -18,6 +18,7 @@ import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import type { CorpusModes } from "../components/corpus-workspace.tsx";
 import { CorpusWorkspaceContent, CorpusWorkspaceList } from "../components/corpus-workspace.tsx";
 import { useCorpusListHeader } from "../hooks/use-corpus-list-header.tsx";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_INSIGHTS_LIST_DOOR_NAME } from "./corpus-control-names.ts";
 import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
@@ -64,7 +65,6 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     id: "corpus",
     // D271: the phone bar is Home · Chats · Characters · You, and Corpus enters through the You sheet.
     rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
-    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Corpus",
@@ -78,7 +78,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     listDoorLabel: {
       useLabel: (): string | null => {
         const mode = useCorpusMode();
-        return mode === "insights" ? "Characters" : null;
+        return mode === "insights" ? CORPUS_INSIGHTS_LIST_DOOR_NAME : null;
       },
       useContentLabel: (): string => CORPUS_MODE_LABELS[useCorpusMode()],
     },
@@ -92,15 +92,15 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
       tabs: [
         {
           id: "evidence",
-          label: "Evidence",
+          label: CORPUS_CONTEXT_TAB_LABELS.evidence,
           when: (state) => state.mode === "explore" && state.subject !== null && state.subject !== undefined,
           body: () => <CorpusArtifactContext />,
         },
-        { id: "archetypes", label: "Archetypes", when: isExplore, body: () => <CorpusArchetypesTab /> },
-        { id: "visuals", label: "Visuals", when: isExplore, body: () => <CorpusVisualsTab /> },
-        { id: "map", label: "Map", when: isExplore, body: () => <CorpusMapTab /> },
-        { id: "similarity", label: "Similarity", when: isExplore, body: () => <CorpusSimilarityTab /> },
-        { id: "compare", label: "Compare", when: isExplore, body: () => <CorpusCompareTab /> },
+        { id: "archetypes", label: CORPUS_CONTEXT_TAB_LABELS.archetypes, when: isExplore, body: () => <CorpusArchetypesTab /> },
+        { id: "visuals", label: CORPUS_CONTEXT_TAB_LABELS.visuals, when: isExplore, body: () => <CorpusVisualsTab /> },
+        { id: "map", label: CORPUS_CONTEXT_TAB_LABELS.map, when: isExplore, body: () => <CorpusMapTab /> },
+        { id: "similarity", label: CORPUS_CONTEXT_TAB_LABELS.similarity, when: isExplore, body: () => <CorpusSimilarityTab /> },
+        { id: "compare", label: CORPUS_CONTEXT_TAB_LABELS.compare, when: isExplore, body: () => <CorpusCompareTab /> },
       ],
       contributors: contributions.contextTabs,
     }),

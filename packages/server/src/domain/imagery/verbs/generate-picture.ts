@@ -12,8 +12,8 @@ import { ImageryNotConfiguredError } from "../contract/errors.ts";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { GeneratedPicture, ImageryWarning, ReuseRow } from "../contract/results.ts";
 import type { ImageGenerateRequest, ImageryContext, ImageryService, ResolvedGenerateImage, ResolvePrompt } from "../contract/service.ts";
+import { buildBlock, runGeneration, sumCost } from "../persistence/generate-core.ts";
 import { findReusableGeneration } from "../persistence/queries.ts";
-import { buildBlock, runGeneration, sumCost } from "../substrate/generate-core.ts";
 import { identityHashFor } from "../substrate/identity-hash.ts";
 import { isMultimodalMode, isPortraitMode } from "../substrate/mode.ts";
 import { defaultSizeFor, SIZE_PRESETS } from "../substrate/size.ts";
@@ -24,9 +24,14 @@ const DEFAULT_IMAGE_COUNT = 1;
 
 /** Resolve the generateImage role + the capability of the SAME model the request will hit (one resolution so
  *  the B3 gate and the request build read the same model). A resolve failure wraps into `ImageryNotConfiguredError`. */
-async function resolveGenerateImageOrThrow(ctx: ImageryContext, p: GeneratePictureParams, runAs: Principal): Promise<ResolvedGenerateImage> {
+async function resolveGenerateImageOrThrow(
+  ctx: ImageryContext,
+  p: GeneratePictureParams,
+  runAs: Principal,
+  signal: AbortSignal,
+): Promise<ResolvedGenerateImage> {
   try {
-    return await (p.actor === undefined ? ctx.resolveGenerateImage(runAs) : ctx.resolveGenerateImage(runAs, p.actor));
+    return await (p.actor === undefined ? ctx.resolveGenerateImage(runAs, signal) : ctx.resolveGenerateImage(runAs, signal, p.actor));
   } catch (err) {
     // A member cannot fix the host's connection, so the refusal names whose connection is missing.
     const whose = runAs.userId === p.caller.userId ? "this caller" : "the room host";
@@ -88,6 +93,7 @@ async function orchestratorPrompt(
   resolvePrompt: ResolvePrompt,
   p: GeneratePictureParams,
   runAs: Principal,
+  signal: AbortSignal,
 ): Promise<{ readonly prompt: string; readonly source: "user" | "extracted" | "captioned"; readonly costUsd: number | null }> {
   const userPrompt = p.prompt?.trim() ?? "";
   if (p.mode === "free") {
@@ -112,6 +118,7 @@ async function orchestratorPrompt(
     mode: p.mode,
     subjectCharacterId: p.subjectCharacterId,
     timeZone: p.timeZone,
+    signal,
   });
 }
 
@@ -195,7 +202,7 @@ async function runAsFor(ctx: ImageryContext, p: GeneratePictureParams): Promise<
 }
 
 export function createGeneratePicture(ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["generatePicture"] {
-  return async (p: GeneratePictureParams): Promise<GeneratedPicture> => {
+  return async (p): Promise<GeneratedPicture> => {
     const runAs = await runAsFor(ctx, p);
     const target = await galleryTarget(ctx, p, runAs);
     // The subject the reuse gate + the provenance columns key on — only for a portrait mode carrying a subject.
@@ -208,7 +215,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const identityHash = gate.identityHash;
 
     // Step 3: resolve the prompt (user | captioned | extracted).
-    const resolved = await orchestratorPrompt(deps.resolvePrompt, p, runAs);
+    const resolved = await orchestratorPrompt(deps.resolvePrompt, p, runAs, p.signal);
     // Step 4: prefix belt — re-assert the mode's required opening on an extracted/captioned prompt; a user's
     // literal words are used verbatim.
     const prompt = resolved.source === "user" ? resolved.prompt : ensurePrefix(resolved.prompt, p.mode);
@@ -217,7 +224,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const size = SIZE_PRESETS[p.size ?? defaultSizeFor(p.mode)];
 
     // Step 6: resolve role + capability (one resolution — the B3 gate + the request build read the same model).
-    const resolution = await resolveGenerateImageOrThrow(ctx, p, runAs);
+    const resolution = await resolveGenerateImageOrThrow(ctx, p, runAs, p.signal);
     // Step 7: B3 avatar-reference gate — an init image (or a drop-with-warning when the model can't edit).
     const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
     const edit = composeEdit(reference.edit);
@@ -232,6 +239,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
         negativePrompt,
         size,
         ...(edit !== undefined ? { edit } : {}),
+        signal: p.signal,
       },
       {
         owner: runAs,
@@ -250,8 +258,8 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       promptSource: resolved.source,
       mode: p.mode,
       model: outcome.model,
-      // The returned total sums the extraction/caption spend (metered by chat's shaper, a different model
-      // bucket) with the generation spend (recorded in stats by runGeneration).
+      // The returned total sums the extraction/caption spend (recorded in the spend ledger when that call returned)
+      // with the generation spend (recorded in stats by runGeneration).
       costUsd: sumCost(resolved.costUsd, outcome.costUsd),
       reused: false,
       // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).

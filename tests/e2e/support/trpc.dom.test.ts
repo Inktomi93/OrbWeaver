@@ -72,7 +72,7 @@ test("upstream failures retain HTTP diagnostics and malformed success bytes reac
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
-  const productResponse = await root.http.request("/api/trpc/sessions.me?batch=1");
+  const productResponse = await root.http.request("/api/trpc/sessions.me?batch=1", { headers: { [CSRF_HEADER]: "1" } });
   expect(productResponse.status).toBe(200);
   const productBytes = await productResponse.text();
   let status = 200;

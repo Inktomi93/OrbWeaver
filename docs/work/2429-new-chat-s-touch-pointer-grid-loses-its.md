@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P2
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-CI run 42926668922 failed tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx line 807 (New chat's reach over the size grid, touch pointer, holds with the temporary-room notice above the list) with one failing cell, 844x390 at 100%: row. The same case passes locally.
+Name why the 844 by 390 cell at default text loses the list's row in CI. Read the failed run's trace, or reproduce on pinned cores. If the walk reads before the dialog settles, it waits for settled layout. If the row is lost in the dialog's layout, fix the dialog.
 
 ## Why
 
-Either a layout read that depends on runner speed or a real edge where the list loses its whole row; both leave CI red.
+A layout read that depends on runner speed, or a real lost row, leaves CI red.
 
 ## Done when
 
-The cause is named with evidence from the CI trace or a pinned-core local repro, the cell holds its row on CI, and no budget or cell is dropped.
+the cause is stated with the trace or repro, the cell passes on CI, and no cell or budget is removed.
 
 ## Evidence
 

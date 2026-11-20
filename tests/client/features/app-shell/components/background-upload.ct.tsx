@@ -4,6 +4,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { ADD_BACKGROUND_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import type { BackgroundSectionStory } from "./_background-upload-stories.tsx";
 
 const UPLOAD_ROUTE = "**/api/assets/upload";
@@ -28,16 +29,18 @@ test("an uploaded background is saved under the id the runtime's source minted",
   });
   await mount<typeof BackgroundSectionStory>("tests/client/features/app-shell/components/_background-upload-stories/BackgroundSectionStory", {});
 
-  await page.getByRole("button", { name: "Add background", exact: true }).click();
+  await page.getByRole("button", { name: ADD_BACKGROUND_NAME, exact: true }).click();
   await page.locator('input[type="file"]').setInputFiles({ name: "dusk.png", mimeType: "image/png", buffer: Buffer.from("png!") });
 
   const expectedEntryId = createSeededIds(FIXTURE_ID_CURSOR).uuid();
   await expect
-    .poll(() => saved.at(-1))
-    .toMatchObject({
-      section: "appearance",
-      patch: {
-        backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]),
-      },
-    });
+    .poll(() => saved)
+    .toContainEqual(
+      expect.objectContaining({
+        section: "appearance",
+        patch: expect.objectContaining({
+          backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]),
+        }),
+      }),
+    );
 });

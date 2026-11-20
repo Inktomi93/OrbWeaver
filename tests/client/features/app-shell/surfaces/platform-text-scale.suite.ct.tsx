@@ -4,7 +4,7 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Every surface runs every cell of EVERY_CELL; an exception is named beside it in QUALIFIED.
 
-import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, testId } from "@orb/client/lib";
+import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, DIALOG_VERBS, screenOverviewDoorName, testId } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -12,10 +12,12 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { enlargedTextFindings as findings, resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { absenceWindow, channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_ADD_CHARACTER_NAME } from "#client/features/chat/lib/members-names.ts";
 import { CHAT_PRINT_COVERAGE } from "#client/features/chat/lib/transcript-copy.ts";
@@ -33,7 +35,7 @@ const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
 // The widest root at which the desktop topbar still shows the wide identity that renames a room.
 const TEXT_125 = { name: "125% text", factor: 1.25 } as const;
-const IMPORT_DOOR = /^Import/u;
+const IMPORT_DOOR = CHARACTER_IMPORT_NAME;
 const BAND_MENU_TRIGGER = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const TRAIL_MENU_TRIGGER = '.shell-topbar-trail [data-slot="overflow-actions-trigger"]';
 const FONT_SCALE_PROPERTY = channelName("fontScale");
@@ -377,7 +379,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
-      await panel.getByRole("tab", { name: /^Members/u }).click();
+      await panel.getByRole("tab", { name: new RegExp(`^${RegExp.escape(CHAT_CONTEXT_TAB_LABELS.members)}`, "u") }).click();
       const door = panel.getByRole("button", { name: CHAT_ADD_CHARACTER_NAME, exact: true });
       await door.scrollIntoViewIfNeeded();
       await expect(door).toBeInViewport({ ratio: 0.5 });
@@ -391,7 +393,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
-      await panel.getByRole("tab", { name: /^Members/u }).click();
+      await panel.getByRole("tab", { name: new RegExp(`^${RegExp.escape(CHAT_CONTEXT_TAB_LABELS.members)}`, "u") }).click();
       const names = panel.locator('[data-slot="member-name"]');
       await expect(names.first()).toBeVisible();
       const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, panel);
@@ -536,7 +538,7 @@ test.describe("character Import at normal size on the desktop", () => {
     const heading = dialog.getByRole("heading", { name: IMPORT_DOOR });
     await expect(heading).toBeFocused();
     await expect(heading).toHaveCSS("outline-style", "none");
-    const close = await dialog.getByRole("button", { name: "Close", exact: true }).boundingBox();
+    const close = await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).boundingBox();
     const text = await heading.evaluate((node) => {
       const range = document.createRange();
       range.selectNodeContents(node);
@@ -759,8 +761,9 @@ function reachInDialog(popup: Element, { stride }: { readonly stride: number }):
 }
 
 /** Walks one mounted dialog across the grid, resizing in place: geometry only, so a cell costs a layout and no request. */
-async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]): Promise<{ readonly cells: number; readonly failures: readonly string[] }> {
-  const failures: string[] = [];
+/** Walk every size and scale and return how many cells were judged. A size change reaches the list through its own observers a
+ *  frame or more after the layout, so each cell is polled until a row, Start and Blank chat are whole; a cell that never gets there fails by name. */
+async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]): Promise<number> {
   let cells = 0;
   for (const width of widths) {
     for (const height of GRID_HEIGHTS) {
@@ -769,13 +772,15 @@ async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]):
         await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
         await expect(dialog.getByRole("option").first()).toBeAttached();
         cells += 1;
-        const missing = await dialog.evaluate(reachInDialog, { stride: GRID_STRIDE_PX });
-        const clipped = await dialog.evaluate(cutOffControls, SUBPIXEL);
-        failures.push(...[...missing, ...clipped].map((what) => `${String(width)}x${String(height)} at ${String(factor * 100)}%: ${what}`));
+        await expect
+          .poll(async () => [...(await dialog.evaluate(reachInDialog, { stride: GRID_STRIDE_PX })), ...(await dialog.evaluate(cutOffControls, SUBPIXEL))], {
+            message: `${String(width)}x${String(height)} at ${String(factor * 100)}%`,
+          })
+          .toEqual([]);
       }
     }
   }
-  return { cells, failures };
+  return cells;
 }
 
 /** Controls or text painted past the dialog's sides: a stack that overflows there reads as a clipped sentence. */
@@ -801,13 +806,13 @@ for (const pointer of ["touch", "fine"] as const) {
     test("shows a whole row, Start and Blank chat at every size", async ({ mount, page }) => {
       test.setTimeout(GRID_TIMEOUT_MS);
       const dialog = await openNewChat(newChatMount(mount), page, 1);
-      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
+      expect(await walkGrid(page, dialog, widths)).toBe(widths.length * GRID_HEIGHTS.length * GRID_SCALES.length);
     });
 
     test("holds with the temporary-room notice above the list", async ({ mount, page }) => {
       test.setTimeout(GRID_TIMEOUT_MS);
       const dialog = await openNewChat(() => mount<typeof AppShellTemporaryNewChatStory>(`${SHELL_STORIES}/AppShellTemporaryNewChatStory`, {}), page, 1);
-      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
+      expect(await walkGrid(page, dialog, widths)).toBe(widths.length * GRID_HEIGHTS.length * GRID_SCALES.length);
     });
   });
 }
@@ -1137,7 +1142,7 @@ for (const [viewport, scale] of QUALIFIED.presetsWelcome) {
       await mount<typeof AppShellStory>(STORY, {});
       if (viewport.touch) {
         // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
-        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+        await page.getByRole("button", { name: nameShape(screenOverviewDoorName) }).click();
       }
       const pane = page.locator(".shell-content");
       const welcome = pane.locator('[data-slot="empty-state-root"]');
@@ -1172,7 +1177,7 @@ for (const [viewport, scale] of QUALIFIED.emptyStateActions) {
         await seedShellState(page, { activeSection: section });
         await mount<typeof AppShellStory>(STORY, {});
         // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
-        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+        await page.getByRole("button", { name: nameShape(screenOverviewDoorName) }).click();
         const pane = page.locator(".shell-content");
         const action = pane.locator('[data-slot="empty-state-action"] [data-slot="button"]');
         await expect(action).toBeVisible();
@@ -1294,7 +1299,7 @@ test.describe("a library page on the phone", () => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
     await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toBeVisible();
-    const region = page.locator(".shell-region-fill[data-inset]");
+    const region = page.locator('[data-slot="content-pane-body"]').first();
     const atDefault = Math.max(...(await inlineInset(region)));
     // The positive control: the page is inset at the default size, so a bound of zero cannot pass.
     expect(atDefault).toBeGreaterThan(0);

@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 7
+rank: 11
 ---
 
 # Find and judge every unwired and dead piece of code
@@ -24,7 +24,7 @@ Fix a server bug a scan exposes before judging fields. Judge fields in bulk afte
 | 1 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, 0501, and the possibly dead guards the restoration lanes found |
 | 2 | Judge the first full run of each new scan | the [judgement items](#judgement-items) |
 | 3 | Adjudicate unused exports through the package doors | 0989 |
-| 4 | Hold the domain template with dependency rules | [1443](../../work/1443-enforce-domain-contract-purity-with-a-dependency-cruiser.md), [1423](../../work/1423-move-i-o-out-of-domain-substrate-folders.md), [1463](../../work/1463-chat-persistence-reads-the-assets-characters-and-personas.md) |
+| 4 | Hold the domain template with dependency rules | - |
 
 ## Rejected
 
@@ -45,6 +45,15 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 ## Engine disagreements
 
 The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. 1715 owns that change and holds the classification, the program sets, the time and memory profile, and the TypeScript 6 retirement order. 1697 owns the write and read forms neither engine follows.
+
+## One pass for the member scan
+
+`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields, params and unions scans keep both engines while the fields disagreement stands.
+
+Engine one counts two uses no name shows:
+
+- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. The write must sit in a file the same world homes as the call, so a member wired across worlds this way stays reported; judge it by hand.
+- A value handed to a slot a library declares, as `mutate(input, settle)`: the library reads each member its slot names, so the hand-off reads the value's same-named members.
 
 ## Limits of the fields scan
 

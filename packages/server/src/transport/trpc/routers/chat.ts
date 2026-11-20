@@ -28,7 +28,9 @@ import {
   historyPageSchema,
   hostTierRegexAllowSchema,
   listMessagesInputSchema,
+  MESSAGE_TEXT_MAX_CHARS,
   memberCardViewSchema,
+  memoryViewSchema,
   messageVariantSummarySchema,
   messageViewSchema,
   messageWindowSchema,
@@ -39,11 +41,16 @@ import {
   reapResultSchema,
   reattributeScopeSchema,
   regexTierKeySchema,
+  restoreMemoryInputSchema,
   roomOverridesSchema,
+  roomSendAvailabilitySchema,
+  saveCorrectionInputSchema,
   seatKnobsSchema,
   sendContentBlocksSchema,
   shapeTraceSchema,
   startChatSchema,
+  strikeMemoryInputSchema,
+  strikeMemoryResultSchema,
   TOOL_CALL_EDIT_ACTIONS,
   toolCallIdSchema,
   turnOutcomeSchema,
@@ -53,7 +60,6 @@ import {
 } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
-import { sendAvailabilitySchema } from "@orb/contracts/inference";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { pageDirectionShape, trackedEventIdShape } from "@orb/contracts/rpc";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
@@ -67,7 +73,7 @@ import { z } from "zod";
 import { toolRecurseLimitSchema } from "#domain/chat";
 import { chatDetailSchema, chatLineageViewSchema, chatListPageSchema, forkResultSchema, participantViewSchema, startChatResultSchema } from "../role-output.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 // `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.
 // Member-gated + roster-scoped INSIDE the verb (`requireParticipant` + a present-character-seat check on
@@ -93,10 +99,14 @@ const listMessageVariantsSchema = z.strictObject({
 // Every procedure whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` requires `timeZone`, the viewer's browser
 // zone (UI-Gates §11.5). `reportedTimeZoneSchema` refuses a non-string and reads an unknown zone as UTC, so a
 // browser on a zone this server's ICU lacks still runs its turn.
+// The text cap is declared at the door so the contract says it; the commit builders enforce it on the final body,
+// which macros and regex can grow past what was sent.
+const messageTextSchema = z.string().max(MESSAGE_TEXT_MAX_CHARS);
+
 const sendSchema = z
   .strictObject({
     chatId: typeIdSchema(ID_PREFIX.chat),
-    content: z.string(),
+    content: messageTextSchema,
     personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
     blocks: sendContentBlocksSchema.optional(),
     // Inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
@@ -117,7 +127,7 @@ const sendSchema = z
 // generation ⇒ no gen-config, no steer). The verb runs `send`'s trust boundaries + persist; no AI round.
 const commitMessageSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  content: z.string(),
+  content: messageTextSchema,
   personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
   timeZone: reportedTimeZoneSchema,
@@ -179,6 +189,11 @@ const generateSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
+const replyToTailSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  timeZone: reportedTimeZoneSchema,
+});
+
 // The step-BACK verb (swipe-strip's left chevron): `ChatService.selectVariant`
 // (domain/chat/verbs/edit.ts createSelectVariant) was already fully implemented — author-or-host gate,
 // sibling-ownership belt, the runtime-variables re-fold for the newly-selected pointer, `variantSelected`
@@ -207,7 +222,7 @@ const abortSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 const editMessageSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
-  content: z.string(),
+  content: messageTextSchema,
   timeZone: reportedTimeZoneSchema,
 });
 
@@ -255,7 +270,7 @@ const deleteMessagesSchema = z.strictObject({
 const editReasoningSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
-  reasoning: z.string(),
+  reasoning: messageTextSchema,
 });
 
 const clearReasoningSchema = z.strictObject({
@@ -441,7 +456,17 @@ const setChatInjectionSchema = chatInjectionInputSchema.extend({
   chatId: typeIdSchema(ID_PREFIX.chat),
 });
 
+// `saveCorrection` keeps a Rewrite correction as a chat injection; the contracts schema owns the trimmed text.
+const saveCorrectionSchema = saveCorrectionInputSchema.extend({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+});
+
 const listChatInjectionsSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
+
+// The story memory view and the host's strike/restore; authority and the floor clamp live inside the verbs.
+const memoryViewInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const strikeMemorySchema = strikeMemoryInputSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const restoreMemorySchema = restoreMemoryInputSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 const deleteChatInjectionSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
@@ -591,12 +616,13 @@ export const chatRouter = t.router({
     .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChatLineage({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate: the deterministic serveability verdict for the chat's own
-  // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
-  // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
+  // resolved connection, or `host_unavailable` for a host outside the consent set — the composer disables SEND + the
+  // guided fire actions when `!available`. Member-gated inside the verb; fires no turn/API call (a configured hosted
+  // connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
-    .output(sendAvailabilitySchema)
+    .output(roomSendAvailabilitySchema)
     .input(chatIdInputSchema)
-    .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId, signal: procedureSignal(signal) })),
   getNextTurnConnection: authedProcedure
     .output(nextTurnConnectionViewSchema)
     .input(chatIdInputSchema)
@@ -679,7 +705,7 @@ export const chatRouter = t.router({
     }
     const { lastEventId: _resume, ...params } = input;
     return withSubscriptionErrors(
-      trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: signal ?? new AbortController().signal })),
+      trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: procedureSignal(signal) })),
       ctx.logger,
     );
   }),
@@ -687,6 +713,10 @@ export const chatRouter = t.router({
     .output(turnOutcomeSchema)
     .input(strictTwin(generateSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
+  replyToTail: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(replyToTailSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.replyToTail({ principal: ctx.auth, ...input })),
   abort: authedProcedure
     .output(z.void())
     .input(abortSchema)
@@ -753,7 +783,7 @@ export const chatRouter = t.router({
   setChatBackground: authedProcedure
     .output(strictTwin(themeBackgroundSchema))
     .input(strictTwin(setChatBackgroundSchema))
-    .mutation(({ ctx, input }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input, signal }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
 
   // D121-E display-tier room OPTION — host-gated in the verb (a member's call is a refusal, not a no-op).
   setHostDisplayScripts: authedProcedure
@@ -846,16 +876,16 @@ export const chatRouter = t.router({
   previewAssembly: authedProcedure
     .output(assemblyPreviewSchema)
     .input(previewAssemblySchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   previewActionTemplates: authedProcedure
     .output(actionTemplatesPreviewSchema)
     .input(previewActionTemplatesSchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   // The content-free SHAPE trace — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure
     .output(shapeTraceSchema)
     .input(getShapeTraceSchema)
-    .query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   // The per-variant WIRE RECORD — a host/admin inspector read (`requireHost` INSIDE the verb).
   getVariantWire: authedProcedure
     .output(variantWireViewSchema)
@@ -864,11 +894,15 @@ export const chatRouter = t.router({
   previewContextFit: authedProcedure
     .output(contextFitAnswerSchema)
     .input(previewContextFitSchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   setChatInjection: authedProcedure
     .output(chatInjectionViewSchema)
     .input(setChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),
+  saveCorrection: authedProcedure
+    .output(chatInjectionViewSchema)
+    .input(saveCorrectionSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.saveCorrection({ principal: ctx.auth, ...input })),
   listChatInjections: authedProcedure
     .output(z.array(chatInjectionViewSchema))
     .input(listChatInjectionsSchema)
@@ -877,6 +911,18 @@ export const chatRouter = t.router({
     .output(z.void())
     .input(deleteChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input })),
+  memoryView: authedProcedure
+    .output(memoryViewSchema)
+    .input(memoryViewInputSchema)
+    .query(({ ctx, input }) => ctx.services.chat.memoryView({ principal: ctx.auth, ...input })),
+  strikeMemory: authedProcedure
+    .output(strikeMemoryResultSchema)
+    .input(strikeMemorySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.strikeMemory({ principal: ctx.auth, ...input })),
+  restoreMemory: authedProcedure
+    .output(z.void())
+    .input(restoreMemorySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.restoreMemory({ principal: ctx.auth, ...input })),
   // The group-roster-controls cluster (see the schemas' header note above). Thin pass-throughs.
   addCharacterToChat: authedProcedure
     .output(strictTwin(participantViewSchema))
@@ -943,7 +989,7 @@ export const chatRouter = t.router({
   generateImage: authedProcedure
     .output(messageViewSchema)
     .input(strictTwin(generatePictureRequestSchema.and(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))))
-    .mutation(({ ctx, input }) => ctx.services.chat.generateImage({ ...input, principal: ctx.auth })),
+    .mutation(({ ctx, input, signal }) => ctx.services.chat.generateImage({ ...input, principal: ctx.auth, signal: procedureSignal(signal) })),
 });
 
 // Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape

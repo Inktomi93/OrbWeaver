@@ -40,7 +40,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { Tip } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
+import { RPG_CONDITION_PLACEHOLDER, RPG_STATUS_LINE_LABEL, RPG_STATUS_PLACEHOLDER } from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { trackerValueName } from "../lib/tracker-names.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "./tracker-blocks/index.ts";
 
@@ -171,7 +173,7 @@ function ActorTrackerText({
         {def.hint === "" ? null : <HintTrigger className="" hint={def.hint} subject={def.label} />}
       </Row>
       <TrackerValue
-        ariaLabel={trackerFieldName(`${def.label} value`, subject)}
+        ariaLabel={trackerFieldName(trackerValueName(def.label), subject)}
         display={display}
         placeholder={NO_VALUE}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
@@ -263,11 +265,11 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (the fragment's own header states why): a
     // text-height value's touch pseudo overflows into whatever is stacked near it, such as the `+ condition`
     // control one row down. Floored, each row's pseudo fits inside its own band.
-    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
+    <Row gap="field" align="center" touchFloor="block" minWidth="shrinks">
       <TrackerValue
-        ariaLabel={trackerFieldName("Status line", subject)}
+        ariaLabel={trackerFieldName(RPG_STATUS_LINE_LABEL, subject)}
         display={status}
-        placeholder="Add status"
+        placeholder={RPG_STATUS_PLACEHOLDER}
         ink="muted"
         onEdit={edit.onEditStatus}
         width="auto"
@@ -343,7 +345,7 @@ export function ConditionChips({
         <TrackerValue
           ariaLabel={trackerActionName("Add condition", "to", subject)}
           display=""
-          placeholder="+ condition"
+          placeholder={RPG_CONDITION_PLACEHOLDER}
           onEdit={(next): void => {
             const trimmed = next.trim();
             if (trimmed !== "") {

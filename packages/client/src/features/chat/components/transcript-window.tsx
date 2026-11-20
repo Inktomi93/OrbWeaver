@@ -9,10 +9,26 @@ import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { pressForPage, QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
+import {
+  pressForPage,
+  QueryErrorState,
+  RIDES_ALONE,
+  roomRosterOptions,
+  roomTailOptions,
+  SkeletonRows,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { RETRY_NAME } from "#lib";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_WINDOW_PRESS_FAILURE } from "../lib/chat-surface-names.ts";
+import {
+  CHAT_EARLIER_MESSAGES_NAME,
+  CHAT_HISTORY_DISMISS_NAME,
+  CHAT_HISTORY_FAILURE_COPY,
+  CHAT_WINDOW_BACK_TO_CORPUS_NAME,
+  CHAT_WINDOW_PRESS_FAILURE,
+} from "../lib/chat-surface-names.ts";
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
 import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
@@ -36,7 +52,7 @@ interface TranscriptWindowProps {
 
 export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
   const trpc = useTRPC();
-  useQuery(trpc.chat.getChat.queryOptions({ chatId: props.chatId }));
+  useQuery(roomRosterOptions(trpc, { chatId: props.chatId }));
   const moment = useChatMoment(props.chatId);
   return moment === null ? <OrdinaryThread {...props} /> : <AnchoredThread {...props} target={moment.target} />;
 }
@@ -53,7 +69,7 @@ function mergePages(pages: readonly CanonPage[]): CanonPage {
 function OrdinaryThread(props: TranscriptWindowProps): ReactElement {
   const trpc = useTRPC();
   // Composer readers and the live carrier share this finite tail; it wins every overlapping row.
-  const { data: tail } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
+  const { data: tail } = useSuspenseQuery(roomTailOptions(trpc, { chatId: props.chatId }));
   return <OrdinaryHistory {...props} tail={tail} />;
 }
 
@@ -132,7 +148,9 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           onRetry={onRetry}
         />
       )}
-      <Row gap="field" align="center" paddingInlineEnd="block">
+      {/* The status line grows beside the button from no width, so it keeps that seat while its longest word fits there and
+          takes a line of its own once enlarged text leaves no room for it, instead of holding the plate wider than the port. */}
+      <Row gap="field" align="center" wrap={true} paddingInlineEnd="block">
         {/* Focusable at every state, so paging on with the keyboard never drops focus onto the page. */}
         <Button
           ref={earlier}
@@ -149,7 +167,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           {EARLIER_MESSAGES_LABEL}
         </Button>
         {/* The end of history is read on screen; the sr-only form is only the pager's description while older pages remain. */}
-        <Text id={description} className={hasEarlier ? "sr-only" : undefined} role="status" voice={hasEarlier ? "gloss" : "label"}>
+        <Text id={description} className={hasEarlier ? "sr-only" : undefined} grow={true} role="status" voice={hasEarlier ? "gloss" : "label"}>
           {status}
         </Text>
       </Row>
@@ -271,6 +289,7 @@ function AnchoredThread({
     trpc.chat.getMessageWindow.infiniteQueryOptions(
       { chatId: props.chatId, target },
       {
+        ...RIDES_ALONE,
         initialCursor: null,
         getNextPageParam: (page) => {
           const last = page.messages.at(-1);
@@ -350,7 +369,7 @@ function AnchoredThread({
             Latest messages
           </Button>
           <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
-            Back to Corpus
+            {CHAT_WINDOW_BACK_TO_CORPUS_NAME}
           </Button>
         </Row>
         <Text id={pagingDescription} voice="gloss">
@@ -384,6 +403,6 @@ function LatestPageFallback({
   readonly render: (page: CanonPage, edges: TranscriptEdges) => ReactElement;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  const { data: page } = useSuspenseQuery(roomTailOptions(trpc, { chatId }));
   return render(page, { earlier: page.previousCursor !== null, later: false, settling: false });
 }

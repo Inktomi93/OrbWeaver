@@ -4,8 +4,10 @@ import { Icon, X } from "@orb/ui/icons";
 import type { StackProps } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
+import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS } from "#lib";
-import type { NonEmptyLabel } from "./non-empty-label.ts";
+import { CommitRow } from "./commit-row.tsx";
+import { ModalTitle } from "./modal-title.tsx";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 // The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.
@@ -29,7 +31,8 @@ type ContentDismiss<L extends string = string> =
     };
 
 export interface ContentDialogProps<L extends string = string> extends Omit<ComponentProps<typeof Dialog>, "children"> {
-  readonly title: ReactNode;
+  /** The title's whole text, which stays the dialog's name when its line cuts it. */
+  readonly title: string;
   readonly dismiss: ContentDismiss<L>;
   readonly children: ReactNode;
   readonly size?: DialogPopupProps["size"];
@@ -88,11 +91,11 @@ export function ContentDialog<L extends string>({
             grow={true}
             {...(headerActions === undefined && titleTruncate !== true
               ? { minWidth: "word" as const }
-              : { className: "min-inline-0", floor: "title" as const })}
+              : { minWidth: "shrinks" as const, floor: "title" as const })}
           >
             {headerLeading}
             <DialogTitle {...titleProps} truncate={titleTruncate}>
-              {title}
+              <ModalTitle title={title} truncate={titleTruncate ?? false} />
             </DialogTitle>
           </Row>
           {headerActions === undefined ? (
@@ -106,25 +109,34 @@ export function ContentDialog<L extends string>({
         </DialogHeader>
         <DialogBody {...bodyProps} container={bodyContainer} focusTarget={bodyFocusTarget} grow={true} gap="block">
           {children}
-          {dismiss.at === "footer" ? (
-            <DialogFooter>
-              <DialogClose
-                render={
-                  <Button
-                    {...(dismiss.primary === true ? {} : { variant: "ghost" as const })}
-                    {...(dismiss.control === undefined ? {} : { ref: dismiss.control })}
-                  >
-                    {dismiss.label}
-                  </Button>
-                }
-              />
-              {footer}
-            </DialogFooter>
-          ) : null}
+          {dismiss.at === "footer" ? <DialogFooter>{footerRow(dismiss, footer)}</DialogFooter> : null}
           {dismiss.at === "header" && footer !== undefined ? <DialogFooter>{footer}</DialogFooter> : null}
         </DialogBody>
       </DialogPopup>
     </Dialog>
+  );
+}
+
+/** A dismiss with actions after it is a commit row: Cancel, then the actions. A primary dismiss, or one alone, is the dialog's single act. */
+function footerRow(dismiss: Extract<ContentDismiss, { at: "footer" }>, footer: ReactNode): ReactElement {
+  if (dismiss.primary !== true && footer !== undefined) {
+    return (
+      <CommitRow surface="dialog" cancelLabel={dismiss.label} {...(dismiss.control === undefined ? {} : { cancelRef: dismiss.control })}>
+        {footer}
+      </CommitRow>
+    );
+  }
+  return (
+    <>
+      <DialogClose
+        render={
+          <Button {...(dismiss.primary === true ? {} : { variant: "ghost" as const })} {...(dismiss.control === undefined ? {} : { ref: dismiss.control })}>
+            {dismiss.label}
+          </Button>
+        }
+      />
+      {footer}
+    </>
   );
 }
 

@@ -7,6 +7,7 @@ import { expect } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -45,8 +46,26 @@ export function namedGroupRoom<const TRow extends { readonly title: string | nul
 
 export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shell-stories";
 
+/** Past Home: the Chats section, the reads the Add document and imagine modal bodies make, and the shell's theme reads. */
+export const MODAL_SHELL_READS = [
+  "sessions.me",
+  "chat.listChats",
+  "chat.countChats",
+  "chat.getChat",
+  "character.list",
+  "rosterPreset.list",
+  "databank.listGlobal",
+  "worldInfo.listBooks",
+  "settings.getUserSettings",
+  "settings.listThemes",
+  "settings.getTheme",
+  "notifications.markAllRead",
+  "plugin.list",
+  "plugin.listSurfaces",
+] as const satisfies readonly ServedPath[];
+
 /** The ⌘K chip's accessible name leads with the word and carries the platform shortcut after it. */
-export const JUMP_CHIP = /^Jump, the command menu \(/u;
+export const JUMP_CHIP = new RegExp(`^${RegExp.escape(COMMAND_CHIP_NAME_LEAD)} \\(`, "u");
 
 export const PHONE = { width: 390, height: 844 } as const;
 
@@ -57,7 +76,12 @@ export const PHONE = { width: 390, height: 844 } as const;
  */
 export async function expectLandscapeRegime(dialog: Locator, title: string, landscape: boolean): Promise<void> {
   await expect(dialog.locator('[data-slot="dialog-header"]')).toHaveCSS("position", landscape ? "sticky" : "static");
-  await expect(dialog.getByRole("heading", { name: title, exact: true })).toHaveCSS("text-overflow", landscape ? "ellipsis" : "clip");
+  await expect(dialogTitleWords(dialog, title)).toHaveCSS("text-overflow", landscape ? "ellipsis" : "clip");
+}
+
+/** The words of a dialog's title: the box a landscape phone cuts to one line, inside the heading that keeps the whole name. */
+export function dialogTitleWords(dialog: Locator, title: string): Locator {
+  return dialog.getByRole("heading", { name: title, exact: true }).locator('[data-slot="dialog-title-text"]');
 }
 
 const TOUCH_DRAG_STEPS = 8;

@@ -12,6 +12,7 @@
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
 import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { NewBackgroundEntryId } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BulkImportLorebook, HasPrimaryBook } from "@orb/contracts/world-info";
@@ -21,7 +22,14 @@ import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
-import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
+import {
+  createAssetsService,
+  createBackgroundStore,
+  createLoadAssetRefHolders,
+  createLoadHashHolders,
+  createMaterializeBackground,
+  createSeedPlateStore,
+} from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
 import {
   createCharacterOwned,
@@ -31,13 +39,14 @@ import {
   createGreetingCompletion,
   createGreetingTemplate,
   createLinkCharacterAvatars,
+  createLoadCharacterAvatars,
   migrateSeededCardBackgrounds,
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { ExportService } from "#domain/export";
 import { cardPngIdentity } from "#domain/import";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
-import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
+import { createDefaultPersonaSeeder, createFindSeededDefault, createLoadPersonaAvatars } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { createReadOptionalPresetConfig } from "#domain/preset";
 import type { FieldIndexCache } from "#domain/search";
@@ -60,6 +69,7 @@ import { personaAutoSeedAdmits } from "#foundation/env/record";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
+import { identityOnlyExportNote } from "#primitives/stored-config";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
@@ -77,6 +87,8 @@ export interface AssetsCharacterComposeDeps {
   readonly fetchImpl: MaterializeBackgroundDeps["fetchImpl"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
+  /** The disabled-account read the co-participant art gate narrows each room's consent set with. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
   readonly now: Clock;
   readonly cas: Cas;
   readonly variants: VariantCache;
@@ -87,7 +99,7 @@ export interface AssetsCharacterComposeDeps {
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
   readonly roleClientsFor: GreetingCompletionDeps["roleClientsFor"];
   /** The keystone's late-bound materializeBackground holder (character + seeders reference it at request time). */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
   readonly maxImageBytes: NonNullable<BackgroundStoreDeps["maxBytes"]>;
   /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
@@ -123,7 +135,7 @@ export interface AssetsCharacterComposeResult {
   /** The per-user SCENE-PLATE seeder — boot + the first-authed-request hook run `ensureSeeded`; the card and
    *  card pack dresses through its `resolvePlate`. */
   readonly backgroundSeeder: DefaultBackgroundSeeder;
-  readonly materializeBackgroundOp: MaterializeBackgroundOp;
+  readonly materializeBackgroundOp: MaterializeBackgroundOp<AbortSignal>;
   /** Does `ownerId` own `characterId`? The same read `assetsCtx.assertCharacterOwned` gates the gallery add on. */
   readonly characterOwned: CharacterOwnedOp;
 }
@@ -162,8 +174,15 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
-    loadCoParticipantOwner: createLoadCoParticipantOwner({ db }),
-    loadChatAssetRefs: createLoadChatAssetRefs({ db }),
+    // Chat's co-participant art gate reads only chat tables; each owner domain supplies its rows through its own op.
+    loadCoParticipantOwner: createLoadCoParticipantOwner({
+      db,
+      resolveUserEnabled: deps.resolveUserEnabled,
+      loadHashHolders: createLoadHashHolders(db),
+      loadCharacterAvatars: createLoadCharacterAvatars(db),
+      loadPersonaAvatars: createLoadPersonaAvatars(db),
+    }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db, resolveUserEnabled: deps.resolveUserEnabled, loadAssetRefHolders: createLoadAssetRefHolders(db) }),
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full
@@ -175,10 +194,12 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     maxBytes: () => deps.maxImageBytes(),
   });
 
+  const statsWiring = createStatsBatchWiring(deps.idSource, deps.now);
   const character = createCharacterService({
     logger: deps.logger,
     db,
-    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
+    bumpStatsCanonVersion: statsWiring.bumpStatsCanonVersion,
+    prepareCanonRetirement: statsWiring.prepareCanonRetirement,
     now,
     newCharacterId: minter(ID_PREFIX.character, deps.idSource),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot, deps.idSource),
@@ -246,7 +267,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     ...seedAvatars.character,
     // The identity is read off the card's real export, so it is the one a restore of that export computes.
     stampOwnIdentity: async (principal, characterId) => {
-      const exported = await deps.getCardExport().exportCharacter({ principal, characterId });
+      const exported = await deps.getCardExport().exportCharacter({ principal, characterId, note: identityOnlyExportNote });
       const identity = exported === null ? null : await cardPngIdentity(exported.bytes);
       if (identity !== null) {
         await character.stampImportIdentity({ ownerId: principal.userId, characterId, importHash: identity.importHash });

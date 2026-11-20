@@ -2,11 +2,20 @@
 
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import { CONNECTION_NAME_FIELD_NAME } from "#client/features/credentials/lib/credentials-names.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { ROSTER_DESCRIPTION_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
 import { WORLD_BOOKS_LIST_NAME } from "#client/features/world-info/lib/world-books-list-name.ts";
-import { WORLD_INFO_BOOK_DETAILS_NAME, WORLD_INFO_EDIT_DETAILS_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import {
+  WORLD_INFO_BOOK_DESCRIPTION_NAME,
+  WORLD_INFO_BOOK_DETAILS_NAME,
+  WORLD_INFO_EDIT_DETAILS_NAME,
+  WORLD_INFO_GROUP_LABEL,
+} from "#client/features/world-info/lib/world-info-names.ts";
 import { COLLECTION_LARGE_GROUP } from "#client/lib/collection-contracts.ts";
 import { connectionSummary } from "#client/lib/connection-roles.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#client/lib/item-switch-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup } from "./support/config-flow.ts";
@@ -21,7 +30,7 @@ function corpus(): CorpusWire {
 }
 
 async function selectWorldBook(page: Page, name: string): Promise<void> {
-  await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
+  await page.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(name);
   await page.getByRole("button", { name, exact: true }).click();
 }
 
@@ -85,17 +94,17 @@ test.describe("committed corpus collection settings", () => {
     await page.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
     const dialog = page.getByRole("dialog", { name: WORLD_INFO_BOOK_DETAILS_NAME, exact: true });
     const description = `${before.description ?? ""} corpus smoke`;
-    await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(description);
-    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await dialog.getByRole("textbox", { name: WORLD_INFO_BOOK_DESCRIPTION_NAME, exact: true }).fill(description);
+    await dialog.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
     await expect.poll(async () => (await host.trpc.worldInfo.getBook.query({ bookId })).description).toBe(description.trim());
     await page.reload();
     await openConfigGroup(page, "worldInfo");
     await selectWorldBook(page, before.name);
     await page.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
-    await expect(dialog.getByRole("textbox", { name: "Description", exact: true })).toHaveValue(description.trim());
-    await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(before.description ?? "");
+    await expect(dialog.getByRole("textbox", { name: WORLD_INFO_BOOK_DESCRIPTION_NAME, exact: true })).toHaveValue(description.trim());
+    await dialog.getByRole("textbox", { name: WORLD_INFO_BOOK_DESCRIPTION_NAME, exact: true }).fill(before.description ?? "");
     const saved = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("worldInfo.updateBook"));
-    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await dialog.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
     expect((await saved).ok()).toBe(true);
   });
 
@@ -108,10 +117,10 @@ test.describe("committed corpus collection settings", () => {
     const before = await host.trpc.rosterPreset.get.query({ presetId });
     await openConfigGroup(page, "rosterPreset");
     await page.getByRole("button", { name: before.name, exact: true }).click();
-    const input = page.getByRole("textbox", { name: "Description", exact: true });
+    const input = page.getByRole("textbox", { name: ROSTER_DESCRIPTION_FIELD_NAME, exact: true });
     const next = `${before.description} corpus smoke`;
     await input.fill(next);
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
     await expect.poll(async () => (await host.trpc.rosterPreset.get.query({ presetId })).description).toBe(next);
     const after = await host.trpc.rosterPreset.get.query({ presetId });
     expect(after.members).toEqual(before.members);
@@ -122,7 +131,7 @@ test.describe("committed corpus collection settings", () => {
     await expect(input).toHaveValue(next);
     const saved = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("rosterPreset.update"));
     await input.fill(before.description);
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
     expect((await saved).ok()).toBe(true);
   });
 
@@ -136,7 +145,7 @@ test.describe("committed corpus collection settings", () => {
     await openConfigGroup(page, "connections");
     await page.getByRole("button", { name: connectionSummary(before), exact: true }).click();
     await expect.poll(async () => (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id)?.modelCheck).toBe("listed");
-    const field = page.getByRole("textbox", { name: "Name", exact: true });
+    const field = page.getByRole("textbox", { name: CONNECTION_NAME_FIELD_NAME, exact: true });
     const next = `${before.label} smoke`;
     await field.fill(next);
     await field.press("Tab");

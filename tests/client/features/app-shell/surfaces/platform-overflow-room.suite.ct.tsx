@@ -2,7 +2,7 @@
 // measured to fail: a row claims only what it shows and keeps its trigger on screen; a surface opened from the More menu
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
-import { enlargeUntilVisible, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargeUntilVisible, READ_RETRIES_MS, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -10,8 +10,12 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -25,8 +29,6 @@ const NARROWEST_PHONE = { width: 320, height: 640 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 // Sub-pixel layout rounding.
 const SUBPIXEL = 1;
-// The client retries a failed read twice on its backoff before the pane can say so.
-const READ_RETRIES_MS = 10_000;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -121,7 +123,7 @@ test.describe("on a phone", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
     const action = page.locator(BAND_ACTION);
-    await expect(action.getByRole("button", { name: "New", exact: true })).toBeVisible();
+    await expect(action.getByRole("button", { name: BAND_NEW_LABEL, exact: true })).toBeVisible();
     await expect(action.locator(TRIGGER)).toHaveCount(0);
   });
 });
@@ -198,7 +200,7 @@ test.describe("on a desktop", () => {
     // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the popover closes.
     await trigger.focus();
     await page.keyboard.press("Enter");
-    const item = page.getByRole("menuitem", { name: "Notifications", exact: true });
+    const item = page.getByRole("menuitem", { name: NOTIFICATIONS_BELL_NAME, exact: true });
     await item.focus();
     await page.keyboard.press("Enter");
     const popup = page.locator('[data-slot="popover-popup"]');
@@ -223,8 +225,8 @@ test.describe("on a desktop", () => {
   });
 
   for (const entry of [
-    { name: "Notifications", surface: { role: "dialog", name: "Notifications" } },
-    { name: "Report a bug", surface: { role: "textbox", name: "What happened?" } },
+    { name: NOTIFICATIONS_BELL_NAME, surface: { role: "dialog", name: NOTIFICATIONS_BELL_NAME } },
+    { name: BUG_REPORT_NAME, surface: { role: "textbox", name: BUG_REPORT_NOTE_NAME } },
     { name: "Jump to…", surface: { role: "dialog", name: undefined } },
   ] as const) {
     test(`Escape from ${entry.name}, opened from the More menu, returns focus to the trigger`, async ({ mount, page }) => {
@@ -305,7 +307,7 @@ test.describe("offline, where the first read of a pane waits for the network", (
       const pane = page.locator(PANE);
       await expect(pane.getByText(family.failed, { exact: true })).toBeVisible({ timeout: READ_RETRIES_MS });
       recover();
-      await pane.getByRole("button", { name: "Retry", exact: true }).click();
+      await pane.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
       await expect(family.landing(pane)).toBeVisible();
       await expect(pane.getByText(family.failed, { exact: true })).toHaveCount(0);
     });

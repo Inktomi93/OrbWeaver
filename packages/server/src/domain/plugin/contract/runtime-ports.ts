@@ -1,5 +1,5 @@
 import type { StoreAsset } from "@orb/contracts/assets";
-import type { PluginCardDataHit, PluginCardDataLookup, PluginCardDataRead, PluginCardDataTarget } from "@orb/contracts/character";
+import type { PluginCardDataHit, PluginCardDataLookup, PluginCardDataRead, PluginCardDataTarget, PluginCardDataWrite } from "@orb/contracts/character";
 import type { RequestTurnOp } from "@orb/contracts/chat";
 import type { CreateDocumentFromText } from "@orb/contracts/databank";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
@@ -14,12 +14,12 @@ export interface PluginRuntimeDeps {
   readonly db: Db;
   readonly now: Clock;
   readonly requestTurn: RequestTurnOp;
-  readonly imagery: { readonly generatePicture: GeneratePicture };
-  readonly databankCreateFromText: CreateDocumentFromText;
+  readonly imagery: { readonly generatePicture: GeneratePicture<AbortSignal> };
+  readonly databankCreateFromText: CreateDocumentFromText<AbortSignal>;
   readonly assets: { readonly store: StoreAsset };
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly readCardData: (target: PluginCardDataTarget) => Promise<PluginCardDataRead>;
-  readonly writeCardData: (target: PluginCardDataTarget, data: Record<string, unknown>) => Promise<boolean>;
+  readonly writeCardData: (target: PluginCardDataTarget, data: Record<string, unknown>) => Promise<PluginCardDataWrite>;
   readonly findCardData: (lookup: PluginCardDataLookup) => Promise<PluginCardDataHit[]>;
   readonly readShowcaseManifest: (slug: string) => Promise<Pick<PluginManifest, "version"> | null>;
 }

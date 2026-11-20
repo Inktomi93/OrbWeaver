@@ -1,6 +1,15 @@
 // The openai-compat wire's reasoning spellings, one home for both transports: OpenRouter's nested `reasoning` block,
 // the `reasoning_effort` word, the row's budget field, and the mandatory-reasoning refusal the OpenRouter replay
 // reads. The funnel decided what runs (`funnel/resolve-chat.ts`); this file only spells it.
+//
+// THE `max` FOOTGUN — why this file may send a level the provider's own types forbid, and why only a wire test
+// can hold it: `openRouterReasoning` returns `effort: "max"` on an adaptive row, but the installed provider's
+// typed effort union has no `max` member (`@openrouter/ai-sdk-provider@3.1.0` declares `reasoning.effort` as
+// `'xhigh' | 'high' | 'medium' | 'low' | 'minimal' | 'none'`). It reaches the wire anyway because the block
+// travels as `providerOptions.openrouter` and both `doGenerate` and `doStream` spread that bag into the request
+// body VERBATIM, never validated. So a type cannot prove the level arrives, and a provider
+// that starts validating the block would drop it silently — the pinned wire case in
+// `tests/inference/roles/openrouter-reasoning-wire.int.test.ts` is the check, not the compiler.
 
 import type { JSONObject, LanguageModelV4CallOptions } from "@ai-sdk/provider";
 import type { EndpointFeatures, ResolvedWarning } from "@orb/contracts/inference";
@@ -68,7 +77,7 @@ function effortWord(features: EndpointFeatures, reasoning: ResolvedReasoning, te
     return REASONING_OFF;
   }
   if (reasoning.enabled) {
-    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
+    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort, features.effortMaxLiteral === true);
   }
   if (templateThinking === false && features.thinkingOff === TEMPLATE_KWARGS_SWITCH) {
     return;

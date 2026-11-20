@@ -84,6 +84,30 @@ test.for(AUGMENTED_WORLDS)("a mutant whose break shows only through $name it aug
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
 });
 
+// The mutated file only feeds the augmenting file; the reader imports neither, so only the augmentation's reach finds it.
+const ROUTE = "src/route.ts";
+const ROUTE_VALUE = '{ path: "/a" }';
+const ROUTE_TEXT = `export const ROUTE = ${ROUTE_VALUE};`;
+
+test("a mutant whose file feeds an augmenting importer fails on the augmentation's reader", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: ["ESNext"] }),
+    [ROUTE]: ROUTE_TEXT,
+    [FLAGS]: ['import { ROUTE } from "./route.ts";', "declare global {", "  interface OrbRoutes {", "    readonly current: typeof ROUTE;", "  }", "}"].join(
+      "\n",
+    ),
+    [READER]: "export const path = (routes: OrbRoutes): string => routes.current.path;",
+  });
+  using world = MutantWorld.open(root, WORLD);
+  const column = ROUTE_TEXT.indexOf(ROUTE_VALUE);
+  const verdict = world.judge({
+    fileName: join(root, ROUTE),
+    replacement: "{}",
+    location: { start: { line: 0, column }, end: { line: 0, column: column + ROUTE_VALUE.length } },
+  });
+  expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
+});
+
 test("a mutant outside the world's program passes unread", async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
   using world = MutantWorld.open(root, WORLD);

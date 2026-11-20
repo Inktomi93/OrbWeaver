@@ -30,7 +30,7 @@ test.for(forgedCases)("public execution refuses an extra configured option for $
     principal: await root.principalFor(root.ownerId),
     partial: { privateEndpointAllowlist: [`${PRIVATE_HOST}:443`, `${PRIVATE_ADDRESS}:${PRIVATE_PORT}`] },
   });
-  const widerOptions = { allowedHosts: [row.host], ownerConfiguredEndpoint: true };
+  const widerOptions = { signal: new AbortController().signal, allowedHosts: [row.host], ownerConfiguredEndpoint: true };
   await expect.soft(root.app.egress.safeFetch(row.url, widerOptions)).rejects.toMatchObject({ name: "EgressBlockedError", reason: row.reason });
   expect.soft(calls).toEqual([]);
 });
@@ -54,7 +54,7 @@ test.for([
     principal: await root.principalFor(root.ownerId),
     partial: { privateEndpointAllowlist: [`${PRIVATE_HOST}:443`] },
   });
-  const widerOptions = { allowedHosts: [PUBLIC_HOST, PRIVATE_HOST], ownerConfiguredEndpoint: true };
+  const widerOptions = { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST, PRIVATE_HOST], ownerConfiguredEndpoint: true };
   await expect.soft(root.app.egress.safeFetch(PUBLIC_URL, widerOptions)).rejects.toMatchObject({ name: "EgressBlockedError", reason: row.reason });
   expect.soft(calls).toEqual([PUBLIC_URL]);
 });
@@ -70,7 +70,7 @@ test("public execution still reads an allowed public response through its owned 
       },
     },
   });
-  const response = await root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST], maxBytes: 1024 });
+  const response = await root.app.egress.safeFetch(PUBLIC_URL, { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST], maxBytes: 1024 });
   expect(response.status).toBe(200);
   expect(response.contentType).toBe("text/plain");
   expect(new TextDecoder().decode(await response.bytes())).toBe("public bytes");
@@ -99,7 +99,7 @@ test("a public body past maxBytes is refused mid-stream and its stream is cancel
   await using root = await createServerHarness({
     networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(body)) },
   });
-  const response = await root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST], maxBytes: chunkBytes + 1 });
+  const response = await root.app.egress.safeFetch(PUBLIC_URL, { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST], maxBytes: chunkBytes + 1 });
   await expect(response.bytes()).rejects.toMatchObject({ name: "EgressBlockedError", reason: "too-large" });
   await cancelled.promise;
   expect(served).toBeLessThan(chunksBeforeEnd);
@@ -116,7 +116,9 @@ test("the public required-host boundary refuses an off-host redirect before its 
       },
     },
   });
-  await expect(root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST] })).rejects.toMatchObject({ reason: "host-not-allowed" });
+  await expect(root.app.egress.safeFetch(PUBLIC_URL, { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST] })).rejects.toMatchObject({
+    reason: "host-not-allowed",
+  });
   expect(calls).toEqual([PUBLIC_URL]);
 });
 
@@ -175,10 +177,12 @@ test("disposing the actual root revokes a held public response and its execution
       },
     },
   });
-  const held = await root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST] });
+  const held = await root.app.egress.safeFetch(PUBLIC_URL, { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST] });
   await root[Symbol.asyncDispose]();
   await expect(held.bytes()).rejects.toMatchObject({ name: "AbortError" });
-  await expect(root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST] })).rejects.toThrow("egress lifetime is closed");
+  await expect(root.app.egress.safeFetch(PUBLIC_URL, { signal: new AbortController().signal, allowedHosts: [PUBLIC_HOST] })).rejects.toThrow(
+    "egress lifetime is closed",
+  );
   expect(calls).toEqual([PUBLIC_URL]);
   expect(root.timers.pending()).toBe(0);
 });

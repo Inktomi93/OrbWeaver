@@ -32,7 +32,7 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
-import { errnoCode, hasErrnoCode, isMissingFile } from "#primitives/errno";
+import { errnoCode, isDirectorySyncUnsupported, isMissingFile } from "#primitives/errno";
 import type { Cas, PutResult } from "./contract.ts";
 
 export type { Cas } from "./contract.ts";
@@ -101,14 +101,6 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   }
 }
 
-// "This filesystem cannot fsync a directory" — a CAPABILITY statement, not a fault. ENOTSUP says it on
-// every platform (FUSE / network mounts / some macOS volumes); Windows says it as EISDIR or EPERM from the
-// open or the sync, and ONLY Windows, so those two stay platform-fenced (elsewhere they are a real
-// permission fault, which must still reject the put).
-function isDirSyncUnsupported(error: unknown): boolean {
-  return hasErrnoCode(error, "ENOTSUP") || (process.platform === "win32" && (hasErrnoCode(error, "EISDIR") || hasErrnoCode(error, "EPERM")));
-}
-
 // ASSUMES(single-replica): a once-per-root latch, keyed by the root's logger, so each root's log says the
 // filesystem-capability sentence once instead of on every asset write; a restart re-announcing it is correct.
 // Nothing reads it back, so there is nothing for durable state to hold.
@@ -119,7 +111,7 @@ async function fsyncDir(dir: string, log: Logger): Promise<void> {
     await using handle = await open(dir, "r");
     await handle.sync();
   } catch (error) {
-    if (!isDirSyncUnsupported(error)) {
+    if (!isDirectorySyncUnsupported(error)) {
       throw error;
     }
     if (!dirSyncUnsupportedAnnounced.has(log)) {

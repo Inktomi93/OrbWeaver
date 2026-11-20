@@ -64,6 +64,7 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { RECOVERY_RETRY_BACKOFF_MS } from "./recovery-retry.ts";
 import type { RoomRegistry, RoomSubscriber, RoomTransport, SinceSeqSource } from "./room-registry-contract.ts";
 
@@ -211,8 +212,9 @@ function createRoomRegistry(): RoomRegistry {
     if (transport === null) {
       return;
     }
-    // best-effort teardown of an already-retiring room — the server-side cell ages out on its own if this never lands. Ends if detach failure must block the retire.
-    void transport.detach(entry.ref).catch(() => undefined);
+    // Best-effort teardown of an already-retiring room: the server-side cell ages out on its own if a failed detach (a
+    // tRPC failure the loggerLink logs) never lands.
+    void transport.detach(entry.ref).catch(rethrowUnlessTrpcFailure);
   }
 
   /** Count one live edge for a room and answer whether it is a RE-entry (the BOOT-4X gate). */

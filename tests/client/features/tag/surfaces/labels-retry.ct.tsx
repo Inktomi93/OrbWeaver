@@ -4,6 +4,7 @@ import { routeTrpc, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
@@ -26,7 +27,7 @@ test("Retry on a windowed tag list hands keyboard focus to a row once the rows m
     "tag.listTagsWithUsage": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : tags),
   });
   await mount<typeof LabelsListStory>(STORY, {});
-  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   failing = false;

@@ -55,6 +55,9 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
     // The inline-reasoning tags (the F-table "Adopt" row) — only the openai-compat transport reads them, and
     // only when the row declares no native reasoning delta field.
     ...(input.reasoningTags !== undefined ? { reasoningTags: input.reasoningTags } : {}),
+    // The authored chain of thought the model continues FROM (the `prefix-flag` continue row's seed); a route
+    // with no continuation drops it with `prefill_reasoning_dropped` rather than vanishing silently.
+    ...(input.prefillReasoning !== undefined ? { prefillReasoning: input.prefillReasoning } : {}),
     ...(input.onEvent !== undefined ? { onEvent: input.onEvent } : {}),
     ...deltaSubscriptionOf(input),
     signal: input.signal,
@@ -66,6 +69,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
 const PROJECTIONS: Record<ChatApi, (input: ChatTurnInput) => ChatRequest> = {
   "agent-sdk": toAgentSdkChatRequest,
   "chat-completions": (input) => toArrayWireChatRequest(input, "chat-completions"),
+  responses: (input) => toArrayWireChatRequest(input, "responses"),
   "google-generative-ai": (input) => toArrayWireChatRequest(input, "google-generative-ai"),
   "anthropic-messages": (input) => toArrayWireChatRequest(input, "anthropic-messages"),
 };

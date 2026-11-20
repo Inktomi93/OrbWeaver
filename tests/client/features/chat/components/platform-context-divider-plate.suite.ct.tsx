@@ -4,10 +4,11 @@ import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { computedStyle, pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
+import { CONTEXT_DIVIDER_IN_CONTEXT_TEXT } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ContextDividerStory } from "./_context-divider-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_context-divider-stories/ContextDividerStory";
-const LABEL = /^In context from here/u;
+const LABEL = new RegExp(`^${RegExp.escape(CONTEXT_DIVIDER_IN_CONTEXT_TEXT)}`, "u");
 const THEMES = [undefined, ...SEED_THEME_NAMES] as const;
 
 for (const theme of THEMES) {

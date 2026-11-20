@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
-import { enablePluginLabel, showInChatSwitchName } from "#client/features/plugin/lib/plugin-copy.ts";
+import { enablePluginLabel, PLUGIN_ON_STATUS_LABEL, showInChatSwitchName } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { InstalledPluginsStory } from "./_show-in-chat-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_show-in-chat-stories/InstalledPluginsStory";
@@ -55,7 +55,7 @@ test("each card's enable and panel switches share one track and are named for th
     const shown = await component.getByRole("switch", { name: showInChatSwitchName(plugin.name), exact: true }).boundingBox();
     expect(enabled?.x).toBe(shown?.x);
   }
-  await expect(component.getByText("On", { exact: true })).toHaveCount(0);
+  await expect(component.getByText(PLUGIN_ON_STATUS_LABEL, { exact: true })).toHaveCount(0);
 });
 
 test("two plugins' panel switches are found by their stable names, and a flip moves only aria-checked", async ({ mount, page }) => {

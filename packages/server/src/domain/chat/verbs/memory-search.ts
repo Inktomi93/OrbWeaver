@@ -1,4 +1,5 @@
 // Scope retrieval to the room's present host before ranking; a hostless room exposes no owner's corpus.
+// The query embeds on that host's encoder, so its only callers, a turn and a preview, refuse a disabled host first.
 import type { ChatMemorySearchDeps, ChatMemorySearchOps } from "../contract/memory-search.ts";
 /** Retain score-only digest projection and the narrow, observable space-refusal degrade. */
 export function createChatMemorySearchOps(deps: ChatMemorySearchDeps): ChatMemorySearchOps {

@@ -4,6 +4,7 @@
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import type { HtmlTrustStep } from "@orb/contracts/chat";
 import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contracts/identity";
 import { authConfigShareSchema, authMeSchema } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
@@ -39,23 +40,14 @@ export interface AuthMetaDeps {
    *  control) can tell the truth instead of offering an "Allow" that the tighten-only resolver + the CSP
    *  both ignore. Read per request, like every other flag here. */
   readonly forbidExternalMedia: () => boolean;
-  /** The deployment HTML-trust DEFAULT (`effectiveConfig.trustHtml`) — the other half of the render-policy
-   *  floor `resolveRenderPolicy` (`@orb/contracts/chat`) combines. Unlike `forbidExternalMedia` this one is a
-   *  default, not a ceiling: a card's `trustHtml` override wins either way (D294, UI-Theming-and-Content §12.0).
-   *  Served because a client surface that PREVIEWS card content has to resolve the same policy the server
-   *  will — a preview that reads the raw override column renders an INHERIT card untrusted on a deployment
-   *  that trusts, which is a preview lying about the thing it exists to show. */
-  readonly trustHtml: () => boolean;
-  /** The deployment INTERACTIVE-CARD CEILING (`effectiveConfig.allowInteractiveCards`, floor TRUE) — the
-   *  operator's half of the html-trust ladder's top rung, and the default rung of an "Inherit default"
-   *  character. Served for the SAME reason
-   *  `forbidExternalMedia` is: the per-character "Interactive" rung is inert deployment-wide while this is
-   *  off, and a control that offers a capability nothing honours is the dead-opt-in defect. Never a
-   *  capability by itself — the frame policy is built server-side from the server's own read. */
-  readonly allowInteractiveCards: () => boolean;
+  /** The install's "Default for characters" (`effectiveConfig.defaultHtmlStep`, floor `interactive`): the step an
+   *  inheriting character takes (D294). Served because a client surface that PREVIEWS card content resolves the same
+   *  policy the server will. Never a capability by itself: the frame policy is built server-side from the server's
+   *  own read. */
+  readonly defaultHtmlStep: () => HtmlTrustStep;
   /** The share relay's live state (`domain/share`'s controller). */
   readonly share: RelayController["status"];
-  /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose forwarded headers decide the request facts below. */
+  /** The deployment's trusted hops (`FORWARD_AUTH_TRUSTED_PROXIES`), the only peers whose forwarded headers decide the request facts below. */
   readonly trustedProxies: readonly string[];
 }
 
@@ -81,8 +73,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),
       forbidExternalMedia: deps.forbidExternalMedia(),
-      trustHtml: deps.trustHtml(),
-      allowInteractiveCards: deps.allowInteractiveCards(),
+      defaultHtmlStep: deps.defaultHtmlStep(),
       share: shareFields(deps.share(), c.get("principal") !== null),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
       // Facts about THIS request, not the box: the login screen warns when a credential would cross plain

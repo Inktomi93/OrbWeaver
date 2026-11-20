@@ -6,7 +6,7 @@
 // same quest; per-quest lock paths (`quests.<id>`) ride the `fieldLocks` grammar.
 //
 // The journal is NOT here — it is a variant-AWARE TABLE (unbounded archive; snapshot-copying it every
-// turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection (§2.5).
+// turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection.
 
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -18,7 +18,7 @@ import { rpgQuestStatusSchema } from "./enums.ts";
 import { rpgTrackerValuesSchema } from "./tracker.ts";
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-// The PLOT plane (parity-plus P5 — the campaign-scale progression datum). SNAPSHOT-
+// The PLOT plane (the campaign-scale progression datum). SNAPSHOT-
 // RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same
 // machinery (a swipe rewinds the act with everything else). `act` is the 1-based CURRENT act into `acts`;
 // `title` is the overall story title; each act carries its own title + a short summary. Model-writable via
@@ -34,14 +34,20 @@ const rpgPlotActSchema = z
   })
   .strip();
 
+/** The most acts a plot holds, read by the model's `plot.act` argument and by the stored plot alike. The applier pads
+ *  an untitled act for every number up to `act`, and the rail draws one stop per act, so the number is a size. 100 is
+ *  far beyond any story's arc and keeps that padding trivial. A stored plot above it fails the plot parse
+ *  (`RpgStateCorruptError` at the snapshot read); the row itself is never rewritten. */
+export const RPG_PLOT_ACTS_MAX = 100;
+
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The snapshot-resident plot object. `act` indexes 1-based into `acts` (the applier keeps
  *  `acts.length >= act`, padding untitled acts, so the rail is total). */
 export const rpgPlotSchema = z
   .object({
-    act: z.int().min(1).default(1),
+    act: z.int().min(1).max(RPG_PLOT_ACTS_MAX).default(1),
     title: z.string().default(""),
-    acts: z.array(rpgPlotActSchema).default([]),
+    acts: z.array(rpgPlotActSchema).max(RPG_PLOT_ACTS_MAX).default([]),
   })
   .strip();
 export type RpgPlot = z.infer<typeof rpgPlotSchema>;
@@ -60,10 +66,9 @@ export const rpgQuestObjectiveSchema = z
 export type RpgQuestObjective = z.infer<typeof rpgQuestObjectiveSchema>;
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-/** The SNAPSHOT-RESIDENT quest object (§2.5). `id` is a prefix-less branded nanoid (`RpgQuestId`) minted IN
- *  the blob (no table, no FK, no `ID_PREFIX` entry) — the type-safety-without-TypeID middle the spec's
- *  "plain string" call wanted, made a real brand so the id flows typed through the snapshot addressing
- *  (`fieldLocks` path `quests.<id>`, the tool flip target). Identity is stable across variants. */
+/** The SNAPSHOT-RESIDENT quest object. `id` is a prefix-less branded nanoid (`RpgQuestId`) minted IN the blob
+ *  (no table, no FK, no `ID_PREFIX` entry) so the id flows typed through the snapshot addressing (`fieldLocks`
+ *  path `quests.<id>`, the tool flip target). Identity is stable across variants. */
 export const rpgQuestSchema = z
   .object({
     id: brandedId("RpgQuestId"),
@@ -84,31 +89,31 @@ export type RpgFieldLocks = z.infer<typeof rpgFieldLocksSchema>;
 // Strip mode: also reads imported files and stored rows.
 /** The full swipe-volatile snapshot STATE (the `rpg_snapshots` JSON columns, born whole — full grafts
  *  ZERO columns here). This is the shape the staging accumulator overlays and clone-forwards; `quests`
- *  rides INSIDE it (§2.5). The db table splits these into columns; this schema is the composed read shape
- *  the resolution ladder returns. */
+ *  rides INSIDE it. The db table splits these into columns; this schema is the composed read shape the
+ *  resolution ladder returns. */
 export const rpgSnapshotStateSchema = z
   .object({
     clock: rpgClockTimeSchema.nullable(),
     calendarDate: z.string().nullable(),
     location: z.string().default(""),
     weather: rpgWeatherSchema.nullable(),
-    // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
+    // THE PRESENCE PLANE — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
     // included: a participant character on stage is `character:<id>`). Nothing else lives here: carrying the npc's whole identity row
     // here would make departure a DESTRUCTION of her name, mood,
     // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
-    // two planes, opposite lifecycles (the review's MS-2). Identity rides the actor row; presence is a flag
+    // two planes, opposite lifecycles. Identity rides the actor row; presence is a flag
     // over it, so departure retains everything and return re-surfaces the whole NPC.
     presentCharacters: z.array(z.string().min(1)).default([]),
     recentEvents: z.array(z.string()).default([]),
     actorState: z.array(rpgActorEntrySchema).default([]),
-    // The GAME-SUBJECT tracker values (the tracked-field unification §5.2) — one value per `subject:"game"`
-    // tracker, keyed by tracker `key`. Replaces `widgetValues`, which keyed by widget LABEL (so a rename
-    // orphaned the value) and whose defs lived in a whole separate TABLE. Actor-subject values live on
+    // The GAME-SUBJECT tracker values — one value per `subject:"game"`
+    // tracker, keyed by tracker `key`. A label-keyed map would orphan the value on rename, and its defs would
+    // live in a separate table. Actor-subject values live on
     // `actorState[].trackerValues` — one shape, two homes by subject, no third.
     trackerValues: rpgTrackerValuesSchema.default({}),
     quests: z.array(rpgQuestSchema).default([]),
-    // The P5 plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
-    // Defaulted null so a pre-P5 state blob self-heals at the parse seam (the quests `.default` posture).
+    // The plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
+    // Defaulted null so a state blob without a plot self-heals at the parse seam (the quests `.default` posture).
     plot: rpgPlotSchema.nullable().default(null),
     fieldLocks: rpgFieldLocksSchema.nullable(),
   })
@@ -130,7 +135,7 @@ const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
   Object.keys(rpgSnapshotStateSchema.shape).filter((key) => key !== ("fieldLocks" satisfies keyof RpgSnapshotState)),
 );
 
-/** THE OP-SHAPED PLANES — state planes that LEFT the `editSnapshot` image vocabulary (R1): `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
+/** THE OP-SHAPED PLANES — state planes that are NOT in the `editSnapshot` image vocabulary: `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
  *  `rpg.dismissActor`. An image over this plane is unauthorable by construction — the client sees it only in
  *  projections (participant half + `castVolatile`, never the offstage rows), so every image it could build was
  *  partial, and the additive merge policy was the only thing standing between a hand click and data loss.
@@ -152,15 +157,15 @@ export function rpgActorLockBase(ref: RpgActorRef): string {
  *  fine paths append the op's field (`.status`, `.trackerValues.<key>`, `.wallet.<name>`, …). ONE home for a
  *  grammar with two readers: the server stamps these paths (the `patchActor` auto-lock) and the panel reads
  *  them back to render the pin + its Release. It is a REAL path segment, not a naming choice — the merge walks
- *  the stored JSON, so a lock that skipped `volatile` would bite nothing (R2 moved the fields under it). */
+ *  the stored JSON, so a lock that skipped `volatile` would bite nothing. */
 export function rpgActorVolatileLockBase(ref: RpgActorRef): string {
   return `${rpgActorLockBase(ref)}.volatile`;
 }
 
 /** The lock-path base for an npc's IDENTITY half — `actorState.<actorRefKey>.identity`. The Scene tab's
  *  hand edits (mood · relationship · the standing guides) stamp fine paths under it, exactly as the volatile
- *  edits do under their own base: before R2 those fields lived on `presentCharacters` and could only be pinned
- *  plane-wide, so pinning one NPC's mood froze every npc. */
+ *  edits do under their own base: on the presence plane those fields could only be pinned plane-wide, so
+ *  pinning one NPC's mood froze every npc. */
 export function rpgActorIdentityLockBase(ref: RpgActorRef): string {
   return `${rpgActorLockBase(ref)}.identity`;
 }

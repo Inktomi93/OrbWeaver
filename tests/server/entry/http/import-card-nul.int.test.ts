@@ -6,6 +6,7 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -21,7 +22,7 @@ function card(description: string): string {
 
 async function importCard(root: ServerTestHarness, text: string): Promise<ReturnType<typeof cardImportResultSchema.parse>> {
   const form = new FormData();
-  form.append("file", new File([text], "keeper.json"));
+  form.append(UPLOAD_FILE_FIELD, new File([text], "keeper.json"));
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);
   return cardImportResultSchema.parse(await response.json());

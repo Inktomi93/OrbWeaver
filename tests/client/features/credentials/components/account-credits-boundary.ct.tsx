@@ -6,6 +6,14 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  ACCOUNT_BALANCE_READ_LABEL,
+  ACCOUNT_CREDITS_LABEL,
+  ACCOUNT_CREDITS_READING,
+  CONNECTION_EDITOR_TIER_TITLES,
+} from "#client/features/credentials/lib/credentials-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/ConnectionActionGroupsStory";
@@ -42,19 +50,20 @@ test("a held balance read shows the loading line, and a failed one the error blo
         held = true;
         return hold;
       }
-      return trpcError({ message: PROVIDER_MESSAGE });
+      // The code a rejected credential is classified under; a 500 never carries a message of its own.
+      return trpcError({ code: "PRECONDITION_FAILED", message: PROVIDER_MESSAGE });
     }),
   });
   await mount<typeof ConnectionActionGroupsStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
   await page.locator('[data-slot="list-row-body"]').filter({ hasText: LABEL }).click();
-  await page.getByText("Diagnostics", { exact: true }).click();
+  await page.getByText(CONNECTION_EDITOR_TIER_TITLES.diagnostics, { exact: true }).click();
   const block = page.locator('[data-slot="connection-credits"]');
   await hold.requested;
-  await expect(block.getByText("Account credits", { exact: true })).toBeVisible();
-  await expect(block.getByText("Reading the balance…", { exact: true })).toBeVisible();
+  await expect(block.getByText(ACCOUNT_CREDITS_LABEL, { exact: true })).toBeVisible();
+  await expect(block.getByText(ACCOUNT_CREDITS_READING, { exact: true })).toBeVisible();
   hold.fail();
-  await expect(block.getByText("Couldn't load the balance.", { exact: true })).toBeVisible();
-  await block.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(block.getByText(queryFailedLabel(ACCOUNT_BALANCE_READ_LABEL), { exact: true })).toBeVisible();
+  await block.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(block.getByText(PROVIDER_MESSAGE, { exact: true })).toBeVisible();
-  await expect(block.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(block.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
 });

@@ -293,8 +293,12 @@ export async function withInstrumentRun(
     failure = error;
     throw error;
   } finally {
-    await options.complete?.({ slot, root, exit, error: failure });
-    finishInstrumentRun();
+    // The slot closes even when completion throws: a process that hosts several runs must be able to open the next.
+    try {
+      await options.complete?.({ slot, root, exit, error: failure });
+    } finally {
+      finishInstrumentRun();
+    }
   }
 }
 

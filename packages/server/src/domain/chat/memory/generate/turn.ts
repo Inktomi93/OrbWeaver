@@ -1,10 +1,10 @@
 // Post-turn memory policy runs outside the engine, bound once to chat's memory collaborators.
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import type { BuildTurnMemoryArgs } from "#src/domain/chat/contract/memory.ts";
-import { classifyParticipant } from "#src/domain/chat/persistence/participant.ts";
 import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
 import { digestsDerivable } from "#src/domain/chat/substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "#src/domain/chat/substrate/group-bucket.ts";
+import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
 import { loadWitnessHorizons } from "../persistence/queries.ts";
 import { generateDigests } from "./digests.ts";
 import { generateSegments } from "./segments.ts";
@@ -13,13 +13,12 @@ import { generateSegments } from "./segments.ts";
 export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArgs): Promise<void> {
   await generateSegments(ctx, {
     chatId: args.chatId,
-    funderUserId: args.funderUserId,
     config: args.config,
     embedOwnerId: args.runAsUserId,
     signal: args.signal,
   });
   // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
-  if (!(await digestsDerivable(ctx, args.funderUserId))) {
+  if (!(await digestsDerivable(ctx, args.funderUserId, args.signal))) {
     return;
   }
   const participants = await loadParticipants(ctx.db, args.chatId);

@@ -4,6 +4,7 @@ import { REFINERY_SCHEMA_PLAN_UNCHECKED_LINE } from "@orb/contracts/refinery";
 import { absenceWindow, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { REFINERY_SCHEMA_JSON_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory";
@@ -22,7 +23,7 @@ test("plan asks that fail on two typing pauses show the plan line once and raise
   });
   await mount<typeof SchemaPreviewStory>(STORY, {});
 
-  const schema = page.getByRole("textbox", { name: "Schema (JSON: the full vocabulary)", exact: true });
+  const schema = page.getByRole("textbox", { name: REFINERY_SCHEMA_JSON_NAME, exact: true });
   const line = page.getByRole("dialog").getByText(REFINERY_SCHEMA_PLAN_UNCHECKED_LINE, { exact: true });
   await schema.fill(JSON.stringify({ type: "object", properties: { mood: { type: "string" } } }));
   await expect(line).toBeVisible();

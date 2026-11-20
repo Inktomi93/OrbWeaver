@@ -19,6 +19,7 @@ import { present } from "../../iso/non-empty.ts";
 import { makePromptConfig } from "../../iso/preset-config.ts";
 import { CORPUS_LIBRARY_RULE_PRESET } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
+import { failOnExportNote } from "../export-notes.ts";
 import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
@@ -29,16 +30,16 @@ import { seedRosterPresetRows } from "./rows/roster-preset.ts";
 import { seedCharacterTagRows, seedPersonaTagRows, seedTagPruneRows, seedTagRows } from "./rows/tag.ts";
 import { seedAssetRows, seedCharacterRows, seedCreatedTagRows, seedPresetRows } from "./rows.ts";
 
-async function exportedPreset(root: ServerTestHarness, name: string): Promise<string> {
+async function exportedPreset(root: ServerTestHarness, name: string): Promise<{ readonly fileText: string; readonly fileName: string }> {
   const descriptor = root.app.portability.find((entity) => entity.kind === "preset");
   if (descriptor === undefined) {
     throw new Error("the actual preset export descriptor is missing");
   }
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === name) {
-      return text;
+      return { fileText: text, fileName: file.filename };
     }
   }
   throw new Error("the actual preset export omitted its source row");
@@ -99,7 +100,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
   const branch = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, fork: { mode: "new", name: first.view.name } });
   expect(first.row.id).not.toBe(source.id);
   expect(converged.row.id).toBe(first.row.id);
-  expect(converged.row.config.params.temperature).toBe(0.7);
+  expect(converged.row.config).toMatchObject({ params: { temperature: 0.7 } });
   expect(converged.row.updatedAt).toBe(root.clock.now());
   expect(branch.row.id).not.toBe(first.row.id);
   expect(branch.row.name).not.toBe(first.row.name);
@@ -108,7 +109,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
       id: produced.view.id,
       ownerId: root.ownerId,
       forkedFrom: source.id,
-      schemaVersion: produced.row.config.schemaVersion,
+      schemaVersion: produced.view.config.schemaVersion,
     });
     expect(produced.view.isSystemDefault).toBe(false);
     expect(await caller.preset.get({ id: produced.row.id })).toEqual(produced.view);
@@ -127,15 +128,15 @@ test("genuine preset export/import captures additive collision, content reuse an
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.4 } }),
   });
-  const text = await exportedPreset(root, source.view.name);
+  const exported = await exportedPreset(root, source.view.name);
   const actor = await root.actor();
   const collision = await seedPresetRows(root, actor.id, {
     name: source.view.name,
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.2 } }),
   });
-  const imported = await seedImportedPresetRows(root, actor.id, { fileText: text });
-  const repeated = await seedImportedPresetRows(root, actor.id, { fileText: text });
+  const imported = await seedImportedPresetRows(root, actor.id, exported);
+  const repeated = await seedImportedPresetRows(root, actor.id, exported);
   expect(imported.outcome).toMatchObject({ ok: true, created: true, presetId: imported.row?.id, renamedFrom: source.view.name });
   expect(imported.row).toMatchObject({ ownerId: actor.id, config: source.row.config, forkedFrom: null });
   expect(present(imported.row).id).not.toBe(collision.row.id);
@@ -145,7 +146,7 @@ test("genuine preset export/import captures additive collision, content reuse an
   expect(await root.db.select().from(presets).where(eq(presets.id, collision.row.id)).get()).toEqual(collision.row);
   const beforeRows = await root.db.select().from(presets).orderBy(presets.id);
   const beforeAudit = await root.db.select().from(auditLogs).orderBy(auditLogs.id);
-  const refused = await seedImportedPresetRows(root, actor.id, { fileText: "{" });
+  const refused = await seedImportedPresetRows(root, actor.id, { fileText: "{", fileName: exported.fileName });
   expect(refused.outcome.ok).toBe(false);
   expect(refused.row).toBeUndefined();
   expect(await root.db.select().from(presets).orderBy(presets.id)).toEqual(beforeRows);

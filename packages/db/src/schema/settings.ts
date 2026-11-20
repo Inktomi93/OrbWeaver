@@ -25,10 +25,9 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
-import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
+import { index, integer, primaryKey, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
@@ -36,8 +35,8 @@ export const settings = sqliteTable("settings", {
   key: nulFreeText("key").primaryKey(),
   // The stored JSON value. Generic `JsonValue` (the AppSettings override blob, the OR catalog snapshot,
   // …); parsed into its specific shape at the read seam by whichever tenant owns the row.
-  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  value: storedJsonText("value").$type<JsonValue | UnreadableJsonText>().notNull(),
+  updatedAt: stampColumn("updated_at"),
 });
 
 export const userSettings = sqliteTable("user_settings", {
@@ -51,8 +50,8 @@ export const userSettings = sqliteTable("user_settings", {
   schemaVersion: integer("schema_version").notNull().default(USER_SETTINGS_SCHEMA_VERSION),
   // The UserSettings blob. Parsed (with this row's `schema_version` as `storedVersion`) at the read seam
   // via `parseUserSettings`; a never-touched account reads defaults from `{}` with NO row written.
-  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  config: storedJsonText("config").$type<UserSettings | UnreadableJsonText>().notNull(),
+  updatedAt: stampColumn("updated_at"),
 });
 
 // `user_seed_ledger` (D263) — one row per seed-manifest item an account has been given. The seeder skips a
@@ -66,7 +65,6 @@ export const userSeedLedger = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     itemKey: nulFreeText("item_key").notNull(),
-    seededAt: integer("seeded_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemKey] })],
 );
@@ -83,12 +81,12 @@ export const themes = sqliteTable(
     name: nulFreeText("name").notNull(),
     // The D294 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
     // (@orb/contracts/theme) — a corrupt blob degrades to defaults there, never here.
-    override: text("override", { mode: "json" }).$type<ThemeOverride>().notNull(),
+    override: storedJsonText("override").$type<ThemeOverride | UnreadableJsonText>().notNull(),
     // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write
     // boundary via `@orb/kit/css-validate`). NULL on seeds.
     css: nulFreeText("css"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     index("themes_owner_idx").on(table.ownerId),

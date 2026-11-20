@@ -1,5 +1,5 @@
 // verb: scrapeWiki (DB8) — fetch a MediaWiki article's plain-text extract over the SAME ANY_HOST safeFetch guard
-// as scrapeWeb, then the §2 canon tail (`substrate/scrape-canon`). The API endpoint is
+// as scrapeWeb, then the §2 canon tail (`persistence/scrape-canon`). The API endpoint is
 // DERIVED from the article URL's own host (`https://<host>/w/api.php`), so any MediaWiki wiki — Wikipedia, a
 // Fandom host, a self-hosted wiki — rides one verb (the ST `fandom` scraper is a MediaWiki host, doc 06 §5). The
 // query is `action=query&prop=extracts&explaintext&titles=<Article>&format=json`: MediaWiki returns the article
@@ -14,7 +14,7 @@ import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWikiParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
 import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
-import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
+import { finalizeScrape } from "#src/domain/databank/persistence/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 /** The `/wiki/<Article_Title>` article-path capture. */
@@ -31,10 +31,12 @@ function articleTitle(url: URL): string {
   return decodeURIComponent(raw).replace(UNDERSCORE, " ");
 }
 
-const mediaWikiExtractSchema = z.object({ extract: z.string().min(1), title: z.string() });
-const mediaWikiResponseSchema = z.object({
-  query: z.object({ pages: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]) }),
-});
+const mediaWikiExtractSchema = z.object({ extract: z.string().min(1), title: z.string() }).strip();
+const mediaWikiResponseSchema = z
+  .object({
+    query: z.object({ pages: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]) }).strip(),
+  })
+  .strip();
 
 /** The MediaWiki plain-text extract from a `prop=extracts&explaintext` response. Returns the `{ extract, title }`
  *  of the first (non-missing) page, or `undefined` when the article is missing / the shape is unexpected. */
@@ -50,7 +52,7 @@ function parseExtract(json: unknown): { readonly text: string; readonly title: s
 }
 
 export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeWiki"] {
-  return async ({ principal, url, destination }: ScrapeWikiParams): Promise<UploadResult> => {
+  return async ({ principal, url, destination, signal }: ScrapeWikiParams): Promise<UploadResult> => {
     // `url` is a validated `z.url()` from the tRPC seam (the scrapeWeb precedent trusts it the same way).
     const parsed = new URL(url);
     const title = articleTitle(parsed);
@@ -61,7 +63,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
 
     let bytes: Uint8Array;
     try {
-      bytes = await ctx.fetchUrl(apiUrl);
+      bytes = await ctx.fetchUrl(apiUrl, signal);
     } catch (err) {
       // The refusal is a client error the transport does not log and carries the cause off the wire, so a broken fetch is recorded here.
       getLog(ctx.logger).warn({ err }, "databank: a wiki scrape fetch failed");
@@ -83,6 +85,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
 
     return finalizeScrape(ctx, {
       principal,
+      signal,
       destination,
       bytes: new TextEncoder().encode(extract.text),
       origin: "wiki",

@@ -11,10 +11,10 @@ import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingLatches, EmbeddingsContext, EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
+import { resolveTargetGeneration } from "./persistence/generation.ts";
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
 import { readTargetSnapshot } from "./persistence/space-state.ts";
 import { createAvatarAnalysisAvailability } from "./substrate/avatar-analysis-availability.ts";
-import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createImageSpaceDegradeReport } from "./substrate/image-space-degrade.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
@@ -41,10 +41,11 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
   const store = createStore(ctx);
   const indexAsset = createImageIndexer(ctx, {
     store,
-    analyze: async (ownerId, bytes): Promise<AvatarAnalysis> =>
+    analyze: async (ownerId, bytes, signal): Promise<AvatarAnalysis> =>
       analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId), {
         logger: input.logger,
         availability: ctx.latches.avatarAnalysis,
+        signal,
       }),
   });
   return {
@@ -62,7 +63,8 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, { indexAsset }),
     countAssetAnalysisCalls: createImageAnalysisCounter(ctx, {
-      analysisCallsModel: async (ownerId): Promise<boolean> => avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId), ctx.latches.avatarAnalysis),
+      analysisCallsModel: async (ownerId, signal): Promise<boolean> =>
+        avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId), ctx.latches.avatarAnalysis, signal),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),

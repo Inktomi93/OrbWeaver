@@ -9,17 +9,46 @@ import { unzipSync, zipSync } from "fflate";
 import type { DiskSafeText, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
 
-/** Shorter text is replaced only where it is a whole string: a value like `a` would otherwise rewrite the evidence. */
-const SUBSTRING_MIN_CHARS = 4;
+/**
+ * How long a value of each kind must be to be replaced inside longer text; a shorter one is replaced only where it is
+ * a whole string, or a value like `a` would rewrite the evidence. A `secret` is typed by the operator or named as one
+ * (`token`, `password`). A `urlWord` comes from a URL pair named `key` or `code`, which often holds an ordinary word
+ * (`?key=home`), so only a value as long as a generated key or code is replaced inside page text.
+ */
+const SUBSTRING_MIN_CHARS = { secret: 4, urlWord: 16 } as const;
+
+/** What kind of private value a {@link privateText} holds, which sets how short it may be and still be scrubbed inside text. */
+export type PrivateValueKind = keyof typeof SUBSTRING_MIN_CHARS;
+const TRUNCATION_MARK = "…";
+/**
+ * Every place Playwright cuts text it writes to a trace or a call log (`trimStringWithEllipsis`, playwright-core 1.64
+ * `coreBundle.js`): its cap, and what the text right before the cut text must end with.
+ */
+const PLAYWRIGHT_CUTS = [
+  // an element preview's text: `<tag attrs>TEXT…</tag>`
+  { cap: 50, opens: />$/u },
+  // an element preview's joined attributes: `<tag ATTRS…>`
+  { cap: 500, opens: /<[a-z][^\s<>/]*$/iu },
+  // a pending or committed navigation URL in the action log
+  { cap: 200, opens: /"$/u },
+  // a quoted URL argument in an action title
+  { cap: 50, opens: /"$/u },
+] as const;
+// Enough code points before a cut to read its opener, the longest being an element's tag name.
+const CUT_OPENER_LOOKBACK = 64;
 const JSON_LINE_ENTRY = /\.(?:trace|network)$/u;
 const PIXEL_ENTRY = /\.(?:jpe?g|png|webp)$/u;
 const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
 const RAW_TRACE_NAME = "raw.zip";
 const UNREADABLE_LINE = Symbol("unreadable trace line");
 
-// A process runs one operator's calls, and one trace spans them, so what was revealed stays noted for the process.
+// What was revealed stays noted until the host forgets it (`forgetPrivateValues`), which it does when each run ends, a
+// one-shot CLI run included; a session daemon's run spans its whole life, so one trace keeps every call's values. A throw
+// detected after the run ends prints with nothing noted.
 const wholeStrings = new Set<string>();
 let substrings: readonly string[] = [];
+// The fewest leading characters of a spelling that count as a cut copy of it: its kind's floor inside text.
+const prefixFloors = new Map<string, number>();
 
 const jsonSpelling = (text: string): string => JSON.stringify(text).slice(1, -1);
 const formSpelling = (text: string): string => new URLSearchParams({ v: text }).toString().slice(2);
@@ -31,7 +60,7 @@ function spellingsOf(value: string): readonly string[] {
   return [value, json, jsonSpelling(json)].flatMap((text) => [text, encodeURI(text), encodeURIComponent(text), formSpelling(text)]);
 }
 
-function notePrivateValue(value: string): void {
+function notePrivateValue(value: string, kind: PrivateValueKind): void {
   if (value === "") {
     return;
   }
@@ -39,21 +68,27 @@ function notePrivateValue(value: string): void {
   for (const spelling of spellings) {
     wholeStrings.add(spelling);
   }
-  if (value.length >= SUBSTRING_MIN_CHARS) {
+  const floor = SUBSTRING_MIN_CHARS[kind];
+  if (value.length >= floor) {
     // Longest first: a noted value inside a longer one would otherwise leave the longer one's tail behind.
     substrings = [...new Set([...substrings, ...spellings])].toSorted((left, right) => right.length - left.length);
+    for (const spelling of spellings) {
+      prefixFloors.set(spelling, Math.min(prefixFloors.get(spelling) ?? floor, floor));
+    }
   }
 }
 
 class PrivateValue implements PrivateText {
   readonly #value: string;
+  readonly #kind: PrivateValueKind;
 
-  constructor(value: string) {
+  constructor(value: string, kind: PrivateValueKind) {
     this.#value = value;
+    this.#kind = kind;
   }
 
   reveal(): string {
-    notePrivateValue(this.#value);
+    notePrivateValue(this.#value, this.#kind);
     return this.#value;
   }
 
@@ -71,8 +106,8 @@ class PrivateValue implements PrivateText {
 }
 
 /** Hold a value an operator handed snap in private. The only mint of {@link PrivateText}. */
-export function privateText(value: string): PrivateText {
-  return new PrivateValue(value);
+export function privateText(value: string, kind: PrivateValueKind = "secret"): PrivateText {
+  return new PrivateValue(value, kind);
 }
 
 /** Replace every revealed private value in text read back from a page. The only mint of {@link DiskSafeText}. */
@@ -87,6 +122,62 @@ export function scrubPrivateText(text: string): DiskSafeText {
   return scrubbed as DiskSafeText;
 }
 
+// The longest prefix of a noted spelling that `window` ends with, each spelling at its own kind's floor, or 0.
+function notedPrefixLength(window: string): number {
+  let longest = 0;
+  for (const spelling of substrings) {
+    const floor = prefixFloors.get(spelling) ?? spelling.length;
+    for (let length = Math.min(spelling.length, window.length); length >= Math.max(longest + 1, floor); length -= 1) {
+      if (window.endsWith(spelling.slice(0, length))) {
+        longest = length;
+        break;
+      }
+    }
+  }
+  return longest;
+}
+
+// How many UTF-16 units of a noted value Playwright left right before the ellipsis at code point `end` of `points`, or 0
+// when no cut of its own ends there. A cut keeps exactly `cap - 1` code points after its opener, so ordinary text that
+// ends in an ellipsis is never judged.
+function cutPrefixAt(points: readonly string[], end: number): number {
+  let longest = 0;
+  for (const { cap, opens } of PLAYWRIGHT_CUTS) {
+    const start = end - (cap - TRUNCATION_MARK.length);
+    if (start < 0 || !opens.test(points.slice(Math.max(0, start - CUT_OPENER_LOOKBACK), start).join(""))) {
+      continue;
+    }
+    longest = Math.max(longest, notedPrefixLength(points.slice(start, end).join("")));
+  }
+  return longest;
+}
+
+// The windows are found on the raw text: a whole-value replacement first would change the code-point count of a cut.
+// The text is split into code points once, so a string with many ellipses costs one pass, not one per ellipsis.
+function scrubPlaywrightCuts(text: string): string {
+  const points = Array.from(text);
+  const cuts: { readonly unit: number; readonly length: number }[] = [];
+  let unit = 0;
+  for (const [index, point] of points.entries()) {
+    if (point === TRUNCATION_MARK) {
+      const length = cutPrefixAt(points, index);
+      if (length > 0) {
+        cuts.push({ unit, length });
+      }
+    }
+    unit += point.length;
+  }
+  return cuts.reduceRight((scrubbed, cut) => `${scrubbed.slice(0, cut.unit - cut.length)}${PRIVATE_MASK}${scrubbed.slice(cut.unit)}`, text);
+}
+
+/**
+ * {@link scrubPrivateText} for text Playwright wrote: a trace line or an error with its call log. It also masks a noted
+ * value Playwright cut short, which survives only as its prefix.
+ */
+export function scrubPlaywrightText(text: string): DiskSafeText {
+  return scrubPrivateText(text.includes(TRUNCATION_MARK) && substrings.length > 0 ? scrubPlaywrightCuts(text) : text);
+}
+
 /**
  * Scrub a thrown error's message and stack in place, keeping its class, before a crash path prints it.
  *
@@ -94,23 +185,23 @@ export function scrubPrivateText(text: string): DiskSafeText {
  */
 export function scrubPrivateError(error: unknown): unknown {
   if (error instanceof Error) {
-    error.message = scrubPrivateText(error.message);
+    error.message = scrubPlaywrightText(error.message);
     if (error.stack !== undefined) {
-      error.stack = scrubPrivateText(error.stack);
+      error.stack = scrubPlaywrightText(error.stack);
     }
   }
   return error;
 }
 
 // String values only: a key or a `true` that happens to equal a typed value stays, or the line stops being JSON.
-function scrubJsonValue(value: unknown): unknown {
+function scrubJsonValue(value: unknown, scrub: (text: string) => DiskSafeText): unknown {
   if (typeof value === "string") {
-    return scrubPrivateText(value);
+    return scrub(value);
   }
   if (Array.isArray(value)) {
-    return value.map(scrubJsonValue);
+    return value.map((member) => scrubJsonValue(member, scrub));
   }
-  return isPlainObject(value) ? Object.fromEntries(Object.entries(value).map(([key, member]) => [key, scrubJsonValue(member)])) : value;
+  return isPlainObject(value) ? Object.fromEntries(Object.entries(value).map(([key, member]) => [key, scrubJsonValue(member, scrub)])) : value;
 }
 
 function parsedTraceLine(line: string): unknown {
@@ -130,7 +221,7 @@ function scrubJsonLine(line: string): string {
   if (parsed === UNREADABLE_LINE) {
     throw new Error("INSTRUMENT ERROR: a trace line could not be read, so the trace was not kept");
   }
-  return JSON.stringify(scrubJsonValue(parsed));
+  return JSON.stringify(scrubJsonValue(parsed, scrubPlaywrightText));
 }
 
 function scrubJsonLines(bytes: Uint8Array): Uint8Array {
@@ -188,7 +279,7 @@ export async function stopTraceToFile(tracing: { readonly stop: (options: { read
  * @remarks For a dump that holds no vocabulary of snap's own. Structured evidence scrubs where its text enters instead.
  */
 export function scrubPrivateJson<T>(value: T): T {
-  return wholeStrings.size === 0 ? value : (scrubJsonValue(value) as T);
+  return wholeStrings.size === 0 ? value : (scrubJsonValue(value, scrubPrivateText) as T);
 }
 
 /**
@@ -209,8 +300,10 @@ export async function scrubPrivateFile(path: string): Promise<void> {
   }
 }
 
-/** Test seam: forget what this process revealed, because Node suites share one module registry per worker. */
-export function __resetPrivateValues(): void {
+/** Forget what this process revealed. A host that runs several invocations in one process calls it after each, so
+ *  a value one invocation revealed is never scrubbed from the next one's evidence. */
+export function forgetPrivateValues(): void {
   wholeStrings.clear();
   substrings = [];
+  prefixFloors.clear();
 }

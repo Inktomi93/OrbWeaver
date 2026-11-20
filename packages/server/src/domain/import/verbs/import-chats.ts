@@ -2,11 +2,13 @@
 // (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
+import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { ImportChatsInput } from "../contract/params.ts";
 import type { ImportChatsResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 import { buildBulkImportChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
+import { skippedChatRowsOf } from "../substrate/report.ts";
 
 export function createImportChats(ctx: ImportContext): ImportService["importChats"] {
   return async (input: ImportChatsInput): Promise<ImportChatsResult> => {
@@ -15,15 +17,11 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
 
     // Titles disambiguate across the WHOLE run, not per file: this verb receives one character's entire chat
     // set, which is exactly the population that collides (N transcripts, one cast, one day).
-    const chats = disambiguateChatTitles(
-      input.chats.map((c) =>
-        buildBulkImportChatInput(c, {
-          now: profile.now,
-          personaByUserName: profile.personaByUserName,
-          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
-        }),
-      ),
-    );
+    const built: BulkImportChatInput[] = [];
+    for (const c of input.chats) {
+      built.push(await buildBulkImportChatInput(c, { now: profile.now, personaByUserName: profile.personaByUserName }));
+    }
+    const chats = disambiguateChatTitles(built);
     const counts = await profile.bulkImportChats({
       ownerId,
       characterId: input.characterId,
@@ -38,11 +36,17 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
 
     return {
       chatsImported: counts.chatsImported,
+      chatsReused: counts.chatsSkipped,
+      rooms: counts.remaps.flatMap(({ chatId }, i) => {
+        const chat = chats[i];
+        return chat === undefined ? [] : [{ chatId, title: chat.title }];
+      }),
       memoryChatIds,
       chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch
       // the mapper consumed, so the report can never disagree with what was written.
       unresolvedPinnedPersonas: unresolvedPinnedPersonas(input.chats, profile.personaByUserName),
+      skippedChatRows: skippedChatRowsOf(counts.refusedRows),
     };
   };
 }

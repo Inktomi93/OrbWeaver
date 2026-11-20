@@ -9,6 +9,7 @@ import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProce
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { CLEAR_FILTER_NAME } from "#client/lib/search-empty-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -40,7 +41,7 @@ test("an empty tag library draws the empty state in the rows and on the landing,
   await filter.fill("zz-no-such-tag");
   const noMatch = list.locator(EMPTY_STATE);
   await expect(noMatch.getByText(NO_MATCHES_TITLE, { exact: true })).toBeVisible();
-  await noMatch.getByRole("button", { name: "Clear filter", exact: true }).click();
+  await noMatch.getByRole("button", { name: CLEAR_FILTER_NAME, exact: true }).click();
   await expect(filter).toHaveValue("");
   await expect(list.locator(EMPTY_STATE).getByText(LABELS_NONE, { exact: true })).toBeVisible();
 });

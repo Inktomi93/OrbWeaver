@@ -130,7 +130,7 @@ without a path are in that folder.
 | - | - |
 | A server domain | `Core-0-Architecture-and-Structure.md` §3–§4, the Spine doc for each thread, the `Tier-*` doc for your tier, the domain's `contract/` and file headers |
 | Identity, auth, sessions | `Spine-Identity-and-Auth.md` and the ledger rows it cites; route the work to `security-builder` |
-| Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/` |
+| Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/`, a vendor's mined API facts from `deepseek-api-surface.md` |
 | Config, settings, serialization | `Spine-Config-and-Serialization.md` |
 | Embeddings, search, discovery, memory, stats | `Knowledge-Cluster.md` |
 | Any test | `Spine-Testing.md`, `tests/support/README.md` |
@@ -158,40 +158,42 @@ without a path are in that folder.
 
 ## Path rules
 
-- Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Qwen Code and OpenCode load only this file: before you change a file, read each rule below whose globs match it. In Qwen Code or OpenCode, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
+Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Qwen Code and OpenCode load only this file: before you change a file, read each rule below whose globs match it. In Qwen Code or OpenCode, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.tsx`, `tests/client/**`, `tests/ui/**`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
-
+- `.claude/rules/character.md`: `packages/server/src/domain/character/**`, `packages/contracts/src/character/**`, `packages/client/src/features/character/**`, `tests/server/domain/character/**`, `tests/contracts/character/**`, `tests/client/features/character/**`
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
-
 - `.claude/rules/comments.md`: `packages/**`, `tooling/**`, `tests/**`, `scripts/**`
-
+- `.claude/rules/connection.md`: `packages/server/src/domain/connection/**`, `packages/contracts/src/providers/**`, `packages/contracts/src/inference/connection*.ts`, `packages/contracts/src/inference/resolved.ts`, `packages/client/src/features/credentials/**/*connection*`, `packages/client/src/components/connection-role-*`, `tests/server/domain/connection/**`, `tests/client/features/credentials/**/*connection*`
 - `.claude/rules/contracts-and-kit.md`: `packages/contracts/**`, `packages/kit/**`
-
 - `.claude/rules/db.md`: `packages/db/**`
-
 - `.claude/rules/default-content.md`: `packages/default-content/**`
-
+- `.claude/rules/discovery.md`: `packages/server/src/domain/discovery/**`, `packages/contracts/src/discovery/**`, `packages/client/src/features/discovery/**`, `tests/server/domain/discovery/**`, `tests/client/features/discovery/**`
+- `.claude/rules/embeddings.md`: `packages/server/src/domain/embeddings/**`, `packages/contracts/src/embeddings/**`, `tests/server/domain/embeddings/**`, `tests/contracts/embeddings/**`
 - `.claude/rules/hooks.md`: `.claude/hooks/**`
-
+- `.claude/rules/import.md`: `packages/server/src/domain/import/**`, `packages/server/src/entry/import/**`, `packages/server/src/entry/http/import*.ts`, `packages/server/src/infra/storage/stage*.ts`, `packages/server/src/primitives/serde/**`, `packages/contracts/src/import/**`, `packages/contracts/src/portability/**`, `packages/client/src/features/workloads/**/*import*`, `packages/client/src/features/character/components/character-import-dialog.tsx`, `tests/server/domain/import/**`, `tests/server/entry/http/import*`, `tests/server/infra/storage/**`, `tests/server/primitives/serde/**`, `tests/contracts/import/**`, `tests/client/features/workloads/**/*import*`, `tests/client/features/character/components/character-import*`
 - `.claude/rules/inference.md`: `packages/inference/**`
-
 - `.claude/rules/instruments.md`: `tooling/src/snap/**`, `tooling/src/ui-audit/**`
-
 - `.claude/rules/node-tests.md`: `tests/**/*.ts`, `tests/**/*.mjs`, `tests/support/**`
-
 - `.claude/rules/plugins.md`: `packages/server/src/domain/plugin/**`, `packages/server/src/infra/plugin-host/**`, `packages/contracts/src/plugin/**`, `packages/showcase-plugins/**`, `packages/plugin-sdk/**`, `packages/plugin-toolchain/**`
-
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
-
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
-
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
-
 - `.claude/rules/test-authoring.md`: `tests/**`
-
 - `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.ts`, `.dependency-cruiser.ts`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
-
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
-
 - `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`
+
+## Review tooling (repo-specific)
+
+- **Schema first.** For "what does this have for X" or "is this wired", read `packages/db/src/schema/*.ts`
+  (drizzle tables/columns/FKs) and `packages/db/src/migrations/` before searching words. Every table and
+  column names a persistent concept; migrations show removed keys and widened CHECK allowlists that types
+  cannot (`0000_baseline.sql` is the authority for constraints).
+- **Dead surface.** `pnpm unwired scan` is this repo's own type-aware dead-member scan (~15 min on a loaded box; writes its JSON
+  report into the gitignored reports tree). Verified baseline: scanned=4440, unwired=2, deliberate=34.
+  `--cross-check` adds the TypeScript 6 audit and lists its disagreements. Read the report before proposing dead code: `deliberate` members have external callers
+  with recorded reasons. `pnpm unwired ports` lists hand-restated members. Never a gate, never per-review.
+- **Report home.** Reviews land in `reports/code-reviewer/YYYY-MM-DD-<slug>.md` (house convention).
+- **Vocab.** This app says "memory" for the digest/recall subsystem, "strike" for removing a remembered
+  scene, "recall" for prompt injection. Compaction is *not* memory.

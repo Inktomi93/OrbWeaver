@@ -147,7 +147,7 @@ function generatedUnion<const Schemas extends readonly z.ZodType[]>(schemas: Sch
 }
 
 function generatedObject<Shape extends z.ZodRawShape>(shape: Shape): z.ZodObject<Shape> {
-  return z.object(shape);
+  return z.object(shape).strip();
 }
 
 function liftString(node: Record<string, unknown>, path: string): RuntimeGeneratedSchema {
@@ -175,7 +175,10 @@ function compilePattern(pattern: string): RegExp | null {
   // ("pattern (invalid regex)") when this returns null. Ends if liftString stops checking for null.
   try {
     return new RegExp(pattern, "u");
-  } catch {
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
     return null;
   }
 }

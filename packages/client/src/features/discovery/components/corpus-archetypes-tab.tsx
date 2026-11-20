@@ -11,14 +11,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
-import { CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
+import { CORPUS_PARAM_NAMES, CORPUS_READ_LABELS, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { facetLabel } from "../lib/corpus-vocabulary.ts";
@@ -58,13 +58,15 @@ const K_ITEMS: SelectItems = [
 
 export function CorpusArchetypesTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="archetypes" onRetry={retry} />}
-    >
-      <ArchetypesBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
+      >
+        <ArchetypesBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -91,7 +93,7 @@ function ArchetypesBody(): ReactElement {
 
   return (
     <Stack className="relative" minHeight="shrinks" gap="section">
-      <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
+      <ParamSelect label={CORPUS_PARAM_NAMES.clusters} value={k} items={K_ITEMS} onValueChange={setK} />
 
       {/* ART FIRST, AND THAT IS THE DOOR'S DOING (side-eye corpus re-pass A7). This tab is the destination of
           the CONTENT family map's "All families →", the surface's one drill-out — and it landed the reader at
@@ -103,7 +105,7 @@ function ArchetypesBody(): ReactElement {
         <QueryBoundary
           resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the art archetypes" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.artArchetypes} onRetry={retry} />}
         >
           <ArtClusters kArg={kArg} />
         </QueryBoundary>
@@ -113,7 +115,7 @@ function ArchetypesBody(): ReactElement {
         <QueryBoundary
           resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the writing archetypes" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.writingArchetypes} onRetry={retry} />}
         >
           <WritingClusters kArg={kArg} />
         </QueryBoundary>
@@ -248,7 +250,8 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
         </Text>
       ) : null}
       {cluster.members.length > 0 ? (
-        <Row align="center" gap="field">
+        // The names take their own line when the faces leave them less than the field floor: enlarged text grows the faces with it.
+        <Row align="center" gap="field" wrap={true}>
           {/* The strip is ART, like the family plates it mirrors: every seat's name is printed right beside
               it, so a named stack would announce the same people a second time inside a three-line row. */}
           <AvatarStack
@@ -276,10 +279,10 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
-          <Row className="min-inline-0" wrap={true} grow={true} gap="tight">
+          <Row minWidth="shrinks" floor="field" wrap={true} grow={true} gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
-              <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
-                <Text as="span" truncate={true} ink="muted" voice="label">
+              <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm" wrap={true}>
+                <Text as="span" ink="muted" voice="label">
                   {member.name}
                 </Text>
               </Button>

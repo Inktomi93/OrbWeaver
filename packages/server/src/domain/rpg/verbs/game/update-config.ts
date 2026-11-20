@@ -189,8 +189,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
 
 export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateConfig"> {
   async function updateConfig(params: UpdateConfigParams): Promise<void> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
 
     if (params.extractionMode !== undefined && !(RPG_EXTRACTION_MODES as readonly string[]).includes(params.extractionMode)) {
       throw new DomainOperationError(RPG_OP_CODES.invalidExtractionMode, `unknown extractionMode "${params.extractionMode}"`);
@@ -204,8 +203,9 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
     // AFTER the merge, not on `patch.trackers`: the ruleset apply can ADD seeded trackers to what the patch
     // sent, so the cap and the key-uniqueness rule have to judge the list that will actually be stored.
     assertTrackersCoherent(nextConfig.trackers);
+    const claim = await ctx.claimChat(admission);
 
-    await updateGame(ctx.db, game.id, {
+    await updateGame(ctx.db, claim, game.id, {
       config: nextConfig,
       ...(params.gmPresetId !== undefined ? { gmPresetId: params.gmPresetId } : {}),
       updatedAt: ctx.now(),

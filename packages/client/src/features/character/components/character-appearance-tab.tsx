@@ -34,7 +34,16 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, CORNER_RADIUS_NAME, DestructiveAction, FONT_FIELD_NAME, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import {
+  BackgroundSourceField,
+  CORNER_RADIUS_NAME,
+  ContextTabBody,
+  DestructiveAction,
+  FONT_FIELD_NAME,
+  QueryBoundary,
+  SettingRowGroup,
+  SettingTrackRow,
+} from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -42,7 +51,12 @@ import { notify, THEME_RADIUS_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
 import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
-import { CHARACTER_RESET_LOOK_CONFIRM_NAME, CHARACTER_RESET_LOOK_NAME, CHARACTER_START_FROM_THEME_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_INHERIT_LABEL,
+  CHARACTER_RESET_LOOK_CONFIRM_NAME,
+  CHARACTER_RESET_LOOK_NAME,
+  CHARACTER_START_FROM_THEME_NAME,
+} from "../lib/character-names.ts";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
 import {
   characterThemeFormFromOverride,
@@ -59,7 +73,7 @@ export interface CharacterAppearanceTabProps {
 // "clear a colour" (the helper) and "Reset to global" (the button) for a single concept, and printed no
 // value at all beside the swatches. The word is INHERIT, everywhere: the select item, every colour's own
 // readout (`BoundColorField`), the helper sentence, and the cluster-wide verb below.
-const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit" } as const;
+const INHERIT_ITEM = { value: THEME_INHERIT, label: CHARACTER_INHERIT_LABEL } as const;
 // `labelStyle` — each font option renders in its own typeface, derived from the value (#866 §7.8).
 const FONT_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value, labelStyle: { fontFamily: value } }))];
 const RADIUS_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: THEME_RADIUS_LABELS[value] }))];
@@ -77,14 +91,16 @@ export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): 
   return (
     // RESERVED (#1098) — the Look tab settles into eleven colour rows plus the background field; a single
     // quiet line in their place resized the whole CONTEXT panel every time the card read landed.
-    <QueryBoundary
-      resetKeys={[characterId]}
-      fallback={<SkeletonRows count={5} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
-      reserveKey="character.context.look"
-    >
-      <LookTabBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[characterId]}
+        fallback={<SkeletonRows count={5} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
+        reserveKey="character.context.look"
+      >
+        <LookTabBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -201,7 +217,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
               is the same emptiness "nothing to reset" already reads. */}
           <form.Subscribe selector={(state): ThemeOverride | null => overrideFromCharacterThemeForm(state.values)}>
             {(override): ReactElement => (
-              <Row gap="field" align="center">
+              <Row gap="field" align="center" wrap={true}>
                 <SaveAsThemeButton characterName={characterName} override={override} />
                 <DestructiveAction
                   confirm={{
@@ -211,7 +227,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
                   }}
                   onConfirm={resetToGlobal}
                   trigger={
-                    <Button variant="ghost" disabled={override === null}>
+                    <Button variant="ghost" wrap={true} disabled={override === null}>
                       {CHARACTER_RESET_LOOK_NAME}
                     </Button>
                   }
@@ -318,6 +334,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
   return (
     <Button
       variant="ghost"
+      wrap={true}
       disabled={override === null || promote.isPending}
       onClick={(): void => {
         if (override === null) {
@@ -350,7 +367,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
  *  #920 asked for the reuse, this is the answer, do not re-open it). The reason is payload honesty, not
  *  the sideways-import fence that merely made it awkward. `startFromTheme` below delivers
  *  `cardEmbeddableSubset(theme.override)`, and `ThemeSwatchStrip` paints `theme.override` through the same
- *  `<ThemeScope>` clamp — the picture IS the payload, `density` aside, which the stripe does not show. The
+ *  `<ThemeScope>` clamp — the picture IS the payload. The
  *  Looks thumbnail answers a different question ("what would selecting this theme paint the app"), and for
  *  the three SEED rows that answer is deliberately NOT the override: `#lib`'s `resolveThemeScopeTokens`
  *  hands a seed NOTHING and lets its generated `[data-theme]` block paint, because replaying a seed's
@@ -366,7 +383,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
     <Menu>
       <MenuTrigger
         render={
-          <Button disabled={rows.length === 0} variant="outline" size="sm">
+          <Button disabled={rows.length === 0} variant="outline" size="sm" wrap={true}>
             {CHARACTER_START_FROM_THEME_NAME}
             <Icon icon={ChevronDown} size="xs" />
           </Button>
@@ -375,7 +392,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
       <MenuPopup>
         {rows.map((theme) => (
           <MenuItem key={theme.id} onClick={(): void => onPick(theme)}>
-            <Row align="center" gap="field" className="min-inline-0">
+            <Row align="center" gap="field" minWidth="shrinks">
               <ThemeSwatchStrip tokens={theme.override} />
               <Text ink="inherit" as="span" truncate={true}>
                 {theme.name}

@@ -35,6 +35,7 @@ import {
   OUTPUT_CAP_FIELDS,
   PREFILL_MODES,
   REASONING_BUDGET_FIELDS,
+  RESPONSES_REASONING_STREAMS,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
@@ -44,9 +45,11 @@ import {
 } from "@orb/contracts/inference";
 import { isPrimitive } from "@orb/kit/guards";
 import { omitKey } from "@orb/kit/objects";
+import { parseCount } from "@orb/kit/strings";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
+import { FACT_COUNT_INVALID, FACT_NAMES, factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
@@ -62,8 +65,17 @@ export function boundRefusal(edit: FactRow["edit"], raw: string): string | null 
   if (edit.kind !== "number" || raw.trim() === "") {
     return null;
   }
-  const below = edit.min !== undefined && Number(raw) < edit.min.value ? `The minimum is ${edit.min.reads}.` : null;
-  return below ?? (edit.max !== undefined && Number(raw) > edit.max.value ? `The maximum is ${edit.max.reads}.` : null);
+  const value = numberOf(edit, raw);
+  if (value === undefined) {
+    return FACT_COUNT_INVALID;
+  }
+  const below = edit.min !== undefined && value < edit.min.value ? factMinimumLabel(edit.min.reads) : null;
+  return below ?? (edit.max !== undefined && value > edit.max.value ? factMaximumLabel(edit.max.reads) : null);
+}
+
+/** A number fact's typed value: a count reads the forms people type, any other number reads as written. */
+function numberOf(edit: Extract<FactRow["edit"], { kind: "number" }>, raw: string): number | undefined {
+  return edit.count === true ? parseCount(raw) : Number(raw.trim());
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
@@ -118,7 +130,7 @@ function erasePath(root: Record<string, unknown>, path: string): Record<string, 
 /** The raw value an Override control's text produces, by control kind. */
 export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
   if (edit.kind === "number") {
-    return Number(raw.trim());
+    return numberOf(edit, raw);
   }
   if (edit.kind === "boolean") {
     return raw === "true";
@@ -232,14 +244,33 @@ function overrideSource(providerLabel: string, fromProvider: boolean, replaced: 
 const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly FactLeaf[]> = {
   prefill: [{ path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES }, unset: NOT_SET }],
   prefillSuppressesThinking: [{ path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" }, unset: NOT_SET }],
+  betaChatPath: [
+    {
+      path: "betaChatPath",
+      name: "beta chat path",
+      edit: { kind: "text" },
+      unset: "not set: no beta route; prefix prefills and strict tools ride the row's own base",
+    },
+  ],
   strictJson: [{ path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES }, unset: NOT_SET }],
   effort: [{ path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET }],
+  effortMaxLiteral: [{ path: "effortMaxLiteral", name: "effort max rides the wire as-is", edit: { kind: "boolean" }, unset: NOT_SET }],
   outputCapField: [{ path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET }],
   reasoningKeys: [{ path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET }],
   images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set: no image generation" }],
   rerankPath: [{ path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set: no reranking" }],
+  keyCheckPath: [{ path: "keyCheckPath", name: "key check path", edit: { kind: "text" }, unset: "not set: the models list" }],
+  forbiddenIsNotCredentialVerdict: [{ path: "forbiddenIsNotCredentialVerdict", name: "a 403 is not a key failure", edit: { kind: "boolean" }, unset: NOT_SET }],
   modelInfoApi: [{ path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET }],
   nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set: chat uses /v1" }],
+  responsesReasoningStream: [
+    {
+      path: "responsesReasoningStream",
+      name: "responses reasoning stream spelling",
+      edit: { kind: "enum", options: RESPONSES_REASONING_STREAMS },
+      unset: "not set: the SDK's summary spelling",
+    },
+  ],
   detectServer: [{ path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET }],
   sleep: [
     { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
@@ -249,7 +280,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   concurrency: [
     { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
     { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
-    { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
+    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: { kind: "number", max: SUMMARIZE_MAX } },
   ],
   embedBatch: [
     { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },

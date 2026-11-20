@@ -1,4 +1,4 @@
-// The settings pane template: a group's name over its sections, one decision per row, in the form tier.
+// The settings pane template: a group's name over its sections, one decision per row, in the form tier, on the content pane's column.
 // The sections own their `SettingRowGroup` rows; the pane owns only their order, their rhythm and the tier.
 
 import { Stack, Surface } from "@orb/ui/layout";

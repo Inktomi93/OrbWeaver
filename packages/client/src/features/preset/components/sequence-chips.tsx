@@ -10,9 +10,11 @@ import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_BANNED_PHRASE_NOUN, PRESET_DRY_BREAKER_NOUN, PRESET_STOP_SEQUENCE_NOUN, sequenceAddName, sequenceChipSubject } from "../lib/preset-names.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { decodeSequence, encodeSequence } from "../lib/sequence-escapes.ts";
 
@@ -38,7 +40,14 @@ interface SequenceChipsProps {
 /** G2 — the `params.stop` chip list. */
 export function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
   return (
-    <SequenceChips form={form} hint={STOP_SEQUENCE_HINT} legend={SAMPLING_FLAG_LABELS.stop} name="params.stop" noun="stop sequence" unsetWhenEmpty={false} />
+    <SequenceChips
+      form={form}
+      hint={STOP_SEQUENCE_HINT}
+      legend={SAMPLING_FLAG_LABELS.stop}
+      name="params.stop"
+      noun={PRESET_STOP_SEQUENCE_NOUN}
+      unsetWhenEmpty={false}
+    />
   );
 }
 
@@ -50,7 +59,7 @@ export function DrySequenceBreakers({ form }: { readonly form: AppForm }): React
       hint={DRY_BREAKER_HINT}
       legend={SAMPLING_FLAG_LABELS.drySequenceBreakers}
       name="params.drySequenceBreakers"
-      noun="DRY sequence breaker"
+      noun={PRESET_DRY_BREAKER_NOUN}
       unsetWhenEmpty={true}
     />
   );
@@ -64,7 +73,7 @@ export function BannedPhrases({ form }: { readonly form: AppForm }): ReactElemen
       hint={BANNED_PHRASE_HINT}
       legend={SAMPLING_FLAG_LABELS.bannedStrings}
       name="params.bannedStrings"
-      noun="banned phrase"
+      noun={PRESET_BANNED_PHRASE_NOUN}
       unsetWhenEmpty={true}
     />
   );
@@ -116,7 +125,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
                   <Badge key={sequence} size="sm">
                     {shown}
                     <Button
-                      aria-label={`Remove ${noun} ${shown}`}
+                      aria-label={removeActionName(sequenceChipSubject(noun, shown))}
                       size="chip"
                       variant="ghost"
                       onClick={(): void => write(sequences.filter((s) => s !== sequence))}
@@ -130,7 +139,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
               })}
               {/* Outside a `Field` there is no context-injected `aria-labelledby` to outrank it, so this is the
                   box's actual accessible name. */}
-              <Input aria-label={`Add ${noun}`} onKeyDown={add} placeholder="add…" />
+              <Input aria-label={sequenceAddName(noun)} onKeyDown={add} placeholder="add…" />
             </Row>
           </Fieldset>
         );

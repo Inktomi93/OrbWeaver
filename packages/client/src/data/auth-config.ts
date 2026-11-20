@@ -15,22 +15,31 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { DEPLOYMENT_FLOOR } from "#lib";
 import { rememberMultiHumanCapable, useMultiHumanCapableHint } from "#state";
+import { HttpError, readJsonBody } from "./http-error.ts";
 
 export type { AuthConfig } from "@orb/contracts/auth-config";
 
 const AUTH_CONFIG_KEY = ["auth", "config"] as const;
+const AUTH_CONFIG_ROUTE = "/api/auth/config";
+
+/** The auth config an answer carries; a non-OK or malformed answer throws {@link HttpError}. */
+async function authConfigOf(res: Response): Promise<AuthConfig> {
+  if (!res.ok) {
+    throw new HttpError(`${AUTH_CONFIG_ROUTE}: HTTP ${res.status}`, res.status);
+  }
+  const config = authConfigSchema.safeParse(await readJsonBody(res));
+  if (!config.success) {
+    throw new HttpError(`${AUTH_CONFIG_ROUTE}: the answer was not an auth config`, res.status);
+  }
+  return config.data;
+}
 
 /** Fetch the deployment auth config. MEMOIZED for the session — the mode is boot-env, immutable while
  *  the server runs; a failed fetch clears the memo so the next caller retries. */
 let configPromise: Promise<AuthConfig> | null = null;
 export function fetchAuthConfig(): Promise<AuthConfig> {
-  configPromise ??= fetch("/api/auth/config", { credentials: "same-origin" })
-    .then(async (res) => {
-      if (!res.ok) {
-        throw new Error(`/api/auth/config: HTTP ${res.status}`);
-      }
-      return authConfigSchema.parse(await res.json());
-    })
+  configPromise ??= fetch(AUTH_CONFIG_ROUTE, { credentials: "same-origin" })
+    .then(authConfigOf)
     .catch((err: unknown) => {
       configPromise = null;
       throw err;
@@ -50,11 +59,7 @@ const LIVE_SHARE_KEY = ["auth", "share"] as const;
 /** The share relay's state and link as the server holds them now. Unlike the rest of the config they change while
  *  the server runs, so this read is never memoized: an invite minted during a share must carry the live link. */
 export async function fetchLiveShare(): Promise<AuthConfigShare> {
-  const res = await fetch("/api/auth/config", { credentials: "same-origin", cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`/api/auth/config: HTTP ${res.status}`);
-  }
-  return authConfigSchema.parse(await res.json()).share;
+  return (await authConfigOf(await fetch(AUTH_CONFIG_ROUTE, { credentials: "same-origin", cache: "no-store" }))).share;
 }
 
 const liveShareOptions = queryOptions({ queryKey: LIVE_SHARE_KEY, queryFn: fetchLiveShare, staleTime: 0 });
@@ -121,15 +126,6 @@ export function useExternalMediaBlocked(): boolean {
   return useAuthConfig().data?.forbidExternalMedia === true;
 }
 
-/** Does this deployment allow interactive cards at all (#111 leg 3)? FALSE ⇒ the per-character "Interactive"
- *  rung stores fine but resolves to the static posture everywhere, so a surface offering it must say so.
- *  `=== true`, so a not-yet-landed config reads as BLOCKED — the strict direction, even though the server's
- *  floor is on. (The external-media twin defaults the other way for the same reason: there the strict
- *  reading is "blocked", and here the strict reading is "not allowed".) */
-export function useInteractiveCardsAllowed(): boolean {
-  return useAuthConfig().data?.allowInteractiveCards === true;
-}
-
 /** The deployment RENDER-POLICY FLOOR — the pair `resolveRenderPolicy` (`@orb/contracts/chat`) combines a
  *  per-character override over. The ONE client home for it: a surface that renders card content it has no
  *  server-resolved `renderPolicy` for (the character editor's own previews, which read the `characters` row
@@ -139,12 +135,12 @@ export function useInteractiveCardsAllowed(): boolean {
  *  fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes one tier up. Guessing
  *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop.
  *
- *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the three axes an
- *  AppSetting carries, and the resolver folds a per-character override over them. */
+ *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the two axes its
+ *  AppSettings carry, and the resolver folds a per-character override over them. */
 export function useRenderPolicyFloor(): DeploymentRenderPolicy {
   const config = useAuthConfig().data;
   if (config === undefined) {
     return DEPLOYMENT_FLOOR;
   }
-  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia, allowInteractiveCards: config.allowInteractiveCards };
+  return { defaultHtmlStep: config.defaultHtmlStep, forbidExternalMedia: config.forbidExternalMedia };
 }

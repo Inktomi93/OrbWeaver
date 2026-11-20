@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
-updated: 2026-11-11
+status: open
+updated: 2026-11-14
 priority: P3
 area: testing
-lane: wt/agent-a06d7ca7c655446af
+plan: test-foundation
 ---
 
 # Rules that comments once said a test held have no test

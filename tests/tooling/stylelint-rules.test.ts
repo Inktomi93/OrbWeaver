@@ -11,6 +11,7 @@ const AUTHORED_FILE = join(REPO_ROOT, "packages/client/src/styles/globals.css");
 const THEME_FILE = join(REPO_ROOT, "packages/ui/src/styles/theme.css");
 const SHELL_FILE = join(REPO_ROOT, "packages/client/src/features/app-shell/surfaces/shell/grid.css");
 const FLOOR_FILE = join(REPO_ROOT, "packages/ui/src/styles/motion-floor.css");
+const PRIMITIVES_FILE = join(REPO_ROOT, "packages/ui/src/styles/primitives.css");
 
 async function rulesHit(code: string, codeFilename = AUTHORED_FILE): Promise<string[]> {
   const { results } = await stylelint.lint({ code, codeFilename, config, configBasedir: REPO_ROOT });
@@ -133,10 +134,10 @@ test("an appearance name a sheet spells is one the manifest's channel writes", a
   const rule = "orb/appearance-name-in-manifest";
   const guarded = `:root:not([data-appearance-reduced-motion="off"])`;
   expect(await rulesHit(declaration("opacity: var(--appearance-reading-line-height);"))).toEqual([]);
-  expect(await rulesHit(layered("@variant appearance-shadow-effects-true { .probe { opacity: 1; } }"))).toEqual([]);
+  expect(await rulesHit(layered("@variant appearance-justify-body-text-true { .probe { opacity: 1; } }"))).toEqual([]);
   expect(await rulesHit(declaration("opacity: var(--appearance-line-hight);"))).toEqual([rule, "csstools/value-no-unknown-custom-properties"].toSorted());
   expect(await rulesHit(layered(':root[data-appearance-shadow="true"] .probe { opacity: 1; }'))).toEqual([rule]);
-  expect(await rulesHit(layered("@variant appearance-shadow-effects-on { .probe { opacity: 1; } }"))).toEqual([rule]);
+  expect(await rulesHit(layered("@variant appearance-justify-body-text-on { .probe { opacity: 1; } }"))).toEqual([rule]);
   // A client sheet keys a preference on its resolved variant; the OS-only one ignores the app's off.
   expect(await rulesHit(layered("@variant motion-reduce { .probe { opacity: 1; } }"))).toEqual([rule]);
   expect(await rulesHit(layered("@variant appearance-reduced-motion { .probe { opacity: 1; } }"))).toEqual([]);
@@ -479,6 +480,20 @@ test("a shell region paints from tokens and names no component", async () => {
   }
   // The rule is scoped to the shell region files: the same selector is legal in the client styles home.
   expect(await rulesHit(layered(".shell-grid [data-slot='message-bubble'] { opacity: 1; }"))).toEqual([]);
+});
+
+test("a sheet styles no disabled state, except the disabled CTA ring in the primitives sheet", async () => {
+  const hit = ["selector-disallowed-list"];
+  const ring = '[data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after { border-color: var(--color-border); }';
+  for (const selector of [".probe:disabled", ".probe[data-disabled]", ".probe[aria-disabled='true']", ".probe:not(:disabled)"]) {
+    expect(await rulesHit(layered(`${selector} { opacity: 1; }`))).toEqual(hit);
+    expect(await rulesHit(`@layer ui { ${selector} { opacity: 1; } }`, PRIMITIVES_FILE)).toEqual(hit);
+  }
+  expect(await rulesHit(layered(".probe { &:disabled { opacity: 1; } }"))).toEqual(hit);
+  expect(await rulesHit(`@layer ui { ${ring} }`, PRIMITIVES_FILE)).toEqual([]);
+  expect(await rulesHit(layered(ring))).toEqual(hit);
+  expect(await rulesHit(`@layer ui { ${ring.replace("::after", "::before")} }`, PRIMITIVES_FILE)).toEqual(hit);
+  expect(await rulesHit(layered(".probe[data-active] { opacity: 1; }"))).toEqual([]);
 });
 
 test("the shipped stylesheets pass", async () => {

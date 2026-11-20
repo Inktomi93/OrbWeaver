@@ -1,10 +1,11 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-12
+status: blocked
+updated: 2026-11-14
 priority: P3
-plan: unwired-code
 area: imagery
+blocked: owner
+plan: unwired-code
 ---
 
 # Read a room subject's card as the host in the picture gates

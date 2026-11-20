@@ -2,12 +2,14 @@
 // verb, the IMPORT door's runner and the BULK-SELECT mode. All are hooks because a definition is a
 // module-level value — the host calls each unconditionally, once, per rendered affordance.
 
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
-import { notify, regexScriptTitle, timeLib } from "#lib";
+import { notify, readTextWithin, regexScriptTitle, timeLib } from "#lib";
 import { selectCollectionMember, toggleRegexBulkMode, useRegexBulkActive } from "#state";
 import { REGEX_COLLECTION_ID } from "../lib/regex-model.ts";
+import { REGEX_IMPORT_ALREADY_HAD, REGEX_IMPORT_CREATED } from "../lib/regex-names.ts";
 import { useCreateRegexScript, useImportRegexScriptFile } from "./use-regex-library.ts";
 import { makeRegexScriptDefaults } from "./use-regex-script-form.ts";
 
@@ -114,11 +116,12 @@ export function useImportRegexMember(): (file: File) => void {
   const invalidation = useInvalidation();
   const importScript = useImportRegexScriptFile({ trpc, invalidation, failureShownInline: "the script library's own import error toast" });
   return (file: File): void => {
-    void file
-      .text()
+    void readTextWithin(file, IMPORT_FILE_TEXT_MAX_CHARS.regexScript)
       .then((fileText) => importScript.mutateAsync({ fileText }))
-      .then(({ created }) => {
-        notify.success(created ? "Script imported." : "You already had that script. Nothing new was added.");
+      // A note names what the file asked for that did not come across, so it rides the result it qualifies.
+      .then(({ created, notes }) => {
+        const title = created ? REGEX_IMPORT_CREATED : REGEX_IMPORT_ALREADY_HAD;
+        notify.success(notes.length === 0 ? title : { title, description: notes.join(" ") });
       })
       .catch((error: unknown) => {
         notify.error(error instanceof Error ? error.message : "Couldn't import the script.");

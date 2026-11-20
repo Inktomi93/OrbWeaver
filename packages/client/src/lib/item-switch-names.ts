@@ -13,7 +13,12 @@ export const PROMPT_CACHE_AUTOMATIC_SETTING = "Automatic prefix placement";
 export const PROMPT_CACHE_SYSTEM_SETTING = "Cache the system prompt";
 export const PROMPT_CACHE_DISABLE_IMPLICIT_SETTING = "Disable implicit breakpoints";
 
-/** `<setting>: <item>` — one stable name per item, so a list of the same switch reads as a list of items. */
-export function itemSwitchName(setting: string, item: string): string {
-  return `${setting}: ${item}`;
+/**
+ * `<setting>: <item>` — one stable name per item, so a list of the same switch reads as a list of items.
+ *
+ * @param list - the book or list the row sits in, for a surface that draws one item under two lists or two same-titled
+ * items under different ones: `<setting>: <item> · <list>`.
+ */
+export function itemSwitchName(setting: string, item: string, list?: string): string {
+  return list === undefined ? `${setting}: ${item}` : `${setting}: ${item} · ${list}`;
 }

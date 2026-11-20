@@ -28,17 +28,18 @@ import type { PostProcessFlag, PromptConfig, PromptPipelineStep } from "@orb/con
 import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { PresetId } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
-import { regexPlacementStep } from "#lib";
+import { regexStepLabel } from "#lib";
+import { PRESET_READOUT_STAGE_UNREAD, PRESET_TRANSFORMS_READ_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
 // ONE VOCABULARY WITH THE CENTER (side-eye F-23): every step's name below is the string the control that
-// EDITS it carries — the regex placements come from the shared `regexPlacementStep` map the editor dialog's
-// own chips read, and the post-process / reasoning-parse steps are their `SwitchField` labels verbatim.
+// EDITS it carries — the regex steps are named from the shared target and pass labels the editor reads
+// (`regexStepLabel`), and the post-process / reasoning-parse steps are their `SwitchField` labels verbatim.
 // The readout and the center were two namings of one pipeline, so a reader could not carry a step from the
 // diagnosis ("which stage do I edit?") to the control that changes it.
 
@@ -58,7 +59,7 @@ const REASONING_LABEL = { "native-reasoning": "Native reasoning channel", "reaso
 /** What ONE step is called — dispatched on the step's own kind, never on its position. */
 function stepLabel(step: PromptPipelineStep): string {
   if (step.kind === "regex") {
-    return regexPlacementStep(step.placement);
+    return regexStepLabel(step.pass, step.targets);
   }
   if (step.kind === "post-process") {
     return POST_PROCESS_LABEL[step.flag];
@@ -93,7 +94,7 @@ export function TransformsReadout({
       fallback={<Pipeline attached={{ kind: "pending" }} config={config} />}
       renderError={(_error, retry): ReactElement => (
         <Stack gap="section">
-          <QueryErrorState label="the attached scripts" onRetry={retry} />
+          <QueryErrorState label={PRESET_TRANSFORMS_READ_LABEL} onRetry={retry} />
           <Pipeline attached={{ kind: "failed" }} config={config} />
         </Stack>
       )}
@@ -118,22 +119,24 @@ function AttachedPipeline({ config, presetId }: { readonly config: PromptConfig;
 }
 
 function Pipeline({ config, attached }: { readonly config: PromptConfig; readonly attached: AttachedScripts }): ReactElement {
-  // ONE count for one pipeline stage: the ENABLED scripts that bite there. The tab's picker shows the same
+  // ONE count for one pipeline stage: the ENABLED scripts that run at its pass on any of its targets. The tab's picker shows the same
   // rows' enabled state per script, so `2 on` here and two enabled rows there are the same fact.
   //
   // A COUNT IS A CLAIM, AND AN UNREAD COUNT IS NOT ONE. `off` is said only when a count was actually obtained,
   // or when the preset provably cannot carry one; a read still in flight or one that FAILED says so instead.
-  const scriptState = (placement: RegexPlacement): string => {
+  const scriptState = (pass: RegexPass, targets: readonly RegexTarget[]): string => {
     if (attached.kind === "off") {
       return "off";
     }
     if (attached.kind === "failed") {
-      return "couldn’t read";
+      return PRESET_READOUT_STAGE_UNREAD;
     }
     if (attached.kind === "pending") {
       return "…";
     }
-    const count = attached.scripts.filter((script) => script.enabled && script.placement.includes(placement)).length;
+    const count = attached.scripts.filter(
+      (script) => script.enabled && script.passes.includes(pass) && script.targets.some((target) => targets.includes(target)),
+    ).length;
     return count === 0 ? "off" : `${String(count)} on`;
   };
   const post = config.postProcess;
@@ -142,7 +145,7 @@ function Pipeline({ config, attached }: { readonly config: PromptConfig; readonl
    *  the preset owns, it is the rule the parse below it defers to. */
   const stepState = (step: PromptPipelineStep): string => {
     if (step.kind === "regex") {
-      return scriptState(step.placement);
+      return scriptState(step.pass, step.targets);
     }
     if (step.kind === "post-process") {
       return post?.[step.flag] === true ? "on" : "off";
@@ -200,7 +203,7 @@ function StepRow({
   return (
     <Row align="baseline" data-pipeline-step={stepKey} gap="field">
       <Text voice="gloss">{index}</Text>
-      <Text truncate="fill" voice="label">
+      <Text grow={true} voice="label" wrap="word">
         {label}
       </Text>
       <Text voice="datum">{state}</Text>

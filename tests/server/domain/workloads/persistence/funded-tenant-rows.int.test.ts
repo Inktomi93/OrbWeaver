@@ -9,7 +9,7 @@
 // @subject packages/server/src/domain/discovery/workload-contributions.ts
 // @subject packages/server/src/domain/refinery/workload-contributions.ts
 // @subject packages/server/src/domain/chat/memory/generate/segments.ts
-// @subject packages/server/src/domain/chat/substrate/backfill.ts
+// @subject packages/server/src/domain/chat/memory/backfill/backfill.ts
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -39,7 +39,10 @@ test("restart and a different retry caller preserve admitted funding and owned e
   await root[Symbol.asyncDispose]();
   await using resumed = await createServerHarness({ db, ownerId: owner.userId, clock: root.clock, ids: root.ids, providerFetch: wire.execute });
   const before = wire.funders.length;
-  expect(await resumed.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).toEqual({ calls: 1 });
+  expect(await resumed.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: ref.id })).toEqual({
+    calls: 1,
+    bound: "exact",
+  });
   expect(wire.funders).toHaveLength(before);
   await executeAdmitted(resumed, ref.id);
   const retry = await resumed.services.workloads.retry({ caller: owner, id: ref.id });
@@ -84,7 +87,9 @@ test("unfunded system paid jobs and their retries never borrow the saved owner b
   await root.settleBackground();
   const ref = await root.services.workloads.start({ caller: null, funderUserId: null, ownerId: owner.userId, mode: "bulk", input: DISTILL });
   const before = [...wire.requests];
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).rejects.toMatchObject({ code: WORKLOAD_UNFUNDED });
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: ref.id })).rejects.toMatchObject({
+    code: WORKLOAD_UNFUNDED,
+  });
   await executeAdmitted(root, ref.id);
   expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "failed", funderUserId: null });
   const retry = await root.services.workloads.retry({ caller: owner, id: ref.id });
@@ -204,9 +209,9 @@ test("bulk memory uses admitted Utility funding but each room host's encoder win
     mode: "singular",
     input: { kind: "memory-backfill", params: {} },
   });
-  const quote = await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: owned.id });
+  const quote = await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: owned.id });
   expect(quote.calls).toBeGreaterThan(0);
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: firstRoom.host, id: owned.id })).toEqual(quote);
+  expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: firstRoom.host, id: owned.id })).toEqual(quote);
   const beforeAutomatic = wire.funders.length;
   root.app.detachEmbedReindex(null);
   await root.settleBackground();

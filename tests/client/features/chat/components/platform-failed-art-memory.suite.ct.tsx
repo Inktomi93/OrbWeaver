@@ -11,7 +11,9 @@ import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixture
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const PORTRAIT_REQUEST = new RegExp(`${RegExp.escape(BLOB_ROUTE)}/[^?]+\\?v=${variantKindSchema.enum.portrait}`);
-const LETTER = '[data-slot="text"][data-voice="monogram"]';
+// Echo's art pane draws its initials as a monogram; ripple's portrait draws them as its avatar's own fallback.
+const LETTER = '[data-slot="avatar-monogram"]';
+const PORTRAIT_LETTER = '[data-slot="avatar-fallback"]';
 const TAIL = 10;
 
 test("echo paints no chip and asks no more for a portrait that failed when its row remounts", async ({ corpus, mount, page }) => {
@@ -130,7 +132,7 @@ test("ripple offers no image to open for a portrait that failed, and offers it a
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: pictured.id });
     const assistantRows = page.locator(`[data-slot="message-row"][data-role="assistant"]`);
     const openers = assistantRows.getByRole("button", { name: viewImageActionName(speaker.displayName), exact: true });
-    await expect(assistantRows.locator(LETTER).first()).toBeVisible();
+    await expect(assistantRows.locator(PORTRAIT_LETTER).first()).toBeVisible();
     await expect(openers).toHaveCount(0);
 
     await page.unroute(PORTRAIT_REQUEST);

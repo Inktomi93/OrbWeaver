@@ -21,6 +21,7 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { STORY_SHOT_DIR } from "@orb/testkit/node/helpers";
 import { expect, test } from "@playwright/test";
+import { memberCharacterRowName } from "#client/features/chat/lib/members-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
@@ -125,7 +126,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
       await expect(memberPanel.getByRole("button", { name: MEMBER_VIEWER_ROW })).toBeVisible();
       for (const panel of [hostPanel, memberPanel]) {
         for (const card of CAST) {
-          await expect(panel.getByRole("button", { name: `${card.name}: character`, exact: true })).toBeVisible();
+          await expect(panel.getByRole("button", { name: memberCharacterRowName(card.name, false), exact: true })).toBeVisible();
         }
       }
 

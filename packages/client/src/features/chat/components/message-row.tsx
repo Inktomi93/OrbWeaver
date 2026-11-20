@@ -5,15 +5,18 @@
 // (an inheriting character is, by default); the trusted policy still sanitizes, because model output
 // stays untrusted (the indirect-prompt-injection boundary).
 
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
+import { useHoverCapable } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useRenderPolicyFloor } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -32,11 +35,13 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { messageArticleName } from "../lib/message-action-names.ts";
+import { MESSAGE_SELECT_NAME, messageArticleName } from "../lib/message-action-names.ts";
+import { actionsRevealFor } from "../lib/message-actions-reveal.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
-import { actionsRevealFor, gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
+import { gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
@@ -54,8 +59,8 @@ import {
   resolveGenerationCredit,
   resolveMessageFooter,
   resolveRowContent,
+  rowTrains,
   themedColumnContent,
-  trainParagraphsFor,
 } from "./message-row-parts.tsx";
 
 export interface MessageRowProps {
@@ -74,6 +79,8 @@ export interface MessageRowProps {
   /** Keep the identity header pinned within its own row while it crosses the transcript edge. */
   readonly stickyAttribution?: boolean | undefined;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
+  /** The room's narrator policy (`ChatDetail.narratorRender`), which a narrator row renders at. */
+  readonly narratorRender?: NarratorRenderPolicy | undefined;
   /** The per-chat macro-name producer — one source for both the attribution badge and `{{char}}`/`{{user}}`. */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
@@ -91,14 +98,22 @@ export interface MessageRowProps {
   /** The chat-level §4.8 lenient naked-HTML card-wrap verdict (game chat + `features.immersiveHtml`) —
    *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
+  /** The room is a game whose immersive HTML cards are off, folded into this row's render policy. Absent ⇒ not. */
+  readonly gameCardsOff?: boolean | undefined;
+  /** The room's sheets written before this row (`roomSheetsBefore`), resolved once by the surface. Absent ⇒ none. */
+  readonly roomSheets?: readonly RoomSheet[] | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
    *  (D166). Absent ⇒ the ordinary variant strip. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
-  /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
-   *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
+  /** The transcript's display scripts, resolved once by the list surface (one read for every row). `undefined`
+   *  while that read loads, which holds the settled row rather than drawing its raw text. */
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's present human seats (`roomStandingOf`), read by a display script scoped by its author's standing. */
+  readonly roomStanding: RoomStanding;
+  /** This row's display depth (`displayDepthsOf`): 0 is the newest, undefined for a row the count skips. */
+  readonly displayDepth: number | undefined;
   /** The `appearance.colorQuotedSpeech` pref, folded into this row's render policy. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
@@ -161,6 +176,7 @@ export function MessageRow({
   lastRow = false,
   stickyAttribution = false,
   participants,
+  narratorRender,
   characterNamesById,
   personaNamesById,
   personaAvatarsById,
@@ -169,9 +185,13 @@ export function MessageRow({
   anchorPersonaId,
   viewerUserId,
   lenientHtmlCards,
+  gameCardsOff,
+  roomSheets,
   greeting,
   autoFixMarkdown,
   displayScripts,
+  roomStanding,
+  displayDepth,
   colorQuotedSpeech,
   showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
@@ -241,14 +261,20 @@ export function MessageRow({
     // The row's DECLARED purpose (D129) — never the room's current output dial.
     kind: message.kind,
   });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const render = resolveRowRenderPolicy({
     role,
     authorUserId: message.authorUserId,
     characterId: message.characterId,
     viewerUserId: viewer,
     participants,
+    kind: message.kind,
+    narrator: narratorRender,
+    installForbidsExternalMedia,
     lenientHtmlCards,
+    gameCardsOff,
     colorQuotedSpeech,
+    viewerIsHost,
   });
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.
@@ -266,6 +292,7 @@ export function MessageRow({
     anchorPersonaId,
     autoFixMarkdown,
     displayScripts,
+    room: roomStanding,
   });
   const displayedMessage = toolBoundaryDisplayMessage(message, editing);
   const speakerThemes = speakerThemesByName(participants);
@@ -276,11 +303,13 @@ export function MessageRow({
   const content = resolveRowContent({
     editing,
     message: displayedMessage,
-    trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
+    trains: rowTrains(displayedMessage, editing, skin.bubbleLayout === "trains"),
     render,
     renderContext,
     speakerThemes,
     narratorVoiced: isNarratorVoiced(message.kind),
+    roomSheets,
+    displayDepth,
     viewerIsHost,
     neighbours,
   });
@@ -329,7 +358,9 @@ export function MessageRow({
   const swipeFoot = renderRowSwipe({ editing, showSwipes, role, greeting, message, foot: skin.swipeFoot });
   const swipeInside = skin.swipeFoot.placement === "inside" ? swipeFoot : null;
   const swipeBelow = skin.swipeFoot.placement === "below" ? swipeFoot : null;
-  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions);
+  const canHover = useHoverCapable();
+  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions, canHover);
+  const shape = headerShape(skin, lastRow, canHover);
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
@@ -348,7 +379,7 @@ export function MessageRow({
       chip: slots.header,
       stackStamp: skin.phoneStamp === "stacked",
       rule: skin.headerRule,
-      shape: headerShape(skin, lastRow),
+      shape,
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions:
@@ -389,7 +420,7 @@ export function MessageRow({
         {/* The checkbox's touch square lives inside its own layout box, so it cannot reach into the next row's avatar reach. */}
         {selecting ? (
           <Row align="center" touchFloor="block">
-            <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} />
+            <Checkbox aria-label={MESSAGE_SELECT_NAME} checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} />
           </Row>
         ) : null}
         {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the
@@ -419,9 +450,10 @@ export function MessageRow({
                   header: header.inside,
                   footer: swipeInside,
                   lastRow,
+                  headerOverlaid: !shape.ownLine,
                   content,
-                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId }),
-                  trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
+                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId, displayDepth }),
+                  trains: rowTrains(displayedMessage, editing, skin.bubbleLayout === "trains"),
                   skin,
                   decoration,
                   weldedAvatar,
@@ -430,6 +462,8 @@ export function MessageRow({
                   renderContext,
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
+                  roomSheets,
+                  displayDepth,
                   editing,
                   // The art pane lies over the editor at enlarged text; while editing it is plain paint, so the chip stays the one opener and the editor's controls take the press.
                   artView: editing ? null : artViewFor(viewArt, attribution, artControl),

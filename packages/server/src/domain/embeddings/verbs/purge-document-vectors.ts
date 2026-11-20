@@ -2,7 +2,7 @@
 // transaction retires older vectors only after cards, memory, and documents all return the same receipt.
 
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
-import { completeGenerationScope } from "../substrate/generation.ts";
+import { completeGenerationScope } from "../persistence/generation.ts";
 
 export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeDocumentVectors"] {
   return async ({ ownerId, generation }): Promise<void> => {

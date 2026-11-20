@@ -26,14 +26,15 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
+import { RPG_CHARACTER_BACK_NAME } from "../lib/rpg-names.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { AttributeGrid } from "./rpg-attribute-grid.tsx";
 import { RpgAttributeSetup } from "./rpg-attribute-setup.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgPopulateControl } from "./rpg-populate-control.tsx";
@@ -106,7 +107,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
     );
   }
   return (
-    <Row touchFloor="block" className="min-inline-0">
+    <Row touchFloor="block" minWidth="shrinks">
       <TrackerValue
         ariaLabel={`${actor.name} flavor`}
         display={actor.sheet.flavor}
@@ -185,11 +186,7 @@ function WalletChips({
   readonly onRelease?: IdentityEdits["onReleaseCoin"];
 }): ReactElement {
   if (wallet.length === 0) {
-    return (
-      <Text as="span" voice="gloss">
-        No coin yet: the story hands it out.
-      </Text>
-    );
+    return <MutedLine>No coin yet: the story hands it out.</MutedLine>;
   }
   return (
     <>
@@ -231,7 +228,7 @@ function IdentityBlock({
       <Avatar size="lg" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
-      <Stack gap="field" className="min-inline-0" grow={true}>
+      <Stack gap="field" minWidth="shrinks" grow={true}>
         <Heading level={3} voice="label" className="min-inline-0" inset="control" wrap="word">
           {actor.name}
         </Heading>
@@ -275,7 +272,7 @@ function TrackerSection({
     <Stack gap="field">
       <Kicker>Trackers</Kicker>
       {carriesNone ? (
-        <RpgDoorwayLine>{`${actor.name} carries no trackers yet: the host defines them in the Game tab, and every carrier gets the same one.`}</RpgDoorwayLine>
+        <MutedLine>{`${actor.name} carries no trackers yet: the host defines them in the Game tab, and every carrier gets the same one.`}</MutedLine>
       ) : (
         <Stack gap="field">
           <ActorMeters actor={actor} {...(edit === undefined ? {} : { edit })} />
@@ -294,7 +291,7 @@ function ConditionSection({ actor, edit }: { readonly actor: RpgActorView; reado
     <Stack gap="field">
       <Kicker>Conditions</Kicker>
       {conditions.length === 0 && edit === undefined ? (
-        <Text voice="gloss">Nothing on {actor.name} right now.</Text>
+        <MutedLine>{`Nothing on ${actor.name} right now.`}</MutedLine>
       ) : (
         <ConditionChips conditions={conditions} {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })} />
       )}
@@ -369,7 +366,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       {/* The breadcrumb — a real button (keyboard-reachable, ≥44px on a coarse pointer through the shared
           control tokens), naming where it goes. The participant list is one step away from every character. */}
       <Row gap="field" align="center">
-        <Button variant="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
+        <Button variant="ghost" size="sm" onClick={onBack} aria-label={RPG_CHARACTER_BACK_NAME}>
           <Icon icon={ChevronLeft} size="xs" />
           Characters
         </Button>
@@ -427,7 +424,7 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
     );
   }
   return (
-    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
+    <Row gap="field" align="center" touchFloor="block" minWidth="shrinks">
       <TrackerValue ariaLabel={`${actor.name} title`} display={actor.sheet.className} placeholder="title…" onEdit={onEditTitle} wrap={true} width="auto" />
     </Row>
   );

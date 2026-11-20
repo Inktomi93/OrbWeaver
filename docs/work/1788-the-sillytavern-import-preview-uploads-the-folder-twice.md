@@ -1,10 +1,11 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-14
 priority: P3
 area: client
-plan: unwired-code
+blocked: owner
+plan: import-robustness
 ---
 
 # The SillyTavern import preview uploads the folder twice

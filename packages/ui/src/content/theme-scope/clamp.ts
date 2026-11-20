@@ -45,8 +45,10 @@ import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import {
   accentInk,
+  carriedToneLiterals,
   carriedToneScheme,
   carriedToneSources,
+  inactiveOpacityVars,
   paintedAccentFill,
   primaryLiteralResets,
   primaryToneMix,
@@ -65,9 +67,7 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 // No chatStyle axis: a theme/card cannot force a message-row anatomy (TD/O-4). The row skin reads the
 // viewer's own `appearance.chatStyle` setting, whose vocabulary is `@orb/contracts/theme`'s
 // THEME_CHAT_STYLES — nothing here ever stamped a `data-chat-style` any selector read.
-const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
-const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
 
 // Asks only `isSafeColor`; the wire twin (`@orb/contracts/theme`) also asks `isRenderableColor`. Every value the wire keeps
@@ -77,37 +77,36 @@ const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
 const deterministicColorToken = z.string().refine(isDeterministicColor).optional().catch(undefined);
 // The bg is a FILL with a foreground derived from it; .fg remains in the paired wire shape but is not
 // painted. Inherited/direct colors below deliberately retain the broader safe-color contract.
-const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);
+const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).strip().optional().catch(undefined);
 
 // The ui-local override shape callers pass (loose — every field optional; failures drop per-field).
-const themeScopeTokensSchema = z.object({
-  // These are derivation origins: accent gets a foreground/contrast correction, background gets the
-  // whole surface/chart ramp. Contextual/system/CSS-wide colors cannot stand in for authored pixels.
-  accent: deterministicColorToken,
-  userBubble: bubble,
-  aiBubble: bubble,
-  systemBubble: bubble,
-  speaker: colorToken,
-  dialogueColor: colorToken,
-  narrationColor: colorToken,
-  bodyColor: colorToken,
-  font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
-  radius: z.enum(RADII).optional().catch(undefined),
-  background: deterministicColorToken,
-  borderColor: colorToken,
-  density: z.enum(DENSITIES).optional().catch(undefined),
-});
+const themeScopeTokensSchema = z
+  .object({
+    // These are derivation origins: accent gets a foreground/contrast correction, background gets the
+    // whole surface/chart ramp. Contextual/system/CSS-wide colors cannot stand in for authored pixels.
+    accent: deterministicColorToken,
+    userBubble: bubble,
+    aiBubble: bubble,
+    systemBubble: bubble,
+    speaker: colorToken,
+    dialogueColor: colorToken,
+    narrationColor: colorToken,
+    bodyColor: colorToken,
+    font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
+    radius: z.enum(RADII).optional().catch(undefined),
+    background: deterministicColorToken,
+    borderColor: colorToken,
+  })
+  .strip();
 export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys,
- * only validated values) plus the non-custom-property axes. `density` maps to a `data-*` attribute;
- * `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
+ * only validated values) plus the non-custom-property axes. `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
  * emit surface) — see the `colorSchemeFor` derivation for why it rides this struct.
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
-  readonly density?: (typeof DENSITIES)[number];
   readonly colorScheme?: "light" | "dark";
   /**
    * THE SCOPE'S INHERITED INK (#2424). A carried palette that paints its own surface must also RESTATE
@@ -486,21 +485,33 @@ function accentAndTonesOn(
   if (carried === null && picked !== undefined && carriedAmbient !== null) {
     return nestedAccentOn(picked, carriedAmbient);
   }
-  const scheme = carried === null ? null : carriedToneScheme(carried);
-  const accent = accentEmissionOn(picked, ambientAccent, scheme);
-  if (scheme === null) {
+  if (carried === null) {
+    const accent = accentEmissionOn(picked, ambientAccent, null);
     return { accent, toneVars: accent === undefined ? {} : primaryLiteralResets(), fallback: undefined };
   }
+  const scheme = carriedToneScheme(carried);
+  const accent = accentEmissionOn(picked, ambientAccent, scheme);
   const sources = carriedToneSources(scheme, accent?.painted ?? null);
   const mix = solveCarriedToneMix(scheme, sources);
+  const literals = carriedToneLiterals(scheme, sources);
   const primary = primaryToneMix(mix);
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
-  return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources), ...toneHostReset() }, fallback };
+  return {
+    accent,
+    toneVars: {
+      ...toneMixVars(mix),
+      ...toneLiteralVars(literals),
+      ...toneHostReset(),
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
+    },
+    fallback,
+  };
 }
 
 /**
  * An accent-only scope over a carried palette (D336): its primary lands on that palette's ramp, which the outer scope
- * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there.
+ * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there. Its own
+ * primary can need a different inactive-control opacity (D355), so it re-derives that over every tone the palette paints.
  */
 function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones {
   const scheme = carriedToneScheme(ambient);
@@ -508,15 +519,21 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
   if (accent === undefined) {
     return { accent, toneVars: primaryLiteralResets(), fallback: undefined };
   }
-  const primary = carriedToneSources(scheme, accent.painted).filter(({ tone }) => tone === "primary");
+  const sources = carriedToneSources(scheme, accent.painted);
+  const primary = sources.filter(({ tone }) => tone === "primary");
   const mix = solveCarriedToneMix(scheme, primary);
+  const literals = carriedToneLiterals(scheme, sources);
   const steps = primaryToneMix(mix);
   const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
   // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
   const ring = nestedRingOn(ambient, accent.painted);
   return {
     accent,
-    toneVars: { ...primaryToneVars(scheme, mix, primary), ...ring.vars },
+    toneVars: {
+      ...primaryToneVars(mix, literals),
+      ...ring.vars,
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
+    },
     fallback,
     ...(ring.fallback === undefined ? {} : { inputBorderFallback: ring.fallback }),
   };
@@ -712,7 +729,6 @@ export function clampThemeTokens(
     proseInks,
     bubbleFills: fills,
     bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(seedBackground), ...proseInks }, accentSource),
-    ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
     ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),

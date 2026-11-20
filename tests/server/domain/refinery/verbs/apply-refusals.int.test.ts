@@ -9,6 +9,7 @@
 import { CHARACTER_STALE_BASIS_OP_CODE, createCharacterSchema } from "@orb/contracts/character";
 import type { ApplyDropReason } from "@orb/contracts/refinery";
 import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
+import { everyRow } from "@orb/kit/guards";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -133,16 +134,7 @@ interface RefusalCase {
   readonly attempt: (caller: Caller) => Promise<Attempt>;
 }
 
-type Uncovered<Cases extends readonly RefusalCase[]> = Exclude<ApplyDropReason, Cases[number]["reason"]>;
-
-/** Returns the cases as given, and fails `tsc` while a reason has none; the error shows the reason as `reasonWithNoCase`. */
-function everyReason<const Cases extends readonly RefusalCase[]>(
-  cases: Cases & ([Uncovered<Cases>] extends [never] ? unknown : { readonly reasonWithNoCase: Uncovered<Cases> }),
-): Cases {
-  return cases;
-}
-
-const REFUSALS = everyReason([
+const REFUSALS = everyRow<RefusalCase, "reason">()([
   { reason: "not_in_rewrite", attempt: notInRewrite },
   { reason: "not_selected", attempt: notSelected },
   { reason: "greeting_index_missing", attempt: greetingIndexMissing },

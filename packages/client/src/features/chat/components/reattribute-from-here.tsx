@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { ConfirmDialog } from "#components";
-import { useInvalidation, useReattributePersona, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import type { ReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { CHAT_REATTRIBUTE_CONFIRM_NAME, CHAT_REATTRIBUTE_CONFIRM_TITLE } from "../lib/chat-surface-names.ts";
 import { MESSAGE_REATTRIBUTE_NAME } from "../lib/message-action-names.ts";
@@ -57,7 +57,7 @@ export function ReattributeFromHereItem({ target, onSelect }: ReattributeFromHer
  *  references), then the viewer's own persona list, then the honest floor. */
 function usePersonaName(chatId: ChatId, personaId: PersonaId): string {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const { data: personas } = useQuery(trpc.persona.list.queryOptions());
   return (
     chat?.identities.find((entry) => entry.kind === "persona" && entry.id === personaId)?.name ??

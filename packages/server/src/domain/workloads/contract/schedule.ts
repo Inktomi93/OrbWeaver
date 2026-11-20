@@ -9,9 +9,9 @@ import type {
   ScheduleCadence,
   StartWorkloadInput,
   StartWorkloadOp,
-  WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
   WorkloadKind,
   WorkloadMode,
+  WorkloadRunAccountRefusalCode,
   WorkloadScheduleRef,
 } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
@@ -26,7 +26,7 @@ import type { Logger } from "#foundation/observability";
 export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
 
 /** A listed schedule: its row and the refusal its tick meets (`workloadScheduleListItemSchema`). */
-export type WorkloadScheduleListItem = WorkloadScheduleRow & { readonly refusal?: typeof WORKLOAD_RUN_ACCOUNT_NOT_OWNER };
+export type WorkloadScheduleListItem = WorkloadScheduleRow & { readonly refusal?: WorkloadRunAccountRefusalCode };
 
 /** The first run is one cadence-interval out (a fresh schedule doesn't fire the instant it's made). */
 export interface CreateScheduleParams {

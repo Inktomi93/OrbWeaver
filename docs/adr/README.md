@@ -296,3 +296,9 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D347 | [A stuck plugin Worker ends alone](0347-a-stuck-plugin-worker-ends-alone.md) | active |
 | D348 | [A full plugin IPC queue refuses one frame, never the channel](0348-a-full-plugin-ipc-queue-refuses-one-frame-never-the-channel.md) | active |
 | D349 | [No plugin owner holds the whole Worker pool](0349-no-plugin-owner-holds-the-whole-worker-pool.md) | active |
+| D350 | [An asset kind belongs to each use of a stored file](0350-asset-kind-belongs-to-each-use.md) | active |
+| D351 | [A plugin's surface state is capped by key count](0351-plugin-surface-state-is-capped-by-key-count.md) | active |
+| D352 | [Another account's document text reaches a prompt as literal text](0352-another-account-s-document-text-reaches-a-prompt-as-literal-text.md) | active |
+| D353 | [Stored story text reaches its slot as literal text](0353-stored-story-text-reaches-its-slot-as-literal-text.md) | active |
+| D354 | [A reply a display script styled renders whole in its row's card frame](0354-a-styled-reply-renders-whole-in-its-row-s-card-frame.md) | active |
+| D355 | [An inactive control's ink clears 3:1 on every palette and carries a second signal](0355-an-inactive-control-s-ink-clears-3-1-on-every-palette.md) | active |

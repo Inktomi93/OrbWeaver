@@ -8,6 +8,7 @@ import { LabelsContent, LabelsContextHeader, LabelsContextTab } from "../compone
 import { useLabelsListHeader } from "../hooks/use-labels-list-header.tsx";
 import { LabelsListSurface } from "../surfaces/labels-list-surface.tsx";
 import { useLabelsSelectionTitle } from "./labels-selection-title.ts";
+import { TAG_USAGE_TAB_NAME } from "./tag-list-name.ts";
 
 export const labelsCorpusMode: CorpusModeContribution = {
   list: () => <LabelsListSurface />,
@@ -19,5 +20,5 @@ export const labelsCorpusMode: CorpusModeContribution = {
 
 /** The one Labels inspector: what a label is on the landing, the open tag's reach once one is open. */
 export const labelsContextTabs: readonly ContextTabDef<CorpusContextState>[] = [
-  { id: "label-reach", label: "Usage", icon: Hash, when: (state): boolean => state.mode === "labels", body: () => <LabelsContextTab /> },
+  { id: "label-reach", label: TAG_USAGE_TAB_NAME, icon: Hash, when: (state): boolean => state.mode === "labels", body: () => <LabelsContextTab /> },
 ];

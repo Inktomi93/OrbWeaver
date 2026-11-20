@@ -15,12 +15,13 @@ export interface PluginChatReads {
    *  `visibility` is REQUIRED and is the whole answer chat's `resolveViewerVisibility` gave for the human this
    *  read runs for. The admission that reaches this op resolves membership only (`can(installer,"read",chat)` /
    *  `loadPresentRole`), and membership alone is not visibility: a `from-join`-clamped member is admitted to
-   *  their room yet may not read its pre-join rows. The value is branded and only that resolver mints it, so a
+   *  their room yet may not read its pre-join rows. The answer names the chat it was resolved for, and the read refuses
+   *  an answer for any other chat as that chat's not-found. The value is branded and only that resolver mints it, so a
    *  non-member branch (the resolver's `null`) or a defaulted floor cannot reach this read; {@link buildPluginBridge}
    *  short-circuits a non-member to `[]` before it.
    *
    *  The read returns only `messages.seq >= visibility.historyFloorSeq`, and strips hidden `<lie>`/`<ofilter>`
-   *  spans unless `visibility.readsHidden` (parity-plus §3.6 / D106: the host reveal plane). The plugin realm is
+   *  spans unless `visibility.readsHidden` (D106: the host reveal plane). The plugin realm is
    *  a member-reachable surface, so an unstripped body would launder a GM-plane secret to a non-host member's
    *  snippet. */
   readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly visibility: ViewerVisibility }) => Promise<readonly PluginMessageView[]>;
@@ -58,8 +59,14 @@ export interface PluginAssetReadOps {
   readonly read: (req: { readonly installerUserId: UserId; readonly assetId: SandboxWireId<AssetId> }) => Promise<PluginAssetView | null>;
 }
 
-export interface PluginDocumentReads {
-  readonly documents: (req: { readonly installerUserId: UserId; readonly queryText: string; readonly limit?: number }) => Promise<readonly PluginSearchHit[]>;
+/** `Signal` is the invocation's cancel: the search embeds the query and may rerank, both provider calls. */
+export interface PluginDocumentReads<Signal> {
+  readonly documents: (req: {
+    readonly installerUserId: UserId;
+    readonly queryText: string;
+    readonly limit?: number;
+    readonly signal: Signal;
+  }) => Promise<readonly PluginSearchHit[]>;
 }
 
 export interface PluginNotificationDelivery {

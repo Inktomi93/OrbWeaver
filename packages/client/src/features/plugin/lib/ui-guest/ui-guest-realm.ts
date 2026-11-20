@@ -9,7 +9,7 @@
 // The security posture lives at the sites below and is not re-summarised here; the worker's own header carries
 // the whole-sandbox story.
 
-import type { PluginLogLevel, UiProxyableHostFunction } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginUiHostCallCode, UiProxyableHostFunction } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
@@ -59,14 +59,22 @@ const AMBIENT_STUBS = `
   })();
 `;
 
+// A refused host call as the guest receives it: the code is present only for an allowlisted refusal.
+interface GuestHostRefusal {
+  readonly message: string;
+  readonly code?: PluginUiHostCallCode;
+}
+
 export interface GuestState {
   readonly ctx: QuickJSContext;
   /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound host-result channel. */
   readonly jsonParse: QuickJSHandle;
+  /** The realm's own `Error.prototype`, captured before any guest code ran — every host-built error's prototype. */
+  readonly errorPrototype: QuickJSHandle;
   /** The guest's `onEvent` handler, if it registered one. Owned for the worker's lifetime. */
   handler: QuickJSHandle | null;
   /** Host calls the guest is awaiting, by callId — the deferred each is parked on. */
-  readonly pending: Map<number, { resolve: (json: string) => void; reject: (message: string) => void }>;
+  readonly pending: Map<number, { resolve: (json: string) => void; reject: (refusal: GuestHostRefusal) => void }>;
   readonly surfaceIds: ReadonlySet<string>;
   nextCallId: number;
   inFlight: number;
@@ -125,6 +133,20 @@ export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
   return String(dumped);
 }
 
+// A host-authored error for the guest: an object on the realm's own `Error.prototype` whose fields are DEFINED, the
+// client twin of the server marshal's `newHostError`. Never `ctx.newError`: it captures a stack, which runs the
+// guest's `Error.prepareStackTrace`, and it SETS `message`, which runs any setter the guest put on
+// `Error.prototype`. Building a host value through guest code would let the guest run inside the host's own work.
+function newHostError(state: GuestState, fields: Readonly<Record<string, string>>): QuickJSHandle {
+  const { ctx } = state;
+  const error = ctx.newObject(state.errorPrototype);
+  for (const [key, text] of Object.entries(fields)) {
+    using value = ctx.newString(text);
+    ctx.defineProp(error, key, { value, configurable: true, enumerable: false });
+  }
+  return error;
+}
+
 /** Install `orb.ui(1)` — the ONE door, and the entire surface a scripted guest sees. */
 export function installRealm(deps: RealmDeps): void {
   const { ctx } = deps;
@@ -142,9 +164,9 @@ export function installRealm(deps: RealmDeps): void {
     if (major !== 1) {
       // Loudly, and by TYPE: a guest feature-detects on `e.name`, never on a message substring (the server's
       // `HostVersionError` posture — the class NAME is what crosses a realm boundary intact).
-      const error = ctx.newError(`orb.ui(${String(major)}) is not served — this host serves version 1`);
-      ctx.setProp(error, "name", ctx.newString("HostVersionError"));
-      return { error };
+      return {
+        error: newHostError(deps.current(), { name: "HostVersionError", message: `orb.ui(${String(major)}) is not served — this host serves version 1` }),
+      };
     }
     return buildSurface(deps);
   });
@@ -276,7 +298,7 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
         // stops a runaway guest before it floods the network at all, which is cheaper for everyone and is the
         // difference between a contained bug and a visible one.
         if (state.inFlight >= UI_GUEST_BUDGETS.hostCallsInFlightMax) {
-          using err = ctx.newError(`too many concurrent host calls (>${UI_GUEST_BUDGETS.hostCallsInFlightMax})`);
+          using err = newHostError(state, { name: "Error", message: `too many concurrent host calls (>${UI_GUEST_BUDGETS.hostCallsInFlightMax})` });
           deferred.reject(err);
           // both settle arms run the SAME pump(ctx) —
           // this is the manual job-queue pump the guest realm requires on any settle, not error swallowing; the
@@ -293,8 +315,10 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
             using parsed = callJsonParse(ctx, state.jsonParse, json);
             deferred.resolve(parsed);
           },
-          reject: (message: string): void => {
-            using err = ctx.newError(message);
+          // The code is defined only when the host forwarded one, so a guest reads `code === undefined` on every
+          // other failure (the SDK's `PluginUiHostCallError`).
+          reject: ({ message, code }: GuestHostRefusal): void => {
+            using err = newHostError(state, code === undefined ? { name: "Error", message } : { name: "Error", message, code });
             deferred.reject(err);
           },
         });
@@ -319,26 +343,97 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
  *
  *  IT ARMS ITS OWN CPU BOUND (#784 F2, the client twin of #781). This pump runs a guest continuation OUTSIDE any
  *  invocation — a host call fired at boot (or in an event) can settle AFTER `ready`/`settled` cleared the host's
- *  wall and after `runToSettlement` removed the interrupt handler in its `finally`. Without a fresh handler here,
+ *  wall and after `runToSettlement` closed its window in its `finally`. Without a fresh window here,
  *  a looping `.then` (`h.storage.get(k).then(() => { while(true){} })`) runs `executePendingJobs()` unbounded and
  *  PEGS the worker thread: the surface freezes on its last tree, and because no wall is armed for a settling host
- *  call, `reportUiCrash` never fires — the 3-strike auto-disable goes blind. So the pump installs a fresh
- *  `eventCpuMs` deadline against REAL monotonic time (mirroring `runToSettlement`), pumps, and removes it — a
- *  bounded continuation is a preempted job, not a crash, so the surface simply stops advancing rather than
- *  wedging. The host's `terminate()` remains the outer bound for a continuation that STOPS executing bytecode. */
+ *  call, `reportUiCrash` never fires — the 3-strike auto-disable goes blind. So the pump opens a fresh
+ *  `eventCpuMs` window ({@link openCpuWindow}), pumps, and closes it — a bounded continuation is a preempted job,
+ *  not a crash, so the surface simply stops advancing rather than wedging. The host's `terminate()` remains the outer bound for a continuation that STOPS executing bytecode. */
 function pump(ctx: QuickJSContext): () => void {
   return (): void => {
     if (!ctx.alive) {
       return;
     }
-    const startMs = performance.now();
-    ctx.runtime.setInterruptHandler(() => performance.now() - startMs > UI_GUEST_BUDGETS.eventCpuMs);
-    try {
-      ctx.runtime.executePendingJobs();
-    } finally {
-      ctx.runtime.removeInterruptHandler();
-    }
+    // Dispose the result: on the interrupt path it holds the guest's `InternalError`, and an undisposed handle at
+    // `ctx.dispose()` aborts the WASM module.
+    withinEventBudget(ctx, () => ctx.runtime.executePendingJobs().dispose());
   };
+}
+
+/** One open CPU window: the budget it has left, when its clock last started on the worker's monotonic clock (null while
+ *  paused), and whether it stopped guest code. */
+interface CpuWindow {
+  remainingMs: number;
+  runningSince: number | null;
+  passed: boolean;
+}
+
+// The open CPU windows, newest last. The engine holds one interrupt handler per runtime, and a host-result settle or a
+// pump opens its window while an event's window is still open, because the event awaits. The newest running window is
+// the code running now: a paused window's owner is awaiting, and the host sends an event without waiting for the last
+// one, so a later event's paused window can sit above an earlier event that resumed. Closing a window hands the
+// interrupt back to the one beneath; removing the handler instead would leave the event's later reads of guest values
+// (`readError` runs guest getters) with no bound. A worker holds one context.
+const openWindows: CpuWindow[] = [];
+
+function interruptRunningWindow(): boolean {
+  const running = openWindows.findLast((window) => window.runningSince !== null);
+  // Every open window's owner is awaiting, so guest code reaching the engine now runs outside every span.
+  if (running === undefined || running.runningSince === null) {
+    return true;
+  }
+  running.passed ||= performance.now() - running.runningSince > running.remainingMs;
+  return running.passed;
+}
+
+/** An open CPU window. `passed` says whether it stopped guest code; `pause` stops its clock while its owner awaits, and
+ *  `resume` restarts it with what is left. Disposing it hands the interrupt back to the window beneath. */
+interface OpenCpuWindow extends Disposable {
+  readonly passed: () => boolean;
+  readonly pause: () => void;
+  readonly resume: () => void;
+}
+
+/** Open a CPU window of `budgetMs` against real monotonic time (the worker's `performance.now()`, never the guest's
+ *  stub). The caller holds it with `using`, so it closes exactly once when its scope ends. */
+export function openCpuWindow(ctx: QuickJSContext, budgetMs: number): OpenCpuWindow {
+  const window: CpuWindow = { remainingMs: budgetMs, runningSince: performance.now(), passed: false };
+  openWindows.push(window);
+  ctx.runtime.setInterruptHandler(interruptRunningWindow);
+  return {
+    passed: (): boolean => window.passed,
+    pause: (): void => {
+      if (window.runningSince !== null) {
+        window.remainingMs -= performance.now() - window.runningSince;
+        window.runningSince = null;
+      }
+    },
+    resume: (): void => {
+      window.runningSince ??= performance.now();
+    },
+    [Symbol.dispose]: (): void => {
+      openWindows.splice(openWindows.indexOf(window), 1);
+      if (openWindows.length === 0) {
+        ctx.runtime.removeInterruptHandler();
+      }
+    },
+  };
+}
+
+/** Run `work`, host code that calls into the realm, in a fresh `eventCpuMs` window, and say whether the window stopped
+ *  guest code. The pump runs a continuation here, and the worker settles a host result here: a resolve reads the
+ *  result's `then`, and a guest can define a `then` getter on `Object.prototype`, so a settle with no deadline runs
+ *  that getter unbounded. A throw the interrupt caused counts as stopped. */
+export function withinEventBudget(ctx: QuickJSContext, work: () => void): boolean {
+  using window = openCpuWindow(ctx, UI_GUEST_BUDGETS.eventCpuMs);
+  try {
+    work();
+  } catch (error) {
+    if (!window.passed()) {
+      throw error;
+    }
+  }
+  return window.passed();
 }
 
 /** Parse a host result INSIDE the guest, through the realm's PRISTINE `JSON.parse`. The payload crosses as a

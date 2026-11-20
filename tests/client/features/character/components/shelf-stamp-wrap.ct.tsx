@@ -5,7 +5,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { CHARACTER_RECENT_SHELF_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_CHATTED_STAMP_LEAD, CHARACTER_RECENT_SHELF_NAME } from "#client/features/character/lib/character-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 
@@ -19,7 +19,7 @@ test("a wrapped stamp keeps its separator with the count that follows it", async
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});
   const shelf = page.getByRole("list", { name: CHARACTER_RECENT_SHELF_NAME, exact: true });
-  const stamps = shelf.getByText(/^chatted /u);
+  const stamps = shelf.getByText(new RegExp(`^${CHARACTER_CHATTED_STAMP_LEAD} `, "u"));
   await expect(stamps.first()).toBeVisible();
   // Each stamp's text split into the lines it painted, by the block position of every character.
   const painted = await stamps.evaluateAll((nodes) =>

@@ -17,6 +17,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CONNECTIONS_KEYS_SUBCATEGORY } from "../lib/connections-nav.ts";
+import { SAVED_KEYS_EMPTY_DESCRIPTION, SAVED_KEYS_EMPTY_TITLE } from "../lib/credentials-names.ts";
 import { CredentialKeyRow } from "./credential-key-row.tsx";
 
 export function ConnectionsKeysSection({ anchorId }: { readonly anchorId: string }): ReactElement {
@@ -54,12 +55,7 @@ function SavedKeysSection({ anchorId }: { readonly anchorId: string }): ReactEle
 
       {credentials.length === 0 ? (
         // action={null}: the next step is not this section's to offer — a key is never created here, only revoked/removed. Adding one runs through the SIBLING subsection's "Add connection" dialog (`connections-list-section.tsx`, whose own empty state carries that CTA), which owns the dialog's open state locally; the description names that route. ENDS WHEN keys become independently creatable, or the add-connection dialog gains a cross-section opener.
-        <EmptyState
-          action={null}
-          icon={<Icon icon={KeyRound} size="lg" />}
-          title="No keys yet"
-          description="A key is saved when you add a connection that needs one."
-        />
+        <EmptyState action={null} icon={<Icon icon={KeyRound} size="lg" />} title={SAVED_KEYS_EMPTY_TITLE} description={SAVED_KEYS_EMPTY_DESCRIPTION} />
       ) : (
         <Stack gap="field">
           {credentials.map((credential) => (

@@ -47,10 +47,9 @@ test("every door spawns through cross-spawn on win32 and through node's own spaw
   expect(win32.spawnSync(process.execPath, ["-e", "0"]).status).toBe(0);
 });
 
-// WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
-// socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
-// the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
-const wallNowMs = (): number => Date.now();
+// The arms below measure how long a real deadline took to settle against a hung child, which no injected clock
+// can drive; a duration reads the monotonic clock.
+const elapsedNowMs = (): number => performance.now();
 
 /** The child body: fork a DESCENDANT, publish both pids, then hang forever. The descendant is spawned
  *  WITHOUT `detached`, so it inherits the child's process group — which is exactly the tree a
@@ -123,13 +122,13 @@ test("spawnNicedTranscript: a wedged child settles AT the deadline, says so, and
   const pidFile = path.join(home, "pids.json");
   let pids: ChildPids | null = null;
   try {
-    const started = wallNowMs();
+    const started = elapsedNowMs();
     const result = await spawnNicedTranscript(process.execPath, ["-e", hangWithDescendant(pidFile)], {
       cwd: home,
       env: CAPTURE_ENV,
       timeoutMs: DEADLINE_MS,
     });
-    const elapsed = wallNowMs() - started;
+    const elapsed = elapsedNowMs() - started;
     pids = JSON.parse(readFileSync(pidFile, "utf8")) as ChildPids;
 
     // It SETTLED — the whole point. Before the fix this promise never resolved at all.

@@ -9,8 +9,8 @@ import { createChatContext } from "../context.ts";
 import type { ChatContext } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 
 /** Resolve ONE present seat to an rpg actor (or `null` = not an addressable actor — a gone card, a headless

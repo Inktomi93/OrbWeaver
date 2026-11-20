@@ -47,8 +47,8 @@ import type { LogLine } from "@orb/ui/log-viewer";
 import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 import { WIRE_AUTHORED_TEXT_HEADING, WIRE_NO_PROMPT_TITLE, WIRE_STATIC_PREFIX_HEADING } from "../lib/chat-surface-names.ts";
 import { VARIANT_WIRE_GONE_TITLE, VARIANT_WIRE_READ } from "../lib/message-action-names.ts";
@@ -199,9 +199,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
         <Section heading={<Text voice="kicker">Send settings</Text>}>
           {Object.keys(params).length === 0 ? (
             // Replies recorded before the effective settings were stamped carry `{}`, which would read as "ran under no settings".
-            <Text data-slot="wire-params-unrecorded" voice="gloss">
-              Not recorded for this reply.
-            </Text>
+            <MutedLine>Not recorded for this reply.</MutedLine>
           ) : (
             <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} maxHeight="scrollSm" what="settings this send ran under" />
           )}
@@ -244,10 +242,6 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
 
 function LoadedWire({ chatId, variantId }: { readonly chatId: ChatId; readonly variantId: MessageVariantId }): ReactElement {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery({
-    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
-    // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner; any other failure keeps the shared rule.
-    retry: (failureCount, error): boolean => !isNotFound(error) && retryUnlessBadRequest(failureCount, error),
-  });
+  const { data } = useSuspenseQuery(trpc.chat.getVariantWire.queryOptions({ chatId, variantId }));
   return <WireBody wire={data} />;
 }

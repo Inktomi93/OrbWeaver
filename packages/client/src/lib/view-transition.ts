@@ -3,14 +3,15 @@
 // cannot drive them; this util is the one legal wrapper. Respects
 // `prefers-reduced-motion` once here so no call site re-derives the check.
 // WHAT the transition captures is NOT decided here — it is CSS, and it lives in ONE block in
-// `features/app-shell/surfaces/shell.css` ("THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE", #176):
-// the document root opts OUT of capture and `.shell-content` is the single named region, so a swap
+// `features/app-shell/surfaces/shell/content.css`: the document root opts OUT of capture and one region carries
+// the name at a time (`.shell-content`, or the phone's list when the list is the screen), so a swap
 // cross-fades content while the shell's chrome keeps its own FLIP/transform motion. Read that block
 // before adding a `view-transition-name` anywhere — a second name is a second captured region.
-// WHAT STAYS LIVE follows from the same ruling, and it is not the CSS default a caller assumes: chrome and
-// every PORTALLED FLOAT (dialog, drawer, popover, menu, tooltip, toast) are neither snapshotted nor hidden
-// by a swap — the shell's portal root is a SIBLING of `.shell-grid`, outside the one captured region — so
-// they keep painting, and stay hit-testable, over content that has already changed. Whether a given float
+// WHAT STAYS LIVE follows from the same ruling: chrome and every PORTALLED FLOAT (dialog, drawer, popover,
+// menu, tooltip, toast) are neither snapshotted nor hidden by a swap — the shell's portal root is a SIBLING
+// of `.shell-grid`, outside the one captured region. The snapshots still paint ABOVE every live element, so
+// a float over the content sits under them for the fade unless it carries a capture name of its own, as the
+// shell's sheets and scrim, the portal root and the toast viewport do (ui-surface-and-interaction-rules §5.7). Whether a given float
 // MAY do that is a product rule with a declared answer, and it is NOT decided here: this module is `#lib`,
 // below `#state`, so reading the open modal slot from it would be an upward import. The rule lives one
 // tier up — `MODAL_CONTENT_LIFETIME` (state/modal-slot-ids.ts) declares it per slot, `withContentSwap`
@@ -260,4 +261,18 @@ export function withViewTransition(update: () => void): void {
     Promise.allSettled([current.finished]).then(clear).catch(surfaceDeferredFailure);
   }
   observeViewTransition(transition);
+}
+
+/**
+ * Run `update` inside the transition this task already raised, or at once when there is none. A float that its own
+ * door closes as it starts a swap (the palette's Go to, the You sheet's section rows) closes inside the swap this way, so
+ * the old frame still holds it and it leaves with the outgoing content (ui-surface-and-interaction-rules §5.7), instead of
+ * vanishing before the snapshot. It never starts a transition of its own.
+ */
+export function joinViewTransition(update: () => void): void {
+  if (taskTransition?.acceptingUpdates === true) {
+    taskTransition.updates.push(update);
+    return;
+  }
+  update();
 }

@@ -5,10 +5,10 @@
 // (only the fields it states); nested objects (`reasoning`, `output`, `context`, `turns`, `tools`) merge one level deep;
 // arrays replace — and so does `sampling`: it is the STATED SET of knobs a tier vouches for (§8.7 step 2:
 // absent ⇒ not honoured; D68: absence is the fail-closed truth), and a patch grammar cannot express a measured
-// ABSENCE. Founding case (inference audit B3, measured 2026-09-20 `gen-1789884252-n94Ebcm1uMVMG1XhxsbB`):
-// OpenRouter's catalog ADVERTISES `temperature` for anthropic/claude-opus-5 and strips it upstream, so the
-// dated measured `{}` must beat the advertised range — under a one-level merge `{...advertised, ...{}}` never
-// could. The same rule makes a connection's `declared.sampling` the WHOLE list it checkboxes.
+// ABSENCE. The case that fixes the rule: OpenRouter's catalog ADVERTISES `temperature` for
+// anthropic/claude-opus-5 and strips it upstream, so the dated measured `{}` must beat the advertised range —
+// under a one-level merge `{...advertised, ...{}}` never could. The same rule makes a connection's
+// `declared.sampling` the WHOLE list it checkboxes.
 
 import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability, ResolvedWarning } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
@@ -192,16 +192,19 @@ function synthesizeRerank(evidence: Evidence): SynthesizedCapability {
   for (const row of evidence.curated ?? []) {
     capability = mergeFlat(capability, row.rerank);
   }
-  capability = mergeFlat(capability, evidence.advertised as Partial<RerankCapability> | undefined);
+  const advertised = evidence.advertised as Partial<RerankCapability> | undefined;
+  capability = mergeFlat(capability, advertised);
   const measuredRows = (evidence.measured ?? []).map((row) => row.rerank).filter((row): row is Patch<RerankCapability> => row !== undefined);
   for (const row of measuredRows) {
     capability = mergeFlat(capability, row);
   }
   const declared = evidence.declared?.rerank;
   capability = mergeFlat(capability, declared);
-  const stated =
-    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.rerank?.maxInputTokens !== undefined) ||
-    declared?.maxInputTokens !== undefined;
+  // As for an embedder: the tier whose pair window won the fold decides whether it is stated or a floor.
+  const windowSetters = [...(evidence.curated ?? []).map((row) => row.rerank), advertised, ...measuredRows, declared].filter(
+    (patch) => patch?.maxInputTokens !== undefined,
+  );
+  const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   const { windowEstimated: _dropped, ...merged } = capability;
   const rest = { ...merged, maxInputTokens: Math.max(merged.maxInputTokens, RERANK_MIN_WINDOW_TOKENS) };
   return {

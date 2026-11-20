@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull, notExists, or, sql } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
 type PresetRow = typeof presets.$inferSelect;
@@ -159,7 +159,7 @@ export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patc
     // An ABSENT row (missing, or not the caller's) has no blob to lose — the UPDATE below simply matches
     // nothing and returns undefined, which is this function's existing not-found contract.
     if (row !== undefined) {
-      requireIntactStoredConfig(promptConfigConfig.parseOutcome(row.config, row.schemaVersion), `presets.config for ${id}`);
+      requireIntactStoredConfig(promptConfigConfig.parseOutcome(row.config, row.schemaVersion), `presets.config for ${id}`, STORED_CONFIG_REFUSALS.overwrite);
     }
   }
   const updated = await db

@@ -6,7 +6,9 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { DROP_REASON_COPY } from "../../../../../packages/client/src/features/refinery/lib/reason-copy.ts";
+import { DROP_REASON_COPY } from "#client/features/refinery/lib/reason-copy.ts";
+import { REFINERY_KEEP_CLEARING_VERB, REFINERY_REOPEN_VERB, REFINERY_SHOW_CHANGE_TAIL } from "#client/features/refinery/lib/refinery-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -61,11 +63,13 @@ for (const regime of REGIMES) {
       );
       await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: regime.width, appearance: regime.appearance });
       // The queue names its targets in its own words; the buttons are found by those words, read from the page.
-      await expect(page.getByRole("button", { name: / show this change$/u }).first()).toBeVisible();
-      const target = ((await page.getByRole("button", { name: /^Keep \(empties field\) /u }).textContent()) ?? "").replace(/^Keep \(empties field\) /u, "");
-      const keep = page.getByRole("button", { name: `Keep (empties field) ${target}`, exact: true });
-      const discard = page.getByRole("button", { name: `Discard ${target}`, exact: true });
-      const opener = page.getByRole("button", { name: `${target} show this change`, exact: true });
+      await expect(page.getByRole("button", { name: new RegExp(` ${RegExp.escape(REFINERY_SHOW_CHANGE_TAIL)}$`, "u") }).first()).toBeVisible();
+      const target = (
+        (await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_KEEP_CLEARING_VERB)} `, "u") }).textContent()) ?? ""
+      ).replace(new RegExp(`^${RegExp.escape(REFINERY_KEEP_CLEARING_VERB)} `, "u"), "");
+      const keep = page.getByRole("button", { name: `${REFINERY_KEEP_CLEARING_VERB} ${target}`, exact: true });
+      const discard = page.getByRole("button", { name: `${DIALOG_VERBS.discard} ${target}`, exact: true });
+      const opener = page.getByRole("button", { name: `${target} ${REFINERY_SHOW_CHANGE_TAIL}`, exact: true });
       const row = keep.locator("..");
       await expect(row.getByText(DROP_REASON_COPY.diverged_since_session.chip, { exact: true })).toBeVisible();
       const geometry = await actionGroupGeometry(row, [opener, discard, keep]);
@@ -82,7 +86,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Tab");
       await expect(keep).toBeFocused();
       await page.keyboard.press("Enter");
-      const reopen = page.getByRole("button", { name: `Reopen ${target}`, exact: true });
+      const reopen = page.getByRole("button", { name: `${REFINERY_REOPEN_VERB} ${target}`, exact: true });
       await expect(reopen).toBeVisible();
       expect((await actionGroupGeometry(reopen.locator(".."), [opener, reopen])).inlineOverflow).toBeLessThanOrEqual(1);
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([null, true]);

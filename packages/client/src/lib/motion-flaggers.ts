@@ -29,10 +29,11 @@
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
-import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
+import type { MotionAllowance } from "@orb/kit/motion-allowance";
+import { COMPOSITOR_SAFE_PROPS, motionAllowanceOf } from "@orb/kit/motion-allowance";
 import { logClock } from "./log-clock.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
-import { animatedProperties, animationRecordOf, COMPOSITOR_SAFE_PROPS, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
+import { animatedProperties, animationRecordOf, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";
@@ -209,6 +210,12 @@ function isInteractiveStateColourChange(el: Element, props: readonly string[]): 
   return interactiveColourSurfaces.has(el);
 }
 
+// The console sentence for an animation an allowance admits: a raise with facts, not a budget verdict.
+const ALLOWANCE_DETAIL: Record<MotionAllowance, (properties: string) => string> = {
+  "library-lifecycle": (properties) => `Base UI lifecycle ${properties} — the ratified panel-height allowance (guide §4.2 item 3), not a §3.7 violation`,
+  "scroll-driven": (properties) => `scroll-driven ${properties} — it moves only with its scroller (ui-platform-rulings §8.4), not a §3.7 violation`,
+};
+
 /** Classify every animation currently attached to `el` and flag the dirty ones. Runs at animation START
  *  (see the header): a 130ms transition is over before any sampler could see it. */
 function flagDirtyAnimationsOn(el: Element): void {
@@ -242,15 +249,16 @@ function flagDirtyAnimationsOn(el: Element): void {
     // facts with — `@orb/kit/motion-allowance`, one table, never a copy — so the two instruments can no
     // longer disagree about ratified behaviour. The raise still HAPPENS (the facts are the pull side's
     // evidence and a consumer must be free to apply a stricter policy); it just is not a budget verdict.
-    const sanctioned = isSanctionedLibraryAnimation(animation);
+    const allowance = motionAllowanceOf(animation);
     raise({
       tag: "anim",
       key: `${label}|${dirty.join(",")}`,
       offender: label,
-      detail: sanctioned
-        ? `Base UI lifecycle ${dirty.join(", ")} — the ratified panel-height allowance (guide §4.2 item 3), not a §3.7 violation`
-        : `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
-      overBudget: !sanctioned,
+      detail:
+        allowance === null
+          ? `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`
+          : ALLOWANCE_DETAIL[allowance](dirty.join(", ")),
+      overBudget: allowance === null,
       animation,
     });
   }

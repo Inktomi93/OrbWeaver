@@ -43,17 +43,20 @@
 // "ONE home — the list-row kebab, matching the characters/chats precedent". The same test kills this echo.
 // The two doors that survive are the row radio (list-side commitment) and the editor header's Activate.
 
-import type { PresetId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Circle, Download, Icon, Lock, TriangleAlert } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { MenuItem } from "@orb/ui/menu";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { PRESET_UNREADABLE_ROW_MARKER, ROW_EXPORT_NAME, timeLib, unreadableConfigCause } from "#lib";
+import { PRESET_BUILT_IN_SUBTITLE, presetActivateRowName } from "../lib/preset-names.ts";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
+import { PresetDeleteScripts } from "./preset-delete-scripts.tsx";
 
 /** How many §12.2 cluster slots THIS list reserves on every row — the state dot + the kebab, which is now
  *  EVERY row's cluster (the built-in carries both too), so the dot column lands at one x with no spacer.
@@ -81,7 +84,8 @@ export interface PresetLibraryRowProps {
   /** The row is the ACTIVE-for-generation preset (the built-in row ⇔ `defaultPresetId === null`). */
   readonly active: boolean;
   readonly onSelect: (id: PresetId) => void;
-  readonly onDelete: (id: PresetId) => Promise<void>;
+  /** Delete the preset and every script only it uses except those in `kept`. */
+  readonly onDelete: (id: PresetId, kept: ReadonlySet<RegexScriptId>) => Promise<void>;
   readonly onDuplicate: (id: PresetId) => void;
   /** Make THIS row the active-for-generation pick (§16 row 3 — the one `setDefault` mutation). */
   readonly onActivate: (id: PresetId) => void;
@@ -107,7 +111,16 @@ export function PresetLibraryRow({
 }: PresetLibraryRowProps): ReactElement {
   // ONE label in both states: the press only ever ACTIVATES, so a pressed-state name that promised an
   // un-activate would describe an action this control does not have. `aria-pressed` carries the state.
-  const activateLabel = `Activate ${preset.name} for generation`;
+  const activateLabel = presetActivateRowName(preset.name);
+  const [kept, setKept] = useState<ReadonlySet<RegexScriptId>>(new Set<RegexScriptId>());
+  const toggleKept = (id: RegexScriptId): void =>
+    setKept((now) => {
+      const next = new Set(now);
+      if (!next.delete(id)) {
+        next.add(id);
+      }
+      return next;
+    });
   const activate = (): void => {
     if (!active) {
       onActivate(preset.id);
@@ -164,7 +177,7 @@ export function PresetLibraryRow({
       }
       {...(preset.isSystemDefault
         ? {
-            subtitle: "Built-in default",
+            subtitle: PRESET_BUILT_IN_SUBTITLE,
             // THE BUILT-IN IS DUPLICABLE (side-eye 2026-08-19 P3). It was the one preset in the library you
             // could not copy: `actions` was withheld whole because the row is un-renameable and un-deletable,
             // so the Duplicate that has nothing to do with either went with them. The only copy path was
@@ -208,7 +221,8 @@ export function PresetLibraryRow({
               // (the regex list minted the omission). Nothing else about this row changes: Duplicate,
               // Delete and Export are lifecycle and stay list-side (O-16★).
               onDuplicate: (): void => onDuplicate(preset.id),
-              ...rowFocus.delete(preset.id, (): Promise<void> => onDelete(preset.id)),
+              ...rowFocus.delete(preset.id, (): Promise<void> => onDelete(preset.id, kept)),
+              deleteBody: <PresetDeleteScripts kept={kept} onToggle={toggleKept} presetId={preset.id} />,
               // G6: the single-preset export door. Its bytes are `buildPresetFile`'s — the same serde the
               // whole-profile bundle writes (the surface owns the download; this is just its home).
               menuItemsAfter: (

@@ -225,6 +225,8 @@ test("native connection corpus spends its recipes after legitimate memory and pe
     await using root = await createServerHarness(options);
     ownerId = root.ownerId;
     const caller = await root.internalCallerFor(ownerId);
+    // A row nothing describes reads the hosted catalog as it is created, so the catalog read after it is a memory hit.
+    wire.hostedCatalog();
     const connection = await caller.connection.create({
       providerId: "openrouter",
       credentialId: null,
@@ -232,8 +234,7 @@ test("native connection corpus spends its recipes after legitimate memory and pe
       model: CORPUS_CONNECTION_HOSTED_MODEL,
     });
     connectionId = connection.id;
-    expect(wire.requests).toHaveLength(0);
-    wire.hostedCatalog();
+    expect(wire.requests).toHaveLength(3);
     cold = await caller.connection.catalogModels({ connectionId });
     expect(cold).toMatchObject({
       listed: true,

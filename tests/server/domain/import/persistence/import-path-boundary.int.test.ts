@@ -54,7 +54,7 @@ test.for(HOSTILE_LEAVES)("a group chat named by $shape reads nothing outside the
   const preview = await dryRun(root, files);
 
   expect(preview.kinds.chats.total).toBe(0);
-  expect(preview.skipped.items.map((item) => item.source)).toContain(`${hostile}.jsonl`);
+  expect(preview.skipped.items.map((item) => item.source.path)).toContain(`${hostile}.jsonl`);
   expect(JSON.stringify(preview)).not.toContain(MARKER);
 
   await finish(root, await admit(root, files));
@@ -70,7 +70,7 @@ test("the preview answers the same for an outside file that exists and one that 
   const preview = await dryRun(root, profile(root, { "groups/g.json": groupFile([present, absent]) }));
 
   expect(preview.kinds.chats.total).toBe(0);
-  const reasons = new Map(preview.skipped.items.map((item) => [item.source, item.reason]));
+  const reasons = new Map(preview.skipped.items.map((item) => [item.source.path, item.reason]));
   expect(reasons.get(`${present}.jsonl`)).toBeDefined();
   expect(reasons.get(`${present}.jsonl`)).toBe(reasons.get(`${absent}.jsonl`));
 });

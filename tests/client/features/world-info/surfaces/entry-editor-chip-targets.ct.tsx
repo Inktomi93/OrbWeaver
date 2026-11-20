@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
+import { WORLD_INFO_KEYWORD_TRIGGERS_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -76,7 +77,7 @@ async function mountKeywordRow(
     entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
     context: false,
   });
-  const input = component.getByRole("combobox", { name: "Keyword triggers", exact: true });
+  const input = component.getByRole("combobox", { name: WORLD_INFO_KEYWORD_TRIGGERS_NAME, exact: true });
   for (const keyword of ["beacon", "lantern"]) {
     await input.fill(keyword);
     await input.press("Enter");

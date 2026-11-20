@@ -7,7 +7,7 @@
 // pane decomposed into sections owned by their READERS, and these tables belong to the chat-owned half. The
 // app-shell-owned half (elevation/surface texture/blur surfaces/background) lives at
 // `features/app-shell/lib/appearance-select-items.ts` — two features, two tables, no shared drawer.
-// `DENSITY_ITEMS` still homes at `#lib` (three features render it); `CHAT_STYLE_ITEMS` came back HERE when
+// `DENSITY_ITEMS` homes with app-shell, its one reader; `CHAT_STYLE_ITEMS` came back HERE when
 // the theme editor's Message-style select was struck (TD/O-4) and chat became its only reader — a table
 // homes with its reader (D114), and the shared floor is for vocabulary that is actually shared.
 
@@ -75,6 +75,6 @@ export const AVATAR_RING_ITEMS: readonly SelectOption[] = [
 ] satisfies readonly { value: AppearanceSettings["avatarRing"]; label: string }[];
 
 export const MESSAGE_ACTIONS_ITEMS: readonly SelectOption[] = [
-  { value: "hover", label: "Reveal on hover" },
+  { value: "hover", label: "Reveal on hover, always shown on touch" },
   { value: "expanded", label: "Always visible" },
 ] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];

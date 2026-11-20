@@ -72,6 +72,11 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "memoryRecall":
       deps.stream.setRecallPhase(event.chatId, event.phase, event.count);
       return;
+    // The provider's first-token wait: the pending slot of THAT turn says the provider is starting, until its
+    // `started` or its first token. Invalidates nothing; no canon changed.
+    case "providerWait":
+      deps.stream.setProviderWait(event.chatId, event.turnId, event.phase);
+      return;
     case "reasoningStreamDone":
       return; // display affordance only; the slot keeps buffering until terminal
 
@@ -113,10 +118,16 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       }
       deps.invalidate(event);
       return;
+    // A held ghost whose row is deleted before the list showed it would stand for a reply that no longer exists.
+    case "messagesDeleted":
+      for (const messageId of event.messageIds) {
+        deps.stream.releaseHandover(event.chatId, messageId);
+      }
+      deps.invalidate(event);
+      return;
     case "messageEdited":
     case "messageHidden":
     case "variantSelected":
-    case "messagesDeleted":
     case "messagesReordered":
     case "reasoningEdited":
     case "reasoningCleared":

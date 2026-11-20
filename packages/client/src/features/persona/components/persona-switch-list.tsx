@@ -14,6 +14,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -23,9 +24,10 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
-import { rowActionSubject, rowQualifiers, timeLib } from "#lib";
+import { rowActionSubject, rowActionsName, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
+import { PERSONA_PIN_CARD_HERE_NAME, PERSONA_UNPIN_CARD_NAME, personaSwitchName } from "../lib/persona-copy.ts";
 import { PersonaCardPin } from "./persona-card-pin.tsx";
 import { PersonaClearDefaultItem } from "./persona-clear-default-item.tsx";
 import { PersonaCrown } from "./persona-crown.tsx";
@@ -171,7 +173,7 @@ function SwitchRow({
       <PersonaCrown isDefault={isDefault} onClear={onClearDefault} onSet={onSetDefault} subject={subject} {...tabProps} />
       <EditDoor personaId={persona.id} presentation={presentation} subject={subject} tabIndex={tabIndex} />
       <Row align="center" className="relative shrink-0" hiddenAt="fine">
-        <RowActionsMenu label={`Actions for ${subject}`} {...(tabIndex === undefined ? {} : { triggerTabIndex: tabIndex })}>
+        <RowActionsMenu label={rowActionsName(subject)} {...(tabIndex === undefined ? {} : { triggerTabIndex: tabIndex })}>
           {presentation === "bar" ? (
             <PopoverClose render={<MenuItem onClick={(): void => openPersonaEditor(persona.id)}>Edit</MenuItem>} />
           ) : (
@@ -203,7 +205,7 @@ function SwitchButton({
   return (
     <Button
       aria-current={isPlaying ? "true" : undefined}
-      aria-label={isPlaying ? `${subject}, current persona` : `Switch to ${subject}`}
+      aria-label={personaSwitchName(subject, isPlaying)}
       placed="fill"
       data-selected={isPlaying ? "" : undefined}
       data-switch-row-button=""
@@ -249,9 +251,9 @@ function RoomGlyphs({
 /** The coarse-pointer twin of the host's 📌 toggle. */
 function CardPinMenuItem({ persona, room }: { readonly persona: PersonaListItem; readonly room: SwitchRoom }): ReactElement {
   return persona.id === room.cardPinId ? (
-    <MenuItem onClick={(): void => room.onCardPin(null)}>Unpin card</MenuItem>
+    <MenuItem onClick={(): void => room.onCardPin(null)}>{PERSONA_UNPIN_CARD_NAME}</MenuItem>
   ) : (
-    <MenuItem onClick={(): void => room.onCardPin(persona)}>Pin card here</MenuItem>
+    <MenuItem onClick={(): void => room.onCardPin(persona)}>{PERSONA_PIN_CARD_HERE_NAME}</MenuItem>
   );
 }
 
@@ -275,7 +277,7 @@ function EditDoor({
   readonly presentation: ChromePresentation;
   readonly tabIndex: -1 | undefined;
 }): ReactElement {
-  const label = `Edit ${subject}`;
+  const label = editActionName(subject);
   const door = (
     <Button
       aria-label={label}

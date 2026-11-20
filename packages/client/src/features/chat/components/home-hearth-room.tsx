@@ -69,6 +69,7 @@ import { useId } from "react";
 import { TrailingArrow } from "#components";
 import { useReturnedRow } from "../hooks/use-returned-row.ts";
 import { characterCredit, chatSummaryRowView } from "../lib/chat-summary-row.ts";
+import { homeResumeChatName } from "../lib/chat-surface-names.ts";
 
 type HearthChat = Parameters<typeof chatSummaryRowView>[0];
 
@@ -110,7 +111,7 @@ export function HomeHearthRoom({
       // same promise the visible "Resume →" affordance makes, which is also what keeps voice control
       // working (WCAG 2.5.3: the spoken name contains the read label).
       aria-describedby={creditRepeatsTitle ? scentId : `${scentId} ${creditId}`}
-      aria-label={`Resume ${title}`}
+      aria-label={homeResumeChatName(title)}
       // A REAL BUTTON, not a `div[role=button]` (side-eye rail-home P3-4, 2026-08-22). The synthesized pair
       // was VERIFIED WORKING before the finding was filed — Enter and Space both resumed the room — so this
       // is not a repair, it is the arm that makes the behaviour unregressable: `Card interactive` gets
@@ -162,7 +163,7 @@ export function HomeHearthRoom({
           token (`@orb/ui` styles/globals.css `[data-slot="art-bleed"]`), and its header states the contract
           from the other side. The prose is also better for it: 65ch is the low end of the design law's own
           reading band, not a concession. */}
-      <Stack className="relative min-inline-0" cap="readingMin" gap="row">
+      <Stack className="relative" minWidth="shrinks" cap="readingMin" gap="row">
         <Row gap="row">
           {/* CLAMPED, NEVER TRUNCATED (side-eye F7). At the 430px coarse mount `truncate` rendered
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed

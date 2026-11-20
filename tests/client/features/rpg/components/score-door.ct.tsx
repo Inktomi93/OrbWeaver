@@ -4,6 +4,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_CONTEXT_TAB_LABELS, RPG_ROLL_SCORES_NAME, RPG_SET_SCORES_NAME, RPG_STANDARD_ARRAY_NAME } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgRoomStory";
@@ -31,8 +32,8 @@ test("the score door opens the viewer's own sheet with the score controls on it"
   });
   await mount<typeof RpgRoomStory>(STORY, { chatId });
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  await page.getByRole("tab", { name: "Game", exact: true }).click();
-  await page.getByRole("button", { name: "Set character scores", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Roll 4d6 drop lowest", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Use standard array", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: RPG_CONTEXT_TAB_LABELS.game, exact: true }).click();
+  await page.getByRole("button", { name: RPG_SET_SCORES_NAME, exact: true }).click();
+  await expect(page.getByRole("button", { name: RPG_ROLL_SCORES_NAME, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: RPG_STANDARD_ARRAY_NAME, exact: true })).toBeVisible();
 });

@@ -1,7 +1,7 @@
 // `useSendAvailability` — the composer's honest-refusal pre-send gate (#54). Reads the chat's DETERMINISTIC
 // serveability verdict (`chat.checkSendAvailability`) and resolves it to a disabled-with-reason the Send
 // button + the guided fire actions share. ENGINE-AGNOSTIC: the reason copy adapts to the server's cause
-// (no-connection / endpoint-unreachable / runtime-missing / …), but the gate is one boolean.
+// (no-connection / endpoint-unreachable / runtime-missing / host_unavailable / …), but the gate is one boolean.
 //
 // Freshness: the verdict tracks a DETERMINISTIC-but-not-bus-driven fact (an engine being enabled or coming
 // up, a connection being configured). It carries a modest `staleTime` (so it isn't re-fetched on every
@@ -11,21 +11,24 @@
 // window in which the pre-existing provider error still catches a truly-doomed turn honestly.
 //
 // A DRAFT (null chatId) or an unresolved read is NEVER refused — the gate blocks ONLY on a resolved
-// `available:false`. A draft's first send is what commits the chat; refusing before we know the verdict
-// would break the happy path on every fresh chat.
+// `available:false`, or on a room whose own read has failed (`room-read-failed`: a send would be hidden under the failure
+// plate). A draft's first send is what commits the chat; refusing before we know the verdict would break the happy path on
+// every fresh chat.
 
-import type { SendAvailability, UnavailableCause } from "@orb/contracts/inference";
+import type { RoomSendAvailability } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useGatedQuery, useSendAvailabilityRead, useTRPC } from "#data";
-import { sendUnavailableReason } from "#lib";
+import { roomRosterOptions, useGatedQuery, useSendAvailabilityRead, useTRPC } from "#data";
+import type { SendRefusalCause } from "#lib";
+import { ROOM_READ_FAILED_CAUSE, sendUnavailableReason } from "#lib";
 import { sendRefusalKey } from "../lib/next-turn-line.ts";
 import { useCreditConnections } from "./use-credit-connections.ts";
+import { roomReadFailed } from "./use-room-read.ts";
 
 /** Unresolved reads do not refuse a send; a resolved refusal always carries its reason and cause. */
 export type SendGate =
   | { readonly unavailable: false; readonly reason: undefined; readonly cause: undefined; readonly failed: boolean }
   | { readonly unavailable: false; readonly reason: undefined; readonly cause: null; readonly failed: false }
-  | { readonly unavailable: true; readonly reason: string; readonly cause: UnavailableCause; readonly failed: false };
+  | { readonly unavailable: true; readonly reason: string; readonly cause: SendRefusalCause; readonly failed: false };
 
 /** The normalized refusal projected to controls without inventing a query outcome. */
 export type SendRefusal =
@@ -38,11 +41,22 @@ export function useSendAvailability(chatId: ChatId | null): SendGate {
   const { data, isError } = useSendAvailabilityRead(chatId);
   // Pin the verdict to its contract type — the gated read's inference can degrade `data` to
   // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
-  const verdict: SendAvailability | null | undefined = data;
+  const verdict: RoomSendAvailability | null | undefined = data;
   // The reason names the fix the next-turn line's door opens, so it reads the same room and connection list.
-  const chat = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chat = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
   const connections = useCreditConnections();
+  const refused = (cause: SendRefusalCause): SendGate => ({
+    unavailable: true,
+    reason: sendUnavailableReason(sendRefusalKey(cause, viewerIsHost, connections)),
+    cause,
+    failed: false,
+  });
+  // A room whose own read failed holds the send whatever the verdict says: the message would reach the server and stay hidden under the
+  // failure plate, so the sender would see nothing happen and send again. The plate's Retry loads the room and lifts the hold.
+  if (roomReadFailed(chat)) {
+    return refused(ROOM_READ_FAILED_CAUSE);
+  }
   // No verdict yet ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`. `!verdict` catches
   // both `undefined` (query in-flight) AND `null` (the tRPC no-data wire shape a CT stub yields).
   if (!verdict) {
@@ -51,6 +65,5 @@ export function useSendAvailability(chatId: ChatId | null): SendGate {
   if (verdict.available) {
     return { unavailable: false, reason: undefined, cause: null, failed: false };
   }
-  const reason = sendUnavailableReason(sendRefusalKey(verdict.cause, viewerIsHost, connections));
-  return { unavailable: true, reason, cause: verdict.cause, failed: false };
+  return refused(verdict.cause);
 }

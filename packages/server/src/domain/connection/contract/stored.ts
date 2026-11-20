@@ -16,6 +16,11 @@ const featuresSchema = declaredCapabilitySchema.shape.features.unwrap();
 const storedDeclaredSchema = declaredCapabilitySchema.extend({
   features: featuresSchema
     .extend({
+      // A declared path an earlier build stored before the plain-path parse reads as unset, so the row falls back to its
+      // provider's own path rather than failing to read. The sleep pair goes as one: half a pair serves nothing.
+      keyCheckPath: featuresSchema.shape.keyCheckPath.catch(undefined),
+      rerankPath: featuresSchema.shape.rerankPath.catch(undefined),
+      sleep: featuresSchema.shape.sleep.catch(undefined),
       concurrency: featuresSchema.shape.concurrency
         .unwrap()
         .extend({
@@ -35,7 +40,8 @@ function columnJson(text: string | null): unknown {
   return text === null ? null : JSON.parse(text);
 }
 
-/** Parse the stored row without rewriting bytes; only the documented old summarize cap is normalized. */
+/** Parse the stored row without rewriting bytes; only the old summarize cap and a declared path the parse now refuses
+ *  are normalized. */
 export function parseStoredConnection(row: StoredConnectionRow): UserConnection {
   try {
     const normalized = storedConnectionSchema.parse({

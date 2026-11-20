@@ -1,8 +1,7 @@
 // @orb/contracts/uploads — the ONE home for the deployment byte-cap catalog. Every upload boundary (the
 // HTTP asset/import/databank routes, the profile-dir + bundle import runners) and every client pre-check
-// derives its ceiling from HERE, so the server truth and the client hint can never drift into the invented
-// per-widget numbers this module was minted to kill (composer 20 MB, avatar 20 MB, background 30 MB, and a
-// hand-kept 256 MiB mirror — all replaced by a derive from the served catalog below).
+// derives its ceiling from HERE, so the server truth and the client hint cannot drift into invented
+// per-widget numbers.
 //
 // Two shapes ship from here:
 //   • the raw byte constants (server routes + import runners import them directly);
@@ -36,12 +35,16 @@ const IMPORT_TREE_FILE_MIB = 64;
  *  of the two wins); non-image kinds keep this route cap. */
 export const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MIB * BYTES_PER_MIB;
 
-/** A single databank source document (txt/md/pdf/html). The LEAN 20 MB upload cap;
+/** A single databank source document (txt/md/pdf/html). The 20 MB upload cap;
  *  also the store's `maxBytes` belt on the CAS write. */
 export const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MIB * BYTES_PER_MIB;
 
 /** The databank multipart upload route: the server registers it and the client posts the picked file to it. */
 export const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
+
+/** The multipart field the single-file upload routes read the picked file from (assets, databank, the card, chat and
+ *  card-book import doors), and the client appends it under. */
+export const UPLOAD_FILE_FIELD = "file";
 
 // ── The import family (a portability bundle / bare card → /api/import + the bundle runner) ─────────────
 /** The per-request cap for an import the server holds IN MEMORY (256 MiB): a bare card, a chat file, a
@@ -65,7 +68,7 @@ export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_DECOMPRESSED_MIB * BYTES_PER
  *  happens to be an archive (epub is a zip of XHTML; the loader unzips it). The route caps the COMPRESSED
  *  body at {@link DATABANK_UPLOAD_MAX_BYTES}, and zip amplification means a fully compliant 20 MiB upload
  *  can still expand without bound — the loader's per-ENTRY cap refuses one bomb but sums nothing, so N legal
- *  entries walked straight past it.
+ *  entries sum straight past it.
  *
  *  10× the upload cap, and deliberately far tighter than the import family's aggregate ({@link
  *  IMPORT_MAX_DECOMPRESSED_BYTES}, 10 GiB): that belt guards a DISK-STAGED backup, while an
@@ -83,6 +86,29 @@ export const IMPORT_TREE_MAX_FILE_BYTES = IMPORT_TREE_FILE_MIB * BYTES_PER_MIB;
 
 /** The direct profile-tree entry ceiling, aligned with the archive codec's house entry cap. */
 export const IMPORT_TREE_MAX_FILES = 50_000;
+
+// ── The tRPC family (a JSON body → /api/trpc) ──────────────────────────────────────────────────────────
+// The mount's body cap sits above the largest text a procedure admits, so each procedure's own input schema is the
+// limit a person meets and this one only bounds a hostile body.
+const TRPC_BODY_MIB = 32;
+
+/** The byte cap on one tRPC request body: the server's mount refuses a larger body with a bare 413, and the client
+ *  names this number in the message it shows for that answer. */
+export const TRPC_BODY_MAX_BYTES = TRPC_BODY_MIB * BYTES_PER_MIB;
+
+/** The response header the mount's own 413 carries, holding {@link TRPC_BODY_MAX_BYTES} in bytes. A 413 without it came
+ *  from something in front of the app, whose limit the app does not know, so the client names a number only for this one. */
+export const TRPC_BODY_LIMIT_HEADER = "x-orb-body-limit";
+
+/** The character cap each file-text import procedure's input admits (`fileText`, measured as a JS string length).
+ *  The server schemas read these and the client checks a picked file's text against the same number before it sends. */
+export const IMPORT_FILE_TEXT_MAX_CHARS = {
+  preset: 8_000_000,
+  worldBook: 8_000_000,
+  persona: 2_000_000,
+  theme: 1_000_000,
+  regexScript: 200_000,
+} as const;
 
 /** The client-served deployment byte caps — the honest upper bounds the client pre-checks + dropzone hints
  *  derive from (a deployment fact, served on `/api/auth/config`). The image cap is the EFFECTIVE ceiling for

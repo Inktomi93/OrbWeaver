@@ -8,7 +8,7 @@
 // giving side's checkbox label only if they were the one giving.
 //
 // THE COUNTS ARE THE NOTIFICATION'S, NOT A SECOND ASK. `payload.offer` is frozen at nominate by the same
-// resolvers the accept executes (`domain/chat/substrate/handoff-copy.previewHandoffCopyPlan`), so this
+// resolvers the accept executes (`domain/chat/verbs/participants.previewHandoffCopyPlan`), so this
 // surface renders a number rather than deriving one — there is no client-side query here to disagree with
 // the server, and no in-flight state to flash.
 //
@@ -27,9 +27,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
+import { HANDOFF_ACCEPT_CONFIRM_TITLE, HANDOFF_NOTHING_COPIED_DESCRIPTION } from "../lib/notifications-copy.ts";
 
 /** `n` of a thing, in the reader's words — the plural is spelled here so no line has to carry an `s` in a
  *  template. */
@@ -89,7 +90,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
     // not one transaction, and a failed CLEANUP must never re-open a decision that already succeeded (a
     // second accept can only fail). The mutation carries its own errorToast, which is the surface for it —
     // the `.catch` here only keeps a rejected cleanup from unhandling itself into the console.
-    void dismiss.mutateAsync({ notificationId }).catch(() => undefined);
+    void dismiss.mutateAsync({ notificationId }).catch(rethrowUnlessTrpcFailure);
   };
 
   return (
@@ -113,8 +114,8 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
       confirmLabel={DIALOG_VERBS.accept}
       description={
         lines.length === 0
-          ? "You become the host of this chat. Nothing is copied into your library."
-          : "You become the host of this chat, and these copies land in your library. They are yours to edit or delete afterwards. The current host keeps their originals."
+          ? HANDOFF_NOTHING_COPIED_DESCRIPTION
+          : "You become the host of this chat, and these copies land in your library. They are yours to edit or delete afterwards. The current host keeps their originals, and their documents leave the chat with them."
       }
       onConfirm={onConfirm}
       onOpenChange={(next): void => {
@@ -123,7 +124,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
         }
       }}
       open={true}
-      title="Accept hosting this chat?"
+      title={HANDOFF_ACCEPT_CONFIRM_TITLE}
     />
   );
 }

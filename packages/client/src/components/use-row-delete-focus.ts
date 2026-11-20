@@ -19,8 +19,10 @@
 // while it holds focus without its Back, because it was deleted elsewhere, asks the same way (`useReturnToRowOnClose`).
 //
 // Gone means the list's root, never the page: a row that held focus, or that a Back is waiting for, and leaves the list for
-// any reason (a delete here or elsewhere, a filter, a refetch that drops a stale row) hands focus to the list's root.
+// any reason (a delete here or elsewhere, a filter, a refetch that drops a stale row) hands focus to the list's root. The root is
+// a focus target that draws no ring of its own, so the landing marks it (`FOCUS_LANDING_ATTRIBUTE`) and it draws one while it holds focus.
 
+import { FOCUS_LANDING_ATTRIBUTE } from "@orb/ui/lib";
 import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import type { RefCallback, RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
@@ -113,6 +115,19 @@ function canFocusWithin(root: HTMLElement | null): boolean {
   return root !== null && root.closest("[inert]") === null && root.getClientRects().length > 0;
 }
 
+// The mark lasts while the root holds focus; a root that cannot take focus (inert, hidden) never blurs, so it is cleared at once.
+function landOnRoot(root: HTMLElement | null): void {
+  if (root === null) {
+    return;
+  }
+  root.setAttribute(FOCUS_LANDING_ATTRIBUTE, "");
+  root.addEventListener("blur", () => root.removeAttribute(FOCUS_LANDING_ATTRIBUTE), { once: true });
+  root.focus();
+  if (document.activeElement !== root) {
+    root.removeAttribute(FOCUS_LANDING_ATTRIBUTE);
+  }
+}
+
 function bodyHoldsFocus(): boolean {
   return document.activeElement === document.body;
 }
@@ -143,12 +158,12 @@ export function useRowDeleteFocus(
     shown.current = keys;
     const lost = followed.current?.key;
     if (lost !== undefined && !keys.includes(lost) && bodyHoldsFocus()) {
-      listRootRef.current?.focus();
+      landOnRoot(listRootRef.current);
       endFollow(followed);
     }
     const asked = returning.current?.key;
     if (asked !== undefined && seen.current.has(asked) && !keys.includes(asked) && returnMayTakeFocus()) {
-      listRootRef.current?.focus();
+      landOnRoot(listRootRef.current);
       endFollow(returning);
     }
     for (const key of keys) {
@@ -166,7 +181,7 @@ export function useRowDeleteFocus(
         // The row mounts as the window reaches it, and its body ref takes focus then.
         windowRef?.current?.scrollToKey(key);
       } else {
-        listRootRef.current?.focus();
+        landOnRoot(listRootRef.current);
         endFollow(returning);
       }
     };
@@ -234,10 +249,12 @@ export function useRowDeleteFocus(
           // the rows has detached every body ref by the time the dialog unmounts and reattaches them only after.
           queueMicrotask((): void => {
             const chosen = mine.neighbours.find((neighbour) => bodies.current.has(neighbour));
-            (chosen === undefined ? listRootRef.current : bodies.current.get(chosen))?.focus();
-            if (chosen !== undefined) {
-              follow(chosen);
+            if (chosen === undefined) {
+              landOnRoot(listRootRef.current);
+              return;
             }
+            bodies.current.get(chosen)?.focus();
+            follow(chosen);
           });
           return false;
         },

@@ -37,6 +37,15 @@ import { useState } from "react";
 import type { StatusVocabulary } from "#components";
 import { StatusChip } from "#components";
 import { DIALOG_VERBS, testId } from "#lib";
+import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
+import {
+  REFINERY_CONFLICT_PANE_LABELS,
+  REFINERY_GREETING_ADDED_NOTE,
+  REFINERY_RECONFIRM_NOTE,
+  REFINERY_REOPEN_VERB,
+  REFINERY_SHOW_CHANGE_TAIL,
+  refineryKeepVerb,
+} from "../lib/refinery-names.ts";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { reviewTargetLabel } from "../lib/review-entries.ts";
 import { RefinerySentenceChip } from "./refinery-chip.tsx";
@@ -66,7 +75,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
   if (isAppendedRewrite(entry)) {
     // The ADDED arm: `after` alone, so the primitive renders its Added state panel in the before slot
     // instead of a fabricated empty pane. Nothing can have diverged — the slot has no history to move.
-    return { label, after: entry.text, stateNote: "A new greeting is added at the end. No existing greeting is touched." };
+    return { label, after: entry.text, stateNote: REFINERY_GREETING_ADDED_NOTE };
   }
   if (isClearedRewrite(entry)) {
     return { label, before: live, stateNote: clearNoteOf(entry.field) };
@@ -80,14 +89,14 @@ function blockOf(review: ReviewEntry): CompareBlock {
       body: (
         <Stack gap="tight">
           <Row align="center" wrap={true} gap="field">
-            <RefinerySentenceChip tone="warn">Changed since the session started</RefinerySentenceChip>
+            <RefinerySentenceChip tone="warn">{DROP_REASON_COPY.diverged_since_session.chip}</RefinerySentenceChip>
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
-              re-confirm which version wins: Keep uses the rewrite, Discard keeps the live text
+              {REFINERY_RECONFIRM_NOTE}
             </Text>
           </Row>
-          <ConflictPane label="Base: the session pin" text={original} />
-          <ConflictPane label="Live: changed under the session" text={live} />
-          <ConflictPane label="Rewrite: what Keep applies" text={entry.text} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.base} text={original} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.live} text={live} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.rewrite} text={entry.text} />
         </Stack>
       ),
     };
@@ -186,8 +195,9 @@ function QueueRow({
     >
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
-        // names line up in one column instead of the open row sitting 12px left of its siblings.
-        <Text inset="blockInline" truncate="fill" voice="label">
+        // names line up in one column instead of the open row sitting 12px left of its siblings. The field floor is
+        // the name's starting width, so in a narrow pane the chip wraps to its own line before the name clips.
+        <Text floor="field" grow={true} inset="blockInline" truncate={true} voice="label">
           {label}
         </Text>
       ) : (
@@ -197,15 +207,15 @@ function QueueRow({
           </Text>
           <Text as="span" className="sr-only">
             {" "}
-            show this change
+            {REFINERY_SHOW_CHANGE_TAIL}
           </Text>
         </Button>
       )}
-      {review.diverged && state !== "open" ? <RefinerySentenceChip tone="warn">Changed since the session started</RefinerySentenceChip> : null}
+      {review.diverged && state !== "open" ? <RefinerySentenceChip tone="warn">{DROP_REASON_COPY.diverged_since_session.chip}</RefinerySentenceChip> : null}
       {state === "undecided" ? null : <StatusChip size="compact" status={state} vocabulary={QUEUE_CHIP} />}
       {state === "kept" || state === "discarded" ? (
         <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>
-          Reopen
+          {REFINERY_REOPEN_VERB}
           <Text as="span" className="sr-only">
             {" "}
             {label}
@@ -223,7 +233,7 @@ function QueueRow({
           </Button>
           {/* The destructive-consent copy travels with the verb, not with the pane it was pressed in. */}
           <Button variant="outline" onClick={(): void => onDecide(true)} size="sm" wrap={true}>
-            {cleared ? "Keep (empties field)" : "Keep"}
+            {refineryKeepVerb(cleared)}
             <Text as="span" className="sr-only">
               {" "}
               {label}

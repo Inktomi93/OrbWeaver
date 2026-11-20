@@ -11,7 +11,7 @@ export interface CreateGameResult {
 
 /** THE HAND-DOOR VERDICT — the ERRORS-AS-DATA channel the input contract promises ("a bad path is
  *  errors-as-data, never a wire reject", `contracts/rpg/inputs.ts`). ONE shape for the three hand doors that
- *  can refuse legibly (`editSnapshot` · `patchActor` · `dismissActor` — R1), because a human at a keyboard
+ *  can refuse legibly (`editSnapshot` · `patchActor` · `dismissActor`), because a human at a keyboard
  *  reads the same sentence whichever door they used. The refusal classes:
  *    • an unknown PLANE — a top-level patch key outside `RPG_HAND_PATCH_PLANES` (the `{ambient: null}` class:
  *      a TRACKER-VIEW grouping addressed as if it were state), or an OP-SHAPED plane naming its verb;
@@ -22,12 +22,11 @@ export interface CreateGameResult {
  *  `reason` says which and why. `ok:true` means the write COMMITTED — never "the call arrived". */
 export type HandDoorResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
-/** THE RESYNC VERDICT (`resyncFromStory`, crunchy-cluster §1.3) — the HAND-DOOR grammar applied to the ONE
- *  host verb that spends real money on a model call. It used to return `void`, which made three very different
- *  endings render identically to the host: the panel rebuilt, the model found nothing to change, and the
- *  provider refused the call outright. The last one was LIVE on the default hosted backend — every resync 400'd
- *  inside the provider, the compose op swallowed it to an empty delta, and the client reported success (the
- *  banned silent fork, on a host door). The three endings are now distinct DATA:
+/** THE RESYNC VERDICT (`resyncFromStory`) — the HAND-DOOR grammar applied to the ONE
+ *  host verb that spends real money on a model call. `void` would render three very different
+ *  endings identically to the host: the panel rebuilt, the model found nothing to change, and the
+ *  provider refused the call outright. A host door must not report a silent success, so the three endings
+ *  are distinct DATA:
  *    • `{ok:true, rebuilt:true}`  — a reconciled snapshot was written (the panel moved);
  *    • `{ok:true, rebuilt:false}` — the round ran and re-derived nothing (an unchanged story: the idempotent
  *      second click, and the honest "there was nothing to fix");
@@ -37,11 +36,11 @@ export type HandDoorResult = { readonly ok: true } | { readonly ok: false; reado
 export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
 
 /** THE POPULATE VERDICT (`populateFromCharacter`) — the RESYNC grammar on the OTHER
- *  host verb that spends real money on a model call. It returned `void`, which is the same silent fork
- *  RESYNC-OR closed on its sibling: a card round that never RAN (the room connection didn't resolve, the wire
- *  has no structured writer, the provider refused the structured request — the live 400 on the default hosted
- *  backend) rendered byte-identically to a card that established nothing. The button settled, the panel did not
- *  move, and the host was told it worked. The three endings are now distinct DATA:
+ *  host verb that spends real money on a model call. `void` is the same silent fork: a card round that never
+ *  RAN (the room connection didn't resolve, the wire
+ *  has no structured writer, the provider refused the structured request) would
+ *  render byte-identically to a card that established nothing — the button settles, the panel does not
+ *  move, and the host is told it worked. The three endings are distinct DATA:
  *    • `{ok:true, populated:true}`  — at least one plane landed (a sheet field, or the snapshot half);
  *    • `{ok:true, populated:false}` — the round RAN and filled nothing: an empty card, or a sheet the fill rule
  *      fully absorbed because the host already wrote both fields (the idempotent second click);
@@ -58,7 +57,7 @@ export type PopulateResult = { readonly ok: true; readonly populated: boolean } 
  *  a clean promotion of a name the story never wrote. Empty `issues` is the clean mint (the ordinary case). */
 export type PromoteActorResult = { readonly ok: true; readonly issues: readonly string[] } | { readonly ok: false; readonly reason: string };
 
-/** `rollDice`'s baked outcome (§4.4) — rolled ONCE server-side (CSPRNG), the total + the per-die faces + the
+/** `rollDice`'s baked outcome — rolled ONCE server-side (CSPRNG), the total + the per-die faces + the
  *  composer stamp text the client inserts (`[dice: …]`). Zero state; seed-replay is rejected upstream. */
 
 export interface RollDiceResult {

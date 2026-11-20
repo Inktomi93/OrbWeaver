@@ -13,21 +13,29 @@
 // reroll refetch restores it. Continue still appends (its old text stays visible below its extension).
 
 import type { ChatId } from "@orb/kit/ids";
-import { useTurnSlot } from "#state";
+import { useHeldGhost, useTurnSlot } from "#state";
 
 /** The live turn's streamed token text for `chatId` — populated while `streaming`/`stopping` (mirrors
  *  `useGhostReasoning` below: the store keeps accumulating `text` through `stopping`, so the render
  *  side must keep reading it then too), "" while pending / off-turn. */
 export function useGhostText(chatId: ChatId | null): string {
   const slot = useTurnSlot(chatId);
-  return slot.phase === "streaming" || slot.phase === "stopping" ? slot.text : "";
+  const held = useHeldGhost(chatId);
+  return slot.phase === "streaming" || slot.phase === "stopping" ? slot.text : (held?.text ?? "");
 }
 
 /** The live turn's streamed reasoning text for `chatId` — populated while `streaming`/`stopping`
  *  (the phases that carry a `reasoning` field), "" otherwise (`pending` has no reasoning yet). */
 export function useGhostReasoning(chatId: ChatId | null): string {
   const slot = useTurnSlot(chatId);
-  return slot.phase === "streaming" || slot.phase === "stopping" ? slot.reasoning : "";
+  const held = useHeldGhost(chatId);
+  return slot.phase === "streaming" || slot.phase === "stopping" ? slot.reasoning : (held?.reasoning ?? "");
+}
+
+/** True while the live turn is still pending and the server said its provider has answered nothing for a while. */
+export function useGhostProviderWaiting(chatId: ChatId | null): boolean {
+  const slot = useTurnSlot(chatId);
+  return slot.phase === "pending" && slot.providerWaiting;
 }
 
 /** True while the live turn has NO answer token yet — the TTFT "thinking" window `<ReasoningBlock>`

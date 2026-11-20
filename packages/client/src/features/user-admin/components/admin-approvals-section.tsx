@@ -11,18 +11,19 @@
 import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useFirstBootRows } from "#components";
+import { MutedLine, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
+import { ADMIN_APPROVALS_NOTE } from "../lib/user-admin-names.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -55,13 +56,11 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
     <Section container={true} divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
         <Text cap="prose" voice="label" ink="muted">
-          Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.
+          {ADMIN_APPROVALS_NOTE}
         </Text>
 
         {pending.length === 0 ? (
-          <Text voice="gloss" data-testid={testId("adminApprovalsEmpty")}>
-            No accounts awaiting approval.
-          </Text>
+          <MutedLine data-testid={testId("adminApprovalsEmpty")}>No accounts awaiting approval.</MutedLine>
         ) : (
           <Stack gap="field">
             {pending.map((user) => (
@@ -99,14 +98,14 @@ function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
       title={user.handle}
       subtitle={`Requested ${timeLib.formatRelative(user.createdAt)}`}
       actions={
-        <Row align="center" gap="row">
+        <>
           <Badge tone="warning" variant="solid">
             Pending
           </Badge>
           <Button size="sm" data-testid={testId("adminApproveButton")} disabled={setEnabled.isPending} onClick={approve}>
             Approve
           </Button>
-        </Row>
+        </>
       }
     />
   );

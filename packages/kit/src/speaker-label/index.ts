@@ -47,10 +47,29 @@ export const NAME_END_BOUNDARY = `(?![${NAME_WORD_CHARS}])`;
  *  bytes — callers wrap it `(?:…)` (non-capturing) or `(…)` (the one backref-capturing use). */
 const EMPHASIS_ALT = "\\*\\*|\\*|__|_";
 
+/** A stretch of the parsed content, from its first character to just past its last. */
+export interface OpaqueRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+// Whether an offset, asked in rising order, sits outside every range of `opaque` (ascending, disjoint).
+function outsideOpaque(opaque: readonly OpaqueRange[]): (index: number) => boolean {
+  let next = 0;
+  return (index) => {
+    while ((opaque[next]?.end ?? Number.POSITIVE_INFINITY) <= index) {
+      next += 1;
+    }
+    return !((opaque[next]?.start ?? Number.POSITIVE_INFINITY) <= index);
+  };
+}
+
 export interface SpeakerSpan {
   /** `null` = no attributed speaker for this span (narrator / plain text). */
   readonly speaker: string | null;
   readonly text: string;
+  /** Where `text` begins in the parsed content; a consumed `<speaker>` tag sits between two spans. */
+  readonly start: number;
 }
 
 /** Splits a SETTLED message body on `<speaker>NAME</speaker>` markers (§12.4) into ordered
@@ -79,13 +98,18 @@ export interface SpeakerSpan {
  *    · the label TEXT STAYS in its span. It is real prose the reader already sees (unlike a `<speaker>`
  *      tag, which is invisible markup and IS consumed) — deleting it would drop the only non-color
  *      attribution a low-vision reader has, and would make the body change at stream-settle.
- *  A body with no tags and no matched label yields the byte-identical single `{speaker: null}` span. */
-export function parseSpeakerSpans(content: string, characterNames: readonly string[] = []): readonly SpeakerSpan[] {
-  const matches = [...content.matchAll(SPEAKER_TAG_PAIR)];
+ *  A body with no tags and no matched label yields the byte-identical single `{speaker: null}` span.
+ *
+ *  `opaque` names stretches read as one unit of markup (a panel the frame draws or holds whole, a stylesheet, a script;
+ *  `markupUnitRanges` in `#content`): a marker or a label inside one is that unit's text and splits nothing, so a
+ *  panel is never torn across two spans. The display parse passes them; the canon parse a reaction anchors to does not. */
+export function parseSpeakerSpans(content: string, characterNames: readonly string[] = [], opaque: readonly OpaqueRange[] = []): readonly SpeakerSpan[] {
+  const markerOutside = outsideOpaque(opaque);
+  const matches = [...content.matchAll(SPEAKER_TAG_PAIR)].filter((match) => markerOutside(match.index));
   if (matches.length === 0) {
     // No markers: the PLAIN-label grammar gets its turn (empty `characterNames` ⇒ the byte-identical no-op,
     // `text` === `content`, untouched).
-    return splitOnPlainLabels(content, characterNames);
+    return splitOnPlainLabels(content, characterNames, outsideOpaque(opaque));
   }
 
   const spans: SpeakerSpan[] = [];
@@ -94,7 +118,7 @@ export function parseSpeakerSpans(content: string, characterNames: readonly stri
     const matchIndex = match.index;
     // Preamble / inter-marker plain text (no attributed speaker) ahead of this marker.
     if (matchIndex > cursor) {
-      spans.push({ speaker: null, text: content.slice(cursor, matchIndex) });
+      spans.push({ speaker: null, text: content.slice(cursor, matchIndex), start: cursor });
     }
     const rawName = match[1]?.trim() ?? "";
     const textStart = matchIndex + match[0].length;
@@ -102,6 +126,7 @@ export function parseSpeakerSpans(content: string, characterNames: readonly stri
     spans.push({
       speaker: rawName.length > 0 ? rawName : null,
       text: content.slice(textStart, nextMatchIndex),
+      start: textStart,
     });
     cursor = nextMatchIndex;
   }
@@ -151,7 +176,7 @@ function insideCodeFence(text: string, index: number): boolean {
 
 /** Split a TAGLESS body on plain `Name:` labels (the grammar is documented on {@link parseSpeakerSpans}).
  *  No character names / no match ⇒ the byte-identical single `{speaker: null, text: content}` span. */
-function splitOnPlainLabels(content: string, characterNames: readonly string[]): readonly SpeakerSpan[] {
+function splitOnPlainLabels(content: string, characterNames: readonly string[], outside: (index: number) => boolean): readonly SpeakerSpan[] {
   const re = plainLabelRe(characterNames);
   const cuts: { readonly at: number; readonly speaker: string }[] = [];
   for (const match of re === null ? [] : content.matchAll(re)) {
@@ -159,20 +184,20 @@ function splitOnPlainLabels(content: string, characterNames: readonly string[]):
     // with the preceding span and the label itself opens this one.
     const at = content[match.index] === "\n" ? match.index + 1 : match.index;
     const speaker = match[1];
-    if (speaker !== undefined && !insideCodeFence(content, at)) {
+    if (speaker !== undefined && outside(at) && !insideCodeFence(content, at)) {
       cuts.push({ at, speaker });
     }
   }
   const [first] = cuts;
   if (first === undefined) {
-    return [{ speaker: null, text: content }];
+    return [{ speaker: null, text: content, start: 0 }];
   }
   const spans: SpeakerSpan[] = [];
   if (first.at > 0) {
-    spans.push({ speaker: null, text: content.slice(0, first.at) });
+    spans.push({ speaker: null, text: content.slice(0, first.at), start: 0 });
   }
   for (const [i, cut] of cuts.entries()) {
-    spans.push({ speaker: cut.speaker, text: content.slice(cut.at, cuts[i + 1]?.at ?? content.length) });
+    spans.push({ speaker: cut.speaker, text: content.slice(cut.at, cuts[i + 1]?.at ?? content.length), start: cut.at });
   }
   return spans;
 }

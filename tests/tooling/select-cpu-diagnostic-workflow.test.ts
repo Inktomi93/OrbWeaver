@@ -69,7 +69,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   expect(checkout?.uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/u);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with).toEqual({ ref: "${{ github.sha }}", "persist-credentials": false });
-  expect(setup?.uses).toBe("./.github/actions/setup");
+  expect(setup?.uses).toBe("$/.github/actions/setup");
   expect(setup?.with).toEqual({ browsers: "true" });
   expect(media?.run).toBe("bash scripts/ci/install-media.sh");
   expect(media?.["timeout-minutes"]).toBe(15);
@@ -86,7 +86,11 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
       expect(guard(upload?.if ?? "false", { cancelled: () => canceled, failure: () => failure })).toBe(!canceled);
     }
   }
-  expect(upload?.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+  const pinShape = /^actions\/upload-artifact@[0-9a-f]{40}$/u;
+  expect(pinShape.test("actions/upload-artifact@v7")).toBe(false);
+  expect(upload?.uses).toMatch(pinShape);
+  // The parsed yaml drops the version comment, so read it from the raw text.
+  expect(readFileSync(join(repoRoot, ".github/workflows/diagnostics.yml"), "utf8")).toContain(`uses: ${upload?.uses} # v`);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(upload?.with).toEqual({ name: "reports-e2e-startup-diagnostic-${{ matrix.project }}", path: "reports/\ntest-results/\n", "retention-days": 7 });
   expect(nonEmpty(job.steps).some((step) => step.name?.includes("ORB_CI_QUALIFICATION_GENERATION") === true)).toBe(false);

@@ -24,7 +24,6 @@ export interface ChatListRowProps {
   readonly chat: ChatSummaryItem;
   readonly selected: boolean;
   readonly onSelect: (chatId: ChatId) => void;
-  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   /** The row's resolved character seats (F7/D3) — 1 paints a portrait, 2+ an AvatarStack, 0 the blob. */
   readonly portraits: readonly ChatSeatPortrait[];
   /** The row's DISAMBIGUATOR, resolved by the surface across the whole list (`rowQualifiers`) — the stamp
@@ -44,7 +43,7 @@ export interface ChatListRowProps {
  *  has to land ahead of the click. */
 const HOVER_INTENT_DELAY_MS = 120;
 
-export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, portraits, qualifier, titleQualifier }: ChatListRowProps): ReactElement {
+export function ChatListRow({ actions, chat, selected, onSelect, portraits, qualifier, titleQualifier }: ChatListRowProps): ReactElement {
   // THE ROW WARMS THE ROOM IT OPENS (#1180, the chats-list twin of #1126/H13). `ChatCharacterBar` reads
   // `chat.getChat` non-suspending, so on a cold click it renders `null`, then appears once the roster
   // lands and pushes the transcript down by its own 40px plus the room stack's 12px gap — measured on
@@ -122,7 +121,6 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
               archived={chat.archived}
               chatId={chat.id}
               displayTitle={displayTitle}
-              onDeleted={onDeletedChat}
               rowName={rowName}
               starred={chat.starred}
               title={chat.title}

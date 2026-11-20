@@ -42,16 +42,20 @@ function mint(path: string, source: string, repoRoot: string): WriteOutcome {
   const formatted = formattedDoc(source);
   const refusals = pendingDocProblems([{ path, source: formatted }], repoRoot);
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   writeDoc(path, formatted, repoRoot);
-  return { written: [path, ...regenerateIndexes(repoRoot)], refusals: [] };
+  return { written: [path, ...regenerateIndexes(repoRoot)], created: [path], refusals: [] };
 }
 
 export function newAdr({ slug, title, content = {} }: NewDocInput<AdrSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
   const twin = governedPaths(repoRoot).find((candidate) => candidate.startsWith(DOC_TOOL_TREES.adr) && parseNumberedName(basenameOf(candidate))?.slug === slug);
   if (twin !== undefined) {
-    return { written: [], refusals: [`${twin}: an ADR with slug ${slug} exists — supersede it with pnpm doc status superseded ${twin} --by <new>`] };
+    return {
+      written: [],
+      created: [],
+      refusals: [`${twin}: an ADR with slug ${slug} exists — supersede it with pnpm doc status superseded ${twin} --by <new>`],
+    };
   }
   const path = `${DOC_TOOL_TREES.adr}${numberedName(nextAdrId(repoRoot), slug)}`;
   return mint(path, adrTemplate(titleFrom(slug, title), date, content), repoRoot);
@@ -60,7 +64,11 @@ export function newAdr({ slug, title, content = {} }: NewDocInput<AdrSectionFlag
 export function newPlan({ slug, title, rank, content = {} }: NewPlanInput, repoRoot = root, date = today()): WriteOutcome {
   const path = `${DOC_TOOL_TREES.plans}${slug}/${DESIGN_FILE}`;
   if (existsSync(join(repoRoot, DOC_TOOL_TREES.plans, slug))) {
-    return { written: [], refusals: [`${DOC_TOOL_TREES.plans}${slug}/: exists — edit ${path}, or delete a finished one with pnpm doc remove ${path}`] };
+    return {
+      written: [],
+      created: [],
+      refusals: [`${DOC_TOOL_TREES.plans}${slug}/: exists — edit ${path}, or delete a finished one with pnpm doc remove ${path}`],
+    };
   }
   return mint(path, planTemplate(titleFrom(slug, title), date, rank, content), repoRoot);
 }
@@ -71,7 +79,7 @@ export function newLaw({ slug, title }: NewDocInput<never>, repoRoot = root, dat
   const path = `${DOC_TOOL_TREES.law}${slug}.md`;
   const twin = governedPaths(repoRoot).find((candidate) => candidate.toLowerCase() === path.toLowerCase());
   if (twin !== undefined) {
-    return { written: [], refusals: [`${twin}: exists — edit it in place; law changes where it stands`] };
+    return { written: [], created: [], refusals: [`${twin}: exists — edit it in place; law changes where it stands`] };
   }
   return mint(path, lawTemplate(titleFrom(slug, title), date), repoRoot);
 }

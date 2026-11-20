@@ -14,8 +14,8 @@ import { isUnresolvableBinding } from "#primitives/embedding-generation";
 import type { EmbeddingRuntime } from "../contract/runtime-connection.ts";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "../contract/service.ts";
 
-/** The op's `opts` bag, read off the op so the shape has one home. */
-type ResolveOpts = Parameters<ResolveEmbeddingConnection>[3];
+/** The op's call bag, read off the op so the shape has one home. */
+type ResolveCall = Parameters<ResolveEmbeddingConnection>[2];
 
 function isResolvedTask<T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> {
   return candidate.task === task;
@@ -31,19 +31,19 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
   const executeEmbed = (
     encoderConnection: Resolved<"embed">,
     input: string | readonly string[],
-    opts?: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
+    opts: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
   ): Promise<EmbedResult> => {
     if (encoderConnection.capability.kind !== "embedding") {
       throw new Error("text embed connection has a non-embedding capability");
     }
-    const knobs = runtime.funnel.embed(opts ?? {}, encoderConnection.capability.embedding);
+    const knobs = runtime.funnel.embed(opts, encoderConnection.capability.embedding);
     return runtime.executor.embed({
       connection: encoderConnection,
       input,
       ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
-      ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
+      signal: opts.signal,
     });
   };
   // A stated instruction replaces the wire's cookbook default, so the capability gate has to run on this path too.
@@ -76,29 +76,21 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       return runtime.executor.imageEmbed({
         connection: generationConnection,
         input: honouredImageInput(input, generationConnection),
-        ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
+        signal: opts.signal,
       });
     },
   });
   // The overloads are the op's own: only an explicit id with no previewed connection can answer `null`.
-  function resolveConnection(ownerId: UserId, task: EmbeddingTask, connectionId?: undefined, opts?: ResolveOpts): Promise<EmbeddingConnectionSnapshot>;
   function resolveConnection(
     ownerId: UserId,
     task: EmbeddingTask,
-    connectionId: UserConnectionId,
-    opts: ResolveOpts & { readonly previewConnection: UserConnection },
+    call: ResolveCall & ({ readonly connectionId?: undefined } | { readonly connectionId: UserConnectionId; readonly previewConnection: UserConnection }),
   ): Promise<EmbeddingConnectionSnapshot>;
-  function resolveConnection(
-    ownerId: UserId,
-    task: EmbeddingTask,
-    connectionId: UserConnectionId | undefined,
-    opts?: ResolveOpts,
-  ): Promise<EmbeddingConnectionSnapshot | null>;
+  function resolveConnection(ownerId: UserId, task: EmbeddingTask, call: ResolveCall): Promise<EmbeddingConnectionSnapshot | null>;
   async function resolveConnection(
     ownerId: UserId,
     task: EmbeddingTask,
-    connectionId?: UserConnectionId,
-    opts?: ResolveOpts,
+    { signal, connectionId, previewConnection }: ResolveCall,
   ): Promise<EmbeddingConnectionSnapshot | null> {
     const principal = await principalOf(ownerId);
     let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
@@ -106,11 +98,12 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       outcome = await runtime.resolve({
         task,
         principal,
+        signal,
         ...(connectionId === undefined ? {} : { connectionId }),
-        ...(opts?.previewConnection === undefined ? {} : { previewConnection: opts.previewConnection }),
+        ...(previewConnection === undefined ? {} : { previewConnection }),
       });
     } catch (error) {
-      if (connectionId === undefined || opts?.previewConnection !== undefined || !isUnresolvableBinding(error)) {
+      if (connectionId === undefined || previewConnection !== undefined || !isUnresolvableBinding(error)) {
         throw error;
       }
       return null;

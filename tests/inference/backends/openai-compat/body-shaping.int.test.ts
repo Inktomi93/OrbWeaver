@@ -5,11 +5,17 @@ import { toolCallIdSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey, providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
+import { z } from "zod";
+import { PROVIDER_CACHE_EVENT } from "#inference/backends/http/provider-log.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
@@ -20,31 +26,44 @@ const USER_LINE: ChatHistoryMessage = { role: "user", content: [{ type: "text", 
 const ASSISTANT_OPENING: ChatHistoryMessage = { role: "assistant", content: [{ type: "text", text: "Once upon a" }] };
 
 interface Sent {
+  readonly url: string;
   readonly body: RecordedRequest["body"];
   readonly events: readonly ChatEvent[];
+  /** The root ring's log lines at turn end — the `provider.*` receipts ride them. */
+  readonly receipts: readonly string[];
 }
 
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
   row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: ProviderId; readonly model?: string },
-  options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[] } = {},
+  options: {
+    readonly params?: UserIntent;
+    readonly history?: readonly ChatHistoryMessage[];
+    readonly responseFormat?: ResponseFormat;
+    readonly prefillReasoning?: string;
+    readonly cacheBreakpointDepth?: number;
+  } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   using server = openAiServer(recorded, () => ({}));
-  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  await using root = await createRuntimeRoot({ providerFetch: server.execute, logLevel: "debug" });
   const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "chat-completions",
     connection,
     params: options.params ?? {},
     systemPrompt: { static: SYSTEM_TEXT, dynamic: "" },
     history: options.history ?? [USER_LINE],
+    ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
+    ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
+    ...(options.cacheBreakpointDepth === undefined ? {} : { cacheBreakpointDepth: options.cacheBreakpointDepth }),
   });
   const [first] = recorded;
   if (first === undefined) {
     throw new Error("the turn reached no endpoint");
   }
-  return { body: first.body, events: turn.events };
+  return { url: first.url, body: first.body, events: turn.events, receipts: root.observability.logLines(1000) };
 }
 
 function ignoredKeys(events: readonly ChatEvent[]): string[] {
@@ -336,6 +355,16 @@ function wireRows(body: RecordedRequest["body"]): readonly Record<string, unknow
   return rows.flatMap((row) => (isPlainObject(row) ? [row] : []));
 }
 
+/** The `function` block of the planned tool at `index`, narrowed by the guards like `wireRows`, never asserted. */
+function wireTool(body: RecordedRequest["body"], index: number): Record<string, unknown> | undefined {
+  const tools = body["tools"];
+  if (!Array.isArray(tools)) {
+    throw new Error("the endpoint received no tools array");
+  }
+  const tool = tools[index];
+  return isPlainObject(tool) && isPlainObject(tool["function"]) ? tool["function"] : undefined;
+}
+
 test("participant names, a prior reply's image and the image detail ride the wire rows, and a messages array the user set takes none of them", async () => {
   const picture = "data:image/png;base64,AAAA";
   const history: ChatHistoryMessage[] = [
@@ -377,6 +406,22 @@ test("participant names, a prior reply's image and the image detail ride the wir
 const CACHEABLE = generationCapability({
   turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
 });
+// The curated openai rows' spelling for a user who TURNED explicit caching on: the default-enabled fact
+// (resolve-task reads it into `promptSettings.enabled`; the curated rows ship it `false`) and a placement
+// floor lowered off the fixture's tiny rows — the placement arithmetic, not the token estimate, is what
+// the receipt arm pins.
+const OPENAI_SPELLING = generationCapability({
+  turns: {
+    assistantPrefill: false,
+    midConversationSystem: false,
+    historySystemRows: false,
+    roleHandlingFloor: "strict",
+    explicitPromptCache: true,
+    promptCacheFormat: "openai-breakpoint",
+    promptCacheDefaultEnabled: true,
+    cacheMinTokens: 1,
+  },
+});
 const ANTHROPIC_ON_OPENROUTER = { providerId: providerIdSchema.parse("openrouter"), model: "anthropic/claude-sonnet-4.5", capability: CACHEABLE } as const;
 const MARKED = { cacheBreakpoint: true } as const;
 
@@ -404,6 +449,36 @@ test("an OpenRouter cache marker rides its row's last text part, and a row with 
   expect(contentOf(moved.body, 1)).toEqual([expect.objectContaining({ text: "One.", ["cache_control"]: expect.anything() })]);
   expect(wireRows(moved.body)[2]).not.toHaveProperty("cache_control");
   expect(wireRows(moved.body)[2]?.["content"]).toBeNull();
+});
+
+/** The last `provider.*` line of this event the root ring holds, fields parsed off the JSON line. */
+function lastReceipt(lines: readonly string[], event: string): JsonObject {
+  const matching = lines.filter((line) => line.includes(`"event":"${event}"`));
+  const last = matching.at(-1);
+  if (last === undefined) {
+    throw new Error(`no ${event} line in the root ring (${lines.length} lines captured)`);
+  }
+  return jsonObjectSchema.parse(JSON.parse(last));
+}
+
+// The `provider.cache` receipt used to be gated on `dialect === "openrouter"` while the PLACER is gated on
+// the resolved plan — so exactly the rows the curator spells `prompt_cache_breakpoint` themselves (the
+// curated openai rows) placed real breakpoints, had the span count them, and emitted no log line. The
+// gate is now the placement; this is the pin that keeps it there.
+test("the provider.cache receipt fires on placement, not dialect: a plain openai-compatible row that spells the breakpoint format gets the line", async () => {
+  const history: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "assistant", content: [{ type: "text", text: "Two." }] },
+    { role: "user", content: [{ type: "text", text: "Three." }] },
+  ];
+  const sent = await send(
+    { capability: OPENAI_SPELLING, promptCache: { enabled: true, cacheSystem: false, historyDepth: null, ttl: "1h" } },
+    { history, cacheBreakpointDepth: 1 },
+  );
+  // The wire bytes first: the placed breakpoint was translated to the provider's spelling.
+  expect(JSON.stringify(sent.body), "the breakpoint was sent in the openai spelling").toContain("prompt_cache_breakpoint");
+  const cache = lastReceipt(sent.receipts, PROVIDER_CACHE_EVENT);
+  expect(cache["breakpointsPlaced"], "the receipt counts the breakpoint the placer wrote").toBe(1);
 });
 
 test("same-role rows fold into one message of parts on a block-end-preserving prefix, each marker on its own part, and stay separate elsewhere", async () => {
@@ -516,4 +591,96 @@ test("a mandatory-reasoning model keeps its thinking and its effort through a de
   expect(sent.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
   expect(sent.body["reasoning_effort"]).toBe("high");
   expect(warningCodes(sent.events)).not.toContain(WARNING_CODE.reasoningDroppedForPrefill);
+});
+
+test("the shipped deepseek row spells effort words literally, turns thinking off with `none`, and never writes template kwargs", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const capability = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high", "max"] } });
+
+  const on = await send({ providerId: deepseek, capability }, { params: { effort: "high" } });
+  expect(on.body["reasoning_effort"]).toBe("high");
+  expect(on.body).not.toHaveProperty("chat_template_kwargs");
+
+  // The row's `effortMaxLiteral`: our `max` rides the wire as the word the vendor spells, not the V4 `xhigh`
+  // mapping — DeepSeek's own enum includes `max` and silently down-maps `xhigh`.
+  const max = await send({ providerId: deepseek, capability }, { params: { effort: "max" } });
+  expect(max.body["reasoning_effort"]).toBe("max");
+
+  const mapped = await send({ capability, declaredFeatures: { effort: "reasoning_effort" } }, { params: { effort: "max" } });
+  expect(mapped.body["reasoning_effort"]).toBe("xhigh");
+
+  // `thinkingOff: "reasoning_effort"`: the off is the effort word itself, no kwargs beside it.
+  const off = await send({ providerId: deepseek, capability }, { params: { effort: "none" } });
+  expect(off.body["reasoning_effort"]).toBe("none");
+  expect(off.body).not.toHaveProperty("chat_template_kwargs");
+});
+
+test("a `prefix-flag` row stamps the converted trailing assistant row and rides that turn on the beta route alone", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const prefill = prefillCapability();
+  const params = { effort: "high" } satisfies UserIntent;
+  const history = [USER_LINE, ASSISTANT_OPENING];
+
+  const stamped = await send({ providerId: deepseek, capability: prefill }, { params, history });
+  expect(wireRows(stamped.body).at(-1)).toMatchObject({ role: "assistant", content: "Once upon a", prefix: true });
+  expect(stamped.url).toContain("/beta/v1/chat/completions");
+
+  // The route and the stamp share the prefill gate: a turn that does not end on an assistant row keeps the
+  // prod base and gets no stamp anywhere in the array.
+  const plain = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE] });
+  expect(plain.url).not.toContain("/beta");
+  expect(JSON.stringify(plain.body["messages"])).not.toContain("prefix");
+
+  // A `messages` array the user owns is never stamped, but the route is the stamping gate's superset: the
+  // turn still rides `/beta`, where both spellings answer.
+  const theirs = [{ role: "user", content: "Their own row." }];
+  const owned = await send({ providerId: deepseek, capability: prefill, transport: { includeBody: { messages: theirs } } }, { params, history });
+  expect(owned.body["messages"]).toEqual(theirs);
+  expect(owned.url).toContain("/beta/v1/chat/completions");
+});
+
+// The steered chain of thought (`prefillReasoning`, `docs/law/deepseek-api-surface.md` "Assistant prefill and
+// continuation"): the seeded `reasoning_content` on the continue row IS the model's thinking — measured 6/6, the
+// answer follows the seed and the model writes no reasoning of its own. Red-proof: lift the seed stamp out of
+// rule 5a (`body.ts`) and the continue row keeps its flag but sheds the seed, which the first assertion catches.
+test("the continue row carries the authored chain of thought beside the prefix stamp, and an unstampeable turn drops it loudly", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const prefill = prefillCapability();
+  const params = { effort: "high" } satisfies UserIntent;
+  const seed = "(He leans on my counter, dripping on the wood I just polished. I answer short, and in Spanish: azul.)";
+
+  const stamped = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE, ASSISTANT_OPENING], prefillReasoning: seed });
+  expect(wireRows(stamped.body).at(-1)).toMatchObject({ role: "assistant", content: "Once upon a", prefix: true, ["reasoning_content"]: seed });
+
+  // No assistant tail, no continue row, no silent rider on some other row: the seed drops with its own code.
+  const dropped = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE], prefillReasoning: seed });
+  expect(JSON.stringify(dropped.body["messages"])).not.toContain("reasoning_content");
+  expect(warningCodes(dropped.events)).toContain(WARNING_CODE.prefillReasoningDropped);
+
+  // The plain prefill turn is unchanged: the stamp rides alone, no empty seed appears.
+  const plain = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE, ASSISTANT_OPENING] });
+  expect(JSON.stringify(plain.body["messages"])).not.toContain("reasoning_content");
+});
+
+test("a turn carrying a strict tool rides the row's beta route; without a beta path the same strict body rides the base", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  // The DeepSeek capability shape: no `response_format` json_schema carrier, no forced choices — the
+  // structured plan must ride an offered tool, and `strictJson: default-on` stamps it strict.
+  const capability = generationCapability({
+    output: { maxTokens: { min: 1, max: 8192 }, structured: false, modalities: ["text"] },
+    tools: { parallel: true, requiredChoice: false, namedChoice: false, noneChoice: true, parallelControl: false },
+  });
+  const format: ResponseFormat = { name: "report", schema: projectJsonSchema(z.object({ mood: z.string() })) };
+
+  const beta = await send({ providerId: deepseek, capability }, { responseFormat: format });
+  expect(beta.url).toContain("/beta/v1/chat/completions");
+  expect(beta.body).not.toHaveProperty("response_format");
+  expect(wireTool(beta.body, 0)).toMatchObject({ name: "report", strict: true });
+
+  // Control: the same plan on a row with the same features and no `betaChatPath` sends the strict tool to
+  // the base URL — the hop is the row's declared path, not a provider reflex.
+  const base = await send({ capability, declaredFeatures: { structuredMode: "strict-compatible", strictJson: "default-on" } }, { responseFormat: format });
+  expect(base.url).not.toContain("/beta");
+  expect(base.url).toContain("/v1/chat/completions");
+  expect(wireTool(base.body, 0)).toMatchObject({ strict: true });
 });

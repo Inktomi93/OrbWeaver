@@ -1,7 +1,7 @@
 {
   "id": "draft-polish",
   "name": "Draft Polish",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "hostVersion": 1,
   "entry": "main.js",
   "description": "Explicitly polish your visible draft before sending, with Undo. Typeset your own screen without changing canon; code stays unchanged.",

@@ -1,0 +1,46 @@
+---
+paths:
+  - "packages/server/src/domain/import/**"
+  - "packages/server/src/entry/import/**"
+  - "packages/server/src/entry/http/import*.ts"
+  - "packages/server/src/infra/storage/stage*.ts"
+  - "packages/server/src/primitives/serde/**"
+  - "packages/contracts/src/import/**"
+  - "packages/contracts/src/portability/**"
+  - "packages/client/src/features/workloads/**/*import*"
+  - "packages/client/src/features/character/components/character-import-dialog.tsx"
+  - "tests/server/domain/import/**"
+  - "tests/server/entry/http/import*"
+  - "tests/server/infra/storage/**"
+  - "tests/server/primitives/serde/**"
+  - "tests/contracts/import/**"
+  - "tests/client/features/workloads/**/*import*"
+  - "tests/client/features/character/components/character-import*"
+---
+
+# Import and portability
+
+- A character's identity is `cardImportHash` over the parsed card, its embedded book and its art, never its name or file bytes. Look one up through `findImportedCharacter` (D290).
+- No import updates or deletes an owned row. Equal content reuses the row; different content under a taken name lands beside it, and a character suffixes only its handle (D290, D312).
+- Keep one parser per entity in `packages/server/src/primitives/serde/`; the collector and the single-file doors call the same function (D290).
+- Import writes no table: hand each write to the owning domain's injected op (`packages/server/src/domain/import/verbs/import-character.ts`). Policy `domain-no-host-io` refuses a runtime host I/O import from a domain.
+- Only `restoreCharacterBook` replaces an embedded book; a re-upload never reverts the owner's book edits (`packages/server/src/domain/import/verbs/restore-character-book.ts`).
+- One bad item never fails a profile run: record it with its reason. Keep the file read outside the per-item catch, so a storage fault still ends the run (`packages/server/src/domain/import/loader/collect.ts`).
+- Narrow every plane a card carries at the parse, so a refused plane leaves no character behind (`packages/server/src/domain/import/substrate/card.ts`).
+- A failed card carries a `reason` code for the client to key on; the client never shows the server's `error` text (`packages/contracts/src/import/card-result.ts`).
+- Every name in a file is hostile: clip it, render it as plain text, and name a preview entry or skip by its source, the profile directory plus the path inside that profile, so two profiles that share a path stay two; a skip at the upload root has no profile (`packages/contracts/src/import/preview.ts`).
+- A dry run judges each entry by its write's own rules, under the same choices (the persona collision answers). A verdict belongs to the collected entry, not its path (`packages/server/src/domain/import/loader/profile-ownership.ts`).
+  - Books, presets, themes and personas run their batch write in dry-run mode, which skips only the insert, audit and emit. A single-file door calls that write with a batch of one.
+  - Characters share `reusedCardRow` with their write (`packages/server/src/domain/import/substrate/card.ts`).
+  - Chats, orphans and backgrounds read the keys their write dedups by. Character and persona art ask the precondition read of the attach or the store (`admitsImportedArt`, `admitsAvatar`).
+  - Give a kind that has a batch write no separate judge: a second copy of its equality rule drifts from the write.
+  - An entry equal to an earlier entry of the upload is a repeat by the write's own equality rule, so the preview never claims more than the run writes.
+- A real run reports the entries it reused from its own waves, in the preview's units, and never runs the dry-run judge (`packages/server/src/domain/import/loader/profile-directory.ts`).
+- Each preview entry carries digests of the content keys its owner compares it by, and the merge of a split folder's previews marks an entry a repeat when an earlier upload's entry holds them all. The merge keeps no equality rule of its own, and a key is never a content-bearing string (`packages/contracts/src/import/preview.ts`).
+- The client sends a dry run under the owner's current persona answers. A changed answer judges the personas again by dry-running the persona files alone (`settings.json` and its avatars), never the whole folder, and the preview waits for that answer. A tracker event counts only while the live run is on its workload, so a superseded run's late event never finishes the run that replaced it (`packages/client/src/features/workloads/hooks/use-library-import.ts`).
+- A preview's lists are capped but its counts (library, repeat, writes, without art) cover every entry, and the count line reads the counts, never the list. The merge of a split folder counts an entry once however many uploads carry it (settings, avatars and world books ride every upload; a group's upload sends its member cards again): every entry has a source digest, and an upload's unlisted tail sends the digests of its first `IMPORT_PREVIEW_TAIL_MAX` entries by outcome. An unlisted entry cannot be compared by content, and one past the digests cannot be matched at all, so the merge counts both as `uncompared` and the line says its numbers may be high (`packages/contracts/src/import/preview.ts`).
+- Only an upload route mints staged params (D340). A staged handle is a name, not a capability: resolve it under the row owner's root (`packages/server/src/domain/import/substrate/staging.ts`).
+- Read staged bytes only through the manifest digest (`packages/server/src/infra/storage/staged-manifest.ts`). Compare containment by `realpath` and `lstat`-refuse a symlink before `rm` (`packages/server/src/infra/storage/staged-paths.ts`).
+- Free a staged upload on every path that ends a row before its body runs (`packages/server/src/domain/import/workload-contributions.ts`).
+- A chat bundle needs a character on this account: refuse and name the handles, never mint a placeholder. Drop a cross-plane reference that does not resolve; never write it at a guess (D136).
+- Resolve a SillyTavern group member by card filename, never by display name (`packages/server/src/domain/import/substrate/group.ts`).

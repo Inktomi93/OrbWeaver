@@ -21,6 +21,7 @@ import type {
   ReadChatUserMacrosOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
+  RoomAdmission,
   RpgCardCorpus,
   SetRpgPointer,
   ViewerVisibility,
@@ -49,6 +50,7 @@ import type {
   RpgParticipantActor,
   RpgRecordedToolCall,
   RpgRevealView,
+  RpgSheet,
   RpgSnapshotState,
   RpgStateRoundOverflow,
   RpgToolCall,
@@ -64,6 +66,7 @@ import type {
   CharacterId,
   ChatId,
   ChatTurnId,
+  ConsentingHostId,
   IdSource,
   MessageId,
   MessageVariantId,
@@ -164,7 +167,9 @@ export type TurnWriteFoldOutcome =
   | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
   | { readonly kind: "shadowed"; readonly headId: RpgSnapshotId; readonly reason: string };
 
-export type RpgSheetRow = typeof rpgSheets.$inferSelect;
+/** A sheet row as the persistence read returns it: its `sheet` parsed, so stored text that is not a sheet never reaches a
+ *  verb (the read refuses it with `RpgStateCorruptError`). */
+export type RpgSheetRow = Omit<typeof rpgSheets.$inferSelect, "sheet"> & { readonly sheet: RpgSheet };
 
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
 export type NewRpgJournal = typeof rpgJournal.$inferInsert;
@@ -285,7 +290,7 @@ interface RpgFlushRegistration {
   /** The character turn's `activeTurns` signal, folded in so the MULTI-SPEAKER overlap window is covered too
    *  (speaker 1's round is still inside the shared registration while speaker 2 generates). `undefined` for an
    *  unregistered turn. */
-  readonly turnSignal: AbortSignal | undefined;
+  readonly turnSignal: AbortSignal;
   /** The flush body. Receives the barrier's composed signal; it is the round's ONLY cancellation input. */
   readonly run: (signal: AbortSignal) => Promise<void>;
 }
@@ -370,8 +375,8 @@ export type RpgPostNarratorMessage = (
 /** `funderUserId` — WHOSE chat connection the verdict reads: the user who funds the room's turns, which is the
  *  room host whoever sends (`resolveTurnIdentity`). The gather passes its turn's frozen funder; a read passes
  *  {@link RpgContext.resolveRoomFunder}'s answer, never the reader, because a member's own connection runs nothing
- *  in this room. `null` (a hostless room) is the closed verdict: no turn can run. */
-export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: UserId | null) => Promise<RpgStateDeliveryVerdict>;
+ *  in this room. `null` (a hostless room, or a host outside the consent set) is the closed verdict: no turn can run. */
+export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: ConsentingHostId | null) => Promise<RpgStateDeliveryVerdict>;
 
 /** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
  *  composition root reads the descriptor; rpg never sees a credential/source — D112's ban on a `credential.source`
@@ -487,6 +492,8 @@ interface RpgResyncInput {
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
   readonly baseState: RpgSnapshotState;
+  /** The host's request: the round resolves the room connection and calls the model under it. */
+  readonly signal: AbortSignal;
 }
 
 /** The `populateFromCharacter` model call (owner ruling — the host BORN-STATE round). Reads ONE
@@ -520,6 +527,8 @@ interface RpgPopulateInput {
   readonly targetRef: string;
   readonly baseState: RpgSnapshotState;
   readonly corpus: RpgCardCorpus;
+  /** The host's request: the round resolves the room connection and calls the model under it. */
+  readonly signal: AbortSignal;
 }
 
 /** What a populate round returns: the SNAPSHOT overlay (inventory/wallet/quests — the same [merge-clear] +
@@ -642,8 +651,9 @@ export interface RpgContext {
   /** The opaque pointer write: `createGame`, the `updateConfig` engaged toggle and the game fork call it so the
    *  client's takeover gate is a sync read off `ChatDetail`. `null` deletes the pointer. */
   readonly setPointer: SetRpgPointer;
-  /** Every host write verb claims the room right after its authority gate, so a room whose game the host authored is
-   *  listed and never reaped. Idempotent. */
+  /** Every host write verb claims the room after its input and ownership refusals and before its write (D166), so a
+   *  room whose game the host authored is listed and never reaped. The hand-state doors claim in `writeHandState`.
+   *  Idempotent. */
   readonly claimChat: ClaimChatOp;
   readonly resolveParticipants: ResolveRpgParticipants;
   /** R4 — promotion's DURABLE half (mint the card + seat it among the participants), wired at compose over the
@@ -657,13 +667,14 @@ export interface RpgContext {
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: ReadChatUserMacrosOp;
   /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a
-   *  hostless room. The reads price and judge THAT connection, because it is the one the next turn rides. */
-  readonly resolveRoomFunder: (chatId: ChatId) => Promise<UserId | null>;
+   *  hostless room or a host outside the consent set. The reads price and judge THAT connection, because it is the
+   *  one the next turn rides; a disabled host stands as a departed one, so no read resolves its connection. */
+  readonly resolveRoomFunder: (chatId: ChatId) => Promise<ConsentingHostId | null>;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
   /** Does the post-commit state round fit the funder's chat connection window, over `baseState`? Wired at compose,
    *  which owns the round's prompt builders; `null` when it fits or the connection does not resolve. Kept off
    *  `resolveStateDelivery` because the gather calls that one every turn and this prices a whole request. */
-  readonly resolveStateRoundFit: (chatId: ChatId, funderUserId: UserId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
+  readonly resolveStateRoundFit: (chatId: ChatId, funderUserId: ConsentingHostId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
    *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO
@@ -817,6 +828,8 @@ export type RpgAssemblyContext = DbAssemblyInput<RpgContext>;
 export interface RpgAuthorized {
   readonly game: RpgGameRow;
   readonly role: ParticipantRoleState;
+  /** Chat's proof that the caller holds a present seat in the game's room; the claim spends it. */
+  readonly admission: RoomAdmission;
 }
 
 /** The lock DELTA a hand edit applies (`snapshot-edit.ts`): paths to auto-LOCK (touched fields —

@@ -35,16 +35,11 @@ const PROMPT_TRANSFORM_DEADLINE_MS = 250;
  *   `abort`   — the transform DELIBERATELY refused the generation (§5.14); the fold stops and the turn does. */
 type BoundedOutcome =
   | { readonly kind: "ok"; readonly text: string }
-  | { readonly kind: "skip"; readonly cause: "throw" | "deadline" | "empty" }
+  | { readonly kind: "skip"; readonly cause: "deadline" | "empty" }
+  | { readonly kind: "skip"; readonly cause: "throw"; readonly error: unknown }
   | { readonly kind: "abort"; readonly reason: string };
 
-/** The registry passes a signal that aborts with {@link DEADLINE_ABORT_REASON} at the deadline. `PromptTransform.apply`
- *  lives in the DOM-free contracts, so it is typed without the parameter; a transform that wants the signal declares
- *  it as a trailing optional parameter, and every other transform ignores the extra argument. */
-type AbortAwareApply = (draft: string, env: PromptTransformEnv, signal: AbortSignal) => Promise<PromptTransformOutcome>;
-
 const SKIP: BoundedOutcome = { kind: "skip", cause: "empty" };
-const THREW: BoundedOutcome = { kind: "skip", cause: "throw" };
 
 /** Classify a transform's raw answer. A NON-EMPTY string is the rewritten draft; a `{abort}` object is the
  *  typed refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
@@ -68,14 +63,10 @@ function classify(answer: PromptTransformOutcome): BoundedOutcome {
   return SKIP;
 }
 
-function applyWithSignal(transform: PromptTransform, draft: string, env: PromptTransformEnv, signal: AbortSignal): Promise<PromptTransformOutcome> {
-  return (transform.apply as AbortAwareApply).call(transform, draft, env, signal);
-}
-
 /** Run ONE transform under the deadline. The timer is always cleared so a fast render never leaves the event
  *  loop pinned. A timeout and a throw both resolve to `skip` — the deadline can never manufacture an abort. */
 async function applyBounded(
-  transform: PromptTransform,
+  transform: PromptTransform<AbortSignal>,
   draft: string,
   env: PromptTransformEnv,
   budget: { readonly ms: number; readonly schedule: ScheduleOp },
@@ -89,16 +80,20 @@ async function applyBounded(
       resolve({ kind: "skip", cause: "deadline" });
     }, budget.ms);
   });
-  // D53 — a throw resolves to SKIP exactly like a
-  // timeout (the type-level BoundedOutcome comment above), never manufactures an abort; the caller keeps the
-  // prior draft and warns. Ends if a transform failure needs to abort the turn instead of degrading.
+  // D53 — a throw resolves to SKIP exactly like a timeout (the type-level BoundedOutcome comment above), never
+  // manufactures an abort; the caller keeps the prior draft and warns with the throw as the cause.
   try {
-    return await Promise.race([applyWithSignal(transform, draft, env, orphan.signal).then(classify), deadline]);
-  } catch {
-    return THREW;
+    return await Promise.race([transform.apply(draft, env, orphan.signal).then(classify), deadline]);
+  } catch (error) {
+    return { kind: "skip", cause: "throw", error };
   } finally {
     cancelTimer?.();
   }
+}
+
+// The skip warning's cause field: the throw itself, so a broken transform's fault reaches the log.
+function skipCause(result: Extract<BoundedOutcome, { kind: "skip" }>): { readonly err?: unknown } {
+  return result.cause === "throw" ? { err: result.error } : {};
 }
 
 /** Build the per-deploy PromptTransform registrar on the root's scoped `scheduleTimeout`. `emit` is the chat bus
@@ -110,7 +105,7 @@ export function createPromptTransformRegistry(
   scheduleTimeout: ScheduleOp,
   deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
 ): PromptTransformRegistry {
-  const byId = new Map<string, PromptTransform>();
+  const byId = new Map<string, PromptTransform<AbortSignal>>();
 
   const apply = async (point: PromptTransformPoint, chatId: ChatId, draft: string, vars: Record<string, string>): Promise<PromptTransformResult> => {
     const ordered = [...byId.values()].filter((t) => t.point === point).sort((a, b) => a.order - b.order);
@@ -141,7 +136,10 @@ export function createPromptTransformRegistry(
       }
       // A throw or deadline overrun of a transform that logs its own failures is already on the log with its cause.
       if (!(transform.logsOwnFailures === true && result.cause !== "empty")) {
-        getLog(logger).warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
+        getLog(logger).warn(
+          { chatId, transformId: transform.id, point, ...skipCause(result) },
+          "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged",
+        );
       }
       skipped.push(transform.id);
       return foldFrom(index + 1, current);

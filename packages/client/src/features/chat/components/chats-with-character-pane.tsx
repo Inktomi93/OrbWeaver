@@ -31,7 +31,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CHARACTER_NEW_CHAT_NAME, CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -71,17 +71,17 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
       // Scale is the primitive's own business (side-eye P2f): `EmptyState` drops a type step by CONTAINER
       // QUERY inside a narrow side pane, so this call site says WHAT to teach and nothing about how big.
       //
-      // ONE PRIMARY PER REGION (side-eye NR2), AND IT IS THIS ONE AGAIN (#501). While this pane WAS the LIST
-      // pane, the band directly above it carried the region's "New chat" primary and this action demoted to
-      // secondary so the two would not compete for one intent. The pane is a CONTEXT tab now — its region has
-      // no band, no primary and nothing else to act with — so the empty state's action is the region's one
-      // primary. (The hero's "New chat" is CONTENT tier, a different region, and fires the same writer.)
+      // One control per action per screen. The hero's New chat fires the same writer, so the host passes `null`
+      // while that hero is on screen beside this pane, and this empty state teaches without a second door. A pane
+      // that floats over the content (and so covers the hero) has no other door and keeps its own.
       <EmptyState
         action={
-          <Button onClick={onNewChat} size="sm">
-            <Icon icon={Plus} size="sm" />
-            New chat
-          </Button>
+          onNewChat === null ? null : (
+            <Button onClick={onNewChat} size="sm">
+              <Icon icon={Plus} size="sm" />
+              {CHARACTER_NEW_CHAT_NAME}
+            </Button>
+          )
         }
         description={`No chats with ${characterName} yet: start the first one.`}
         icon={<Icon icon={MessagesSquare} size="lg" />}

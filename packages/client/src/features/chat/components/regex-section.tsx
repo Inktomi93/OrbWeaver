@@ -9,7 +9,7 @@
 // TWO KINDS OF SWITCH, AND THEY MEAN DIFFERENT THINGS. A TIER switch means HERE (`chat.setRegexAllow` — a
 // per-chat flag; the preset's scripts stop running in this room and nowhere else). A ROW switch means
 // EVERYWHERE (`regex.updateScript {enabled}` — the library row's own flag, SillyTavern's semantics). The row
-// says so in its accessible name (`Enabled everywhere: <name>`) and a flip that reaches beyond this chat raises a
+// says so in its accessible name (`Enabled everywhere: <row subject> · <list>`) and a flip that reaches beyond this chat raises a
 // toast with Undo. That distinction is the whole design; if you are tempted to "simplify" the two into one
 // control, read §1 and §5 of the design first — a per-chat MUTE of an inherited script was considered and
 // refused (a second meaning of "off" on one row).
@@ -19,21 +19,26 @@
 // (`domain/chat/substrate/regex-tier.ts`), so a rank drawn here is the rank the next reply will apply. The
 // client's only rendering decision is WHERE a doubly-attached row draws (`lib/regex-section-model.ts`).
 //
-// TWO LEGS, TWO ROSTERS (§3 (b)). The tier groups list PROMPT participation — the only leg the tier levers
-// and the master reach. The display leg is ATTACHMENT-BLIND by the 2026-08-02 O-4 ruling (the viewer's whole
-// library ∩ DISPLAY, plus the host's broadcast — `data/use-display-scripts.ts`), so no lever here can touch
-// it and it must not appear to: `On screen` is its own roster at the foot, with its own switches, and it is
-// where `Host controls › Appearance` moved to (that disclosure retired with this section — a regex control
-// under an appearance name).
+// TWO PASSES, TWO ROSTERS (§3 (b)). The tier groups list PROMPT participation, the pass the tier levers and the
+// master govern there. The display pass resolves from the same attachments, server-side
+// (`regex.listDisplayScripts`, through `data/use-display-scripts.ts`), and `On screen` at the foot is its own
+// roster: what changes this viewer's screen, in run order, with each row's source. It is where
+// `Host controls › Appearance` moved to (that disclosure retired with this section — a regex control under an
+// appearance name).
 //
 // MEMBER VIEW (D19). The union resolves under the host's frozen `runAsUserId`, so the effective read is
-// host-gated and a member reads the room's own tier through `regex.listForChat` (member-gated, room-public).
-// A member gets the rows and NO controls — the §8.1 permission-OMIT at row level, the Lorebooks rack's
-// shape — plus one line saying whose regex this is. Nothing about the host's library leaks.
+// host-gated and a member reads the room's own tier through `regex.listForChat` (member-gated). That read follows the
+// room's display sharing: the enabled display scripts the host shares, and nothing while sharing is off; the host's
+// prompt scripts never reach it. A member gets those rows and NO controls — the §8.1 permission-OMIT at row level,
+// the Lorebooks rack's shape — plus one line saying which case this room is in. Nothing else of the host's library
+// leaks.
 
 import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
+import { REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
+import { REGEX_PASSES, REGEX_TARGETS } from "@orb/kit/regex";
+import type { LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
@@ -41,16 +46,23 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS } from "#lib";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { REGEX_PASS_GLYPHS, REGEX_PASS_LABELS, REGEX_TARGET_GLYPHS, REGEX_TARGET_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
-import { regexRowHomes, regexTierAllowedSwitchName, regexTierLabels, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
+import type { RegexRosterOffEntry } from "../lib/regex-section-model.ts";
+import {
+  REGEX_DISPLAY_PASS,
+  REGEX_MASTER_SETTING,
+  regexRowHomes,
+  regexSwitchedOffDisplay,
+  regexTierAllowedSwitchName,
+  regexTierLabels,
+  regexTierLever,
+  regexTierLeverCount,
+  regexTierRows,
+} from "../lib/regex-section-model.ts";
 import { RegexOnScreenGroup } from "./regex-on-screen-group.tsx";
 import { RegexTierGroup } from "./regex-tier-group.tsx";
-
-/** The six pipeline stages, in the order the pipeline runs them — the legend's own source, and the same
- *  `RegexPlacement` axis the row glyphs key on (`#lib`'s one home). */
-const STAGE_LEGEND = Object.keys(REGEX_PLACEMENT_LABELS) as (keyof typeof REGEX_PLACEMENT_LABELS)[];
 
 export interface RegexSectionProps {
   readonly chatId: ChatId;
@@ -90,13 +102,13 @@ function HostRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <RegexKicker chip={data === undefined ? null : hostChip(data.enabled, data.effective.length)} />;
 }
 
-/** A member's chip counts only the rows that could run — the room's own tier, enabled. It cannot say `off`:
- *  the master is the host's flag and is not on the member's read, so the honest member chip is a count of
- *  what this room carries (see the member line in the body, which says whose regex this is). */
+/** A member's chip counts the room's display scripts the host shares with them, which is all the member's read
+ *  carries: enabled display rows, and none while sharing is off. It cannot say `off`: the master is the host's flag
+ *  and is not on the member's read (see the member line in the body, which says which case this room is in). */
 function MemberRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.regex.listForChat.queryOptions({ chatId }));
-  return <RegexKicker chip={countChip((data ?? []).filter((script) => script.enabled).length)} />;
+  return <RegexKicker chip={countChip(data?.length ?? 0)} />;
 }
 
 /** A zero count spends no chip (the `HeadingWithCount` rule — a "0" chip is noise). */
@@ -120,7 +132,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // The seat names the tier labels use. `getChat` is already loaded for this tab (three sibling sections
   // read it), and the lookup is by the tier key's OWN character id — an exact seat match, never a
   // re-derivation of which characters the turn seats (that decision is the read's).
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   // The viewer's own library ids — the #1739 "previous host" test on the room's own tier (a chat-tier row
   // outside the host's library was attached by someone who is no longer here). Shared cache entry with the
   // `On screen` roster below, so it costs no second request.
@@ -159,7 +171,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
           tiers={view.tiers}
         />
       ))}
-      <RegexOnScreenGroup chatId={chatId} isHost={true} />
+      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} switchedOff={regexSwitchedOffDisplay(view)} />
     </Stack>
   );
 }
@@ -167,26 +179,45 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
 function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listForChat.queryOptions({ chatId }));
+  // A member's display scripts of their own are their globals, which run last for them.
+  const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
+  const switchedOff = globals
+    .filter((script) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
+    .map((script): RegexRosterOffEntry => ({ script, from: REGEX_VIEWER_SOURCE, off: "script" }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const tier = memberChatTier(scripts);
   return (
     <Stack data-slot="regex-section" gap="block">
-      <Text voice="gloss">The host’s regex applies to this room. Only the host can change it.</Text>
-      <RegexTierGroup
-        chatId={chatId}
-        // NULL, not 0: a member's read carries no run order at all (every `runsAt` is null for the reason
-        // `memberChatTier` states), so there is no set for a rank to be a position in — and a `0` would be
-        // a count claiming the room runs nothing.
-        effectiveCount={null}
-        isHost={false}
-        labels={new Map<RegexTierKey, string>()}
-        ownedScriptIds={new Set<RegexScriptId>()}
-        rows={tier.rows}
-        tier={tier}
-        tiers={[tier]}
-      />
-      <RegexOnScreenGroup chatId={chatId} isHost={false} />
+      <Text voice="gloss">{memberRackGloss(chat.hostDisplayScripts, scripts.length)}</Text>
+      {scripts.length === 0 ? null : (
+        <RegexTierGroup
+          chatId={chatId}
+          // NULL, not 0: a member's read carries no run order at all (every `runsAt` is null for the reason
+          // `memberChatTier` states), so there is no set for a rank to be a position in — and a `0` would be
+          // a count claiming the room runs nothing.
+          effectiveCount={null}
+          isHost={false}
+          labels={new Map<RegexTierKey, string>()}
+          ownedScriptIds={new Set<RegexScriptId>()}
+          rows={tier.rows}
+          tier={tier}
+          tiers={[tier]}
+        />
+      )}
+      <RegexOnScreenGroup chatId={chatId} isHost={false} labels={new Map<RegexTierKey, string>()} switchedOff={switchedOff} />
     </Stack>
   );
+}
+
+/** What a member's rack holds: the host's shared display scripts, nothing yet attached, or nothing because sharing
+ *  is off. */
+function memberRackGloss(shared: boolean, count: number): string {
+  if (!shared) {
+    return "The host switched off sharing this room's display scripts, so none are listed here. Only the host can change that.";
+  }
+  return count === 0
+    ? "The host shares this room's display scripts with you, and none are attached yet. Only the host can change them."
+    : "The host's display scripts for this room, shared with you. Only the host can change them.";
 }
 
 /** The member's room tier as the ONE group shape the tier renderer takes — so a member's rows are the same
@@ -205,16 +236,25 @@ function memberChatTier(scripts: readonly RegexScriptRow[]): RegexTierGroupView 
   };
 }
 
-/** The one-line stage legend — the six placement glyphs named once, so the row strips are readable. */
+/** The legend: every target glyph, then every pass glyph, named once in words so the row strips read. */
 function StageLegend(): ReactElement {
   return (
     <Row wrap={true} gap="field">
-      {STAGE_LEGEND.map((placement) => (
-        <Row align="center" gap="tight" key={placement}>
-          <Icon icon={REGEX_PLACEMENT_GLYPHS[placement]} size="xs" />
-          <Text voice="gloss">{REGEX_PLACEMENT_LABELS[placement].toLowerCase()}</Text>
-        </Row>
+      {REGEX_TARGETS.map((target) => (
+        <LegendEntry glyph={REGEX_TARGET_GLYPHS[target]} key={target} label={REGEX_TARGET_LABELS[target]} />
       ))}
+      {REGEX_PASSES.map((pass) => (
+        <LegendEntry glyph={REGEX_PASS_GLYPHS[pass]} key={pass} label={REGEX_PASS_LABELS[pass]} />
+      ))}
+    </Row>
+  );
+}
+
+function LegendEntry({ glyph, label }: { readonly glyph: LucideIcon; readonly label: string }): ReactElement {
+  return (
+    <Row align="center" gap="tight">
+      <Icon icon={glyph} size="xs" />
+      <Text voice="gloss">{label.toLowerCase()}</Text>
     </Row>
   );
 }
@@ -252,10 +292,10 @@ function RegexLeverStrip({
     <Stack data-slot="regex-levers" gap="tight">
       <Row align="center" gap="field" justify="between">
         <Text as="span" voice="label">
-          Run regex in this chat
+          {REGEX_MASTER_SETTING}
         </Text>
         <Switch
-          aria-label="Run regex in this chat"
+          aria-label={REGEX_MASTER_SETTING}
           checked={enabled}
           onCheckedChange={(next): void => {
             setAllow.mutate({ chatId, lever: { kind: "master", enabled: next } });
@@ -267,14 +307,14 @@ function RegexLeverStrip({
         const rows = regexTierRows(tier, homes);
         return (
           <Row align="center" gap="field" justify="between" key={tier.scope}>
-            <Row align="baseline" className="min-inline-0" gap="tight">
+            <Row align="baseline" minWidth="shrinks" gap="tight">
               <Text as="span" truncate={true} voice="label">
                 {label}
               </Text>
               <InlineToken>{regexTierLeverCount(rows)}</InlineToken>
             </Row>
             {/* The name carries the SCOPE, because the switch's meaning is exactly what its neighbours'
-                is not: this one is per-room ("Allow scripts from: <tier>"), a row's is per-library ("Enabled everywhere: <script>").
+                is not: this one is per-room ("Allow scripts from: <tier>"), a row's is per-library ("Enabled everywhere: <row subject> · <list>").
                 It CONTAINS the visible label, so voice control still works (WCAG 2.5.3). */}
             <Switch
               aria-label={regexTierAllowedSwitchName(label)}

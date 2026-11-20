@@ -10,6 +10,7 @@
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
+import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
@@ -22,7 +23,7 @@ import { UNCLASSIFIED_FAULT_MESSAGE } from "./fault-copy.ts";
 // NOT survivable under the multiplex, where a silently-dead socket is a TOTAL freshness blackout. The ping
 // keeps intermediaries (Caddy, the dev proxy) from idling an otherwise-quiet stream; `reconnectAfterInactivityMs`
 // at 3× the interval is what makes the CLIENT notice a socket that stopped without closing. Both keys
-// verified against @trpc/server 11.18 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
+// verified against @trpc/server 11.23 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
 // the per-proc streams too, which is why it lands before any of them fold.
 const SSE_PING_MS = 15_000;
 
@@ -55,11 +56,11 @@ const SSE_PING_MS = 15_000;
  * message and rides `data.reason`.
  */
 
-// The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's
-// `.code`, or `provider_<kind>` for a classified provider failure — see domainReason), and a coded refusal's
-// stated facts on `data.detail` (domainDetail). Additive:
-// `data.reason` is typed `string | undefined` end-to-end, so the inferred client error shape gains the
-// optional field; a codeless error serialises without the key.
+// The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's `.code`, a
+// DomainForbiddenError's optional `.code`, or `provider_<kind>` for a classified provider failure — see domainReason),
+// and a coded refusal's stated facts on `data.detail` (domainDetail). Additive: `data.reason` is typed
+// `string | undefined` end-to-end, so the inferred client error shape gains the optional field; a codeless error
+// serialises without the key.
 //
 // IT ALSO SUBSTITUTES THE MESSAGE OF EVERY INTERNAL_SERVER_ERROR (see UNCLASSIFIED_FAULT_MESSAGE above).
 //
@@ -172,6 +173,12 @@ const rateLimitMiddleware = t.middleware(async ({ ctx, path, next }) => {
 
 export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErrorMiddleware).use(rateLimitMiddleware);
 
+/** A procedure's cancel as a required signal. tRPC types it optional: the HTTP and socket adapters always pass the
+ *  request's own, and only a server-side `createCaller` that names none passes nothing, so no client exists to cancel. */
+export function procedureSignal(signal: TRPCCore.ProcedureResolverOptions<unknown, unknown, unknown, unknown>["signal"]): AbortSignal {
+  return signal ?? new AbortController().signal;
+}
+
 // authedProcedure: a resolved identity is required (ctx.auth === null → 401), plus the CSRF mitigation —
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
 // header/fallback request and all queries/subscriptions are exempt.
@@ -186,7 +193,7 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // CORS-simple — see upload.ts's authCsrfGuard.
 //
 // THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. The `cookie`-only keying does not rest on a tRPC mutation
-// "requiring application/json": it does not. `@trpc/server` 11.18's
+// "requiring application/json": it does not. `@trpc/server` 11.23's
 // `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` and dispatches
 // both as `type:"mutation"`, and multipart is exactly the CORS-simple type a plain cross-site `<form>` can
 // post. Behaviorally proven at the mount: before the belt, a multipart POST with no `x-orb-csrf` on the

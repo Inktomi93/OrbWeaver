@@ -81,16 +81,18 @@ const TONES = ["dark", "lighthearted", "romantic", "comedic", "gritty", "wholeso
 const MAX_SUBGENRES = 3;
 const MIN_TAGS = 3;
 const MAX_TAGS = 8;
-const DISTILL_PAYLOAD = z.object({
-  genre: z.enum(GENRES),
-  subGenres: z.array(z.string()).max(MAX_SUBGENRES),
-  tone: z.enum(TONES),
-  // Free text, so a blank reply is trimmed to the empty string the facet census excludes.
-  setting: z.string().trim(),
-  tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
-  elevatorPitch: z.string(),
-  overview: z.string(),
-});
+const DISTILL_PAYLOAD = z
+  .object({
+    genre: z.enum(GENRES),
+    subGenres: z.array(z.string()).max(MAX_SUBGENRES),
+    tone: z.enum(TONES),
+    // Free text, so a blank reply is trimmed to the empty string the facet census excludes.
+    setting: z.string().trim(),
+    tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
+    elevatorPitch: z.string(),
+    overview: z.string(),
+  })
+  .strip();
 const DISTILL_RESPONSE_FORMAT: ResponseFormat = { name: "character_distillation", schema: projectJsonSchema(DISTILL_PAYLOAD) };
 
 const MAX_CARD_CHARS = 6000;
@@ -106,8 +108,8 @@ const DISTILL_RETRY_CONCURRENCY = 8;
 /** The ONE resolution every call of a pass shares: the sampling posture + the resolved system prose. Carried
  *  as a unit so the bounded per-card RETRY provably runs the same pass the batch call did. */
 interface DistillPass {
-  readonly rc: RoleClients;
-  readonly sampleOpts: StructuredOptions;
+  readonly rc: RoleClients<AbortSignal>;
+  readonly sampleOpts: StructuredOptions<AbortSignal>;
   readonly system: string;
 }
 
@@ -128,7 +130,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   const { signal } = opts;
   // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
   const onDemand = opts.characterId !== undefined;
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   // `opts` IS the narrow: `DistillCharactersOptions` intersects `DistillTargetNarrow`, so the
   // `characterId`↔`ownerId` pairing is already carried by the type and the old key-by-key rebuild — which
   // could drop the owner while keeping the id — has nothing left to get wrong.
@@ -165,19 +167,20 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // `responseFormat` is orthogonal to sampling and always rides.
   const presetParams = opts.ownerId !== null ? await deps.resolveUtilityPresetParams(opts.ownerId) : undefined;
   const rc = await deps.roleClientsFor(opts.funderUserId);
-  const resolved = await rc.resolved("structured");
+  const resolved = await rc.resolved("structured", signal);
   if (resolved === null) {
     throw new DiscoveryNotConfiguredError();
   }
-  const sampleOpts: StructuredOptions = {
+  const sampleOpts: StructuredOptions<AbortSignal> = {
     responseFormat: DISTILL_RESPONSE_FORMAT,
     ...resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams),
+    signal,
   };
   // The system prompt is a PROSE-1 slot on the SAME owner rung as the sampling above: an owner-narrowed run
   // reads that host's override, the mixed-owner library batch reads `{}` ⇒ the shipped prompt.
   const distillSystem = resolveProseText("discovery.distill.system", opts.ownerId !== null ? await deps.resolveUserProse(opts.ownerId) : {});
 
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.
   const result = await rc.structured(
     ready.map((t) => ({
@@ -202,7 +205,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   if (onDemand && writes.failed > 0) {
     throw new DistillFailedError("The summarizer returned nothing usable for that card. Try again.");
   }
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   await commitSummaries(db, writes.stmts);
   // Stage AFTER summaries commit — a failed tag attach must not roll back the facets.
   await stageSuggestions(deps, writes.stagedLabels, signal);
@@ -226,10 +229,10 @@ async function buildDistillWrites(
   items: readonly { readonly text: string }[],
   meta: {
     readonly db: Db;
-    readonly rc: RoleClients;
+    readonly rc: RoleClients<AbortSignal>;
     readonly model: string;
     readonly now: number;
-    readonly sampleOpts: StructuredOptions;
+    readonly sampleOpts: StructuredOptions<AbortSignal>;
     readonly system: string;
     readonly onProgress?: DistillCharactersOptions["onProgress"];
   },
@@ -319,23 +322,18 @@ async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<voi
 }
 
 /** Stage each distilled label as a `source:'auto', status:'pending'` suggestion through the injected tag seam;
- *  returns the count NEWLY attached (idempotent + no-downgrade — a re-run/accepted tag doesn't re-count). */
-async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal | undefined): Promise<number> {
-  let tagsStaged = 0;
+ *  the seam is idempotent and never downgrades an accepted tag. */
+async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal): Promise<void> {
   for (const label of stagedLabels) {
-    signal?.throwIfAborted();
-    const attached = await deps.attachCardTagByName({
+    signal.throwIfAborted();
+    await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,
       tagName: label.tag,
       source: "auto",
       status: "pending",
     });
-    if (attached) {
-      tagsStaged += 1;
-    }
   }
-  return tagsStaged;
 }
 
 /** Build the idempotent `character_summaries` upsert for one card (keyed by `characterId`, D28). `set` omits

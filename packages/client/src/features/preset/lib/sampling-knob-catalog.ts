@@ -1,8 +1,7 @@
-// The sampling knobs' editor vocabulary: one spec per numeric sampler (label, default wire key, field path, step),
+// The sampling knobs' editor vocabulary: one spec per numeric sampler (label, field path, step),
 // in the editor's order, plus the deck's names for the non-numeric sampling controls. `capability-panel-model.ts` pairs each with a capability's range.
 
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
-import { DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
 
 type Sampling = GenerationCapability["sampling"];
 type NumericSamplingKey = {
@@ -21,7 +20,6 @@ export interface SamplingKnobSpec {
   readonly key: NumericSamplingKey;
   readonly field: `params.${NumericSamplingKey}`;
   readonly label: string;
-  readonly wire: string;
   readonly description: string;
   readonly step: number;
 }
@@ -34,7 +32,6 @@ type SamplingKnobCatalog = {
 export const SAMPLING_KNOB_CATALOG = {
   temperature: {
     key: "temperature",
-    wire: DEFAULT_SAMPLER_KEYS.temperature,
     field: "params.temperature",
     label: "Temperature",
     description: "Higher is more random/creative; lower is more focused/deterministic.",
@@ -42,7 +39,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topP: {
     key: "topP",
-    wire: DEFAULT_SAMPLER_KEYS.topP,
     field: "params.topP",
     label: "Top-P",
     description: "Nucleus sampling: the cumulative-probability cutoff for candidate tokens.",
@@ -50,7 +46,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topK: {
     key: "topK",
-    wire: DEFAULT_SAMPLER_KEYS.topK,
     field: "params.topK",
     label: "Top-K",
     description: "Keep only the K most-likely tokens each step (0 = unlimited).",
@@ -58,7 +53,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   minP: {
     key: "minP",
-    wire: DEFAULT_SAMPLER_KEYS.minP,
     field: "params.minP",
     label: "Min-P",
     description: "Drop tokens below this fraction of the top token's probability (RP-critical).",
@@ -66,7 +60,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topA: {
     key: "topA",
-    wire: DEFAULT_SAMPLER_KEYS.topA,
     field: "params.topA",
     label: "Top-A",
     description: "Drop tokens whose probability falls below `topA × (top token)²`. An adaptive tail cut.",
@@ -74,7 +67,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   frequencyPenalty: {
     key: "frequencyPenalty",
-    wire: DEFAULT_SAMPLER_KEYS.frequencyPenalty,
     field: "params.frequencyPenalty",
     label: "Frequency penalty",
     description: "Discourage repeating tokens in proportion to how often they've appeared.",
@@ -82,7 +74,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   presencePenalty: {
     key: "presencePenalty",
-    wire: DEFAULT_SAMPLER_KEYS.presencePenalty,
     field: "params.presencePenalty",
     label: "Presence penalty",
     description: "Discourage reusing any token that has already appeared at all.",
@@ -90,7 +81,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   repetitionPenalty: {
     key: "repetitionPenalty",
-    wire: DEFAULT_SAMPLER_KEYS.repetitionPenalty,
     field: "params.repetitionPenalty",
     label: "Repetition penalty",
     description: "A multiplicative penalty on repeated tokens (1 = off).",
@@ -98,7 +88,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   repetitionPenaltyRange: {
     key: "repetitionPenaltyRange",
-    wire: DEFAULT_SAMPLER_KEYS.repetitionPenaltyRange,
     field: "params.repetitionPenaltyRange",
     label: "Repetition range",
     description:
@@ -107,7 +96,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   typicalP: {
     key: "typicalP",
-    wire: DEFAULT_SAMPLER_KEYS.typicalP,
     field: "params.typicalP",
     label: "Typical-P",
     description: "Keep the tokens whose surprise is close to the expected surprise (1 = off).",
@@ -115,7 +103,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topNSigma: {
     key: "topNSigma",
-    wire: DEFAULT_SAMPLER_KEYS.topNSigma,
     field: "params.topNSigma",
     label: "Top-nσ",
     description: "Keep the tokens within n standard deviations of the top token's logit (0 = off).",
@@ -123,7 +110,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   xtcProbability: {
     key: "xtcProbability",
-    wire: DEFAULT_SAMPLER_KEYS.xtcProbability,
     field: "params.xtcProbability",
     label: "XTC chance",
     description: "How often XTC removes the most likely tokens above its threshold, for less predictable prose (0 = off).",
@@ -131,7 +117,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   xtcThreshold: {
     key: "xtcThreshold",
-    wire: DEFAULT_SAMPLER_KEYS.xtcThreshold,
     field: "params.xtcThreshold",
     label: "XTC threshold",
     description: "Tokens above this probability are the ones XTC may remove (above 0.5 turns XTC off).",
@@ -139,7 +124,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryMultiplier: {
     key: "dryMultiplier",
-    wire: DEFAULT_SAMPLER_KEYS.dryMultiplier,
     field: "params.dryMultiplier",
     label: "DRY strength",
     description: "How hard DRY penalizes a token that would repeat an earlier sequence (0 = off).",
@@ -147,7 +131,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryBase: {
     key: "dryBase",
-    wire: DEFAULT_SAMPLER_KEYS.dryBase,
     field: "params.dryBase",
     label: "DRY base",
     description: "How fast the DRY penalty grows with the length of the repeat.",
@@ -155,7 +138,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryAllowedLength: {
     key: "dryAllowedLength",
-    wire: DEFAULT_SAMPLER_KEYS.dryAllowedLength,
     field: "params.dryAllowedLength",
     label: "DRY allowed length",
     description: "Repeats up to this many tokens long go unpenalized.",
@@ -163,7 +145,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryPenaltyLastN: {
     key: "dryPenaltyLastN",
-    wire: DEFAULT_SAMPLER_KEYS.dryPenaltyLastN,
     field: "params.dryPenaltyLastN",
     label: "DRY range",
     description:
@@ -172,7 +153,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatMode: {
     key: "mirostatMode",
-    wire: DEFAULT_SAMPLER_KEYS.mirostatMode,
     field: "params.mirostatMode",
     label: "Mirostat",
     description: "0 = off, 1 = Mirostat, 2 = Mirostat 2.0. While on, it replaces the truncation samplers.",
@@ -180,7 +160,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatTau: {
     key: "mirostatTau",
-    wire: DEFAULT_SAMPLER_KEYS.mirostatTau,
     field: "params.mirostatTau",
     label: "Mirostat tau",
     description: "The surprise Mirostat aims for; lower is more focused.",
@@ -188,7 +167,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatEta: {
     key: "mirostatEta",
-    wire: DEFAULT_SAMPLER_KEYS.mirostatEta,
     field: "params.mirostatEta",
     label: "Mirostat eta",
     description: "How fast Mirostat adjusts toward its target.",
@@ -196,7 +174,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dynatempRange: {
     key: "dynatempRange",
-    wire: DEFAULT_SAMPLER_KEYS.dynatempRange,
     field: "params.dynatempRange",
     label: "Dynamic temperature range",
     description: "Temperature moves up to this far either side of the base, following how uncertain the model is (0 = off).",
@@ -204,7 +181,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dynatempExponent: {
     key: "dynatempExponent",
-    wire: DEFAULT_SAMPLER_KEYS.dynatempExponent,
     field: "params.dynatempExponent",
     label: "Dynamic temperature exponent",
     description: "How the model's uncertainty maps onto the dynamic temperature.",
@@ -212,7 +188,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   smoothingFactor: {
     key: "smoothingFactor",
-    wire: DEFAULT_SAMPLER_KEYS.smoothingFactor,
     field: "params.smoothingFactor",
     label: "Smoothing factor",
     description: "Quadratic smoothing of the token probabilities (0 = off).",
@@ -220,7 +195,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   smoothingCurve: {
     key: "smoothingCurve",
-    wire: DEFAULT_SAMPLER_KEYS.smoothingCurve,
     field: "params.smoothingCurve",
     label: "Smoothing curve",
     description: "The shape of the smoothing curve (1 = plain quadratic).",
@@ -228,7 +202,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   adaptiveTarget: {
     key: "adaptiveTarget",
-    wire: DEFAULT_SAMPLER_KEYS.adaptiveTarget,
     field: "params.adaptiveTarget",
     label: "Adaptive-P target",
     description: "Steers each pick toward tokens of about this probability, for varied but coherent prose (unset = off).",
@@ -236,7 +209,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   adaptiveDecay: {
     key: "adaptiveDecay",
-    wire: DEFAULT_SAMPLER_KEYS.adaptiveDecay,
     field: "params.adaptiveDecay",
     label: "Adaptive-P decay",
     description: "How long Adaptive-P remembers recent picks; higher looks further back.",
@@ -244,7 +216,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   minKeep: {
     key: "minKeep",
-    wire: DEFAULT_SAMPLER_KEYS.minKeep,
     field: "params.minKeep",
     label: "Min keep",
     description: "The fewest tokens the cutoff samplers (top-p, min-p, typical, XTC) may leave (0 = no floor).",
@@ -267,5 +238,5 @@ export const SAMPLING_FLAG_LABELS: Readonly<Record<FlagSamplingKey, string>> = {
   samplerOrder: "Sampler order",
 };
 
-/** Shared sampling metadata for controls, effective readouts and typed stale-value clearing. */
+/** Shared sampling metadata for controls and effective readouts. */
 export const SAMPLING_KNOBS: readonly SamplingKnobSpec[] = Object.values(SAMPLING_KNOB_CATALOG);

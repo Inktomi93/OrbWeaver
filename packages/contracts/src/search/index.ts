@@ -47,7 +47,7 @@ export interface MemoryQueryOptions {
   /** First-class chat-scope — the scan is restricted to this one chat. */
   scope: { chat: ChatId };
   /** The chat HOST — the owner of the digest space this scan reads (vector tasks are owner-scoped: the
-   *  entity owner's `embed`/`rerank` bindings define the space and fund the query, inference program §7.5). */
+   *  entity owner's `embed`/`rerank` bindings define the space and fund the query). */
   ownerId: UserId;
   /** The recent-window retrieval query text: `memory` assembles the egocentric (name-prefixed) query
    *  pre-call; `search` embeds + scans it (mixB/mixC). Absent for the non-embedding modes. */
@@ -91,8 +91,8 @@ export interface DigestSearchHit extends ScoredBlock {
 
 /**
  * A digest hit plus WHERE IT CAME FROM — the shape a hit takes when it is going to be READ rather than
- * assembled into a prompt (the unified `digests` branch; corpus forensics §2.4/R1a, whose row rendered
- * `Chat 2y1mf5` because the wire carried nothing else nameable).
+ * assembled into a prompt (the unified `digests` branch). A row without it rendered as a bare `Chat 2y1mf5`
+ * id slice because the wire carried nothing else nameable.
  *
  * It is a separate shape on purpose: `recall` calls the `digests` verb dozens of times a turn and renders
  * nothing, so paying two display joins there would buy a prompt assembler two strings it throws away.
@@ -473,9 +473,12 @@ export const similarArtInputSchema = similarCharactersInput.extend({
 });
 
 /** Ranked digest hits, each carrying its block key. */
-export type SearchDigestHitsOp = (params: MemoryQueryOptions, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
+export type SearchDigestHitsOp<Signal> = (
+  params: MemoryQueryOptions & { readonly signal: Signal },
+  events?: DigestSearchEvents | undefined,
+) => Promise<DigestSearchHit[]>;
 
-export type SearchCorpusHitsOp = (params: CorpusParams) => Promise<CorpusHit[]>;
+export type SearchCorpusHitsOp<Signal> = (params: CorpusParams & { readonly signal: Signal }) => Promise<CorpusHit[]>;
 
 /** The databank RAG lens. `scope` is the injected-resolver argument shape: a chat turn resolves host-global ∪
  *  chat-attached documents (host-only v1); an ad-hoc personal search is over the owner's whole bank. `k`,
@@ -499,6 +502,7 @@ export interface SimilarCharactersParams {
 }
 
 /** The `search.documents` lens: scope-gated cosine retrieval over `document_chunks`, reading-order restored. */
-export type SearchDocumentsOp = (params: DocumentSearchParams) => Promise<DocumentChunkHit[]>;
+export type SearchDocumentsOp<Signal> = (params: DocumentSearchParams & { readonly signal: Signal }) => Promise<DocumentChunkHit[]>;
 
-export type SimilarCharactersOp = (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;
+/** `Signal` is the caller's cancel: the seed read resolves the owner's encoder, which can wake a sleeping model. */
+export type SimilarCharactersOp<Signal> = (params: SimilarCharactersParams & { readonly signal: Signal }) => Promise<CharacterCardHit[]>;

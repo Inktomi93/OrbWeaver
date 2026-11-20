@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/automation/service.ts
 
 import { assets, chats, imageryGenerations, messages } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import { expect } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { PORTRAIT_MODEL, portraitTest } from "../engine/dispatch.fixtures.ts";
@@ -24,8 +25,16 @@ portraitTest("a global rule fires on its character import with no room open and 
   expect(generations).toHaveLength(1);
   expect(generations[0]).toMatchObject({
     ["imagery_generations"]: { chatId: null, subjectCharacterId: character.id, mode: "character_multimodal", model: PORTRAIT_MODEL },
-    assets: { ownerId: root.ownerId, kind: "generated" },
+    assets: { ownerId: root.ownerId },
   });
+  expect([
+    ...(
+      await loadAssetKinds(
+        root.db,
+        generations.map((row) => row.assets.id),
+      )
+    ).values(),
+  ]).toEqual([["generated"]]);
   expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual(["POST /v1/chat/completions", "POST /v1/images/generations"]);
   expect(await root.db.select().from(chats)).toEqual([]);
   expect(await root.db.select().from(messages)).toEqual([]);

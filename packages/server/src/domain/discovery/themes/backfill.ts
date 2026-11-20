@@ -93,7 +93,7 @@ function tierKSeqSpan(
  * span, tier-k via the injected tier-grid fold. Idempotent (recomputes the same immutable stamp). Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
  * `computeThemes` both drive it with the ctx-bound grid op.
  */
-export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope, signal?: AbortSignal): Promise<void> {
+export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope, signal: AbortSignal): Promise<void> {
   const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, scope), readTierKDigestSpans(db, scope)]);
   if (tier0Spans.length === 0 && tierKDigests.length === 0) {
     return;
@@ -134,7 +134,7 @@ export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope
   for (let start = 0; start < updates.length; start += STAMP_WRITE_CHUNK) {
     if (start > 0) {
       await yieldToEventLoop();
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
     }
     await db.batch(batchMany(updates.slice(start, start + STAMP_WRITE_CHUNK)));
   }

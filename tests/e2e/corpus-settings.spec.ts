@@ -13,21 +13,32 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { prepareBackupFolder } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { OWNER_RULE_RATE_FIELD_NAME } from "#client/features/automation/lib/automation-names.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FILE_PICKER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_PREFLIGHT_LEAD,
+  importSummaryImported,
+} from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
+import { DUPLICATE_THRESHOLD_NAME, EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
-import { openConfigGroup as openGroup } from "./support/config-flow.ts";
+import { openConfigAdvanced, openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const BUNDLE_IMPORT_ROUTE = PORTABILITY_ROUTES.importBundle;
-const IMPORT_GROUP_NAME = /^Import /u;
-const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
+// Every staged question opens with the verb; the arm (folder, file, files) is the picker's, not this case's.
+const IMPORT_GROUP_NAME = new RegExp(`^${RegExp.escape(IMPORT_PREFLIGHT_LEAD)} `, "u");
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -53,7 +64,7 @@ async function chooseBackup(page: Page, path: string, folder: boolean): Promise<
     const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click()]);
     await chooser.setFiles(path);
   } else {
-    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
+    await page.getByLabel(IMPORT_FILE_PICKER_NAME, { exact: true }).setInputFiles(path);
   }
 }
 
@@ -80,9 +91,12 @@ async function assertNativeRestore(
   };
   page.on("response", record);
   try {
-    const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click()]);
+    const [response] = await Promise.all([
+      page.waitForResponse(matches),
+      preflight.getByRole("button", { name: folder ? IMPORT_CONFIRM_NAMES.folder : IMPORT_CONFIRM_NAMES.file, exact: true }).click(),
+    ]);
     expect(response.status()).toBe(202);
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: restore.settleMs });
+    await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);
     // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
     const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
@@ -109,7 +123,7 @@ async function assertNativeRestore(
     expect(failed).toBe(0);
     expect(skipped).toBe(0);
     expect(imported + skipped + failed).toBe(entries);
-    await expect(page.getByTestId(testId("importReport"))).toContainText(`${String(imported)} imported`);
+    await expect(page.getByTestId(testId("importReport"))).toContainText(importSummaryImported(imported));
   } finally {
     page.off("response", record);
   }
@@ -153,7 +167,7 @@ async function restoreBackup(
   await chooseBackup(page, input.path, input.folder);
   await assertNativeRestore(page, host, input);
   if (!input.folder) {
-    await page.getByRole("button", { name: "Import another", exact: true }).click();
+    await page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true }).click();
   }
   return await assertRestoredWitness(page, host, witness, input);
 }
@@ -168,7 +182,10 @@ test.describe("committed corpus settings", () => {
   });
 
   test("Chat behavior persists its native message-handling switch", { tag: "@smoke" }, async ({ page }) => {
-    const label = "Empty Enter generates a reply";
+    const label = CHAT_MESSAGE_HANDLING_SUBCATEGORY.settings?.find((setting) => setting.key === "emptyEnterReplies")?.label;
+    if (label === undefined) {
+      throw new Error("The production empty-Enter setting no longer exists; update this journey");
+    }
     const checked = await toggleAndReload(page, "chat-behavior", label);
     await expect(page.getByRole("switch", { name: label, exact: true })).toHaveAttribute("aria-checked", String(checked));
   });
@@ -178,12 +195,14 @@ test.describe("committed corpus settings", () => {
     const before = (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold;
     const next = before === 0.9 ? 0.8 : 0.9;
     await openGroup(page, "workloads");
-    const input = page.getByRole("textbox", { name: "Duplicate threshold", exact: true });
+    await openConfigAdvanced(page);
+    const input = page.getByRole("textbox", { name: DUPLICATE_THRESHOLD_NAME, exact: true });
     await input.fill(String(next));
     await input.press("Tab");
     await expect.poll(async () => (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold).toBe(next);
     await page.reload();
     await openGroup(page, "workloads");
+    await openConfigAdvanced(page);
     await expect(input).toHaveValue(String(next));
     await host.trpc.settings.updateUserSettingsSection.mutate({ section: "workloads", patch: { dupThreshold: before } });
   });
@@ -193,7 +212,7 @@ test.describe("committed corpus settings", () => {
     const before = await host.trpc.automation.getOwnerBudgets.query(undefined);
     const next = before.maxFiresPerHour === 20 ? 21 : 20;
     await openGroup(page, "automation");
-    const input = page.getByRole("textbox", { name: "Runs per hour", exact: true });
+    const input = page.getByRole("textbox", { name: OWNER_RULE_RATE_FIELD_NAME, exact: true });
     await input.fill(String(next));
     await input.press("Tab");
     await expect.poll(async () => (await host.trpc.automation.getOwnerBudgets.query(undefined)).maxFiresPerHour).toBe(next);
@@ -208,12 +227,14 @@ test.describe("committed corpus settings", () => {
     const before = await host.trpc.settings.getAppSettingsWithOverrides.query(undefined);
     const next = before.resolved.promptCacheMinDepth === 1 ? 2 : 1;
     await openGroup(page, "admin");
-    const input = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });
+    await openConfigAdvanced(page);
+    const input = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME, exact: true });
     await input.fill(String(next));
     await page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true }).click();
     await expect.poll(async () => (await host.trpc.settings.getAppSettingsWithOverrides.query(undefined)).resolved.promptCacheMinDepth).toBe(next);
     await page.reload();
     await openGroup(page, "admin");
+    await openConfigAdvanced(page);
     await expect(input).toHaveValue(String(next));
     await host.trpc.settings.updateAppSettings.mutate({ partial: { promptCacheMinDepth: before.overrides.promptCacheMinDepth ?? null } });
   });
@@ -247,7 +268,7 @@ test.describe("committed corpus settings", () => {
     const exported = await host.trpc.regex.exportScript.query({ scriptId: witness.id });
     await openGroup(page, "backup");
     const downloaded = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download my library", exact: true }).click();
+    await page.getByRole("button", { name: EXPORT_DOWNLOAD_NAME, exact: true }).click();
     const download = await downloaded;
     expect(await download.failure()).toBeNull();
     const filename = download.suggestedFilename();

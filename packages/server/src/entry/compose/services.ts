@@ -42,6 +42,7 @@
 
 import { resolve } from "node:path";
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
+import type { ExtractorVersions } from "@orb/contracts/extraction";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { BindingActor } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -54,7 +55,7 @@ import { SEED_MANIFEST } from "@orb/default-content";
 import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
-import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
@@ -76,12 +77,12 @@ import type { ChatAssemblyContext, MemoryRecallRecorder, SignupInviteOps } from 
 import {
   createChatBus,
   createChatPublication,
+  createLoadConsentingHostUserId,
   createMemoryRecallRecorder,
   createResolveChatUserMacroDefs,
   createResolveViewerVisibility,
   createWiredChatGuards,
   isCharacterSeated,
-  loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionAssemblyContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
@@ -92,6 +93,7 @@ import type { EmbeddingReindexTriggers, EmbeddingsIndexer, EmbeddingsService } f
 import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
+import type { ExportCurrentCard } from "#domain/import";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier, ExamplePluginSeeder } from "#domain/plugin";
@@ -123,13 +125,13 @@ import {
 } from "#domain/settings";
 import type { CertificateController, RelayController, ShareFacts, ShareGraphOptions } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
-import { createStatsBatchWiring } from "#domain/stats";
+import { createSpendLedgerBackup, createStatsBatchWiring } from "#domain/stats";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { createWorkloadProgressBus } from "#domain/workloads";
-import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
+import { createAttachOwnedBooksByName, createImportStandaloneLorebooks } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
@@ -150,7 +152,7 @@ import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
 import { createForwardJwtVerifier, createOperatorKeys, createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
-import { createExtractText } from "#infra/extraction";
+import { createExtractText, EXTRACTOR_VERSIONS } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
@@ -166,6 +168,7 @@ import { createBoxOwnerRead, createHostPrincipalResolver, createMultiHumanCapabi
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
 import { createUserContentSeeder } from "../boot/seed-user-content.ts";
+import type { CardFrameDeps } from "../http/index.ts";
 import { createRateLimitGate } from "../rate-limit-gate.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
@@ -174,6 +177,7 @@ import { buildAutomationPlugin } from "./automation-plugin.ts";
 import { createAutomationWatcherEnv } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { buildChatService, createSignupMinterCheck } from "./chat.ts";
+import { createExportCurrentCard, createExportCurrentChats, createOwnedChatTitle } from "./current-export.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
@@ -191,6 +195,7 @@ import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { buildServiceJobs } from "./service-jobs.ts";
 import type { SessionsCrypto } from "./sessions-crypto.ts";
+import { chatTurnEnds } from "./turn-ends.ts";
 import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -226,12 +231,18 @@ export interface ServicesDeps {
   readonly env: Env;
   /** The agent-sdk child-env baseline, the process environment's present variables (`createProcessSeams`). */
   readonly hostEnvAllowlist: InferenceDeps["env"]["hostEnvAllowlist"];
+  /** The environment every inheriting child takes: tar, ffmpeg, git and the in-process Workers (`createProcessSeams`). */
+  readonly childProcessEnv: InferenceDeps["env"]["childProcessEnv"];
   /** Where this process's `AUTH_MODE` came from (`createProcessSeams`); the share panel names it. */
   readonly authModeSource: AuthModeSource;
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
   /** Reads a shipped showcase bundle's bytes for the example-plugin seeder; absent ⇒ the `@orb/showcase-plugins` pack.
    *  A test root withholds a bundle here to reach the seeder's missing-bundle retry. */
   readonly showcaseBundles?: typeof packShowcaseBundle;
+  /** Versions laid over the shipped per-format extractor versions; the one merged table is both stamped onto documents
+   *  and compared by the databank banner and re-extract sweep. A test root raises one format's version here to reach
+   *  a sweep over documents an older extractor of that format stamped. */
+  readonly extractorVersions?: Partial<ExtractorVersions>;
   /** The fetch and resolver every egress this graph builds uses (`systemFetch` and `systemResolver` from `createProcessSeams`). */
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   /** The physical dial every egress this graph builds uses (`systemConnector` from `createProcessSeams`). */
@@ -330,6 +341,9 @@ export interface ServicesResult extends AsyncDisposable {
   readonly startJobs: ServiceJobs["start"];
   readonly workloadEvents: WorkloadProgressBus;
   readonly liveBuses: LiveBuses;
+  /** Hears each turn that ends in any room, completed or aborted, as the room's id and nothing else: the card-frame
+   *  store drops that room's forming frames (D354). The firehose stays here; no member's content leaves it (D162). */
+  readonly onChatTurnEnded: CardFrameDeps["onTurnEnded"];
   readonly egress: ScopedEgress;
   /** Absent without `FORWARD_AUTH_JWKS`: no operator keys means the signed path refuses every JWT. */
   readonly forwardJwtVerifier: ForwardJwtVerifier | undefined;
@@ -357,6 +371,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
   readonly importCardScripts: ImportCardScripts;
+  /** The import lookup's current-card step, for the HTTP card doors (the same op every other import door threads). */
+  readonly exportCurrentCard: ExportCurrentCard;
   /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
    *  driver dispatches through it. */
   readonly workloadContributions: WorkloadContributions;
@@ -368,6 +384,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly runtime: InferenceRuntime;
   /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
   readonly auditFailures: AuditWiring["failures"];
+  /** The root's inheriting-child environment, for the bug report's `git` child on the HTTP edge. */
+  readonly childProcessEnv: ServicesDeps["childProcessEnv"];
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   /** The user seed (D263): walks the manifest for an account and seeds what its seed ledger lacks. Drives
@@ -520,7 +538,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const audit = deps.audit.log;
   const newUserId = (): UserId => idSource.userId();
-  const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
+  const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource, now);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const eventBus = resources.use(createDomainEventBus(background.supervise, newOpaqueId));
 
@@ -570,10 +588,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // materializeBackground: built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
-  let materializeBackgroundOp: MaterializeBackgroundOp = () => {
+  let materializeBackgroundOp: MaterializeBackgroundOp<AbortSignal> = () => {
     throw new Error("compose: materializeBackground invoked before assets wiring");
   };
-  const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
+  const materializeBackground: MaterializeBackgroundOp<AbortSignal> = (principal, url, signal) => materializeBackgroundOp(principal, url, signal);
   // The initial settings reload runs before search-discovery; its trigger takes that warmed value as its
   // baseline, so boot must not treat it as an off-to-on transition or read an unbound trigger.
   let refreshAutoindex = (): void => undefined;
@@ -629,7 +647,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir, deps.logger);
   const variants = createVariantCache(deps.variantDir);
-  const extractText = createExtractText(deps.logger);
+  const extractorVersions: ExtractorVersions = { ...EXTRACTOR_VERSIONS, ...deps.extractorVersions };
+  const extractText = createExtractText(deps.logger, extractorVersions);
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
   const userRuntimeDirs = createUserRuntimeDirs(userRuntimeDir);
 
@@ -658,6 +677,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         userRuntimeDirs.remove(ownerId, tool);
       }
     },
+    providerWire: async (providerId, ownerId) =>
+      runtimeRef().providers.registry.get(providerId, ownerId)?.wire ?? (await ports.claimedProviderWire(providerId, ownerId)),
   });
 
   const runtime = await createInferenceRuntime({
@@ -683,6 +704,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         return availableClaudeExecutable();
       },
       hostEnvAllowlist: deps.hostEnvAllowlist,
+      childProcessEnv: deps.childProcessEnv,
     },
     app: { name: APP_NAME, url: APP_URL },
     snapshotStore: ports.snapshotStore,
@@ -702,7 +724,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // D8 `session_entries` write path — the sealed backend never touches @orb/db itself.
-      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource)),
+      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource), now),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
@@ -795,7 +817,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
-  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
+  const resolveConsentingHostUserId = createLoadConsentingHostUserId({ db, resolveUserEnabled: createResolveUserEnabled(sessions) });
   // WHICH preset a Utility-role background task reads (D304) — one home for every side-gen consumer. `preset`
   // composes below (the search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset`
   // precedent — derefed only when a side-gen call fires, never at boot).
@@ -814,6 +836,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     fetchImpl: egress.safeFetch,
     idSource,
     db,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     now,
     cas,
     variants,
@@ -837,6 +860,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
   materializeBackgroundOp = assetsCharacter.materializeBackgroundOp;
 
+  // ── the regex script LIBRARY (D121-E). Built before preset, admin and chat: the preset import door lifts a
+  // SillyTavern preset's scripts through it, admin's export service needs its card RE-EMBED op and chat's context
+  // needs its four-scope RESOLVE op.
+  const regexCompose = buildRegex({ logger: deps.logger, emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
+
   // ── the derived-data cluster + persona/preset/stats/search/discovery/notifications/workloads (the
   // search-discovery seam). Produces `persona` + `preset` (forward-referenced above) and `workloads` +
   // `detachEmbedReindex` (bound onto the keystone's late-bound holder below).
@@ -845,9 +873,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     traces: deps.rings.traces,
     fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
+    abortWorkloadRun: workloadEvents.abortWorkloadRun,
     emitUserEvent: liveBuses.user.publishUserEvent,
     supervise: background.supervise,
     scheduleTimeout: timers.timeout,
+    backgroundSignal: background.signal,
     idSource,
     db,
     now,
@@ -867,8 +897,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
+    importPresetScripts: regexCompose.importPresetScripts,
+    planPresetScripts: regexCompose.planPresetScripts,
+    listPresetScriptKeys: regexCompose.listPresetScriptKeys,
+    exportPresetScripts: regexCompose.exportPresetScripts,
+    removeUnattachedScripts: regexCompose.removeUnattachedScripts,
     getContributions: getWorkloadContributions,
     isBoxOwner,
+    isAccountEnabled: createResolveUserEnabled(sessions),
     isMemoryEnabled: (ownerId) => isMemoryEnabledBinding.read().isMemoryEnabled(ownerId),
     emptyMemoryScope: (ownerId) => emptyMemoryScope(ownerId),
   });
@@ -907,10 +943,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,
   });
-
-  // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
-  // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
-  const regexCompose = buildRegex({ logger: deps.logger, emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
 
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
@@ -956,7 +988,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
     roleClientsFor,
     // D298: a room picture runs as the present host, loaded with its real role.
-    resolveChatHostUserId,
+    resolveConsentingHostUserId,
     isCharacterSeated: (chatId, characterId) => isCharacterSeated(db, chatId, characterId),
     resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
@@ -984,10 +1016,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     loadAssetBytes: createAssetEmbeddingReads(assets).loadAssetBytes,
     embeddings,
     extractText,
+    extractorVersions,
     roleClientsFor,
     search,
     workloads,
     loadUserSettings: settings.loadUserSettings,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     emitChatEventLive,
   });
 
@@ -1016,7 +1050,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     forkGame: (args) => rpgOps().forkGame(args),
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
     handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
-    handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
+    handoffRekeyActors: (admission, cardCopies) => rpgOps().handoffRekeyActors(admission, cardCopies),
   };
   // The memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
   // is produced by every recall anyway (it is the assembly trace's memory row), so the ring's only cost is
@@ -1041,7 +1075,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     idSource,
     logger: deps.logger,
     resolveUtilityPresetParams,
-    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref) },
+    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref, deps.childProcessEnv) },
     toolUse,
     db,
     now,
@@ -1206,6 +1240,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
   });
   const { worldInfo, importWorldInfo, bulkImportChats, bulkImportPersonas, resolveOwnerPrincipal } = worldInfoCompose;
+  // The import lookup's last step for a card or room the app wrote (D290), shared by every import door.
+  const exportCurrentCard = createExportCurrentCard({ character, exportService, resolveOwnerPrincipal });
+  const exportCurrentChats = createExportCurrentChats({ character, exportService, resolveOwnerPrincipal });
+  const ownedChatTitle = createOwnedChatTitle({ chat, resolveOwnerPrincipal });
 
   // U8 seam 17 — the ONE per-installer character-import closure both plugin canon-write arms share.
   // It runs the SAME `importCharacter` funnel a file upload takes over the given bytes (the ContentChanged-
@@ -1225,6 +1263,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       characterOps: createCharacterImportOps(principal, character),
       storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
       attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
+      exportCurrentCard,
       importLorebook: (args) => importWorldInfo.importLorebook(args),
       hasPrimaryBook: (args) => importWorldInfo.hasPrimaryBook(args),
       linkCarriedBooks: (args) => importWorldInfo.linkCarriedBooks(args),
@@ -1235,6 +1274,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
+    backgroundSignal: background.signal,
     env: deps.env,
     logger: deps.logger,
     traces: deps.rings.traces,
@@ -1311,7 +1351,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settingsCtx,
     presetCtx,
     worldInfoExportCtx: { db },
-    importStandaloneLorebook: createImportStandaloneLorebook({
+    importStandaloneLorebooks: createImportStandaloneLorebooks({
       db,
       now,
       newBookId: minter(ID_PREFIX.worldBook, idSource),
@@ -1326,6 +1366,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newEntryId: minter(ID_PREFIX.worldEntry, idSource),
     }),
     galleryCtx,
+    spendLedgerPortability: createSpendLedgerBackup(db, idSource),
     imageryPortability: createImageryPortability({
       db,
       newCallId: minter(ID_PREFIX.imageryCall, idSource),
@@ -1335,6 +1376,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankCtx: databankPortability,
     persona,
     exportService,
+    exportCurrentCard,
+    exportCurrentChats,
+    ownedChatTitle,
     character,
     assets,
     attachCardTag: tag.attachCardTagByName,
@@ -1344,6 +1388,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
     importPresetScripts: regexCompose.importPresetScripts,
+    planPresetScripts: regexCompose.planPresetScripts,
     importGlobalScripts: regexCompose.importGlobalScripts,
     exportRegexScripts: regexCompose.exportRegexScripts,
     importRegexScript: regexCompose.importRegexScript,
@@ -1373,6 +1418,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...createVectorSweepOps({
       embeddings,
       listCorpusOwners: searchDiscovery.listCorpusOwners,
+      isAccountEnabled: createResolveUserEnabled(sessions),
       vacuousMemoryReceipt: searchDiscovery.vacuousMemoryReceipt,
     }),
     // The databank and memory sweeps settle on it the way the `index` sweep does.
@@ -1464,9 +1510,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     logger: deps.logger,
     enabled: () => seedContentEnabled,
     manifest: SEED_MANIFEST,
-    now,
     seededKeys: createReadSeededKeys(db),
-    recordSeeded: (userId, keys, at) => recordSeededItemKeys(db, userId, keys, at),
+    recordSeeded: (userId, keys) => recordSeededItemKeys(db, userId, keys),
     legacyLatches: settingsComposedOps.legacyLatches,
     seedCharacter: (principal, handle) => characterSeeder.seedCard(principal, handle),
     seedPersona: createSeedPersonaWithCompletion({
@@ -1531,6 +1576,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     contributions: workloadContributions,
     isBoxOwner,
+    isAccountEnabled: createResolveUserEnabled(sessions),
     audit,
     services,
     ownerId: deps.ownerId ?? null,
@@ -1563,6 +1609,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     startJobs: jobs.start,
     workloadEvents,
     liveBuses,
+    onChatTurnEnded: chatTurnEnds(liveBuses.chat),
     egress,
     forwardJwtVerifier,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
@@ -1583,10 +1630,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settleImportMemory,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
+    exportCurrentCard,
     workloadContributions,
     databankIngest,
     runtime,
     auditFailures: deps.audit.failures,
+    childProcessEnv: deps.childProcessEnv,
     effectiveConfig,
     secretBox,
     contentSeeder,

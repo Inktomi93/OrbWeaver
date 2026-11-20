@@ -1,28 +1,27 @@
-// infra/providers/backends/http/abort-flatten — the ONE home for "fold a CALLER's AbortSignal into a signal
-// WE own", and therefore the one home of the reason-flattening law every provider call obeys.
+// packages/inference/src/backends/http/abort-flatten.ts — the ONE home for "fold a CALLER's AbortSignal into a
+// signal WE own", and therefore the one home of the reason-flattening law every provider call obeys.
 //
-// THE BUG CLASS THIS EXISTS TO KILL (STRUCTURED-ABORT-REASON-LEAK): `AbortSignal.any([external, mine])`
+// THE BUG CLASS THIS EXISTS TO KILL: `AbortSignal.any([external, mine])`
 // PROPAGATES the source signal's `reason`, and a signal handed to `fetch` makes that reason the value the
 // fetch promise REJECTS with (per spec — undici does exactly this). So a caller's abort reason becomes the
 // error text our transport classifier reads. `classifyTransportName` (`./error-classify.ts`) decides
 // `aborted` vs retryable-`server` by matching /timeout|connection|network|overload/ over an error's
 // name+message — so a domain abort whose reason merely CONTAINS one of those words ("timeout waiting for the
 // user", "connection closed by the host") classifies a DELIBERATE CANCELLATION as a transient fault. A
-// retryable verdict is then honoured by our own pre-commit retry loop (`./retry.ts`), and — measured on
-// `@openrouter/sdk@1.1.8` — by the SDK's OWN default `retryConfig` (`retryConnectionErrors: true`, backoff
-// with `maxElapsedTime: 3600000`), whose `isTimeoutError` heuristic fires on any reason named `TimeoutError`
-// (which is precisely what `AbortSignal.any([external, AbortSignal.timeout(n)])` propagates). The cancelled
-// call is RE-RUN — the exact opposite of cancelling, and it bills.
+// retryable verdict is then honoured by our own pre-commit retry loop (`./retry.ts`), which re-runs the
+// cancelled call and bills for it again. The `@openrouter/sdk@1.1.8` client's default `retryConfig` is NOT
+// evidence here: that package is not a dependency of this tree — a probe instrument only — and the installed
+// `@openrouter/ai-sdk-provider@3.1.0` dist carries no retry loop. The law below rests on our own loop alone.
 //
 // THE FIX SHAPE: never compose with `.any`. Re-abort OUR OWN controller with NO argument, so every cause
 // flattens to a plain `AbortError` and the provider taxonomy stays independent of any caller's abort
 // vocabulary. The cancellation still propagates (same instant, same semantics) — only the REASON is dropped,
 // and the reason was never ours to interpret.
 //
-// USERS: `./idle-timeout.ts` (the streaming chat runners' rolling stall guard) and `roles/dispatch.ts`
-// (`runRole` — the ONE seam every role dispatch crosses, so every role gets it and a future role cannot
-// forget). `domain/rpg/flush-barrier.ts` folds the same way for the same reason and cannot import this
-// (providers is sealed to domain); its header cites this law.
+// USERS: `./idle-timeout.ts` (the streaming chat runners' rolling stall guard) and `registry/dispatch.ts`
+// (`runTask` — the ONE seam every task crosses, so every task gets it and a future task cannot forget), plus
+// the deadline readers in `catalog/` and `openai-compat/`. `domain/rpg/flush-barrier.ts` folds the same way
+// for the same reason and cannot import this (providers is sealed to domain); its header cites this law.
 
 import type { ScheduleOp } from "@orb/kit/time";
 import type { FlattenedAbort } from "#src/contract/http.ts";
@@ -33,16 +32,14 @@ import type { FlattenedAbort } from "#src/contract/http.ts";
  * classifier). An already-aborted `external` aborts synchronously, so a call entered post-cancel never
  * reaches the wire. Returns the detach function for the fold's listener.
  */
-export function foldAbortInto(controller: AbortController, external: AbortSignal | undefined): () => void {
+export function foldAbortInto(controller: AbortController, external: AbortSignal): () => void {
   const onAbort = (): void => controller.abort();
-  if (external !== undefined) {
-    if (external.aborted) {
-      controller.abort();
-    } else {
-      external.addEventListener("abort", onAbort, { once: true });
-    }
+  if (external.aborted) {
+    controller.abort();
+  } else {
+    external.addEventListener("abort", onAbort, { once: true });
   }
-  return (): void => external?.removeEventListener("abort", onAbort);
+  return (): void => external.removeEventListener("abort", onAbort);
 }
 
 /** {@link foldAbortInto} over a fresh controller — the whole primitive for a caller that only needs a
@@ -55,7 +52,7 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
 
 /** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
  *  on settle also clears the deadline's timer. */
-export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleOp): FlattenedAbort {
+export function deadlineSignal(external: AbortSignal, deadlineMs: number, scheduleTimeout: ScheduleOp): FlattenedAbort {
   const controller = new AbortController();
   const detach = foldAbortInto(controller, external);
   const cancelTimer = scheduleTimeout(() => {

@@ -18,8 +18,8 @@ import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#do
 import type { ChatBoundBackfillOps, ChatServiceDeps, EmitDurableChatEventOp, SignupInviteDeps } from "#domain/chat";
 import {
   consolidationHash,
-  createCapturePersonaSeatsForDelete,
   createLiveTier0Range,
+  createReseatPersonaSeatsStatement,
   createResolveStandingAsks,
   createResolveViewerVisibility,
   loadPresentHostUserId,
@@ -53,7 +53,7 @@ import type { PersonaAssemblyContext, PersonaService } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
-  createRepointSeedsAfterPersonaDelete,
+  createPlanSeedRepointForPersonaDelete,
   createResolvePersonasForParticipants,
 } from "#domain/persona";
 import type { PresetAssemblyContext, PresetService } from "#domain/preset";
@@ -80,10 +80,13 @@ export interface SearchDiscoveryComposeDeps {
   readonly traces: TraceRing;
   readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
+  readonly abortWorkloadRun: WorkloadProgressBus["abortWorkloadRun"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly supervise?: DetachedSupervision["superviseDetached"];
   readonly scheduleTimeout: EmbeddingsAssemblyContext["scheduleTimeout"];
+  /** The process's background-work lifetime; bus-driven indexing ends with it. */
+  readonly backgroundSignal: AbortSignal;
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
@@ -112,10 +115,18 @@ export interface SearchDiscoveryComposeDeps {
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
   readonly resolveChatCapability: PresetAssemblyContext["resolveChatCapability"];
+  readonly importPresetScripts: PresetAssemblyContext["importPresetScripts"];
+  readonly planPresetScripts: PresetAssemblyContext["planPresetScripts"];
+  readonly listPresetScriptKeys: PresetAssemblyContext["listPresetScriptKeys"];
+  readonly exportPresetScripts: PresetAssemblyContext["exportPresetScripts"];
+  readonly removeUnattachedScripts: PresetAssemblyContext["removeUnattachedScripts"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  /** The disabled-account read: workloads refuse a disabled payer, and the room document union narrows its
+   *  crediting members by it. */
+  readonly isAccountEnabled: WorkloadServiceContext["isAccountEnabled"];
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
@@ -182,6 +193,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText,
     listImageAssetIds: assets.listImageAssetIds,
     loadCharacterOwner,
+    isAccountEnabled: deps.isAccountEnabled,
     loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
     // Every target move, from any caller (a write, a sweep, a sync after a re-point, boot), emptied that owner's
     // index: their forced sweeps refill it. Derefs the sweep starter below at call time, never during compose.
@@ -202,6 +214,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText,
     loadCharacterOwner,
     roleClientsFor,
+    backgroundSignal: deps.backgroundSignal,
   });
   eventBus.subscribe(createEmbeddingsIndexerSubscription({ getEffectiveConfig: deps.getEffectiveConfig, indexer }));
 
@@ -242,17 +255,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId });
     },
-    repointSeedsAfterPersonaDelete: createRepointSeedsAfterPersonaDelete({
+    planSeedRepointForPersonaDelete: createPlanSeedRepointForPersonaDelete({
       db,
       loadUserSettings: (ownerId) => settings.loadUserSettings(ownerId),
       writeSeeds: async (principal, patch) => {
         await settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch } });
       },
     }),
-    captureSeatsForDelete: createCapturePersonaSeatsForDelete({
-      db,
-      setActivePersona: (chatId, targetUserId, personaId) => setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId }),
-    }),
+    reseatPersonaSeatsStatement: createReseatPersonaSeatsStatement({ db, emit: deps.emitChatEvent }),
   };
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
@@ -265,6 +275,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     audit,
     emitUserEvent: deps.emitUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
+    importPresetScripts: deps.importPresetScripts,
+    planPresetScripts: deps.planPresetScripts,
+    listPresetScriptKeys: deps.listPresetScriptKeys,
+    exportPresetScripts: deps.exportPresetScripts,
+    removeUnattachedScripts: deps.removeUnattachedScripts,
     // The CONTEXT panel's backward-bindings read: preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
       loadUserSettings: deps.settings.loadUserSettings,
@@ -287,8 +302,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
-    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
-    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope, deps.isAccountEnabled),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope, deps.isAccountEnabled),
   });
   const discovery = createDiscoveryService({
     resolveDigestSources: createDigestSources({
@@ -334,7 +349,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveStandingAsks: createResolveStandingAsks(db),
   });
   const workloads = createWorkloadService({
+    logger: deps.logger,
     emitEvent: deps.emitWorkloadEvent,
+    abortRun: deps.abortWorkloadRun,
     db,
     getContributions: deps.getContributions,
     now,
@@ -343,12 +360,18 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     requireOwner,
     isOwner,
     isBoxOwner: deps.isBoxOwner,
+    isAccountEnabled: deps.isAccountEnabled,
     isAdmin,
     emitUserEvent: deps.emitUserEvent,
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for.
-  const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, emptyMemoryScope: deps.emptyMemoryScope, embeddings });
+  const vacuousMemoryReceipt = createVacuousMemoryReceipt({
+    isAccountEnabled: deps.isAccountEnabled,
+    isMemoryEnabled: deps.isMemoryEnabled,
+    emptyMemoryScope: deps.emptyMemoryScope,
+    embeddings,
+  });
 
   const reindex = createEmbeddingReindexTriggers({
     logger: deps.logger,

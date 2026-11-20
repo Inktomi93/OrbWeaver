@@ -9,6 +9,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { personaCardPinName } from "../lib/persona-copy.ts";
 
 export interface PersonaCardPinProps {
   readonly isPinned: boolean;
@@ -44,7 +45,7 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
         <TooltipTrigger
           render={
             <Button
-              aria-label={isPinned ? `Card is pinned to ${subject}. Press to unpin` : `Pin the card to ${subject}`}
+              aria-label={personaCardPinName(subject, isPinned)}
               aria-pressed={isPinned}
               data-slot="persona-card-pin"
               variant="ghost"

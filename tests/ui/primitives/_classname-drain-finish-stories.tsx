@@ -3,7 +3,6 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Command } from "@orb/ui/command";
 import { DialogHeader } from "@orb/ui/dialog";
 import { ChevronDown, Circle, Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
@@ -149,6 +148,7 @@ export function ButtonFinishStory(): ReactElement {
       <span data-case="away">elsewhere</span>
       <Probe name="primary" style={{ color: `var(${TOKENS["color.primary"].cssVar})`, backgroundColor: `var(${TOKENS["color.primary"].cssVar})` }} />
       <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
+      <Probe name="disabled-opacity" style={{ opacity: `var(${TOKENS["opacity.disabled"].cssVar})` }} />
       <Probe name="muted" style={{ color: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
       <Probe name="sidebar" style={{ color: `var(${TOKENS["color.sidebar"].cssVar})` }} />
       <Probe name="accent" style={{ color: `var(${TOKENS["color.accent"].cssVar})` }} />
@@ -157,7 +157,7 @@ export function ButtonFinishStory(): ReactElement {
   );
 }
 
-/** The Card shapes, tones and state axes the drain added, tier-less, inside a tier and under the glow elevation. */
+/** The Card shapes, tones and state axes the drain added, tier-less and inside a tier. */
 export function CardFinishStory(): ReactElement {
   return (
     <CtIsolation subject="Card shapes, tones and axes" isolates="Each remaining arm against its token, tier-less and inside an instrument Surface">
@@ -178,12 +178,6 @@ export function CardFinishStory(): ReactElement {
       <Card data-case="own-slot" ownSlot="named-hook">
         named
       </Card>
-      <div data-elevation="glow">
-        <Card data-case="glow-follow" interactive={true}>
-          follows
-        </Card>
-        <Card data-case="glow-none">static</Card>
-      </div>
       <span data-case="away">elsewhere</span>
       <Probe name="radius-card" style={{ borderRadius: `var(${TOKENS["radius.card"].cssVar})`, padding: `var(${TOKENS["spacing.field"].cssVar})` }} />
       <Probe
@@ -337,9 +331,6 @@ export function PartsFinishStory(): ReactElement {
       <DialogHeader data-case="dialog-header" sticky={true}>
         Title
       </DialogHeader>
-      <Command data-case="command" elevated={true} label="Palette">
-        {null}
-      </Command>
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-online" fill="success" shape="pill" />
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-offline" edge="ring" shape="pill" />
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-outline" edge="outline" fill="primary" />

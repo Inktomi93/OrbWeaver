@@ -1,8 +1,8 @@
 // The embedder-change rebuild as the client speaks of it: the confirm's words before a change that rebuilds the
 // search index, and the vector role row's rebuild line after. Pure and barrel-free, because node-side CT specs import it.
 
-import type { EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import type { Capability, EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, SMALL_EMBED_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
@@ -151,6 +151,21 @@ export const REBUILD_STATUS_COPY = {
   running: "Re-indexing: search paused.",
   failed: "Rebuild failed: search is paused until a retry finishes.",
 } as const;
+
+/**
+ * The text embed row's notice that its model reads only a small window, or `null` when the window is not small. A
+ * local encoder windows long text without loss, so it never gets one whatever its accepted input size.
+ */
+export function embedWindowNotice(capability: Capability | null): string | null {
+  if (
+    capability?.kind !== "embedding" ||
+    capability.embedding.localTextEncoding !== undefined ||
+    capability.embedding.maxInputTokens >= SMALL_EMBED_WINDOW_TOKENS
+  ) {
+    return null;
+  }
+  return `This model reads only the first ${groupThousands(capability.embedding.maxInputTokens)} tokens of a long card, so search finds a long card by its opening. A model with a larger window indexes more of it.`;
+}
 
 /** The control beside a rebuild line or a paused search that opens the rebuild's jobs. */
 export const REBUILD_JOBS_LABEL = "See Jobs";

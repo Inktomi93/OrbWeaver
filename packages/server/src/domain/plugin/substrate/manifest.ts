@@ -63,12 +63,9 @@ import { compareSemver } from "@orb/kit/semver";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
-import type { Logger } from "#foundation/observability";
-import { getLog } from "#foundation/observability";
-import { isRecordedEgressBlock } from "#infra/network";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PluginBundleAssetBytes } from "../contract/bundle-assets.ts";
-import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
+import { HostVersionUnservedError, ManifestInvalidError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's
  *  mime records that. install/upgrade store under this; the ONE home so the two verbs don't drift. */
@@ -335,27 +332,4 @@ export function isVersionDowngrade(candidate: string, installed: string): boolea
  *  versions are neither), so it is its own predicate: an equal remote is `up-to-date`, not `update-available`. */
 export function isVersionNewer(remote: string, installed: string): boolean {
   return compareSemver(remote, installed) > 0;
-}
-
-/** The OTHER half of the URL-install funnel (U8, seam 15): fetch a bundle's bytes through
- *  the injected egress-guarded fetch (`ctx.fetchBundle` → `infra/network`'s `fetchPluginBundle` — `safeFetch`
- *  ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap), then hand them to
- *  `parseBundle`. The two-line body is a SECURITY choke: it collapses EVERY fetch failure — an SSRF block, a
- *  scheme/redirect refusal, a non-2xx, a network error — to ONE leak-free {@link PluginBundleFetchError}. The
- *  original `cause` stays server-side: `safeFetch`'s own error carries the block REASON (`"private-address"` vs
- *  `"host-not-allowed"`), and a serialized cause would re-leak exactly the SSRF oracle the collapse exists to
- *  close, so it rides the error as `cause` (which the transport never serializes) and is logged here. The domain
- *  never branches on the block reason (the `fetchWebDocument`→`ScrapeFailedError` precedent) — infra performs the
- *  guarded fetch and throws; this catches, and only asks whether the block is already on record. */
-export async function fetchBundleThroughGuard(fetchBundle: (url: string) => Promise<Uint8Array>, url: string, log: Logger): Promise<Uint8Array> {
-  try {
-    return await fetchBundle(url);
-  } catch (cause) {
-    // A modeled refusal is not logged by the transport, so a failed fetch is recorded here, unless the firewall
-    // already wrote its security event for the block.
-    if (!isRecordedEgressBlock(cause)) {
-      getLog(log).warn({ err: cause }, "plugin: a bundle fetch failed");
-    }
-    throw new PluginBundleFetchError(url, { cause });
-  }
 }

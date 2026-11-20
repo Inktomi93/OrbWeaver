@@ -1,10 +1,9 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-06
+updated: 2026-11-12
 priority: P2
 area: tooling
-plan: test-enforcement
 ---
 
 # orb-guard refuses a lane's git merge, commit or reset in main's checkout

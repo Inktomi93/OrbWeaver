@@ -11,7 +11,6 @@ import type { ImportProfileDeps } from "./service.ts";
 export interface OwnerImportDeps {
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly contextFor: (principal: Principal) => ImportContextWiring;
-  readonly wallClockZone: () => string;
   readonly profile: Pick<
     ImportProfileDeps,
     | "now"
@@ -21,7 +20,11 @@ export interface OwnerImportDeps {
     | "findPersonaByName"
     | "attachChatTagByName"
     | "importRpgGame"
+    | "importMemoryStrikes"
     | "findOwnedAssetIdsByHash"
+    | "heldChatHashes"
+    | "exportCurrentChats"
+    | "ownedChatTitle"
     | "adoptDefaultPersona"
   >;
 }

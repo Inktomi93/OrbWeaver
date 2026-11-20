@@ -5,7 +5,7 @@
 // null`). Before that, the user got a defaults-looking editor and, only after typing, a generic "couldn't
 // save" with a Retry that could never succeed — the bytes are what they are.
 //
-// TWO CAUSES, NOT FOUR, AND NOT ONE. The four `VERSIONED_PARSE_FAILURES` members collapse to the two the
+// TWO CAUSES, NOT ONE. The `VERSIONED_PARSE_FAILURES` members collapse to the two the
 // reader can act on differently, and the collapse is the load-bearing part:
 //
 //   from-a-newer-version — `version-from-future`. The data is INTACT; this build is too old to represent
@@ -33,12 +33,13 @@ const UNREADABLE_CAUSES = ["from-a-newer-version", "corrupt"] as const;
 
 export type UnreadableConfigCause = (typeof UNREADABLE_CAUSES)[number];
 
-/** The collapse, as a TOTAL mapped Record over the contract's failure union: a fifth
+/** The collapse, as a TOTAL mapped Record over the contract's failure union: a new
  *  `VersionedParseFailure` member is a `tsc` error here, never a silently-missing arm that falls through to
  *  the wrong door (§5.5 dispatch discipline). */
 const CAUSE_BY_FAILURE: Record<VersionedParseFailure, UnreadableConfigCause> = {
   "version-from-future": "from-a-newer-version",
   "not-an-object": "corrupt",
+  "not-json": "corrupt",
   "lift-broke-shape": "corrupt",
   "schema-rejected": "corrupt",
 };

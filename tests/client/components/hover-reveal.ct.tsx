@@ -6,7 +6,13 @@ import type { HoverRevealStory } from "./_hover-reveal-stories.tsx";
 
 const STORY = "tests/client/components/_hover-reveal-stories/HoverRevealStory";
 // The text each fragment-wearing child of the story renders.
-const LABELS = { hidden: "hidden", inert: "inert", uiRow: "ui row", uiPin: "ui pin" } as const;
+const LABELS = { hidden: "hidden", inert: "inert", uiRow: "ui row", uiPin: "ui pin", uiFocus: "ui focus", uiSetting: "ui setting" } as const;
+// The focusable control inside the row, the one a tap or a key focuses.
+const ROW_CONTROL = "row control";
+// The control before the row, the keyboard's way back into it.
+const BEFORE_ROW = "before row";
+// The focusable control inside the named setting row.
+const SETTING_CONTROL = "setting control";
 
 // Runs in the browser, so it closes over nothing: the media conditions that gate each rule of a carried class.
 function carriedMediaConditions(classes: readonly string[]): string[] {
@@ -41,10 +47,30 @@ test("a mouse hides the clusters at rest and reveals them on the row's hover", a
   await expect(page.getByText(LABELS.inert, { exact: true })).toHaveCSS("pointer-events", "none");
   await expect(page.getByText(LABELS.uiRow, { exact: true })).toHaveCSS("opacity", "0");
   await expect(page.getByText(LABELS.uiPin, { exact: true })).toHaveCSS("opacity", "0");
+  await expect(page.getByText(LABELS.uiFocus, { exact: true })).toHaveCSS("opacity", "0");
+  await expect(page.getByText(LABELS.uiSetting, { exact: true })).toHaveCSS("opacity", "0");
   await page.getByText(LABELS.uiRow, { exact: true }).hover();
   await expect(page.getByText(LABELS.uiRow, { exact: true })).toHaveCSS("opacity", "1");
   await expect(page.getByText(LABELS.uiPin, { exact: true })).toHaveCSS("opacity", "0.6");
+  await expect(page.getByText(LABELS.uiFocus, { exact: true })).toHaveCSS("opacity", "1");
   await expect(page.getByText(LABELS.inert, { exact: true })).toHaveCSS("pointer-events", "auto");
+});
+
+test("a mouse press into a setting row leaves its actions hidden, and the keyboard reveals them", async ({ mount, page }) => {
+  await mount<typeof HoverRevealStory>(STORY, {});
+  const control = page.getByRole("button", { name: SETTING_CONTROL, exact: true });
+  const arm = page.getByText(LABELS.uiSetting, { exact: true });
+  await control.click();
+  await expect(control).toBeFocused();
+  await page.mouse.move(600, 600);
+  // Read once the reveal's own transition has run, or the rest value of a fade still on its way up passes.
+  await expect.poll(() => arm.evaluate((element) => (element.getAnimations().length > 0 ? "moving" : getComputedStyle(element).opacity))).toBe("0");
+  // Out of the setting row to the row control before it, then back in by the keyboard.
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: ROW_CONTROL, exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(control).toBeFocused();
+  await expect(arm).toHaveCSS("opacity", "1");
 });
 
 test.describe("a touch device that cannot hover", () => {
@@ -57,5 +83,24 @@ test.describe("a touch device that cannot hover", () => {
     await expect(page.getByText(LABELS.inert, { exact: true })).toHaveCSS("pointer-events", "auto");
     await expect(page.getByText(LABELS.uiRow, { exact: true })).toHaveCSS("opacity", "1");
     await expect(page.getByText(LABELS.uiPin, { exact: true })).toHaveCSS("opacity", "0.4");
+    await expect(page.getByText(LABELS.uiSetting, { exact: true })).toHaveCSS("opacity", "1");
+  });
+
+  test("keeps the focus arm hidden and inert when a tap focuses a control in the row, and reveals it to the keyboard", async ({ mount, page }) => {
+    await mount<typeof HoverRevealStory>(STORY, {});
+    const control = page.getByRole("button", { name: ROW_CONTROL, exact: true });
+    const arm = page.getByText(LABELS.uiFocus, { exact: true });
+    await control.tap();
+    await expect(control).toBeFocused();
+    await expect(arm).toHaveCSS("opacity", "0");
+    await expect(arm).toHaveCSS("pointer-events", "none");
+    // Out of the row to the control before it, then back in by the keyboard.
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.getByRole("button", { name: BEFORE_ROW, exact: true })).toBeFocused();
+    await expect(arm).toHaveCSS("opacity", "0");
+    await page.keyboard.press("Tab");
+    await expect(control).toBeFocused();
+    await expect(arm).toHaveCSS("opacity", "1");
+    await expect(arm).toHaveCSS("pointer-events", "auto");
   });
 });

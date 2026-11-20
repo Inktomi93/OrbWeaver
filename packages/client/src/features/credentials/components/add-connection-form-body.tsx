@@ -1,19 +1,18 @@
-// Button-gated connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
+// Connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { CommitFooter } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { DIALOG_VERBS, trpcErrorReason } from "#lib";
+import { trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
@@ -26,6 +25,7 @@ import {
   keyStorageBlocks,
   listingKeyFor,
   listsInDialog,
+  listsOnPick,
   needsBaseUrl,
   SAVED_KEY_UNAVAILABLE,
   sameFormValues,
@@ -34,6 +34,7 @@ import {
 } from "../lib/add-connection-form-model.ts";
 import { endpointAuthorityOf } from "../lib/connection-editor-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
+import { KEY_REFUSED_SAVE_REASON } from "../lib/credentials-names.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";
@@ -127,22 +128,16 @@ export function AddConnectionFormBody({
     if (listsInDialog(provider) && listing !== null && listing.forDraft === listingKeyFor(provider, values)) {
       return listing.source;
     }
-    return {
-      status: "unlisted",
-      reason:
-        values.credentialId !== null && provider.auth === "apiKey"
-          ? "List the models this saved key can use, or type the model id."
-          : draftModelReason(provider),
-    };
+    return { status: "unlisted", reason: draftModelReason(provider) };
   };
 
-  /** A built-in provider's list, read keyless the moment it is picked. A late answer never replaces the listing
-   *  of a draft picked after it. */
-  const listBuiltin = (provider: ProviderDef): void => {
+  /** A provider whose list needs nothing from the user (`listsOnPick`), read the moment it is picked. A late answer
+   *  never replaces the listing of a draft picked after it. */
+  const listOnPick = (provider: ProviderDef): void => {
     const forDraft = listingKeyFor(provider, { baseUrl: "", key: "", credentialId: null });
     const answer = (source: ModelCatalogSource): void =>
       setListing((current) => (current === null || current.forDraft === forDraft ? { forDraft, source } : current));
-    const retry = (): void => listBuiltin(provider);
+    const retry = (): void => listOnPick(provider);
     setListing({ forDraft, source: { status: "loading" } });
     void draftModels
       .mutateAsync({ providerId: provider.id })
@@ -209,7 +204,13 @@ export function AddConnectionFormBody({
     }
     setSubmitFailure(null);
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
-    const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
+    const source = modelSourceFor(provider, values);
+    // A key the provider refused is neither minted nor saved under a connection: its first turn would fail. Nothing
+    // cites a deliberate save on a refused key, so the dialog asks for a new one instead.
+    if (source.status === "failed" && source.keyRefused === true) {
+      throw new Error(KEY_REFUSED_SAVE_REASON);
+    }
+    const modelCheck = modelCheckOf(source, values.model);
     const credential = await credentialFor(provider, values);
     let created: ConnectionView;
     try {
@@ -230,15 +231,20 @@ export function AddConnectionFormBody({
   };
 
   const { form } = useAddConnectionForm({ entityId: "add-connection", serverValues: undefined, save });
+  const formId = useId();
+  const submitDraft = (): void => {
+    form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));
+  };
 
   return (
     <form.AppForm>
       <form
         aria-label="Add a connection"
+        id={formId}
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));
+          submitDraft();
         }}
       >
         <Stack gap="block">
@@ -257,8 +263,8 @@ export function AddConnectionFormBody({
                 form.resetField("model");
                 form.resetField("api");
                 setListing(null);
-                if (provider?.catalog === "builtin") {
-                  listBuiltin(provider);
+                if (provider !== undefined && listsOnPick(provider)) {
+                  listOnPick(provider);
                 }
               },
             }}
@@ -310,27 +316,21 @@ export function AddConnectionFormBody({
               )
             }
           </form.Subscribe>
-
-          <form.Subscribe selector={(state): string => state.values.providerId}>
-            {(providerId): ReactElement | null => {
-              const provider = providerOf(providerId);
-              // A blocked pick's notice carries its own Close; this footer would only repeat it.
-              return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
-                <DialogFooter>
-                  {onCancel === undefined ? (
-                    <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-                  ) : (
-                    <Button variant="ghost" onClick={onCancel} type="button">
-                      Back
-                    </Button>
-                  )}
-                  <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-                </DialogFooter>
-              );
-            }}
-          </form.Subscribe>
         </Stack>
       </form>
+      <form.Subscribe selector={(state): readonly [string, boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}>
+        {([providerId, canSubmit, isSubmitting]): ReactElement | null => {
+          const provider = providerOf(providerId);
+          // A blocked pick's notice carries its own Close; this footer would only repeat it.
+          return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
+            <CommitFooter
+              exit={onCancel === undefined ? "cancel" : { back: onCancel }}
+              formId={formId}
+              submit={{ label: CONNECTION_FORM_COPY.submit, onSubmit: submitDraft, disabled: providerId === "" || !canSubmit, loading: isSubmitting }}
+            />
+          );
+        }}
+      </form.Subscribe>
     </form.AppForm>
   );
 }

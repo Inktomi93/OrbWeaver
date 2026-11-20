@@ -14,13 +14,14 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { IMAGE_MODE_LABELS } from "#lib";
 // One cost voice for the whole feature (#623) — the imagine modal's read receipt writes a spend the same way.
 import { formatCost } from "../lib/format-cost.ts";
+import { IMAGE_PROVENANCE_EMPTY_TEXT, IMAGE_PROVENANCE_READ_LABEL } from "../lib/imagine-names.ts";
 
 export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): ReactElement {
   return (
     <QueryBoundary
       resetKeys={[assetId]}
       fallback={<SkeletonRows count={2} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this image's details" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={IMAGE_PROVENANCE_READ_LABEL} onRetry={retry} />}
     >
       <LoadedProvenance assetId={assetId} />
     </QueryBoundary>
@@ -33,7 +34,7 @@ function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElem
   if (data === null) {
     return (
       <Text voice="gloss" data-slot="provenance-empty">
-        No generation details recorded for this image.
+        {IMAGE_PROVENANCE_EMPTY_TEXT}
       </Text>
     );
   }

@@ -16,10 +16,11 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { nameShape } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CLEAR_PIN_NAME, personaWithPlayer } from "#client/features/persona/lib/persona-copy.ts";
+import { CLEAR_PIN_NAME, PERSONA_PANEL_NAME, PERSONA_REPIN_NAME, personaPlayingAsName, personaWithPlayer } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaRoomBlockStory } from "./_persona-room-block-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-room-block-stories/PersonaRoomBlockStory";
@@ -84,7 +85,9 @@ async function routeRoomAsHost(page: Page, root: ServerTestHarness, corpus: Corp
 }
 
 async function showPersonaPanel(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^(Playing as .+|Account & personas)$/u }).click();
+  // The rail trigger names the playing persona when one plays, and the panel when none does.
+  const playing = nameShape(personaPlayingAsName);
+  await page.getByRole("button", { name: new RegExp(`${playing.source}|^${RegExp.escape(PERSONA_PANEL_NAME)}$`, "u") }).click();
 }
 
 test("a member whose persona shares the host's persona name is named by their handle in the re-pin list and the pin line", async ({ corpus, mount, page }) => {
@@ -96,7 +99,7 @@ test("a member whose persona shares the host's persona name is named by their ha
 
   await showPersonaPanel(page);
   const line = page.locator('[data-slot="persona-anchor-line"]');
-  await line.getByRole("button", { name: "Re-pin…", exact: true }).click();
+  await line.getByRole("button", { name: PERSONA_REPIN_NAME, exact: true }).click();
   await page.getByRole("menuitem", { name: expected, exact: true }).click();
   await expect(line).toContainText(expected);
 });
@@ -116,7 +119,7 @@ test("a pin held after its player left still names that player", async ({ corpus
   await expect(line).toHaveAttribute("data-anchor-state", "held");
   await expect(line).toContainText(expected);
   // Nobody is left to pin, so the line offers the one thing it can do directly, not a menu holding only that.
-  await expect(line.getByRole("button", { name: "Re-pin…", exact: true })).toHaveCount(0);
+  await expect(line.getByRole("button", { name: PERSONA_REPIN_NAME, exact: true })).toHaveCount(0);
   await line.getByRole("button", { name: CLEAR_PIN_NAME, exact: true }).click();
   await expect(line).toHaveAttribute("data-anchor-state", "none");
 });

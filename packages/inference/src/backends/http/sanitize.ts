@@ -1,33 +1,34 @@
-// infra/providers/backends/http/sanitize — wire-level error hygiene. An upstream error body (an HTML 502
-// page, a control-char-laced binary blob, an arbitrary provider message) must never reach a log line, a
-// debug span, or the UI verbatim. `sanitizeApiError` strips control chars + markup and length-caps.
+// packages/inference/src/backends/http/sanitize.ts — wire-level error hygiene. An upstream error body (an
+// HTML 502 page, a control-char-laced binary blob, an arbitrary provider message) must never reach a log
+// line, a debug span, or the UI verbatim. `sanitizeApiError` strips control chars + markup and length-caps.
 //
 // SECURITY: this is the wire-level secret/markup hygiene seam the providers contract names
-// (contract/errors.ts) — the error CORE never holds plaintext key material, so this is the belt that
+// (`../../contract/errors.ts`) — the error CORE never holds plaintext key material, so this is the belt that
 // scrubs an upstream-derived string before it crosses into observability or a `ProviderError.message`.
 //
-// ORDER LAW — SCRUB BEFORE YOU MANGLE (#1809; the sibling half of `#primitives/secret-redaction`'s spellings
-// rule). `sanitizeApiError` MUTATES its input: it replaces every `<…>` span with a space, drops C0
+// ORDER LAW — SCRUB BEFORE YOU MANGLE (the sibling half of `redactSecretsFromText`'s spellings rule).
+// `sanitizeApiError` MUTATES its input: it replaces every `<…>` span with a space, drops C0
 // controls, collapses whitespace and hard-caps at {@link DEFAULT_SANITIZE_MAX_LEN}. Each of those edits can
-// bite a KNOWN credential literal in half — `k<x>ey` becomes `k ey`, a key straddling char 500 loses its
+// bite a KNOWN credential literal in half — `k<x>ey` becomes `k ey`, a key straddling the cap loses its
 // tail — and once the literal is fragmented NEITHER its raw nor its JSON-escaped spelling matches, so the
 // by-value belt (`redactSecretsFromText`) never reaches the remainder and the fragment rides
-// `ProviderError.message` into the #1373 `securityEvent` + the credential audit row. So every caller spells
+// `ProviderError.message` into the `securityEvent` + the credential audit row. So every caller spells
 // it `sanitizeApiError(redactSecretsFromText(x, secrets))`: the by-value belt reads INTACT text, and the
 // cap applies to already-scrubbed bytes. The reverse composition is a leak, not a style choice.
 // Safe in this order because nothing the scrub emits is mangled by this function: the redaction markers
 // (`█ ■ ◆ ● ¤ § ¶ ※`) are neither C0 controls nor markup, and `Bearer █` survives the whitespace collapse.
+// DECODE BEFORE BOTH: both passes judge the text a reader will see, so a JSON body's `\u` escapes are decoded
+// first (`decodedJsonText`), and words pulled out of a parsed body are scrubbed and sanitized after the parse.
 //
-// NOTE (orbweaver vs neo): neo branded the RESULT `SanitizedErrorMessage` because its `ChatError.message`
-// was typed to that brand. Orbweaver's `ProviderError.message` is a plain `string` (contract/errors.ts),
-// so that brand carried no compile-time obligation here and is dropped — `sanitizeApiError` returns `string`.
-// The brand this file DOES carry is on the INPUT side: `ProviderScrubSet` (#1599), which does carry an
-// obligation — a credential-bearing boundary cannot omit or fake its scrub set.
+// NOTE: `ProviderError.message` is a plain `string`, so a brand on the RESULT would carry no compile-time
+// obligation here and `sanitizeApiError` returns `string`. The brand this file DOES carry is on the INPUT
+// side: `ProviderScrubSet`, which does carry an obligation — a credential-bearing boundary cannot omit or
+// fake its scrub set.
 //
-// THE `includeBody` ARM (#1760) — which user-authored BODY values count as credential material. A BYO
+// THE `includeBody` ARM — which user-authored BODY values count as credential material. A BYO
 // endpoint may authenticate by a BODY FIELD rather than a header (`includeBody: {"api_key": "…"}`), and
-// that literal reaches the same sinks the apiKey does: `providerErrorFromHttp`'s message (durable since
-// #1373 — a `securityEvent` plus the credential audit row), the runner's captured wire body, and the
+// that literal reaches the same sinks the apiKey does: `providerErrorFromHttp`'s message (a `securityEvent`
+// plus the credential audit row), the runner's captured wire body, and the
 // "Test endpoint" inspector's displayed request + echoed response. The chosen rule is a NAMED ALLOWLIST of
 // credential KEY NAMES ({@link SECRET_BODY_KEYS}), matched on the normalized key at any depth, collecting
 // STRING leaves only. The three arms this beat, and why:
@@ -46,6 +47,7 @@
 // unrelated occurrence of those digits. Over-redaction inside a credential-named subtree is deliberate:
 // the key name declares the semantics, exactly as it does for a custom auth header.
 
+import { parseJsonText } from "@orb/kit/json";
 import { replaceAngleSpans } from "@orb/kit/strings";
 import type { ProviderScrubSet } from "#contract";
 import type { ScrubSource } from "#src/contract/http.ts";
@@ -54,14 +56,15 @@ import { secretHeaderValues } from "../wire/openai-body.ts";
 const DEFAULT_SANITIZE_MAX_LEN = 500;
 
 /**
- * Strip C0 control chars + DEL (preserving `\n`/`\t`) and HTML/XML tags from an upstream error string,
- * collapse whitespace, and cap the length (a truncation marker is appended past the cap). Idempotent on
- * already-clean text (the passes are no-ops), so a classifier may call it on every message — including
- * known-safe literals — without measurable cost.
+ * Strip control chars (C0, DEL and C1, preserving `\n`/`\t`), bidi format controls and HTML/XML tags from an
+ * upstream error string, collapse whitespace, and cap the length (a truncation marker is appended past the cap).
+ * Idempotent on already-clean text (the passes are no-ops), so a classifier may call it on every message —
+ * including known-safe literals — without measurable cost.
  */
 export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_MAX_LEN): string {
-  // Strip C0 control chars (0x00–0x1F) + DEL (0x7F), preserving tab (0x09), newline (0x0A) and carriage return (0x0D).
-  let cleaned = raw.replace(/[[\p{ASCII}&&\p{Cc}]--[\t\n\r]]/gv, "");
+  // Controls (C1 holds the 8-bit terminal introducers) and bidi overrides, which reorder what a reader sees of the
+  // message around them; tab, newline and carriage return stay for the whitespace collapse below.
+  let cleaned = raw.replace(/[[\p{Cc}\p{Bidi_Control}]--[\t\n\r]]/gv, "");
   // Replace each HTML/XML tag with a single space so adjacent tag-wrapped tokens don't fuse
   // ("<h1>Foo</h1><p>Bar</p>" → "Foo Bar", not "FooBar"); an upstream HTML error page would otherwise
   // leak a wall of markup into our logs.
@@ -72,6 +75,17 @@ export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_
     cleaned = `${cleaned.slice(0, maxLen)}… [truncated]`;
   }
   return cleaned;
+}
+
+/**
+ * A JSON body re-spelled with its `\u` escapes decoded, or the text as given when it is not whole JSON. Run it
+ * before the scrub and the sanitizer: an escape hides a markup tag, a control, a bidi override or a credential
+ * from both, and a reader of the message sees the decoded text. `JSON.stringify` spells a decoded control as an
+ * escape again, so the result carries no raw control a decode created.
+ */
+export function decodedJsonText(text: string): string {
+  const parsed = parseJsonText(text);
+  return parsed === undefined ? text : JSON.stringify(parsed);
 }
 
 const NO_SECRET_LITERALS: readonly string[] = Object.freeze([]);

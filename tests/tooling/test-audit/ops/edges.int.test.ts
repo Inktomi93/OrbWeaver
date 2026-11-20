@@ -1,6 +1,6 @@
 // The edge table end to end on a planted repository: built from a planted audit index and CodeGraph database, queried both
 // ways, and judged stale when either end changes in the working tree.
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/tooling";
@@ -123,6 +123,18 @@ test("a query run before build is misuse that names the build step, and each mis
   buildEdges(inputs);
   for (const query of queries) {
     expect(query).not.toThrow();
+  }
+});
+
+test("an edge table path that is an empty file or a directory is misuse that names the path, not a SQLite stack", async ({ plantedTree, scratch }) => {
+  const { root } = await plantedRepo(plantedTree);
+  const emptyFile = join(scratch, "empty.sqlite");
+  writeFileSync(emptyFile, "");
+  const directory = join(scratch, "edges-dir");
+  mkdirSync(directory);
+  for (const edgesPath of [emptyFile, directory]) {
+    expect(() => touchedBy(root, edgesPath, A_TEST)).toThrow(UsageError);
+    expect(() => touchedBy(root, edgesPath, A_TEST)).toThrow(edgesPath);
   }
 });
 

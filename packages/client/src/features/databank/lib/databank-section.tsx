@@ -43,7 +43,6 @@ import { useDatabankSelectionTitle } from "./databank-selection-title.ts";
 export const databankSection: SectionDefinition = {
   id: "databank",
   rail: { label: DATABANK_SECTION_LABEL, icon: Database, group: "authoring", mobile: "sheet" },
-  contentInset: "section",
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Databank",

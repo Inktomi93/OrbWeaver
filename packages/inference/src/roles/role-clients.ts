@@ -11,7 +11,7 @@ import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
+import type { EmbedRequest, RerankCallOptions, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { BindRoleClients } from "../contract/runtime.ts";
 import type { ResolverContext } from "../contract/task-resolution.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
@@ -19,8 +19,8 @@ import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
 
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
-function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
-  const { maxOutputTokens, ...rest } = rolePresetParamsOf(opts ?? {});
+function samplerFields(opts: SummarizeCallOptions): TaskSampling {
+  const { maxOutputTokens, ...rest } = rolePresetParamsOf(opts);
   return { ...rest, ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}) };
 }
 
@@ -28,6 +28,10 @@ function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
  *  `tsc` here. */
 const REFUSAL_TEXT: Record<UnavailableCause, (task: Task) => string> = {
   "no-connection": (task) => `no ${task} connection is bound for this user — bind one in Connections`,
+  "key-rejected": (task) => `the provider rejected the key on the connection bound for "${task}" — replace it in Saved keys, or pick another connection`,
+  "key-revoked-unreachable": (task) =>
+    `the key on the connection bound for "${task}" was paused when its server stopped responding — once it answers, clear revoked in Saved keys`,
+  "key-revoked-by-user": (task) => `you revoked the key on the connection bound for "${task}" — clear revoked or replace it in Saved keys`,
   "endpoint-unreachable": (task) => `the connection bound for "${task}" is unreachable right now`,
   "runtime-missing": (task) => `the connection bound for "${task}" needs the Claude runtime, which is not installed on this server`,
   "background-refused": (task) => `the connection bound for "${task}" does not allow background work — enable it in Connections`,
@@ -43,10 +47,11 @@ export function unavailableRefusal(task: Task, cause: UnavailableCause): NoConne
 }
 
 /** The embed request off the fold's knobs — each optional knob spread only when set (`exactOptionalPropertyTypes`). */
-function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string[], knobs: ResolvedEmbedKnobs): EmbedRequest {
+function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string[], knobs: ResolvedEmbedKnobs, signal: AbortSignal): EmbedRequest {
   return {
     connection: conn,
     input,
+    signal,
     ...(knobs.dimensions !== undefined ? { dimensions: knobs.dimensions } : {}),
     ...(knobs.inputType !== undefined ? { inputType: knobs.inputType } : {}),
     ...(knobs.instruction !== undefined ? { instruction: knobs.instruction } : {}),
@@ -57,8 +62,8 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
   const { ctx, executor } = args;
 
   return (funder: Principal, actor?: BindingActor): RoleClientsWithSignal => {
-    const live = async <T extends RoleClientTask>(task: T): Promise<Resolved<T>> => {
-      const { resolved } = await resolveTask(ctx, { task, principal: funder, ...(actor !== undefined ? { actor } : {}) });
+    const live = async <T extends RoleClientTask>(task: T, signal: AbortSignal): Promise<Resolved<T>> => {
+      const { resolved } = await resolveTask(ctx, { task, principal: funder, signal, ...(actor !== undefined ? { actor } : {}) });
       // The owner's per-row consent to unattended spend: a background task on a row that withholds it runs
       // nothing, and reads as the same "nothing ran" class as no binding (the callers' existing degrade).
       if (!canFund(resolved, task)) {
@@ -69,41 +74,47 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
 
     return {
       embed: async (input, opts): Promise<EmbedResult> => {
-        const conn = await live("embed");
+        const conn = await live("embed", opts.signal);
         if (conn.capability.kind !== "embedding") {
           throw new ProviderError({ kind: "invalid", retryable: false, message: "the embed binding resolved to a non-embedding model" });
         }
-        const knobs = resolveEmbed({ inputType: opts?.inputType, instruction: opts?.instruction }, conn.capability.embedding);
-        return executor.embed(embedRequestOf(conn, input, knobs));
+        const knobs = resolveEmbed({ inputType: opts.inputType, instruction: opts.instruction }, conn.capability.embedding);
+        return executor.embed(embedRequestOf(conn, input, knobs, opts.signal));
       },
-      rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
-        const conn = await live("rerank");
-        return executor.rerank({ connection: conn, query, documents, ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}) });
+      rerank: async (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions): Promise<RerankResult> => {
+        const conn = await live("rerank", opts.signal);
+        return executor.rerank({
+          connection: conn,
+          query,
+          documents,
+          ...(opts.instruction !== undefined ? { instruction: opts.instruction } : {}),
+          signal: opts.signal,
+        });
       },
-      summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
-        const conn = await live("summarize");
+      summarize: async (inputs: readonly SummarizeInput[], opts: SummarizeCallOptions): Promise<SummarizeResult> => {
+        const conn = await live("summarize", opts.signal);
         return executor.summarize({
           connection: conn,
           inputs,
-          onObservedResult: opts?.onObservedResult,
-          ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
+          onObservedResult: opts.onObservedResult,
+          signal: opts.signal,
           ...samplerFields(opts),
         });
       },
       structured: async (inputs: readonly SummarizeInput[], opts: StructuredCallOptions): Promise<SummarizeResult> => {
-        const conn = await live("structured");
+        const conn = await live("structured", opts.signal);
         return executor.structured({
           connection: conn,
           inputs,
           responseFormat: opts.responseFormat,
           onObservedResult: opts.onObservedResult,
-          ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
+          signal: opts.signal,
           ...samplerFields(opts),
         });
       },
-      resolved: async (task: RoleClientTask): Promise<Resolved | null> => {
+      resolved: async (task: RoleClientTask, signal: AbortSignal): Promise<Resolved | null> => {
         try {
-          return await live(task);
+          return await live(task, signal);
         } catch (err) {
           if (err instanceof ProviderError && err.name === "NoConnectionError") {
             return null;

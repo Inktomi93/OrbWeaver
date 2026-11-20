@@ -44,6 +44,7 @@
 // `orb/persistence-boundary`'s allowlist (`RAW_STORAGE_HOMES` in eslint.config.ts). Nothing else here touches browser storage directly.
 
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
+import { isStorageRefusal } from "#lib";
 import { ACTIVE_USER_KEY, durableLocalStorageKey } from "./durable-local-keys.ts";
 
 /** A first-user legacy move may span failures, identity switches, and reloads; keep its owner durable. */
@@ -124,7 +125,10 @@ function readBootHint(): UserId | null {
   // refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.
   try {
     return storage.getItem(ACTIVE_USER_KEY) as UserId | null;
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     // A browser with storage disabled throws on access; the app degrades to the legacy (unscoped) namespace
     // rather than failing to boot — nothing is persisted there either, so there is nothing to leak.
     return null;
@@ -136,7 +140,10 @@ function writeBootHint(userId: UserId): void {
   // refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.
   try {
     storage?.setItem(ACTIVE_USER_KEY, userId);
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     /* ownership marker above */
   }
 }
@@ -146,7 +153,10 @@ function readAdoptionHint(): UserId | null {
   // refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.
   try {
     return storage?.getItem(PENDING_ADOPTION_KEY) as UserId | null;
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     return null;
   }
 }
@@ -165,7 +175,10 @@ function clearAdoptionHint(): void {
   // a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.
   try {
     storage?.removeItem(PENDING_ADOPTION_KEY);
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     /* ownership marker above */
   }
 }

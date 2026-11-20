@@ -18,10 +18,11 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId } from "#lib";
+import { rethrowUnlessTrpcFailure, testId } from "#lib";
 import { confirmedAction } from "#src/components/confirmed-action.ts";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
+import { ADMIN_CREATE_USER_NAME } from "../lib/user-admin-names.ts";
 import { AdminCreateUserDialog } from "./admin-create-user-dialog.tsx";
 import { AdminResetPasswordDialog } from "./admin-reset-password-dialog.tsx";
 import { AdminUserRow } from "./admin-user-row.tsx";
@@ -75,7 +76,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
     setRolePendingIds(new Set(rolePendingRef.current));
     void setRole
       .mutateAsync({ userId, role })
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         rolePendingRef.current.delete(userId);
         setRolePendingIds(new Set(rolePendingRef.current));
@@ -90,7 +91,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
     setEnabledPendingIds(new Set(enabledPendingRef.current));
     void setEnabled
       .mutateAsync({ userId, enabled })
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         enabledPendingRef.current.delete(userId);
         setEnabledPendingIds(new Set(enabledPendingRef.current));
@@ -106,7 +107,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
           </Text>
           <Button size="sm" data-testid={testId("adminCreateUserButton")} onClick={(): void => setCreateOpen(true)}>
             <Icon icon={UserPlus} size="sm" />
-            Create user
+            {ADMIN_CREATE_USER_NAME}
           </Button>
         </Row>
 

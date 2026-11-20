@@ -1,16 +1,9 @@
-// The Saved-keys row's pure model (inference program §5.3a): how a key NAMES itself, the reuse count line,
-// and the per-cause revocation sentence. Split out of the row component so the copy is testable without a
+// The Saved-keys row's pure model (inference program §5.3a): the reuse count line and the per-cause
+// revocation sentence; how a key NAMES itself is `keySubjectName` in `credentials-names.ts`. Split out of the row component so the copy is testable without a
 // browser and so the row's two ConfirmDialogs and its Replace prompt quote ONE count phrase between them.
 
 import type { CredRevokedReason } from "@orb/contracts/credentials";
-
-/** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
- *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
- *  a title in a second form would put the visible label and the accessible name out of agreement, which is
- *  WCAG 2.5.3's whole subject, and in a list of keys a bare verb or a bare label names nothing. */
-export function keySubject(providerLabel: string, label: string): string {
-  return `${providerLabel} "${label}"`;
-}
+import { REVOKED_KEY_COPY } from "#lib";
 
 /** The reuse fact as a SENTENCE — a key is shared across connections, so every consequential act on it
  *  quotes this rather than leaving the reader to count rows. */
@@ -44,25 +37,9 @@ export function keyRowSubtitle(
  *  so this line cannot become the credential-echo leak class (a user endpoint that reflects the request back
  *  has repeatedly turned display-bound response text into a key disclosure).
  *
- *  The unknown arm returns null — a wire value outside the union is not parsed at this boundary, and the
+ *  The words are {@link REVOKED_KEY_COPY}'s, the one home every revoked-key surface reads, so this row and the
+ *  connection badge cannot disagree on why. A wire value outside the union is not parsed at this boundary, and the
  *  honest answer to "why?" we cannot read is silence, never the raw string on screen. */
 function revokedReasonCopy(reason: CredRevokedReason): string | null {
-  switch (reason) {
-    case "auth_failed":
-      // Names the KEY as the problem: the fix is a new key, not "try again in a minute".
-      return "Revoked: the provider rejected this key";
-    case "unreachable":
-      // Deliberately NOT "rejected": nothing answered, so nothing judged the key. Saying otherwise would send
-      // a user to rotate a perfectly good key because their own box was off.
-      return "Revoked: the endpoint stopped responding";
-    case "user":
-      return "Revoked by you";
-    default:
-      return unreadableReasonCopy(reason);
-  }
-}
-
-// `never` parameter: a new CredRevokedReason member stops compiling at the call above.
-function unreadableReasonCopy(_reason: never): null {
-  return null;
+  return Object.hasOwn(REVOKED_KEY_COPY, reason) ? REVOKED_KEY_COPY[reason].savedKey : null;
 }

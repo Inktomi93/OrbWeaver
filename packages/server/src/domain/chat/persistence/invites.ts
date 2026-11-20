@@ -7,6 +7,7 @@
 // stamps `joinSeq` from a scalar subquery over `messages`, so a message committed while the redeem is in
 // flight can never land ABOVE the floor the seat records. Both redeem doors below share that builder.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
@@ -15,7 +16,7 @@ import { batchMany } from "@orb/db/query";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
-import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
+import { insertMemberAfterInviteClaimStatement, markChatSharedAfterSeatStatement } from "./participant.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
 export async function findInviteByTokenHash(db: Db, tokenHash: string): Promise<typeof chatInvites.$inferSelect | undefined> {
@@ -72,9 +73,10 @@ export async function countPresentMembers(db: Db, chatId: ChatId): Promise<numbe
   return rows.at(0)?.n ?? 0;
 }
 
-/** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb). */
-export async function insertInvite(db: Db, row: typeof chatInvites.$inferInsert): Promise<void> {
-  await db.insert(chatInvites).values(row);
+/** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb) into the claimed room: only an
+ *  invite seats a second human, and a room is claimed before anyone can join it. */
+export async function insertInvite(db: Db, claim: RoomClaim, row: Omit<typeof chatInvites.$inferInsert, "chatId">): Promise<void> {
+  await db.insert(chatInvites).values({ ...row, chatId: claim.chatId });
 }
 
 /** The atomic redeem — the one human participant-insert chokepoint. A single conditional UPDATE …
@@ -124,9 +126,8 @@ export async function redeemInviteAtomic(
     activePersonaId: params.activePersonaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {
@@ -181,9 +182,8 @@ export async function acceptInviteByIdAtomic(
     activePersonaId: params.activePersonaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {
@@ -277,7 +277,8 @@ export async function redeemSignupAtomic(
     activePersonaId: params.personaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, params.pointers, seat, params.audit]));
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: params.inviteId, userId: params.userId });
+  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, params.pointers, seat, params.audit, shared]));
   const [accounts, claims, personas, pointers, seats] = results.slice(params.leading.length) as readonly (readonly unknown[])[];
   return {
     accounts: accounts?.length ?? 0,

@@ -12,10 +12,10 @@
 //     and the irreversible one is never a single click from the one that spends.
 //
 // COLLAPSE-UNTIL-NEEDED (an owner ruling). Every affordance at once costs a scan-list far more height than its
-// reserve. The row wears the SAME clothes as the Field-overrides section and the injection rows: a
-// `Collapsible` in a `!p-0` Card whose trigger carries the whole of what a rule IS at a glance — name, what it
-// does, when it last ran, plus the unreadable verdict when there is one — with the enable switch beside it
-// and everything else behind the disclosure. Each affordance keeps its weight one press further in. ONE
+// reserve. The row wears the SAME clothes as the Field-overrides section and the injection rows: a disclosure
+// `ListRow` whose body carries the whole of what a rule IS at a glance — name, what it does, when it last ran,
+// plus the unreadable verdict when there is one — with the enable switch beside it and everything else behind
+// the disclosure. Each affordance keeps its weight one press further in. ONE
 // affordance stays on the closed face: the enable switch. On/off is the question a host scanning a rule list
 // is actually asking, and it is neither destructive nor spending.
 //
@@ -50,10 +50,11 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Coins, Play } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName, moreActionsName, recentActivityName } from "@orb/ui/lib";
+import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -63,8 +64,9 @@ import { useRef, useState } from "react";
 import { DescribedMenuItem, QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { deleteConfirmTitle, notify } from "#lib";
+import { deleteConfirmTitle, notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useMobileViewport } from "#state";
+import { ruleConnectionsName, ruleRunNowName, ruleTestName, ruleTestResultName } from "../lib/automation-names.ts";
 import {
   armLabel,
   hasSpendArm,
@@ -125,7 +127,7 @@ function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
   const tools = useQuery(trpc.automation.listRuleTools.queryOptions(undefined, { enabled: rule.actions.some((action) => action.type === "run_tool") }));
   const verdict = predicateVerdict(result.predicate);
   return (
-    <Stack aria-label={`Test result for ${rule.name}`} gap="tight" role="status">
+    <Stack aria-label={ruleTestResultName(rule.name)} gap="tight" role="status">
       <Row gap="block" align="center">
         <Badge tone={verdict.tone} size="sm">
           {verdict.label}
@@ -234,85 +236,54 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
     );
   };
   const onRunNow = (): void => {
-    runNow.mutateAsync({ ruleId: rule.id, chatId }).then(
-      (result) => {
-        const notice = runOutcomeNotice(rule.name, result.outcome);
-        notify[notice.channel](notice.line);
-      },
-      () => undefined,
-    );
+    runNow.mutateAsync({ ruleId: rule.id, chatId }).then((result) => {
+      const notice = runOutcomeNotice(rule.name, result.outcome);
+      notify[notice.channel](notice.line);
+    }, rethrowUnlessTrpcFailure);
   };
 
   return (
-    // `padding="none"` so the block padding lives on the trigger and the whole closed row is one tap target.
-    <Card padding="none">
-      <Collapsible open={open} onOpenChange={setOpen}>
-        {/* THE ENABLE SWITCH IS A SIBLING OF THE TRIGGER, NEVER INSIDE IT. A control nested in a `button` is
-            unreachable by keyboard and invalid content — so the header is a Row: the disclosure takes the
-            slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
-            and the one control a host needs WITHOUT opening the row sits beside it. The end inset supplies the
-            padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" wrap={true} paddingInlineEnd="block" gap="field">
-          {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
-              fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
-              because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
-              triggers of the sibling sections never showed it. The accessible name COMPUTES from the
-              trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
-          <CollapsibleTrigger grow={true} floor="title" inset="block" textAlign="start" className="min-inline-0" size="control">
-            {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
-                last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
-                behind the disclosure. */}
-            <Stack className="min-inline-0" grow={true} gap="tight">
-              <Text wrap="anywhere" voice="promoted">
-                {rule.name}
-              </Text>
-              {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
-                  Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
-              <Text
-                flow={open || mobile ? undefined : "block"}
-                clamp={open || !mobile ? undefined : 2}
-                cap="fit"
-                prose={true}
-                truncate={!(open || mobile)}
-                voice="gloss"
-              >
-                {ruleGloss(rule)}
-              </Text>
-              {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host
-                  must meet without opening anything. */}
-              <RuleRowState rule={rule} />
-            </Stack>
-          </CollapsibleTrigger>
-          {/* `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host
-              most needs to see), the Lock glyph carries the refusal without colour, and the accessible name
-              says WHY instead of offering an action the surface will not perform. The ONE affordance
-              that stays on the closed face — on/off is the question a host scanning a rule list is asking,
-              and it is neither destructive nor spending. */}
-          <Switch
-            aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : ruleEnabledSwitchName(rule.name)}
-            checked={rule.enabled}
-            className="shrink-0"
-            disabled={setEnabled.isPending}
-            onCheckedChange={onEnabledChange}
-            readOnly={unreadable}
-          />
-        </Row>
-        {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
-            trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
-        <CollapsiblePanel holds="controls">
-          <Stack paddingBlockEnd="block" paddingInline="block" gap="field">
+    // THE ENABLE SWITCH IS A SIBLING OF THE DISCLOSURE, NEVER INSIDE IT: a control nested in a `button` is unreachable by keyboard
+    // and invalid content. It is the one control a host needs WITHOUT opening the row. Shut, the rule's sentence keeps to one
+    // line (two on a phone) so a closed row stays dense; open, it takes two. The error states stay on the CLOSED face: a rule that
+    // cannot or will not run is what a host must meet without opening anything.
+    <ListRow
+      title={rule.name}
+      titleStep="promoted"
+      subtitle={ruleGloss(rule)}
+      subtitleWrap={open || mobile}
+      detail={<RuleRowState rule={rule} />}
+      stackActions={true}
+      stackActionsAt="cq-24"
+      actions={
+        // `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host most needs to see), the
+        // Lock glyph carries the refusal without colour, and the accessible name says WHY instead of offering an action the surface
+        // will not perform.
+        <Switch
+          aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : ruleEnabledSwitchName(rule.name)}
+          checked={rule.enabled}
+          disabled={setEnabled.isPending}
+          onCheckedChange={onEnabledChange}
+          readOnly={unreadable}
+        />
+      }
+      expand={{
+        open,
+        onOpenChange: setOpen,
+        panel: (
+          <Stack gap="field">
             <Row align="center" wrap={true} gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
-                <Button variant="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>
+                <Button variant="ghost" size="sm" aria-label={editActionName(rule.name)} onClick={(event): void => onEdit(event.currentTarget)}>
                   Edit
                 </Button>
               )}
-              <Button variant="outline" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
+              <Button variant="outline" size="sm" aria-label={ruleTestName(rule.name)} loading={testRule.isPending} onClick={onTest}>
                 Test
               </Button>
               <RowActionsMenu
-                label={`More actions for ${rule.name}`}
+                label={moreActionsName(rule.name)}
                 destructive={{
                   title: deleteConfirmTitle(rule.name),
                   description: "This removes the rule and its activity. It can't be undone, but you can add the rule again.",
@@ -328,7 +299,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   detail={runRefusal ?? undefined}
                   disabled={runRefusal !== null || runNow.isPending}
                   icon={spends ? Coins : Play}
-                  label={spends ? "Run now: spends a model call" : "Run now"}
+                  label={ruleRunNowName(spends)}
                   onClick={onRunNow}
                 />
               </RowActionsMenu>
@@ -367,7 +338,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                 arms spend nothing through a binding, and on an unreadable rule (its arms are unknown). */}
             {bindingTasks.length === 0 ? null : (
               <Collapsible>
-                <CollapsibleTrigger aria-label={`Connections for ${rule.name}`} size="control">
+                <CollapsibleTrigger aria-label={ruleConnectionsName(rule.name)} size="control">
                   <Text voice="label">Connections</Text>
                 </CollapsibleTrigger>
                 <CollapsiblePanel offset="row">
@@ -388,7 +359,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   trigger, so a finger landing 8px off hits nothing. The `control` arm pins the pointer-conditional
                   `--spacing-control-sm` floor (44px coarse / 32px fine) that every other tap-floor control in this
                   pane rides. */}
-              <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`} size="control">
+              <CollapsibleTrigger aria-label={recentActivityName(rule.name)} size="control">
                 <Text voice="label">Recent activity</Text>
               </CollapsibleTrigger>
               <CollapsiblePanel>
@@ -403,8 +374,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               </CollapsiblePanel>
             </Collapsible>
           </Stack>
-        </CollapsiblePanel>
-      </Collapsible>
-    </Card>
+        ),
+      }}
+    />
   );
 }

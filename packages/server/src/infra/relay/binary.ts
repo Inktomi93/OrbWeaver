@@ -9,7 +9,15 @@ import { join } from "node:path";
 import type { RelayBinaryRefusal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import { isMissingFile } from "#primitives/errno";
-import type { CloudflaredAsset, CloudflaredBinary, CloudflaredBinaryDeps, CloudflaredPackaging, CloudflaredTarget, ExtractTgz } from "./contract.ts";
+import type {
+  CloudflaredAsset,
+  CloudflaredBinary,
+  CloudflaredBinaryDeps,
+  CloudflaredPackaging,
+  CloudflaredTarget,
+  ExtractTgz,
+  RelayExecutionDeps,
+} from "./contract.ts";
 import { CLOUDFLARED_TARGETS } from "./contract.ts";
 
 const DOWNLOAD_TIMEOUT_MS = 300_000;
@@ -98,7 +106,7 @@ async function download(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, de
   try {
     const body = await fetchAsset(deps, asset, url);
     for await (const chunk of body) {
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       received += chunk.byteLength;
       if (received > asset.bytes) {
         throw mismatch(asset, deps.pin.version);
@@ -142,7 +150,7 @@ const EXECUTABLE_FROM: Record<CloudflaredPackaging, (deps: CloudflaredBinaryDeps
 export function createCloudflaredBinary(deps: CloudflaredBinaryDeps): CloudflaredBinary {
   return {
     ensure: async (): Promise<string> => {
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       const target = deps.target;
       if (!isTarget(target)) {
         throw refuse("relay_platform_unsupported", `cloudflared publishes no build for ${target}, so this machine cannot start a quick tunnel.`);
@@ -165,31 +173,35 @@ export function createCloudflaredBinary(deps: CloudflaredBinaryDeps): Cloudflare
         }
         await rename(partial, assetPath);
       }
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       return EXECUTABLE_FROM[asset.packaging](deps, assetPath, target);
     },
   };
 }
 
 /** Unpacks only the `cloudflared` entry with the system tar, argument by argument, never through a shell. */
-export const extractTgzWithTar: ExtractTgz = (archive, intoDir, signal) =>
-  new Promise<void>((resolve, reject) => {
-    signal?.throwIfAborted();
-    const child = spawn("tar", ["-xzf", archive, "-C", intoDir, TGZ_ENTRY], {
-      stdio: "ignore",
-      ...(signal === undefined ? {} : { signal, killSignal: "SIGKILL" }),
+export function tarExtractor(childEnv: RelayExecutionDeps["childEnv"]): ExtractTgz {
+  return (archive, intoDir, signal) =>
+    new Promise<void>((resolve, reject) => {
+      signal.throwIfAborted();
+      const child = spawn("tar", ["-xzf", archive, "-C", intoDir, TGZ_ENTRY], {
+        stdio: "ignore",
+        env: childEnv(),
+        signal,
+        killSignal: "SIGKILL",
+      });
+      let failure: Error | undefined;
+      child.once("error", (error) => {
+        failure = error;
+      });
+      child.once("close", (code) => {
+        if (failure !== undefined) {
+          reject(failure);
+        } else if (code !== 0) {
+          reject(new Error("The verified relay archive could not be extracted"));
+        } else {
+          resolve();
+        }
+      });
     });
-    let failure: Error | undefined;
-    child.once("error", (error) => {
-      failure = error;
-    });
-    child.once("close", (code) => {
-      if (failure !== undefined) {
-        reject(failure);
-      } else if (code !== 0) {
-        reject(new Error("The verified relay archive could not be extracted"));
-      } else {
-        resolve();
-      }
-    });
-  });
+}

@@ -10,7 +10,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type {
   DistributedPluginView,
-  InvocationChat,
   ListPluginRecipients,
   PluginBridge,
   PluginBundleAssetView,
@@ -19,10 +18,8 @@ import type {
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFrameBody,
-  PluginHandlerRef,
   PluginInstance,
   PluginInstanceCreateData,
-  PluginInvokeArgs,
   PluginLogView,
   PluginMacroView,
   PluginSurfaceState,
@@ -128,14 +125,10 @@ export interface PluginHostPort {
   readonly createInstance: (input: CreateInstanceInput) => Promise<CreateInstanceOutcome>;
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
-   *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope). */
-  readonly invoke: (
-    instance: PluginInstance,
-    handler: PluginHandlerRef,
-    argsJson: PluginInvokeArgs,
-    chat: InvocationChat | null,
-    signal?: AbortSignal,
-  ) => Promise<string>;
+   *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope).
+   *  `phase` `display` is a query's call, whose host calls may only read. `cascadeDepth` is how many cascade levels
+   *  deep the call runs; only a delivery a plugin's own command caused passes one, and every other call runs at 0. */
+  readonly invoke: ProcessPluginHost["invoke"];
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
    *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter).
@@ -153,6 +146,9 @@ export interface PluginHostPort {
    *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
    *  or from what it is missing. */
   readonly readLog: ProcessPluginHost["readLog"];
+  /** Log a failure the instance's guest caused, per call, on that instance's server-log window: a guest picks how often
+   *  it fails, so a line it can repeat goes here and never straight to the logger. */
+  readonly logFailure: ProcessPluginHost["logFailure"];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: ProcessPluginHost["dispose"];
 }
@@ -215,6 +211,9 @@ interface ResidentPlugin {
    *  action re-enters the surface's `onAction` through THIS so a throwing handler bumps `consecutive_crashes`
    *  (3-strike auto-disable) exactly like a tool/transform/event handler does. */
   readonly invoke: PluginInvokeHandler;
+  /** The invoker a query path uses: it logs a failure and never touches the crash counter, so a read writes no
+   *  plugin state. A display transform re-enters through this. */
+  readonly invokeForRead: PluginInvokeHandler;
 }
 
 /** The in-process resident-instance registry the lifecycle owns (`ASSUMES(single-replica)` — the enabled-index
@@ -298,8 +297,8 @@ export interface PluginContext {
    *  wall), a redirect budget, and a byte cap that bounds the download BEFORE `parseBundle` ever sees it. NEVER a
    *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never branches on why —
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent — and asks infra only whether the firewall already recorded
-   *  the block); the URL verbs collapse every throw to a single
-   *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
+   *  the block). `domain/plugin/context.ts` replaces this op with its guarded form when it builds
+   *  the context, so every URL verb sees each throw collapsed to a single leak-free {@link PluginBundleFetchError}. */
   readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;

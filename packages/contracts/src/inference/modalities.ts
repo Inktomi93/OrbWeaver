@@ -1,7 +1,6 @@
 // The modality axis — ONE closed tuple every capability's `input`/`output` and every task's `requires`
-// clause is spelled in. Replaces today's `input.{vision, video, audio, file}` booleans and the free
-// `inputModalities: string[]` a catalog hands over: a modality is a MEMBER, never a flag per consumer.
-// `vector` is emitted by no catalog — it exists only as an embedding capability's `output`.
+// clause is spelled in: a modality is a MEMBER, never a flag per consumer or a free string a catalog hands
+// over. `vector` is emitted by no catalog — it exists only as an embedding capability's `output`.
 
 import { z } from "zod";
 

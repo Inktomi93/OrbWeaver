@@ -9,6 +9,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { ANTHROPIC_API_KEY_ENV } from "@orb/contracts/preset";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
@@ -40,7 +41,7 @@ test.for([
   DEBUG_TOKEN_ENV,
   OIDC_ALLOWED_GROUPS_KEY,
   OWNER_HANDLES_KEY,
-  "ANTHROPIC_API_KEY",
+  ANTHROPIC_API_KEY_ENV,
   "ORB_UNAPPROVED_TEST_KEY",
   "CT_RUN_SLOT_DIR",
   "CT_RUN_SLOT_RACING",

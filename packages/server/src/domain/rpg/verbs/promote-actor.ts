@@ -42,9 +42,8 @@ import { rekeyActor } from "../substrate/actor-rekey.ts";
 
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
-    const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
+    const { game, role, admission } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the room's characters");
-    await ctx.claimChat(params.chatId);
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
@@ -71,6 +70,8 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
     const participants = await ctx.resolveParticipants(game.chatId);
 
+    // No claim of its own: the seat (`addCharacterToChat`) and the rekey (`writeHandState`) each claim after the
+    // promotion's roster-name and handle refusals.
     const minted = await ctx.promoteToCharacter({
       chatId: game.chatId,
       // The ROOM HOST, threaded explicitly: this verb gated `role === "host"`, so the caller IS that human, and
@@ -99,7 +100,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     }
     const to = { kind: "character", characterId: minted.characterId } as const;
 
-    const written = await writeHandState(ctx, game, (current) => rekeyActor(current, from, to));
+    const written = await writeHandState(ctx, { game, admission }, (current) => rekeyActor(current, from, to));
     if (!written.ok) {
       // The card + seat DID land (they are durable and this verb is not transactional across domains). Say so:
       // "nothing happened" would send the host looking for a character that is already in their library.

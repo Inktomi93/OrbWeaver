@@ -3,9 +3,9 @@
 // account. The returned cleanup owns the exact minted ids and proves their absence after removal.
 
 import { randomUUID } from "node:crypto";
-import { errorMessage } from "@orb/kit/error-message";
 import { instrumentRefusal } from "../browser/page-validate.ts";
 import { refuseDirectInvocation } from "../cli/entrypoint.ts";
+import { stageTrpc, stageTrpcData } from "../http/stage-trpc.ts";
 import type { ThemeEntry } from "./theme.ts";
 import { readThemeList } from "./theme.ts";
 
@@ -18,10 +18,6 @@ const LIGHT_CSS = ":root { --orb-matrix-fixture-ink: oklch(0.24 0.02 80); }";
 const DARK_CSS = ":root { --orb-matrix-fixture-ink: oklch(0.94 0.01 265); }";
 const FIXTURE_NAME_SUFFIX_LENGTH = 8;
 
-interface TrpcEnvelope {
-  readonly result?: { readonly data?: unknown };
-}
-
 export interface RatedThemeFixture {
   readonly entries: readonly [ThemeEntry, ThemeEntry];
   readonly cleanup: () => Promise<void>;
@@ -31,29 +27,7 @@ function provisioningCleanupError(primary: unknown, cleanup: unknown): Aggregate
   return new AggregateError([primary, cleanup], "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed", { cause: primary });
 }
 
-async function trpc(baseUrl: string, procedure: string, input?: unknown): Promise<unknown> {
-  const init: RequestInit =
-    input === undefined
-      ? {}
-      : {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(input),
-        };
-  const response = await fetch(`${baseUrl}/api/trpc/${procedure}`, init);
-  const text = await response.text();
-  if (!response.ok) {
-    return instrumentRefusal(`rated theme ${procedure} failed (HTTP ${response.status}): ${text}`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    return instrumentRefusal(`rated theme ${procedure} returned invalid JSON: ${errorMessage(error)}`);
-  }
-}
-
-function createdTheme(body: unknown, capability: "custom-light" | "custom-dark"): ThemeEntry {
-  const data = (body as TrpcEnvelope).result?.data;
+function createdTheme(data: unknown, capability: "custom-light" | "custom-dark"): ThemeEntry {
   const entries = readThemeList({ result: { data: data === undefined ? [] : [data] } });
   const entry = entries?.[0];
   if (entry === undefined || entry.isSeed !== false || entry.polarity !== capability.slice("custom-".length) || entry.hasCustomCss !== true) {
@@ -63,7 +37,7 @@ function createdTheme(body: unknown, capability: "custom-light" | "custom-dark")
 }
 
 async function listThemes(baseUrl: string): Promise<readonly ThemeEntry[]> {
-  const entries = readThemeList(await trpc(baseUrl, "settings.listThemes"));
+  const entries = readThemeList(await stageTrpc(baseUrl, "settings.listThemes", "query"));
   if (entries === null) {
     return instrumentRefusal("settings.listThemes returned an unreadable catalog during rated-theme lifecycle");
   }
@@ -72,7 +46,7 @@ async function listThemes(baseUrl: string): Promise<readonly ThemeEntry[]> {
 
 async function removeAndProveAbsent(baseUrl: string, entries: readonly ThemeEntry[]): Promise<void> {
   for (const entry of entries) {
-    await trpc(baseUrl, "settings.removeTheme", { id: entry.id });
+    await stageTrpc(baseUrl, "settings.removeTheme", "mutation", { id: entry.id });
   }
   const remaining = await listThemes(baseUrl);
   const leaked = entries.filter((entry) => remaining.some((candidate) => candidate.id === entry.id));
@@ -92,7 +66,7 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
   try {
     created.push(
       createdTheme(
-        await trpc(baseUrl, "settings.createTheme", {
+        await stageTrpcData(baseUrl, "settings.createTheme", "mutation", {
           name: `${MATRIX_THEME_PREFIX}-light-${suffix}`,
           override: { background: LIGHT_BACKGROUND },
           css: LIGHT_CSS,
@@ -102,7 +76,7 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
     );
     created.push(
       createdTheme(
-        await trpc(baseUrl, "settings.createTheme", {
+        await stageTrpcData(baseUrl, "settings.createTheme", "mutation", {
           name: `${MATRIX_THEME_PREFIX}-dark-${suffix}`,
           override: { background: DARK_BACKGROUND },
           css: DARK_CSS,

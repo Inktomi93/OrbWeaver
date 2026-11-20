@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
-import { REFINERY_EDIT_SCOPE_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_COPY_UNTOUCHED_TEXT, REFINERY_EDIT_SCOPE_NAME, REFINERY_SNAPSHOT_TAKEN_TEXT } from "../lib/refinery-names.ts";
 import { NEW_GREETING_LABEL, slotLabelOf } from "../lib/render-plan.ts";
 import { APPLIED_KIND_WORD } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -77,8 +77,8 @@ export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEdit
               <Text voice="label">
                 {applied.length} field{applied.length === 1 ? "" : "s"} written{copyName === undefined ? "" : ` to the copy "${copyName}"`}.
               </Text>
-              {copyName !== undefined ? <Text voice="gloss">The live card is untouched. No snapshot was needed, nothing existing was written.</Text> : null}
-              {copyName === undefined && snapshotTaken ? <Text voice="gloss">Saved a snapshot first. Undo it from the character's History tab.</Text> : null}
+              {copyName !== undefined ? <Text voice="gloss">{REFINERY_COPY_UNTOUCHED_TEXT}</Text> : null}
+              {copyName === undefined && snapshotTaken ? <Text voice="gloss">{REFINERY_SNAPSHOT_TAKEN_TEXT}</Text> : null}
             </Stack>
           )}
         </Row>

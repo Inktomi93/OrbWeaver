@@ -6,6 +6,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { ACCOUNTING_COVERAGE_NAME, ANALYTICS_CHARACTER_IDENTITY_TEXT } from "#client/features/stats/lib/analytics-copy.ts";
+import { ANALYTICS_ACTIVITY_HEADING } from "#client/features/stats/lib/analytics-names.ts";
 import type { InsightsIdentityShellStory } from "./_insights-identity-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_insights-identity-stories/InsightsIdentityShellStory";
@@ -35,9 +37,9 @@ for (const regime of REGIMES) {
       await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof InsightsIdentityShellStory>(STORY, { characterId: ranked.characterId });
       const pane = page.getByTestId(testId("analyticsCharacterSurface"));
-      await expect(pane.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
-      await expect(pane.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
-      await expect(pane.getByRole("button", { name: "Accounting coverage", exact: true })).toBeVisible();
+      await expect(pane.getByRole("heading", { name: ANALYTICS_ACTIVITY_HEADING, exact: true })).toBeVisible();
+      await expect(pane.getByText(ANALYTICS_CHARACTER_IDENTITY_TEXT, { exact: true })).toBeVisible();
+      await expect(pane.getByRole("button", { name: ACCOUNTING_COVERAGE_NAME, exact: true })).toBeVisible();
       // The heading is the one name in the outline; the pane paints the name as its hidden-from-assistive-technology twin, which
       // stands down where the phone's topbar paints it.
       const heading = pane.getByRole("heading", { level: 2, name: stats.name, exact: true });

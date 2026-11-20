@@ -3,6 +3,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { peekQueryData } from "./peek-query.ts";
 import { useTRPC } from "./trpc.ts";
 
@@ -14,7 +15,7 @@ export function useWarmSavedRosters(): void {
     const rosters = trpc.rosterPreset.list.queryOptions();
     if (peekQueryData(queryClient, rosters.queryKey) === undefined) {
       // A failed warm-up is the picker's own read to retry and surface, so the warming caller swallows it.
-      void queryClient.query(rosters).catch(() => undefined);
+      void queryClient.query(rosters).catch(rethrowUnlessTrpcFailure);
     }
   }, [queryClient, trpc]);
 }

@@ -60,7 +60,7 @@ export function CorpusHomeSkeleton(): ReactElement {
             {slots(ISLAND_PLATES).map((i) => (
               <Row align="center" gap="row" key={i}>
                 <Skeleton width="avatarLg" height="avatarLg" variant="portrait" />
-                <Stack className="min-inline-0" grow={true} gap="tight">
+                <Stack minWidth="shrinks" grow={true} gap="tight">
                   <Skeleton width="half" height="lineMicro" />
                   <Skeleton width="threeQuarters" height="lineMicro" />
                 </Stack>
@@ -68,7 +68,7 @@ export function CorpusHomeSkeleton(): ReactElement {
             ))}
           </Stack>
         </Card>
-        <Stack className="min-inline-0" gap="row">
+        <Stack minWidth="shrinks" gap="row">
           <Skeleton width="third" height="lineMicro" />
           <SkeletonRows count={READINESS_ROWS} shape="datum" />
         </Stack>
@@ -79,7 +79,7 @@ export function CorpusHomeSkeleton(): ReactElement {
           {slots(GEM_TILES).map((i) => (
             <Row align="center" gap="row" key={i}>
               <Skeleton width="avatarLg" height="avatarLg" variant="circle" />
-              <Stack className="min-inline-0" grow={true} gap="tight">
+              <Stack minWidth="shrinks" grow={true} gap="tight">
                 <Skeleton width="half" height="lineLabel" />
                 <Skeleton width="full" height="lineMicro" />
               </Stack>

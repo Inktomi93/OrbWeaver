@@ -105,7 +105,8 @@ The `docs` MCP server indexes the catalog's current documentation (Node, TypeScr
 
 - Run named Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Use a named pnpm script, else `pnpm exec <tool>`. `npx` and a bare `node tooling/src/...` lose the heap floor.
-- Run `pnpm lint:eslint` on every file in `git diff --name-only main...HEAD`. Report the file count beside the exit code.
+- Run `pnpm lint:eslint:changed`. It lints every file your checkout changed against its merge base with main, committed or not, and prints the count. Report that count beside the exit code.
+- Read the yellow lines in your test output. Each one names a test past the `slowTestThreshold` in `vitest.config.ts`, which times out under load. Tag it `slow` or make it faster.
 - Run a whole-tree ESLint with `pnpm lint:eslint:parts`, never a bare whole-tree `pnpm lint:eslint`. It lints the parts in `scripts/eslint-parts.ts` one process after another with the default heap, as pre-push does.
 - Run scoped Biome as `pnpm exec biome check <paths> --diagnostic-level=error`. A scoped `--write` is fine.
 - Pass a worker flag only to go below the values in `tooling/concurrency-profile.json`.
@@ -193,7 +194,7 @@ These restrictions apply to Claude's guarded worktree shell.
 
 ## Build details
 
-- Name a test-only state reset `__reset<Noun>`, as `__resetPrivateValues` does in `tooling/src/snap/lib/private-values.ts`; no `__<verb>ForTest` hook exists in the tree.
+- Name a test-only state reset `__reset<Noun>`; no `__<verb>ForTest` hook exists in the tree. A reset that production also calls takes a plain verb, as `forgetPrivateValues` in `tooling/src/snap/lib/private-values.ts` does.
 - Generate TypeID fixtures with the seeded `ids.typeId(prefix)` or `root.idSource.typeId(prefix)` (Spine-Testing §3), never with literals or a one-argument `mintTypeId`.
 - Declare a union with `satisfies` when Biome misreads a zod `discriminatedUnion` transform.
 

@@ -81,7 +81,9 @@ test("a solo send returns the owned user and primary character reply with durabl
   if (character === undefined) {
     throw new Error("the solo room created no primary character");
   }
-  const connectionId = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
+  const connectionId = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the solo room has no saved chat connection");
   }
@@ -155,7 +157,8 @@ test("the actual first-user greeting freeze fences one canon-version transition 
   }
 });
 
-test("public Stop returns only the already committed user and never an assistant or completed lifecycle", async () => {
+// A Stop after text has streamed keeps that text as the reply (the Stop-keeps ruling); the turn still ends aborted, never completed.
+test("public Stop after a delta returns the committed user and the kept reply, and never a completed lifecycle", async () => {
   await withPeer("stream", async (f) => {
     const pending = f.start();
     await f.peer.arrived;
@@ -164,10 +167,14 @@ test("public Stop returns only the already committed user and never an assistant
     await expect.poll(f.peer.stopped).toBe(true);
     const outcome = await pending;
     expect(outcome).toMatchObject({ aborted: true, abortReason: "user" });
-    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages).toHaveLength(2);
     expect(outcome.messages[0]).toMatchObject({ role: "user", content: "hello", authorUserId: f.h.owner.userId });
+    expect(outcome.messages[1]).toMatchObject({ role: "assistant" });
     const canon = await f.h.root.db.select().from(messages).where(eq(messages.chatId, f.h.chatId)).orderBy(messages.seq);
-    expect(canon.map(({ role, id }) => ({ role, id }))).toEqual([{ role: "user", id: outcome.messages[0]?.id }]);
+    expect(canon.map(({ role, id }) => ({ role, id }))).toEqual([
+      { role: "user", id: outcome.messages[0]?.id },
+      { role: "assistant", id: outcome.messages[1]?.id },
+    ]);
     expect(f.events.map(({ type }) => type)).toContain("turnAborted");
     expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
   });
@@ -306,7 +313,7 @@ test.for([
   if (scene.script) {
     const script = await h.root.services.regex.createScript({
       principal: h.owner,
-      input: createRegexScriptSchema.parse({ name: "Host input mask", findRegex: "badword", replaceString: "****", placement: ["USER_INPUT"] }),
+      input: createRegexScriptSchema.parse({ name: "Host input mask", findRegex: "badword", replaceString: "****", targets: ["USER_INPUT"], passes: ["save"] }),
     });
     await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
   }

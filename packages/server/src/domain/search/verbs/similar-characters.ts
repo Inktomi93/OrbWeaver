@@ -8,17 +8,17 @@ import type { CharacterCardHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {
-  return async (params: SimilarCharactersParams): Promise<CharacterCardHit[]> => {
+  return async (params: SimilarCharactersParams & { readonly signal: AbortSignal }): Promise<CharacterCardHit[]> => {
     const { ownerId, characterId, topN } = params;
     requirePositiveTopN(topN, "similarCharacters");
 
-    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId, task: "embed", signal: params.signal }, async (space) => {
       const seed = await readSeedCharacterVector(ctx.db, ownerId, characterId, space.generationId);
       if (seed === null) {
         return [];

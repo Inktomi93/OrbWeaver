@@ -2,6 +2,7 @@
 
 // `cn` is @orb/ui's, re-exported here for client callers (docs/law/UI-Architecture-and-Layout.md, lib/ entry).
 export { cn } from "@orb/ui/lib";
+export { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "./account-field-names.ts";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export { APP_READY_ATTR } from "./app-ready-attribute.ts";
 export {
@@ -32,6 +33,7 @@ export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
 export {
   BLANK_CHAT_NAME,
+  CHARACTER_NEW_CHAT_NAME,
   NEW_CHAT_DIALOG_TITLE,
   NO_CHAT_SELECTED_TITLE,
   START_NEW_CHAT_NAME,
@@ -58,7 +60,15 @@ export type {
 } from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
-export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "./config-search-tokens.ts";
+export {
+  applyConfigToken,
+  CONFIG_PLUGIN_TOKEN,
+  CONFIG_QUERY_TOKENS,
+  findHighlightRanges,
+  parseConfigQuery,
+  partialConfigToken,
+  partialValueToken,
+} from "./config-search-tokens.ts";
 export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
@@ -73,6 +83,7 @@ export {
   connectionSummary,
   MEMORY_COST_SENTENCE,
   MODEL_ROLES_SUBCATEGORY_ID,
+  openConnectionName,
   RERANK_ROLE_DOOR,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
@@ -86,7 +97,9 @@ export {
 export { CONSOLE_STYLES } from "./console-styles.ts";
 export {
   CONTEXT_SHEET_BACK_NAME,
+  contentRegionName,
   contextPaneLabel,
+  contextTabsMenuName,
   DETAILS_PANEL_NOUN,
   LIST_PANEL_NOUN,
   listPaneLabel,
@@ -132,15 +145,20 @@ export {
   SLASH_COMMAND_GROUP_LABELS,
   SLASH_COMMAND_GROUPS,
 } from "./contribution-contracts.ts";
-export { copyWithNotice } from "./copy-with-notice.ts";
+export { copyHeldText, copyWithNotice } from "./copy-with-notice.ts";
 export type { CorpusDestination } from "./corpus-destination.ts";
 export { corpusDestinationIdentity } from "./corpus-destination.ts";
 export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
 export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
-export { DIALOG_VERBS } from "./dialog-verbs.ts";
-export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
+export type { DialogSubmit } from "./dialog-submit.ts";
+export { DIALOG_PENDING_VERBS, DIALOG_VERBS } from "./dialog-verbs.ts";
+export type { RegexPreviewEntry, RegexPreviewOutcome, RegexPreviewRequest } from "./display-pass-protocol.ts";
+export type { StoppedDisplayScript } from "./display-script-stops.ts";
+export { noteServerStoppedScript } from "./display-script-stops.ts";
+export { displayHoldsStreamedMarkup } from "./display-styled.ts";
+export { downloadJson, downloadTextFile, downloadUrl } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export {
@@ -151,6 +169,7 @@ export {
   embedRefusalOf,
   embedRefusalRowText,
   embedRefusalText,
+  embedWindowNotice,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   REINDEX_CONFIRM_COPY,
@@ -164,8 +183,26 @@ export { filteredCensus } from "./filtered-census.ts";
 export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
-export { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";
-export type { SendRefusalKey } from "./injection-copy.ts";
+export { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "./html-trust-labels.ts";
+export {
+  IMAGE_MODE_LABELS,
+  IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
+  IMAGE_NEGATIVE_PROMPT_NOUN,
+  IMAGE_SIZE_FIELD_NAME,
+  IMAGE_SIZE_LABELS,
+  IMAGE_SIZE_MODE_DEFAULT,
+} from "./image-size-copy.ts";
+export {
+  cardInLibraryNotice,
+  cardsInLibraryNotice,
+  chatInLibraryNotice,
+  chatsInLibraryNotice,
+  IN_LIBRARY_DETAIL,
+  importedOfLead,
+  inLibraryClause,
+  WORLD_INFO_DUPLICATE_BOOK_NOTICE,
+} from "./in-library-copy.ts";
+export type { SendRefusalCause, SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
   ASSISTANT_PREFILL_WARNING,
@@ -192,6 +229,7 @@ export {
   REGENERATE_PLAIN_HELPER,
   RESPONSE_SPEAKER_CUE,
   ROOM_PICTURES_NOTE,
+  ROOM_READ_FAILED_CAUSE,
   STEER_CUE_CONTINUE,
   STEER_CUE_IMPERSONATE,
   STEER_CUE_RESPONSE,
@@ -209,12 +247,13 @@ export {
   PROMPT_CACHE_REQUEST_SETTING,
   PROMPT_CACHE_SYSTEM_SETTING,
 } from "./item-switch-names.ts";
+export { BAND_NEW_LABEL } from "./list-band-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
-export type { MessageRenderContext } from "./message-render.ts";
-export { renderMessageForDisplay } from "./message-render.ts";
+export type { DisplayRowCall, MessageRenderContext } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
+export type { NonEmptyLabel } from "./non-empty-label.ts";
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
@@ -238,15 +277,22 @@ export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts"
 export { BUILTIN_MACRO_SUGGESTIONS, MACRO_CATEGORY_WORDS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
 export { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "./rail-names.ts";
 export {
-  REGEX_PLACEMENT_GLYPHS,
-  REGEX_PLACEMENT_ITEMS,
-  REGEX_PLACEMENT_LABELS,
-  regexPlacementStages,
-  regexPlacementStep,
+  REGEX_PASS_GLYPHS,
+  REGEX_PASS_LABELS,
+  REGEX_TARGET_GLYPHS,
+  REGEX_TARGET_ITEMS,
+  REGEX_TARGET_LABELS,
+  regexPassesRead,
+  regexPassStages,
   regexRowScent,
+  regexRunsNowhere,
   regexScriptScent,
   regexScriptTitle,
-} from "./regex-placement-labels.ts";
+  regexStepLabel,
+  regexTargetStages,
+  regexUnreadTargetName,
+  regexUnreadTargets,
+} from "./regex-script-labels.ts";
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {
@@ -271,18 +317,39 @@ export type {
 } from "./registry-contracts.ts";
 export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
-export type { RowRenderPolicy } from "./render-trust.ts";
-export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
+export type {
+  FramedMediaReason,
+  FramedScriptReason,
+  HeldCards,
+  PlainReason,
+  PlainRemedy,
+  PlainReplyReason,
+  PlainSubject,
+  RowRenderPolicy,
+} from "./render-trust.ts";
+export {
+  buildParticipantsById,
+  DEPLOYMENT_FLOOR,
+  HELD_CARDS_REASON,
+  PLAIN_REPLY_REASON,
+  resolveFramedMediaVerdict,
+  resolveFramedScriptVerdict,
+  resolvePlainVerdict,
+  resolveRowRenderPolicy,
+} from "./render-trust.ts";
+export { isFinalRefusal, readTextWithin, refusalOfAnswer, refusalOr, refuseOversizeFiles, requestRefusalOf } from "./request-refused.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
 export { RETRY_NAME } from "./retry-names.ts";
+export { REVOKED_KEY_COPY } from "./revoked-key-copy.ts";
 export { ESTIMATED_ROW_PX } from "./row-estimates.ts";
-export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
+export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME, rowStarToggleName } from "./row-menu-names.ts";
 export {
   chatWithActionName,
   collidingNameQualifiers,
   duplicateActionName,
   groupOrdinalQualifiers,
   positionQualifier,
+  ROW_MORE_LEAD,
   renameActionName,
   rowActionSubject,
   rowActionsName,
@@ -291,12 +358,13 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-export { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "./search-empty-names.ts";
+export { CLEAR_FILTER_NAME, CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "./search-empty-names.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
+export { isStorageRefusal } from "./storage-refusal.ts";
 export type { UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
 export { PRESET_UNREADABLE_COPY, PRESET_UNREADABLE_ROW_MARKER, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
@@ -318,7 +386,6 @@ export type { TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessControlName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
-export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
@@ -326,7 +393,7 @@ export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { trpcErrorCode, trpcErrorReason } from "./trpc-error-reason.ts";
+export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";

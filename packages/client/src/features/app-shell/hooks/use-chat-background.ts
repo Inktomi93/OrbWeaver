@@ -24,7 +24,7 @@
 // override evaporates, come back and it paints again, with nothing to clear on exit and no second writer.
 
 import type { ThemeBackground } from "@orb/contracts/theme";
-import { useCarriedAppearance, useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useCarriedAppearance, useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId, useActiveSection } from "#state";
 import { resolveChatBackgroundSource } from "../lib/resolve-theme-background.ts";
 import { ROOM_SECTION } from "../lib/room-section.ts";
@@ -39,6 +39,6 @@ export function useChatBackground(): ThemeBackground | undefined {
   const activeChatId = useActiveChatId();
   const chatId = inRoom ? activeChatId : null;
   const carried = useCarriedAppearance(chatId);
-  const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   return resolveChatBackgroundSource(carried, data?.background);
 }

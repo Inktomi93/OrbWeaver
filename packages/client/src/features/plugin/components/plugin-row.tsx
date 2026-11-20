@@ -9,15 +9,17 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { CopyButton } from "@orb/ui/copy-button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Row, Stack } from "@orb/ui/layout";
+import { moreActionsName, recentActivityName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
+import { MutedLine, QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { installedPluginControlId } from "#state";
 import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -28,7 +30,10 @@ import {
   PLUGIN_DETAILS_LABEL,
   PLUGIN_ERROR_COPY_SUBJECT,
   PLUGIN_ERROR_SENTENCE,
+  PLUGIN_PERMISSIONS_HEADING,
+  pluginCardLabel,
   pluginDetailsLabel,
+  pluginPermissionsLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   showInChatSwitchName,
   statusCopy,
@@ -108,7 +113,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
   const applyUpgrade = async (preview: PluginBundlePreview): Promise<void> => {
     // useUpgradePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't update that plugin."); undefined ends this handler. Ends if it drops its errorToast.
-    const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);
+    const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(rethrowUnlessTrpcFailure);
     if (updated === undefined) {
       return;
     }
@@ -124,26 +129,25 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
 
   return (
     // The bordered install boundary separates each plugin's consent story from its neighbors.
-    <Card aria-label={`${plugin.name} plugin`} id={installedPluginControlId(plugin.id)} role="group" tabIndex={-1}>
+    <Card aria-label={pluginCardLabel(plugin.name)} id={installedPluginControlId(plugin.id)} role="group" tabIndex={-1}>
       <Stack gap="block">
         {/* THE HEADER is a distinct block — identity left, lifecycle controls right — closed by a hairline
             (the Section-divider grammar), so the acts (toggle/update/remove) read as chrome OF the plugin
-            rather than floating in its prose. Two reflow arms, both container-queried against the pane
-            (the surface's own <Container>):
-              · the name row is `flex-wrap`, so a LONG status badge ("Off — asked for more than you
-                allowed") wraps onto its own line instead of overflowing the min-w-0 column and painting
-                UNDER the shrink-0 controls cluster — the exact ~390px collision side-eye 2026-08-29 P2-1
-                photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
-              · the cluster holds only the overflow menu, so it stays beside the name at every width; a
-                cluster dropped to its own line sat a whole text block away from the name it acts on. */}
+            rather than floating in its prose. Two reflow arms:
+              · the name row is `flex-wrap` and the badge takes `whitespace="normal"`, so a LONG status badge
+                ("Off: asked for more than you allowed") wraps at its words on its own line instead of
+                painting UNDER the controls cluster;
+              · the identity column holds at least its longest word, so at enlarged text on a phone, where the
+                cluster's touch box would squeeze the column below a word, the cluster drops to its own line
+                instead of the name and badge breaking inside their words. */}
         <Stack paddingBlockEnd="block" divider="bottom" gap="tight">
-          <Row align="start" gap="block" justify="between">
-            <Stack className="min-inline-0" grow={true} gap="tight">
+          <Row align="start" gap="block" justify="between" wrap={true}>
+            <Stack minWidth="word" grow={true} gap="tight">
               <Row align="center" wrap={true} gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 {status.tone === "success" ? null : (
                   // A plain "On" repeats the Enabled switch below; the badge speaks only for states the switch cannot (a warning, an error, a pending ask).
-                  <Badge tone={status.tone} size="sm">
+                  <Badge whitespace="normal" cap="fit" tone={status.tone} size="sm">
                     {status.label}
                   </Badge>
                 )}
@@ -193,7 +197,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                       onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
                       title: `Remove "${plugin.name}"?`,
                     }}
-                    label={`More actions for ${plugin.name}`}
+                    label={moreActionsName(plugin.name)}
                   >
                     <MenuItem disabled={upgrade.isPending} onClick={open}>
                       Install a bundle from a file…
@@ -278,8 +282,8 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             "What ${name} is allowed to do" re-ordered them, so a voice-control user saying the words on
             the screen could not match the control. The plugin name still disambiguates — after the em
             dash, outside the visible phrase. */}
-                  <CollapsibleTrigger aria-label={`What it's allowed to do: ${plugin.name}`} size="control">
-                    <Text voice="label">What it's allowed to do</Text>
+                  <CollapsibleTrigger aria-label={pluginPermissionsLabel(plugin.name)} size="control">
+                    <Text voice="label">{PLUGIN_PERMISSIONS_HEADING}</Text>
                   </CollapsibleTrigger>
                   {/* The inset clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
             flipped by the grant-list rework): the panel's `overflow-hidden` is load-bearing for the
@@ -292,9 +296,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   <CollapsiblePanel>
                     <Stack paddingInlineStart="block">
                       {plugin.declaredCapabilities.length === 0 ? (
-                        <Text cap="prose" prose={true} voice="gloss">
-                          Nothing. It can run its own code and reach nothing else.
-                        </Text>
+                        <MutedLine>Nothing. It can run its own code and reach nothing else.</MutedLine>
                       ) : (
                         // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
                         // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
@@ -307,7 +309,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                         // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
                         <PluginGrantList
                           roleScope={{ kind: "plugin", pluginId: plugin.id }}
-                          capabilitiesLabel={`What it's allowed to do: ${plugin.name}`}
+                          capabilitiesLabel={pluginPermissionsLabel(plugin.name)}
                           declared={plugin.declaredCapabilities}
                           granted={plugin.grantedCapabilities}
                           netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
@@ -341,7 +343,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               <Collapsible>
                 {/* "Recent activity for ${name}" already CONTAINS its visible words (2.5.3 containment — the
             rule-row precedent's own phrasing); only the size arm was missing here. */}
-                <CollapsibleTrigger aria-label={`Recent activity for ${plugin.name}`} size="control">
+                <CollapsibleTrigger aria-label={recentActivityName(plugin.name)} size="control">
                   <Text voice="label">Recent activity</Text>
                 </CollapsibleTrigger>
                 <CollapsiblePanel>

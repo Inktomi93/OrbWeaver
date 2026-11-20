@@ -10,9 +10,11 @@ export function createImageryRoomAccess(deps: ImageryRoomAccessDeps): ImageryRoo
       if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
         throw new DomainNotFoundError("chat", chatId);
       }
-      const hostUserId = await deps.resolveChatHostUserId(chatId);
+      // A hostless room and a room whose host is disabled refuse alike, as a turn does: neither has a host whose
+      // connections a member may spend.
+      const hostUserId = await deps.resolveConsentingHostUserId(chatId);
       if (hostUserId === null) {
-        throw new Error(`imagery: chat ${chatId} has no host to run the preview as`);
+        throw new DomainNotFoundError("chat", chatId);
       }
       const { runAsUserId } = resolveTurnIdentityVia({ principalUserId: caller.userId, hostUserId });
       // A member may spend the host's Utility connection only on a present room subject.

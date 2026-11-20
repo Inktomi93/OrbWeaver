@@ -5,11 +5,11 @@ import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ADD_CONNECTION_PATH, ALLOW_BACKGROUND_SETTING } from "#lib";
+import { CONNECTION_LIMITS_DESCRIPTION, CONNECTION_LIMITS_TITLE } from "./credentials-names.ts";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** A selected credential disappeared or was revoked while authoring. */
 export const SAVED_KEY_UNAVAILABLE = "This saved key is no longer available. Choose another key or paste a new one.";
-
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
 
@@ -111,17 +111,27 @@ export const KEY_STORAGE_OFF_COPY = {
   keylessNote: "Key storage is off on this server, so this connection can't carry an API key. A local server that needs no key works.",
 } as const;
 
-/** Whether the dialog lists this draft's models on "List models": an endpoint under its URL, and a hosted
- *  provider under the API key pasted for it. A subscription token lists only once it is saved. */
-export function listsOnDemand(provider: ProviderDef): boolean {
-  return needsBaseUrl(provider) || provider.auth === "apiKey";
+/** Whether the provider's list is read the moment it is picked, because the read needs nothing from the user: a
+ *  built-in catalog is closed, and the OpenRouter dialect's catalog is public (the dial ignores the key,
+ *  `packages/inference/src/catalog/listing.ts`). Such a list never depends on a key, so a pasted key is not a
+ *  second read. */
+export function listsOnPick(provider: ProviderDef): boolean {
+  return provider.catalog === "builtin" || provider.dialect === "openrouter";
 }
 
-/** Why the dialog offers a typed model id before any list is read, per auth kind. A keyless draft lists as
- *  soon as its provider is picked, so its reason is only the list's own. */
+/** Whether the dialog lists this draft's models under what the user supplies: an endpoint under its URL, on
+ *  "List models", and a hosted provider under its API key, when the key is pasted, when the key field is left
+ *  with a changed key, or when a saved key is chosen. A key typed by hand is never read while it is typed: a
+ *  partial key is a secret sent to the vendor. A subscription token lists only once it is saved. */
+export function listsUnderDraft(provider: ProviderDef): boolean {
+  return needsBaseUrl(provider) || (provider.auth === "apiKey" && !listsOnPick(provider));
+}
+
+/** Why the dialog offers a typed model id before any list is read, per auth kind. A draft that lists on pick
+ *  has its list the moment it is picked, so its reason is only the list's own. */
 const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
-  apiKey: (provider) => `Paste your key and list the models it can use, or type the id as ${providerDisplayLabel(provider)} spells it.`,
+  apiKey: (provider) => `Paste your key to list the models it can use, or type the id as ${providerDisplayLabel(provider)} spells it.`,
   oauthToken: (provider) => `Type the model id as ${providerDisplayLabel(provider)} spells it.`,
   none: (provider) => `Pick one of the models ${providerDisplayLabel(provider)} runs.`,
 };
@@ -178,13 +188,14 @@ export const CONNECTION_FORM_COPY = {
   submitFailed: "Couldn't submit the connection.",
 } as const;
 
-/** The add dialog's steps: an add, the first-model step a first chat-capable add opens, and the Utility add that
- *  step can ask for (`add-connection-dialog.tsx`). */
-const ADD_DIALOG_STEPS = ["add", "setup", "add-utility"] as const;
+/** The add dialog's steps: an add, the limits step a saved row whose limits are a guess opens, the first-model step a
+ *  first chat-capable add opens, and the Utility add that step can ask for (`add-connection-dialog.tsx`). */
+const ADD_DIALOG_STEPS = ["add", "limits", "setup", "add-utility"] as const;
 
 /** Each step's dialog title and description. */
 export const ADD_DIALOG_COPY: Record<(typeof ADD_DIALOG_STEPS)[number], { readonly title: string; readonly description: string }> = {
   add: { title: "Add a connection", description: "One provider, one model. Keys are encrypted at rest and never shown again." },
+  limits: { title: CONNECTION_LIMITS_TITLE, description: CONNECTION_LIMITS_DESCRIPTION },
   setup: { title: "Set up your first model", description: "Pick the model background work runs on. You can change both under Model roles later." },
   "add-utility": { title: "Add a Utility model", description: "One provider, one model, for background work. A cheaper model is fine." },
 };
@@ -222,22 +233,22 @@ export function submitFailureSentence(args: { readonly heldKeyLabel: string | nu
   return `${key}, but the connection wasn't created: ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
 }
 
-/** Whether the dialog itself reads this provider's list: an endpoint or a keyed hosted draft on "List models",
- *  and a built-in provider, whose catalog is closed, as soon as it is picked. */
+/** Whether the dialog itself reads this provider's list: under the draft's URL or key, or on pick. */
 export function listsInDialog(provider: ProviderDef): boolean {
-  return listsOnDemand(provider) || provider.catalog === "builtin";
+  return listsUnderDraft(provider) || listsOnPick(provider);
 }
 
 /** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
- *  list is read under it. A built-in list depends on the provider alone. */
+ *  list is read under it. A list read on pick depends on the provider alone. */
 export function listingKeyFor(
   provider: ProviderDef,
   values: Pick<AddConnectionFormValues, "baseUrl" | "key"> & { readonly credentialId?: UserCredentialId | null },
 ): string {
+  const onPick = listsOnPick(provider);
   return draftKeyOf({
     providerId: provider.id,
     baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
-    key: provider.catalog === "builtin" ? "" : values.key,
-    credentialId: provider.catalog === "builtin" ? null : (values.credentialId ?? null),
+    key: onPick ? "" : values.key,
+    credentialId: onPick ? null : (values.credentialId ?? null),
   });
 }

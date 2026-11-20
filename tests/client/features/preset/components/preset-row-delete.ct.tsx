@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -90,7 +91,7 @@ test("a refused row Delete keeps its confirm, the active pick and the trigger; a
 
   await deleteRow(page, active.name);
   await expect(confirm.getByRole("alert")).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   await expect(row.locator('button[aria-haspopup="menu"]')).toBeFocused();
   expect((await caller.settings.getUserSettings()).config.seeds.defaultPresetId).toBe(active.id);

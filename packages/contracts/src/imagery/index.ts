@@ -1,5 +1,5 @@
 // Strip mode: these schemas also read plugin guest data, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ConsentingHostId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { z } from "zod";
@@ -17,18 +17,16 @@ export type { PromptTemplateMode } from "./modes.ts";
 export { PROMPT_TEMPLATE_MODES, promptTemplateModeSchema } from "./modes.ts";
 
 // @orb/contracts/imagery — the image-generation wire vocabulary (D49 item 1). The ONE home for the prompt
-// template MODES (the db `imagery_generations` CHECK + the Phase-7 leaf's templates both DERIVE this tuple —
-// Spine-TypeScript-and-Patterns §7.5), the size presets, and the chat-facing `generatePicture` request. The Phase-7
-// leaf (extract/caption/reuse/edit fields) + the D46 `/imagine` action args grow this file ADDITIVELY.
+// template MODES (the db `imagery_generations` CHECK and the imagery leaf's templates both DERIVE this tuple —
+// Spine-TypeScript-and-Patterns §7.5), the size presets, and the chat-facing `generatePicture` request.
 //
-// IC-C: `MODE_TRIGGERS` + `generateImageActionArgsSchema` are minted HERE and
+// `MODE_TRIGGERS` + `generateImageActionArgsSchema` are minted HERE and
 // imported DOWN by `@orb/contracts/automation`'s `generate_image` action arm (never re-spelled there —
-// Spine-TypeScript-and-Patterns §7.5); they land in the SAME commit as their first consumer.
+// Spine-TypeScript-and-Patterns §7.5); a mint and its first consumer land in the same commit.
 
-// ── The prompt-building CATALOG (Phase B ⑫) — the SHIPPED-DEFAULT authored content, as-data ──────────
-// The image-prompt-mode instructions were hardcoded in the server leaf (`domain/imagery/substrate/templates`);
-// homed HERE as the catalog (the ONE imagery-vocabulary home, grows additively) so a per-user
-// `UserSettings.imagery` override composes over them (unset ⇒ byte-identical to the shipped default). The
+// ── The prompt-building CATALOG — the SHIPPED-DEFAULT authored content, as-data ──────────────────────
+// Homed HERE as the catalog (the ONE imagery-vocabulary home, grown additively) so a per-user
+// `UserSettings.prose` slot override composes over it (unset ⇒ byte-identical to the shipped default). The
 // consumers read these canonical defaults directly (never re-spelled — the §7.5
 // discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve through the ONE
 // `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
@@ -43,10 +41,10 @@ export type ExtractionMode = (typeof EXTRACTION_MODES)[number];
 export const MULTIMODAL_MODES = ["character_multimodal", "face_multimodal"] as const satisfies readonly PromptTemplateMode[];
 export type MultimodalCaptionMode = (typeof MULTIMODAL_MODES)[number];
 
-/** The shipped-default extraction instructions. Each instructs the LLM to open with the
- *  mode's REQUIRED composition prefix (the size defaults assume it; `ensurePrefix` re-asserts it as a drift
- *  belt). Modernized from ST's promptTemplates: the jailbreak preamble is an explicit "Pause the roleplay". */
-export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
+// The shipped-default extraction instructions. Each instructs the LLM to open with the mode's REQUIRED
+// composition prefix (the size defaults assume it; `ensurePrefix` re-asserts it as a drift belt), and opens by
+// pausing the roleplay so the ask is never read as story continuation.
+const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
   character:
     "Pause the roleplay. Describe {{char}}'s complete physical appearance in the current moment " +
     "as a single comma-delimited list of concrete visual keywords for an image-generation model: " +
@@ -72,9 +70,8 @@ export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
     "— no people, no characters, no figures. Begin your reply with: background,",
 };
 
-/** The shipped-default multimodal vision-caption instructions. No macros — the image IS
- *  the subject. */
-export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
+// The shipped-default multimodal vision-caption instructions. No macros: the image is the subject.
+const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
   character_multimodal:
     "Describe the person in this image as a single comma-delimited list of concrete visual " +
     "keywords for an image-generation model: body type, hair, eyes, skin, clothing, accessories, " +
@@ -85,12 +82,11 @@ export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string>
     "skin, head accessories. Only visual terms, no prose. Begin with: close up facial portrait,",
 };
 
-// ── The PROSE-1 slot table (census rows 82-87) — adapted IN PLACE ────────────────────────────────────
-// The catalog above already IS the shipped-default home; these rows give it the registry metadata every
-// prose slot carries (version + macro mode + required tokens + editor copy). The override STORAGE is
-// unchanged — still `UserSettings.imagery.templates/.captions` (adapted, never duplicated) —
-// and `resolveImageryTemplate`/`resolveImageryCaption` funnel through `resolveProse` so precedence and
-// staleness come from ONE place.
+// ── The prose slot table — the catalog's registry metadata ──────────────────────────────────────────
+// The catalog above IS the shipped-default home; these rows give it the registry metadata every
+// prose slot carries (version + macro mode + required tokens + editor copy). An override is the slot's row in
+// `UserSettings.prose`, edited in the Prose section, and `resolveImageryTemplate`/`resolveImageryCaption` funnel
+// through `resolveProse` so precedence and staleness come from ONE place.
 //
 // `requiredTokens` mirrors `REQUIRED_PREFIXES` (server `imagery/substrate/templates.ts`): a host who drops
 // the "Begin your reply with:" prefix from an override is warned, because `ensurePrefix` will re-assert it
@@ -153,8 +149,8 @@ export const IMAGERY_PROSE_SLOTS = {
     title: "Face caption instruction",
     fires: "The vision op, captioning a subject's avatar in `face_multimodal` mode.",
   },
-  // Census row 88 (PROSE-1 S1). the negative-prompt lists adapted from Marinara Engine, deduped to the generic defect-suppression
-  // core — homed here with its template siblings (it was a server-substrate const). The user's `negative`
+  // The negative-prompt list is the generic defect-suppression core, homed with its template siblings. The
+  // user's `negative`
   // request field still APPENDS to whatever this resolves to (never replaces): the two are different things —
   // this is the standing house floor, that is the per-generation addition.
   "imagery.negative.base": {
@@ -210,7 +206,7 @@ export const IMAGERY_CAPTION_SLOT_IDS: Record<MultimodalCaptionMode, ProseSlotId
 
 /** The semantic size presets (gpt-image-1's published set; every hosted model snaps
  *  arbitrary dimensions to its own buckets anyway, so optimizing for the strictest wire wins). The concrete
- *  WxH mapping lives in the leaf's `substrate/size.ts` (Phase 7). */
+ *  WxH mapping lives in the leaf's `substrate/size.ts`. */
 export const SIZE_PRESET_NAMES = ["square", "portrait", "landscape"] as const;
 const sizePresetSchema = z.enum(SIZE_PRESET_NAMES);
 export type SizePresetName = z.infer<typeof sizePresetSchema>;
@@ -242,9 +238,9 @@ export const generatePictureRequestSchema = z.discriminatedUnion("mode", [
   generatePictureRequestFields.extend({ mode: templateModeSchema, prompt: z.string().max(MAX_PROMPT_CHARS).optional() }),
 ]);
 
-// ── IC-C mints ──────────────────────────────────────────────────────────────────────────────────────
-// The `/imagine` trigger→mode map + the automation `generate_image` action-arm args. Both land WITH their
-// first consumer and are imported down — the /imagine client parse + the automation union
+// ── The `/imagine` and automation mints ─────────────────────────────────────────────────────────────
+// The `/imagine` trigger→mode map + the automation `generate_image` action-arm args. Both are imported down —
+// the /imagine client parse + the automation union
 // read ONE home, never a re-spelled stand-in (Spine-TypeScript-and-Patterns §7.5).
 
 /** Trigger word → mode, for the `/imagine` surface (client autocomplete AND the automation arm parse read
@@ -272,7 +268,7 @@ const generateImageActionArgsFields = z
     quiet: z.boolean().default(false),
   })
   .strip();
-/** The automation Tier-1 `generate_image` action-arm args — lives HERE so the
+/** The automation `generate_image` action-arm args — lives HERE so the
  *  automation contract IMPORTS it into its action union, never re-spells it (Spine-TypeScript-and-Patterns §7.5). The
  *  args map 1:1 onto `GeneratePictureParams`; `quiet` is interpreted by the CALLER (post vs fire-log
  *  return), not by imagery. */
@@ -311,7 +307,7 @@ export interface GeneratedPicture {
   readonly warnings: readonly ImageryWarning[];
 }
 
-/** The durable provenance of one generated image (`readProvenance`, doc 04 §3) — the gallery's
+/** The durable provenance of one generated image (`readProvenance`) — the gallery's
  *  prompt/model/cost detail + the regenerate affordance's source prompt. Ownership is proven by the join
  *  through `assets.ownerId` (the row carries no ownerId; D20). */
 export interface GenerationProvenance {
@@ -390,7 +386,7 @@ export * from "./portable.ts";
 interface GalleryCuration {
   readonly subjectCharacterId: CharacterId;
 }
-// The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
+// The reuse-gate policy: `"prefer"` (default) short-circuits to a matching prior portrait;
 //  `"never"` is the regenerate affordance (always a fresh generation).
 type ReusePolicy = z.infer<typeof reusePolicySchema>;
 /** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
@@ -402,21 +398,21 @@ interface GeneratePictureFields {
   readonly caller: Principal;
   /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
    *  outside a room: the caller funds, styles and owns its own picture. */
-  readonly runAsUserId?: UserId | undefined;
+  readonly runAsUserId?: ConsentingHostId | undefined;
   /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
   readonly actor?: BindingActor | undefined;
   readonly chatId?: ChatId | undefined;
   readonly n?: number | undefined;
   readonly subjectCharacterId?: CharacterId | undefined;
-  /** Appended to `DEFAULT_NEGATIVE` (doc 02 §6), never replaces it. */
+  /** Appended to `DEFAULT_NEGATIVE`, never replaces it. */
   readonly negative?: string | undefined;
-  /** Overrides `defaultSizeFor(mode)` (doc 02 §6). */
+  /** Overrides `defaultSizeFor(mode)`. */
   readonly size?: SizePresetName | undefined;
-  /** B2 reuse gate (doc 03 §4.4); default `"prefer"`. Portrait modes only; `"never"` = regenerate. */
+  /** The reuse gate; default `"prefer"`. Portrait modes only; `"never"` = regenerate. */
   readonly reuse?: ReusePolicy | undefined;
-  /** B3 avatar-reference conditioning (doc 03 §3); default false. Portrait modes only: conditions the
+  /** The avatar-reference conditioning; default false. Portrait modes only: conditions the
    *  generation on the subject's avatar for identity consistency. Drops-with-warning (never throws) when the
-   *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
+   *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage`. */
   readonly useAvatarReference?: boolean | undefined;
 
   /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
@@ -430,4 +426,6 @@ export type GeneratePicturePrompt =
   | { readonly mode: "free"; readonly prompt: string }
   | { readonly mode: Exclude<PromptTemplateMode, "free">; readonly prompt?: string | undefined };
 export type GeneratePictureParams = GeneratePictureFields & GeneratePicturePrompt;
-export type GeneratePicture = (params: GeneratePictureParams) => Promise<GeneratedPicture>;
+/** `Signal` cancels the prompt extraction and the provider call; a type parameter because this package cannot name
+ *  `AbortSignal`. */
+export type GeneratePicture<Signal> = (params: GeneratePictureParams & { readonly signal: Signal }) => Promise<GeneratedPicture>;

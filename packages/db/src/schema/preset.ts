@@ -19,10 +19,10 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { index, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const presets = sqliteTable(
@@ -39,7 +39,7 @@ export const presets = sqliteTable(
     kind: nulFreeText("kind").notNull(),
     // The PromptConfig blob. Parsed at the read seam via `parsePromptConfig` (@orb/contracts/preset);
     // a corrupt blob degrades to DEFAULT_PROMPT_CONFIG there, never here.
-    config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),
+    config: storedJsonText("config").$type<PromptConfig | UnreadableJsonText>().notNull(),
     // Mirrors `config.schemaVersion` (the reseed-gate compare key). Defaulted to the current version so
     // a fresh write is self-consistent; the domain stamps `config.schemaVersion` explicitly on write.
     schemaVersion: integer("schema_version").notNull().default(PROMPT_CONFIG_SCHEMA_VERSION),
@@ -53,8 +53,8 @@ export const presets = sqliteTable(
     forkedFrom: nulFreeText("forked_from")
       .$type<PresetId>()
       .references((): AnySQLiteColumn => presets.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   // The owner index serves the library list; the (owner, source) index serves the COW convergence lookup.
   // NOT unique: the owner may deliberately keep SEVERAL forks of the built-in (the update verb's

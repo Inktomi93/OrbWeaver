@@ -1,5 +1,5 @@
 // Provider identity is a leaf: pricing/usage provenance needs this parser without importing a provider
-// row that itself imports endpoint pricing. Public row-module reexports preserve the existing API.
+// row that itself imports endpoint pricing.
 import type { Branded, LookupText } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";

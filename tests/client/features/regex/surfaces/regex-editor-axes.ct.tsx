@@ -1,0 +1,211 @@
+// The regex member editor's two axes, run through the registered configuration content and the real update verb.
+// Each case names the defect it catches: a stored target cleared because its time does not read it, a pair that
+// cannot run offered as a choice, an author-scope pick that never reaches the stored row, an emptied ceiling or author
+// scope the stored row keeps, and a move to when saved that drops a set depth or author scope without asking.
+import { DIALOG_VERBS, REGEX_TARGET_LABELS } from "@orb/client/lib";
+import { REGEX_DEPTH_FLOOR } from "@orb/kit/regex";
+import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { removeActionName } from "@orb/ui/lib";
+import {
+  REGEX_AUTHORS_ADD_NAME,
+  REGEX_AUTHORS_ONLY_NAME,
+  REGEX_DEPTH_TO_NAME,
+  REGEX_REPLACE_WITH_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_TITLE,
+  REGEX_STANDING_HOST_NAME,
+  REGEX_WHEN_CHOICE_NAMES,
+  REGEX_WHEN_FIELD_NAME,
+} from "#client/features/regex/lib/regex-names.ts";
+import type { RegexMemberSaveStory } from "./_member-save-stories.tsx";
+
+const STORY = "tests/client/features/regex/surfaces/_member-save-stories/RegexMemberSaveStory";
+const PROCEDURES = [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript", "persona.list"] as const;
+
+test.use({ viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false });
+
+test("a stored target its time does not read stays selected through an edit and applies once the time reads it", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  // A save-time script holding world info: the shape a migrated script arrives in, and one the write schema accepts.
+  const script = await caller.regex.createScript({
+    input: { name: "Lore trim", findRegex: "x", replaceString: "y", targets: ["USER_INPUT", "WORLD_INFO"], passes: ["save"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const stored = async (): Promise<{ readonly targets: readonly string[]; readonly passes: readonly string[]; readonly replaceString: string } | undefined> =>
+    (await caller.regex.listScripts()).find((row) => row.id === script.id);
+
+  const worldInfo = page.getByRole("button", { name: REGEX_TARGET_LABELS.WORLD_INFO, exact: true });
+  await expect(worldInfo).toHaveAttribute("aria-pressed", "true");
+  // Still removable: a kept target is a choice its owner can undo, never a locked one.
+  await expect(worldInfo).toBeEnabled();
+
+  const replace = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });
+  await replace.fill("z");
+  await replace.press("Tab");
+  await expect.poll(async () => (await stored())?.replaceString).toBe("z");
+  expect((await stored())?.targets).toEqual(["USER_INPUT", "WORLD_INFO"]);
+
+  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.prompt, exact: true }).click();
+  await expect.poll(async () => (await stored())?.passes).toEqual(["prompt"]);
+  expect((await stored())?.targets).toEqual(["USER_INPUT", "WORLD_INFO"]);
+});
+
+test("a time that reads none of the chosen text is offered disabled", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const lore = await caller.regex.createScript({
+    input: { name: "Lore only", findRegex: "x", replaceString: "y", targets: ["WORLD_INFO"], passes: ["prompt"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: lore.id });
+
+  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
+  await expect(page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true })).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.display, exact: true })).toHaveAttribute("aria-disabled", "true");
+  // The positive control: a choice that reads world info is offered.
+  await expect(page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.displayAndPrompt, exact: true })).not.toHaveAttribute("aria-disabled", "true");
+});
+
+test("a text the chosen time cannot read cannot be added", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const saved = await caller.regex.createScript({
+    input: { name: "Saved only", findRegex: "x", replaceString: "y", targets: ["USER_INPUT"], passes: ["save"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: saved.id });
+
+  await expect(page.getByRole("button", { name: REGEX_TARGET_LABELS.WORLD_INFO, exact: true })).toBeDisabled();
+  // The positive control: a text the save pass reads can still be added.
+  await expect(page.getByRole("button", { name: REGEX_TARGET_LABELS.REASONING, exact: true })).toBeEnabled();
+});
+
+test("picking the host in the only-from list stores a standing selector on the script", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: { name: "Host tint", findRegex: "x", replaceString: "y", targets: ["USER_INPUT"], passes: ["display"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+
+  await page.getByRole("button", { name: `${REGEX_AUTHORS_ADD_NAME} to ${REGEX_AUTHORS_ONLY_NAME}`, exact: true }).click();
+  await page.getByRole("menuitem", { name: REGEX_STANDING_HOST_NAME, exact: true }).click();
+  await expect
+    .poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors)
+    .toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
+});
+
+test("emptying To stores no ceiling, so a range reaching back from the newest message returns to the whole chat", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The editor's default start: the newest message with the continued reply, so an empty To spells every position.
+  const script = await caller.regex.createScript({
+    input: { name: "Last two", findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["display"], depth: { min: REGEX_DEPTH_FLOOR, max: 2 } },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const stored = async (): Promise<Awaited<ReturnType<typeof caller.regex.listScripts>>[number] | undefined> =>
+    (await caller.regex.listScripts()).find((row) => row.id === script.id);
+
+  const to = page.getByRole("textbox", { name: REGEX_DEPTH_TO_NAME, exact: true });
+  await expect(to).toHaveValue("2");
+  // The positive control: a typed ceiling reaches the stored row.
+  await to.fill("3");
+  await to.press("Tab");
+  await expect.poll(async () => (await stored())?.depth).toEqual({ min: REGEX_DEPTH_FLOOR, max: 3 });
+
+  await to.fill("");
+  await to.press("Tab");
+  await expect.poll(async () => (await stored())?.depth).toBeUndefined();
+});
+
+test("removing the last author selector stores no author scope", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: {
+      name: "Host lines",
+      findRegex: "x",
+      replaceString: "y",
+      targets: ["USER_INPUT"],
+      passes: ["display"],
+      authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+    },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const authors = async (): Promise<unknown> => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors;
+
+  // The positive control: an edit that keeps the selector leaves it stored.
+  const replace = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });
+  await replace.fill("z");
+  await replace.press("Tab");
+  await expect.poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.replaceString).toBe("z");
+  expect(await authors()).toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
+
+  await page.getByRole("button", { name: removeActionName(REGEX_STANDING_HOST_NAME), exact: true }).click();
+  await expect.poll(authors).toBeUndefined();
+});
+
+test("moving a scoped display script to when saved keeps its scope stored until the clear is confirmed", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: {
+      name: "Recent host lines",
+      findRegex: "x",
+      replaceString: "y",
+      targets: ["USER_INPUT"],
+      passes: ["display"],
+      depth: { min: 0, max: 2 },
+      authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+    },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const stored = async (): Promise<Awaited<ReturnType<typeof caller.regex.listScripts>>[number] | undefined> =>
+    (await caller.regex.listScripts()).find((row) => row.id === script.id);
+  // The positive control: the scope the move must drop is stored before it.
+  expect(await stored()).toMatchObject({ depth: { min: 0, max: 2 }, authors: { include: [{ by: "standing", standing: "host" }], exclude: [] } });
+
+  const when = page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true });
+  const pickSave = async (): Promise<void> => {
+    await when.click();
+    await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+  };
+  const confirm = page.getByRole("alertdialog", { name: REGEX_SAVE_CLEARS_SCOPE_TITLE });
+
+  await pickSave();
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(when).toHaveText(REGEX_WHEN_CHOICE_NAMES.display);
+  expect(await stored()).toMatchObject({ passes: ["display"], depth: { min: 0, max: 2 } });
+
+  await pickSave();
+  await confirm.getByRole("button", { name: REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME, exact: true }).click();
+  await expect.poll(async () => (await stored())?.passes).toEqual(["save"]);
+  const moved = await stored();
+  expect([moved?.depth, moved?.authors]).toEqual([undefined, undefined]);
+});
+
+test("moving an unscoped display script to when saved switches at once", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: { name: "Every line", findRegex: "x", replaceString: "y", targets: ["USER_INPUT"], passes: ["display"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+
+  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+  await expect.poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.passes).toEqual(["save"]);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});

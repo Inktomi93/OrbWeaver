@@ -1,6 +1,5 @@
 // Cookies, minted frame credentials and response bytes stay Node-only; every response uses the native HTTP app.
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { PluginFrameMintResponse } from "@orb/contracts/plugin";
 import {
   PLUGIN_FRAME_ROUTE,
   PLUGIN_UI_ENTRY,
@@ -11,6 +10,7 @@ import {
 } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { strToU8 } from "fflate";
+import type { z } from "zod";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
@@ -18,6 +18,8 @@ import { makeAssetBytes } from "./factories/asset.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import { seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
+
+type PluginFrameMintResponse = z.infer<typeof pluginFrameMintResponseSchema>;
 
 export interface CorpusPluginHttp {
   readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;

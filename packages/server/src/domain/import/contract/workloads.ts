@@ -10,8 +10,17 @@ import type { Logger } from "#foundation/observability";
 export interface ImportTokenUsageBackfillDeps {
   readonly listTokenUsageCandidates: ListImportedTokenUsageCandidates;
   readonly compareAndSetTokenUsage: CompareAndSetImportedTokenUsage;
-  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly settleImportStats: SettleImportStats;
 }
+
+/** How an import's stats rebuild settled: it rebuilt the owner's rollups, or a live writer outran every attempt and
+ *  a queued `reconcile-stats` run owns the rebuild. A committed import succeeds either way. */
+const IMPORT_STATS_SETTLEMENTS = ["rebuilt", "deferred"] as const;
+export type ImportStatsSettlement = (typeof IMPORT_STATS_SETTLEMENTS)[number];
+
+/** Rebuild the freshly imported owner's stats rollups from canon, after the import's rows landed. Never rejects for a
+ *  rebuild that live writes starved; that one is deferred to a queued run. */
+export type SettleImportStats = (args: { readonly ownerId: UserId }) => Promise<ImportStatsSettlement>;
 
 /** The import-owned catch-up verb after its cross-domain persistence dependencies are composed. */
 export type BackfillTokenUsage = (args: {
@@ -31,6 +40,9 @@ type ImportPassCounts = {
   readonly mergedKeys?: readonly string[];
   /** How many items of each kind the folder holds, counted the way the preview counts. */
   readonly found: ImportKindCounts;
+  /** A real run only: the entries the library or the upload already held, and the recorded skips never attempted. */
+  readonly inLibrary?: number;
+  readonly skipped?: number;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
   readonly memoryScope: ImportWindow | null;
 } & ({ readonly preview?: ImportPreview; readonly reportPath?: never } | { readonly reportPath: string; readonly preview?: never });
@@ -65,9 +77,6 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   readonly runBundleImport: (args: { archive: FileHandle; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */
   readonly runStagedDirImport: (args: { stagedPath: string; digest: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
-  /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op
-   *  the portability descriptors take — one slice, one home. */
-  readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   /** System planner maintenance, once after a completed bulk import, never per entity. */
   readonly refreshPlannerStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   /** Fan the "your library changed" user-bus events (`charactersChanged` + `chatsChanged`) to the target

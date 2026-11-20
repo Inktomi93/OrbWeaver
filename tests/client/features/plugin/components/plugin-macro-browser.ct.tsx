@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, installMacroGuest } from "@orb/testkit/node/composed";
-import { enablePluginLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { enablePluginLabel, pluginCardLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginMacroBrowserStory } from "./_plugin-macro-browser-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_plugin-macro-browser-stories/PluginMacroBrowserStory";
@@ -31,9 +31,9 @@ test("the browser's plugin link lands on that plugin's own installed card", asyn
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
 
   await mount<typeof PluginMacroBrowserStory>(STORY);
-  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: pluginCardLabel(PLUGIN_NAME), exact: true })).toBeVisible();
   await page.getByRole("button", { name: `Plugin: ${PLUGIN_NAME}`, exact: true }).click();
-  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })).toBeFocused();
+  await expect(page.getByRole("group", { name: pluginCardLabel(PLUGIN_NAME), exact: true })).toBeFocused();
 });
 
 test("a link pressed before the plugin list has loaded still lands on the card once it does", async ({ mount, page }) => {
@@ -54,7 +54,7 @@ test("a link pressed before the plugin list has loaded still lands on the card o
   await mount<typeof PluginMacroBrowserStory>(STORY, { cold: true });
   await page.getByRole("button", { name: `Plugin: ${PLUGIN_NAME}`, exact: true }).click();
   await list.requested;
-  const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
+  const card = page.getByRole("group", { name: pluginCardLabel(PLUGIN_NAME), exact: true });
   await expect(card).toHaveCount(0);
 
   list.release();
@@ -76,7 +76,7 @@ test("a plugin turned off in its card leaves the browser, and turned back on ret
   const macroName = page.getByText(`{{${row.name}}}`, { exact: true });
   await expect(macroName).toBeVisible();
 
-  const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
+  const card = page.getByRole("group", { name: pluginCardLabel(PLUGIN_NAME), exact: true });
   const enabled = card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME), exact: true });
   await expect(enabled).toHaveAttribute("aria-checked", "true");
   await enabled.click();
@@ -98,10 +98,10 @@ test("two plugins in opposite states keep one switch name each, and only the fli
 
   await mount<typeof PluginMacroBrowserStory>(STORY);
   const omen = page
-    .getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })
+    .getByRole("group", { name: pluginCardLabel(PLUGIN_NAME), exact: true })
     .getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME), exact: true });
   const ledger = page
-    .getByRole("group", { name: `${LEDGER_NAME} plugin`, exact: true })
+    .getByRole("group", { name: pluginCardLabel(LEDGER_NAME), exact: true })
     .getByRole("switch", { name: enablePluginLabel(LEDGER_NAME), exact: true });
   await expect(omen).toHaveAttribute("aria-checked", "true");
   await expect(ledger).toHaveAttribute("aria-checked", "false");

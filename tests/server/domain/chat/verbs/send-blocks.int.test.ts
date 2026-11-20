@@ -192,6 +192,8 @@ test("a blocks body rides every later turn through swipe, edit, fork, duplicate 
   if (file === null || descriptor === undefined) {
     throw new Error("the production graph produced no chat bundle or descriptor");
   }
+  // The source room moves on after its export, so the file is an older room and lands beside it (D290).
+  await box.caller.chat.commitMessage({ chatId: box.chatId, timeZone: UTC_TIME_ZONE, content: "A line after the export." });
   const imported = await descriptor.importFile(box.root.ownerId, file);
   const importedId = imported.memoryChatIds?.[0];
   if (importedId === undefined) {
@@ -257,7 +259,8 @@ test("a foreign picture spelled inside a markdown block stays unplaced and off t
 test("an owned asset that is not an image is refused as a picture block", async () => {
   await using box = await openBox();
   const bytes = new TextEncoder().encode("%PDF-1.7 not a picture");
-  const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "attachment", mime: "application/pdf" })).assetId;
+  // A databank document: an asset the host owns that the store keeps only as a document.
+  const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "document", mime: "application/pdf" })).assetId;
 
   await expect(box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(document), timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
     cause: { code: CHAT_OP_CODES.attachmentNotOwned },
@@ -286,7 +289,8 @@ test("a USER_INPUT regex reads the block text only and cannot touch a picture re
       name: "Strip refs",
       findRegex: "/!\\[[^\\]]*\\]\\([^)]*\\)|picture|ledger/g",
       replaceString: "x",
-      placement: ["USER_INPUT"],
+      targets: ["USER_INPUT"],
+      passes: ["save"],
     }),
   });
   await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
@@ -339,7 +343,7 @@ const MARKDOWN = (md: string): SendContentBlock => ({ kind: "markdown", md });
 async function hostRegex(box: Box, findRegex: string, replaceString: string): Promise<void> {
   const script = await box.root.services.regex.createScript({
     principal: box.host,
-    input: createRegexScriptSchema.parse({ name: "Host regex", findRegex, replaceString, placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Host regex", findRegex, replaceString, targets: ["USER_INPUT"], passes: ["save"] }),
   });
   await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
 }
@@ -549,6 +553,45 @@ test("a repeated picture places once per occurrence with one link", async () => 
 });
 
 const IMAGE_BLOCK = (assetId: AssetId, alt = ALT): SendContentBlock => ({ kind: "media", media: "image", src: { kind: "asset", assetId }, alt });
+
+/** `count` picture refs typed into text, under an alt no block uses. */
+const typedRefs = (assetId: AssetId, count: number): string => Array.from({ length: count }, () => `![typed](asset:${assetId})`).join(" ");
+
+test.for([
+  { name: "plain text", refs: SEND_BLOCK_LIMITS.blocks + 1, input: (typed: string) => ({ content: typed }) },
+  { name: "a markdown block", refs: SEND_BLOCK_LIMITS.blocks + 1, input: (typed: string) => ({ content: "", blocks: [MARKDOWN(typed)] }) },
+  {
+    name: "text beside an attachment",
+    refs: SEND_BLOCK_LIMITS.blocks,
+    input: (typed: string, assetId: AssetId) => ({ content: typed, attachmentAssetIds: [assetId] }),
+  },
+])("picture refs typed into $name past the send limit refuse before anything commits", async ({ refs, input }) => {
+  await using box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const typed = typedRefs(assetId, refs);
+
+  await expect(box.caller.chat.send({ chatId: box.chatId, timeZone: UTC_TIME_ZONE, ...input(typed, assetId) })).rejects.toMatchObject({
+    cause: { code: CHAT_OP_CODES.tooManyPictures },
+  });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test("a send at the limit that mixes picture blocks and typed refs commits and sends every picture", async () => {
+  await using box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const url = await wireUrl(box, assetId);
+  const blocks = [IMAGE_BLOCK(assetId), MARKDOWN(typedRefs(assetId, SEND_BLOCK_LIMITS.blocks - 2)), IMAGE_BLOCK(assetId)];
+
+  const body = await sendBlocks(box, blocks);
+
+  expect(
+    userParts(body)
+      .flat()
+      .filter((part) => imageUrlOf(part) === url),
+  ).toHaveLength(SEND_BLOCK_LIMITS.blocks);
+  expect(await userBodies(box)).toHaveLength(1);
+});
 
 const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId: AssetId) => Record<string, unknown> }[] = [
   { name: "an unknown block kind", input: () => ({ blocks: [{ kind: "sticker", id: "x" }] }) },

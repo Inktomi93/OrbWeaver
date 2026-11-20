@@ -5,6 +5,7 @@
 export const DIALOG_VERBS = {
   accept: "Accept",
   apply: "Apply",
+  back: "Back",
   cancel: "Cancel",
   close: "Close",
   create: "Create",
@@ -14,4 +15,10 @@ export const DIALOG_VERBS = {
   restore: "Restore",
   retry: "Retry",
   save: "Save",
+} as const;
+
+/** What a dialog's commit says while its write is in flight. */
+export const DIALOG_PENDING_VERBS = {
+  creating: "Creating…",
+  saving: "Saving…",
 } as const;

@@ -19,11 +19,11 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
-import { FormDialog } from "#components";
+import { DialogFailure, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, useOpenRequests } from "#lib";
+import { BAND_NEW_LABEL, DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
@@ -32,13 +32,27 @@ import {
   CHARACTER_IMPORT_CARD_NAME,
   CHARACTER_IMPORT_NAME,
   CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_DESCRIPTION,
   CHARACTER_NEW_NAME,
 } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
+import { newCharacterDoorRef } from "../lib/new-character-door.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
-/** The minimal create: name + one-line description, handle auto-derived from the name. */
-function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
+/** The minimal create: name + one-line description, handle auto-derived from the name. A door's own dialog returns focus to the
+ *  door that opened it; a request from another section (`new-character-host.tsx`) names where focus goes on close. */
+export function NewCharacterDialog({
+  open,
+  onOpenChange,
+  finalFocus,
+  trigger,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly finalFocus?: ComponentProps<typeof FormDialog>["finalFocus"];
+  /** The door beside the dialog, rendered as its trigger so it speaks the dialog's open state. */
+  readonly trigger?: ReactElement;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // Every failure has a line here while the dialog is open, so the toast speaks only once the dialog is gone.
@@ -83,7 +97,9 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 
   return (
     <FormDialog
-      description="Give them a name and a one-line description. You can flesh out the rest in the editor."
+      description={CHARACTER_NEW_DESCRIPTION}
+      {...(finalFocus === undefined ? {} : { finalFocus })}
+      {...(trigger === undefined ? {} : { trigger })}
       onOpenChange={onOpenChange}
       open={open}
       submit={{ label: DIALOG_VERBS.create, disabled: incomplete || create.isPending, onSubmit: onCreate }}
@@ -111,14 +127,10 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           value={name}
           {...(refusal === null ? {} : { "aria-errormessage": refusalId, "aria-invalid": true })}
         />
-        {/* THE LINE SITS UNDER THE FIELD IT IS ABOUT (#548). It used to render below BOTH controls, where
-            its only tie to the Name box was the sentence's own wording — for a sighted reader "at the
-            control" (the #542 note's own WCAG 3.3.1 cite) means adjacent, not somewhere in the dialog. */}
-        {failure === null ? null : (
-          <Text tone="destructive" id={refusalId} role="alert" voice="label">
-            {failure}
-          </Text>
-        )}
+        {/* The line sits under the field it is about: for a sighted reader "at the control" (WCAG 3.3.1) means
+            adjacent, not somewhere in the dialog. It takes the body step, the dialog description's own, because
+            a refusal that reads smaller than the text it qualifies is easy to miss. */}
+        {failure === null ? null : <DialogFailure id={refusalId}>{failure}</DialogFailure>}
         <Text as="span" ink="muted" voice="label">
           Description
         </Text>
@@ -129,10 +141,8 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           value={description}
         />
       </Stack>
-      {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
-          requirement/error line grammar), never the receding `gloss`. It speaks for BOTH fields, so this
-          is where it belongs — unlike the #542 refusal line, which moved up under the Name field it is
-          about (#548, see its note there). */}
+      {/* It names why Create is disabled, so it keeps the `label` voice, never the receding `gloss`. It speaks
+          for BOTH fields, so it sits below them, unlike the refusal line under the Name field it is about. */}
       {incomplete ? (
         <Text ink="muted" voice="label">
           A name and a description are both required.
@@ -165,20 +175,30 @@ export function CharacterLandingDoors(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
   return (
     <Row align="center" wrap={true} cap="fit" gap="field">
-      <Button onClick={(): void => setCreateOpen(true)} size="sm">
-        <Icon icon={Plus} size="sm" />
-        New character
-      </Button>
+      <NewCharacterDialog
+        onOpenChange={setCreateOpen}
+        open={createOpen}
+        trigger={
+          <Button ref={newCharacterDoorRef} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New character
+          </Button>
+        }
+      />
       {/* THE SECONDARY ENTRY RECEDES (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, sixth instance). This
           file's own header calls Import "beside it as a GHOST icon, a secondary entry into the same 'get a
           character' job" — #969 flipped `ghost` to `text-current`, so it now paints at the same weight as
           the primary beside it. The primitive keeps inheriting; this composite states its own ink. */}
-      <Button variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm">
-        <Icon icon={Upload} size="sm" />
-        {CHARACTER_IMPORT_CARD_NAME}
-      </Button>
-      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
-      <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />
+      <CharacterImportDialog
+        onOpenChange={setImportOpen}
+        open={importOpen}
+        trigger={
+          <Button variant="ghost" ink="muted" size="sm">
+            <Icon icon={Upload} size="sm" />
+            {CHARACTER_IMPORT_CARD_NAME}
+          </Button>
+        }
+      />
     </Row>
   );
 }
@@ -203,10 +223,15 @@ export function CharacterImportDoor(): ReactElement {
           display boxes that would have shrunk the visible target beside the `sm` New primary. */}
       {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
           twin of the same Import door, beside the same `New` primary. */}
-      <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" onClick={(): void => setOpen(true)} size="sm" square={true}>
-        <Icon icon={Upload} size="sm" />
-      </Button>
-      <CharacterImportDialog onOpenChange={setOpen} open={open} />
+      <CharacterImportDialog
+        onOpenChange={setOpen}
+        open={open}
+        trigger={
+          <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" size="sm" square={true}>
+            <Icon icon={Upload} size="sm" />
+          </Button>
+        }
+      />
     </>
   );
 }
@@ -224,18 +249,21 @@ export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boo
     }
   });
   return (
-    <>
-      {iconOnly ? (
-        <Button aria-label={CHARACTER_NEW_NAME} onClick={(): void => setOpen(true)} size="sm" square={true} type="button">
-          <Icon icon={Plus} size="sm" />
-        </Button>
-      ) : (
-        <Button onClick={(): void => setOpen(true)} size="sm">
-          <Icon icon={Plus} size="sm" />
-          New
-        </Button>
-      )}
-      <NewCharacterDialog onOpenChange={setOpen} open={open} />
-    </>
+    <NewCharacterDialog
+      onOpenChange={setOpen}
+      open={open}
+      trigger={
+        iconOnly ? (
+          <Button aria-label={CHARACTER_NEW_NAME} ref={newCharacterDoorRef} size="sm" square={true} type="button">
+            <Icon icon={Plus} size="sm" />
+          </Button>
+        ) : (
+          <Button ref={newCharacterDoorRef} size="sm">
+            <Icon icon={Plus} size="sm" />
+            {BAND_NEW_LABEL}
+          </Button>
+        )
+      }
+    />
   );
 }

@@ -1,4 +1,4 @@
-// The one home for the character-card serde core: the tolerant in-adapter (cardFromJson), the strict
+// The one home for the character-card serde core: the tolerant in-adapter (readCardJson), the strict
 // out-emitter (buildCardV3 + the character_book entry mapper exportBookEntry), and the card content hash
 // (cardContentHash). Co-located so the round-trip is a one-file invariant. Server-only pure: no DB, no
 // logger, no fs — it maps an already-JSON-parsed card object into/out of the canonical contracts/character
@@ -9,7 +9,7 @@
 // is the import verb's: the row takes the art when it has none.
 //
 // Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
-// so the shared `data.*` reads cover both, and cardFromJson captures the source `spec` so buildCardV3
+// so the shared `data.*` reads cover both, and readCardJson captures the source `spec` so buildCardV3
 // round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
 // `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3).
 // `creator_notes_multilingual` has NO typed column: it rides the `residualData` passthrough verbatim and only
@@ -33,17 +33,20 @@ import {
   portableCharacterHandle,
 } from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
-import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
+import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, toRegexScriptCardWire } from "@orb/contracts/regex";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { JsonObject, JsonValue } from "@orb/kit/json";
 import { jsonObjectOf } from "@orb/kit/json";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
+import type { StScriptNote } from "#primitives/serde/regex";
+import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -173,24 +176,13 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
 }
 
 /** The card's ST regex scripts (the LIFT payload — D121-E: there is no `regexScripts` column any more; the
- *  importer hands these to the regex domain). The raw blob is V3 `data.extensions.regex_scripts` or the V2
- *  root `data.regex_scripts`; each candidate is parsed through `regexScriptCardSchema` and only the valid
- *  ones survive (tolerant IN — a foreign-shaped ST script is dropped rather than thrown, and an
- *  orbweaver-emitted card round-trips its scripts back cleanly). The card schema's accept-and-drop heals run
- *  here: an ST `SLASH_COMMAND` placement and any `min_depth`/`max_depth` keys are stripped from an otherwise
- *  valid script instead of taking the whole script down with them. */
-function parseRegexScripts(data: RawCard): RegexScriptCard[] {
-  const v3 = Array.isArray(data.extensions?.regex_scripts) ? data.extensions.regex_scripts : null;
-  const v2 = Array.isArray(data.regex_scripts) ? data.regex_scripts : null;
-  const src = v3 ?? v2 ?? [];
-  const out: RegexScriptCard[] = [];
-  for (const candidate of src) {
-    const parsed = regexScriptCardSchema.safeParse(candidate);
-    if (parsed.success) {
-      out.push(parsed.data);
-    }
-  }
-  return out;
+ *  importer hands these to the regex domain), and a note for each script refused or each placement lost, by its
+ *  position. The raw blob is V3 `data.extensions.regex_scripts` or the V2 root `data.regex_scripts`. */
+function parseRegexScripts(data: RawCard): { readonly scripts: RegexScriptCard[]; readonly notes: StScriptNote[] } {
+  const read = Array.isArray(data.extensions?.regex_scripts)
+    ? readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts", "scoped")
+    : readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts", "scoped");
+  return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
@@ -220,7 +212,7 @@ const PROMOTED_DATA_KEYS = new Set([
   "creator_notes",
   "character_version",
   "alternate_greetings",
-  // Folded into the `greetings` array (`groupOnly:true` entries) by cardFromJson — kept out of `residualData`
+  // Folded into the `greetings` array (`groupOnly:true` entries) by readCardJson — kept out of `residualData`
   // so it doesn't double-ride the residual passthrough AND re-emit on export (V3 promotion Phase B).
   "group_only_greetings",
   // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
@@ -325,11 +317,14 @@ function detectSpec(raw: RawCard): CardSpec | null {
 
 /**
  * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
- * `CharacterCard`. The tolerant in half of the serde — `parseCardPng`/`parseCardJson` wrap it with
- * chunk/byte decoding. `avatarAssetId`/`refinery` are not on the card wire, so both are null; tags and
- * the embedded lorebook are external junctions and are not carried here.
+ * `CharacterCard`: the tolerant in half of the serde. `avatarAssetId`/`refinery` are not on the card wire, so both
+ * are null; tags and the embedded lorebook are external junctions and are not carried here.
+ *
+ * Beside the card, a note for each regex script the reader refused or each placement it lost. The notes are never
+ * part of the card, so a card's import identity ({@link cardImportHash}) is the same with or without a refused
+ * script.
  */
-export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCard {
+export function readCardJson(raw: JsonValue, fallbackName: string): { readonly card: CharacterCard; readonly scriptNotes: readonly StScriptNote[] } {
   const rawCard = (raw ?? {}) as RawCard;
   const spec = detectSpec(rawCard);
   const cardJson = normalizeCardJson(rawCard);
@@ -348,8 +343,9 @@ export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCar
   for (const text of groupOnly) {
     greetings.push({ text, groupOnly: true });
   }
+  const scripts = parseRegexScripts(data);
 
-  return {
+  const card: CharacterCard = {
     name: firstNonEmpty(str(data.name), str(cardJson.name)) ?? fallbackName,
     description: nullIfEmpty(str(data.description)),
     personality: nullIfEmpty(str(data.personality)),
@@ -376,7 +372,7 @@ export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCar
     // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans; a foreign
     // truthy string is not a star). Promoted out of the residue like `depth_prompt`/`regex_scripts`.
     starred: data.extensions?.fav === true,
-    regexScripts: parseRegexScripts(data),
+    regexScripts: scripts.scripts,
     extensions: residualExtensions(residue),
     residualData: residualData(residue),
     avatarAssetId: null,
@@ -385,6 +381,7 @@ export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCar
     // it satisfies `exactOptionalPropertyTypes` and export defaults to V3.
     ...(spec !== null ? { spec } : {}),
   };
+  return { card, scriptNotes: scripts.notes };
 }
 
 // cardContentHash — the one home; character imports it from here, no private copy.
@@ -525,7 +522,11 @@ export interface ExportCardFields {
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
  *  columns PLUS the preserved `metadata` blob — so import → export → reimport doesn't strip
  *  `constant` / `position` / vendor extensions. */
-export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "description" | "keys">> & { readonly keys: string[] };
+export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "description" | "keys" | "metadata">> & {
+  readonly keys: string[];
+  // A stored row's metadata as a read carries it: parsed, not narrowed for the column.
+  readonly metadata: Readonly<Record<string, unknown>> | null;
+};
 
 // ST's at-depth directive lives under `extensions.position = 4` with a sibling `depth`/`role` (the
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
@@ -585,7 +586,7 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
 }
 
 function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
-  const meta = isPlainObject(entry.metadata) ? entry.metadata : {};
+  const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
@@ -727,7 +728,7 @@ function orbEntryPositionFromSt(raw: unknown): "before" | "after" | null {
 /** Resolve an at-depth `inject` directive from an ST entry, or `null` when it is not at-depth. At-depth is
  *  ST's `extensions.position:4` (embedded chara_card book) or a top-level numeric `position:4` (native ST
  *  world-info entry); `depth`/`role` sit beside whichever encoding carried it (role via the message-role
- *  bimap). A missing/invalid depth ⇒ no directive (the entry renders into the system half). */
+ *  bimap). A missing, invalid or over-cap depth ⇒ no directive (the entry renders into the system half). */
 function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unknown): Record<string, unknown> | null {
   const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
   const atDepth = Number(ext?.["position"]) === ST_POSITION_AT_DEPTH || Number(rawPosition) === ST_POSITION_AT_DEPTH;
@@ -735,7 +736,8 @@ function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unk
     return null;
   }
   const depth = Number(ext?.["depth"] ?? entry["depth"]);
-  if (!(Number.isInteger(depth) && depth >= 0)) {
+  // A depth past the injection cap is as unusable as a negative one: no directive, as the persona import reads it.
+  if (!(Number.isInteger(depth) && depth >= 0 && depth <= MAX_INJECTION_DEPTH)) {
     return null;
   }
   const role = messageRoleFromSt(ext?.["role"] ?? entry["role"]);

@@ -5,24 +5,45 @@
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/substrate/preview.ts
 
-import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import type { ImportPreviewKind } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { admit, bothKindFolders, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, namesakeFolder, settings } from "./_st-tree-door.ts";
+import {
+  admit,
+  bothKindFolders,
+  cardJson,
+  cardPng,
+  cardPngUnderOtherArt,
+  chatOf,
+  dryRun,
+  finish,
+  finishRun,
+  harness,
+  importThroughDialog,
+  inProfile,
+  namesakeFolder,
+  settings,
+} from "./_st-tree-door.ts";
 
 // Every kind whose ownership comes from an owner domain's read. Characters keep the one lookup every door uses.
-const OWNED_KINDS = ["chats", "personas", "worlds", "presets", "themes", "backgrounds", "groups", "orphans"] as const;
-const NAMESAKE_KINDS = ["personas", "worlds", "presets", "themes", "backgrounds"] as const;
+const OWNED_KINDS = IMPORT_PREVIEW_KINDS.filter((kind): kind is Exclude<ImportPreviewKind, "characters"> => kind !== "characters");
+// A namesake persona is not here: the run merges it into the held persona by default, so the preview flags it
+// (`import-preview-persona-collisions.int.test.ts`). The other kinds land beside the held item.
+const NAMESAKE_KINDS = ["worlds", "presets", "themes", "backgrounds"] as const satisfies readonly ImportPreviewKind[];
 
-test.for(OWNED_KINDS)("a dry run flags the %s the library already holds and not the ones it lacks", async (kind) => {
-  await using root = await harness();
-  const { held, both, names } = bothKindFolders(root);
-  await finish(root, await admit(root, held));
+forEachNonEmpty(OWNED_KINDS, "owned preview kinds", (kind) => {
+  test(`a dry run flags the ${kind} the library already holds and not the ones it lacks`, async () => {
+    await using root = await harness();
+    const { held, both, names } = bothKindFolders(root);
+    await finish(root, await admit(root, held));
 
-  const preview = await dryRun(root, both);
+    const preview = await dryRun(root, both);
 
-  const items = preview.kinds[kind].items;
-  expect(items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
-  expect(items.filter((item) => item.inLibrary !== true).map((item) => item.name)).toEqual(names.fresh[kind]);
+    const items = preview.kinds[kind].items;
+    expect(items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
+    expect(items.filter((item) => item.inLibrary !== true).map((item) => item.name)).toEqual(names.fresh[kind]);
+  });
 });
 
 test.for(NAMESAKE_KINDS)("a %s item that shares a held item's name but not its content is not flagged", async (kind) => {
@@ -93,7 +114,61 @@ test("a group the run refuses is a skip, not a new room, and the preview counts 
 
   // The control: the folder's valid group is the one room, and its transcript is the only group transcript.
   expect(preview.kinds.groups.items.map((item) => item.name)).toEqual(["Fresh Group"]);
-  expect(preview.skipped.items.map((item) => item.source)).toEqual(expect.arrayContaining(["groups/roomless.json", "groups/memberless.json"]));
+  expect(preview.skipped.items.map((item) => item.source.path)).toEqual(expect.arrayContaining(["groups/roomless.json", "groups/memberless.json"]));
   expect(imported.found).toMatchObject({ groups: preview.kinds.groups.total, chats: preview.kinds.chats.total });
   expect(preview.kinds.chats.items.map((item) => item.name)).not.toContain("Memberless: ghost-room");
+});
+
+const ARTS = ["owned", "other"] as const;
+type Art = (typeof ARTS)[number];
+const VERDICTS = ["library", "repeat", "write"] as const;
+type Verdict = (typeof VERDICTS)[number];
+
+/** Two same-text PNGs of an owned Aria, in the folder's name order, and what the preview must say of each. An owned
+ *  row that has no art takes the first text match's art once and is then keyed by that art; one that already has art
+ *  is left alone, so a card under other art lands beside it. */
+const ART_CASES: readonly {
+  readonly name: string;
+  readonly ownedHasArt: boolean;
+  readonly cards: readonly [Art, Art];
+  readonly verdicts: readonly [Verdict, Verdict];
+}[] = [
+  { name: "the same art twice", ownedHasArt: false, cards: ["owned", "owned"], verdicts: ["library", "repeat"] },
+  { name: "one art, then other art", ownedHasArt: false, cards: ["owned", "other"], verdicts: ["library", "write"] },
+  { name: "other art, then the first art", ownedHasArt: false, cards: ["other", "owned"], verdicts: ["library", "write"] },
+  { name: "an owned row that already has art", ownedHasArt: true, cards: ["owned", "other"], verdicts: ["library", "write"] },
+];
+
+test.for(ART_CASES)("same-text PNGs of an owned card, $name: the preview says what the run writes", async ({ ownedHasArt, cards, verdicts }) => {
+  await using root = await harness();
+  await importThroughDialog(root, "aria.json", cardJson("Aria"));
+  if (ownedHasArt) {
+    await importThroughDialog(root, "aria.png", cardPng(root, "Aria"));
+  }
+  const png = (art: Art): Uint8Array => (art === "owned" ? cardPng(root, "Aria") : cardPngUnderOtherArt(root, "Aria"));
+  const files = {
+    [ST_SETTINGS_FILE]: settings({}),
+    // The collector reads a folder's cards in name order.
+    "characters/first.png": png(cards[0]),
+    "characters/second.png": png(cards[1]),
+  };
+  const ariaCount = async (): Promise<number> =>
+    (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.filter((item) => item.name === "Aria").length;
+  // The control: the dialog left exactly one owned Aria for the folder to meet.
+  expect(await ariaCount()).toBe(1);
+
+  const preview = await dryRun(root, files);
+  await finish(root, await admit(root, files));
+
+  const verdictOf = (item: (typeof preview.kinds.characters.items)[number]): Verdict => {
+    if (item.inLibrary === true) {
+      return "library";
+    }
+    return item.repeat === true ? "repeat" : "write";
+  };
+  expect(preview.kinds.characters.items.map((item) => [item.source.path, verdictOf(item)])).toEqual([
+    ["first.png", verdicts[0]],
+    ["second.png", verdicts[1]],
+  ]);
+  expect(await ariaCount()).toBe(1 + preview.kinds.characters.counts.writes);
 });

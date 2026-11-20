@@ -19,8 +19,13 @@ test("a valid member binding cannot replace the absent host binding or commit a 
   const memberKey = "owned-speaker-member-key";
   const ownConnection = await saveSpeakerConnection(h, room.peer.baseUrl, "chat", { principal: member, key: memberKey });
   expect(
-    (await h.root.services.connection.listBindings({ principal: member })).some((b) => b.task === "chat" && b.binding?.connectionId === ownConnection.id),
+    (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: member })).some(
+      (b) => b.task === "chat" && b.binding?.connectionId === ownConnection.id,
+    ),
   ).toBe(true);
+  // The role list reads held facts and dials nothing, so the member's own model list read is what shows the recorder sees that key on the wire.
+  await h.root.services.connection.catalogModels({ signal: new AbortController().signal, principal: member, connectionId: ownConnection.id });
+  expect(room.peer.requests.some((r) => r.headers.get("authorization") === `Bearer ${memberKey}`)).toBe(true);
   await h.root.services.connection.remove({ principal: h.owner, connectionId: room.connection.id });
   using presence = new DisposableStack();
   const hostOnline = new AbortController();

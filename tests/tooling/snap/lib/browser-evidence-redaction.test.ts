@@ -14,7 +14,7 @@ import {
   redactEvidenceLabel,
   redactEvidenceText,
 } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
-import { __resetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
+import { forgetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 
 function diagnostic(overrides: Partial<BrowserDiagnostic> = {}): BrowserDiagnostic {
   return {
@@ -158,6 +158,17 @@ test("request-summary identities redact credentials, named secret path values, a
   expect(safe).toContain("ordinary=kept");
 });
 
+test.for([
+  "https://example.test/?join=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/auth/oidc/login?invite=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/api/x?jwt=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/join/invite-canary-request-31d0?ordinary=kept",
+])("a request-summary identity redacts the app's invite token in %s", (raw) => {
+  const safe = redactedRequestUrl(raw);
+  expect(safe).not.toContain("invite-canary-request-31d0");
+  expect(safe).toContain("ordinary=kept");
+});
+
 test("projection is deterministic, bounded, cyclic-safe, and hostile getters cannot echo thrown secrets", () => {
   const cycle: Record<string, unknown> = { ordinary: "kept" };
   cycle["self"] = cycle;
@@ -206,6 +217,6 @@ test("a revealed value leaves page text but never a field the browser names, and
     expect(redactBrowserPageError({ kind: "runtime", name: "Error", message: `threw ${typed}`, stack: null }).message).toBe(`threw ${PRIVATE_MASK}`);
     expect(redactCapturedConsole({ type: "error", text: typed, location: null, line: `[error] ${typed}` }).line).toBe(`[error] ${PRIVATE_MASK}`);
   } finally {
-    __resetPrivateValues();
+    forgetPrivateValues();
   }
 });

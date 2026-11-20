@@ -6,14 +6,14 @@
 // roster homes, and client display labels. They take no principal and no resource and decide nothing: whether a caller
 // may act is the kernel's decision alone, and a client display read is never an authorization.
 //
-// VOCABULARY (vocabulary-map row 45): `ChatResource.membership` is not `ChatResource.roster`.
-// The TYPE half of row 45 (`ChatRoster` → `ChatMembership`) once left
-// the FIELD spelling the old word, so every `can()` call site read `{ kind: "chat", roster: {…} }` for a
-// single-`{role}` value that is not a list at all. `roster` remains RESERVED for the saved TEMPLATE
-// concept (`rosterPreset`, "Rosters" — row 48) and never names this one.
+// VOCABULARY: `ChatResource.membership` is not `ChatResource.roster` — the field holds one `{role}` value,
+// not a list, and `roster` reads as one. `roster` is RESERVED for the saved TEMPLATE concept
+// (`rosterPreset`, "Rosters") and never names this one.
 
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import type { ParticipantRole as KitParticipantRole } from "@orb/kit/message-author";
+import { PARTICIPANT_ROLES as KIT_PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { z } from "zod";
 import type { ParticipantRoleState, UserRoleState } from "./role-data.ts";
 
@@ -25,9 +25,9 @@ export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 
-// Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was
-// purged). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
-// the rebuild grafts an `agent` member here if the agent-principal design set returns (docs/work/0048).
+// Principal-KIND axis. A tuple, never an `isAgent` boolean, so another flavor is a member here rather
+// than an `if`-branch at every reader; the agent-principal design set (docs/work/0048) is where such a
+// member would come from.
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
@@ -446,10 +446,10 @@ export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
 const CHAT_ACTIONS = ["read", "host"] as const;
 export type ChatAction = (typeof CHAT_ACTIONS)[number];
 
-/** A chat participant's room authority. Lives here (not `@orb/contracts/chat`) because `can()` reads it
- *  and identity is the DAG root; chat re-exports this same name, no alias. */
-export const PARTICIPANT_ROLES = ["host", "member"] as const;
-export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+/** A chat participant's room authority. The tuple is `@orb/kit/message-author`, so a regex script can scope by it;
+ *  it is named here because `can()` reads it and identity is the DAG root, and chat re-exports this same name. */
+export const PARTICIPANT_ROLES = KIT_PARTICIPANT_ROLES;
+export type ParticipantRole = KitParticipantRole;
 
 // Which participant role holds room authority. A mapped record over the closed tuple, so a new role fails tsc here.
 const HOLDS_ROOM_AUTHORITY = { host: true, member: false } as const satisfies Record<ParticipantRole, boolean>;
@@ -471,6 +471,20 @@ const GLOBAL_ACTIONS_OF_ROLE = {
 export function userRoleSatisfies(role: UserRole, action: GlobalAction): boolean {
   const actions: readonly GlobalAction[] = GLOBAL_ACTIONS_OF_ROLE[role];
   return actions.includes(action);
+}
+
+// The global action a caller needs to grant each role: a regular account is delegated-admin work, an elevated one is
+// the owner's. A mapped record over the closed tuple, so a new role must name its gate here.
+const GRANT_ACTION_OF_ROLE = { owner: "owner", admin: "owner", user: "admin" } as const satisfies Record<UserRole, GlobalAction>;
+
+/** The global action that authorizes granting a user role (invariant 6). */
+export function roleGrantAction(role: UserRole): GlobalAction {
+  return GRANT_ACTION_OF_ROLE[role];
+}
+
+/** Whether a re-derived user role differs from the stored one; a change, not a meaning (invariant 6). */
+export function userRoleChanged(from: UserRole, to: UserRole): boolean {
+  return from !== to;
 }
 
 /** The membership data chat feeds `can()` for a chat-resource decision. `can()` makes the verdict —

@@ -9,19 +9,23 @@ export { pageCanHover, readRefusalLine } from "./avatar-drive.ts";
 export type { LayoutBox } from "./box-of.ts";
 export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
-export { computedStyle } from "./computed-style.ts";
+export { frameTextInsetPx, hostLengthPx } from "./card-frame-inset.ts";
+export { computedStyle, fontSizeAgainstStep } from "./computed-style.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
 export { enlargedTextFindings, enlargedTextGeometry, LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 export { formatFormIdentityFindings } from "./form-identity.ts";
+export { lineStarts, SOFT_HYPHEN } from "./line-breaks.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
 export { pixelContrast, pixelFilledTextContrast, pixelMarkContrast, pixelSpread, pixelSurface } from "./pixel-contrast.ts";
 export type { PlatformTextSize } from "./platform-text-size.ts";
 export { expectShellRegime, PLATFORM_TEXT_SCALES, setPlatformTextSize, shellRegimeAt } from "./platform-text-size.ts";
+export { READ_RETRIES_MS } from "./read-retries.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
+export { ringCuts } from "./ring-cuts.ts";
 export { enlargeUntilVisible, setRootFontScale } from "./root-property.ts";
 export { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 export {
@@ -33,6 +37,7 @@ export {
   persistedOverrides,
   pixel,
   resolvedLength,
+  seedActiveChat,
   seedShellState,
   settledBox,
   settledReadingRow,
@@ -49,6 +54,7 @@ export { markExpectedSurfaceHttpFailure, observeSurfaceSession } from "./surface
 export { surfaceTopology } from "./surface-topology.ts";
 export { titleFit, titleReach } from "./title-fit.ts";
 export { watchToastMounts } from "./toast-mounts.ts";
+export { toggleStripLayout } from "./toggle-strip.ts";
 export { hitExtent, pressableWhole, touchFloorPx, touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,

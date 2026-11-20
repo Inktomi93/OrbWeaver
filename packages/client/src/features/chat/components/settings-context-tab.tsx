@@ -49,11 +49,18 @@ import { InlineToken } from "@orb/ui/inline-token";
 import { Contents, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
-import { CHAT_GROUP_BEHAVIOR_NAME } from "../lib/chat-settings-names.ts";
+import {
+  CHAT_DOCUMENTS_SECTION_LABEL,
+  CHAT_FORKS_SECTION_LABEL,
+  CHAT_GROUP_BEHAVIOR_NAME,
+  CHAT_INJECTIONS_SECTION_LABEL,
+  CHAT_WORLD_BOOKS_SECTION_LABEL,
+} from "../lib/chat-settings-names.ts";
+import type { GroupBehaviorScope } from "../lib/roster.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
@@ -171,7 +178,11 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   return (
-    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />} sectionId="injections">
+    <DisclosureSection
+      defaultOpen={CLOSED_BY_DEFAULT}
+      kicker={<HeadingWithCount count={data?.length ?? 0} label={CHAT_INJECTIONS_SECTION_LABEL} />}
+      sectionId="injections"
+    >
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}
@@ -189,21 +200,21 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
 function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.databank.listActiveForChat.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_DOCUMENTS_SECTION_LABEL} />;
 }
 
 // Count the viewer's projected rack, never another viewer's inherited personal-library headers.
 function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId, includeInherited: true }));
-  return <HeadingWithCount count={data?.length ?? 0} label="World books" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_WORLD_BOOKS_SECTION_LABEL} />;
 }
 
 // The Forks count, on the same non-suspending shared-cache idiom as Documents above.
 function ForksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listForks.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Forks" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_FORKS_SECTION_LABEL} />;
 }
 
 export interface CommittedSettingsTabProps {
@@ -211,8 +222,8 @@ export interface CommittedSettingsTabProps {
   readonly roomOverrides: RoomOverrides;
   readonly isHost: boolean;
   readonly background: ThemeBackground | null;
-  /** The group-level gate — host of a group chat (was the whole Group tab's `when`). */
-  readonly showGroup: boolean;
+  /** The Group behavior section's knobs for a host, or `null` when the section is omitted. */
+  readonly groupScope: GroupBehaviorScope | null;
   /** §6c — the SECTION contributors a foreign feature grafts into this tab (automation's Rules is the
    *  first; #616). Omitted ⇒ the tab is byte-identical to a build with no contributors, which is what
    *  lets a CT mount the tab body alone. The door always wires it (`makeChatsSection`). */
@@ -220,11 +231,11 @@ export interface CommittedSettingsTabProps {
 }
 
 /** The committed-chat "This chat" tab: Field overrides + Injections always present; Background is host-only;
- *  Group behavior only for a host of a group chat; Tool use only for a host (the §8.1 permission-omit,
+ *  Group behavior only for a host whose room earns a {@link GroupBehaviorScope}; Tool use only for a host (the §8.1 permission-omit,
  *  moved from tab-level to section-level). */
-export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup, sections }: CommittedSettingsTabProps): ReactElement {
+export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, groupScope, sections }: CommittedSettingsTabProps): ReactElement {
   return (
-    <Stack gap="section">
+    <ContextTabBody>
       <DisclosureSection
         defaultOpen={OPEN_BY_DEFAULT}
         kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}
@@ -270,8 +281,9 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           sibling of Injections and World books it was designed as
           (owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
           Documents/World books reason: the room's own tier is member-READABLE (`regex.listForChat` is
-          `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
-          rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
+          `requireChatMember`), but a member reads only the enabled display scripts the host shares, and none
+          while sharing is off; the host's prompt scripts are the host's library and stay off the member's read. A
+          member gets those rows and no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
           The host's HALF is host-gated in the verb, not here: `chat.listEffectiveRegex` refuses a member,
           which is why the body reads two different procs by role.
 
@@ -323,9 +335,9 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       </DisclosureSection>
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
-          also needs a group chat). A member's tab simply ends after Forks. */}
-      {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} sections={sections} /> : null}
-    </Stack>
+          also needs two characters or two people). A member's tab simply ends after Forks. */}
+      {isHost ? <HostControls chatId={chatId} background={background} groupScope={groupScope} sections={sections} /> : null}
+    </ContextTabBody>
   );
 }
 
@@ -336,12 +348,12 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
 function HostControls({
   chatId,
   background,
-  showGroup,
+  groupScope,
   sections,
 }: {
   readonly chatId: ChatId;
   readonly background: ThemeBackground | null;
-  readonly showGroup: boolean;
+  readonly groupScope: GroupBehaviorScope | null;
   readonly sections: ContributorRegistry<ChatSettingsSectionContribution> | undefined;
 }): ReactElement {
   // The §6c SECTION seam's projection — the committed room, resolved once for every contributor.
@@ -356,7 +368,7 @@ function HostControls({
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
             <ChatBackgroundSection chatId={chatId} background={background} />
           </DisclosureSection>
-          {showGroup ? (
+          {groupScope === null ? null : (
             <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker={CHAT_GROUP_BEHAVIOR_NAME} sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
               <QueryBoundary
                 resetKeys={[chatId]}
@@ -367,10 +379,10 @@ function HostControls({
                 renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
                 reserveKey="chat.context.groupBehavior"
               >
-                <CommittedGroupConfigTab chatId={chatId} />
+                <CommittedGroupConfigTab chatId={chatId} scope={groupScope} />
               </QueryBoundary>
             </DisclosureSection>
-          ) : null}
+          )}
           {/* `Appearance` IS GONE (#1742). It held one control — the display-tier broadcast switch (D121-E) —
             which is a REGEX control, and it now sits at the foot of the Regex section's `On screen` group
             beside the display scripts it governs. Its posture key and `reserveKey` retired with it: an
@@ -442,7 +454,7 @@ function HostControls({
 
             SO A GRAFT'S PANEL IS `keepMounted` (#830). Every section here is now a disclosure, and a CLOSED
             Base UI panel is REMOVED from the DOM — which would take the graft-body wrapper with it and leave
-            `has-[…:empty]` nothing to match, i.e. an orphan "Plugin controls" kicker on every room. Kept
+            the `:empty` `has-` selector nothing to match, i.e. an orphan "Plugin controls" kicker on every room. Kept
             mounted (hidden, zero height) the wrapper is still there to be asked, and the collapse still
             hides the whole Section, trigger included. Grafted sections start CLOSED unless explicitly
             opted into discovery: a contribution's body

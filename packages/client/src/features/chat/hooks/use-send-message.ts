@@ -9,14 +9,16 @@
 // scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify, turnMutationToast, viewerTimeZone } from "#lib";
-import { subscribeUserMessageCommitted } from "#state";
-
-const SEND_FAILED_TITLE = "Couldn't send your message.";
+import { createEntityMutation, isUploadFailure, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { notify, rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
+import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
+import { providerFailureReason } from "../lib/provider-failure-reason.ts";
+import { clearReplyFailure, recordReplyFailure } from "../lib/reply-failure.ts";
+import { SEND_FAILED_TITLE } from "../lib/send-failure-copy.ts";
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
 const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, unknown>({
@@ -24,8 +26,26 @@ const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, u
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, SEND_FAILED_TITLE),
+  // `runSend` states every failure itself, because only it knows whether the message landed before the reply failed.
+  failureShownInline: "the composer's reply-failure line, or the send's own notice",
 });
+
+// A failure after the message landed is the reply's: the composer's line states it, never a "couldn't send" toast over a
+// message the room shows. A stale abort stays silent there too, since the bus owns that notice. A send the room never
+// took keeps the turn toast, with the provider's reason beneath it when the provider failed, in the words the viewer may
+// read: `viewerIsHost` is the room's cached roster answer, and an unread roster reads as a member.
+function stateSendFailure(chatId: ChatId, error: unknown, landed: boolean, viewerIsHost: boolean): void {
+  const title = turnMutationToast(error, SEND_FAILED_TITLE);
+  if (title === null) {
+    return;
+  }
+  if (landed) {
+    recordReplyFailure(chatId, error);
+    return;
+  }
+  const description = providerFailureReason({ reason: trpcErrorReason(error), message: trpcErrorMessage(error) }, viewerIsHost);
+  notify.error(description === null ? title : { title, description });
+}
 
 export interface UseSendMessageOptions {
   readonly chatId: ChatId;
@@ -50,6 +70,7 @@ async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, atta
 export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
@@ -59,13 +80,21 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   // before the event can arrive. A send that fails before commit never fires the user-role
   // messageCommitted, so onDraftCommitted never runs and the draft survives for retry untouched.
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
+    // Held from the upload until the send settles: leaving a new room mid-send must not reap it under the send.
+    using _hold = holdRoomForSend(opts.chatId);
     // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it
     // here, with the server's own reason when it gave one, and rethrow so the draft and strip stay put.
     const attachmentAssetIds = await uploadAttachments(upload, attachments).catch((err: unknown) => {
       notify.error({ title: SEND_FAILED_TITLE, ...(err instanceof UploadRefusedError ? { description: err.reason } : {}) });
       throw err;
     });
-    const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => opts.onDraftCommitted?.());
+    // Whether this send's own message landed: after that, a failure is the reply's, and the message is in the room.
+    let landed = false;
+    const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => {
+      landed = true;
+      opts.onDraftCommitted?.();
+    });
+    clearReplyFailure(opts.chatId);
     try {
       await sendMutation.mutateAsync({
         chatId: opts.chatId,
@@ -73,6 +102,23 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
         timeZone: viewerTimeZone(),
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
+    } catch (error) {
+      // The server found no such room: re-read it. A room that proves gone is left for the chat list (`useRoomRead`) with the one
+      // notice that offers the unsent text back; a room that still reads says the send failed.
+      if (trpcErrorCode(error) === "NOT_FOUND") {
+        await queryClient.query({ ...roomRosterOptions(trpc, { chatId: opts.chatId }), staleTime: 0 }).then(
+          () => notify.error(SEND_FAILED_TITLE),
+          (reread: unknown) => {
+            if (trpcErrorCode(reread) !== "NOT_FOUND") {
+              notify.error(SEND_FAILED_TITLE);
+            }
+          },
+        );
+      } else {
+        const roster = queryClient.getQueryData(roomRosterOptions(trpc, { chatId: opts.chatId }).queryKey);
+        stateSendFailure(opts.chatId, error, landed, roster?.viewerIsHost === true);
+      }
+      throw error;
     } finally {
       unsubscribe();
     }
@@ -84,9 +130,14 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       return;
     }
     setIsPending(true);
-    // Only a send failure reaches the mutation's errorToast; an upload rejection is dropped here with no notice.
+    // `runSend` has already stated an upload or send failure (the upload's notice, the send's notice or the
+    // reply-failure line); any other fault rejects.
     runSend(trimmed, attachments)
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        if (!isUploadFailure(error)) {
+          rethrowUnlessTrpcFailure(error);
+        }
+      })
       .finally(() => setIsPending(false));
   };
 

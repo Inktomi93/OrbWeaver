@@ -14,10 +14,9 @@ import { writeHandState } from "#src/domain/rpg/snapshot-edit.ts";
 
 export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQuest"> {
   async function upsertQuest(params: UpsertQuestParams): Promise<RpgQuestId> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     const questId = params.questId ?? ctx.ids.quest();
-    const written = await writeHandState(ctx, game, (head) => {
+    const written = await writeHandState(ctx, { game, admission }, (head) => {
       const existing = head.state.quests.find((q) => q.id === questId);
       const objectives =
         params.questId === undefined

@@ -39,6 +39,7 @@ import {
   seedTranscript,
   signedInBox,
 } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
@@ -73,7 +74,7 @@ test("a chat restores with its character when the character's handle is not the 
   const transcripts = await Promise.all(rooms.map(async (room) => (await caller.chat.listMessages({ chatId: room.id })).messages.map((m) => m.content)));
 
   expect({ outcome, handles: restored.map((c) => c.handle), transcripts }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     handles: [CHOSEN_HANDLE],
     transcripts: [lines.map((line) => line.content)],
   });
@@ -215,7 +216,7 @@ test("a restored chat binds to its own card when another character already holds
     outcome,
     keepers: await Promise.all(keepers.map(async (c) => ({ suffixed: c.handle !== CHOSEN_HANDLE, transcripts: await transcriptsOf(target, c.id) }))),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     keepers: expect.arrayContaining([
       { suffixed: false, transcripts: [] },
       { suffixed: true, transcripts: [lines.map((line) => line.content)] },
@@ -235,7 +236,12 @@ test("a restored chat binds to the existing character its card deduped onto, und
   expect(card.status).toBe(200);
   const firstCard = new Uint8Array(await card.arrayBuffer());
   // Renaming the handle is not a content edit, so the next export still dedups onto the first restore.
-  await source.services.character.update({ principal: owner, characterId: created.id, input: { handle: castId<CharacterHandle>("gatekeeper") } });
+  await source.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: created.id,
+    input: { handle: castId<CharacterHandle>("gatekeeper") },
+  });
   const lines = [{ role: "user", content: "How many gates tonight?" }] as const;
   await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [castId<CharacterHandle>("gatekeeper")], lines });
   const bundle = await exportLibrary(source, ["character", "chat"]);
@@ -249,7 +255,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
     outcome,
     wardens: await Promise.all(wardens.map(async (c) => ({ handle: c.handle, transcripts: await transcriptsOf(target, c.id) }))),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     wardens: [{ handle: "warden", transcripts: [lines.map((line) => line.content)] }],
   });
 });
@@ -348,6 +354,7 @@ test("a seat's card identity resolves only inside the importing account", { tags
   // Positive control: the same bundle binds for the owner who holds that card, by identity alone once the
   // owner's copy no longer carries the seat's handle.
   await root.services.character.update({
+    signal: new AbortController().signal,
     principal: await root.principalFor(root.ownerId),
     characterId: keeper.id,
     input: { handle: castId<CharacterHandle>("keeper-elsewhere") },
@@ -400,7 +407,12 @@ test("a restored card keeps its import identity through the next export and rest
     throw new Error("the restore landed no archivist");
   }
   // A star is the owner's mark on the library, not card content.
-  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored.id, input: { starred: true } });
+  await target.services.character.update({
+    signal: new AbortController().signal,
+    principal: await target.principalFor(target.ownerId),
+    characterId: restored.id,
+    input: { starred: true },
+  });
   const targetBundle = await exportLibrary(target);
 
   await using third = await signedInBox({ ids: createSeededIds(THIRD_BOX_ID_CURSOR) });
@@ -557,7 +569,7 @@ test("a full library restore into a fresh box reports no failures and leaves no 
     room: room === undefined ? null : await restoredRoom(room.id),
     gallery: await galleryHashes(target),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: [true] } },
     gallery: sourceGallery,
   });
@@ -576,7 +588,7 @@ test("a seeded library restored into a fresh box keeps one copy of each starter 
   await using target = await signedInBox();
   const outcome = await restoreBundle(target, bundle);
 
-  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
+  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", skipped: 0, failed: 0 }, names: sourceNames });
 });
 
 test("an imported card keeps its star, alone and through a library restore", { tags: ["slow"] }, async () => {
@@ -620,7 +632,13 @@ async function generateOnePicture(root: ServerTestHarness): Promise<AssetId> {
     },
   });
   await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
-  const picture = await root.services.imagery.generatePicture({ caller: owner, mode: "free", prompt: "A keeper at the ledger.", n: 1 });
+  const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
+    caller: owner,
+    mode: "free",
+    prompt: "A keeper at the ledger.",
+    n: 1,
+  });
   const [image] = picture.images;
   if (image === undefined) {
     throw new Error("the image generation returned no picture");
@@ -641,7 +659,7 @@ async function referrerHashes(
       throw new Error(`production composition has no ${kind} portability descriptor`);
     }
     const out: unknown[] = [];
-    for await (const file of descriptor.exportAll(ownerId)) {
+    for await (const file of descriptor.exportAll(ownerId, failOnExportNote)) {
       out.push(JSON.parse(new TextDecoder().decode(file.bytes)));
     }
     return out;
@@ -679,7 +697,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
   const owner = await source.principalFor(source.ownerId);
   const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
-  await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
+  await source.services.databank.upload({ signal: new AbortController().signal, principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
   const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
   const generated = await generateOnePicture(source);
   const image = await source.services.assets.assetCasRefById(generated);
@@ -715,7 +733,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
     heldUnderOwnIds: true,
     unheldRefused: 1,
     unheldReferrers: { documents: [null], imagery: [] },
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     referrers: { documents: [sourceDocument.hash], imagery: [image.hash] },
   });
 });
@@ -732,7 +750,12 @@ test("a card's background travels in its export and re-links by content, never o
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
   });
   const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
-  await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
+  await source.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: keeper.id,
+    input: { backgroundOverride: background },
+  });
   const card = await source.http.request(exportCharacterPath(keeper.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());
@@ -759,7 +782,7 @@ test("a card's background travels in its export and re-links by content, never o
     background: await keeperBackground(target.ownerId),
   }).toEqual({
     member: { ok: true, background: null },
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     keepers: 1,
     background: { kind: "asset", resolves: plate.assetHash },
   });
@@ -782,7 +805,7 @@ test("restoring bytes the owner holds under another id repairs that asset when i
   const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;
 
   expect({ outcome, stored, readable: restored !== null && Buffer.from(restored).equals(Buffer.from(bytes)) }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     stored: true,
     readable: true,
   });

@@ -150,7 +150,7 @@ function buildGenerationOptions(resolved: ResolvedChatKnobs, warnings: ResolvedW
 
 // COMPACTION MODE → SDK env: managed/absent → DISABLE_AUTO_COMPACT (WE own compaction via the LINEAR marker);
 // auto → SDK-native compaction at the pct. `maxContextTokens` rides ONLY when auto-compact is LIVE — with it
-// disabled the runtime has no mechanism to honour the cap and fails the turn (#1541).
+// disabled the runtime has no mechanism to honour the cap and fails the turn.
 function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): ClaudeRuntimeOverrides {
   const compMode = params.compaction?.mode;
   const disableAutoCompact = compMode === "managed" || compMode === undefined;
@@ -177,19 +177,16 @@ function knobOf(name: string): AdjustedKnob | undefined {
 /**
  * THE SAMPLER DROP (D41, no silent degrade). `buildGenerationOptions` above spells ONLY `thinking` and
  * `effort`: the bundled Claude runtime exposes no sampler knob at all, so every resolved `temperature` /
- * `topP` / `topK` / penalty / `seed` / `stop` reaching this translation is a knob that will NOT be sent. It
- * used to be discarded here in silence while `resolveChat` had already resolved it and `log.sampling`'s
- * `applied` receipt reported it as applied — the exact shape D41 forbids, and the shape the cross-backend
- * conformance suite caught on 2026-09-20 (the two hosted wires either send the knob or announce the drop).
+ * `topP` / `topK` / penalty / `seed` / `stop` reaching this translation is a knob that will NOT be sent, and
+ * saying so here is the only thing that keeps `resolveChat` having resolved it from reading as applied.
  *
- * TODAY THIS EMITS NOTHING, BY CONSTRUCTION: `capability/sources/curated/anthropic.ts`'s `wire: "agent-sdk"`
+ * THIS EMITS NOTHING ON THE SHIPPED CURATED ROW: `capability/sources/curated/anthropic.ts`'s `wire: "agent-sdk"`
  * row states `sampling: {}`, so the funnel drops each preset knob with its own `sampling_knob_dropped` long
- * before translation runs and `resolved.sampling` arrives empty. That is not a reason to skip this. The
- * capability fold puts `declared` ABOVE curated (§6.2 — "the user's box is the truth about the user's box"),
- * so a user writing a `declared.sampling` block on a `claude-sub` connection widens the axis with no code
- * change and no review, and the silent path opens for them alone. The guard was one unasserted data row;
- * now the code holds it and the row is pinned besides
- * (`tests/inference/conformance/unsupported-settings.suite.int.test.ts`).
+ * before translation runs and `resolved.sampling` arrives empty. That is not a reason to skip it. The capability
+ * fold puts `declared` ABOVE curated (§6.2 — "the user's box is the truth about the user's box"), so a user
+ * writing a `declared.sampling` block on a `claude-sub` connection widens the axis with no code change and no
+ * review, and the silent path opens for them alone. The guard therefore lives in the code, with the curated row
+ * pinned beside it (`tests/inference/conformance/unsupported-settings.suite.int.test.ts`).
  */
 function droppedSamplerWarnings(resolved: ResolvedChatKnobs): ResolvedWarning[] {
   const out: ResolvedWarning[] = [];

@@ -23,17 +23,18 @@ import type { OverflowMenuForm } from "#lib";
 import type { ChromeEntry } from "#state";
 import { NotificationBell } from "../components/notification-bell.tsx";
 import { useInbox } from "../hooks/use-inbox.ts";
+import { NOTIFICATIONS_BELL_NAME } from "./notifications-copy.ts";
 import { inboxRequests } from "./notifications-requests.ts";
 
 const MENU_FORMS: readonly OverflowMenuForm[] = [
-  { id: "notifications-bell", label: "Notifications", icon: Bell, onSelect: (): void => inboxRequests.request() },
+  { id: "notifications-bell", label: NOTIFICATIONS_BELL_NAME, icon: Bell, onSelect: (): void => inboxRequests.request() },
 ];
 
 const menuForms = (): readonly OverflowMenuForm[] => MENU_FORMS;
 
 export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",
-  label: "Notifications",
+  label: NOTIFICATIONS_BELL_NAME,
   zone: "topbar.trail",
   // THE PHONE ROW IS NOT THE INBOX'S HOME (side-eye leg-4 P2, the topbar budget). At 320px a 48px bell sat
   // beside three other controls and left the room's own name 25% of the row. `mobile: "sheet"` is the

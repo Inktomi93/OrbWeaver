@@ -2,6 +2,7 @@
 // records its owner's image space complete only when it finishes, resumes without paying twice, and quotes what it will spend.
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
+// @subject packages/server/src/domain/embeddings/persistence/queries.ts
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
@@ -19,8 +20,10 @@ import {
   createServerHarness,
   refuseWrites,
   seedCorpusConnections,
+  storeThenDamageBlob,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { magicBytes } from "@orb/testkit/node/helpers";
+import { eq, sql } from "drizzle-orm";
 
 const CAPTION_REQUEST = "POST /v1/chat/completions";
 const CAPTIONED_LENS: ImageLens = "image-captioned";
@@ -80,21 +83,21 @@ test("a sweep captions and embeds each avatar once, resumes at no cost, and forc
   const embeddings = root.app.embeddings;
   expect(room.posts()).toBe(0);
 
-  const quoted = await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: false });
+  const quoted = await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: false });
   expect(quoted).toBe(2);
   expect(await embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
   // The quote is what the sweep spent: one caption per avatar.
   expect(room.captions()).toBe(quoted);
   expect(await root.db.select().from(imageAnalyses)).toHaveLength(2);
   expect((await root.db.select().from(imageEmbeddings)).map((row) => row.lens)).toEqual([CAPTIONED_LENS, CAPTIONED_LENS]);
-  expect(await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: false })).toBe(0);
+  expect(await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: false })).toBe(0);
 
   // Resumable: a rerun checks the stored hash before any caption or vector request leaves.
   const spent = room.posts();
   expect(await embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 2 });
   expect(room.posts()).toBe(spent);
 
-  const forcedQuote = await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: true });
+  const forcedQuote = await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: true });
   expect(forcedQuote).toBe(2);
   expect(await embeddings.embedAssets({ ownerId: null, force: true, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
   expect(room.captions()).toBe(quoted + forcedQuote);
@@ -151,7 +154,7 @@ test("an avatar already indexed by its own event still promotes its generation i
   }
   const stored = await root.app.assets.store({ principal: owner, ...avatar, kind: "avatar" });
   // The write-time indexer is the event path the catch-up must not repeat.
-  await root.app.embeddings.indexAsset(stored.assetId);
+  await root.app.embeddings.indexAsset(stored.assetId, { signal: new AbortController().signal });
   const indexed = (await root.db.select().from(imageEmbeddings)).length;
   expect(indexed).toBe(1);
   expect(await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"))).toEqual([]);
@@ -192,6 +195,9 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
   ]);
 });
 
+// Fewer bytes than a PNG signature, so the sweep reads no image.
+const CUT_SIGNATURE_BYTES = 5;
+
 test("an avatar whose stored bytes are not a decodable image fails alone like a missing file, and the rest embed", async () => {
   await using lifetime = new AsyncDisposableStack();
   const { root, owner, assetIds } = await unindexedAvatars(1, lifetime);
@@ -199,12 +205,46 @@ test("an avatar whose stored bytes are not a decodable image fails alone like a 
   if (kept === undefined) {
     throw new Error("the case stores one good avatar");
   }
-  const corrupt = (await root.app.assets.store({ principal: owner, bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d]), mime: "image/png", kind: "avatar" }))
-    .assetId;
+  // A valid avatar whose file is cut to a few bytes on disk afterwards, as a sync tool or antivirus can leave it.
+  const bytes = magicBytes("png");
+  const stored = await storeThenDamageBlob(
+    root,
+    bytes,
+    () => root.app.assets.store({ principal: owner, bytes, mime: "image/png", kind: "avatar" }),
+    bytes.subarray(0, CUT_SIGNATURE_BYTES),
+  );
+  const corrupt = stored.assetId;
+  // Positive control: the store's own check finds the blob no longer matches its hash.
+  expect(await casOf(root).verify(owner.userId, stored.hash)).toBe(false);
 
   const result = await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
 
   expect(result).toEqual({ embedded: 1, skipped: 0, failedAssets: [corrupt] });
+  expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
+});
+
+// A cut that keeps the PNG signature: inside the IHDR header, and just past it, so the dimensions still read.
+const SIGNED_PREFIX_BYTES = [12, 64] as const;
+
+test.for(SIGNED_PREFIX_BYTES)("an avatar cut to its first %i bytes keeps its signature and still fails alone as corrupt", async (prefix) => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, owner, assetIds } = await unindexedAvatars(1, lifetime);
+  const [kept] = assetIds;
+  const [, whole] = await shippedAvatars(2);
+  if (kept === undefined || whole === undefined) {
+    throw new Error("the case stores one good avatar and cuts a second");
+  }
+  const stored = await storeThenDamageBlob(
+    root,
+    whole.bytes,
+    () => root.app.assets.store({ principal: owner, ...whole, kind: "avatar" }),
+    whole.bytes.subarray(0, prefix),
+  );
+
+  const result = await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+  // The kept avatar is a complete PNG of the same format, so the refusal is the cut, not the format.
+  expect(result).toEqual({ embedded: 1, skipped: 0, failedAssets: [stored.assetId] });
   expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
 });
 
@@ -220,4 +260,19 @@ test("a failure that is not a missing file stops the sweep instead of failing ea
   // Positive control: with the fault lifted the same sweep embeds both avatars.
   await fault.lift();
   expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
+});
+
+test("an analysis whose stored caption metadata is not JSON is re-analysed by the next sweep, which stores readable metadata", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const room = await unindexedAvatars(1, lifetime);
+  const { root } = room;
+  await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
+  const paid = room.captions();
+  await root.db.update(imageAnalyses).set({ captionMeta: sql`${'{"artStyle": "ani'}` });
+
+  // Stored text that is not JSON holds no breakdown, so the resumable sweep pays for this one avatar again.
+  expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 1, skipped: 0 });
+  expect(room.captions()).toBe(paid + 1);
+  const [analysis] = await root.db.select({ valid: sql<number>`json_valid(${imageAnalyses.captionMeta})` }).from(imageAnalyses);
+  expect(analysis).toEqual({ valid: 1 });
 });

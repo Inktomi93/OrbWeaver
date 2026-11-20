@@ -27,7 +27,7 @@ test("re-ingesting under a larger chunk size prunes the tail and keeps the survi
   });
   const { owner } = await seedCorpusActors(root);
   const text = Array.from({ length: 12 }, (_, n) => `${PARAGRAPH}${n}`).join("\n\n");
-  const { document } = await root.services.databank.createFromText({ principal: owner, name: "shrink.txt", text });
+  const { document } = await root.services.databank.createFromText({ signal: new AbortController().signal, principal: owner, name: "shrink.txt", text });
   const ingest = (): ReturnType<typeof root.app.databankIngest.ingestDocument> =>
     root.app.databankIngest.ingestDocument({ documentId: document.id, signal: new AbortController().signal });
 

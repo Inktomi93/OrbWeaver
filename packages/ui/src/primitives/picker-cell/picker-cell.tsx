@@ -28,14 +28,28 @@ export interface PickerCellProps extends ComponentProps<"span"> {
   readonly meta?: ReactNode | undefined;
   /** The art aperture's aspect, derived from the shared cell recipe. */
   readonly shape?: VariantProps<typeof pickerCellVariants>["shape"];
+  /** The marks the cell carries in its corners; the frame keeps a band above the art for them. */
+  readonly corners?: VariantProps<typeof pickerCellVariants>["corners"];
   /** DOM id for the label span — the host's `aria-labelledby` target (N1: the name is the visible text). */
   readonly labelId?: string | undefined;
   /** DOM id for the description — the host's `aria-describedby` target. */
   readonly descriptionId?: string | undefined;
 }
 
-export function PickerCell({ art, label, description, meta, shape, labelId, descriptionId, className, children, ...rest }: PickerCellProps): ReactElement {
-  const slots = pickerCellVariants({ shape });
+export function PickerCell({
+  art,
+  label,
+  description,
+  meta,
+  shape,
+  corners,
+  labelId,
+  descriptionId,
+  className,
+  children,
+  ...rest
+}: PickerCellProps): ReactElement {
+  const slots = pickerCellVariants({ shape, corners });
   return (
     <span {...rest} className={cn(slots.frame(), className)} data-slot="picker-cell">
       {/* The aperture renders even when the feature hands no art, so a mixed grid keeps one geometry. */}
@@ -44,7 +58,7 @@ export function PickerCell({ art, label, description, meta, shape, labelId, desc
       </span>
       <span className={slots.body()} data-slot="picker-cell-body">
         <span className={slots.titleRow()}>
-          <Text as="span" className={slots.label()} id={labelId} voice="label">
+          <Text as="span" className={slots.label()} id={labelId} voice="label" wrap="word">
             {label}
           </Text>
           {meta === undefined ? null : (

@@ -432,16 +432,12 @@ const KIND_WHAT: Readonly<Record<string, string>> = {
 
 const CHIP_KIND = "chip";
 const RAW_WIRE = "rawWire";
-/** The one file whose bare chip the voice ruling keeps: the drill-in header's taxonomy chip. */
-export const TAXONOMY_CHIP = "packages/client/src/features/preset/components/template-drill-in.tsx";
-const TAXONOMY_RULING =
-  "the raw template kind is the drill-in header's taxonomy chip (packages/client/src/features/preset/lib/template-rows.ts `TEMPLATE_KIND_LABEL`)";
 const VOICE = "UI-Architecture-and-Layout.md §4.3, the voice table";
 // The voice table rules the case of labels and chips only; a placeholder, a title or a map value has no case ruling.
 const CASE_RULED = new Set(["button-label", CHIP_KIND]);
 
 /** The columns a kind compares against its majority and the ones it only spreads, from what the voice table rules. */
-function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | "kept" | "keptSites" | "basis"> {
+function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | "kept" | "basis"> {
   const cased = CASE_RULED.has(kind);
   return {
     columns: cased ? ["case"] : [],
@@ -453,12 +449,7 @@ function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | 
       ...(kind === CHIP_KIND ? { wire: ["bare"], [RAW_WIRE]: [WIRE_SPELLING, WIRE_READ] } : {}),
     },
     kept: cased ? { case: { [COUNT_FIRST]: `a count leads its noun, and the noun after a number is lower case (${VOICE})` } } : {},
-    ...(kind === CHIP_KIND
-      ? {
-          basis: { wire: "heuristic" as const, [RAW_WIRE]: "measured" as const },
-          keptSites: { wire: { [TAXONOMY_CHIP]: { value: "bare", reason: TAXONOMY_RULING } } },
-        }
-      : {}),
+    ...(kind === CHIP_KIND ? { basis: { wire: "heuristic" as const, [RAW_WIRE]: "measured" as const } } : {}),
   };
 }
 

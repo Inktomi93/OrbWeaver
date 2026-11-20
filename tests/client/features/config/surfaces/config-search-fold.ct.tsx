@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { APPEARANCE_EFFECTS_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-effects-model.ts";
 import { CONFIG_CUSTOMIZE_LOOK_NAME, CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { ConfigPanesStory } from "./_list-stories.tsx";
 
@@ -83,7 +84,7 @@ test("a search hit on a section inside a closed fold opens the fold", async ({ c
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("combobox", { name: CONFIG_SEARCH_NAME }).fill("effects");
   await page
-    .getByRole("option", { name: /Effects/u })
+    .getByRole("option", { name: new RegExp(RegExp.escape(APPEARANCE_EFFECTS_SUBCATEGORY.label), "u") })
     .first()
     .click();
   await expect(fold).toHaveAttribute("aria-expanded", "true");

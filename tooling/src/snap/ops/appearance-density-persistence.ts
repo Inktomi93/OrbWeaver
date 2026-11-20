@@ -50,7 +50,7 @@ interface ReadMutationInput {
 }
 
 /** THE tRPC POST BODY IS A DICT, NOT AN ARRAY (#2448, source-pinned). `httpBatchLink` builds its body with
- *  `arrayToDict` (the trpc client 11.18.0, dist/httpUtils-BNq9QC3d.mjs:24-38): `{"0": input, "1": input}`,
+ *  `arrayToDict` (the trpc client 11.23.0, dist/httpUtils-CAZsqwOQ.mjs:62-69): `{"0": input, "1": input}`,
  *  keyed by the procedure's POSITION in the comma-joined path segment — and this stack runs no transformer
  *  (there is no `{json:…}` envelope to unwrap). The old reader asked `Array.isArray(body)`, which is false
  *  for every real request, so it published `section=null density=null` on a body that carried both, and the

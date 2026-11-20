@@ -1,4 +1,4 @@
-import { connectionsListSection } from "@orb/client/features/credentials";
+import { connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { pushRecentModel } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Container, Stack } from "@orb/ui/layout";
@@ -21,6 +21,20 @@ export function ConnectionsListStory({ recent }: { readonly recent?: { readonly 
       {recent === undefined ? null : <RecentModels {...recent} />}
       <Stack className="h-screen">
         <Container className="h-full">{connectionsListSection.body("connections-list")}</Container>
+      </Stack>
+    </CtClientProviders>
+  );
+}
+
+/** The Connections pane's list above its Model roles, so a door in one section lands in the other. */
+export function ConnectionsPaneStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <Stack className="h-screen" scroll="y">
+        <Container>
+          {connectionsListSection.body("connections-list")}
+          {connectionsRolesSection.body("connections-roles")}
+        </Container>
       </Stack>
     </CtClientProviders>
   );

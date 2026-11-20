@@ -1,18 +1,14 @@
 // ModalHost — the shell's one modal seam. Reads the open modal id from the shell store and renders the
 // registry-owned body inside a single @orb/ui <Dialog>, or — for a `presentation: "drawer"` def — a
-// bottom <Drawer> sheet. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
+// bottom <Drawer> sheet. A commit modal (`body: { useCommit }`) gets the commit dialogs' form and footer from
+// the host in both presentations. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
 // placeholder. Controlled by the store: closing calls `closeModal`.
 
-import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { DialogHeader } from "@orb/ui/dialog";
-import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
-import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
-import { FlowDialog } from "#components";
-import { DIALOG_VERBS } from "#lib";
-import type { ModalDefinition, ModalSlotId } from "#state";
+import { useEffect, useId, useRef, useState } from "react";
+import { CommitFooter, CommitForm, FlowDialog, SheetDialog } from "#components";
+import type { ModalCommit, ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
 
@@ -48,18 +44,40 @@ function focusBodyInPlace(target: HTMLElement | null): boolean {
   return false;
 }
 
-/** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
-function modalBody(def: ModalDefinition): ReactNode {
-  return typeof def.body === "function" ? def.body() : <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
+/** The def's body — a real render, a commit the host draws the footer for, or the DECLARED-PLANNED placeholder (mirror
+ *  the section content-none). A commit's hook runs in a component keyed by the modal id, so a modal that replaces another
+ *  in the open slot never calls a different hook list in the same component. */
+function modalBody(def: ModalDefinition, titleId: string): ReactNode {
+  if (typeof def.body === "function") {
+    return def.body();
+  }
+  if ("useCommit" in def.body) {
+    return <CommitBody key={def.id} titleId={titleId} useCommit={def.body.useCommit} />;
+  }
+  return <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
+}
+
+function CommitBody({ titleId, useCommit }: { readonly titleId: string; readonly useCommit: () => ModalCommit }): ReactElement {
+  const { content, submit, footerLead } = useCommit();
+  const formId = useId();
+  return (
+    <>
+      <CommitForm formId={formId} submit={submit} titleId={titleId}>
+        {content}
+      </CommitForm>
+      <CommitFooter formId={formId} footerLead={footerLead} submit={submit} />
+    </>
+  );
 }
 
 export function ModalHost({ openModal, container, onClose }: ModalHostProps): ReactElement | null {
   const registry = useModalRegistry();
+  const titleId = useId();
   if (openModal === null) {
     return null;
   }
   const def = registry.get(openModal);
-  const body = modalBody(def);
+  const body = modalBody(def, titleId);
   const onOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen) {
       def.onClose?.();
@@ -68,7 +86,7 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   };
 
   if (def.presentation === "drawer") {
-    return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} />;
+    return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} titleId={titleId} />;
   }
 
   // THIS LOOKUP IS NOT AN ESCAPE PATH (owner ruling 2026-09-06, #1789) — same intrinsic-door class as
@@ -76,7 +94,7 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   // reads its own target the only place that target is declared, rather than re-filing it as a
   // parallel id.
   const mobileSheetModalId = registry.list().find((modal) => modal.trigger.placement === "mobile-tab")?.id;
-  return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} />;
+  return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} titleId={titleId} />;
 }
 
 interface DrawerModalProps {
@@ -84,58 +102,28 @@ interface DrawerModalProps {
   readonly container?: DialogPopupProps["container"];
   readonly def: ModalDefinition;
   readonly onOpenChange: (nextOpen: boolean) => void;
+  readonly titleId: string;
 }
 
-function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): ReactElement {
+function DrawerModal({ body, container, def, onOpenChange, titleId }: DrawerModalProps): ReactElement {
   // Base UI asks the old popup for finalFocus after a replacement Dialog has mounted. Only a close
-  // initiated by this Drawer should restore its captured trigger; replacing the shared modal slot never
+  // initiated by this Drawer returns focus to its trigger; replacing the shared modal slot never
   // sends this Drawer an onOpenChange(false), so its queued cleanup must leave the Dialog's initialFocus.
+  // The trigger is the declared one, not a capture: a tap on a phone opens the sheet without focusing the tab.
   const closeRequestedRef = useRef(false);
   const onDrawerOpenChange = (nextOpen: boolean): void => {
     closeRequestedRef.current = !nextOpen;
     onOpenChange(nextOpen);
   };
-  const resolveDrawerFinalFocus = (): boolean => closeRequestedRef.current;
+  const resolveDrawerFinalFocus = (): HTMLElement | boolean => closeRequestedRef.current && (visibleModalTrigger(def.id) ?? true);
 
-  // THE KEYBOARD-AWARE PROVIDER IS MOUNTED HERE, AND THIS IS ITS ONLY REACHABLE HOME (#1868).
-  // `DrawerModal` IS the phone's modal presentation (the `coarse` arm of ModalHost above), and a modal
-  // body is arbitrary — the settings panes it hosts are full of form fields. Until this wrap, Base UI's
-  // `Drawer.VirtualKeyboardProvider` was sealed and exported by @orb/ui and mounted NOWHERE: wired, never
-  // called. The cost of that was paid on iOS, where `interactive-widget=resizes-content` (index.html) is
-  // inert — WebKit has never implemented it — so the keyboard covers the sheet's own fields and the
-  // layout viewport does not shrink to say so. The provider watches `visualViewport` and scrolls the
-  // body to keep the focused field clear, which is the only working keyboard story available to us on
-  // that platform.
-  //
-  // IT REQUIRES `<Drawer.Viewport>` as its measurement and containment root, which `DrawerPopup` already
-  // renders (drawer.tsx) — that is why this is a wrap and not a rebuild, and why the provider must sit
-  // OUTSIDE `DrawerPopup` (it reads the viewport out of the Drawer store, so it has to be an ancestor of
-  // the portal, not a child of the popup).
-  //
-  // IF A FUTURE BODY PINS AN INPUT TO THE SHEET'S FOOT, it reads `var(--drawer-keyboard-inset, 0px)` —
-  // WITH the `0px` fallback, always. The provider only sets that variable while the keyboard is aligned,
-  // so a bare `var(--drawer-keyboard-inset)` is invalid before the first alignment and after cleanup
-  // (https://base-ui.com/react/components/drawer). No body does today; this is the standing contract for the
-  // first one that tries.
+  // A modal body is arbitrary (the settings panes are full of form fields), so the phone's modal presentation is the sheet composite,
+  // which carries the keyboard-aware wrap. It is a full modal, the tab bar included (ui-surface-and-interaction-rules §2.12):
+  // the page behind it, the bar too, leaves the accessibility tree and answers no press until the sheet closes.
   return (
-    <Drawer open={true} onOpenChange={onDrawerOpenChange} modal="trap-focus">
-      <DrawerVirtualKeyboardProvider>
-        <DrawerPopup container={container} finalFocus={resolveDrawerFinalFocus}>
-          {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <DialogHeader sticky={true}>
-            <DrawerTitle>{def.title}</DrawerTitle>
-            <DrawerClose
-              render={
-                <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>
-                  <Icon icon={X} size="sm" />
-                </Button>
-              }
-            />
-          </DialogHeader>
-          {body}
-        </DrawerPopup>
-      </DrawerVirtualKeyboardProvider>
-    </Drawer>
+    <SheetDialog open={true} onOpenChange={onDrawerOpenChange} title={def.title} titleId={titleId} container={container} finalFocus={resolveDrawerFinalFocus}>
+      {body}
+    </SheetDialog>
   );
 }
 
@@ -164,12 +152,14 @@ function DialogModal({
   def,
   mobileSheetModalId,
   onOpenChange,
+  titleId,
 }: {
   readonly body: ReactNode;
   readonly container: DialogPopupProps["container"];
   readonly def: ModalDefinition;
   readonly mobileSheetModalId: ModalSlotId | undefined;
   readonly onOpenChange: (nextOpen: boolean) => void;
+  readonly titleId: string;
 }): ReactElement {
   const [focusReturn] = useState(() => {
     const focused = document.activeElement;
@@ -200,6 +190,7 @@ function DialogModal({
       open={true}
       onOpenChange={onOpenChange}
       size={def.size}
+      titleProps={{ id: titleId }}
       popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: (): boolean => focusBodyInPlace(bodyRef.current) }}
       bodyFocusTarget={true}
       bodyProps={{ ref: bodyRef, tabIndex: -1 }}

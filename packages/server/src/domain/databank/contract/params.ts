@@ -2,8 +2,6 @@ import type { DocOrigin, DocumentDestination, DocumentListCursor, IngestPhase, R
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
-export type { CreateFromTextParams } from "@orb/contracts/databank";
-
 // domain/databank/contract/params — every verb's *Params, declared ONCE. Every verb carries the resolved
 // `principal` (spine §7.1); ownership scopes off `principal.userId` (the fetchOwned idiom) — never a `users`
 // read. The chat-attach authority is the injected `ensureChatHost` op (D18 — databank never reads the chat
@@ -13,7 +11,12 @@ interface DatabankActorParams {
   readonly principal: Principal;
 }
 
-interface DocumentIngestionParams extends DatabankActorParams {
+/** A verb that reads the owner's live embed space, whose resolve can wake their encoder, takes the caller's cancel. */
+interface DatabankSpaceReadParams extends DatabankActorParams {
+  readonly signal: AbortSignal;
+}
+
+interface DocumentIngestionParams extends DatabankSpaceReadParams {
   readonly destination?: DocumentDestination | undefined;
 }
 
@@ -50,7 +53,7 @@ export interface ScrapeWikiParams extends DocumentIngestionParams {
  *  and the shared tail resolves `title ?? fallback`. Either way the name is capped + never empty. */
 export type ScrapeName = { readonly literal: string } | { readonly titleFallback: string };
 
-/** The write inputs a scraper hands the shared §2 canon tail (`substrate/scrape-canon`): who, the fetched bytes,
+/** The write inputs a scraper hands the shared §2 canon tail (`persistence/scrape-canon`): who, the fetched bytes,
  *  and the canon stamps that vary by source (origin/mime/name/sourceUrl/auditAction). Not a wire boundary (a
  *  domain-internal handoff, no zod) — the three scraper verbs build it, one substrate fn consumes it. */
 export interface ScrapeWrite extends DocumentIngestionParams {
@@ -71,7 +74,7 @@ export interface ScrapeWrite extends DocumentIngestionParams {
 }
 
 // ── documents CRUD (fetchOwned) ───────────────────────────────────────────────────────────────────────
-export interface GetDocumentParams extends DatabankActorParams {
+export interface GetDocumentParams extends DatabankSpaceReadParams {
   readonly id: DocumentId;
   /** DocumentDetailView.extractedText only when asked (list/detail default omits the multi-MB canon). */
   readonly includeText?: boolean;
@@ -82,7 +85,7 @@ export interface GetDocumentParams extends DatabankActorParams {
  *  client-side predicate over the loaded window is a claim the surface has no standing to make. The pane used
  *  to filter a ≤150-row sliding window by name and by ingest phase, so a term (or a health chip) that matched
  *  nothing on the loaded pages read as "no matches" over a bank of hundreds. */
-export interface ListDocumentsParams extends DatabankActorParams {
+export interface ListDocumentsParams extends DatabankSpaceReadParams {
   readonly origin?: DocOrigin;
   readonly limit?: number;
   /** The previous page's `nextCursor` (the boundary row's `(updatedAt, id)`) — absent = the first page.
@@ -122,9 +125,9 @@ export interface DocumentPhaseScope {
 }
 
 /** The bank-health CENSUS read (D-7's home tile) — principal-only: the whole bank is the scope. */
-export interface BankHealthParams extends DatabankActorParams {}
+export interface BankHealthParams extends DatabankSpaceReadParams {}
 
-export interface RenameDocumentParams extends DatabankActorParams {
+export interface RenameDocumentParams extends DatabankSpaceReadParams {
   readonly id: DocumentId;
   readonly name: string;
 }
@@ -160,7 +163,7 @@ export interface CharacterAttachParams extends DatabankActorParams {
   readonly characterId: CharacterId;
 }
 
-export interface ListActiveForChatParams extends DatabankActorParams {
+export interface ListActiveForChatParams extends DatabankSpaceReadParams {
   readonly chatId: ChatId;
 }
 
@@ -177,6 +180,7 @@ export interface DatabankGatherParams {
   readonly hostUserId: UserId;
   readonly queryText: string;
   readonly tokenBudget: number;
+  readonly signal: AbortSignal;
   /** The retrieval params (the host's `UserSettings.databank.retrieval`, threaded via ForeignInputs) the
    *  gather passes to `search.documents`. Absent ⇒ gather omits them and search uses its own defaults, which
    *  ARE the databank defaults (the byte-identity pin: an old caller not supplying these is unchanged). */

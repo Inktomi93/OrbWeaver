@@ -1,3 +1,4 @@
+import { everyMember } from "@orb/kit/guards";
 import type { SeedScopeProps } from "@orb/testkit/browser";
 import { CtIsolation, roleVar, SeedScope } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
@@ -15,18 +16,13 @@ import type { ReactElement, ReactNode } from "react";
 
 type VariantOf<C> = C extends (props: infer P) => ReactNode ? (P extends { readonly variant?: infer V } ? NonNullable<V> : never) : never;
 
-/** A tuple of every variant a primitive admits: a variant the primitive gains and the matrix lacks fails to compile. */
-function everyVariant<U extends string>() {
-  return <const T extends readonly U[]>(tuple: T & ([Exclude<U, T[number]>] extends [never] ? unknown : { readonly missing: Exclude<U, T[number]> })): T =>
-    tuple;
-}
-
-const BUTTON_VARIANTS = everyVariant<VariantOf<typeof Button>>()(["solid", "outline", "ghost", "link"]);
-const BADGE_VARIANTS = everyVariant<VariantOf<typeof Badge>>()(["solid", "soft", "outline"]);
-const CARD_VARIANTS = everyVariant<VariantOf<typeof Card>>()(["surface", "soft", "outline"]);
-const TOGGLE_VARIANTS = everyVariant<VariantOf<typeof Toggle>>()(["ghost", "outline"]);
-const GLYPH_VARIANTS = everyVariant<VariantOf<typeof GlyphButton>>()(["solid", "outline", "ghost", "link"]);
-const INLINE_VARIANTS = everyVariant<VariantOf<typeof InlineAction>>()(["ghost", "link"]);
+// A variant the primitive gains and the matrix lacks fails to compile.
+const BUTTON_VARIANTS = everyMember<VariantOf<typeof Button>>()(["solid", "outline", "ghost", "link"]);
+const BADGE_VARIANTS = everyMember<VariantOf<typeof Badge>>()(["solid", "soft", "outline"]);
+const CARD_VARIANTS = everyMember<VariantOf<typeof Card>>()(["surface", "soft", "outline"]);
+const TOGGLE_VARIANTS = everyMember<VariantOf<typeof Toggle>>()(["ghost", "outline"]);
+const GLYPH_VARIANTS = everyMember<VariantOf<typeof GlyphButton>>()(["solid", "outline", "ghost", "link"]);
+const INLINE_VARIANTS = everyMember<VariantOf<typeof InlineAction>>()(["ghost", "link"]);
 // The named colours a case reads that are not a tone role: the neutral toggle's resting ink and the selected fill.
 const NAMED_PROBES = {
   muted: "color.muted-foreground",

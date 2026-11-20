@@ -1,13 +1,13 @@
-// The three OS preferences (reduced motion, reduced transparency, increased contrast) are `system | on | off`,
+// The two OS preferences (reduced motion, increased contrast) are `system | on | off`,
 // defaulting to `system`; a stored boolean from the two-way reduced-motion setting parses forward through the schema.
 
 import { USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
-import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema, OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
 import { expect, test } from "@orb/testkit/node";
 
-test("a fresh account follows the system for all three preferences", () => {
+test("a fresh account follows the system for both preferences", () => {
   const parsed = appearanceSettingsSchema.parse({});
-  expect([parsed.reducedMotion, parsed.reducedTransparency, parsed.increasedContrast]).toEqual(["system", "system", "system"]);
+  expect([parsed.reducedMotion, parsed.increasedContrast]).toEqual(["system", "system"]);
 });
 
 test.for([
@@ -25,14 +25,14 @@ test("a stored user settings blob with the old boolean is read intact, so the ne
   expect(outcome.value.appearance.fontScale).toBe(1.25);
 });
 
-test.for(["system", "on", "off"] as const)("each mode %s round-trips on every preference", (mode) => {
-  const parsed = appearanceSettingsSchema.parse({ reducedMotion: mode, reducedTransparency: mode, increasedContrast: mode });
-  expect([parsed.reducedMotion, parsed.reducedTransparency, parsed.increasedContrast]).toEqual([mode, mode, mode]);
+test.for(OS_PREFERENCE_MODES)("each mode %s round-trips on every preference", (mode) => {
+  const parsed = appearanceSettingsSchema.parse({ reducedMotion: mode, increasedContrast: mode });
+  expect([parsed.reducedMotion, parsed.increasedContrast]).toEqual([mode, mode]);
 });
 
 test("an unreadable value heals to system rather than overriding the OS", () => {
-  const parsed = appearanceSettingsSchema.parse({ reducedMotion: "always", reducedTransparency: 1, increasedContrast: true });
-  expect([parsed.reducedMotion, parsed.reducedTransparency, parsed.increasedContrast]).toEqual(["system", "system", "system"]);
+  const parsed = appearanceSettingsSchema.parse({ reducedMotion: "always", increasedContrast: true });
+  expect([parsed.reducedMotion, parsed.increasedContrast]).toEqual(["system", "system"]);
 });
 
 test("reading defaults leave typography and quote treatment intact", () => {

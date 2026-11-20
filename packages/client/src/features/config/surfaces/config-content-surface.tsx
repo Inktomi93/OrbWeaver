@@ -31,7 +31,7 @@ import { scrollBehavior } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useId, useState } from "react";
-import { DetailHeader, QueryBoundary, returnFocusToRow, SettingsPane } from "#components";
+import { ContentPane, DetailHeader, QueryBoundary, returnFocusToRow, SettingsPane } from "#components";
 import { QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import type { DrillBack } from "#lib";
@@ -62,7 +62,7 @@ import { ConfigPaneGlance } from "../components/config-pane-glance.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
 import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
-import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, CONFIG_WELCOME, configGroupRegionName } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor, whenControlMounts } from "../lib/config-jump.ts";
 
 /** The landmark containers the shell's focus rescue lands on (`main`, the list pane, the pane scroller) are
@@ -192,39 +192,18 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // are stable identities, so naming them re-fires nothing, and the alternative is a suppression.
   }, [target, groups, sectionRegistry, isAdmin, isOwner, contentRef, suppressSpyRef]);
 
-  const regionLabel = shownGroup === null ? CONFIG_SECTION_LABEL : `${shownGroup.label} settings`;
+  const regionLabel = shownGroup === null ? CONFIG_SECTION_LABEL : configGroupRegionName(shownGroup.label);
   return (
-    // THE CONTENT PANE OWNS THE SCROLL, once, for every group and member: the shell's own CONTENT region is
-    // a bounded flex box with NO overflow, so a member editor taller than the viewport — a 60-entry world
-    // book is ~3600px — would simply have its tail unreachable. The footer sits BELOW the scroller and never
-    // scrolls away (the settings shell's column, re-homed).
-    //
-    // ONE GOVERNED INLINE GRID FOR THE COLUMN (#1099 F25 / N52). The footer was a bare SIBLING of the
-    // padded scroller, so the only save receipt on the surface rendered 24px OUTSIDE the content
-    // column — the reader's eye is on the control they just moved, and the answer arrived off-grid at
-    // the bottom-left corner. The INLINE inset is now declared ONCE, on the column both
-    // children live in, so neither child re-spells the measure and they cannot drift apart again. The
-    // BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
-    // scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
-    // landed on an intermediate section.
-    <Stack minHeight="shrinks" height="fill" paddingInline="section" data-slot="config-pane" gap="row">
-      {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
-            of its results"): Base UI form primitives park `sr-only` boxes at `position:absolute`, and an
-            `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE COLUMN PADS,
-            NOT THE EDITORS (side-eye 2026-08-03 P1, as amended by #1099 F25): `section` is the mock's
-            editor-pane inset on the token scale, and a per-editor inset is the same defect waiting for the
-            next group. The INLINE half of that inset now belongs to the column above (so the receipt shares
-            it); this box keeps the block half, which is scroll geometry and nobody else's. */}
-      {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
-      <Stack
+    // THE CONTENT PANE OWNS THE SCROLL, once, for every group and member, and the inset rides inside it, so a
+    // member editor taller than the viewport scrolls from the pane's own edge. The save footer is the pane's
+    // `foot`: below the scroller, never scrolling away, and on the same column as the control just moved. The
+    // BLOCK inset stays INSIDE the scroller: it is scroll EXTENT, which the jump and the scroll-spy read.
+    // `config-pane` is an owner-CSS hook (`packages/client/owner-css-surface.ts`), so the frame keeps it.
+    <Stack data-slot="config-pane" height="fill" minHeight="shrinks">
+      <ContentPane
         aria-label={regionLabel}
-        scroll="y"
-        height="fill"
-        grow={true}
-        paddingBlock="section"
-        reach="row"
-        focusTarget={true}
         data-slot="config-content"
+        foot={showsGroup ? <ConfigSaveFooter /> : undefined}
         ref={(node): void => {
           contentRef.current = node;
           if (hostContentRef !== undefined) {
@@ -235,8 +214,7 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
         tabIndex={-1}
       >
         <ContentArm active={shownGroup} collection={landedCollection} groups={groups} selection={selection} />
-      </Stack>
-      {showsGroup ? <ConfigSaveFooter /> : null}
+      </ContentPane>
     </Stack>
   );
 }
@@ -422,7 +400,7 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
               stable semantic identity for a primary door. `aria-labelledby` over the two ids joins them
               with a space and keeps every visible word in the name (§13.10 N2). */}
           <CollapsibleTrigger aria-labelledby={fold.caption === undefined ? foldLabelId : `${foldLabelId} ${foldCaptionId}`} size="control">
-            <Row align="center" gap="field" className="min-inline-0">
+            <Row align="center" gap="field" wrap={true} minWidth="shrinks">
               {/* `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): this label IS the visible
                   name of a control, and `kicker` rides `--text-micro` (10.5px), under the 11px functional
                   floor for interactive copy. The voice beside it keeps the tracked instrument register while

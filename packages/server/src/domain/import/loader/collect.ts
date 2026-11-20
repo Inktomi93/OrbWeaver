@@ -10,11 +10,12 @@ import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/cha
 import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
-import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import { portableParseError } from "#primitives/serde/lib";
+import type { StScriptNote } from "#primitives/serde/regex";
+import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
@@ -28,7 +29,7 @@ import type {
   CollectedWorld,
   CollectResult,
 } from "../contract/collection.ts";
-import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
+import { ImportInfraFailureError, importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
 import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
 import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
@@ -76,6 +77,7 @@ interface CollectState {
   readonly skippedBackgrounds: { file: string; reason: string }[];
   readonly unreadableGroups: string[];
   readonly unreadableCards: string[];
+  readonly invalidCards: { file: string; reason: string }[];
   readonly missingPersonaAvatars: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
@@ -251,6 +253,22 @@ function disambiguate(state: CollectState, base: string): CharacterHandle {
   return handle;
 }
 
+// One damaged card must not cost the folder its good ones: a card the parser refuses or throws on is recorded
+// with its reason and collection goes on. The file read stays outside, so a storage fault still ends the run.
+async function parseCardOrRecord(
+  state: CollectState,
+  file: string,
+  bytes: Uint8Array,
+  stem: string,
+): Promise<Awaited<ReturnType<typeof parseCardPng>> | undefined> {
+  try {
+    return await parseCardPng(bytes, stem);
+  } catch (error) {
+    state.invalidCards.push({ file, reason: importFailureReason(error) });
+    return undefined;
+  }
+}
+
 async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
   await using charsDir = await openPlane(fs, profileDir, CHARACTERS_DIR);
   if (charsDir === null) {
@@ -262,7 +280,10 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
     }
     const bytes = await readStagedFile(fs, charsDir, ent.name);
     const stem = ent.name.replace(PNG_EXT, "");
-    const parsed = await parseCardPng(bytes, stem);
+    const parsed = await parseCardOrRecord(state, ent.name, bytes, stem);
+    if (parsed === undefined) {
+      continue;
+    }
     if (parsed === null) {
       state.unreadableCards.push(ent.name);
       continue;
@@ -282,6 +303,7 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
       cardBytes: bytes,
       contentHash: parsedCardImportHash(parsed),
       textHash: parsedCardTextHash(parsed),
+      carriedHandle: parsed.handle,
       filename: ent.name,
       cardName: parsed.card.name,
       worldName,
@@ -295,9 +317,8 @@ async function collectChatsForDir(args: {
   readonly chatsDir: ImportDirectory;
   readonly dirName: string;
   readonly state: CollectState;
-  readonly wallClockZone: string | undefined;
 }): Promise<void> {
-  const { fs, chatsDir, dirName, state, wallClockZone } = args;
+  const { fs, chatsDir, dirName, state } = args;
   const handle = characterHandleSchema.parse(slugifyHandle(dirName));
   if (state.skippedHandles.has(handle)) {
     return;
@@ -317,11 +338,9 @@ async function collectChatsForDir(args: {
       continue;
     }
     const bytes = await readStagedFile(fs, chatDir, fileEnt.name);
-    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
+    const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
-      // ST wrote these wall clocks against ITS box's local zone (`humanizedDateTime`); the driver injects it.
-      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
     });
     if (parsed === null) {
       continue;
@@ -330,20 +349,20 @@ async function collectChatsForDir(args: {
       parsed,
       importedFrom: fileEnt.name,
       sourceFile: fs.join(CHATS_DIR, dirName, fileEnt.name),
-      importHash: chatContentHash(parsed),
+      importHash: await chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
   }
 }
 
-async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
   await using chatsDir = await openPlane(fs, profileDir, CHATS_DIR);
   if (chatsDir === null) {
     return;
   }
   for (const dirEnt of await listDir(chatsDir, state)) {
     if (dirEnt.kind === "directory") {
-      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
+      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state });
     }
   }
 }
@@ -384,7 +403,7 @@ async function collectWorlds(fs: ImportFsPort, profileDir: ImportDirectory, stat
       state.unreadableWorlds.push(ent.name);
       continue;
     }
-    state.worlds.push({ book: book.value });
+    state.worlds.push({ book: book.value, sourceFile: fs.join(WORLDS_DIR, ent.name) });
   }
 }
 
@@ -491,9 +510,8 @@ async function collectGroupChats(args: {
   readonly files: ReadonlySet<string>;
   readonly leaves: readonly string[];
   readonly groupName: string;
-  readonly wallClockZone: string | undefined;
 }): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
-  const { fs, plane, files, leaves, groupName, wallClockZone } = args;
+  const { fs, plane, files, leaves, groupName } = args;
   const chats: CollectedChat[] = [];
   const missingChatLeaves: string[] = [];
   for (const leaf of leaves) {
@@ -519,13 +537,9 @@ async function collectGroupChats(args: {
       continue;
     }
     // `charDirName` is the GROUP name — the header-fallback ST writes as literal "unused" in a group file.
-    // The zone rides in for the SAME reason the solo path threads it: a group transcript's `create_date` and
-    // every `send_date` are ST's zone-less LOCAL wall clocks, so reading them as UTC lands the whole room at
-    // the writing box's offset (measured: -6h on a Denver snapshot).
-    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
+    const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName,
       charDirName: groupName,
-      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
     });
     if (parsed === null) {
       missingChatLeaves.push(fileName);
@@ -535,7 +549,7 @@ async function collectGroupChats(args: {
       parsed,
       importedFrom: fileName,
       sourceFile: fs.join(GROUP_CHATS_DIR, fileName),
-      importHash: chatContentHash(parsed),
+      importHash: await chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
   }
@@ -544,7 +558,7 @@ async function collectGroupChats(args: {
 
 // ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
-async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
   await using plane = await listedPlane(fs, profile, GROUP_CHATS_DIR);
   const files = await planeFiles(plane, state);
   await using groupsDir = await openPlane(fs, profile.dir, GROUPS_DIR);
@@ -562,7 +576,7 @@ async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: Co
       state.unreadableGroups.push(sourceFile);
       continue;
     }
-    const { chats, missingChatLeaves } = await collectGroupChats({ fs, plane, files, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
+    const { chats, missingChatLeaves } = await collectGroupChats({ fs, plane, files, leaves: parsed.chatLeaves, groupName: parsed.name });
     state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
   }
 }
@@ -645,19 +659,13 @@ async function readSettingsJson(fs: ImportFsPort, profileDir: ImportDirectory): 
  *  (orb's identical semantic is the `global_regex_scripts` attachment). Each candidate parses through the
  *  ONE ST card-wire schema; a malformed one is COUNTED (the report prints it), never silent. A
  *  missing/corrupt settings.json yields zeroes — the same best-effort posture as tags/personas. */
-async function collectGlobalRegexScripts(fs: ImportFsPort, profileDir: ImportDirectory): Promise<{ scripts: RegexScriptCard[]; malformed: number }> {
+async function collectGlobalRegexScripts(
+  fs: ImportFsPort,
+  profileDir: ImportDirectory,
+): Promise<{ readonly scripts: RegexScriptCard[]; readonly notes: readonly StScriptNote[] }> {
   const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
-  const scripts: RegexScriptCard[] = [];
-  let malformed = 0;
-  for (const candidate of Array.isArray(list) ? list : []) {
-    const parsed = regexScriptCardSchema.safeParse(candidate);
-    if (parsed.success) {
-      scripts.push(parsed.data);
-    } else {
-      malformed += 1;
-    }
-  }
-  return { scripts, malformed };
+  const read = readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex", "global");
+  return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 
 /** One charLore entry's (stem, books) pair, or null when it carries no usable binding. */
@@ -774,14 +782,7 @@ async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: 
   return out;
 }
 
-export async function collectBundlesFromDir(
-  fs: ImportFsPort,
-  profileDir: ImportDirectory,
-  skipCharacterNames: readonly string[] = [],
-  /** The zone ST's wall-clock chat dates were written in (see `ImportProfileDeps.stWallClockZone`); absent ⇒
-   *  the serde's `"UTC"` default. */
-  wallClockZone?: string,
-): Promise<CollectResult> {
+export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: ImportDirectory, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
@@ -797,6 +798,7 @@ export async function collectBundlesFromDir(
     skippedBackgrounds: [],
     unreadableGroups: [],
     unreadableCards: [],
+    invalidCards: [],
     missingPersonaAvatars: [],
     skippedChats: [],
     skippedCharacters: [],
@@ -812,10 +814,10 @@ export async function collectBundlesFromDir(
   await collectSettingsPreset(fs, profileDir, state);
   await collectThemes(fs, profileDir, state);
   await collectBackgrounds(fs, profileDir, state);
-  await collectGroups(fs, profile, state, wallClockZone);
+  await collectGroups(fs, profile, state);
   await collectUnhandled(fs, profile, state);
 
-  await collectChats(fs, profileDir, state, wallClockZone);
+  await collectChats(fs, profileDir, state);
 
   fuzzyPair(state);
   const personas = await collectPersonas(fs, profile, state);
@@ -851,13 +853,14 @@ export async function collectBundlesFromDir(
     groups: state.groups,
     tagsByEntityKey,
     globalRegexScripts: globalRegex.scripts,
-    malformedGlobalRegexScripts: globalRegex.malformed,
+    globalRegexScriptNotes: globalRegex.notes,
     extraBooksByCardStem,
     databankFileCount: userPlanes.databankFiles,
     galleryImageCount: userPlanes.galleryImages,
     orphanChatDirs,
     orphanBundles,
     unreadableCards: state.unreadableCards,
+    invalidCards: state.invalidCards,
     unreadableWorlds: state.unreadableWorlds,
     unreadablePresets: state.unreadablePresets,
     refusedThemes: state.refusedThemes,

@@ -16,7 +16,19 @@ import { confirmPendingJoin, pendingJoinPreviewOptions, QueryErrorState, useSusp
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
-import { PENDING_JOIN_NOT_NOW_NAME } from "../lib/pending-join-names.ts";
+import {
+  BACK_TO_SIGN_IN_NAME,
+  INVITE_LOADING_NAME,
+  INVITED_HEADING,
+  JOINER_PERSONA_NAME_REQUIRED,
+  PENDING_JOIN_ACCOUNT_EXISTS_LEAD,
+  PENDING_JOIN_ALREADY_SIGNED_IN_TEXT,
+  PENDING_JOIN_APPROVAL_NOTE,
+  PENDING_JOIN_APPROVAL_TITLE,
+  PENDING_JOIN_NOT_NOW_NAME,
+  PENDING_JOIN_REFUSED_TEXT,
+  pendingJoinConfirmLabel,
+} from "../lib/pending-join-names.ts";
 import { InviteUnavailable } from "./invite-unavailable.tsx";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
@@ -32,13 +44,13 @@ function refusalCopy(code: PendingJoinErrorCode | null, providerName: string): s
   switch (code) {
     case null:
     case "invalid_request":
-      return "Joining didn't go through. Try again in a minute.";
+      return PENDING_JOIN_REFUSED_TEXT;
     case "already_signed_in":
-      return "You're already signed in. Open the invite link again from the app.";
+      return PENDING_JOIN_ALREADY_SIGNED_IN_TEXT;
     case "join_unavailable":
       return `${DEAD_INVITE_SENTENCE} Or continue with ${providerName}.`;
     case "account_exists":
-      return `An account already exists for this identity. Continue with ${providerName} to sign in.`;
+      return `${PENDING_JOIN_ACCOUNT_EXISTS_LEAD} Continue with ${providerName} to sign in.`;
     default: {
       const exhaustive: never = code;
       return String(exhaustive);
@@ -60,7 +72,7 @@ export function LoginPendingJoin(props: LoginPendingJoinProps): ReactElement {
   return (
     <QueryBoundary
       fallback={
-        <Stack gap="row" aria-label="Loading your invite">
+        <Stack gap="row" aria-label={INVITE_LOADING_NAME}>
           <Skeleton width="full" height="controlMd" />
           <Skeleton width="full" height="controlMd" />
         </Stack>
@@ -92,10 +104,10 @@ function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoin
   if (state.kind === "approval") {
     return (
       <Stack gap="block" data-testid={testId("pendingJoinApproval")}>
-        <Heading level={1}>Waiting for approval</Heading>
-        <Text voice="quiet">Your account is created and has a seat in the room. An admin must approve it before you can sign in.</Text>
+        <Heading level={1}>{PENDING_JOIN_APPROVAL_TITLE}</Heading>
+        <Text voice="quiet">{PENDING_JOIN_APPROVAL_NOTE}</Text>
         <Button variant="ghost" onClick={onDismiss}>
-          Back to sign in
+          {BACK_TO_SIGN_IN_NAME}
         </Button>
       </Stack>
     );
@@ -133,11 +145,11 @@ function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoin
   return (
     <form aria-label="Join the room" ref={formRef} onSubmit={confirm} noValidate={true}>
       <Stack gap="block" data-testid={testId("pendingJoin")}>
-        <Heading level={1}>You're invited</Heading>
+        <Heading level={1}>{INVITED_HEADING}</Heading>
         <Text voice="quiet">{`${inviteRoomSentence(room)} ${room.modeLabel} Joining creates your account here.`}</Text>
         <JoinerPersonaFields
           name={personaName}
-          nameError={attempts > 0 && persona === null ? "Give your persona a name." : null}
+          nameError={attempts > 0 && persona === null ? JOINER_PERSONA_NAME_REQUIRED : null}
           description={personaDescription}
           onNameChange={setPersonaName}
           onDescriptionChange={setPersonaDescription}
@@ -149,7 +161,7 @@ function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoin
         ) : null}
         <Row wrap={true} gap="row">
           <Button cap="fit" wrap={true} type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
-            {state.kind === "confirming" ? "Joining…" : "Create account and join"}
+            {pendingJoinConfirmLabel(state.kind === "confirming")}
           </Button>
           <Button variant="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
             {PENDING_JOIN_NOT_NOW_NAME}

@@ -1,8 +1,8 @@
 // Pure rules of memory recall: the tiered bridge over a pool of digest positions, the query shape, the `{{memory}}` block format,
-// the block identity string and the live-window boundary. Rows arrive as structural shapes so the rules name no
+// the block identity string, the live-window boundary and which digests a player's strikes leave out. Rows arrive as structural shapes so the rules name no
 // domain type.
 
-import type { CharacterId, ChatId } from "#ids";
+import type { CharacterId, ChatId, MessageId } from "#ids";
 
 /** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
  *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
@@ -158,6 +158,107 @@ export function formatMemory<K extends BlockKey>(
     }
   }
   return { text: parts.join("\n\n"), rendered };
+}
+
+/** A player's strike as recall matches it. The endpoints are the covered span's first and last message ids.
+ *  `scopedCharacterId` records the bucket of the item the host struck (null: the room's shared bucket); it does not
+ *  limit what the strike leaves out. */
+export interface RecallStrike {
+  readonly scopedCharacterId: CharacterId | null;
+  readonly tier: number;
+  readonly messageStartId: MessageId;
+  readonly messageEndId: MessageId;
+  readonly contentHash: string;
+}
+
+/** A covered span in message seqs, first and last inclusive. */
+export interface SeqSpan {
+  readonly seqStart: number;
+  readonly seqEnd: number;
+}
+
+/**
+ * A strike's span in seqs: each endpoint at its live message's seq, else at the seq the strike stored for it.
+ *
+ * @remarks
+ * The ids stay the match, since only the host's reorder renumbers seqs and the ids follow it. A stored seq answers
+ * for an endpoint whose message is gone: a delete never renumbers, so the struck turns that survive still sit between
+ * the two seqs, and a member deleting their own message at a span's edge cannot lift the host's strike. A reorder can
+ * carry a live endpoint past a gone one's stored seq, so the ends are ordered rather than left inverted and empty.
+ */
+export function resolveStrikeSpan(stored: SeqSpan, live: { readonly seqStart: number | undefined; readonly seqEnd: number | undefined }): SeqSpan {
+  const start = live.seqStart ?? stored.seqStart;
+  const end = live.seqEnd ?? stored.seqEnd;
+  return { seqStart: Math.min(start, end), seqEnd: Math.max(start, end) };
+}
+
+/** A pooled digest as strike matching reads it: its grid position, bucket, staleness hash and resolved span, as
+ *  endpoint ids and as seqs. Both are null when the span cannot be resolved from stored segments and messages. */
+export interface StrikeCandidate extends BridgeRow {
+  readonly contentHash: string;
+  readonly span: { readonly startId: MessageId; readonly endId: MessageId } | null;
+  readonly seqSpan: SeqSpan | null;
+}
+
+/** A strike with its endpoints resolved to seqs by {@link resolveStrikeSpan}. */
+export interface ResolvedStrike extends RecallStrike {
+  readonly seqSpan: SeqSpan;
+}
+
+/** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
+ *  longer summary retelling a struck span with the strike it retells. */
+export interface StrikeMatch<R, S> {
+  readonly struck: ReadonlyMap<R, S>;
+  readonly coversStruck: ReadonlyMap<R, S>;
+}
+
+/**
+ * Match strikes to pooled digests.
+ *
+ * @remarks
+ * A STRIKE NAMES A SPAN OF THE STORY, NOT ONE BUCKET'S COPY OF IT. Every bucket digests the same block grid (a scoped
+ * bucket only skips blocks its character did not witness), so the group summary and each character's own summary of
+ * one scene share tier and endpoints. A strike names every digest, in any bucket, whose tier and span endpoints are
+ * the strike's, or whose current hash is the strike's stored hash (the hash is bound to the struck item's bucket and
+ * position, so it only re-finds that item). Grid position alone never matches: a re-sliced block at the same
+ * position covers different messages.
+ *
+ * A SUMMARY AT THE STRIKE'S TIER OR ABOVE WHOSE SPAN SHARES A SEQ WITH THE STRIKE'S OWN SPAN RETELLS IT, in any
+ * bucket, whether or not a summary of the struck scene is still pooled. The build can drop a scene's summary (a blank
+ * re-summary) and keep the longer summary built from it, so overlap is tested against the strike's seqs, never
+ * against matched rows. Within one grid, overlap is containment: same-tier blocks are disjoint and arcs hold whole
+ * blocks. The grid moves with no write to the strikes (a block size change, a hide shifting every later block, a fork
+ * carrying a strike onto the struck turns it copied into a block still open there), and then a summary holding any
+ * struck turn retells part of the scene. Such a summary is left out whole, with the unstruck turns it also holds, as
+ * is a scoped longer summary over a block its character never witnessed: over-dropping a retelling is the safe side.
+ */
+export function matchStrikes<R extends StrikeCandidate, S extends ResolvedStrike>(rows: readonly R[], strikes: readonly S[]): StrikeMatch<R, S> {
+  const struck = new Map<R, S>();
+  const coversStruck = new Map<R, S>();
+  if (strikes.length === 0) {
+    return { struck, coversStruck };
+  }
+  for (const row of rows) {
+    const strike = strikes.find(
+      (s) =>
+        s.contentHash === row.contentHash ||
+        (s.tier === row.tier && row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId),
+    );
+    if (strike !== undefined) {
+      struck.set(row, strike);
+    }
+  }
+  for (const row of rows) {
+    const outer = row.seqSpan;
+    if (struck.has(row) || outer === null) {
+      continue;
+    }
+    const retold = strikes.find((s) => row.tier >= s.tier && outer.seqStart <= s.seqSpan.seqEnd && s.seqSpan.seqStart <= outer.seqEnd);
+    if (retold !== undefined) {
+      coversStruck.set(row, retold);
+    }
+  }
+  return { struck, coversStruck };
 }
 
 /**

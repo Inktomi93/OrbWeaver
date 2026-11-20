@@ -19,13 +19,16 @@
 // re-apply could still resolve — a DISABLED member's persona that a live turn had already started refusing.
 // {@link presentAndEnabledHumanUserIdsOf} is the fix: the ONE async narrowing every consumer that can reach
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
+// {@link hostConsentOf} is the one answer to whether the room's host is in that set, for every path that spends
+// the host's account.
 
 import type { AnchorState } from "@orb/contracts/chat";
-import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
-import { loadPersonaOwnerId } from "../persistence/identity.ts";
-import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
+import { classifyParticipant, isBackingUserEnabled } from "./participant-actor.ts";
+import { hostUserIdOf } from "./participants-host.ts";
 
 /** The columns the human-seat lens reads — {@link classifyParticipant}'s own row shape, so the raw
  *  `chat_participants` row (`loadParticipants`) passes unchanged. */
@@ -64,6 +67,54 @@ export async function presentAndEnabledHumanUserIdsOf(
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
 }
 
+/** {@link hostConsentOf}'s answer. `consents` carries the consent set it read, so a caller that also gates personas
+ *  reads the room once. */
+type HostConsent =
+  | { readonly kind: "hostless" }
+  | { readonly kind: "withheld" }
+  | { readonly kind: "consents"; readonly hostUserId: ConsentingHostId; readonly consentSet: readonly UserId[] };
+
+/** Does the room's host consent to work run on its account? `hostless` when the present roster seats no host;
+ *  `withheld` when the host is outside the consent set, so a disabled host stands exactly as a departed one. Pass
+ *  `frozenHostUserId` when a deferred turn already fixed its host: the room must still seat a host, and the frozen
+ *  one must consent. Each caller keeps its own refusal for each arm.
+ *
+ *  @remarks The one mint of {@link ConsentingHostId}: the `consents` arm is the only proof a host id may fund room
+ *  work. The consent set's other members are not the host, so they stay plain `UserId`. */
+export async function hostConsentOf(
+  ctx: Pick<ChatContext, "resolveUserEnabled">,
+  participants: readonly (HumanSeat & Parameters<typeof hostUserIdOf>[0][number])[],
+  frozenHostUserId?: UserId,
+): Promise<HostConsent> {
+  const currentHostUserId = hostUserIdOf(participants);
+  if (currentHostUserId === null) {
+    return { kind: "hostless" };
+  }
+  const hostUserId = frozenHostUserId ?? currentHostUserId;
+  const consentSet = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  return consentSet.includes(hostUserId) ? { kind: "consents", hostUserId: castId<ConsentingHostId>(hostUserId), consentSet } : { kind: "withheld" };
+}
+
+/** The rows whose `ownerId` is in the consent set of the row's own room: the owner-side gate of the co-participant
+ *  art reads. Each row carries the owner's present seat in `chatId`, so the seats grouped per room are that room's
+ *  present roster narrowed to the owners in question, and the consent set over them is the room's consent set
+ *  narrowed the same way. One {@link presentAndEnabledHumanUserIdsOf} call per room. */
+export async function keepConsentingOwners<T extends { readonly chatId: ChatId; readonly ownerId: UserId; readonly ownerSeat: HumanSeat }>(
+  ctx: Pick<ChatContext, "resolveUserEnabled">,
+  rows: readonly T[],
+): Promise<T[]> {
+  const consentOf = async (roomRows: readonly T[]): Promise<ReadonlySet<UserId>> =>
+    new Set(
+      await presentAndEnabledHumanUserIdsOf(
+        ctx,
+        roomRows.map((row) => row.ownerSeat),
+      ),
+    );
+  const rooms = [...Map.groupBy(rows, (row) => row.chatId)];
+  const consentByRoom = new Map(await Promise.all(rooms.map(async ([chatId, roomRows]) => [chatId, await consentOf(roomRows)] as const)));
+  return rows.filter((row) => consentByRoom.get(row.chatId)?.has(row.ownerId) === true);
+}
+
 /** Is `personaId` owned by a present, enabled human in this room? The gate `setChatAnchorPersona` permits a
  *  pin on, and the line between a `live` and a `held` pin. */
 export async function ownedByConsentingHuman(
@@ -78,7 +129,7 @@ export async function ownedByConsentingHuman(
 
 /** How the room's pin stands for `ChatDetailData.anchorState`. A pin nobody present and enabled owns is `held`:
  *  the card still means that persona. */
-async function resolveAnchorState(
+export async function resolveAnchorState(
   ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,
   participants: readonly HumanSeat[],
   anchorPersonaId: PersonaId | null,
@@ -87,27 +138,6 @@ async function resolveAnchorState(
     return "none";
   }
   return (await ownedByConsentingHuman(ctx, participants, anchorPersonaId)) ? "live" : "held";
-}
-
-/** The room's pin as `ChatDetailData` carries it: how it stands, and for a `held` pin the handle of the player
- *  whose persona it is. A live pin's player is on the roster already, so only a held one is looked up. */
-export interface ResolvedAnchor {
-  readonly state: AnchorState;
-  readonly ownerHandle: Handle | null;
-}
-
-export async function resolveAnchor(
-  ctx: Pick<ChatContext, "db" | "resolveUserEnabled" | "verifyPersonaOwned" | "resolveUserPublics">,
-  participants: readonly HumanSeat[],
-  anchorPersonaId: PersonaId | null,
-): Promise<ResolvedAnchor> {
-  const state = await resolveAnchorState(ctx, participants, anchorPersonaId);
-  if (state !== "held" || anchorPersonaId === null) {
-    return { state, ownerHandle: null };
-  }
-  const ownerId = await loadPersonaOwnerId(ctx.db, anchorPersonaId);
-  const publics = ownerId === null ? null : await ctx.resolveUserPublics(ownerId, anchorPersonaId);
-  return { state, ownerHandle: publics?.handle ?? null };
 }
 
 /** Does the room seat more than one present human? The multi-human names rule (`assembly/names`) reads this,

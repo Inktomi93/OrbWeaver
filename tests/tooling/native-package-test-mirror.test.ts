@@ -1,11 +1,10 @@
 // A client, inference, kit, contracts or db suite reaches production only from its package's cake and through
 // exported doors, a client feature suite only through its own feature; every other reach is a native finding.
-import { dirname, join, relative } from "node:path";
+import { dirname, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { IRegularForbiddenRuleType } from "dependency-cruiser";
 import dependencyCruiser from "../../.dependency-cruiser.ts";
-import { scaledBudget } from "./_load-budget.ts";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 // A listed suite and its listed leaf come from the config's own per-suite rule copies, which `PACKAGE_TEST_REACHES`
 // generates, so a suite the reach list drops cannot linger here. The pattern text is RegExp.escape output.
@@ -39,10 +38,6 @@ function listedClientSuite(): { readonly rule: string; readonly suite: string; r
   throw new Error("the reach list lists no chat client .test.ts suite with a chat leaf");
 }
 const LISTED = listedClientSuite();
-
-// Each row cruises a planted tree in its own process, which a loaded box stretches past the default test timeout.
-const CRUISE_BASE_MS = 30_000;
-const CRUISE = { timeout: scaledBudget(CRUISE_BASE_MS) };
 
 const RULE = {
   kitCake: "tests-kit-mirror-cake",
@@ -230,18 +225,11 @@ test.for([
     typeOnly: false,
     rule: RULE.clientListedDoors,
   },
-] as const)("the native package test mirror judges $name", CRUISE, async (row, { plantedTree, repoRoot }) => {
+] as const)("the native package test mirror judges $name", async (row, { plantedTree }) => {
   const modules = Object.fromEntries(Object.values(MODULES).map((path) => [path, "export const probe = 1;\nexport type Probe = number;\n"]));
   const reexport = row.typeOnly ? "export type { Probe as Read }" : "export { probe as read }";
   const root = await plantedTree({ ...modules, [row.entry]: `${reexport} from ${JSON.stringify(relativeSpecifier(row.entry, row.target))};\n` });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root },
-  );
-  const output = result.stdout + result.stderr;
-  expect(output).not.toContain("not-to-unresolvable");
-  for (const rule of Object.values(RULE)) {
-    expect(output.includes(`${rule}: ${row.entry}`), output).toBe(rule === row.rule);
-  }
+  const violations = await cruiseRules(root, [row.entry], Object.values(RULE));
+  expect(unresolvable(violations)).toEqual([]);
+  expect(Object.values(RULE).filter((rule) => fires(violations, rule, [row.entry]))).toEqual(row.rule === null ? [] : [row.rule]);
 });

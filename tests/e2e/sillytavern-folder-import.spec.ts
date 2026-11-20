@@ -12,12 +12,20 @@ import { isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE } from "@orb/contrac
 import { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { slugifyHandle } from "@orb/kit/slug";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_PREFLIGHT_LEAD,
+  IMPORT_PREVIEW_REPORT_NAME,
+} from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -27,8 +35,8 @@ import { SELECTED_ST_FOLDER } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
-const IMPORT_GROUP_NAME = /^Import /u;
-const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
+// Every staged question opens with the verb; the arm (folder, file, files) is the picker's, not this case's.
+const IMPORT_GROUP_NAME = new RegExp(`^${RegExp.escape(IMPORT_PREFLIGHT_LEAD)} `, "u");
 // Quiet-box bases; `budget` stretches them under measured contention and the allowance grows with the folder.
 const ST_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -120,7 +128,7 @@ async function expectRenderedInLibrary(page: Page, name: string): Promise<void> 
   // section bar there, so the section deep link is the one door to Characters that exists on every viewport.
   await page.goto("/characters");
   await waitForAppReady(page);
-  const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+  const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await expect(search.or(back).first()).toBeVisible();
   if (await back.isVisible()) {
@@ -168,9 +176,9 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     await chooser.setFiles(root);
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });
-    await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: settleMs });
-    await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click();
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: settleMs });
+    await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: settleMs });
+    await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true }).click();
+    await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: settleMs });
   } finally {
     page.off("response", recordResponse);
   }
@@ -180,8 +188,9 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
 
   const after = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
   expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+  // The preview's dry runs are transient rows no list shows, so the list holds the import's own runs alone.
   const created = after.filter((row) => !beforeIds.has(row.id));
-  expect(created).toHaveLength(plan.batches.length * 2);
+  expect(created).toHaveLength(plan.batches.length);
   const dryRuns: boolean[] = [];
   for (const row of created) {
     const workload = await host.trpc.workloads.get.query({ id: row.id });
@@ -193,7 +202,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     dryRuns.push(workload.result.dryRun);
     expect(workload.result.failed ?? 0).toBe(0);
   }
-  expect(dryRuns.filter(Boolean)).toHaveLength(plan.batches.length);
+  expect(dryRuns.filter(Boolean)).toEqual([]);
 
   for (const name of restoredNames) {
     const restored = (await host.trpc.character.list.query({ search: name })).items.filter((item) => item.name === name);

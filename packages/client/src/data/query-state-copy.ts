@@ -7,3 +7,6 @@ export const QUERY_WAITING_LINE = "Waiting for connection…";
 export function queryFailedLabel(label: string): string {
   return `Couldn't load ${label}.`;
 }
+
+/** What failed to load, said by a boundary given no labeled error state. */
+export const QUERY_DEFAULT_READ_LABEL = "this";

@@ -4,17 +4,32 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
-import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
-import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
+import { collectionEmptyTitle, collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import {
+  REFINERY_NO_SESSION_MATCH_TEXT,
+  REFINERY_NO_SESSIONS_TITLE,
+  REFINERY_PICK_CHARACTER_NAME,
+  REFINERY_SEARCH_SESSIONS_NAME,
+  REFINERY_START_SESSION_PICKER_NAME,
+} from "#client/features/refinery/lib/refinery-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { CLEAR_FILTER_NAME, CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { FilterRecoveryShellStory } from "./_filter-recovery-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_filter-recovery-stories/FilterRecoveryShellStory";
 const MEMBER = "Observatory recovery witness";
 const MISSING = "No matching copper expedition";
 const COLLECTIONS = [
-  { group: "regex", label: "Regex scripts", filter: "Filter regex scripts", create: REGEX_NEW_SCRIPT_NAME, creates: "regex.createScript" },
-  { group: "worldInfo", label: "World Info", filter: "Filter world info", create: "New book", creates: "worldInfo.createBook" },
+  { group: "regex", label: REGEX_GROUP_LABEL, filter: collectionFilterName(REGEX_GROUP_LABEL), create: REGEX_NEW_SCRIPT_NAME, creates: "regex.createScript" },
+  {
+    group: "worldInfo",
+    label: WORLD_INFO_GROUP_LABEL,
+    filter: collectionFilterName(WORLD_INFO_GROUP_LABEL),
+    create: "New book",
+    creates: "worldInfo.createBook",
+  },
 ] as const;
 const PROCEDURES = [
   ...SECTION_PROCEDURES,
@@ -39,7 +54,14 @@ for (const regime of [
         const caller = await root.internalCallerFor(root.ownerId);
         if (collection.group === "regex") {
           await caller.regex.createScript({
-            input: createRegexScriptSchema.parse({ name: MEMBER, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+            input: createRegexScriptSchema.parse({
+              name: MEMBER,
+              findRegex: "witness",
+              replaceString: "",
+              targets: ["AI_OUTPUT"],
+              passes: ["save"],
+              enabled: false,
+            }),
           });
         } else {
           await caller.worldInfo.createBook({ input: { name: MEMBER } });
@@ -55,7 +77,7 @@ for (const regime of [
         await expect(member).toBeVisible();
         await filter.fill(MISSING);
         await expect(member).toHaveCount(0);
-        const clear = content.getByRole("button", { name: "Clear filter", exact: true });
+        const clear = content.getByRole("button", { name: CLEAR_FILTER_NAME, exact: true });
         await expect(clear).toBeVisible();
         await press(clear);
         await expect(filter).toHaveValue("");
@@ -78,15 +100,15 @@ for (const regime of [
       await seedShellState(page, { activeSection: "config", panelOverrides: { config: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, { group: "regex" });
       const content = page.locator('[data-slot="config-content"]');
-      await expect(content.getByText("No regex scripts yet", { exact: true })).toBeVisible();
+      await expect(content.getByText(collectionEmptyTitle(REGEX_GROUP_LABEL), { exact: true })).toBeVisible();
       await press(content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }));
       const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
       const name = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       await expect(name).toBeFocused();
       await expect(form.locator('button[type="submit"]')).toBeDisabled();
-      await press(form.getByRole("button", { name: "Cancel", exact: true }));
+      await press(form.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }));
       await expect(form).toHaveCount(0);
-      await expect(content.getByRole("button", { name: "Clear filter", exact: true })).toHaveCount(0);
+      await expect(content.getByRole("button", { name: CLEAR_FILTER_NAME, exact: true })).toHaveCount(0);
       expect(calls.count("regex.createScript")).toBe(0);
     });
 
@@ -104,7 +126,7 @@ for (const regime of [
       const search = list.getByRole("textbox", { name: REFINERY_SEARCH_SESSIONS_NAME, exact: true });
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       await search.fill(MISSING);
-      await expect(list.getByText("No sessions match that search.", { exact: true })).toBeVisible();
+      await expect(list.getByText(REFINERY_NO_SESSION_MATCH_TEXT, { exact: true })).toBeVisible();
       const clear = list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
       await expect(clear).toBeVisible();
       await press(clear);
@@ -128,8 +150,8 @@ for (const regime of [
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');
       await expect(list.getByText(REFINERY_NO_SESSIONS_TITLE, { exact: true })).toBeVisible();
-      await press(list.getByRole("button", { name: "Pick a character", exact: true }));
-      const picker = page.getByRole("combobox", { name: "Start a refinery session", exact: true });
+      await press(list.getByRole("button", { name: REFINERY_PICK_CHARACTER_NAME, exact: true }));
+      const picker = page.getByRole("combobox", { name: REFINERY_START_SESSION_PICKER_NAME, exact: true });
       await expect(picker).toHaveCount(1);
       await expect(picker).toBeFocused();
       await expect(list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true })).toHaveCount(0);

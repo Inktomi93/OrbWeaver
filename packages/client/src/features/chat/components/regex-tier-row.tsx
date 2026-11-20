@@ -36,12 +36,12 @@ import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { RowActionsMenu } from "#components";
+import { RegexAxesGlyphs, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, regexPlacementStages, regexScriptTitle, rowActionSubject } from "#lib";
+import { notify, ROW_MORE_LEAD, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { REGEX_OFF_MARK, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
@@ -53,6 +53,8 @@ export interface RegexTierRowProps {
   readonly alsoAt: readonly string[];
   /** The row's own tier — decides the detach item and half of the toast rule above. */
   readonly scope: RegexTierKey;
+  /** The heading of the group that draws this row; the switch name carries it. */
+  readonly list: string;
   /** A member renders the identical row with every control OMITTED (§8.1 permission-OMIT at row level). */
   readonly isHost: boolean;
   /** A chat-tier row the viewer's library does not hold. */
@@ -65,7 +67,7 @@ export interface RegexTierRowProps {
   readonly effectiveCount: number | null;
 }
 
-export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
+export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
@@ -103,10 +105,12 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
             // body is not clickable: the row's door is the `⋯`, because "open the library" navigates away
             // from the room and must be chosen, not stumbled into.
             actions: (
-              <Row align="center" gap="tight" wrap={true}>
-                {notYours ? null : <Switch aria-label={regexScriptEverywhereSwitchName(name)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
+              <>
+                {notYours ? null : (
+                  <Switch aria-label={regexScriptEverywhereSwitchName(subject, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
+                )}
                 {menu}
-              </Row>
+              </>
             ),
           }
         : {})}
@@ -117,7 +121,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
       }
       markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
       subtitle={patternOf(script.findRegex)}
-      subtitleLead={<StageGlyphs placement={script.placement} />}
+      subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitlePlacement="inline"
       title={name}
     />
@@ -174,21 +178,8 @@ function RowMarkers({
           </Text>
         </>
       )}
-      {enabled ? null : <InlineToken>Off</InlineToken>}
+      {enabled ? null : <InlineToken>{REGEX_OFF_MARK}</InlineToken>}
       {notYours ? <InlineToken>Previous host</InlineToken> : null}
-    </Row>
-  );
-}
-
-/** The stages this script bites on, as the shipped glyph strip — the same axis map every other regex surface
- *  reads (`#lib`), so a new placement lands here for free. Each glyph keeps its label in the accessible
- *  tree; the legend above the groups names them once in words. */
-function StageGlyphs({ placement }: { readonly placement: readonly (keyof typeof REGEX_PLACEMENT_GLYPHS)[] }): ReactElement {
-  return (
-    <Row align="center" inline={true} gap="tight">
-      {regexPlacementStages(placement).map((stage) => (
-        <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
-      ))}
     </Row>
   );
 }
@@ -217,7 +208,7 @@ function RowActions({
     // thing this row genuinely cannot do, and the menu says which. `Open in library` is absent too: the
     // row is not in this viewer's library, so the drill-in would land on nothing.
     return (
-      <RowActionsMenu label={`More for ${name}: not yours: a previous host attached it, Detach from this chat`}>
+      <RowActionsMenu label={`${ROW_MORE_LEAD} ${name}: not yours: a previous host attached it, Detach from this chat`}>
         <MenuItem disabled={true}>A previous host attached this. Only its owner can switch it off.</MenuItem>
         <MenuItem
           onClick={(): void => {
@@ -231,7 +222,7 @@ function RowActions({
     );
   }
   return (
-    <RowActionsMenu label={`More for ${name}: Open in library${scope === "chat" ? ", Detach from this chat" : ""}`}>
+    <RowActionsMenu label={`${ROW_MORE_LEAD} ${name}: Open in library${scope === "chat" ? ", Detach from this chat" : ""}`}>
       <MenuItem
         onClick={(): void => {
           // The library is a CONFIG collection; landing on the group and then selecting the member is the

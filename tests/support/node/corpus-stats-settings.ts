@@ -9,6 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { seedStatsRows } from "./factories/rows/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -254,7 +255,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
   const settingsBefore = await read<"settings.getUserSettings">(undefined, caller.settings.getUserSettings);
   const initialThemes = await read<"settings.listThemes">(undefined, caller.settings.listThemes);
   const source = await read<"settings.createTheme">(
-    { name: "Corpus settings palette", override: { accent: "#aabbcc", background: "#202830", density: "compact" }, css: ".corpus-witness { color: #aabbcc; }" },
+    { name: "Corpus settings palette", override: { accent: "#aabbcc", background: "#202830" }, css: ".corpus-witness { color: #aabbcc; }" },
     caller.settings.createTheme,
   );
   const duplicate = await read<"settings.duplicateTheme">({ id: source.output.id }, caller.settings.duplicateTheme);
@@ -304,7 +305,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     throw new Error("native portability graph has no theme exporter");
   }
   const exported: PortableFile[] = [];
-  for await (const file of themeDescriptor.exportAll(root.ownerId)) {
+  for await (const file of themeDescriptor.exportAll(root.ownerId, failOnExportNote)) {
     exported.push(file);
   }
   const file = exported[0];

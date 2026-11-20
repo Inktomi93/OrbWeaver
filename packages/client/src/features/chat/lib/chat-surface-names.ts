@@ -4,8 +4,17 @@
 /** The verb on a room override's clear control and its confirm. */
 export const OVERRIDE_CLEAR_VERB = "Clear";
 
+/** The chat list band's door to the transcript import, and the menu item that opens it. */
+export const CHAT_IMPORT_NAME = "Import a chat transcript";
+
+/** The transcript import dialog's title. */
+export const CHAT_IMPORT_TITLE = "Import chats";
+
 /** The chat list search box's clear button. */
 export const CHAT_CLEAR_SEARCH_NAME = "Clear the search";
+
+/** The title of a room whose opening policy seeded nothing, before its first turn. */
+export const CHAT_EMPTY_THREAD_TITLE = "No messages yet";
 
 /** The composer's continue button, before the direction a typed line adds to it. */
 export const CHAT_CONTINUE_REPLY_NAME = "Continue the reply";
@@ -34,8 +43,14 @@ export const CHAT_DELETE_MESSAGE_TITLE = "Delete this message?";
 /** The gallery add-picker's exit to the upload zone. */
 export const CHAT_GALLERY_UPLOAD_INSTEAD_NAME = "Upload instead";
 
+/** The gallery add-picker's commit. */
+export const CHAT_GALLERY_ADD_SELECTED_NAME = "Add selected";
+
 /** The gallery add-picker's image grid. */
 export const CHAT_GALLERY_IMAGES_NAME = "Your images";
+
+/** The Corpus source window's way back to Corpus. */
+export const CHAT_WINDOW_BACK_TO_CORPUS_NAME = "Back to Corpus";
 
 /** The Home also-open tile's door to the chat list. */
 export const CHAT_ALL_CHATS_NAME = "All chats";
@@ -55,6 +70,8 @@ export const CHAT_HISTORY_FAILURE_COPY = {
   offline: "You're offline. History will load when you're back.",
 } as const;
 export const CHAT_WINDOW_PRESS_FAILURE = "Couldn't load more messages.";
+/** What the room's read failure calls the room, `queryFailedLabel(CHAT_ROOM_READ_LABEL)`. */
+export const CHAT_ROOM_READ_LABEL = "this conversation";
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
 
 /** New chat's pinned cue where the dialog has no room to pin Blank chat with Start, so it sits after them. */
@@ -78,23 +95,25 @@ export function chatRowActionsName(rowName: string): string {
   return `Chat actions for ${rowName}`;
 }
 
-export const CHAT_STAR_NAME = "Star";
-export const CHAT_UNSTAR_NAME = "Unstar";
 export const CHAT_ARCHIVE_NAME = "Archive";
 const CHAT_UNARCHIVE_NAME = "Unarchive";
-
-/** The row menu's star toggle for the room's current state. */
-export function chatStarToggleName(starred: boolean): string {
-  return starred ? CHAT_UNSTAR_NAME : CHAT_STAR_NAME;
-}
 
 /** The row menu's archive toggle for the room's current state. */
 export function chatArchiveToggleName(archived: boolean): string {
   return archived ? CHAT_UNARCHIVE_NAME : CHAT_ARCHIVE_NAME;
 }
 
+/** The pending reply's status while its turn's provider has answered nothing past the notice delay. */
+export const CHAT_PROVIDER_WAITING_NOTE = "Waiting for the provider to start…";
+
 /** The corrections dialog's instruction field. */
 export const CHAT_CORRECTION_INSTRUCTION_NAME = "Correction instruction";
+
+/** The corrections dialog's control that keeps the typed correction as one of this chat's injections. */
+export const CHAT_SAVE_CORRECTION_NAME = "Keep for every turn";
+
+/** The corrections dialog's line once the typed correction is one of this chat's injections. */
+export const CHAT_CORRECTION_SAVED_NOTE = "Kept in this chat's injections. Remove it there to stop sending it.";
 
 /** One stored variant in the saved-replies picker, by its one-based ordinal. */
 export function savedReplyOptionName(ordinal: number, current: boolean): string {
@@ -143,8 +162,76 @@ export const CHAT_INJECTION_CONTENT_NAME = "Content";
 /** The members panel's roster toolbar. */
 export const CHAT_MEMBERS_ROSTER_NAME = "Members and characters";
 
+/** The group room's character bar above the composer, which names the characters seated in the room. */
+export const CHAT_CHARACTER_BAR_NAME = "Characters";
+
+/** The open room's Memory entry: a fixed prefix, then the recall state, so a lookup by the prefix survives the state. */
+export const CHAT_MEMORY_ENTRY_PREFIX = "Memory: ";
+
 /** The open room's Members entry: a fixed prefix, then the member count. */
 export const CHAT_MEMBERS_ENTRY_PREFIX = "Members: ";
 export function chatMembersEntryName(count: number): string {
   return `${CHAT_MEMBERS_ENTRY_PREFIX}${count}`;
 }
+
+/** Home's hearth island, named for the room it resumes. */
+export function homeResumeChatName(title: string): string {
+  return `Resume ${title}`;
+}
+
+/** A Home quick pick's door to a fresh room with that character. */
+export function homeNewChatWithName(character: string): string {
+  return `New chat with ${character}`;
+}
+
+/** Home's list of character quick picks. */
+export const HOME_QUICK_PICKS_NAME = "Character quick-picks";
+
+/** The Home quick-picks tile's empty state when the library holds no character: its title, its door to the library and its gloss. */
+export const HOME_QUICK_PICKS_EMPTY_TITLE = "No characters yet";
+export const HOME_QUICK_PICKS_CREATE_NAME = "Create your first character";
+export const HOME_QUICK_PICKS_EMPTY_GLOSS = "Every character is a thread waiting to be woven.";
+
+/** The new-chat picker's character field. */
+export const NEW_CHAT_CHARACTERS_FIELD_NAME = "Choose characters";
+
+/** The context divider's line: everything below it is in the prompt, or everything above it was compacted into the summary. */
+export const CONTEXT_DIVIDER_IN_CONTEXT_TEXT = "In context from here";
+export const CONTEXT_DIVIDER_COMPACTED_TEXT = "Older messages compacted into a summary";
+export function contextDividerText(compacted: boolean): string {
+  return compacted ? CONTEXT_DIVIDER_COMPACTED_TEXT : CONTEXT_DIVIDER_IN_CONTEXT_TEXT;
+}
+
+/** The transcript's message log. */
+export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
+
+/** The Preview tab's diagnostics drawer: the build and shape traces under the budget instrument. */
+export const CHAT_PREVIEW_DIAGNOSTICS_LABEL = "Diagnostics";
+
+/** The notice a reader gets when their own delete of a chat fails; they stay on the chat. */
+export const CHAT_DELETE_FAILED_TITLE = "Couldn't delete the chat.";
+
+/** The notice a reader gets when the open room is deleted under unsent work: what happened, what became of it, and the copy that keeps the text.
+ *  Only the text can be kept: the draft entry is text, and a staged file lives in the composer that goes with the room. */
+export const CHAT_GONE_DRAFT_NOTICE = {
+  title: "This chat was deleted.",
+  copyName: "Copy message",
+  /** The notice that carries the text itself when the browser cannot copy it, so the reader can select it by hand. */
+  manualTitle: "Select your message here to keep it.",
+} as const;
+
+/** What the notice says became of the reader's unsent work. A file is never offered back, so the words never promise one. */
+export function goneDraftDescription(args: { readonly hasText: boolean; readonly files: number }): string {
+  const { hasText, files } = args;
+  const attached = `${files} attached ${files === 1 ? "file" : "files"}`;
+  if (files === 0) {
+    return "Your unsent message went with it. Copy the text to keep it.";
+  }
+  if (hasText) {
+    return `Your unsent message and ${attached} went with it. Copy the text to keep it; the ${files === 1 ? "file" : "files"} can't be kept.`;
+  }
+  return `Your ${attached} went with it and can't be kept.`;
+}
+
+/** What failed to load, said by the chat list's character filter read. */
+export const CHAT_RECENT_CHARACTERS_READ_LABEL = "your recent characters";

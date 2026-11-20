@@ -32,6 +32,36 @@ function paddingOf(locator: Locator): Promise<Padding> {
   });
 }
 
+const NO_PADDING = "0px";
+type Sides = readonly [string, string];
+// Each prop that pads an inline side at the block or section step, beside the paddingInline probe of its step and the reference box that spells the
+// step's block padding. `edge` is the side of the inline axis the prop pads, and `all` is the prop that pads all four.
+const INSET_PROPS = [
+  { probe: "stack-all-block", inline: "stack-inline", step: "ref-block", edge: "all" },
+  { probe: "stack-all-section", inline: "stack-inline-section", step: "ref-section", edge: "all" },
+  { probe: "stack-start-block", inline: "stack-inline", step: "ref-block", edge: "start" },
+  { probe: "stack-start-section", inline: "stack-inline-section", step: "ref-section", edge: "start" },
+  { probe: "stack-end-block", inline: "stack-inline", step: "ref-block", edge: "end" },
+  { probe: "stack-end-section", inline: "stack-inline-section", step: "ref-section", edge: "end" },
+] as const;
+const EXPECTED_BY_EDGE: Record<(typeof INSET_PROPS)[number]["edge"], (inline: Sides, block: Sides) => Padding> = {
+  all: (inline, block) => ({ inline, block }),
+  start: (inline) => ({ inline: [inline[0], NO_PADDING], block: [NO_PADDING, NO_PADDING] }),
+  end: (inline) => ({ inline: [NO_PADDING, inline[1]], block: [NO_PADDING, NO_PADDING] }),
+};
+
+/** What each inset prop paints now, beside what it must paint: the inline inset its `paddingInline` sibling holds, and the step on the block axis. */
+function insetPropReadings(component: Locator): Promise<readonly { readonly probe: string; readonly actual: Padding; readonly expected: Padding }[]> {
+  const read = (probe: string): Promise<Padding> => paddingOf(component.locator(`[data-probe="${probe}"]`));
+  return Promise.all(
+    INSET_PROPS.map(async ({ probe, inline, step, edge }) => ({
+      probe,
+      actual: await read(probe),
+      expected: EXPECTED_BY_EDGE[edge]((await read(inline)).inline, (await read(step)).block),
+    })),
+  );
+}
+
 test.describe("paddingInline and paddingBlock", () => {
   test("paddingInline pads only the inline axis, at the ramp step", async ({ mount }) => {
     const component = await mount<typeof OneAxisOwnersStory>(STORY);
@@ -71,6 +101,31 @@ test.describe("paddingInline and paddingBlock", () => {
         expect(
           enlarged.map(({ held, step }, index) => ({ belowStep: px(held) < px(step), keepsDefault: px(held) >= px(atDefault[index]?.held ?? ["0px", "0px"]) })),
         ).toEqual(HELD_INSETS.map(() => ({ belowStep: viewport.holds, keepsDefault: true })));
+      });
+
+      test("the all-sides and one-edge props at those steps agree with paddingInline, and the block axis keeps the step", async ({ mount, page }) => {
+        const component = await mount<typeof OneAxisOwnersStory>(STORY);
+        const atDefault = await insetPropReadings(component);
+        await setRootFontScale(page, channelName("fontScale"), ENLARGED);
+        const enlarged = await insetPropReadings(component);
+        for (const { probe, actual, expected } of [...atDefault, ...enlarged]) {
+          expect(actual, probe).toEqual(expected);
+        }
+        // On a phone the held inset is below the step at enlarged text, so the agreement above is not two equal steps.
+        const held = await paddingOf(component.locator('[data-probe="stack-inline-section"]'));
+        const step = await paddingOf(component.locator('[data-probe="ref-section"]'));
+        expect(Number.parseFloat(held.inline[0]) < Number.parseFloat(step.inline[0])).toBe(viewport.holds);
+      });
+
+      test("a bleed across a padding=section parent ends on the parent's edge at enlarged text", async ({ mount, page }) => {
+        const component = await mount<typeof OneAxisOwnersStory>(STORY);
+        await setRootFontScale(page, channelName("fontScale"), ENLARGED);
+        const parent = await component.locator('[data-probe="bleed-parent"]').boundingBox();
+        const child = await component.locator('[data-probe="bleed-child"]').boundingBox();
+        expect(parent).not.toBeNull();
+        expect(child).not.toBeNull();
+        expect(child?.x).toBeCloseTo(parent?.x ?? Number.NaN, 1);
+        expect((child?.x ?? 0) + (child?.width ?? 0)).toBeCloseTo((parent?.x ?? 0) + (parent?.width ?? 0), 1);
       });
     });
   }

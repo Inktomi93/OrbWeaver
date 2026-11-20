@@ -4,6 +4,7 @@
 // an application-authored layout animation, while a state attribute alone must not exempt every popup,
 // drawer, or toast property. Keep the raw browser facts here; tooling owns the narrow verdict policy.
 
+import { COMPOSITOR_SAFE_PROPS } from "@orb/kit/motion-allowance";
 import { surfaceLabelOf } from "./motion-stats.ts";
 
 const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
@@ -14,6 +15,8 @@ const ANIMATION_PHASES = ["starting-style", "ending-style"] as const;
 type AnimationPhase = (typeof ANIMATION_PHASES)[number];
 const LIFECYCLE_OBSERVATION_SOURCES = ["transition-run"] as const;
 type LifecycleObservationSource = (typeof LIFECYCLE_OBSERVATION_SOURCES)[number];
+const ANIMATION_TIMELINES = ["document", "scroll", "view", "none"] as const;
+type AnimationTimelineKind = (typeof ANIMATION_TIMELINES)[number];
 
 interface AnimationLifecycleState {
   readonly startingStyle: boolean;
@@ -44,11 +47,12 @@ export interface AnimationRecord {
   readonly lifecycleState: AnimationLifecycleState | null;
   /** Owner and mechanism derived from browser constructors plus exact launch provenance. */
   readonly attribution: AnimationAttribution;
+  /** The CSS animation's `animation-name` or the transition's property: the one name a record with no readable
+   *  property set still carries. Absent for a script animation that set no `id`. */
+  readonly name?: string;
+  /** What drives the animation's time: the document clock, a scroll or view progress timeline, or nothing. */
+  readonly timeline: AnimationTimelineKind;
 }
-
-// translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
-// scale-*/translate-* utilities to, and composite exactly like transform.
-export const COMPOSITOR_SAFE_PROPS: ReadonlySet<string> = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
 
 // getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must
 // be dropped too or every animation reads as dirty.
@@ -116,6 +120,32 @@ function attribution(animation: Animation, lifecycleState: AnimationLifecycleSta
   return target === null ? { owner: "unattributed", mechanism: "unknown" } : { owner: "unattributed", mechanism: "web-animation" };
 }
 
+function animationName(animation: Animation): string | null {
+  if (isCssAnimation(animation)) {
+    return animation.animationName;
+  }
+  if (isCssTransition(animation)) {
+    return animation.transitionProperty;
+  }
+  return animation.id === "" ? null : animation.id;
+}
+
+// `ViewTimeline` extends `ScrollTimeline`, so it is tested first. Both constructors are missing below the Safari
+// floor, where no scroll-driven animation can exist either.
+function timelineOf(animation: Animation): AnimationTimelineKind {
+  const timeline = animation.timeline;
+  if (timeline === null) {
+    return "none";
+  }
+  if (typeof ViewTimeline !== "undefined" && timeline instanceof ViewTimeline) {
+    return "view";
+  }
+  if (typeof ScrollTimeline !== "undefined" && timeline instanceof ScrollTimeline) {
+    return "scroll";
+  }
+  return "document";
+}
+
 function observeLifecycleMutation(record: MutationRecord): void {
   if (!(record.target instanceof Element)) {
     return;
@@ -178,6 +208,7 @@ export function animationRecordOf(animation: Animation): AnimationRecord {
   const target = animationTarget(animation.effect);
   const lifecycleState = lifecycleByAnimation.get(animation) ?? null;
   const properties = animatedProperties(animation.effect);
+  const name = animationName(animation);
   const record: AnimationRecord = {
     target: target === null ? "(no-element)" : surfaceLabelOf(target),
     properties,
@@ -185,6 +216,8 @@ export function animationRecordOf(animation: Animation): AnimationRecord {
     targetState: targetState(target),
     lifecycleState,
     attribution: attribution(animation, lifecycleState, target),
+    timeline: timelineOf(animation),
+    ...(name === null ? {} : { name }),
   };
   return animation.id === "" ? record : { ...record, id: animation.id };
 }

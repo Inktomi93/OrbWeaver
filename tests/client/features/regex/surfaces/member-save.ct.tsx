@@ -14,7 +14,9 @@ test.use({ viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: fa
 test("an edited replacement saves through the update verb and the stored script carries it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const script = await caller.regex.createScript({ input: { name: NAME, findRegex: "witness", replaceString: "before", placement: ["AI_OUTPUT"] } });
+  const script = await caller.regex.createScript({
+    input: { name: NAME, findRegex: "witness", replaceString: "before", targets: ["AI_OUTPUT"], passes: ["save"] },
+  });
   const calls = await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript"]));
   await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
   const field = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });

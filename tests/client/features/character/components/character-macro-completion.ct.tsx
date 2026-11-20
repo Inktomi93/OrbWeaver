@@ -8,7 +8,11 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { CHARACTER_CREATOR_NOTES_FACET_NAME, CHARACTER_DESCRIPTION_FACET_NAME } from "#client/features/character/lib/character-names.ts";
+import {
+  CHARACTER_CREATOR_NOTES_FACET_NAME,
+  CHARACTER_DESCRIPTION_FACET_NAME,
+  CHARACTER_FACET_LABELS,
+} from "#client/features/character/lib/character-names.ts";
 import type { CharacterMacroCompletionStory } from "./_macro-completion-stories.tsx";
 
 const PRESET_MACRO = "house_rule";
@@ -45,12 +49,12 @@ test("a turn-rendered card field offers the preset's macro and creator notes off
   });
   const option = (name: string): ReturnType<typeof page.locator> => page.locator('[data-slot="macro-textarea-option"]', { hasText: `{{${name}}}` });
 
-  await page.getByRole("button", { name: /Description/ }).click();
+  await page.getByRole("button", { name: CHARACTER_FACET_LABELS.description }).click();
   await page.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FACET_NAME, exact: true }).fill("{{house_ru");
   await expect(option(PRESET_MACRO)).toBeVisible();
   await page.getByRole("button", { name: /Back/ }).click();
 
-  await page.getByRole("button", { name: /Creator notes/ }).click();
+  await page.getByRole("button", { name: CHARACTER_FACET_LABELS.creatorNotes }).click();
   const notes = page.getByRole("textbox", { name: CHARACTER_CREATOR_NOTES_FACET_NAME, exact: true });
   await notes.fill("{{char");
   await expect(option("char")).toBeVisible();

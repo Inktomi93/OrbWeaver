@@ -1,26 +1,34 @@
 // The capability READ helpers — the ONE spelling of every question a consumer asks a descriptor. A
-// `capability.<axis>?.` re-spelled outside this file is a second home:
-// the 13 direct re-spellings the M4 census found (`pipeline.ts:608,616,634,635`, `read.ts:1093-1101`, …)
-// migrate here so the SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
+// `capability.<axis>?.` re-spelled outside this file is a second home: every such copy migrates here so the
+// SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 
 import { z } from "zod";
 import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
-import type { EstimableTurn, GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, SamplerStage, UserRoleHandling } from "./generation.ts";
+import type {
+  EstimableTurn,
+  GenerationCapability,
+  ReasoningOffMode,
+  ReasoningReplayMode,
+  RoleHandling,
+  SamplerKnob,
+  SamplerStage,
+  UserRoleHandling,
+} from "./generation.ts";
 import {
   CACHE_MIN_FLOOR,
   REASONING_OFF_DEFAULT,
   REASONING_REPLAY_FLOOR,
   ROLE_HANDLING,
+  SAMPLER_KNOBS,
   TERMINAL_SAMPLER_STAGES,
   TURNS_FLOOR,
   USER_ROLE_HANDLING,
 } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
-/** Does this generation model accept/produce a modality on the named side? */
 /** The GENERATION half of a kind-discriminated `Capability`, or a throw: a chat-shaped read (the preset panel,
  *  the rpg lite gate) over a row that resolved an embedding/rerank model is a program error, not a user one. */
 export function requireGenerationCapability(capability: Capability): GenerationCapability {
@@ -285,4 +293,57 @@ export function completeSamplerOrder(wanted: readonly SamplerStage[] | undefined
   const movable = orderable.filter((stage) => !TERMINAL_SAMPLER_STAGES.includes(stage));
   const kept = (wanted ?? []).filter((stage) => movable.includes(stage));
   return [...kept, ...movable.filter((stage) => !kept.includes(stage)), ...orderable.filter((stage) => TERMINAL_SAMPLER_STAGES.includes(stage))];
+}
+
+// Every preset control a descriptor can rule out: each sampler, then the generation controls whose home is not the
+// sampling block. `statesKnob` answers for each, so a new member fails `tsc` until it names its fact.
+const CAPABILITY_KNOBS = [
+  ...SAMPLER_KNOBS,
+  "samplerOrder",
+  "quality",
+  "reasoning",
+  "effort",
+  "thinkingBudgetTokens",
+  "thinkingDisplay",
+  "reasoningSeed",
+  "verbosity",
+  "replyMedia",
+  "carryReasoning",
+  "parallelToolCalls",
+  "providerContextCompression",
+] as const;
+export type CapabilityKnob = (typeof CAPABILITY_KNOBS)[number];
+
+const STATED_CONTROL: Readonly<Record<Exclude<CapabilityKnob, SamplerKnob>, (capability: GenerationCapability) => boolean>> = {
+  samplerOrder: (capability) => capability.sampling.samplerOrder !== undefined,
+  // The dial feeds effort and temperature (`QUALITY_EFFORT`, `QUALITY_SAMPLING`), so it acts where either does.
+  quality: (capability) => capability.reasoning.mode !== "none" || capability.sampling.temperature !== undefined,
+  // The on/off switch: a model that cannot reason, or cannot stop reasoning, has nothing for it to change.
+  reasoning: (capability) => capability.reasoning.mode !== "none" && capability.reasoning.mandatory !== true,
+  // An adaptive model takes a level too; a budget model derives its budget from the budget control instead.
+  effort: (capability) =>
+    (capability.reasoning.mode === "effort" || capability.reasoning.mode === "adaptive") && (capability.reasoning.effortLevels?.length ?? 0) > 0,
+  thinkingBudgetTokens: (capability) => capability.reasoning.mode === "budget" && capability.reasoning.budgetRange !== undefined,
+  thinkingDisplay: (capability) => capability.reasoning.mode !== "none" && (capability.reasoning.displayModes?.length ?? 0) > 0,
+  reasoningSeed: (capability) => capability.reasoning.mode !== "none" && capability.reasoning.seedable === true,
+  verbosity: (capability) => (capability.verbosity?.length ?? 0) > 0,
+  replyMedia: (capability) => capability.output.modalities.includes("image"),
+  carryReasoning: (capability) => reasoningReplayOf(capability) !== "none",
+  parallelToolCalls: (capability) => capability.tools !== undefined && honoursParallelControl(capability),
+  providerContextCompression: (capability) => capability.contextCompression === true,
+};
+
+function isSamplerKnob(knob: CapabilityKnob): knob is SamplerKnob {
+  return SAMPLER_KNOBS.some((sampler) => sampler === knob);
+}
+
+/** Can this preset control act on the model at all? The one home of the question (D68): the editor renders only a
+ *  stated control, and a turn announces a drop only for one, so a control the provider cannot apply is neither shown
+ *  nor named. */
+export function statesKnob(capability: GenerationCapability, knob: CapabilityKnob): boolean {
+  if (!isSamplerKnob(knob)) {
+    return STATED_CONTROL[knob](capability);
+  }
+  const stated = capability.sampling[knob];
+  return stated !== undefined && stated !== false;
 }

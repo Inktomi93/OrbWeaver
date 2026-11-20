@@ -119,11 +119,11 @@ test("land --merged lands the Closes ids of the merged commits with the merge co
   // Idempotent (F10): the same trailer landing again writes nothing and mints no second commit.
   const landed = git(root, "rev-parse", "HEAD");
   const again = landItems([1], landed, root, "2026-09-30");
-  expect(again).toEqual({ written: [], refusals: [], skipped: [`1: already landed at ${landed.slice(0, 12)}`] });
+  expect(again).toEqual({ written: [], created: [], refusals: [], skipped: [`1: already landed at ${landed.slice(0, 12)}`] });
   expect(git(root, "rev-parse", "HEAD")).toBe(landed);
   // Off main, or with no trailer, the door is silent.
   git(root, "checkout", "-q", "lane");
-  expect(landMerged(root, TODAY)).toEqual({ written: [], refusals: [], skipped: [] });
+  expect(landMerged(root, TODAY)).toEqual({ written: [], created: [], refusals: [], skipped: [] });
 });
 
 test("land --merged lands a Closes trailer through a merge commit `git merge` commits itself (--no-ff)", async ({ plantedTree }) => {
@@ -262,12 +262,12 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   expect(facts.unmergedBranches).toEqual(["wt/cb-live-docs"]);
   expect(drift(root)).toEqual([
     "2 is doing under lane cb-live with no live worktree and no unmerged branch — pnpm doc set 2 open",
-    `main commit ${closer} closes 3 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 3 --evidence ${closer}`,
+    `main commit ${closer} closes 3 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 3 --evidence ${closer}`,
   ]);
 });
 
 function unlanded(sha: string): string {
-  return `main commit ${sha} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${sha}`;
+  return `main commit ${sha} closes 1 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 1 --evidence ${sha}`;
 }
 
 test("drift skips a Closes trailer whose id named a different item at the closing commit (a renumbering)", async ({ plantedTree }) => {
@@ -384,7 +384,7 @@ test("drift reports a Closes trailer buried deeper than a fixed recent-commit wi
     git(root, "commit", "--allow-empty", "-qm", `chore(x): filler ${String(i)}`);
   }
   expect(drift(root)).toEqual([
-    `main commit ${closer} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${closer}`,
+    `main commit ${closer} closes 1 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 1 --evidence ${closer}`,
   ]);
 });
 
@@ -433,7 +433,7 @@ test("overview narrows to the named states and area; with no filter it is the fu
     lines.filter((line) => line.startsWith("  ")).map((line) => line.trim().split(" ")[0]);
   const full = overview(root);
   expect(overview(root, { states: [], area: null })).toEqual(full);
-  expect(ids(full)).toHaveLength(4);
+  expect(full.filter((line) => line.startsWith("  "))).toHaveLength(4);
   const open = overview(root, { states: ["open"], area: null });
   expect(headers(open)).toEqual(["open (1)"]);
   expect(ids(open)).toEqual(["0001"]);

@@ -1,4 +1,4 @@
-// The `#state` projections over a section's LIST pane — "what MODE is it in?" and "is it the mobile SCREEN?".
+// The `#state` projections over a section's LIST and CONTEXT panes — "what MODE is it in?" and "is the LIST the mobile SCREEN?".
 // Their own module because they read BOTH the shell store and the SECTION REGISTRY, and shell-store.ts
 // cannot: `section-registry-context.ts` → `section-registry.ts` → `shell-store.ts` already, so a registry
 // read inside the store closes an import cycle (dep-cruiser `no-circular`, measured). Here they are a leaf.
@@ -8,11 +8,11 @@
 
 import { useSyncExternalStore } from "react";
 import type { PanelMode } from "./panel-resolve.ts";
-import { resolvePanelMode } from "./panel-resolve.ts";
+import { contextAutoOverlay, resolvePanelMode } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { useSectionRegistry } from "./section-registry-context.ts";
-import { useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
+import { useContextContentConstrained, useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
 
 // The no-seam fallbacks are MODULE constants, not inline lambdas: `useSyncExternalStore` re-subscribes
 // whenever `subscribe`'s identity changes, and a fresh closure per render would tear the subscription down
@@ -104,6 +104,36 @@ export function useSectionListMode(section: SectionId): PanelMode {
   }
   const resolved = override ?? definition.panelDefaults.list;
   return resolvePanelMode("list", resolved, { isMobile, isNarrow, openOverlayPanel, listIsScreen });
+}
+
+/** A section's resolved CONTEXT panel MODE — the {@link useSectionListMode} twin, for a pane that must know whether the content beside it is on
+ *  screen. `docked` leaves the content column visible; `overlay` floats over it (a phone's sheet, a narrow desktop, a content column at its
+ *  floor), so the content is inert behind a scrim; `collapsed` is closed. It resolves through the same `resolvePanelMode` and
+ *  `contextAutoOverlay` as `useShellLayout`, from the regime the shell publishes. */
+export function useSectionContextMode(section: SectionId): PanelMode {
+  const definition = useSectionRegistry().get(section);
+  const isMobile = useMobileViewport();
+  const isNarrow = useNarrowViewport();
+  const contextContentConstrained = useContextContentConstrained();
+  const openOverlayPanel = useOpenOverlayPanel();
+  const listOverride = usePanelOverride(section, "list");
+  const contextOverride = usePanelOverride(section, "context");
+  if (definition.context.kind === "none") {
+    return "collapsed";
+  }
+  const autoOverlay = contextAutoOverlay({
+    contextContentConstrained,
+    listAvailable: definition.list !== undefined,
+    contextAvailable: true,
+    listRequest: listOverride ?? definition.panelDefaults.list,
+  });
+  // `listIsScreen` only decides the LIST arm of the algebra, so CONTEXT resolves the same whatever it is.
+  return resolvePanelMode("context", contextOverride ?? definition.panelDefaults.context, {
+    isMobile,
+    isNarrow: isNarrow || autoOverlay,
+    openOverlayPanel,
+    listIsScreen: false,
+  });
 }
 
 /** The placeholder of `section`'s list search field, from the section's own definition: the one home of the voice

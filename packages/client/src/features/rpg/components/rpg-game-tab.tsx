@@ -28,16 +28,27 @@ import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
-import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
-import { notify } from "#lib";
+import { MutedLine, QueryBoundary, SettingCheckboxRow, Tip } from "#components";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
+import {
+  RPG_NEW_TRACKER_NAME,
+  RPG_SET_SCORES_NAME,
+  trackerDefaultMaxName,
+  trackerHintName,
+  trackerLabelFieldName,
+  trackerLockName,
+  trackerRemoveFromBandName,
+  trackerRemoveName,
+  trackerShowOnBandName,
+  trackerUnlockName,
+} from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
 import { RpgGmVoice } from "./rpg-gm-voice.tsx";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
@@ -94,9 +105,9 @@ function TrackerRow({
   // tooltip. Spelled once here so the two can never drift apart.
   // BAND vocabulary + Eye glyph, never "pin" (an owner ruling): "pin" is the HAND-LOCK's word
   // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
-  const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
-  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label}: the story can no longer write it`;
-  const removeLabel = `Remove ${def.label}`;
+  const bandLabel = def.pinned ? trackerRemoveFromBandName(def.label) : trackerShowOnBandName(def.label);
+  const lockLabel = def.locked ? trackerUnlockName(def.label) : trackerLockName(def.label);
+  const removeLabel = trackerRemoveName(def.label);
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
     <DefRow slot="rpg-tracker-row">
@@ -112,7 +123,7 @@ function TrackerRow({
             />
           ) : null}
           <TrackerValue
-            ariaLabel={`Tracker ${index + 1} label`}
+            ariaLabel={trackerLabelFieldName(index)}
             display={def.label}
             onEdit={(next): void => {
               const trimmed = next.trim();
@@ -129,7 +140,7 @@ function TrackerRow({
               default max
             </Text>
             <TrackerValue
-              ariaLabel={`${def.label} default max`}
+              ariaLabel={trackerDefaultMaxName(def.label)}
               display={def.max === null ? NO_VALUE : String(def.max)}
               editValue={def.max === null ? "" : String(def.max)}
               kind="numeric"
@@ -189,7 +200,7 @@ function TrackerRow({
           </Tip>
         )}
       </Row>
-      <HintEditor ariaLabel={`${def.label} hint`} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
+      <HintEditor ariaLabel={trackerHintName(def.label)} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
     </DefRow>
   );
 }
@@ -229,7 +240,7 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
         A tracker is one labelled value the story keeps. On the room's participants, on the scene's characters, or on the game itself. Defined once here; read
         and edited on the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
-      {defs.length === 0 ? <RpgDoorwayLine>No trackers yet: name one below and the story starts keeping it.</RpgDoorwayLine> : null}
+      {defs.length === 0 ? <MutedLine>No trackers yet: name one below and the story starts keeping it.</MutedLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows without inflating the kicker/gloss above them. */}
       <Stack gap="field" rows="control">
         {defs.map((def, i) => (
@@ -254,7 +265,7 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
   const [subject, setSubject] = useState<RpgTrackerDef["subject"]>("actor");
   return (
     <AddRow
-      ariaLabel="New tracker name"
+      ariaLabel={RPG_NEW_TRACKER_NAME}
       placeholder="name it first (e.g. Grit)"
       trailing={
         <Tip text="Who this tracker belongs to">
@@ -328,7 +339,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const invalidation = useInvalidation();
   const resync = useResyncFromStory({ trpc, invalidation });
   const restamp = useReattributePersona({ trpc, invalidation });
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const [restampFirst, setRestampFirst] = useState(false);
   const personaId = chat.viewerActivePersonaId;
   const canRestamp = personaId !== null;
@@ -351,7 +362,8 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
       if (verdict.ok && !verdict.rebuilt) {
         notify.info("Nothing to rebuild: the tracked state already matches the story.");
       }
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // The failed mutation's own error toast has already spoken; the rest of the sequence is abandoned.
     }
   };
@@ -406,7 +418,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <Stack gap="field">
         <Kicker>Stats</Kicker>
         {config.statProfile.attributes.length === 0 ? (
-          <Text voice="gloss">Freeform play needs no scores. Choose D20 above to add its attributes and dice.</Text>
+          <MutedLine>Freeform play needs no scores. Choose D20 above to add its attributes and dice.</MutedLine>
         ) : (
           <>
             <Row gap="field" wrap={true}>
@@ -427,7 +439,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
                 setContextTab("rpg.status");
               }}
             >
-              Set character scores
+              {RPG_SET_SCORES_NAME}
             </Button>
           </>
         )}

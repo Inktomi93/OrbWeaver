@@ -12,9 +12,9 @@
 //
 // TWO PER ROW STATE, NOT TWO IN TOTAL (the §5.3a correction this lane owes back). §5.3a's "two actions" is a
 // COPY rule about naming, never a cap on the row's capabilities, and rendering literally two would have
-// deleted the only door to `remove`. An ACTIVE row is Replace + Revoke; a REVOKED row is Clear revoked +
-// Remove — which is also when deleting a dead key is the thing you actually want. `Revoke` therefore keeps
-// its recorded meaning (`markRevokedByUser`, recoverable, invariant #6) instead of being silently
+// deleted the only door to `remove`. An ACTIVE row is Replace + Revoke; a REVOKED row is Replace + Clear revoked +
+// Remove: a key the provider rejected wants a new one, and deleting a dead key is also a real want. `Revoke`
+// therefore keeps its recorded meaning (`markRevokedByUser`, recoverable, invariant #6) instead of being silently
 // re-pointed at the destructive verb.
 //
 // REPLACE NAMES THE ROW BY ID. `credentials.replace` rotates this row's secret in place and clears its
@@ -35,7 +35,17 @@ import { ConfirmDialog, DestructiveAction, FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { testId } from "#lib";
 import { useClearRevokedCredential, useMarkRevokedByUser, useRemoveCredential, useReplaceCredential } from "../hooks/use-connections-mutations.ts";
-import { keyRowSubtitle, keySubject, reuseSentence } from "../lib/credential-key-model.ts";
+import { keyRowSubtitle, reuseSentence } from "../lib/credential-key-model.ts";
+import {
+  CLEAR_REVOKED_NAME,
+  KEY_REVOKE_VERB,
+  keySubjectName,
+  removeKeyName,
+  removeKeyTitle,
+  replaceKeyName,
+  revokeKeyName,
+  revokeKeyTitle,
+} from "../lib/credentials-names.ts";
 
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 
@@ -65,8 +75,21 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
 
   const revoked = credential.revokedAt !== null;
   const label = credential.label ?? "default";
-  const subject = keySubject(providerLabel, label);
+  const subject = keySubjectName(providerLabel, label);
   const subtitle = keyRowSubtitle(credential, usedBy);
+
+  const replaceTrigger = (
+    <Button
+      ref={replaceButton}
+      variant="outline"
+      size="sm"
+      aria-label={replaceKeyName(subject)}
+      disabled={replace.isPending}
+      onClick={(): void => setReplaceOpen(true)}
+    >
+      Replace
+    </Button>
+  );
 
   const submitReplacement = (): void => {
     replace.mutate({ credentialId: credential.id, key: replacementKey });
@@ -93,10 +116,11 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
         <Row wrap={true} gap="field" align="center">
           {revoked ? (
             <>
+              {replaceTrigger}
               {/* No undo: re-revoking would record a different reason and time than the revocation being cleared. */}
               <DestructiveAction
                 confirm={{
-                  confirmLabel: "Clear revoked",
+                  confirmLabel: CLEAR_REVOKED_NAME,
                   description: `${reuseSentence(usedBy)}, and every one of them starts using this key again. Why it was revoked is not kept.`,
                   title: `Clear the revoked flag on the ${subject} key?`,
                   confirmTone: "primary",
@@ -108,35 +132,26 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
                 onConfirm={(): Promise<void> => clearRevoked.mutateAsync({ credentialId: credential.id }).then((): void => undefined)}
                 trigger={
                   <Button data-testid={testId("credentialClearRevoked")} variant="outline" size="sm" disabled={clearRevoked.isPending}>
-                    Clear revoked
+                    {CLEAR_REVOKED_NAME}
                   </Button>
                 }
               />
-              <Button variant="ghost" size="sm" aria-label={`Remove the ${subject} key`} onClick={(): void => setDeleteOpen(true)}>
+              <Button variant="ghost" size="sm" aria-label={removeKeyName(subject)} onClick={(): void => setDeleteOpen(true)}>
                 Remove
               </Button>
             </>
           ) : (
             <>
-              <Button
-                ref={replaceButton}
-                variant="outline"
-                size="sm"
-                aria-label={`Replace the ${subject} key`}
-                disabled={replace.isPending}
-                onClick={(): void => setReplaceOpen(true)}
-              >
-                Replace
-              </Button>
+              {replaceTrigger}
               <Button
                 data-testid={testId("credentialMarkRevoked")}
                 variant="ghost"
                 size="sm"
-                aria-label={`Revoke the ${subject} key`}
+                aria-label={revokeKeyName(subject)}
                 disabled={markRevoked.isPending}
                 onClick={(): void => setRevokeOpen(true)}
               >
-                Revoke
+                {KEY_REVOKE_VERB}
               </Button>
             </>
           )}
@@ -144,7 +159,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
             open={replaceOpen}
             onOpenChange={setReplaceOpen}
             size="sm"
-            title={`Replace the ${subject} key`}
+            title={replaceKeyName(subject)}
             description={`Paste the new key. ${reuseSentence(usedBy)}: every one of them starts using it immediately, and the old key is overwritten.`}
             submit={{ label: "Replace", onSubmit: submitReplacement, disabled: replacementKey.trim() === "", loading: replace.isPending }}
           >
@@ -156,15 +171,15 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
             onConfirm={(): void => remove.mutate({ credentialId: credential.id })}
             onOpenChange={setDeleteOpen}
             open={deleteOpen}
-            title={`Remove the ${subject} key?`}
+            title={removeKeyTitle(subject)}
           />
           <ConfirmDialog
-            confirmLabel="Revoke"
+            confirmLabel={KEY_REVOKE_VERB}
             description={`Marks this key as revoked so no turn uses it: do this when you know it was rotated or leaked. ${reuseSentence(usedBy)}, and every one of them reads as unavailable until you clear the flag or replace the key.`}
             onConfirm={(): void => markRevoked.mutate({ credentialId: credential.id })}
             onOpenChange={setRevokeOpen}
             open={revokeOpen}
-            title={`Revoke the ${subject} key?`}
+            title={revokeKeyTitle(subject)}
           />
         </Row>
       }

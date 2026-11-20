@@ -11,8 +11,9 @@ import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { signUpWithInvite } from "#data";
 import { createSavedEntityForm, focusFirstInvalidFieldIn } from "#forms/editor";
-import { DEAD_INVITE_SENTENCE, testId } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME, DEAD_INVITE_SENTENCE, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { JOIN_HAVE_ACCOUNT_NAME, PENDING_JOIN_NOT_NOW_NAME, signupSubmitLabel } from "../lib/pending-join-names.ts";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
 const useSignupForm = createSavedEntityForm({
@@ -127,7 +128,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
         return (
           <form aria-label="Sign up with an invite" ref={formRef} onSubmit={onSubmit} noValidate={true} data-testid={testId("signupInviteForm")}>
             <Stack gap="block">
-              <Field label="Handle" description={`The name you sign in with: ${HANDLE_RULE}`} error={handleError}>
+              <Field label={ACCOUNT_HANDLE_FIELD_NAME} description={`The name you sign in with: ${HANDLE_RULE}`} error={handleError}>
                 <Input
                   autoComplete="username"
                   required={true}
@@ -136,7 +137,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
                   data-testid={testId("signupHandle")}
                 />
               </Field>
-              <Field label="Password" error={passwordError}>
+              <Field label={ACCOUNT_PASSWORD_FIELD_NAME} error={passwordError}>
                 <Input
                   required={true}
                   type="password"
@@ -159,14 +160,14 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
                 </Text>
               )}
               <Button type="submit" disabled={pending} data-testid={testId("signupSubmit")}>
-                {pending ? "Creating your account…" : "Create account and join"}
+                {signupSubmitLabel(pending)}
               </Button>
               <Row wrap={true} gap="row">
                 <Button cap="fit" variant="ghost" wrap={true} onClick={onUseSignIn} data-testid={testId("signupUseSignIn")}>
-                  I already have an account
+                  {JOIN_HAVE_ACCOUNT_NAME}
                 </Button>
                 <Button variant="ghost" onClick={onDismiss} data-testid={testId("signupDismiss")}>
-                  Not now
+                  {PENDING_JOIN_NOT_NOW_NAME}
                 </Button>
               </Row>
             </Stack>

@@ -829,8 +829,7 @@ const CHART_L_STEP = 0.001;
 const CHART_PIXEL_DISTANCE_FLOOR = 30;
 
 function quantizedRgb(color: Oklch): Rgb {
-  const { r, g, b } = oklchToSrgb(color);
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+  return quantized(oklchToSrgb(color));
 }
 
 function chartContrast(fill: Oklch, surfaces: readonly Oklch[]): number {
@@ -1362,8 +1361,7 @@ export interface InputBorderInputs {
 }
 
 function quantizedPixel(color: Oklch): Rgb {
-  const { r, g, b } = oklchToSrgb(color);
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+  return quantized(oklchToSrgb(color));
 }
 
 /**
@@ -2152,4 +2150,117 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string>(
     literals[role] = ink;
   }
   return literals;
+}
+
+/** One ink an inactive control paints, over the host its control sits on, on the control's own fill when it has one. */
+export interface InactiveInkPair {
+  readonly ink: Oklch;
+  readonly host: Oklch;
+  /** The tone tint under the ink. */
+  readonly fill?: { readonly color: Oklch; readonly alpha: number };
+}
+
+/** What {@link inactiveInkPairs} reads: the page scheme, every tone the palette paints, and the role colours each paints on a host. */
+export interface InactiveInkInputs<Role extends string, Knob extends string> {
+  readonly scheme: ToneScheme<Role, Knob, CarriedToneHost>;
+  readonly tones: readonly ToneSource[];
+  /** The colours one tone's roles paint under a host's scheme: the generated mixes for a seed, a carried scope's literals over them. */
+  readonly rolesOn: (scheme: ToneScheme<Role, Knob, CarriedToneHost>, tone: ToneSource) => Readonly<Record<Role, Oklch>>;
+}
+
+// A disabled control that paints a solid (a solid Button, a checked selection control, a slider's range) drops it for the muted
+// pair at full opacity, so no ink is judged dimmed on a solid.
+function paintsSolid<Role extends string, Knob extends string, Host extends string>(recipe: ToneRoleRecipe<Role, Knob, Host>): boolean {
+  return recipe.colored === "base" || mixStepToward(recipe.colored, "away") !== undefined;
+}
+
+function rolePageInks<Role extends string, Knob extends string>(
+  recipe: ToneRoleRecipe<Role, Knob, CarriedToneHost>,
+  tone: ToneSource,
+  palette: TonePalette<CarriedToneHost>,
+): readonly CarriedToneHost[] {
+  if (palette.carriesPageInks === false) {
+    return [];
+  }
+  return tone === "neutral" ? recipe.neutral.pageInks : recipe.pageInks;
+}
+
+// The page inks a fill-less control paints on one host: the host's own ink and the muted ink a disabled one swaps to. A form
+// control drawn by its D159 edge keeps its box at full strength on the muted fill and dims only its content, the muted ink;
+// a disabled switch sits on the same muted track, its knob the muted ink dimmed when off and at full strength when on. One
+// pair judges all three: the dimmed muted ink over the opaque muted fill, which the full-strength knob clears a fortiori.
+function hostInactivePairs(palette: TonePalette<CarriedToneHost>): readonly InactiveInkPair[] {
+  if (palette.carriesPageInks === false) {
+    return [];
+  }
+  const muted = palette.hosts["muted-foreground"];
+  return [
+    ...[palette.hosts[palette.hostInks?.foreground ?? "foreground"], muted].map((ink) => ({ ink, host: palette.host })),
+    { ink: muted, host: palette.hosts.muted },
+  ];
+}
+
+/**
+ * Every ink an inactive control paints on each surface it sits on (D355): each D336 role floor and page ink of every
+ * tone, a role over a host bare and a page ink on the tint under it, and each host's page inks bare. A control that
+ * swaps to the muted pair instead of dimming paints none of these dimmed. Each pair clears its active floor at full opacity, so {@link inactiveOpacityPercent} always has an answer.
+ */
+export function inactiveInkPairs<Role extends string, Knob extends string>({
+  scheme,
+  tones,
+  rolesOn,
+}: InactiveInkInputs<Role, Knob>): readonly InactiveInkPair[] {
+  const roles = Object.keys(scheme.recipes) as Role[];
+  return TONE_HOSTS.flatMap((host) => {
+    const palette = tonePaletteOn(scheme.palette, host);
+    const onHost = { recipes: scheme.recipes, palette };
+    const tonePairs = tones.flatMap((tone) => {
+      const colors = rolesOn(onHost, tone);
+      return roles.flatMap((role): InactiveInkPair[] => {
+        const recipe = scheme.recipes[role];
+        const floors = recipe.floor.flatMap((over): InactiveInkPair[] => {
+          if (!("role" in over)) {
+            return [{ ink: colors[role], host: palette.hosts[over.host] }];
+          }
+          return paintsSolid(scheme.recipes[over.role]) ? [] : [{ ink: colors[role], host: palette.host, fill: { color: colors[over.role], alpha: 1 } }];
+        });
+        const onTint = rolePageInks(recipe, tone, palette).map((ink) => ({
+          ink: palette.hosts[palette.hostInks?.[ink] ?? ink],
+          host: palette.host,
+          fill: { color: colors[role], alpha: 1 },
+        }));
+        return [...floors, ...onTint];
+      });
+    });
+    return [...tonePairs, ...hostInactivePairs(palette)];
+  });
+}
+
+/** The worse ratio of the float and the 8-bit pixel a pair paints with its whole control dimmed to `alpha`. */
+function inactiveContrast(
+  pair: { readonly ink: Rgb; readonly host: Rgb; readonly fill?: { readonly color: Rgb; readonly alpha: number } },
+  alpha: number,
+): number {
+  const ground = pair.fill === undefined ? pair.host : compositeSrgb(pair.fill.color, alpha * pair.fill.alpha, pair.host);
+  return worstTextContrast(compositeSrgb(pair.ink, alpha, pair.host), [ground]);
+}
+
+/**
+ * The opacity percent an inactive control dims to on a palette (D355): the least whole percent at or above the resting
+ * step at which every pair clears {@link AA_NON_TEXT_RATIO}, the floor at which a control still reads as present. The
+ * opacity moves and the inks never do, so an active control paints the same colours on every palette.
+ */
+export function inactiveOpacityPercent(pairs: readonly InactiveInkPair[], restingPercent: number): number {
+  const painted = pairs.map(({ ink, host, fill }) => ({
+    ink: oklchToSrgb(ink),
+    host: oklchToSrgb(host),
+    ...(fill === undefined ? {} : { fill: { color: oklchToSrgb(fill.color), alpha: fill.alpha } }),
+  }));
+  for (let percent = restingPercent; percent <= PERCENT; percent += 1) {
+    if (painted.every((pair) => inactiveContrast(pair, percent / PERCENT) >= AA_NON_TEXT_RATIO)) {
+      return percent;
+    }
+  }
+  // Every pair clears its active floor, at least 4.5:1, at full opacity, so a miss there is a derivation defect.
+  throw new Error("an inactive control's ink misses the 3:1 floor at full opacity");
 }

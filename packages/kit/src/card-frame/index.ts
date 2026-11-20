@@ -31,11 +31,14 @@
 // `allow-same-origin`), this document's own `default-src 'none'`, and the APP document's `default-src 'self'`
 // above it — where can a card document navigate? ANSWER, per vector (probed by serving the REAL bytes under the REAL policies
 // inside a parent carrying the app's own directives, and recording every target that is actually REQUESTED):
-//   • a card `<a href="https://elsewhere">` navigating the FRAME ITSELF — REFUSED. The EMBEDDER's policy
-//     governs where its frame may go, whoever initiates: the app names no `frame-src`, so `default-src
-//     'self'` is the belt. CONTROL: the identical probe with the parent widened to `frame-src *` DOES land
-//     the request, and a SAME-ORIGIN target lands under the app policy — so this is a real block, not a
-//     probe that could never navigate anything.
+//   • the FRAME navigating ITSELF off-origin — REFUSED. The EMBEDDER's policy governs where its frame may go,
+//     whoever initiates: the app names `frame-src 'self'`. CONTROL: an off-origin meta refresh with the parent
+//     widened to `frame-src *` DOES land the request, and a SAME-ORIGIN refresh lands under the app policy — so
+//     this is a real block, not a probe that could never navigate anything. A card's http, https or mailto link
+//     never reaches this: the pinned script hands its click to the embedder (`CARD_FRAME_HEIGHT_SCRIPT`). A refused
+//     navigation leaves the frame blank (measured: a card's `data:` or custom-scheme link under the app policy), so
+//     the script reads an image map's `area` as it reads an `a`, and swallows every other card link but a
+//     `javascript:` one.
 //   • `target="_top"` — REFUSED (two belts: the sandbox has no `allow-top-navigation`, and the destination
 //     is off-origin anyway). The top document stays put.
 //   • a `<form action="https://elsewhere">` submit — REFUSED (`form-action 'none'`, this document's own).
@@ -84,11 +87,12 @@
 // dead config teaching the next reader a lie; it is NOT emitted. This channel is outside `connect-src`
 // AND outside the external-media ceiling: an interactive card can beacon a view-receipt, a fingerprint,
 // or anything a viewer is socially engineered into typing INSIDE the frame, on any deployment. It cannot
-// reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE —
-// which is why the deployment ceiling below is a precondition of the grant rather than a convenience. Its
-// floor is ON by owner ruling (interactive cards are the default for every character), so R1 is open on a
-// default deployment and the ceiling is the revocation an operator uses to close it. Each viewer can also
-// close it for their own browser (`UserSettings.chat.runCardScripts`, honored at the server mint).
+// reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE, and
+// three consents decide that (D294): a character's own ladder step, the install's "Default for characters" for
+// every character that inherits it, and each viewer's own `UserSettings.chat.runCardScripts`, honored at the
+// server mint. The default's floor is Interactive by owner ruling, so R1 is open on a default deployment; an
+// operator closes it for inheriting characters by lowering the default, a character's owner keeps it open for
+// that character by setting it to Interactive, and a viewer closes it for their own browser.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -102,6 +106,8 @@
 import { FONT_SCALE_PERCENT } from "#font-scale";
 import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
+
+export * from "./focus.ts";
 
 /** Where the policy is delivered. `document` = a `Content-Security-Policy` RESPONSE HEADER (the routed arm —
  *  can express `sandbox` + `frame-ancestors`, and is not intersected with the embedder's policy).
@@ -135,20 +141,20 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  * security pass.
  *
  *   • `static` — only OUR hash-pinned measurement script may execute. What a card gets when its character
- *     sits below the top rung ("Render HTML", "Untrusted"), when the deployment ceiling is off, and on
+ *     sits below the top rung ("Rich HTML", "Plain text"), when the viewer's own switch is off, and on
  *     every failure arm of the mint.
  *   • `interactive` — the card's character resolves to the TOP RUNG of the one ordered html-trust ladder
  *     (`RenderPolicy.htmlTrust`, contracts/chat: `untrusted` then `trusted` then `interactive`), resolved
- *     off the `characters` ladder columns against the `allowInteractiveCards` AppSetting. A character on
- *     "Inherit default" (an imported card included) resolves there whenever the ceiling is up. Interactive
- *     IMPLIES trusted by construction, so a frame in this posture always has the `data:` door too.
+ *     off the `characters` ladder columns against the install's `defaultHtmlStep` AppSetting. A character set to
+ *     Interactive resolves there under any default; a character on "Inherit default" (an imported card included)
+ *     resolves there whenever that step is Interactive. Interactive IMPLIES trusted by construction, so a frame in
+ *     this posture always has the `data:` door too.
  *
- * THE CEILING IS AN AND (never `override ??`). The `allowInteractiveCards` AppSetting is the DEPLOYMENT
- * OPERATOR's, its floor is ON by owner ruling, and it is both the default rung of an inheriting card and
- * the veto no per-character answer rises above. It is the revocation because of residual R1 in the header
- * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so switching
- * the posture off is the one control that exists. The per-character disable is a lower rung picked on the
- * character's Trust tab.
+ * The `defaultHtmlStep` AppSetting ("Default for characters") is the DEPLOYMENT OPERATOR's, its floor is Interactive by
+ * owner ruling, and it is the step of an inheriting card only: a character's own step wins over it, as Plain text and
+ * Rich HTML do (D294). Because of residual R1 in the header above, the grant opens a WebRTC/STUN channel that no CSP
+ * directive in Chromium can close, so not serving this posture is the one control that exists: a lower rung on the
+ * character's Trust tab, a lower default for inheriting characters, or the viewer's own switch.
  *
  * The sandbox grant does NOT vary by posture: it is still `allow-scripts` alone (never `allow-same-origin`,
  * never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src` moves — so
@@ -166,7 +172,23 @@ const CARD_FRAME_POSTURES = ["static", "interactive"] as const;
 export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
 
 /**
- * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder.
+ * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder, and hand
+ * a link click to the embedder instead of navigating the frame, which the app's `frame-src 'self'` would refuse
+ * (FRAME NAVIGATION in the header). A link is an `a` or an image map's `area` with an `href`: both navigate the frame
+ * the same way. A fragment-only link keeps its default everywhere, so in-document jumps work. In a card, an http, https
+ * or mailto link is handed over, a `javascript:` link keeps its default (Chromium did not follow one in an interactive
+ * card frame, and the static posture's `script-src` refuses it), and a link of any other scheme (`data:`, a custom
+ * scheme) does nothing: the app's `frame-src` refuses its navigation and Chromium would leave the frame blank. Inside a
+ * styled reply's body (`[data-frame-reply]`)
+ * every other link is swallowed and handed over, so no other scheme runs or navigates there. The embedder decides what
+ * a link message may do: {@link readCardFrameLink} admits only an http, https or mailto address, and the host opens it
+ * only through its own confirm, raised from a frame its focus gate admitted. A document whose root carries
+ * {@link CARD_FRAME_MISSING_ATTRIBUTE} (the server's miss notice) says so once it loads, so a reply frame can mint
+ * again instead of showing the notice in place of the reply.
+ * PANELS: on every `toggle` it posts the indexes of the document's open `details` elements, and at load it sets
+ * each `details` open exactly when the root's {@link CARD_FRAME_OPEN_PANELS_ATTRIBUTE} names its index, so a host
+ * that kept the last report can restore the reader's panels in a fresh document. The report flows out only; nothing
+ * the host sends reaches a running document, so no card script can forge a host instruction.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
  * hash below is computed over exactly this string, so any edit (even whitespace) must recompute the digest.
  *
@@ -179,13 +201,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}function panels(){var open=[];var all=document.querySelectorAll("details");for(var i=0;i<all.length;i++){if(all[i].open){open.push(i);}}parent.postMessage({orbCardFramePanels:open},"*");}addEventListener("DOMContentLoaded",function(){var root=document.documentElement;var saved=root.getAttribute("data-frame-open-panels");if(saved!==null){var marks=" "+saved+" ";var all=document.querySelectorAll("details");for(var i=0;i<all.length;i++){all[i].open=marks.indexOf(" "+i+" ")!==-1;}}new ResizeObserver(post).observe(document.body);if(root.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("toggle",panels,true);addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href],area[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-VIclTO6EVLJm+2EQf0XVBy7VYmZzl7ZN6oa/JwIRxEI='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -230,24 +252,184 @@ const CARD_FRAME_SCRIPT_SOURCES = {
 const CARD_FRAME_MIN_HEIGHT_PX = 48;
 const CARD_FRAME_MAX_HEIGHT_PX = 720;
 
+/** The cap for a frame that holds a WHOLE styled reply rather than one card. A reply is prose the reader scrolls
+ *  with the transcript, so it grows to its content and never scrolls inside itself; this bound exists only so a
+ *  hostile document cannot report an unbounded height. Measured in a routed reply frame: a long scene drawn by
+ *  a heavy public preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
+ *  phone width and 300% text, and 1,623px on a desktop at 100%; the cap sits an order of magnitude above it.
+ *  The resize ration in {@link foldCardFrameHeight} bounds the measure loop. */
+const REPLY_FRAME_MAX_HEIGHT_PX = 200_000;
+
+/** The height bound a frame folds its self-reports against: one card, or one whole reply. */
+const CARD_FRAME_HEIGHT_CAPS = { card: CARD_FRAME_MAX_HEIGHT_PX, reply: REPLY_FRAME_MAX_HEIGHT_PX } as const;
+export type CardFrameHeightCap = keyof typeof CARD_FRAME_HEIGHT_CAPS;
+
 const HEIGHT_KEY = "orbCardFrameHeight";
+const LINK_KEY = "orbCardFrameLink";
+const MISSING_KEY = "orbCardFrameMissing";
+const PANELS_KEY = "orbCardFramePanels";
+
+/** The root attribute that marks the server's miss notice: the handle is unknown, expired or evicted. The pinned
+ *  script reads it by this exact name. */
+export const CARD_FRAME_MISSING_ATTRIBUTE = "data-frame-missing";
+
+/** Whether one `message` payload is a frame's report that its handle is gone. UNTRUSTED like every frame message:
+ *  the caller still owes the sender check, and the worst a lying frame earns is one fresh mint of its own reply. */
+export function readCardFrameMissing(data: unknown): boolean {
+  return isPlainObject(data) && data[MISSING_KEY] === true;
+}
+
+/** The root attribute that carries a document's open panels into a fresh build: the indexes, in document order, of
+ *  the `details` elements to open, space-separated. The pinned script reads it by this exact name. */
+export const CARD_FRAME_OPEN_PANELS_ATTRIBUTE = "data-frame-open-panels";
+
+/** The bound on one panels report, sized so the longest value stays inside the root-attribute grammar's length. */
+export const CARD_FRAME_PANEL_LIMITS = { count: 32, maxIndex: 999 } as const;
 
 /**
- * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that
- * is not a valid growth — a foreign/garbage payload, a non-finite or non-numeric height, and any report
- * SMALLER than one already applied.
+ * The open panels one `message` payload reports, sorted, deduplicated and within {@link CARD_FRAME_PANEL_LIMITS}, or
+ * `undefined` when the payload is no panels report. UNTRUSTED like every frame message: an interactive card's own
+ * script can post any report, so the caller still owes the sender check, and the worst a lying frame earns is which of
+ * its own panels open in its next document.
+ */
+export function readCardFramePanels(data: unknown): readonly number[] | undefined {
+  if (!isPlainObject(data)) {
+    return undefined;
+  }
+  const raw: unknown = data[PANELS_KEY];
+  // A list longer than the indexes it can name is no report, and refusing it unread keeps the scan bounded.
+  if (!Array.isArray(raw) || raw.length > CARD_FRAME_PANEL_LIMITS.maxIndex + 1) {
+    return undefined;
+  }
+  const entries: readonly unknown[] = raw;
+  const open = new Set<number>();
+  for (const index of entries) {
+    if (typeof index === "number" && Number.isSafeInteger(index) && index >= 0 && index <= CARD_FRAME_PANEL_LIMITS.maxIndex) {
+      open.add(index);
+    }
+  }
+  return [...open].toSorted((left, right) => left - right).slice(0, CARD_FRAME_PANEL_LIMITS.count);
+}
+
+/** The {@link CARD_FRAME_OPEN_PANELS_ATTRIBUTE} value for a report {@link readCardFramePanels} returned. An empty value
+ *  is a report too: the reader closed every panel, so the fresh document opens none. */
+export function cardFrameOpenPanelsValue(panels: readonly number[]): string {
+  return panels.join(" ");
+}
+// The only addresses a framed link may hand the host: a page (an absolute http or https URL with a host) or a mail
+// draft. `javascript:`, `data:`, `blob:`, a relative path and every app-internal scheme stay refused. No control
+// character or space, which a browser-normalized `href` never holds. Kit has no `URL`, so the shape is matched here.
+const FRAME_LINK_RE = /^(?:https?:\/\/[^\s/?#\\@][^\s\\]*|mailto:\S+)$/iu;
+const LAST_SPACE_OR_CONTROL = 0x20;
+const DELETE_CONTROL = 0x7f;
+
+function holdsControlOrSpace(text: string): boolean {
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code <= LAST_SPACE_OR_CONTROL || code === DELETE_CONTROL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Read one `message` payload as a framed link click: the absolute address when the payload carries one whose
+ * scheme is http, https or mailto, else `undefined`. The payload is UNTRUSTED (an interactive frame can post it
+ * without a click), so the caller still owes the sender check (`event.source === iframe.contentWindow`), a live
+ * user activation, its focus gate's admission of that frame, and its own parse and confirm before anything opens.
+ */
+export function readCardFrameLink(data: unknown): string | undefined {
+  if (!isPlainObject(data)) {
+    return;
+  }
+  const raw = data[LINK_KEY];
+  return typeof raw === "string" && FRAME_LINK_RE.test(raw) && !holdsControlOrSpace(raw) ? raw : undefined;
+}
+
+/** How long after its first report a reply frame resizes freely, while its document loads its fonts and images. */
+export const REPLY_FRAME_SETTLE_MS = 1000;
+/** After that, how many resizes, up or down, a reply frame may apply at once. A reply's own drawers open and close, and
+ *  a reply that cannot resize leaves the reader a blank tail under a closed drawer or clips an opened one. */
+export const REPLY_FRAME_RESIZE_BURST = 4;
+/** One resize credit per this many ms, up to the burst: a reader toggles a drawer far slower, and a document that resizes
+ *  every frame relayouts the transcript at most this often once the burst is spent. */
+export const REPLY_FRAME_RESIZE_REFILL_MS = 500;
+
+/**
+ * A frame's applied height. A reply frame also carries its resize credit (`credit`, counted from `at` on the caller's
+ * clock), when its first report came (`since`), and the latest height it asked for while it had no credit
+ * (`pendingPx`), which {@link settleCardFrameHeight} applies once a credit is back.
+ */
+export interface CardFrameHeight {
+  readonly px: number;
+  readonly credit: number;
+  readonly at: number;
+  readonly since: number;
+  readonly pendingPx: number | undefined;
+}
+
+function refilled(height: CardFrameHeight, nowMs: number): CardFrameHeight {
+  const gained = Math.floor((nowMs - height.at) / REPLY_FRAME_RESIZE_REFILL_MS);
+  if (gained <= 0) {
+    return height;
+  }
+  const credit = Math.min(REPLY_FRAME_RESIZE_BURST, height.credit + gained);
+  return { ...height, credit, at: credit === REPLY_FRAME_RESIZE_BURST ? nowMs : height.at + gained * REPLY_FRAME_RESIZE_REFILL_MS };
+}
+
+// A reply frame's request for `requested` px: free while it settles, then one credit per change; with no credit the
+// request waits as `pendingPx`, the latest replacing any earlier one.
+function resizeReply(current: CardFrameHeight, requested: number, nowMs: number): CardFrameHeight {
+  if (nowMs - current.since < REPLY_FRAME_SETTLE_MS) {
+    return requested === current.px && current.pendingPx === undefined ? current : { ...current, px: requested, pendingPx: undefined };
+  }
+  const height = refilled(current, nowMs);
+  if (requested === height.px) {
+    return height.pendingPx === undefined ? height : { ...height, pendingPx: undefined };
+  }
+  if (height.credit < 1) {
+    return { ...height, pendingPx: requested };
+  }
+  return { ...height, px: requested, credit: height.credit - 1, pendingPx: undefined };
+}
+
+/** Apply a reply frame's waiting height if a credit has come back; unchanged otherwise. The caller calls it after
+ *  {@link cardFrameSettleDelayMs}, so the last height a document asks for always lands and never stays clipped. */
+export function settleCardFrameHeight(current: CardFrameHeight, nowMs: number): CardFrameHeight {
+  return current.pendingPx === undefined ? current : resizeReply({ ...current, pendingPx: undefined }, current.pendingPx, nowMs);
+}
+
+/** How long until a reply frame's waiting height can land, or `undefined` when none waits. */
+export function cardFrameSettleDelayMs(current: CardFrameHeight, nowMs: number): number | undefined {
+  return current.pendingPx === undefined ? undefined : Math.max(0, current.at + REPLY_FRAME_RESIZE_REFILL_MS - nowMs);
+}
+
+/**
+ * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that is not
+ * a valid change: a foreign or garbage payload, a non-finite or non-numeric height, and a shrink the frame has no
+ * credit for. The first report sets the height whatever it is.
  *
  * The caller still owes the sender check (`event.source === iframe.contentWindow`); this half owns the
  * payload. Window identity is the only usable authentication: every sandboxed frame's `event.origin` is the
  * string `"null"`, so origin cannot tell OUR frame from any other opaque sender.
  *
- * MONOTONIC after the first report, deliberately: frame height feeds back into content height (`vh` units,
- * percentage heights, media queries), so a card — hostile or merely fluid — can otherwise drive an endless
- * measure/resize/measure loop that relayouts the whole transcript. Grow-only bounds that to ONE downward
- * step per mount, which is exactly the step the height channel needs (the void closes on the first measurement); a later
- * shrink just leaves whitespace inside the frame.
+ * RESIZES ARE RATIONED, deliberately: frame height feeds back into content height (`vh` units, percentage heights,
+ * media queries), and every applied change relayouts the whole transcript, so a document, hostile or merely fluid, can
+ * otherwise drive an endless measure/resize/measure loop. A card is grow-only: one downward step per mount, which closes
+ * the void on the first measurement, and its growth stops at the card cap, so a card can cause a bounded number of
+ * relayouts per mount. A reply resizes freely for {@link REPLY_FRAME_SETTLE_MS} after its first report, then spends one
+ * credit per change, up or down, from a small burst that refills ({@link REPLY_FRAME_RESIZE_BURST}). A change asked for
+ * with no credit waits and lands when one comes back ({@link settleCardFrameHeight}), so a drawer closes promptly, real
+ * content is never left clipped, and a document that resizes every frame relayouts the transcript at most once per
+ * refill.
  */
-export function foldCardFrameHeight(current: number | undefined, data: unknown): number | undefined {
+export function foldCardFrameHeight(
+  current: CardFrameHeight | undefined,
+  data: unknown,
+  cap: CardFrameHeightCap = "card",
+  nowMs = 0,
+): CardFrameHeight | undefined {
   if (!isPlainObject(data)) {
     return current;
   }
@@ -257,11 +439,14 @@ export function foldCardFrameHeight(current: number | undefined, data: unknown):
   }
   // Ceil, not round: a fractional content height rounded DOWN clips its own last device pixel and the frame
   // grows a scrollbar over one subpixel.
-  const clamped = Math.min(CARD_FRAME_MAX_HEIGHT_PX, Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
-  if (current !== undefined && clamped <= current) {
-    return current;
+  const clamped = Math.min(CARD_FRAME_HEIGHT_CAPS[cap], Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
+  if (current === undefined) {
+    return { px: clamped, credit: REPLY_FRAME_RESIZE_BURST, at: nowMs, since: nowMs, pendingPx: undefined };
   }
-  return clamped;
+  if (cap === "card") {
+    return clamped > current.px ? { ...current, px: clamped } : current;
+  }
+  return resizeReply(current, clamped, nowMs);
 }
 
 /** The card frame's ONE variable axis pair — both decided by the SERVER (a client may select which
@@ -289,6 +474,9 @@ export interface CardFrameContent {
    *  could never travel in `themeTokens`. Clamped by {@link clampCardFrameStyleTokens}. Every field on this
    *  interface EXISTS on every construction site (never `?`), so a new one is a tsc-forced decision at each. */
   readonly styleTokens: Readonly<Record<string, string>> | undefined;
+  /** `data-*` attributes set on the document's `<html>`, mirroring the host root's appearance and skin channels
+   *  the prose rules key on. Clamped by {@link clampCardFrameRootAttributes}. */
+  readonly rootAttributes: Readonly<Record<string, string>> | undefined;
 }
 
 /** The closed NON-COLOR slice the frame document reads, by role. Each name has its own value grammar in
@@ -297,6 +485,8 @@ export const CARD_FRAME_STYLE_TOKEN = {
   radius: "--sandbox-radius",
   monoFamily: "--sandbox-font-mono",
   rootSize: "--sandbox-root-size",
+  /** The card body's inset from the card's edge. A card sends it; a styled reply does not, so its body sits flush. */
+  inset: "--sandbox-inset",
 } as const;
 export type CardFrameStyleTokenName = (typeof CARD_FRAME_STYLE_TOKEN)[keyof typeof CARD_FRAME_STYLE_TOKEN];
 /** The clamped style slice: any subset of {@link CARD_FRAME_STYLE_TOKEN}, each value already past its grammar. */
@@ -333,6 +523,7 @@ const STYLE_TOKEN_GRAMMAR: Record<CardFrameStyleTokenName, (value: string) => st
   [CARD_FRAME_STYLE_TOKEN.radius]: (value) => (CSS_LENGTH.test(value) ? value : undefined),
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: (value) => (FONT_FAMILY_LIST.test(value) ? value : undefined),
   [CARD_FRAME_STYLE_TOKEN.rootSize]: clampRootSize,
+  [CARD_FRAME_STYLE_TOKEN.inset]: (value) => (CSS_LENGTH.test(value) ? value : undefined),
 };
 
 function isStyleTokenName(name: string): name is CardFrameStyleTokenName {
@@ -347,17 +538,55 @@ export function clampCardFrameStyleToken(name: string, value: unknown): string |
   return isStyleTokenName(name) && typeof value === "string" ? STYLE_TOKEN_GRAMMAR[name](value) : undefined;
 }
 
-/** Keeps only entries whose key is a `--*` custom-property name and whose value passes `isSafeColor` — the
- *  SAME predicate `<ThemeScope>` uses, never a second weaker one. Applied at BOTH boundaries (the client
- *  before minting, the server before assembling): the server's call is the trust boundary. */
+// A token value the frame admits: a colour (the SAME `isSafeColor` predicate `<ThemeScope>` uses), a plain
+// length, or a font-family list. None of the three grammars admits a `(`, `;`, brace, angle bracket or backslash
+// outside a colour function `isSafeColor` itself vets, so no value can leave its declaration or name a URL.
+function isSafeTokenValue(value: string): boolean {
+  return isSafeColor(value) || CSS_LENGTH.test(value) || FONT_FAMILY_LIST.test(value);
+}
+
+/** The size of a theme-token set the frame takes, in one home: the mint's parse bounds read it and the clamp keeps
+ *  to it, so a set the client clamped is never refused at the mint. A framed reply carries the app's whole resolved
+ *  token set so a custom theme reaches it: 565 tokens today, so the count sits well above use. Every value grammar
+ *  the clamp admits is already shorter than `valueChars` (a colour 64, a font list 120, a length 11). */
+export const CARD_FRAME_THEME_TOKEN_LIMITS = { count: 1024, nameChars: 64, valueChars: 128 } as const;
+
+/** Keeps only entries whose key is a `--*` custom-property name and whose value is a safe colour, a plain length
+ *  or a font-family list, each within {@link CARD_FRAME_THEME_TOKEN_LIMITS}, so the app's whole resolved token set
+ *  (a custom theme included) can ride into a framed reply. Applied at BOTH boundaries (the client before minting,
+ *  the server before assembling): the server's call is the trust boundary. */
 export function clampCardFrameThemeTokens(raw: unknown): Readonly<Record<string, string>> {
   if (!isPlainObject(raw)) {
     return {};
   }
+  const { count, nameChars } = CARD_FRAME_THEME_TOKEN_LIMITS;
   const out: Record<string, string> = {};
+  let kept = 0;
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "string" && CUSTOM_PROP_KEY.test(key) && !CSS_ESCAPE.test(`${key}${value}`) && isSafeColor(value)) {
+    if (kept === count) {
+      break;
+    }
+    if (typeof value === "string" && key.length <= nameChars && CUSTOM_PROP_KEY.test(key) && !CSS_ESCAPE.test(`${key}${value}`) && isSafeTokenValue(value)) {
       out[key] = value;
+      kept += 1;
+    }
+  }
+  return out;
+}
+
+const ROOT_ATTRIBUTE_NAME = /^data-[a-z][a-z0-9-]{0,63}$/u;
+// A channel value is a keyword or a number: no quote, angle bracket or ampersand can reach the attribute.
+const ROOT_ATTRIBUTE_VALUE = /^[\w .:-]{0,128}$/u;
+
+/** Keeps only `data-*` names whose values are plain keywords or numbers. */
+export function clampCardFrameRootAttributes(raw: unknown): Readonly<Record<string, string>> {
+  if (!isPlainObject(raw)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(raw)) {
+    if (typeof value === "string" && ROOT_ATTRIBUTE_NAME.test(name) && ROOT_ATTRIBUTE_VALUE.test(value)) {
+      out[name] = value;
     }
   }
   return out;
@@ -440,13 +669,13 @@ export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFr
   return [...grant, ...directives, `frame-ancestors 'self'`].join("; ");
 }
 
-/** The response headers a routed frame document goes out with. `no-store` because the document holds one
- *  viewer's bytes; `nosniff` because the body is attacker-influenced markup and must never be re-typed by a
- *  sniffing browser; `no-referrer` so a permitted external fetch cannot carry our URL anywhere. */
-export function cardFrameResponseHeaders(csp: string): Record<string, string> {
+/** The response headers a routed frame document goes out with beside its policy, which the server's own-policy
+ *  registrar writes. `no-store` because the document holds one viewer's bytes; `nosniff` because the body is
+ *  attacker-influenced markup and must never be re-typed by a sniffing browser; `no-referrer` so a permitted
+ *  external fetch cannot carry our URL anywhere. */
+export function cardFrameResponseHeaders(): Record<string, string> {
   return {
     "Content-Type": "text/html; charset=utf-8",
-    "Content-Security-Policy": csp,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
@@ -475,7 +704,10 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
   // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.
   const rootSize = `html { font-size: var(${CARD_FRAME_STYLE_TOKEN.rootSize}, 100%); }`;
-  return `${scrollbar} ${rootSize} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  // A flow root, so the first and last children's margins stay inside the body: the pinned script measures
+  // `body.scrollHeight`, and a margin that collapsed through the body would be cut from the frame.
+  // The inset is the body's padding, so an authored background still fills the card to its edge.
+  return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: var(${CARD_FRAME_STYLE_TOKEN.inset}, 0); background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**
@@ -504,9 +736,12 @@ export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: stri
   const baseBody = baseBodyBlock(clampCardFrameFontFamily(content.fontFamily));
   const meta = metaCsp === undefined ? "" : `<meta http-equiv="Content-Security-Policy" content="${metaCsp}">`;
   const script = metaCsp === undefined ? `<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>` : "";
+  const rootAttributes = Object.entries(clampCardFrameRootAttributes(content.rootAttributes))
+    .map(([name, value]) => ` ${name}="${value}"`)
+    .join("");
   return [
     "<!doctype html>",
-    '<html><head><meta charset="utf-8">',
+    `<html${rootAttributes}><head><meta charset="utf-8">`,
     meta,
     `<style>${themeCss} ${baseBody} ${content.css ?? ""}</style>`,
     script,

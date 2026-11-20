@@ -20,6 +20,7 @@ import {
   rosterPresets,
   users,
 } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import { NoConnectionError } from "@orb/inference";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -105,7 +106,7 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
     const asset = await db
       .select({ id: assets.id })
       .from(assets)
-      .where(and(eq(assets.id, row.avatarAssetId), eq(assets.kind, "avatar")))
+      .where(and(eq(assets.id, row.avatarAssetId), assetUsedAs(db, ["avatar"])))
       .limit(1);
     expect(asset.length, `avatar asset ${row.avatarAssetId} resolves`).toBe(1);
   }

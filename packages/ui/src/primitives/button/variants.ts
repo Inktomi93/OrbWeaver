@@ -7,8 +7,11 @@ import {
   CONTROL_INSET,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
+  CONTROL_WRAP,
+  DISABLED_SOLID,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
+  DISABLED_UNDIMMED,
   FLOOR,
   FOCUS_RING,
   FOCUS_RING_INSET,
@@ -62,13 +65,9 @@ export const buttonVariants = tv({
     justify: { start: "justify-start text-start", between: "justify-between" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
-      // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
+      // A disabled solid drops its fill for the neutral muted pair at full opacity (a half-opacity fill read as nearly enabled, and the pair dimmed again fell under the legibility floor).
       // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `primitives.css` quiets its ring to match.
-      solid: [
-        "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active",
-        "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:shadow-none",
-        "data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:shadow-none",
-      ],
+      solid: ["bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active", DISABLED_SOLID],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
       outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER} ${TONE_TINT_PRESS}`,
@@ -92,7 +91,7 @@ export const buttonVariants = tv({
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
-    wrap: { true: `py-tight wrap-anywhere whitespace-normal block-auto ${CAP.fit}`, false: "" },
+    wrap: { true: `py-tight block-auto ${CONTROL_WRAP.anywhere}`, false: "" },
     // MULTILINE, A LINE PER FACT: a block of lines in a start-aligned column. The height follows the lines, floored at the step's
     // height (a compound below), and the row inset replaces the step's, so the lines sit level with the list that holds them.
     stacked: { true: "flex-col items-start p-row block-auto", false: "" },
@@ -167,13 +166,14 @@ export const buttonVariants = tv({
     // conditions with no negation to hide under, so this arm restores the display.
     hiddenAt: { ...HIDDEN_AT, unlessDialogLandscapeWide: "hidden dialog-short:glass-short:inline-flex dialog-stacked:hidden" },
     reveal: HOVER_REVEAL,
-    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
-    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
+    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it. A text-height
+    // action at a window's edge, where its centred hit band would run past the edge, stands at the floor's block size instead.
+    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline, block: TOUCH_FLOOR_AT_COARSE.block },
 
     // The accent ring for the moment a change this control made has landed (a portrait just replaced).
     confirming: { true: "ring-(length:--border-width-rule) ring-accent", false: "" },
     // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.
-    quietDisabled: { true: "disabled:opacity-100 data-disabled:opacity-100", false: "" },
+    quietDisabled: { true: DISABLED_UNDIMMED, false: "" },
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },

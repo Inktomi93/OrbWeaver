@@ -21,9 +21,8 @@
 //     score, or a verdict about a rewrite the canvas is no longer showing, says so. Three payloads side by
 //     side is a claim that they belong together, and that claim is sometimes false.
 //
-// THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto overscroll-contain`) — the house requirement `databank-detail-
-// surface.tsx`'s header states verbatim: the shell's CONTENT region carries NO overflow, so a surface
-// without it "simply has its tail unreachable". It shipped without it once and the tail here is the
+// THIS PANE OWNS ITS SCROLL (`ContentPane`): the shell's CONTENT region carries NO overflow, so a surface
+// without a scroller "simply has its tail unreachable". It shipped without it once and the tail here is the
 // TERMINAL ACT (live 2026-08-09: content 3 981px in a 952px box, Apply unreachable by mouse, key or script).
 //
 // THE NO-SELECTION ARM IS ITS OWN MODULE (`components/refinery-start-pane.tsx`): the landing joins a
@@ -38,7 +37,8 @@ import { Row, Stack, Surface } from "@orb/ui/layout";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary } from "#components";
+import type { ContentPaneMeasure } from "#components";
+import { ContentPane, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
@@ -77,6 +77,8 @@ import { workbenchLanesOf } from "../lib/workbench-lanes.ts";
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
 type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
 
+const WORKBENCH_MEASURE: ContentPaneMeasure = { full: "The workbench lays three lanes across the pane." };
+
 export function RefineryContentSurface(): ReactElement {
   const sessionId = useSelectedRefinerySessionId();
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -85,7 +87,8 @@ export function RefineryContentSurface(): ReactElement {
   // effects on every reveal, so an unconditional claim would take focus from a list the user has docked.
   useFocusOnMount(surfaceRef, useSectionListMode("refinery") === "collapsed");
   return (
-    <Stack scroll="y" height="fill" focusTarget={true} ref={surfaceRef} tabIndex={-1}>
+    // The landing rides the column; the workbench spans the pane and lays its own block rhythm.
+    <ContentPane inset={sessionId === null ? "section" : "none"} measure={sessionId === null ? "column" : WORKBENCH_MEASURE} ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (
         <RefineryStartPane />
       ) : (
@@ -106,7 +109,7 @@ export function RefineryContentSurface(): ReactElement {
           <RefinerySessionPane sessionId={sessionId} />
         </QueryBoundary>
       )}
-    </Stack>
+    </ContentPane>
   );
 }
 
@@ -238,7 +241,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 viewingBack={lanes.score.viewingBack}
               />
             </Stack>
-            <Stack className="min-inline-0" grow={true} gap="row">
+            <Stack minWidth="shrinks" grow={true} gap="row">
               <RewriteLane
                 behind={lanes.rewrite.behind}
                 decided={decided}
@@ -296,6 +299,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 // A completed session's rewrite already landed; running any stage re-opens it.
                 completed={view.status === "completed"}
                 keptAccepts={keptAccepts}
+                outcomeShown={outcome !== null}
               />
             )
           }

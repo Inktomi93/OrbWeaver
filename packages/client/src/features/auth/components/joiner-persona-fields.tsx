@@ -9,6 +9,7 @@ import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
+import { JOINER_PERSONA_DESCRIPTION_FIELD, JOINER_PERSONA_NAME_FIELD } from "../lib/pending-join-names.ts";
 
 export interface JoinerPersonaFieldsProps {
   readonly name: string;
@@ -23,10 +24,10 @@ export interface JoinerPersonaFieldsProps {
 export function JoinerPersonaFields({ name, nameError = null, description, onNameChange, onDescriptionChange }: JoinerPersonaFieldsProps): ReactElement {
   return (
     <Stack gap="block" data-testid={testId("joinerPersona")}>
-      <Field label="Your name in the story" description="Characters see and address you by this name. You can change it later." error={nameError}>
+      <Field label={JOINER_PERSONA_NAME_FIELD} description="Characters see and address you by this name. You can change it later." error={nameError}>
         <Input autoComplete="off" required={true} value={name} onValueChange={onNameChange} data-testid={testId("joinerPersonaName")} />
       </Field>
-      <Field label="Description" description="Optional: how characters should picture you.">
+      <Field label={JOINER_PERSONA_DESCRIPTION_FIELD} description="Optional: how characters should picture you.">
         <Textarea value={description} maxLength={JOINER_PERSONA_DESCRIPTION_MAX} onChange={(event): void => onDescriptionChange(event.target.value)} />
       </Field>
     </Stack>

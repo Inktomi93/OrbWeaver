@@ -6,6 +6,7 @@ import { CodeEditor } from "@orb/ui/code-editor";
 import type { ReactElement } from "react";
 import { OWNER_CSS_RENAMES } from "#owner-css";
 import { OWNER_CSS_SURFACE } from "../../../../owner-css-surface.ts";
+import { CONFIG_THEME_CSS_FIELD_NAME } from "../lib/config-control-names.ts";
 import { OWNER_CSS_COMPLETIONS } from "../lib/theme-css-completions.ts";
 import { themeCssHookWarnings } from "../lib/theme-css-warnings.ts";
 
@@ -16,5 +17,14 @@ export function ThemeCssField({ value, onChange }: { readonly value: string; rea
     ...warnings.map((message) => ({ severity: "warning" as const, message, from: 0, to: 0 })),
     ...themeCssHookWarnings(value, OWNER_CSS_SURFACE, OWNER_CSS_RENAMES),
   ];
-  return <CodeEditor lang="css" ariaLabel="Custom theme CSS" value={value} onChange={onChange} diagnostics={diagnostics} completions={OWNER_CSS_COMPLETIONS} />;
+  return (
+    <CodeEditor
+      lang="css"
+      ariaLabel={CONFIG_THEME_CSS_FIELD_NAME}
+      value={value}
+      onChange={onChange}
+      diagnostics={diagnostics}
+      completions={OWNER_CSS_COMPLETIONS}
+    />
+  );
 }

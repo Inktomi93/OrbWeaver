@@ -1,7 +1,6 @@
-// domain/import/substrate/preset — the ST PRESET-FILE parser: one `OpenAI Settings/<name>.json` (or the live
-// `settings.json.oai_settings` blob) in → an orb-native `orb.preset` file out, plus the honest per-file list of
-// the ST fields that found no orb seat. Pure: bytes/JSON in, data out, null on unparseable — never throws, so
-// one bad preset is one skipped preset and never an aborted profile import.
+// domain/import/substrate/preset — where a SillyTavern profile keeps its presets: one `OpenAI Settings/<name>.json`
+// (or the live `settings.json.oai_settings` blob) in, the shared parse's preset out. Pure, null on unparseable —
+// never throws, so one bad preset is one skipped preset and never an aborted profile import.
 //
 // CHAT COMPLETION ONLY, BY OWNER RULING. ST ships four preset families; the other three
 // (`TextGen Settings/`, `KoboldAI Settings/`, `NovelAI Settings/` and their `settings.json` twins
@@ -11,22 +10,18 @@
 // `v1/completions` returns zero). They stay reported-unhandled with that reason rather than importing as
 // samplers on a room that will never run them.
 //
-// This module also owns NO ST→PromptConfig mapping of its own: the chat-completion mapper already exists and
-// is shared with the client's single-file import dialog — `tryImportStChatCompletionPreset` (@orb/contracts/preset).
-// A second answer here would be the banned parallel path. What IS owned here: the family's file/section
-// locations, the preset NAME rule, and the never-throw envelope.
+// The ST preset parse itself is `parseStPresetJson` (#primitives/serde/preset), shared with the Presets page's
+// single-file door. What IS owned here: the family's file/section locations and the folder's preset NAME rule.
 //
 // Preset names are QUALIFIED (`Marinara's Spaghetti Recipe (OpenAI)`) because the preset import verb is
 // additive (D290: an equal preset is reused, a different same-named one lands under a numbered name). ST ships a
 // preset literally called `Default.json`; qualifying the name keeps SillyTavern's apart from an owner's own
 // preset of that name instead of numbering it "Default 2".
 
-import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
-import type { RegexScriptCard } from "@orb/contracts/regex";
-import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
-import type { ParsedStPreset } from "../contract/collection.ts";
+import type { ParsedStPreset } from "#primitives/serde/preset";
+import { parseStPresetJson } from "#primitives/serde/preset";
 import { ST_POWER_USER_KEY } from "./appearance.ts";
 
 /** The ST profile SUBDIRECTORY holding the chat-completion family's saved presets. */
@@ -36,8 +31,8 @@ export const ST_PRESET_SETTINGS_KEY = "oai_settings";
 /** The name qualifier — see the module header for why every imported preset carries one. */
 const FAMILY_LABEL = "OpenAI";
 
-/** The qualified preset name for a SAVED `OpenAI Settings/<stem>.json` (ST preset files carry no internal
- *  name — the same rule `parseStWorldFile` follows for books). */
+/** The qualified preset name for a SAVED `OpenAI Settings/<stem>.json`: SillyTavern names a preset by its file
+ *  stem, the same rule `parseStWorldFile` follows for books. */
 function stPresetName(stem: string): string {
   return `${stem} (${FAMILY_LABEL})`;
 }
@@ -47,63 +42,11 @@ function stPresetName(stem: string): string {
  *  blob imports rather than being dropped, under a name that can never merge onto a file preset. */
 const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
 
-/** ST's presetManager stores EXTENSION FIELDS on the preset itself under `extensions` — the regex
- *  extension's preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern
- *  `extensions/regex/engine.js:126` — `readPresetExtensionField({ path: 'regex_scripts' })`). Each candidate
- *  parses through the ONE ST card-wire schema (the numeric-placement/`scriptName` dialect included); an
- *  invalid candidate joins the preset's `unmapped` note rather than dropping silently — the exact silence
- *  this parser existed to end (measured: 15 real scripts on the corpus's Marinara preset, ignored). Any
- *  OTHER `extensions.*` key is reported unmapped by name (nothing under this key is ever silent again). */
-function parsePresetExtensions(raw: Record<string, unknown>): {
-  readonly regexScripts: RegexScriptCard[];
-  readonly dropped: { field: string; reason: string }[];
-} {
-  const regexScripts: RegexScriptCard[] = [];
-  const dropped: { field: string; reason: string }[] = [];
-  const ext = raw["extensions"];
-  if (!isPlainObject(ext)) {
-    return { regexScripts, dropped };
-  }
-  const { regex_scripts: rawScripts, ...residue } = ext;
-  if (Array.isArray(rawScripts)) {
-    for (const [i, candidate] of rawScripts.entries()) {
-      const parsed = regexScriptCardSchema.safeParse(candidate);
-      if (parsed.success) {
-        regexScripts.push(parsed.data);
-      } else {
-        dropped.push({ field: `extensions.regex_scripts[${i}]`, reason: "not a recognizable regex script (malformed — dropped)" });
-      }
-    }
-  }
-  for (const key of Object.keys(residue)) {
-    dropped.push({ field: `extensions.${key}`, reason: "preset-scoped extension state — no orb seat" });
-  }
-  return { regexScripts, dropped };
-}
-
-/** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
- *  null when the object is not a recognizable chat-completion preset, OR when it maps to a config orb cannot
- *  store (the mapper REFUSES rather than returning orb's default preset dressed as the import).
- *  Never throws: the shared mapper ANSWERS both refusals as a typed outcome, so this reads the
- *  refusal instead of catching one. Both arms are the same `null` here — a BULK import has no door to render
- *  a per-file reason at (the operator gets the not-imported report) — but the two are now distinguishable if
- *  that report ever grows a per-file reason. A refused preset is reported as not-imported, never as
- *  imported-with-someone-else's-content.
- *
- *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob — the OTHER half of what orb calls generation
- *  config (stop strings, the four post-process switches, the inline-reasoning tag pair). Supplied ONLY for the
- *  LIVE preset below; a saved preset FILE gets none, because those knobs are one box's current tuning and
- *  stamping them onto every saved preset would rewrite presets their author tuned for something else. */
+// Both folder arms answer a refusal as `null`: the collector records it as unreadable, and a bulk import has no
+// door to render a per-file reason at.
 function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): ParsedStPreset | null {
-  if (!isPlainObject(raw)) {
-    return null;
-  }
-  const outcome = tryImportStChatCompletionPreset(raw, powerUser);
-  if (!outcome.ok) {
-    return null;
-  }
-  const { regexScripts, dropped } = parsePresetExtensions(raw);
-  return { name, file: buildPresetFile(name, outcome.result.config), unmapped: [...outcome.result.dropped, ...dropped], regexScripts };
+  const outcome = parseStPresetJson(raw, { name, powerUser });
+  return outcome.ok ? outcome.parsed : null;
 }
 
 /** Parse one saved `OpenAI Settings/<stem>.json` upload. Null on unparseable bytes / a non-preset object. */

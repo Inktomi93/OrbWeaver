@@ -6,6 +6,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { QUERY_DEFAULT_READ_LABEL, queryFailedLabel } from "#client/data/query-state-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -18,7 +19,7 @@ const ROOM_READS = [
   "rpg.listTurnToolCalls",
 ] as const;
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
-const CONTEXT_ERROR = "Couldn't load this.";
+const CONTEXT_ERROR = queryFailedLabel(QUERY_DEFAULT_READ_LABEL);
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
 

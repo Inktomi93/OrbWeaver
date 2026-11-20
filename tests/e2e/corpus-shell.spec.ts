@@ -12,14 +12,20 @@ import { pickKeys } from "@orb/kit/objects";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
+import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
+import { CHARACTER_HERO_NAME_FIELD_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CONFIG_SETTINGS_GROUPS_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { REFINERY_LIST_LOADING_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
-import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, screenListDoorName, screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { dataThemeOf } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
@@ -30,6 +36,7 @@ import {
   durableLocalStorageKey,
   PERSISTED_STORE_PREFIX,
 } from "#client/state/durable-local-keys.ts";
+import type { SectionId } from "#client/state/section-ids.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -48,11 +55,10 @@ const AUTHED_APP_CHUNK = /\/authed-app-[\w-]+\.js(?:\?.*)?$/u;
 const EXPORT_CLAUSE = "export{";
 const REWRITTEN_BODY_HEADERS = new Set(["content-encoding", "content-length", "etag"]);
 const ROUTE_CRASH = "corpus shell route render crashed";
-const SKIP_LINK = "Skip to content";
 // The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
-const PHONE_BAR = [SECTION_LABELS.home, SECTION_LABELS.chats, SECTION_LABELS.characters, "You"] as const;
+const PHONE_BAR = [SECTION_LABELS.home, SECTION_LABELS.chats, SECTION_LABELS.characters, YOU_TAB_LABEL] as const;
 const PHONE_ONLY = "The bottom bar, the You sheet and push-and-Back are the phone's navigation model";
 const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
@@ -174,7 +180,7 @@ async function reachOnPhone(page: Page, label: string): Promise<void> {
     await tab.click();
     return;
   }
-  await rail(page).getByRole("button", { name: "You", exact: true }).click();
+  await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
   // The sheet aria-hides the frame behind it, so the frame is read only once the sheet is gone.
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -189,8 +195,8 @@ interface CensusCase {
   readonly label: string;
   /** The desktop LIST band's title where it differs from `label`. */
   readonly bandTitle?: string;
-  /** A content-first section docks its LIST only on request. */
-  readonly listStartsCollapsed?: boolean;
+  /** A content-first section docks its LIST only on request; this names the section the shell shows while it is on screen. */
+  readonly listStartsCollapsed?: SectionId;
   /** A phone lands this mode on CONTENT, so its band rides the LIST pane off screen rather than being shed. */
   readonly bandOffScreen?: boolean;
   /** A search typed into the section's own finder before the census is read. */
@@ -250,7 +256,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     section: SECTION_LABELS.corpus,
     mode: CORPUS_MODE_LABELS.insights,
     label: CORPUS_MODE_LABELS.insights,
-    listStartsCollapsed: true,
+    listStartsCollapsed: "corpus",
     bandOffScreen: true,
     census: async (host) => {
       const { rows, total } = await host.trpc.stats.leaderboard.query({});
@@ -278,7 +284,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     section: SECTION_LABELS.refinery,
     label: SECTION_LABELS.refinery,
     bandTitle: "Sessions",
-    listStartsCollapsed: true,
+    listStartsCollapsed: "refinery",
     census: async (host) => countCensus((await host.trpc.refinery.listSessions.query()).length),
   },
 ];
@@ -294,6 +300,15 @@ async function reachCensusScreen(page: Page, host: ActorClient, kase: CensusCase
   }
   if (kase.search !== undefined) {
     await page.getByRole("textbox", { name: kase.search.box, exact: true }).fill(await kase.search.term(host));
+  }
+}
+
+/** Open a section's LIST by its toggle when the section starts it collapsed. The panel is the same node from one section to the next, so its
+ *  mode says nothing about this section until the shell names the section it shows. */
+async function openCollapsedList(page: Page, section: SectionId): Promise<void> {
+  await expect(page.locator(GRID)).toHaveAttribute("data-section", section);
+  if ((await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
+    await page.getByRole("button", { name: "Show list panel" }).click();
   }
 }
 
@@ -335,7 +350,7 @@ test.describe("committed corpus shell", () => {
     await expect(page.getByRole("main", { name: "Home content" })).toBeVisible();
     expect(await page.evaluate((): unknown => Reflect.get(globalThis, "__shellFocusTrail"))).toEqual([]);
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: SKIP_LINK, exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: SKIP_TO_CONTENT_NAME, exact: true })).toBeFocused();
   });
 
   test("a remembered appearance is on <html> before React mounts and before the app is ready", { tag: "@smoke" }, async ({ page, baseURL }) => {
@@ -408,8 +423,8 @@ test.describe("committed corpus shell", () => {
       const census = await kase.census(host);
       await reachCensusScreen(page, host, kase, isMobile);
       // A content-first section boots with its LIST collapsed; the toggle is the desktop's door to the band.
-      if (kase.listStartsCollapsed === true && (await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
-        await page.getByRole("button", { name: "Show list panel" }).click();
+      if (kase.listStartsCollapsed !== undefined) {
+        await openCollapsedList(page, kase.listStartsCollapsed);
       }
       // The heading's text is its title then its census, with no separator text between the two.
       await expect(page.locator(LIST_BAND_TITLE)).toHaveText(`${kase.bandTitle ?? kase.label}${census ?? ""}`);
@@ -434,7 +449,7 @@ test.describe("committed corpus shell", () => {
     // document's surface is the settled one, so wait for it before reading Retry.
     await expect.poll(() => documents).toBe(2);
     await page.waitForLoadState("load");
-    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await expect(retry).toBeVisible();
     await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME })).toHaveCount(0);
     // Each document asked for the chunk once, so nothing loops.
@@ -460,7 +475,7 @@ test.describe("committed corpus shell", () => {
     });
     const reported = page.waitForResponse((response) => isTrpcRequestFor(response.url(), "clientError"));
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
     expect((await reported).ok()).toBe(true);
     expect(reports).toHaveLength(1);
     expect(reports[0]).toContain(ROUTE_CRASH);
@@ -472,9 +487,11 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     // Dock the Refinery's LIST once, so the next cold entry mounts its body in the section-switch commit itself.
     await rail(page).getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();
-    if ((await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
-      await page.getByRole("button", { name: "Show list panel" }).click();
-    }
+    // The panel is the same node from one section to the next; the shell names the section it shows, and only then is the mode the Refinery's
+    // own, which its section declares collapsed.
+    await expect(page.locator(GRID)).toHaveAttribute("data-section", "refinery");
+    await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "collapsed");
+    await page.getByRole("button", { name: "Show list panel" }).click();
     await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
     await rail(page).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await openHome(page);
@@ -486,14 +503,14 @@ test.describe("committed corpus shell", () => {
     await expect(page.locator(".shell-topbar")).toBeVisible();
     await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true })).toHaveCount(0);
     // The list region is the one that waits: it holds its pending status while the read is held.
-    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toBeVisible();
+    await expect(listPanel(page).getByRole("status", { name: REFINERY_LIST_LOADING_NAME, exact: true })).toBeVisible();
     await held.release();
     const first = sessions[0];
     if (first === undefined) {
       throw new Error("Corpus has no refinery session");
     }
     await expect(listPanel(page).getByText(first.characterName, { exact: true }).first()).toBeVisible();
-    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toHaveCount(0);
+    await expect(listPanel(page).getByRole("status", { name: REFINERY_LIST_LOADING_NAME, exact: true })).toHaveCount(0);
   });
 
   test("a desktop Settings roster stays docked beside CONTENT with no Back row", { tag: "@smoke" }, async ({ page, isMobile }) => {
@@ -507,7 +524,7 @@ test.describe("committed corpus shell", () => {
     expect(box?.width ?? 0).toBeGreaterThan(0);
     expect(box?.width ?? 0).toBeLessThan(viewport?.width ?? 0);
     await expect(page.locator(MAIN)).not.toHaveAttribute("inert", "");
-    await list.getByRole("button", { name: /World Info/u }).click();
+    await list.getByRole("button", { name: new RegExp(RegExp.escape(WORLD_INFO_GROUP_LABEL), "u") }).click();
     await expect(page.locator('[data-slot="collection-control-row"]')).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.settings) })).toHaveCount(0);
@@ -539,7 +556,7 @@ test.describe("committed corpus shell on a phone", () => {
   test("the You sheet routes an overflow section and closes; its Settings row lands on the Settings section", { tag: "@smoke" }, async ({ page, isMobile }) => {
     test.skip(!isMobile, PHONE_ONLY);
     await openHome(page);
-    await rail(page).getByRole("button", { name: "You", exact: true }).click();
+    await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
@@ -549,11 +566,13 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(GRID)).toHaveAttribute("data-section", "presets");
 
-    await rail(page).getByRole("button", { name: "You", exact: true }).click();
+    await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.settings, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // On a phone the roster is the screen, so the Settings roster carries the one main landmark.
-    await expect(page.getByRole("main", { name: SECTION_LABELS.settings, exact: true }).getByRole("region", { name: "Settings groups" })).toBeVisible();
+    await expect(
+      page.getByRole("main", { name: SECTION_LABELS.settings, exact: true }).getByRole("region", { name: CONFIG_SETTINGS_GROUPS_NAME }),
+    ).toBeVisible();
     await expect(rail(page).getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toHaveAttribute("aria-current", "page");
   });
 
@@ -606,7 +625,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
     await expect(rail(page)).toBeVisible();
     await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
@@ -624,14 +643,14 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(grid).toHaveAttribute("data-section", "chats");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 
-    await page.getByRole("button", { name: "Back to Home", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.home), exact: true }).click();
     await expect(grid).toHaveAttribute("data-section", "home");
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
 
     await reachOnPhone(page, SECTION_LABELS.chats);
     await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
     await expect(grid).toHaveAttribute("data-room-screen", "true");
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(grid).toHaveAttribute("data-section", "chats");
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
   });
@@ -645,7 +664,7 @@ test.describe("committed corpus shell on a phone", () => {
     await openHome(page);
     await reachOnPhone(page, SECTION_LABELS.characters);
     await libraryRow(page, character.name).click();
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     await expect(rail(page)).toBeVisible();
   });
 
@@ -655,10 +674,10 @@ test.describe("committed corpus shell on a phone", () => {
     await reachOnPhone(page, SECTION_LABELS.corpus);
     const list = listPanel(page);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} overview`, exact: true }).click();
+    await page.getByRole("button", { name: screenOverviewDoorName(CORPUS_MODE_LABELS.explore), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(MAIN)).not.toHaveAttribute("inert", "");
-    await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} list`, exact: true }).click();
+    await page.getByRole("button", { name: screenListDoorName(CORPUS_MODE_LABELS.explore), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
   });
 
@@ -712,7 +731,7 @@ test.describe("committed corpus shell on a phone", () => {
       await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBe(offset);
       await update.release();
 
-      await page.getByRole("button", { name: "Back to Characters", exact: true }).click();
+      await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true }).click();
       await libraryRow(page, PROBE_NAMES[1]).click();
       await expect(name).toHaveValue(PROBE_NAMES[1]);
       await expect.poll(() => focusOnContentAnchor(main)).toBe(true);
@@ -726,7 +745,7 @@ test.describe("committed corpus shell on a phone", () => {
     test.skip(!isMobile, PHONE_ONLY);
     const owned = (await ownerActor(baseURL ?? "").trpc.character.list.query({ limit: HOME_QUICK_PICKS_LIMIT })).items.length;
     await openHome(page);
-    const faces = page.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem");
+    const faces = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("listitem");
     await expect(faces).toHaveCount(Math.min(owned, HOME_QUICK_PICKS_LIMIT));
     const geometry = (): Promise<{ readonly edges: readonly number[]; readonly overflows: boolean }> =>
       faces.first().evaluate((face) => {
@@ -745,7 +764,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect.poll(geometry).toEqual({ edges: [0, 0], overflows: true });
     // Tabbing along the row reveals each face whole inside the shelf rather than leaving it cut at the edge.
     // Each face carries its portrait button and its new-chat button, so two Tabs from the first portrait reach the second.
-    const buttons = page.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    const buttons = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("button");
     const secondPortrait = buttons.nth(2);
     await buttons.first().focus();
     await page.keyboard.press("Tab");

@@ -3,7 +3,7 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { createDb, hasPendingMigrations, localPath, runMigrations } from "@orb/db";
+import { createDb, localPath, pendingMigrations, runMigrations } from "@orb/db";
 import { createIdSource } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -44,7 +44,7 @@ async function olderSource(
   const user = await seedUser(source, { role: "owner", passwordHash: "opaque-source-bound-password-hash" }, createIdSource(createSeededIds().next));
   const bytes = Buffer.from("existing synthetic asset bytes");
   const asset = await createCas(layout.assets, createTestLogger()).putBytes(user.id, bytes, user.createdAt);
-  expect(await hasPendingMigrations(source, SHIPPED_MIGRATIONS)).toBe(true);
+  expect(await pendingMigrations(source, SHIPPED_MIGRATIONS)).not.toEqual([]);
   return { layout, user, bytes, asset };
 }
 
@@ -60,7 +60,7 @@ test("a supported older source is migrated before current-schema scrubbing while
   {
     await using held = ownFileDb(await createDb(target.databaseUrl));
     const clone = held.db;
-    expect(await hasPendingMigrations(clone, SHIPPED_MIGRATIONS)).toBe(false);
+    expect(await pendingMigrations(clone, SHIPPED_MIGRATIONS)).toEqual([]);
     using native = new DatabaseSync(localPath(target.databaseUrl) ?? "");
     expect(native.prepare("SELECT id,handle,role,password_hash AS passwordHash FROM users").all()).toEqual([
       { id: source.user.id, handle: source.user.handle, role: source.user.role, passwordHash: null },

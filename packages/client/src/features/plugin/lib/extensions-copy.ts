@@ -112,6 +112,9 @@ export function extensionsWaitingGroupLabel(count: number): string {
   return `${count === 1 ? "1 plugin" : `${count} plugins`} waiting for approval`;
 }
 
+/** The line shown while a plugin page loads. */
+export const EXTENSIONS_PAGE_LOADING_NAME = "Loading plugin page…";
+
 /** The CONTENT pane's no-selection state — a switcher with rows but nothing picked. Distinct copy from the
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler
  *  defect the house sweeps for. */
@@ -124,3 +127,6 @@ export const EXTENSIONS_GONE_BODY = "Its plugin was disabled or removed. Pick an
 
 /** The Extensions list's search box. */
 export const EXTENSIONS_SEARCH_NAME = "Search plugin pages";
+
+/** What failed to load, said by a plugin page's read. */
+export const PLUGIN_PAGE_READ_LABEL = "this plugin page";

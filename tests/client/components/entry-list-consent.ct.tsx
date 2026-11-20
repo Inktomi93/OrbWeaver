@@ -1,6 +1,9 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { removeActionName, removeQuotedTitle } from "@orb/ui/lib";
+import { STORY_ADD_ENTRY_LABEL } from "./_entry-list-labels.ts";
 import type { EntryListRebaseStory } from "./_entry-list-stories.tsx";
 
 test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, corpusViewer, mount, page }) => {
@@ -11,21 +14,24 @@ test("a replaced entry snapshot invalidates obsolete consent and returns focus w
   const component = await mount<typeof EntryListRebaseStory>("tests/client/components/_entry-list-stories/EntryListRebaseStory", {
     items: ["Alpha", "Beta", "Gamma"],
   });
-  await page.getByRole("button", { name: "Remove Beta", exact: true }).click();
-  await expect(page.getByRole("alertdialog", { name: "Remove “Beta”?", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: removeActionName("Beta"), exact: true }).click();
+  await expect(page.getByRole("alertdialog", { name: removeQuotedTitle("Beta"), exact: true })).toBeVisible();
   await component.update({ items: ["Beta", "Gamma"] });
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add entry", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: STORY_ADD_ENTRY_LABEL, exact: true })).toBeFocused();
   await expect(page.getByText("Nothing removed", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Remove Beta", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "Remove “Beta”?", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
+  await page.getByRole("button", { name: removeActionName("Beta"), exact: true }).click();
+  await page
+    .getByRole("alertdialog", { name: removeQuotedTitle("Beta"), exact: true })
+    .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+    .click();
   await expect(page.getByText("Removed Beta", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove Beta", exact: true })).toBeFocused();
-  await page.getByRole("button", { name: "Remove Gamma", exact: true }).click();
-  await expect(page.getByRole("alertdialog", { name: "Remove “Gamma”?", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: removeActionName("Beta"), exact: true })).toBeFocused();
+  await page.getByRole("button", { name: removeActionName("Gamma"), exact: true }).click();
+  await expect(page.getByRole("alertdialog", { name: removeQuotedTitle("Gamma"), exact: true })).toBeVisible();
   await component.update({ items: [] });
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add entry", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: STORY_ADD_ENTRY_LABEL, exact: true })).toBeFocused();
   await expect(page.getByText("Removed Beta", { exact: true })).toBeVisible();
 });

@@ -18,8 +18,9 @@ import {
   selectRuleRow,
   toRuleView,
 } from "../persistence/rules.ts";
+import { validateRuleInput } from "../persistence/validate.ts";
 import { notifyRulesChanged } from "../substrate/rule-feed.ts";
-import { assertRuleName, validateRuleInput } from "../substrate/validate.ts";
+import { assertRuleName } from "../substrate/validate.ts";
 
 /**
  * The verb's WRITE-NOTHING half: validate the payload and mint the row it would insert. Split out so

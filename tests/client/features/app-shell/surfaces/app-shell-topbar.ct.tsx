@@ -6,12 +6,15 @@ import {
   censusSuffix,
   chatRoomTitle,
   chatTitleWhole,
+  contentRegionName,
   contextToggleLabel,
   LIST_PANEL_NOUN,
   panelEdgeName,
   RENAME_CHAT_NAME,
+  sectionBackName,
   TRAIL_OVERFLOW_LABEL,
   testId,
+  YOU_TAB_LABEL,
 } from "@orb/client/lib";
 import { LIST_OFF_SCREEN_HINT } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
@@ -32,13 +35,16 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { BUG_REPORT_NAME, COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_MEMBERS_ENTRY_PREFIX, CHAT_MEMORY_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { NEW_PRESET_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
+import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -262,7 +268,7 @@ test("the ⌘K chip paints no text, and its name and description carry Jump and 
   await expect(chip).toHaveText("");
   await expect(chip.locator("svg")).toHaveCount(1);
   const shortcut = commandShortcutLabel(await page.evaluate(() => navigator.userAgent));
-  await expect(chip).toHaveAccessibleName(`Jump, the command menu (${shortcut})`);
+  await expect(chip).toHaveAccessibleName(`${COMMAND_CHIP_NAME_LEAD} (${shortcut})`);
   await expect(chip).toHaveAccessibleDescription(`Jump to… ${shortcut}`);
 });
 
@@ -277,7 +283,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
   /** Push the first character: CONTENT is the screen and the lead control is the one way back. */
   async function pushMember(page: Page): Promise<Locator> {
     await library(page).getByRole("button").first().click();
-    const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+    const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
     await expect(back).toBeVisible();
     return back;
   }
@@ -299,7 +305,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
           .join(" | ");
       });
     // Polled to settled: while a view transition runs, hit testing answers the snapshot, not the button.
-    await expect.poll(samples).toBe(Array.from({ length: 5 }, () => "Back to Characters").join(" | "));
+    await expect.poll(samples).toBe(Array.from({ length: 5 }, () => sectionBackName(SECTION_LABELS.characters)).join(" | "));
     await back.click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
   });
@@ -340,7 +346,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-rail")).toBeVisible();
     await expect(page.getByRole("button", { name: JUMP_CHIP })).toHaveCount(0);
-    await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     await expect(page.locator('[data-slot="drawer-popup"]').getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true })).toBeVisible();
   });
 
@@ -359,7 +365,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
 const WIDE_IDENTITY = '.shell-topbar-identity[data-identity="wide"]';
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
 const MEMBERS_PREFIX = CHAT_MEMBERS_ENTRY_PREFIX;
-const MEMORY_PREFIX = "Memory: ";
+const MEMORY_PREFIX = CHAT_MEMORY_ENTRY_PREFIX;
 const MEMBERS_CHIP = `[aria-label^="${MEMBERS_PREFIX}"]`;
 const MEMORY_CHIP = `[aria-label^="${MEMORY_PREFIX}"]`;
 const TRAIL_ENTRIES = [
@@ -371,7 +377,8 @@ const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "
 const ROOM_MOUNTING = '[data-slot="chat-room-mounting"]';
 const LIST_PANE = '[data-panel-side="list"]';
 const LIST_SEARCH = `${LIST_PANE} input`;
-const ROOM_BODY = '[data-slot="chat-room-surface"] textarea';
+const ROOM_SURFACE = '[data-slot="chat-room-surface"]';
+const ROOM_BODY = `${ROOM_SURFACE} textarea`;
 const ACTED_DURING_MOUNT = "data-acted-during-mount";
 const LONG_NAME = "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers";
 
@@ -416,7 +423,7 @@ function clientWidth(locator: Locator): Promise<number> {
 }
 
 async function expectPrimaryRoomHeading(page: Page, title: string): Promise<void> {
-  const main = page.getByRole("main", { name: "Chats content", exact: true });
+  const main = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true });
   await expect(main.getByRole("heading", { level: 1 })).toHaveCount(0);
   await expect(main.getByRole("heading", { level: 2, name: title, exact: true })).toBeVisible();
   const surface = main.locator('[data-slot="chat-room-surface"]');
@@ -457,6 +464,51 @@ async function actDuringNextRoomMount(page: Page, selector: string, act: "click"
   );
 }
 
+/**
+ * Presses the list row of a second room the reader has already entered once, so its roster is cached: the press paints the room's title
+ * in the commit that opens it, and the room's own arrival focus waits on the deferred render after it. That gap is where a late
+ * arrival could take focus from a field the reader opened on the title. `beforePress` runs once the open room is settled again,
+ * before the press.
+ */
+async function pressCachedRoomRow(
+  page: Page,
+  corpus: CorpusPlayback,
+  mountRoom: (chatId: ChatId) => Promise<unknown>,
+  beforePress: () => Promise<void>,
+): Promise<void> {
+  // Wide enough that the docked list still leaves the title group room for the whole title: a cut title turns its control into the
+  // reveal, whose press shows the title and offers Rename, so there is no Rename control to press as the title paints.
+  await page.setViewportSize({ width: 2200, height: 1000 });
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const caller = await ownerCaller();
+  const rows = (await caller.chat.listChats({ limit: 100 })).items;
+  const open = namedGroupRoom(rows);
+  // A second room the viewer hosts: only a host's title is a Rename control.
+  const others = rows.filter((row) => row.id !== open.id && (row.title ?? "") !== "" && row.participantPortraits.length > 1);
+  const details = await Promise.all(others.map((row) => caller.chat.getChat({ chatId: row.id })));
+  const nextIndex = details.findIndex((detail) => detail.viewerIsHost);
+  const next = others[nextIndex];
+  if (next === undefined) {
+    throw new Error("The corpus has no second named group room the owner hosts");
+  }
+  await routeRoom(page, corpus, caller);
+  await mountRoom(open.id);
+  await expectPrimaryRoomHeading(page, open.title ?? "");
+  // The list is windowed, so a row is brought up by the pane's own search before it is pressed.
+  const pressRow = async (row: { readonly title: string | null; readonly participantNames: readonly string[] }): Promise<void> => {
+    await page.locator(LIST_SEARCH).fill(row.title ?? "");
+    await page.locator(LIST_PANE).getByText(deriveChatTitle(row.title, row.participantNames), { exact: true }).first().click();
+  };
+  await pressRow(next);
+  await expectPrimaryRoomHeading(page, next.title ?? "");
+  await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+  await pressRow(open);
+  await expectPrimaryRoomHeading(page, open.title ?? "");
+  await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+  await beforePress();
+  await pressRow(next);
+}
+
 async function expectRoomMounted(page: Page): Promise<void> {
   await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
   await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
@@ -469,6 +521,50 @@ test.describe("arrival focus on a room switch", () => {
     await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
     const surface = page.locator('[data-slot="chat-room-surface"]');
     await expect.poll(() => surface.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  });
+
+  test("a rename opened as the pressed room's title paints keeps its field and the words typed into it", async ({ corpus, mount, page }) => {
+    await pressCachedRoomRow(
+      page,
+      corpus,
+      (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }),
+      async () => {
+        // A pointer cannot land inside the gap on demand, so the click runs at the mutation that paints the pressed room's title: the
+        // press commit draws it from the cached roster, and the body, with the room's own arrival focus, follows in the deferred render.
+        // The open room's Rename control is already there, so the pressed room's is the one whose name differs.
+        await page.evaluate((renameControls) => {
+          const openName = document.querySelector(renameControls)?.getAttribute("aria-label");
+          const observer = new MutationObserver(() => {
+            const control = [...document.querySelectorAll<HTMLElement>(renameControls)].find((candidate) => candidate.getAttribute("aria-label") !== openName);
+            if (control !== undefined) {
+              observer.disconnect();
+              control.click();
+            }
+          });
+          observer.observe(document, { subtree: true, childList: true });
+        }, `button[aria-label^="${RENAME_CHAT_NAME}"]`);
+      },
+    );
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+    await expect(field).toBeFocused();
+    await page.keyboard.type("The harbour job");
+    await expect(field).toHaveValue("The harbour job");
+  });
+
+  test("the same press with no rename lands focus in the room it entered", async ({ corpus, mount, page }) => {
+    await pressCachedRoomRow(
+      page,
+      corpus,
+      (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }),
+      async () => undefined,
+    );
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+    const surface = page.locator(ROOM_SURFACE);
+    await expect.poll(() => surface.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toHaveCount(0);
   });
 
   test("the list search focused while the room body mounts keeps its focus and its typing", async ({ corpus, mount, page }) => {
@@ -501,34 +597,6 @@ test.describe("an open named group room", () => {
       await expect(rename).toBeFocused();
       await expectPrimaryRoomHeading(page, room.title);
     });
-  });
-
-  test("a rename opened while the room body is still mounting keeps its field and the words typed into it", async ({ corpus, mount, page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
-    const room = await openNamedRoom(page, corpus, await ownerCaller());
-    // A pointer cannot land inside one commit gap on demand, so the click runs at the mutation that paints the title.
-    await page.addInitScript(
-      ({ button, mounting, witness }) => {
-        const observer = new MutationObserver(() => {
-          const control = document.querySelector<HTMLElement>(button);
-          if (control !== null) {
-            observer.disconnect();
-            document.documentElement.setAttribute(witness, String(document.querySelector(mounting) !== null));
-            control.click();
-          }
-        });
-        observer.observe(document, { subtree: true, childList: true });
-      },
-      { button: `button[aria-label^="${RENAME_CHAT_NAME}"]`, mounting: ROOM_MOUNTING, witness: ACTED_DURING_MOUNT },
-    );
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
-    await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
-    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
-    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
-    await expect(field).toBeFocused();
-    await page.keyboard.type("The harbour job");
-    await expect(field).toHaveValue("The harbour job");
   });
 
   for (const [name, rootPx] of [
@@ -609,8 +677,8 @@ test.describe("an open named group room", () => {
     await expect(title).toHaveText(room.cast);
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     const trail = page.locator(".shell-topbar-trail");
-    await expect(trail.getByRole("button", { name: /^Notifications/u })).toBeVisible();
-    await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+    await expect(trail.getByRole("button", { name: new RegExp(`^${RegExp.escape(NOTIFICATIONS_BELL_NAME)}`, "u") })).toBeVisible();
+    await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
     await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
     await expect(page.locator(MEMORY_CHIP)).toBeVisible();
     await expect(page.locator(`${MEMBERS_CHIP} .shell-chat-chip-count`)).toBeHidden();
@@ -701,7 +769,7 @@ test.describe("an open named group room", () => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     await library(page).getByRole("button").first().click();
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     await expect.poll(() => visibleTitles(page)).toBe(1);
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
@@ -827,7 +895,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
         await expect.poll(() => hitExtent(control, "y")).toBeGreaterThanOrEqual(floor);
         await expect.poll(() => hitExtent(control, "x")).toBeGreaterThanOrEqual(floor);
       }
-      await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+      await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
       await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     });
   }
@@ -891,7 +959,7 @@ test.describe("a library section with its list pane hidden or docked at 1280", (
   test("the Presets landing teaches at the shared empty-state step and ends on the New preset door", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "presets", panelOverrides: { presets: { list: "docked", context: "collapsed" } } });
     await mount<typeof AppShellStory>(STORY, {});
-    const content = page.getByRole("main", { name: "Presets content", exact: true });
+    const content = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.presets), exact: true });
     await expect(content.getByRole("button", { name: NEW_PRESET_NAME, exact: true })).toBeVisible();
     const titleSize = await content.locator('[data-slot="empty-state-title"]').evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize));
     expect(titleSize).toBeLessThan(await resolvedLength(page, `var(${TOKENS["text.display"].cssVar})`));

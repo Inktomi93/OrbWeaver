@@ -75,7 +75,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   // owns the owner-scoped `cancel` the chat `abort` verb reaches through). One registry, because "which rounds
   // are in flight" is the same question both answer — see `flush-barrier.ts` for why the turn's own signal
   // cannot serve here.
-  function onTurnCompleted({ chatId, messageId, variantId, turnId, turn }: RpgTurnCompletedParams<RpgTurnContext>): Promise<void> {
+  function onTurnCompleted({ chatId, messageId, variantId, turnId, turn, admission }: RpgTurnCompletedParams<RpgTurnContext>): Promise<void> {
     const runFlush = async (signal: AbortSignal): Promise<void> => {
       const game = await findEngagedGame(chatId); // disengaged ⇒ no state round, no snapshot write
       if (game === undefined) {
@@ -84,7 +84,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
       const mode: RpgExtractionMode = game.config.extractionMode;
       // `turn` is the character turn's already-resolved route + consent verdict — the state round rides it
       // (F1: no second `resolveRole`, no force-stamped consent; F2: the readonly gate reads this capability).
-      await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn, signal });
+      await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn, signal, admission });
     };
     return ctx.flushBarrier.register({ chatId, ownerUserId: turn.triggeredBy, turnSignal: turn.signal, run: runFlush });
   }
@@ -152,6 +152,6 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     handoffWouldCopyGmPreset: (chatId, nomineeUserId): Promise<boolean> => handoffWouldCopyGmPreset(ctx, chatId, nomineeUserId),
     // HOST HANDOFF, POST-SWAP: the copied cast's tracker rows/presence/pins move onto the copy ids. Not a
     // statement (a hand-door read-modify-write that may clone forward), so it runs after the swap commits.
-    handoffRekeyActors: (chatId, cardCopies): Promise<void> => handoffRekeyActors(ctx, chatId, cardCopies),
+    handoffRekeyActors: (admission, cardCopies): Promise<void> => handoffRekeyActors(ctx, admission, cardCopies),
   };
 }

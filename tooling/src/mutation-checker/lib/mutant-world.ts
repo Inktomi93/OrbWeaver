@@ -1,6 +1,6 @@
 // One world on the TypeScript 7.1 API, judging one mutant per layer snapshot. An importer reads a file only through
 // its declaration, so the importers are checked only when the mutant changed the file's declaration emit, and the
-// whole program when that emit augments a global or a module.
+// whole program when that emit, or any transitive importer's source, augments a global or a module.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Location, Mutant, Position } from "@stryker-mutator/api/core";
@@ -225,7 +225,11 @@ export class MutantWorld implements Disposable {
     if (declaration === base) {
       return { errors: [], checked: [file] };
     }
-    const readers = AUGMENTATION.test(declaration) || AUGMENTATION.test(base) ? this.#otherSources(file) : this.#transitiveImporters(file);
+    const importers = this.#transitiveImporters(file);
+    // An importer that augments carries the mutated file's shape to readers that import neither of them.
+    const augments =
+      AUGMENTATION.test(declaration) || AUGMENTATION.test(base) || importers.some((importer) => AUGMENTATION.test(this.#original(importer).text));
+    const readers = augments ? this.#otherSources(file) : importers;
     return { errors: this.#errorsIn(program, readers), checked: [file, ...readers] };
   }
 

@@ -17,22 +17,35 @@
 //   • the tag overlay — resolve-or-create by name through tag's own by-name attach (D30 per-tagger overlay).
 //   • the room background and inline images — by the content hash each carries, onto the owner's own copy of
 //     those bytes, since a target that already held them keeps its own asset row.
+//   • the memory strikes — span positions through the same remap, the scoped character by the seat map; a strike
+//     with an endpoint that did not land is dropped. A strike names a span in every bucket and its character only
+//     records which copy was struck, so one whose character did not resolve restores as a shared strike.
 //   • the rpg campaign — the carried POSITIONS (`messages[i].variants[j]`) remapped through the
 //     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
+//
+// IDENTITY: the bundle's file hash, kept as the room's stored key; a room the app wrote carries none, so an
+// unchanged one is found by its current export (`heldAsCurrentRoom`, D290).
 //
 // ORDERING: canon FIRST (it mints the ids everything else re-links against), then the tag overlay and the
 // campaign. A failed re-link never un-writes the chat — a restored room missing its labels is strictly better
 // than no room, and the outcome still reports `ok`.
 
 import { assetIdSchema } from "@orb/contracts/assets";
-import type { BulkImportChatInput, BulkImportMessageInput, ContentSignatures, ImportedChatRemap, VariantMetadata } from "@orb/contracts/chat";
+import type {
+  BulkImportChatInput,
+  BulkImportMessageInput,
+  ContentSignatures,
+  ImportedChatRemap,
+  ImportedMemoryStrike,
+  VariantMetadata,
+} from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
-import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
@@ -43,6 +56,7 @@ import type { ImportContext, ImportProfileDeps, ImportService } from "../contrac
 import { requireProfile } from "../guard.ts";
 import { findImportedCharacter } from "../substrate/card.ts";
 import { carriedHandle, resolveSeat } from "../substrate/handle.ts";
+import { skippedChatRowsOf } from "../substrate/report.ts";
 
 /** The seats a bundle could re-link against, in preference order: its own seat list, then the directory it
  *  sat in, each with the identity of the card exported beside it when the bundle carries one. */
@@ -266,6 +280,7 @@ function toChatInput(args: {
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
     starred: bundle.starred,
     archived: bundle.archived,
+    everShared: bundle.everShared,
     compactSummary: bundle.compactSummary,
     compactedAtSeq: bundle.compactedAtSeq,
     variableValues: bundle.variableValues,
@@ -340,10 +355,29 @@ function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kin
   };
 }
 
+/** The carried strikes on this box's ids. A position the remap could not pair drops that strike; a scoped handle
+ *  no seat resolved keeps it as a shared strike. */
+function remapMemoryStrikes(
+  strikes: NonNullable<PortableChat["memoryStrikes"]>,
+  remap: Extract<ImportedChatRemap, { kind: "aligned" }>,
+  characterIds: ResolvedCharacterIds,
+): ImportedMemoryStrike[] {
+  return strikes.flatMap((strike): ImportedMemoryStrike[] => {
+    const messageStartId = remap.messageIds[strike.startMessageIndex] ?? null;
+    const messageEndId = remap.messageIds[strike.endMessageIndex] ?? null;
+    // The character only records which copy was struck; an unresolved one keeps the span struck as a shared strike.
+    const scopedCharacterId = strike.characterHandle === null ? null : (characterIds.idByHandle.get(strike.characterHandle) ?? null);
+    if (messageStartId === null || messageEndId === null) {
+      return [];
+    }
+    return [{ scopedCharacterId, tier: strike.tier, messageStartId, messageEndId, topicAnchor: strike.topicAnchor, createdAt: strike.createdAt }];
+  });
+}
+
 /** The re-links that ride AFTER the canon write, each isolated: a failing overlay must not un-write a room
  *  that already restored.
  *
- *  Returns the planes this composition could NOT restore, one operator-facing line each. Both
+ *  Returns the planes this composition could NOT restore, one operator-facing line each. The
  *  ops are OPTIONAL on the ST-only precedent, and an unwired one used to drop its whole plane with no `else`
  *  and nowhere to say so — a bundle carrying an entire rpg campaign answered `{ok:true, created:true}` having
  *  discarded it. The room still imports either way; the loss is now NAMED. */
@@ -381,7 +415,25 @@ async function restoreOverlays(args: {
       );
     }
   }
-  return skipped;
+  const strikesLost = await restoreMemoryStrikes(args);
+  return strikesLost === null ? skipped : [...skipped, strikesLost];
+}
+
+/** The strike overlay. Returns the operator-facing line when the carried strikes could not restore, else null. */
+async function restoreMemoryStrikes(args: Parameters<typeof restoreOverlays>[0]): Promise<string | null> {
+  const { profile, ownerId, bundle, remap, characterIds } = args;
+  const strikes = bundle.memoryStrikes ?? [];
+  if (strikes.length === 0) {
+    return null;
+  }
+  if (profile.importMemoryStrikes === undefined) {
+    return `${strikes.length} struck memory item(s) not restored — the strike import is not wired into this composition`;
+  }
+  if (remap.kind !== "aligned") {
+    return `${strikes.length} struck memory item(s) not re-linked — messages deleted from this room since its first import leave no way to match them to the file's turns`;
+  }
+  await profile.importMemoryStrikes({ chatId: remap.chatId, hostUserId: ownerId, strikes: remapMemoryStrikes(strikes, remap, characterIds) });
+  return null;
 }
 
 export function createImportChatBundle(ctx: ImportContext): ImportService["importChatBundle"] {
@@ -406,6 +458,29 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
   };
 }
 
+/** The room the bundle is, when the app wrote it in this library and it has not changed since (D290), else null. Such a room carries no
+ *  stored key, so when the bundle's own key is not held under its primary, the bundle is compared with the current
+ *  export of each room the owner hosts that seats the primary and was created when the bundle says. A room changed
+ *  since the export does not match, and the bundle lands beside it; no import updates an owned row. */
+async function heldAsCurrentRoom(args: {
+  readonly profile: ImportProfileDeps;
+  readonly ownerId: UserId;
+  readonly primary: CharacterId;
+  readonly createdAt: number;
+  readonly importHash: string;
+}): Promise<ChatId | null> {
+  const { profile, ownerId, primary, createdAt, importHash } = args;
+  if ((await profile.heldChatHashes({ ownerId, characterId: primary, hashes: [importHash] })).has(importHash)) {
+    return null;
+  }
+  for await (const room of profile.exportCurrentChats({ ownerId, characterId: primary, createdAt })) {
+    if (sha256Hex(room.bytes) === importHash) {
+      return room.chatId;
+    }
+  }
+  return null;
+}
+
 /** The write half, split out so the refusal ladder above reads as one screen of preconditions. */
 async function writeBundle(args: {
   readonly ctx: ImportContext;
@@ -416,13 +491,18 @@ async function writeBundle(args: {
   readonly bytes: Uint8Array;
 }): Promise<ImportChatFileOutcome> {
   const { ctx, profile, bundle, characterIds, filename, bytes } = args;
+  const importHash = sha256Hex(bytes);
+  // A room is named by what the owner calls it now; one deleted since the lookup found it, by the bundle's own title.
+  const titleOf = async (chatId: ChatId): Promise<string> => (await profile.ownedChatTitle({ ownerId: ctx.ownerId, chatId })) ?? bundle.title;
+  const held = await heldAsCurrentRoom({ profile, ownerId: ctx.ownerId, primary: characterIds.primary, createdAt: bundle.createdAt, importHash });
+  if (held !== null) {
+    return { ok: true, created: false, title: await titleOf(held), skippedOverlays: [], memoryChatIds: [] };
+  }
   const personaIdByName = await resolvePersonas(profile, ctx.ownerId, referencedPersonaNames(bundle));
   const result = await profile.bulkImportChats({
     ownerId: ctx.ownerId,
     characterId: characterIds.primary,
-    chats: [
-      toChatInput({ bundle: await relinkCarriedAssets(profile, ctx.ownerId, bundle), characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) }),
-    ],
+    chats: [toChatInput({ bundle: await relinkCarriedAssets(profile, ctx.ownerId, bundle), characterIds, personaIdByName, filename, importHash })],
   });
   // The same clause `importChats` runs: a real conversation queues the free index pass, never a memory build.
   if (result.realConversationsWritten.length > 0) {
@@ -434,6 +514,9 @@ async function writeBundle(args: {
     // silently declaring success while leaving every carried overlay dark.
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
-  const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds });
-  return { ok: true, created: result.chatsImported > 0, skippedOverlays, memoryChatIds: result.realConversationsWritten };
+  const skippedOverlays = [
+    ...skippedChatRowsOf(result.refusedRows).map((row) => row.reason),
+    ...(await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds })),
+  ];
+  return { ok: true, created: result.chatsImported > 0, title: await titleOf(remap.chatId), skippedOverlays, memoryChatIds: result.realConversationsWritten };
 }

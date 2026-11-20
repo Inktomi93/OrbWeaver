@@ -1,6 +1,6 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
-import { TAXONOMY_CHIP } from "../../../tooling/src/ui-facts/copy.ts";
+import { compositionLines } from "../../../tooling/src/ui-facts/composition-report.ts";
 import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
 import { plantTheme } from "./_theme.ts";
 
@@ -755,27 +755,6 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
   expect(chips?.defects?.["wire"]).toEqual(["bare"]);
 });
 
-test("a site ruling keeps the one chip it names: a second bare chip in the ruled file is still a defect", ({ scratch }) => {
-  const root = plantDir(scratch, "chip-kept-site");
-  plant(root, {});
-  plantFile(
-    root,
-    TAXONOMY_CHIP,
-    [
-      'import { Badge } from "@orb/ui/badge";',
-      "export const Header = ({ def, job }) => (",
-      "  <>",
-      "    <Badge>{def.kind}</Badge>",
-      "    <Badge>{job.status}</Badge>",
-      "  </>",
-      ");",
-    ].join("\n"),
-  );
-  const wire = analyse(root, [], null).comparisons.find((entry) => entry.cohort === "copy:chip" && entry.column === "wire");
-  expect(wire?.kept.map((kept) => [kept.at, kept.value])).toEqual([[`${TAXONOMY_CHIP}:4`, "bare"]]);
-  expect(wire?.defects.map((defect) => defect.at)).toEqual([`${TAXONOMY_CHIP}:5`]);
-});
-
 test("a chip printing a wire spelling a display map has a word for is a raw wire; an authored value and the word are not", ({ scratch }) => {
   const root = plantDir(scratch, "chip-raw-wire");
   plant(root, {
@@ -843,4 +822,265 @@ test("a declared axis built from a shared scale, a spread of one, or a call over
   expect(values("gap")).toEqual(["sm", "md"]);
   expect(values("look")).toEqual(["solid", "ghost"]);
   expect(report.unreadAxes).toEqual(["badge.opaque"]);
+});
+
+test("every modal popover is a census site with its trigger; an unfenced popover and modal={false} are not", ({ scratch }) => {
+  const root = plantDir(scratch, "modal-popover");
+  const path = `${FEATURE}/components/popovers.tsx`;
+  plant(root, {
+    "components/popovers.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";',
+      "export const A = ({ open, onOpenChange, phone, handle }) => (",
+      "  <>",
+      "    <Popover modal={true}>",
+      '      <PopoverTrigger render={<Button variant="ghost">Edit</Button>} />',
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      "    <Popover>",
+      "      <PopoverTrigger render={<Button>Peek</Button>} />",
+      "      <PopoverPopup>read only</PopoverPopup>",
+      "    </Popover>",
+      "    <Popover modal={phone} open={open} onOpenChange={onOpenChange}>",
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      '    <Popover modal="trap-focus">',
+      "      <PopoverTrigger>Open</PopoverTrigger>",
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      "    <Popover modal={false}><PopoverTrigger>Off</PopoverTrigger></Popover>",
+      "    <Popover modal={true} handle={handle}><PopoverPopup><input /></PopoverPopup></Popover>",
+      "    <Popover modal={true}><PopoverTrigger render={trigger(open)} /><PopoverPopup><input /></PopoverPopup></Popover>",
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  const facts = analyse(root, [], null);
+  const cohort = facts.cohorts.find((entry) => entry.name === "modal-popover");
+  expect(
+    cohort?.members.map((member) => [
+      `${member.path}:${member.cells["modal"]?.line ?? 0}`,
+      member.cells["modal"]?.value,
+      member.cells["trigger"]?.value,
+      member.cells["trigger"]?.line,
+    ]),
+  ).toEqual([
+    [`${path}:5`, "true", "Button", 6],
+    [`${path}:13`, "runtime", "controlled open", 13],
+    [`${path}:16`, "trap-focus", "PopoverTrigger", 17],
+    [`${path}:21`, "true", "detached handle", 21],
+    [`${path}:22`, "true", "runtime render", 22],
+  ]);
+  // The report lists every site, so a site the majority would hide still prints.
+  const lines = compositionLines(facts, () => true);
+  const section = lines.slice(lines.indexOf("### Modal popovers"));
+  expect(section.filter((line) => line.startsWith(`| ${path}:`))).toHaveLength(5);
+});
+
+/** Each member of the named cohort as the line and value of one column. */
+function cohortCells(root: string, name: string, column: string): readonly (readonly [number | undefined, string | undefined])[] {
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === name)?.members ?? [];
+  return members.map((entry) => [entry.cells[column]?.line, entry.cells[column]?.value] as const);
+}
+
+test("a toned Card with a status fill is a hand-built notice beside the Notice owner, and a Card without a tone or a fill is no member", ({ scratch }) => {
+  const root = plantDir(scratch, "notice");
+  plant(root, {
+    "components/boxes.tsx": [
+      'import { Card } from "@orb/ui/card";',
+      'import { Notice } from "#components";',
+      "export const A = ({ tone }) => (",
+      "  <>",
+      '    <Card tone="warning" variant="soft">x</Card>',
+      "    <Card tone={tone} variant={tone}>x</Card>",
+      '    <Card variant="soft">x</Card>',
+      '    <Card tone="info">x</Card>',
+      '    <Notice tone="warning" title="t" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  expect(cohortCells(root, "notice", "composite")).toEqual([
+    [5, "hand-built"],
+    [6, "hand-built"],
+    [9, "Notice"],
+  ]);
+});
+
+test("a Text drawn in a list's empty arm is a hand-built muted line beside the MutedLine owner, and a Text in the populated arm is no member", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "muted-line");
+  plant(root, {
+    "components/lines.tsx": [
+      'import { Text } from "@orb/ui/text";',
+      'import { MutedLine } from "#components";',
+      "export const A = ({ rows, go }) => (",
+      "  <>",
+      '    {rows.length === 0 ? <Text voice="gloss">none</Text> : <Text>{rows.length}</Text>}',
+      '    <MutedLine action={{ label: "Go", onAction: go }}>none</MutedLine>',
+      "  </>",
+      ");",
+      "export function B({ rows }) {",
+      "  if (rows.length === 0) {",
+      "    return <Text>none</Text>;",
+      "  }",
+      "  return <MutedLine announce={true}>miss</MutedLine>;",
+      "}",
+    ].join("\n"),
+  });
+  expect(cohortCells(root, "muted-line", "line")).toEqual([
+    [5, "hand-built"],
+    [6, "MutedLine"],
+    [11, "hand-built"],
+    [13, "MutedLine"],
+  ]);
+});
+
+test("every body a CONTEXT registration declares is a member with the root it draws, and a hand-built root is a defect", ({ scratch }) => {
+  const root = plantDir(scratch, "context-bodies");
+  const section = `${FEATURE}/lib/probe-section.tsx`;
+  plant(root, {
+    "components/rows-tab.tsx": 'import { ContextTabBody } from "#components";\nexport const RowsTab = () => <ContextTabBody kind="rows">a</ContextTabBody>;',
+    "components/bare-tab.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const BareTab = () => <Stack>b</Stack>;',
+    "components/single-body.tsx": 'import { ContextTabBody } from "#components";\nexport const SingleBody = () => <ContextTabBody>c</ContextTabBody>;',
+    "lib/probe-section.tsx": [
+      'import { BareTab } from "../components/bare-tab.tsx";',
+      'import { RowsTab } from "../components/rows-tab.tsx";',
+      'import { SingleBody } from "../components/single-body.tsx";',
+      "export const tabs = {",
+      "  context: defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: "rows", label: "Rows", body: () => <RowsTab /> },',
+      '      { id: "bare", label: "Bare", body: () => <BareTab /> },',
+      "    ],",
+      "  }),",
+      "};",
+      'export const contributed: ContextTabDef<ProbeState> = { id: "contributed", label: "More", body: () => <BareTab /> };',
+      'export const single = { context: { kind: "single", body: () => <SingleBody />, header: () => null } };',
+      "// A modal's body carries an id too, but no CONTEXT registration declares it.",
+      'export const modal = { id: "modal", body: () => <BareTab /> };',
+    ].join("\n"),
+  });
+  const facts = analyse(root, [], null);
+  const members = facts.cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value, member.cells["root"]?.line])).toEqual([
+    ["rows", "ContextTabBody rows", 7],
+    ["bare", "hand-built", 8],
+    ["contributed", "hand-built", 12],
+    ["single context", "ContextTabBody sections", 13],
+  ]);
+  const defects = facts.comparisons.find((entry) => entry.cohort === "context-tab" && entry.column === "root")?.defects ?? [];
+  expect(defects.map((defect) => defect.at)).toEqual([`${section}:8`, `${section}:12`]);
+});
+
+test("a CONTEXT tab with a constant id is a member, and its root is the owner on every branch the body returns", ({ scratch }) => {
+  const root = plantDir(scratch, "context-roots");
+  plant(root, {
+    "lib/tab-ids.ts": 'export const SPLIT_TAB_ID = "split";',
+    "components/nested-tab.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      'export const NestedTab = () => <Stack scroll="y"><ContextTabBody>a</ContextTabBody></Stack>;',
+    ].join("\n"),
+    "components/split-tab.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      "export function SplitTab({ open }) {",
+      "  if (open) {",
+      "    return <ContextTabBody>b</ContextTabBody>;",
+      "  }",
+      "  return <Stack>c</Stack>;",
+      "}",
+    ].join("\n"),
+    "components/both-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      "function Resting() {",
+      "  return <ContextTabBody>d</ContextTabBody>;",
+      "}",
+      "export function BothTab({ open, gone }) {",
+      "  if (gone) {",
+      "    return null;",
+      "  }",
+      '  return open ? <ContextTabBody kind="scroll">e</ContextTabBody> : <Resting />;',
+      "}",
+    ].join("\n"),
+    "lib/probe-section.tsx": [
+      'import { NestedTab } from "../components/nested-tab.tsx";',
+      'import { SplitTab } from "../components/split-tab.tsx";',
+      'import { BothTab } from "../components/both-tab.tsx";',
+      'import { SPLIT_TAB_ID } from "./tab-ids.ts";',
+      'const NESTED_TAB_ID = "nested";',
+      "export const tabs = {",
+      "  context: defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: NESTED_TAB_ID, label: "Nested", body: () => <NestedTab /> },',
+      '      { id: SPLIT_TAB_ID, label: "Split", body: (state) => <SplitTab open={state.open} /> },',
+      '      { id: "both", label: "Both", body: (state) => <BothTab open={state.open} gone={state.gone} /> },',
+      "    ],",
+      "  }),",
+      "};",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value])).toEqual([
+    ["nested", "hand-built"],
+    ["split", "hand-built"],
+    ["both", "ContextTabBody scroll+sections"],
+  ]);
+});
+
+test("a body's root reads through a box-less surface, a curried factory and a dialog beside it, and a delegated member body", ({ scratch }) => {
+  const root = plantDir(scratch, "context-root-shapes");
+  plant(root, {
+    "components/with-dialog-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      'export const WithDialogTab = () => <><ContextTabBody kind="fill">a</ContextTabBody><ConfirmDialog /></>;',
+    ].join("\n"),
+    "components/only-dialog-tab.tsx": "export const OnlyDialogTab = () => <><ConfirmDialog /></>;",
+    "components/gone-tab.tsx": [
+      'import { EmptyState } from "@orb/ui/empty-state";',
+      'import { ContextTabBody } from "#components";',
+      "export function GoneTab({ gone }) {",
+      "  if (gone) {",
+      '    return <EmptyState title="Gone" />;',
+      "  }",
+      "  return <ContextTabBody>b</ContextTabBody>;",
+      "}",
+    ].join("\n"),
+    "components/applies-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      'export const AppliesTab = ({ state }) => (state.member === null ? <ContextTabBody kind="blocks">c</ContextTabBody> : <>{state.member.body()}</>);',
+    ].join("\n"),
+    "lib/probe-section.tsx": [
+      'import { Surface } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      'import { AppliesTab } from "../components/applies-tab.tsx";',
+      'import { GoneTab } from "../components/gone-tab.tsx";',
+      'import { OnlyDialogTab } from "../components/only-dialog-tab.tsx";',
+      'import { WithDialogTab } from "../components/with-dialog-tab.tsx";',
+      "export function makeTabs() {",
+      '  const surfaced = (label) => (state) => (state.on ? <Surface tier="instrument"><ContextTabBody>{label}</ContextTabBody></Surface> : null);',
+      "  return defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: "with-dialog", label: "A", body: () => <WithDialogTab /> },',
+      '      { id: "only-dialog", label: "B", body: () => <OnlyDialogTab /> },',
+      '      { id: "gone", label: "C", body: (state) => <GoneTab gone={state.gone} /> },',
+      '      { id: "applies", label: "D", body: (state) => <AppliesTab state={state} /> },',
+      '      { id: "surfaced", label: "E", body: surfaced("E") },',
+      '      { id: "called", label: "F", body: (state) => surfaced("F")(state) },',
+      "    ],",
+      "  });",
+      "}",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value])).toEqual([
+    ["with-dialog", "ContextTabBody fill"],
+    ["only-dialog", "hand-built"],
+    ["gone", "hand-built"],
+    ["applies", "ContextTabBody blocks+member body"],
+    ["surfaced", "ContextTabBody sections"],
+    ["called", "ContextTabBody sections"],
+  ]);
 });

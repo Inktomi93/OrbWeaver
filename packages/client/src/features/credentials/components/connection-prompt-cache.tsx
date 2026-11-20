@@ -24,6 +24,16 @@ import {
 } from "#lib";
 import { PromptCacheAutosaveForm } from "../hooks/use-prompt-cache-form.ts";
 import {
+  PROMPT_CACHE_DEPTH_NAME,
+  PROMPT_CACHE_IMPLICIT_GLOSS,
+  PROMPT_CACHE_PREFIX_REQUEST_LEAD,
+  PROMPT_CACHE_RETENTION_24H_LABEL,
+  PROMPT_CACHE_RETENTION_FIELD_LABEL,
+  PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL,
+  PROMPT_CACHE_RETENTION_INHERIT_LABEL,
+  promptCacheRetentionName,
+} from "../lib/credentials-names.ts";
+import {
   PROMPT_CACHE_DEPTH_BOUNDS,
   PROMPT_CACHE_TTL_OPTIONS,
   promptCacheDepthOf,
@@ -179,7 +189,7 @@ function ManualMarkers({ session: { form }, connectionLabel, busy, fixedTtl, dis
         </form.Field>
       </SettingLine>
       <SettingLine
-        label="History cache depth"
+        label={PROMPT_CACHE_DEPTH_NAME}
         labelId={depthLabelId}
         gloss={
           disabled
@@ -190,7 +200,7 @@ function ManualMarkers({ session: { form }, connectionLabel, busy, fixedTtl, dis
         <form.Field name="historyDepth">
           {(field): ReactElement => (
             <NumberField
-              aria-label="History cache depth"
+              aria-label={PROMPT_CACHE_DEPTH_NAME}
               disabled={busy || disabled}
               max={PROMPT_CACHE_DEPTH_BOUNDS.max}
               min={PROMPT_CACHE_DEPTH_BOUNDS.min}
@@ -299,17 +309,17 @@ function ProviderControls({ session: { form }, generation, connectionLabel, busy
       ) : null}
       {retentions !== undefined && retentions.length > 0 ? (
         <SettingLine
-          label="Provider prefix retention"
+          label={PROMPT_CACHE_RETENTION_FIELD_LABEL}
           gloss="Leave inherited to use the model and organization's retention policy. This is not a marker TTL or complete-response replay lifetime."
         >
           <form.Field name="retention">
             {(field): ReactElement => (
               <Select
-                aria-label={`Provider prefix retention on ${connectionLabel}`}
+                aria-label={promptCacheRetentionName(connectionLabel)}
                 disabled={busy}
                 items={[
-                  { value: "provider-default", label: "Inherit provider default" },
-                  ...retentions.map((value) => ({ value, label: value === "24h" ? "Up to 24 hours" : "In memory" })),
+                  { value: "provider-default", label: PROMPT_CACHE_RETENTION_INHERIT_LABEL },
+                  ...retentions.map((value) => ({ value, label: value === "24h" ? PROMPT_CACHE_RETENTION_24H_LABEL : PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL })),
                 ]}
                 onValueChange={(value): void => field.handleChange(promptCacheRetentionOf(value))}
                 value={field.state.value ?? "provider-default"}
@@ -329,11 +339,9 @@ const PREFIX_LABELS: Readonly<Record<CachePolicy["prefix"]["action"], string>> =
 };
 function implicitSupportGloss(supported: boolean | null): string {
   if (supported === true) {
-    return "Provider-managed implicit prefix caching is available; eligibility and hits are determined upstream.";
+    return PROMPT_CACHE_IMPLICIT_GLOSS.supported;
   }
-  return supported === false
-    ? "Provider-managed implicit prefix caching is not documented as automatic on this route."
-    : "Provider-managed implicit prefix cache support is unknown for this route.";
+  return supported === false ? PROMPT_CACHE_IMPLICIT_GLOSS.unsupported : PROMPT_CACHE_IMPLICIT_GLOSS.unknown;
 }
 function CacheFacts({ policy, warnings }: Pick<ConnectionPromptCacheProps, "policy" | "warnings">): ReactElement {
   return (
@@ -341,7 +349,9 @@ function CacheFacts({ policy, warnings }: Pick<ConnectionPromptCacheProps, "poli
       <Text cap="prose" prose={true} voice="gloss">
         {implicitSupportGloss(policy.implicit.supported)}
       </Text>
-      <Text voice="gloss">App prefix request: {PREFIX_LABELS[policy.prefix.action]}.</Text>
+      <Text voice="gloss">
+        {PROMPT_CACHE_PREFIX_REQUEST_LEAD} {PREFIX_LABELS[policy.prefix.action]}.
+      </Text>
       {policy.replay.supported ? (
         <Text cap="prose" prose={true} voice="gloss">
           Complete-response replay: {policy.replay.enabled ? "requested by connection headers" : "off by default"}. This is separate from prefix caching;
@@ -371,7 +381,7 @@ function SettingLine({
 }): ReactElement {
   return (
     <Row align="start" gap="field" justify="between">
-      <Stack className="min-inline-0" grow="fill" gap="tight">
+      <Stack minWidth="shrinks" grow="fill" gap="tight">
         <Text id={labelId} voice="label">
           {label}
         </Text>

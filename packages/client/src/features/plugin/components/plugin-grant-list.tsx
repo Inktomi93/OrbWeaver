@@ -109,6 +109,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { MutedLine } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
 
@@ -205,7 +206,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
     // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
     <Stack gap="tight">
       <Row align="center" wrap={true} gap="field">
-        <Text id={nameId} voice="label">
+        <Text id={nameId} voice="label" wrap="anywhere">
           {copy.label}
         </Text>
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
@@ -218,12 +219,12 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
-          <Badge id={newMarkId} tone="info" size="sm">
+          <Badge id={newMarkId} whitespace="normal" cap="fit" tone="info" size="sm">
             New
           </Badge>
         ) : null}
         {copy.spends === true ? (
-          <Badge tone="warning" size="sm">
+          <Badge whitespace="normal" cap="fit" tone="warning" size="sm">
             Costs money
           </Badge>
         ) : null}
@@ -231,7 +232,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
             plugin-copy.ts). `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is
             more urgent than "this one reaches further than most"). */}
         {copy.risk === true ? (
-          <Badge tone="destructive" variant="outline" size="sm">
+          <Badge whitespace="normal" cap="fit" tone="destructive" variant="outline" size="sm">
             Reaches further
           </Badge>
         ) : null}
@@ -263,7 +264,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       ) : (
         <Stack aria-hidden={true} className="shrink-0" width="checkbox" />
       )}
-      <Stack className="min-inline-0" grow={true}>
+      <Stack minWidth="shrinks" grow={true}>
         {labelBlock}
       </Stack>
     </Row>
@@ -300,9 +301,11 @@ export function PluginGrantList({
     <Stack gap="tight" role="list">
       {netHosts.map((host) => (
         <Row key={host} align="center" gap="field" role="listitem">
-          <Text voice="datumMono">{host}</Text>
+          <Text voice="datumMono" wrap="anywhere">
+            {host}
+          </Text>
           {addedHostSet.has(host) ? (
-            <Badge tone="info" size="sm">
+            <Badge whitespace="normal" cap="fit" tone="info" size="sm">
               New
             </Badge>
           ) : null}
@@ -314,9 +317,7 @@ export function PluginGrantList({
   return (
     <Stack gap="block">
       {rows.length === 0 ? (
-        <Text cap="prose" prose={true} voice="gloss">
-          This plugin asks for no permissions at all. It can run its own code and nothing else.
-        </Text>
+        <MutedLine>This plugin asks for no permissions at all. It can run its own code and nothing else.</MutedLine>
       ) : (
         // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the
         // caller's own heading text ("What it's asking for" / "What Weather Teller is allowed to do") is

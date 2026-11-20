@@ -3,6 +3,7 @@
 import type { Db } from "@orb/db";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, eq, inArray } from "drizzle-orm";
 import type { ServerProducerRoot } from "../../server.ts";
 import type { CapturedRpgRows, RpgCheckpointRow, RpgGameRow, RpgJournalRow, RpgService, RpgTurnToolCallsRow, SeededRpgSheets } from "../rpg.ts";
@@ -47,10 +48,16 @@ export async function seedRpgSheetsRows(root: ServerProducerRoot, params: Parame
   const operations = root.services.rpg;
   await operations.patchSheet(params);
   const game = await operations.getGame({ principal: params.principal, chatId: params.chatId });
-  const sheets = await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, game.id)).orderBy(rpgSheets.id);
-  if (sheets.length === 0) {
+  const rows = await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, game.id)).orderBy(rpgSheets.id);
+  if (rows.length === 0) {
     throw new Error("production sheet patch left no canonical RPG sheet rows");
   }
+  const sheets = rows.map(({ sheet, ...row }) => {
+    if (sheet instanceof UnreadableJsonText) {
+      throw new Error("production sheet patch stored a sheet that is not JSON");
+    }
+    return { ...row, sheet };
+  });
   return { game, sheets };
 }
 

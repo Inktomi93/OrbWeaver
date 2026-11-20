@@ -1,4 +1,4 @@
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -35,7 +35,13 @@ test("actual authenticated multiplexing enforces socket ownership and withholds 
       allowBackground: false,
       declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { output: { modalities: ["text"] } } }),
     });
-    await harness.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal: await harness.principalFor(userId), cachedFacts: true });
+    await harness.app.runtime.resolve({
+      signal: new AbortController().signal,
+      task: "chat",
+      connectionId: connection.id,
+      principal: await harness.principalFor(userId),
+      cachedFacts: true,
+    });
     await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   }
   const shared = (await owner.chat.startChat({ characterIds: [], opening: "none" })).chat;
@@ -67,7 +73,7 @@ test("actual authenticated multiplexing enforces socket ownership and withholds 
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await harness.http.request(address, { headers: { cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await harness.http.request(address, { headers: { cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" }, signal: stop.signal });
   expect(response.status).toBe(200);
   const reader = response.body?.getReader();
   if (reader === undefined) {

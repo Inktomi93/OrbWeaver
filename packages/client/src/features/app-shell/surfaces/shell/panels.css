@@ -13,14 +13,19 @@
      * height at the enlarged root. Its layout containment also makes the pane the containing block for the glass
      * carrier (`.shell-panel::before`, client globals); without it the fill escapes the pane. */
     container: shell-panel / size;
+    /* The slide, one home for the desktop sheets and the phone ones (mobile.css). */
+    --shell-panel-slide: transform var(--shell-motion) var(--shell-ease);
   }
-  /* A pane this short at the enlarged root cannot hold a LIST page's chrome and its rows, so the page scrolls and the
-   * rows keep a floor, the room's own answer in content.css. */
+  /* A pane this short at the enlarged root cannot hold a LIST page's chrome and its rows, so the pane scrolls as a whole
+   * and the rows keep a floor, the room's own answer in content.css. The page flows at its content's height and the pane
+   * body is the one scroller: a page under a pane-wide head (the Corpus mode switch) would otherwise be squeezed to no
+   * height below that head, its own scroller with it. */
   @container shell-panel (height <= 20rem) {
     [data-list-page="scroll"],
     [data-list-page="bounded"] {
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      flex: none;
+      block-size: auto;
+      overflow-y: visible;
     }
     [data-list-page] > :is([data-slot="library-list-scroll"], [data-slot="library-list-bounded"]) {
       flex: none;
@@ -77,7 +82,7 @@
     grid-column: auto;
     inline-size: var(--panel-w);
     z-index: var(--z-overlay);
-    transition: transform var(--shell-motion) var(--shell-ease);
+    transition: var(--shell-panel-slide);
   }
   /* Only the width differs for the context pane; the co-motion stays in the shared rule above. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
@@ -100,6 +105,10 @@
    * and close change `transform` and nothing else. */
   .shell-panel[data-panel-mode="collapsed"] {
     inset-block: 0;
+    /* A pane sliding over content is a float (ui-surface-and-interaction-rules §2.4), so a pane leaving its overlay
+     * holds the float shadow until the slide ends: a zero-length shadow transition delayed by the slide, which paints
+     * once at the end and never interpolates. The reduced-motion floor removes it with the slide. */
+    --shell-panel-slide: transform var(--shell-motion) var(--shell-ease), box-shadow 0s linear var(--shell-motion);
   }
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-sheet][data-panel-mode="collapsed"] {

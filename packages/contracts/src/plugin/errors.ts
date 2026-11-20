@@ -10,6 +10,7 @@
 
 import { DomainConflictError, DomainForbiddenError, DomainUnavailableError } from "@orb/kit/errors";
 import type { PluginCapability } from "./manifest.ts";
+import { PLUGIN_CASCADE_DEPTH_MAX } from "./registrations.ts";
 
 /** Thrown UNIFORMLY by every capability-gated host function when its capability is not in `grants`
  *  — so a guest can feature-detect by try/catch or by reading `host.grants`. */
@@ -22,7 +23,7 @@ export class PluginCapabilityError extends DomainForbiddenError {
   }
 }
 
-/** POSTURE 2 (interaction spec §3-S4): the installer has the GRANT but not standing authority on this chat,
+/** POSTURE 2: the installer has the GRANT but not standing authority on this chat,
  *  so the act was NOT performed — it was raised as a SUGGESTION for the room's host to confirm.
  *
  *  WHY A THROW AND NOT A SILENT SUCCESS. The three-posture law says the act becomes an ask; it does not say
@@ -57,6 +58,44 @@ export class PluginHostDeadlineError extends DomainUnavailableError {
     this.hostFunction = hostFunction;
   }
 }
+
+/** A host call that reaches the installer's account, refused because that account is disabled. The plugin did
+ *  nothing wrong, so it is a conflict, which the crash policy never counts as a strike, even when the guest leaves it
+ *  uncaught. `name` crosses the QuickJS boundary intact, so a guest matches `e.name === "PluginInstallerDisabledError"`. */
+export class PluginInstallerDisabledError extends DomainConflictError {
+  constructor() {
+    super("plugin host: this plugin's installer is disabled");
+    this.name = "PluginInstallerDisabledError";
+  }
+}
+
+/** A `pubsub.emit` from a delivery already at {@link PLUGIN_CASCADE_DEPTH_MAX}. The cascade is the plugin's
+ *  own, so an uncaught one counts as its strike. A guest matches `e.name === "PluginPubsubDepthError"`. */
+export class PluginPubsubDepthError extends DomainForbiddenError {
+  constructor() {
+    super(`plugin host: pubsub.emit refused — a delivery opens at most ${String(PLUGIN_CASCADE_DEPTH_MAX)} deliveries deep`);
+    this.name = "PluginPubsubDepthError";
+  }
+}
+
+/** Why a guest's model call failed, beside the fixed sentence: the failure's kind, never its upstream text. It mirrors
+ *  `@orb/inference`'s `PROVIDER_ERROR_KINDS` (contracts sit below inference), and the server holds the two equal by
+ *  type, so a kind added there fails `tsc` until it is added here. */
+export const PLUGIN_LLM_FAILURE_KINDS = [
+  "rate_limit",
+  "auth_failed",
+  "billing",
+  "moderation",
+  "refused",
+  "forbidden",
+  "invalid",
+  "model_unavailable",
+  "server",
+  "max_output",
+  "aborted",
+  "unknown",
+] as const;
+export type PluginLlmFailureKind = (typeof PLUGIN_LLM_FAILURE_KINDS)[number];
 
 /** The code of a `PluginHostUnavailable` refusal made because a channel between the host's processes was full: that
  *  one call was refused and nothing else, and a retry may succeed (D348). */

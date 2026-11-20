@@ -6,18 +6,17 @@ export type { WorldInfoExportAssemblyContext } from "./contract/export.ts";
 
 export type { WorldInfoService } from "./contract/service.ts";
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
-export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";
+export { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {
   createAttachOwnedBooksByName,
   createBulkImportLorebook,
   createHasPrimaryBook,
-  createImportStandaloneLorebook,
+  createImportStandaloneLorebooks,
 } from "./persistence/import-write.ts";
 export { createLinkCarriedBooks } from "./persistence/link-carried-books.ts";
 export { createWorldInfoRoomReach } from "./persistence/room-reach.ts";
 export { createWorldInfoService } from "./service.ts";
 export { createExportWorldBook } from "./verbs/export.ts";
-export { createFindOwnedBooks } from "./verbs/find-owned-books.ts";
 export { createImportWorldBook } from "./verbs/import.ts";
 export { createListOwnedBookIds } from "./verbs/list-owned-book-ids.ts";
 export { createPluginWorldInfoReads } from "./verbs/plugin-reads.ts";

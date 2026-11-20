@@ -20,9 +20,8 @@ export interface MultiToggleFieldProps extends BoundFieldShellProps {
   /**
    * A caller-computed invalid message, rendered through `<Field>`'s error slot and overriding the
    * touch-gated one. It exists because the SET-EMPTY state is a real defect on an AUTOSAVING form and
-   * nothing else can say so: the regex library's `placement: []` parses (the card-boundary accept-and-drop
-   * heal keeps it lenient by law) and saves, and the script then runs nowhere — silently, until this line
-   * (side-eye 2026-08-03 P2). Untouched-and-empty is exactly the state a touch-gated error cannot reach.
+   * nothing else can say so: a regex script's `targets: []` parses and saves, and the script then runs
+   * nowhere. Untouched-and-empty is exactly the state a touch-gated error cannot reach.
    */
   readonly error?: string;
 }
@@ -48,15 +47,14 @@ export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
         {props.items.map((item) => (
           // `variant="outline"` — THE RESTING HAIRLINE (side-eye 2026-08-19 P2). The `ghost` default paints
           // no edge and no fill until pressed, which is right for a toolbar toggle you already know is a
-          // control; in a FORM it is not. Measured on the regex editor's `Runs on` field: the unselected
-          // chips ("History sent to the model", "Rendered transcript") were muted text on the group's own
-          // muted panel, and read as captions describing the field rather than as the options they are —
+          // control; in a FORM it is not. Measured on the regex editor's target field: the unselected
+          // chips were muted text on the group's own muted panel, and read as captions describing the field rather than as the options they are —
           // every other bound field in the app renders a box. `outline` is the arm minted for exactly this
           // ("must read as the same class of thing as the chips beside it"), and its
           // `data-pressed:border-transparent` keeps the SELECTED chip a fill rather than a fill wearing a
           // spare outline. Stated here rather than per call site for the reason that arm's own comment
           // gives: a skin decided per call site is how one rail becomes two.
-          <Toggle key={item.value} value={item.value} aria-label={item.label} variant="outline">
+          <Toggle key={item.value} value={item.value} aria-label={item.label} variant="outline" disabled={item.disabled ?? false}>
             {item.label}
           </Toggle>
         ))}

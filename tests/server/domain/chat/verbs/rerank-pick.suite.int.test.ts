@@ -110,7 +110,7 @@ test("each character document is clipped to the reranker's window before it is s
   }
 });
 
-test("public Stop during a held rerank cancels the pick instead of degrading it: no fallback speaker, warning or foreground generation", async () => {
+test("public Stop during a rerank that never answers ends the call and cancels the pick: no fallback speaker, warning or foreground generation", async () => {
   await using room = await smartRoom({ holdRerank: true }, { group: { ...SMART, allowSelfResponses: true } });
   await bindRerank(room);
   const sending = send(room);
@@ -118,9 +118,9 @@ test("public Stop during a held rerank cancels the pick instead of degrading it:
   try {
     await room.peer.reached;
     await room.h.root.services.chat.abort({ principal: room.h.owner, chatId: room.h.chatId });
-    // The rerank call carries no signal, so the pick sees the Stop when the held answer arrives, and that answer is a refusal.
-    room.peer.release();
+    // The held answer is never released here: the turn's signal reaches the rerank call, so the pick ends on the Stop.
     const outcome = await sending;
+    await room.peer.closed;
     expect(outcome).toMatchObject({ aborted: true, abortReason: "user" });
     expect(outcome.messages.filter((m) => m.role === "assistant")).toEqual([]);
     expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toEqual([]);

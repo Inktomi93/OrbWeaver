@@ -13,7 +13,8 @@ import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useGatedQuery, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { surfaceDeferredFailure } from "#lib";
 import { useActiveChatId } from "#state";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -39,7 +40,7 @@ export function useActiveRosterChat(): ActiveRosterChat | null {
   const chatId = useActiveChatId();
   const trpc = useTRPC();
   const chatQueries = useSuspenseQueries({
-    queries: (chatId === null ? [] : [chatId]).map((id) => trpc.chat.getChat.queryOptions({ chatId: id })),
+    queries: (chatId === null ? [] : [chatId]).map((id) => roomRosterOptions(trpc, { chatId: id })),
   });
   const chatQuery = chatQueries[0];
   if (chatId === null || chatQuery === undefined) {
@@ -120,7 +121,7 @@ export function useRosterRuleCapture(active: ActiveRosterChat | null): RosterRul
   // The gate keeps the key unbuilt for a non-host / no-room mount.
   const rulesQuery = useGatedQuery(hostChatId, (chatId) => trpc.automation.listRules.queryOptions({ chatId }));
   const retry = (): void => {
-    rulesQuery.refetch().catch(() => undefined); // the query's own error state carries the failure
+    rulesQuery.refetch().catch(surfaceDeferredFailure); // the query's own error state carries the failure
   };
   if (rulesQuery.isError) {
     return { status: "error", rules: [], retry };
@@ -152,7 +153,7 @@ export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCap
     return {
       status: "error",
       retry: (): void => {
-        gameQuery.refetch().catch(() => undefined); // the query's own error state carries the failure
+        gameQuery.refetch().catch(surfaceDeferredFailure); // the query's own error state carries the failure
       },
     };
   }

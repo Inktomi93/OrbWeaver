@@ -14,10 +14,11 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, RotateCcw } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { BulletList, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { ContextTabBody } from "#components";
 import type { CollectionContribution, ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue } from "#lib";
 
 export interface TeacherProps {
@@ -30,7 +31,7 @@ export interface TeacherProps {
 export function TeacherBand({ state }: TeacherProps): ReactElement {
   const title = state.member === null ? state.teach.title : state.member.title;
   return (
-    <Stack gap="tight" className="min-inline-0">
+    <Stack gap="tight" minWidth="shrinks">
       <Text as="span" voice="kicker" truncate={true}>
         {title}
       </Text>
@@ -80,7 +81,7 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
   }
   return (
     <Stack gap="tight" data-slot="teacher-value">
-      <Stack gap="tight" className="min-inline-0">
+      <Stack gap="tight" minWidth="shrinks">
         <Text as="span" voice="label">
           Current {value.current}
         </Text>
@@ -108,10 +109,10 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
  *  one-at-a-time inspector could not give them for the seven rows they had not touched. */
 function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry[] }): ReactElement {
   return (
-    <Stack gap="block" data-slot="teacher-roster">
+    <ContextTabBody kind="blocks" data-slot="teacher-roster">
       {roster.map((entry) => (
         <Stack key={entry.id} data-modified={entry.modified ? "" : undefined} data-setting={entry.id} data-slot="teacher-roster-entry" gap="tight">
-          <Row align="baseline" gap="field" className="min-inline-0">
+          <Row align="baseline" gap="field" minWidth="shrinks">
             <Text as="span" voice="label" truncate={true}>
               {entry.label}
             </Text>
@@ -131,7 +132,7 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
           )}
         </Stack>
       ))}
-    </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -146,23 +147,20 @@ export function TeacherAbout({ state }: TeacherProps): ReactElement {
     return <TeacherRoster roster={state.roster} />;
   }
   return (
-    <Stack gap="block" data-slot="teacher-about">
+    <ContextTabBody kind="blocks" data-slot="teacher-about">
       <Text>{teach.summary}</Text>
       {teach.value === null ? null : <TeacherValueBlock value={teach.value} />}
       {teach.affects.length === 0 ? null : (
         <KickerBlock kicker="Affects">
-          <Stack gap="tight">
+          <BulletList>
             {teach.affects.map((line) => (
-              <Row key={line} align="start" gap="field">
-                <Text as="span" voice="gloss" aria-hidden={true}>
-                  ·
-                </Text>
+              <li key={line}>
                 <Text as="span" voice="label">
                   {line}
                 </Text>
-              </Row>
+              </li>
             ))}
-          </Stack>
+          </BulletList>
         </KickerBlock>
       )}
       {teach.related.length === 0 ? null : (
@@ -170,7 +168,7 @@ export function TeacherAbout({ state }: TeacherProps): ReactElement {
           <DoorRows doors={teach.related} />
         </KickerBlock>
       )}
-    </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -185,16 +183,16 @@ export function TeacherApplies({ state }: TeacherProps): ReactElement {
     return <>{state.member.body()}</>;
   }
   return (
-    <Stack gap="block" data-slot="teacher-applies">
+    <ContextTabBody kind="blocks" data-slot="teacher-applies">
       <Text voice="gloss">Where a narrower scope wins over this setting:</Text>
       <DoorRows doors={state.teach.applies} />
-    </Stack>
+    </ContextTabBody>
   );
 }
 
 /** LEARN — the contribution's own in-app lesson. The tab's `when` guarantees `learn` here. */
 export function TeacherLearn({ state }: TeacherProps): ReactElement {
-  return <>{state.teach.learn?.()}</>;
+  return <ContextTabBody kind="blocks">{state.teach.learn?.()}</ContextTabBody>;
 }
 
 export interface CollectionMemberContextProps {

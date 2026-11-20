@@ -5,7 +5,7 @@
 import type { PersonaId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
 import { nowDefaultNotice } from "../lib/persona-copy.ts";
@@ -37,7 +37,7 @@ export function usePlayingPersona(): PlayingPersonaState {
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const chatId = useActiveChatId();
   // Gated, not suspended: with no chat open there is no room, and a switch must not block on a room read.
-  const { data: loaded } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: loaded } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const chat = chatId !== null && loaded !== undefined ? loaded : null;
   const seeds = settings.config.seeds;
   return {

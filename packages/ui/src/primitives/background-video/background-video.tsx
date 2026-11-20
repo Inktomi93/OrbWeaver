@@ -4,6 +4,10 @@ import type { VariantProps } from "tailwind-variants";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { backgroundVideoVariants } from "./variants.ts";
 
+/** The names the HTML standard gives a refused `play()`: the autoplay policy, an interrupting pause or load, and a
+ *  source the element cannot play. */
+const PLAY_REFUSAL_NAMES: ReadonlySet<string> = new Set(["NotAllowedError", "AbortError", "NotSupportedError"]);
+
 /** Page Visibility as an external store (the Waystone precedent) — the tab's hidden state is not React
  *  state, so it is SUBSCRIBED, never mirrored into useState from an effect. Module-scope callbacks: the
  *  React Compiler stabilizes what it compiles, and manual memo hooks are banned here. */
@@ -66,11 +70,13 @@ export function BackgroundVideo({ src, paused = false, fit, rounded, size, class
       video.pause();
       return;
     }
-    // A rejected play() (an autoplay-policy edge) is a no-op — muted playback is unconditionally allowed.
-    // documented above — a rejected play() on a
-    // muted, decorative background element is a genuine no-op per the autoplay spec. Ends if the element
-    // stops being muted/decorative-only.
-    void video.play().catch(() => undefined);
+    // A play() the media element refuses (an autoplay-policy edge, a pause or load that interrupts it, a source it
+    // cannot play) is a no-op on a muted, decorative background. Any other fault rejects.
+    void video.play().catch((error: unknown) => {
+      if (!(Error.isError(error) && PLAY_REFUSAL_NAMES.has(error.name))) {
+        throw error;
+      }
+    });
   }, [animating, src]);
 
   return (

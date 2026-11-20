@@ -11,7 +11,7 @@ export interface ImportedTokenUsageCandidate {
   readonly ownerId: UserId;
   readonly role: MessageRole;
   readonly content: string;
-  /** The variant's PARSED sidecar (§5.3c class 3) — read for {@link VARIANT_METADATA_TOKEN_COUNT_KEY} only.
+  /** The variant's PARSED sidecar — read for {@link VARIANT_METADATA_TOKEN_COUNT_KEY} only.
    *  Closed rather than a bag so `recordedTokenCountFromMetadata` names a typed field or stops compiling. */
   readonly metadata: VariantMetadata | null;
   readonly tokensIn: number | null;

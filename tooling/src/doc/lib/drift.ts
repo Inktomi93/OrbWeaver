@@ -24,9 +24,8 @@ function staleDoing(facts: DriftFacts): readonly string[] {
 }
 
 /** A `main` commit whose trailer names an item still on the tree. Landing deletes the item, so an item a
- *  trailer closed and the tree still carries never landed. The common cause is named in the line: git
- *  runs no `post-merge` hook when a conflicted merge is concluded by `git commit`, so the auto-land never
- *  fired and the orchestrator lands by hand. */
+ *  trailer closed and the tree still carries never landed. `lefthook.yml` installs no landing hook, so the
+ *  line names the manual `pnpm doc land` step. */
 function unlanded(facts: DriftFacts): readonly string[] {
   const byId = new Map(facts.items.map((item) => [item.id, item] as const));
   const seen = new Set<number>();
@@ -41,7 +40,7 @@ function unlanded(facts: DriftFacts): readonly string[] {
     }
     if (pending.length > 0) {
       lines.push(
-        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
+        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
       );
     }
   }

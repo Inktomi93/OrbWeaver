@@ -11,19 +11,29 @@ function oneFile(produce: (ownerId: UserId) => Promise<PortableFile>): PortableE
   };
 }
 
+// A kind whose one file reports what it left out, and may leave nothing to write.
+function reportedFile(produce: PortableExportDeps["userSettings"]): PortableEntity["exportAll"] {
+  return async function* (ownerId, note): AsyncIterable<PortableFile> {
+    const file = await produce(ownerId, note);
+    if (file !== null) {
+      yield file;
+    }
+  };
+}
+
 /** Portable backup traversal keeps owner admission on each producer, including rows removed mid-export. */
 export function createPortableExports(deps: PortableExportDeps): PortableExports {
   return {
     gallery: oneFile(deps.gallery),
     tag: oneFile(async (ownerId) => ({ filename: "tags.json", bytes: await deps.tags(ownerId) })),
-    theme: oneFile(deps.theme),
-    userSettings: oneFile(deps.userSettings),
-    async *preset(ownerId): AsyncIterable<PortableFile> {
-      yield* await deps.presets({ ownerId });
+    theme: reportedFile(deps.theme),
+    userSettings: reportedFile(deps.userSettings),
+    async *preset(ownerId, note): AsyncIterable<PortableFile> {
+      yield* await deps.presets({ ownerId, note });
     },
-    async *worldInfo(ownerId): AsyncIterable<PortableFile> {
+    async *worldInfo(ownerId, note): AsyncIterable<PortableFile> {
       for (const bookId of await deps.listBookIds({ ownerId })) {
-        const book = await deps.worldBook({ ownerId, bookId });
+        const book = await deps.worldBook({ ownerId, bookId, note });
         if (book !== null) {
           yield book;
         }
@@ -40,16 +50,16 @@ export function createPortableExports(deps: PortableExportDeps): PortableExports
         }
       }
     },
-    async *persona(ownerId): AsyncIterable<PortableFile> {
+    async *persona(ownerId, note): AsyncIterable<PortableFile> {
       const principal = await deps.resolveOwnerPrincipal(ownerId);
       for (const detail of await deps.persona.list({ principal })) {
-        yield await deps.persona.export({ principal, personaId: detail.id });
+        yield await deps.persona.export({ principal, personaId: detail.id, note });
       }
     },
-    async *character(ownerId): AsyncIterable<PortableFile> {
+    async *character(ownerId, note): AsyncIterable<PortableFile> {
       const principal = await deps.resolveOwnerPrincipal(ownerId);
       for (const characterId of await deps.listCharacterIds(ownerId)) {
-        const card = await deps.exportService.exportCharacter({ principal, characterId });
+        const card = await deps.exportService.exportCharacter({ principal, characterId, note });
         if (card !== null) {
           yield { filename: card.filename, bytes: card.bytes };
         }

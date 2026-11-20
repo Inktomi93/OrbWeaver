@@ -1,5 +1,5 @@
 import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
+import { PORTABLE_EXPORT_REPORT_FILE, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { StagedArchive, StagedEntry } from "#infra/storage";
 
@@ -26,6 +26,10 @@ function groupByDir(staged: StagedArchive): {
   const unrouted: string[] = [];
   for (const entry of staged.entries) {
     const dir = leadingDir(entry.path);
+    // The export's own report is advisory and holds no data, so it is neither imported nor counted as a skip.
+    if (entry.path === PORTABLE_EXPORT_REPORT_FILE) {
+      continue;
+    }
     if (dir === null) {
       unrouted.push(entry.path);
       continue;
@@ -65,15 +69,10 @@ function fileOutcome(entity: PortableEntity, path: string, result: PortableImpor
 }
 
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
-async function importEntity(
-  entity: PortableEntity,
-  files: readonly StagedFile[],
-  ownerId: UserId,
-  signal: AbortSignal | undefined,
-): Promise<BundleImportFileOutcome[]> {
+async function importEntity(entity: PortableEntity, files: readonly StagedFile[], ownerId: UserId, signal: AbortSignal): Promise<BundleImportFileOutcome[]> {
   const outcomes: BundleImportFileOutcome[] = [];
   for (const [i, staged] of files.entries()) {
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       // Everything from HERE on is unreached, not skipped-by-routing and not failed. Naming it is what keeps
       // a cancelled bundle from reporting the same shape as a complete one.
       outcomes.push(...notAttemptedFrom(entity, files.slice(i)));
@@ -105,7 +104,7 @@ async function importInDepOrder(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
   ownerId: UserId,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
 ): Promise<BundleImportFileOutcome[]> {
   const byKind = new Map<PortableKind, PortableEntity>();
   for (const entity of registry) {
@@ -118,7 +117,7 @@ async function importInDepOrder(
     if (entity === undefined || files === undefined || files.length === 0) {
       continue;
     }
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       // A WHOLE wave the abort landed before: every one of its files is named, not dropped.
       outcomes.push(...notAttemptedFrom(entity, files));
       continue;
@@ -155,16 +154,16 @@ function collectSkips(
   return outcomes;
 }
 
-function tally(outcomes: readonly BundleImportFileOutcome[]): {
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
-} {
+function tally(outcomes: readonly BundleImportFileOutcome[]): Omit<BundleImportReport, "outcomes"> {
   let imported = 0;
+  let inLibrary = 0;
   let skipped = 0;
   let failed = 0;
   for (const outcome of outcomes) {
-    if (outcome.ok) {
+    // A descriptor that reports no `created` always writes, so only an explicit false is a held file.
+    if (outcome.ok && outcome.created === false) {
+      inLibrary++;
+    } else if (outcome.ok) {
       imported++;
       // A file nobody routed, and a file the abort never reached, are both SKIPS — neither was attempted, so
       // neither is a failure the operator should chase.
@@ -174,7 +173,7 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
       failed++;
     }
   }
-  return { imported, skipped, failed };
+  return { imported, inLibrary, skipped, failed };
 }
 
 /**
@@ -205,6 +204,6 @@ export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImp
     registry,
     ownerId,
     staged,
-    ...(signal !== undefined ? { signal } : {}),
+    signal,
   });
 }

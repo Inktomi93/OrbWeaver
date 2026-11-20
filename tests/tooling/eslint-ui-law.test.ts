@@ -16,6 +16,7 @@ const DATA = `${CLIENT}data/probe.ts`;
 const FACTORY = `${CLIENT}data/create-collection-surface.ts`;
 const UI = "packages/ui/src/primitives/probe/probe.tsx";
 const UI_VARIANTS = "packages/ui/src/primitives/probe/variants.ts";
+const DISABLED_HOME = "packages/ui/src/lib/disabled-state.ts";
 
 const MEMO = "orb/no-manual-memo";
 const LEGACY = "orb/no-legacy-react-api";
@@ -165,6 +166,31 @@ const CASES = [
   [CLASSES, "a loop keyed on a non-lifecycle attribute", classed("data-indeterminate:animate-pulse"), UI, 0],
   [CLASSES, "animate-none on data-closed", classed("data-closed:animate-none"), UI, 0],
   [CLASSES, "an unconditional animation", classed("animate-pulse"), UI, 0],
+  [CLASSES, "the disabled opacity step outside its home", classed("opacity-disabled"), UI, 1],
+  [CLASSES, "a dim on data-disabled outside its home", 'export const X = "data-disabled:opacity-disabled";', UI_VARIANTS, 1],
+  [CLASSES, "a fill on data-disabled outside its home", classed("data-disabled:bg-muted"), UI, 1],
+  [CLASSES, "an ink on the native disabled pseudo outside its home", classed("disabled:text-muted-foreground"), UI, 1],
+  [CLASSES, "an opacity reset on a disabled control outside its home", classed("data-disabled:opacity-100"), UI, 1],
+  [CLASSES, "an ink keyed on a disabled group outside its home", classed("group-data-disabled/row:text-muted-foreground"), UI, 1],
+  [CLASSES, "a fill keyed on a disabled descendant outside its home", classed("has-data-disabled:bg-muted"), UI, 1],
+  [CLASSES, "a dim on the bracket disabled attribute outside its home", classed("data-[disabled=true]:opacity-disabled"), UI, 1],
+  [CLASSES, "an ink on aria-disabled outside its home", classed("aria-disabled:text-muted-foreground"), UI, 1],
+  [CLASSES, "a dim behind a stacked state outside its home", classed("data-checked:data-disabled:bg-muted"), UI, 1],
+  [CLASSES, "a disabled look in a client feature", classed("data-disabled:opacity-disabled"), FEATURE, 1],
+  [CLASSES, "a disabled look in client chrome", 'export const X = "disabled:bg-muted";', DATA, 1],
+  [CLASSES, "the disabled look in its home", 'export const X = "data-disabled:opacity-disabled data-checked:data-disabled:bg-muted";', DISABLED_HOME, 0],
+  [CLASSES, "the disabled step as a colour alpha outside its home", classed("text-muted-foreground/(--opacity-disabled)"), UI, 1],
+  [CLASSES, "another alpha on a neutral colour in the disabled home", 'export const X = "data-disabled:text-muted-foreground/50";', DISABLED_HOME, 1],
+  [
+    CLASSES,
+    "the disabled step as a colour alpha in its home",
+    'export const X = "data-disabled:placeholder:text-muted-foreground/(--opacity-disabled)";',
+    DISABLED_HOME,
+    0,
+  ],
+  [CLASSES, "a pointer behind a disabled variant", classed("data-disabled:pointer-events-auto"), UI, 0],
+  [CLASSES, "a cursor behind the native disabled pseudo", classed("disabled:cursor-not-allowed"), UI, 0],
+  [CLASSES, "a receded opacity step", classed("opacity-receded"), UI, 0],
   [CLASSES, "transition-all in a variants file string", 'export const slot = "transition-all duration-150";', UI_VARIANTS, 1],
   [CLASSES, "a word-reveal keyframe on a lifecycle attribute", classed("data-open:animate-[orb-word-reveal_var(--motion-base)]"), UI, 1],
   [CLASSES, "a word-reveal keyframe behind a group lifecycle attribute", classed("group-data-closed:animate-[orb-word-reveal_1s]"), UI, 1],

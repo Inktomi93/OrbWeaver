@@ -1,10 +1,11 @@
-// @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona no longer
-// imports `@orb/contracts/world-info`: the `{depth, role}` inject shape comes from `@orb/kit/injection`
-// (the shared neutral primitive every injector uses), never a world-info-local re-spell.
+// @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona takes the
+// `{depth, role}` inject shape from `@orb/kit/injection`
+// (the shared neutral primitive every injector uses), never from `@orb/contracts/world-info` or a
+// world-info-local re-spell.
 
 // `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
 
-import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, Branded, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
@@ -30,10 +31,10 @@ export const personaMetadataSchema = z
     sourceCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
     swapMacros: z.boolean().exactOptional(),
     /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
-     *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
-     *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
-     *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
-     *. Personas carry no unique key by design (same-named personas are supported), so the
+     *  It is the seeder's SECOND idempotency layer, the persona analogue of the character seeder's
+     *  per-card handle-conflict tolerance: the persisted `onboarding.defaultPersonaSeeded` latch alone can be
+     *  lost mid-life, and without this marker the seeder would mint a duplicate. Personas carry no unique key
+     *  by design (same-named personas are supported), so the
      *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
      *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
     seededDefault: z.boolean().exactOptional(),
@@ -109,10 +110,18 @@ export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 // envelope keys and fields from another build are dropped rather than refusing the whole import.
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true }).strip();
 
+/** A persona name an import carries: not blank once trimmed, so its folded name is never empty and the import write,
+ *  its dry run and the collision review never meet a nameless persona. Minted by {@link isPersonaImportName}. */
+export type PersonaImportName = Branded<"PersonaImportName">;
+
+export function isPersonaImportName(raw: string): raw is PersonaImportName {
+  return raw.trim().length > 0;
+}
+
 /** One resolved persona to bulk-import. `isDefault` marks the profile's `power_user.default_persona`.
  *  `avatarAssetId` is set by the driver after storing the `User Avatars/<file>` bytes. */
 export interface BulkImportPersonaInput {
-  readonly name: string;
+  readonly name: PersonaImportName;
   readonly description: string;
   readonly avatarAssetId: AssetId | null;
   readonly metadata: PersonaMetadata | null;
@@ -120,7 +129,7 @@ export interface BulkImportPersonaInput {
 }
 
 /** The result of one persona bulk-import run. `idByName` maps the lowercased-trimmed name → the resolved id
- *  for EVERY non-empty input name (created AND reused) — import copies it into `personaByUserName`. */
+ *  for EVERY input name (created AND reused) — import copies it into `personaByUserName`. */
 export interface BulkImportPersonasResult {
   readonly personasCreated: number;
   readonly personasSkipped: number;
@@ -228,7 +237,7 @@ export const personaCharacterInputSchema = z.strictObject({ characterId: typeIdS
 /** A persona a profile upload would write, with the content hash of its avatar bytes — what the pre-commit
  *  review compares against the owner's personas. */
 export interface IncomingPersona {
-  readonly name: string;
+  readonly name: PersonaImportName;
   readonly description: string;
   readonly metadata: PersonaMetadata | null;
   readonly artHash: string | null;

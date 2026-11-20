@@ -4,10 +4,10 @@
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
-import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
 import { resolvedConfig } from "./_eslint-config.ts";
+import { programForSource } from "./_typescript-program.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/no-opaque-variant-spread";
@@ -20,26 +20,7 @@ beforeAll(async () => {
 }, 120_000);
 
 // The client's own compiler options over one probe file, so `@orb/ui` and React resolve to their real types.
-function programFor(fileName: string, source: string): ts.Program {
-  const parsed = ts.getParsedCommandLineOfConfigFile(
-    join(ROOT, "packages/client/tsconfig.json"),
-    {},
-    {
-      ...ts.sys,
-      onUnRecoverableConfigFileDiagnostic: (diagnostic): never => {
-        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-      },
-    },
-  );
-  const options = { ...(parsed?.options ?? {}), noEmit: true };
-  const host = ts.createCompilerHost(options, true);
-  const read = host.getSourceFile.bind(host);
-  host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined =>
-    name === fileName ? ts.createSourceFile(name, source, version, true, ts.ScriptKind.TSX) : read(name, version, onError, create);
-  const exists = host.fileExists.bind(host);
-  host.fileExists = (name): boolean => name === fileName || exists(name);
-  return ts.createProgram([fileName], options, host);
-}
+const CLIENT_CONFIG = "packages/client/tsconfig.json";
 
 async function findings(body: string, rule: string = RULE): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, PROBE);
@@ -52,7 +33,12 @@ async function findings(body: string, rule: string = RULE): Promise<readonly Lin
       plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
-        parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
+        parserOptions: {
+          project: false,
+          projectService: false,
+          programs: [programForSource(ROOT, CLIENT_CONFIG, fileName, source)],
+          ecmaFeatures: { jsx: true },
+        },
       },
       rules: { [rule]: config.rules[rule] ?? "off" },
     },

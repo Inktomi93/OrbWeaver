@@ -4,11 +4,11 @@
 // chronicle (cards archived into the day they were born — the "Journal" rule), so both lenses read the
 // SAME projection of the same cache entry (`trpc.chat.listMessages` — lockdown §12 direct read).
 
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import type { CardSpanOrigin } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
-import { resolveRowRenderPolicy } from "#lib";
+import { buildParticipantsById, resolveRowRenderPolicy } from "#lib";
 
 /** One archived card projected from the visible transcript, stamped with its birth time (`createdAt` —
  *  the origin MESSAGE's wall time; Journal's day-grouping key). */
@@ -32,13 +32,17 @@ export interface ArchivedCard {
   readonly characterId: CharacterId | null;
 }
 
-type ArchivedCardSource = Pick<MessageView, "id" | "content" | "createdAt" | "role" | "authorUserId" | "characterId">;
+type ArchivedCardSource = Pick<MessageView, "id" | "content" | "createdAt" | "role" | "authorUserId" | "characterId" | "kind">;
 
 /** The participants + viewer the per-row policy resolves against — the same `chat.getChat` read the takeover
  *  already holds. `participants` absent (still loading) resolves every card to the safe floor. */
 interface ArchivedCardViewer {
   readonly participants: readonly ParticipantView[] | undefined;
+  /** `ChatDetail.narratorRender`, the policy a narrator row's cards render at. */
+  readonly narrator: NarratorRenderPolicy | undefined;
   readonly viewerUserId: UserId | null;
+  /** The install's "Block external media", strict until the config lands (`useRenderPolicyFloor`). */
+  readonly installForbidsExternalMedia: boolean;
 }
 
 const CARD_LABEL = "Immersive card";
@@ -46,14 +50,7 @@ const CARD_LABEL = "Immersive card";
 /** Collect the card spans from the transcript's messages, TRANSCRIPT ORDER (oldest first — callers own
  *  their sort). The lenient arm is ON to match the game reading surface. */
 export function collectArchivedCards(messages: readonly ArchivedCardSource[], viewer: ArchivedCardViewer): readonly ArchivedCard[] {
-  // The by-character index the trust resolver reads. Built here rather than imported from chat's participants
-  // helper — a cross-feature RUNTIME import is banned, and this is a lookup, not a second copy of the rule.
-  const byCharacter = new Map<CharacterId, ParticipantView>();
-  for (const participant of viewer.participants ?? []) {
-    if (participant.characterId !== null) {
-      byCharacter.set(participant.characterId, participant);
-    }
-  }
+  const byCharacter = buildParticipantsById(viewer.participants ?? []);
   const cards: ArchivedCard[] = [];
   for (const message of messages) {
     const policy = resolveRowRenderPolicy({
@@ -62,6 +59,9 @@ export function collectArchivedCards(messages: readonly ArchivedCardSource[], vi
       characterId: message.characterId,
       viewerUserId: viewer.viewerUserId,
       participants: byCharacter,
+      kind: message.kind,
+      narrator: viewer.narrator,
+      installForbidsExternalMedia: viewer.installForbidsExternalMedia,
     });
     tokenizeContent(message.content, { lenientHtml: true, committed: true }).forEach((span, index) => {
       if (span.kind === "card") {

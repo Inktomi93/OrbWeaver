@@ -1,10 +1,10 @@
 // Native Google uses the shared funnel, prompt, stream reducer and pre-commit retry boundary.
 
 import type { JSONObject } from "@ai-sdk/provider";
-import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill } from "@orb/contracts/inference";
-import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot, Resolved } from "#contract";
-import { ProviderError } from "#contract";
+import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot } from "#contract";
+import { generationOf, ProviderError, prefillSeedDrop } from "#contract";
 import { resolveChat } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
@@ -17,7 +17,7 @@ import { resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions } from "../v4/options.ts";
 import { buildWirePlan } from "../v4/prompt.ts";
-import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
+import { emitTurnReceipts, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
@@ -28,19 +28,15 @@ function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function requireGoogleGeneration(connection: Resolved): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({ kind: "invalid", retryable: false, message: "Google generation requires a generation model" });
-  }
-  return connection.capability.generation;
-}
-
 export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  const generation = requireGoogleGeneration(connection);
+  const generation = generationOf(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
-  const warnings: ResolvedWarning[] = [...knobs.warnings];
+  const warnings: ResolvedWarning[] = [
+    ...knobs.warnings,
+    ...(req.prefillReasoning === undefined ? [] : [prefillSeedDrop("the google wire", connection.model)]),
+  ];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
@@ -61,7 +57,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const classify = (err: unknown): ProviderError =>
     err instanceof ProviderError
       ? err
-      : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
+      : withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, { log, model: connection.model, mode: structured.mode, secrets });
   const drain = await runWithPreCommitRetry(
     async (markCommitted) => {
       const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs, deps.scheduleTimeout);
@@ -96,7 +92,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
     },
     classify,
     {
-      ...(req.signal === undefined ? {} : { signal: req.signal }),
+      signal: req.signal,
       now: deps.now,
       scheduleTimeout: deps.scheduleTimeout,
       random: deps.random,
@@ -114,6 +110,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey: GOOGLE_KEY,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
@@ -142,21 +139,16 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
       : folded,
     structured,
   );
-  log.capability({
-    turnId: knobs.turnId,
+  emitTurnReceipts({
+    log,
+    knobs,
+    generation,
     api: req.api,
     providerId: connection.providerId,
     requestedModel: connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map(({ code, message }) => ({ code, message })),
-  });
-  log.sampling({
-    turnId: knobs.turnId,
-    requested: { ...req.params },
-    applied: appliedSampling(knobs.sampling, warnings),
-    dropped: warnings
-      .filter((warning) => DROPPED_SAMPLING_CODES.has(warning.code))
-      .map((warning) => ({ knob: warning.knob ?? warning.code, reason: warning.message })),
+    requestedParams: { ...req.params },
+    usage: turn.usage,
+    warnings,
   });
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,

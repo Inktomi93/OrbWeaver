@@ -366,34 +366,29 @@ function completionOf(line: Json): Json {
   };
 }
 
-const ollamaChatResponseSchema = z
-  .object({
-    model: z.string().optional(),
-    error: z.string().optional(),
-    done: z.boolean().optional(),
-    done_reason: z.string().optional(),
-    prompt_eval_count: z.int().nonnegative().optional(),
-    eval_count: z.int().nonnegative().optional(),
-    prompt_eval_cached_count: z.int().nonnegative().optional(),
-    message: z
-      .object({
-        content: z.string().optional(),
-        thinking: z.string().optional(),
-        tool_calls: z
-          .array(
-            z
-              .object({
-                id: z.string().optional(),
-                function: z.object({ name: z.string(), arguments: z.unknown() }).loose(),
-              })
-              .loose(),
-          )
-          .optional(),
-      })
-      .loose()
-      .optional(),
-  })
-  .loose();
+const ollamaChatResponseSchema = z.looseObject({
+  model: z.string().optional(),
+  error: z.string().optional(),
+  done: z.boolean().optional(),
+  done_reason: z.string().optional(),
+  prompt_eval_count: z.int().nonnegative().optional(),
+  eval_count: z.int().nonnegative().optional(),
+  prompt_eval_cached_count: z.int().nonnegative().optional(),
+  message: z
+    .looseObject({
+      content: z.string().optional(),
+      thinking: z.string().optional(),
+      tool_calls: z
+        .array(
+          z.looseObject({
+            id: z.string().optional(),
+            function: z.looseObject({ name: z.string(), arguments: z.unknown() }),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
+});
 
 function parseLine(text: string, label: string): Json {
   let parsed: unknown;

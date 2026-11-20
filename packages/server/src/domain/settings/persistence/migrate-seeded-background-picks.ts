@@ -22,6 +22,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { userSettings } from "@orb/db";
+import { readableJson } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { SeededSlugResolver } from "../contract/seeder.ts";
@@ -36,8 +37,8 @@ interface RawSeededPick {
 /** Every `user_settings` row whose STORED `appearance.backgroundImageKind` is still the retired `"seeded"`.
  *  Read through `json_extract` because the parsed read cannot see it (see the header). */
 async function selectSeededPicks(db: Db, ownerId: UserId | null): Promise<readonly RawSeededPick[]> {
-  const kind = sql<string | null>`json_extract(${userSettings.config}, '$.appearance.backgroundImageKind')`;
-  const slug = sql<string | null>`json_extract(${userSettings.config}, '$.appearance.backgroundSeededId')`;
+  const kind = sql<string | null>`json_extract(${readableJson(userSettings.config)}, '$.appearance.backgroundImageKind')`;
+  const slug = sql<string | null>`json_extract(${readableJson(userSettings.config)}, '$.appearance.backgroundSeededId')`;
   const seededKind = eq(kind, "seeded");
   const rows = await db
     .select({ userId: userSettings.userId, slug })

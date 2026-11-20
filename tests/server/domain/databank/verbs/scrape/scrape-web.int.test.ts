@@ -43,7 +43,7 @@ test("a public page is fetched once through the composed guard and lands as a do
   const { root: prepared, dialed } = await rootWithNetwork();
   await using root = prepared;
   const principal = await root.principalFor(root.ownerId);
-  const result = await root.services.databank.scrapeWeb({ principal, url: PUBLIC_URL });
+  const result = await root.services.databank.scrapeWeb({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   expect(result).toMatchObject({ outcome: "created", document: { origin: "web", sourceUrl: PUBLIC_URL } });
   expect(dialed).toEqual([PUBLIC_URL]);
   expect(ambient).not.toHaveBeenCalled();
@@ -58,13 +58,13 @@ test.for([
   const { root: prepared, dialed } = await rootWithNetwork();
   await using root = prepared;
   const principal = await root.principalFor(root.ownerId);
-  await expect(root.services.databank.scrapeWeb({ principal, url })).rejects.toMatchObject({
+  await expect(root.services.databank.scrapeWeb({ signal: new AbortController().signal, principal, url })).rejects.toMatchObject({
     code: "scrape_failed",
     cause: { name: "EgressBlockedError", reason },
   });
   expect(dialed).toEqual([]);
   expect(ambient).not.toHaveBeenCalled();
-  expect((await root.services.databank.list({ principal })).items).toEqual([]);
+  expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
 });
 
 const UPSTREAM_FAULT = "connection reset by the scrape upstream";
@@ -83,7 +83,7 @@ test.for([
     },
   });
   const principal = await root.principalFor(root.ownerId);
-  await expect(root.services.databank.scrapeWeb({ principal, url })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(root.services.databank.scrapeWeb({ signal: new AbortController().signal, principal, url })).rejects.toMatchObject({ code: "scrape_failed" });
 
   const warnings = root.observability
     .logLines(LOG_SCAN_LIMIT)
@@ -113,9 +113,11 @@ test("a fetch that breaks off is refused as a scrape failure and the operator's 
       .map((record) => record.err?.message);
 
   // The first fetch lands, so a quiet log below is the log of a working scrape and not a dead logger.
-  await root.services.databank.scrapeWeb({ principal, url: PUBLIC_URL });
+  await root.services.databank.scrapeWeb({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   expect(causes()).toEqual([]);
 
-  await expect(root.services.databank.scrapeWeb({ principal, url: `${PUBLIC_URL}-again` })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(root.services.databank.scrapeWeb({ signal: new AbortController().signal, principal, url: `${PUBLIC_URL}-again` })).rejects.toMatchObject({
+    code: "scrape_failed",
+  });
   expect(causes()).toHaveLength(1);
 });

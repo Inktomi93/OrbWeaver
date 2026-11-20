@@ -1,6 +1,6 @@
 // A plugin's ask runs on the yes of the host who saw its card: the installer only needs to stay in the room, on
 // the same membership, with the plugin enabled. The card names the installer and carries the whole steer. A
-// handoff, a departure, a removal or a disabled plugin leaves no executable ask.
+// handoff, a departure, a removal, a disabled plugin or a disabled installer leaves no executable ask.
 // @subject packages/server/src/domain/automation/verbs/confirm-suggestion.ts
 
 import { spawn } from "node:child_process";
@@ -221,6 +221,31 @@ test("an installer removed and invited back before the removal is swept gets no 
   }
   await r.h.root.settleBackground();
   expect(await r.assistantTurns()).toBe(0);
+});
+
+// A disable moves no room row, so no sweep voids the card: the confirm's own actor check is the control that acts.
+test("a disabled installer's open ask runs nothing, and a fresh ask runs once they are re-enabled", { tags: ["slow"] }, async () => {
+  await using r = await askRoom();
+  const setInstallerEnabled = (enabled: boolean): Promise<unknown> =>
+    r.h.root.services.admin.setEnabled({ principal: r.h.owner, userId: r.member.userId, enabled });
+  const raised = r.nextAsk();
+  expect(await r.memberGuest("turn")).toEqual(ASKED);
+  const suggestionId = await raised;
+
+  await setInstallerEnabled(false);
+  await r.h.root.settleBackground();
+  await expect(r.h.root.services.automation.confirmSuggestion({ principal: r.h.owner, suggestionId })).rejects.toMatchObject({
+    code: "automation_suggestion_author_lost_authority",
+  });
+  await r.h.root.settleBackground();
+  expect(await r.assistantTurns()).toBe(0);
+
+  await setInstallerEnabled(true);
+  const again = r.nextAsk();
+  expect(await r.memberGuest("turn")).toEqual(ASKED);
+  await r.h.root.services.automation.confirmSuggestion({ principal: r.h.owner, suggestionId: await again });
+  await r.h.root.settleBackground();
+  expect(await r.assistantTurns()).toBe(1);
 });
 
 test("the host's card names the installer and carries the whole steer the host would pay for", { tags: ["slow"] }, async () => {

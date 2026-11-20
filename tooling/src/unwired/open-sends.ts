@@ -1,6 +1,7 @@
 // Where a value handed into an open slot goes. A slot that names no member (unknown, object, a string index) passes the
 // value on, so the scan follows it: into a helper's body, to a logger, a serialization or a library. Inside the provider
-// backends a value with no other destination is a provider send only when it reaches a request the backends make.
+// backends a value with no other destination is a provider send only when it reaches a request the backends make. A
+// library logger's argument is a log send whether or not its slot is open.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -698,6 +699,31 @@ function augmentations(world: NativeWorld, home: ReadonlySet<string>): readonly 
   });
 }
 
+// --- Direct logger arguments --------------------------------------------------------------------------------
+
+// A call a logger's name or method could spell, before the checker is asked whose it is.
+function spelledLikeLog(call: Invocation): boolean {
+  const { text, receiver } = calleeOf(call);
+  const receiverText = lastName(receiver);
+  return (text !== null && (LOG_METHODS.has(text) || LOG_NAME.test(text))) || (receiverText !== null && LOG_NAME.test(receiverText));
+}
+
+// A library logger infers its parameter from the argument, `debug<T extends object>(obj: T)`, so the slot is the value's
+// own type and names every member. No slot is open, yet the logger writes each member out.
+function* loggedSend(world: NativeWorld, call: Invocation, argument: Node): APIRequestGenerator<OpenSend | null> {
+  const { pkg } = yield* calleeAt(world, call);
+  if (pkg === null || pkg === COLUMN_PACKAGE || isAiSdk(pkg)) {
+    return null;
+  }
+  const slot = yield* world.checker.getContextualType.gen(argument as Expression);
+  // An open slot's members leave through the open-slot pass.
+  if (slot === undefined || (yield* isOpenType(world.checker, slot)) || !(yield* isLogCall(world, call))) {
+    return null;
+  }
+  const keys = yield* heldMembers(world, argument);
+  return keys.length === 0 ? null : { site: world.siteOf(argument), destination: "log", receiver: pkg, keys };
+}
+
 // --- The whole pass -----------------------------------------------------------------------------------------
 
 /** A literal-key element read with no declaration, `row["tool_calls"]`, and the type it reads through. */
@@ -715,23 +741,36 @@ export interface OpenFacts {
 
 type Assertion = Node & { readonly expression: Expression };
 
-// Every value a production file hands to a typed slot, and every assertion, whose operand is handed to the asserted type.
-function handedValues(world: NativeWorld, files: ReadonlySet<string>): { readonly values: readonly Node[]; readonly assertions: readonly Assertion[] } {
+interface HandedValues {
+  readonly values: readonly Node[];
+  readonly assertions: readonly Assertion[];
+  /** Each argument of a call spelled like a logger's, with its call. */
+  readonly logged: readonly { readonly call: Invocation; readonly argument: Node }[];
+}
+
+// Every value a production file hands to a typed slot, every assertion, whose operand is handed to the asserted type,
+// and every argument of a call spelled like a logger's.
+function handedValues(world: NativeWorld, files: ReadonlySet<string>): HandedValues {
   const values: Node[] = [];
   const assertions: Assertion[] = [];
+  const logged: { readonly call: Invocation; readonly argument: Node }[] = [];
   for (const file of world.files.filter((source) => files.has(world.siteOf(source).file))) {
     const visit = (node: Node): void => {
       if (isAsExpression(node) || isTypeAssertion(node)) {
         values.push(node.expression);
         assertions.push(node);
       } else {
-        values.push(...handedAt(node).filter((value) => !isObjectLiteralExpression(value)));
+        const handed = handedAt(node);
+        values.push(...handed.filter((value) => !isObjectLiteralExpression(value)));
+        if ((isCallExpression(node) || isNewExpression(node)) && spelledLikeLog(node)) {
+          logged.push(...handed.map((argument) => ({ call: node, argument })));
+        }
       }
       node.forEachChild(visit);
     };
     file.forEachChild(visit);
   }
-  return { values, assertions };
+  return { values, assertions, logged };
 }
 
 // Each file's string-indexed sink types, with the members of every value handed into one, by name.
@@ -762,12 +801,12 @@ function sinkReads(world: NativeWorld, sinks: Sinks, literalReads: readonly Lite
 }
 
 /** Every open-slot send of a world's production `home` files: a typed value handed into an open slot (`open` holds the
- *  open literal keys' values and open spreads, which send all their members), an assertion of a library's parameter,
- *  and a module augmentation. A literal element read on a value whose type a typed value was handed into in the same
+ *  open literal keys' values and open spreads, which send all their members), a value given straight to a library
+ *  logger, an assertion of a library's parameter, and a module augmentation. A literal element read on a value whose type a typed value was handed into in the same
  *  file reads that value's members of its name. */
 export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: readonly Node[], literalReads: readonly LiteralRead[]): OpenFacts {
   const files = new Set([...home].filter(isProduction));
-  const { values, assertions } = handedValues(world, files);
+  const { values, assertions, logged } = handedValues(world, files);
   const handed = [...open, ...values];
   const reach = requestReach(world, files);
   const openSet = new Set(open.map((node) => nodeKey(world, node)));
@@ -788,6 +827,7 @@ export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: r
     }
     recordSinks(sinks, site.file, into);
   }
+  sends.push(...world.batch(logged.map(({ call, argument }) => loggedSend(world, call, argument))).flatMap((send) => (send === null ? [] : [send])));
   sends.push(...world.batch(assertions.map((assertion) => assertedSend(world, assertion))).flatMap((send) => (send === null ? [] : [send])));
   sends.push(...augmentations(world, files));
   return { sends, reads: sinkReads(world, sinks, literalReads) };

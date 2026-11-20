@@ -17,7 +17,8 @@
 import { openContextSections } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_ADD_INJECTION_NAME, CHAT_INJECTION_ROW_LEAD, CHAT_REMOVE_INJECTION_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_INJECTION_CONTENT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
@@ -36,7 +37,7 @@ import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } fr
  *  chip ("Injections 2"), which is why the walker matches by PREFIX. */
 async function openInjectionsTab(page: Page): Promise<void> {
   await openDetailPanel(page);
-  await openContextTab(page, "This chat");
+  await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.settings);
   await openContextSections(page, "Injections");
   await expect(page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME })).toBeVisible({
     timeout: WAIT_UI_MS,
@@ -50,7 +51,7 @@ async function openInjectionsTab(page: Page): Promise<void> {
  *  not. Expanding is also the product's own confirmation gesture for Remove, so this walk is the real user
  *  path and not a test-only door. Idempotent, by `aria-expanded`, in DOM order. */
 async function expandInjectionRows(page: Page): Promise<void> {
-  const triggers = page.getByRole("button", { name: /^Injection \d+/u });
+  const triggers = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTION_ROW_LEAD)} \\d+`, "u") });
   for (let i = 0; i < (await triggers.count()); i += 1) {
     const trigger = triggers.nth(i);
     if ((await trigger.getAttribute("aria-expanded")) !== "true") {

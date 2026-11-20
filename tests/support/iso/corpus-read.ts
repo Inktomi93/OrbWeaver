@@ -94,7 +94,7 @@ export interface CorpusProcedures {
   readonly "regex.listForCharacter": Capture<z.input<typeof regex.regexCharacterInputSchema>, readonly z.output<typeof regex.regexScriptViewSchema>[]>;
   readonly "regex.listForPreset": Capture<z.input<typeof regex.regexPresetInputSchema>, readonly z.output<typeof regex.regexScriptViewSchema>[]>;
   readonly "regex.listForChat": Capture<z.input<typeof regex.regexChatInputSchema>, readonly z.output<typeof regex.regexScriptViewSchema>[]>;
-  readonly "regex.listRoomDisplayScripts": Capture<z.input<typeof regex.regexChatInputSchema>, readonly z.output<typeof regex.regexScriptViewSchema>[]>;
+  readonly "regex.listDisplayScripts": Capture<z.input<typeof chat.regexDisplayInputSchema>, readonly z.output<typeof chat.regexDisplayEntrySchema>[]>;
   readonly "regex.listScriptUsage": Capture<z.input<typeof regex.regexScriptIdInputSchema>, z.output<typeof regex.regexScriptUsageSchema>>;
   readonly "rosterPreset.count": InputlessCapture<number>;
   readonly "rosterPreset.get": Capture<z.input<typeof roster.rosterPresetIdInputSchema>, z.output<typeof roster.rosterPresetViewSchema>>;

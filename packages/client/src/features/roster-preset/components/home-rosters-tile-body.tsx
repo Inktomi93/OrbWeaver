@@ -16,7 +16,7 @@ import { useSuspenseQueries, useTRPC } from "#data";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterCountsSuffix } from "../lib/roster-copy.ts";
 import { rosterScent } from "../lib/roster-model.ts";
-import { ROSTER_SAVED_NAME } from "../lib/roster-names.ts";
+import { ROSTER_SAVED_NAME, rosterStartChatName } from "../lib/roster-names.ts";
 
 // Faces a row spends before the "+N" chip: the chat rows' budget, so a roster and its room match.
 const STACK_SLOTS = 4;
@@ -34,7 +34,7 @@ function RosterStartRow(props: {
       actions={
         // The name carries what the press applies (rules, group behavior): consent belongs on the control.
         <Button
-          aria-label={`Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`}
+          aria-label={rosterStartChatName(roster.name, rosterCountsSuffix(roster))}
           disabled={busy}
           variant="ghost"
           onClick={(): void => onStart(roster)}

@@ -32,6 +32,7 @@ import { CharacterImportDoor, CharacterNewDoor } from "../components/character-c
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTER_IMPORT_FORM, CHARACTER_NEW_FORM } from "../lib/character-door-forms.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
+import { newCharacterDoorRef } from "../lib/new-character-door.ts";
 
 export function useCharactersListHeader(): ListPaneHeaderView {
   const count = useCharacterCensus();
@@ -55,7 +56,13 @@ export function useCharactersListHeader(): ListPaneHeaderView {
       : {
           actions: [
             { id: "character-import", inline: <CharacterImportDoor />, menu: [CHARACTER_IMPORT_FORM] },
-            { id: "character-create", inline: <CharacterNewDoor />, menu: [CHARACTER_NEW_FORM], compact: CHARACTER_NEW_FORM },
+            {
+              id: "character-create",
+              inline: <CharacterNewDoor />,
+              menu: [CHARACTER_NEW_FORM],
+              compact: CHARACTER_NEW_FORM,
+              compactRef: newCharacterDoorRef,
+            },
           ],
         }),
   };

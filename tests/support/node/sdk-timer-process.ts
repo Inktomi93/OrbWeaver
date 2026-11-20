@@ -5,6 +5,7 @@ import { once } from "node:events";
 import process from "node:process";
 import { setImmediate } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import type { SdkOutputFrame } from "./sdk-process-control.ts";
 import { parseSdkStdinMessage, readSdkProcessInput, sdkUserPromptText, writeSdkControlReply } from "./sdk-process-control.ts";
 
@@ -35,7 +36,7 @@ process.on("SIGTERM", () => {
   }
 });
 // biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
-const token = process.env["CLAUDE_CODE_OAUTH_TOKEN"];
+const token = process.env[CLAUDE_OAUTH_TOKEN_ENV];
 if (token === undefined) {
   throw new Error("SDK timer fixture requires its actual prepared credential");
 }
