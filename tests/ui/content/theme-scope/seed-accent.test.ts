@@ -4,28 +4,15 @@ import { AA_NON_TEXT_RATIO, compositeSrgb, oklchToSrgb, quantized, wcagContrastR
 import { expect, test } from "@orb/testkit/node";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
-import { seedTonePalette } from "../../../../packages/ui/src/content/theme-scope/seed-palette.ts";
-import { emittedLiterals, parsed, scopeMisses, seedAccentScope } from "./tone-scope-misses.ts";
+import { emittedLiterals, parsed, SEED_PAGES, scopeMisses, seedAccentScope } from "./tone-scope-misses.ts";
 
 const BACKGROUND_VAR = TOKENS["color.background"].cssVar;
 const OPACITY_VAR = TOKENS["opacity.disabled"].cssVar;
 
-/** Every palette a scope can sit on: the root palette Hearth, then each seed value set, with the card and border it declares. */
-const SEEDS = [
-  { name: "hearth", background: TOKENS["color.background"].value, polarity: "dark", card: TOKENS["color.card"].value, border: TOKENS["color.border"].value },
-  ...Object.entries(SEED_THEME_VALUE_SETS).map(([name, set]) => ({
-    name,
-    background: set.vars[BACKGROUND_VAR],
-    polarity: set.colorScheme,
-    card: set.vars[TOKENS["color.card"].cssVar],
-    border: set.vars[TOKENS["color.border"].cssVar],
-  })),
-] as const;
-
 /** A pale pick, a mid one, a dark one no one ink covers with its steps, a very pale one, and one past the sRGB gamut. */
 const ACCENTS = ["oklch(0.9 0.1 150)", "oklch(0.65 0.12 150)", "oklch(0.3 0.1 260)", "oklch(0.96 0.03 90)", "oklch(0.55 0.37 300)"] as const;
 
-for (const { name, background } of SEEDS) {
+for (const { name, background } of SEED_PAGES) {
   test(`an accent-only scope over the ${name} palette clears every tone floor and tint separation on every host`, () => {
     const misses = ACCENTS.flatMap((accent) => scopeMisses(seedAccentScope(background, accent), `${name} ${accent}`, { pairs: false }));
     expect(misses).toEqual([]);
@@ -55,23 +42,4 @@ test.each([
 ] as const)("an accent-only scope over Light with %s emits the solved inactive opacity %s", (accent, solved) => {
   const light = SEED_THEME_VALUE_SETS.light.vars[BACKGROUND_VAR];
   expect(clampThemeTokens({ accent }, light, undefined, { palette: "seed" }).vars[OPACITY_VAR]).toBe(solved);
-});
-
-for (const { name, background, polarity, card, border } of SEEDS) {
-  test(`the ${name} palette's tone palette is the seed's own hosts, composited over its page`, () => {
-    const palette = seedTonePalette(background);
-    if (palette === null) {
-      throw new Error(`${name} paints no seed palette`);
-    }
-    const { l, c, h } = parsed(card);
-    expect(palette.hosts.card).toEqual({ l, c, h });
-    expect(palette.polarity).toBe(polarity);
-    // The border is translucent over the page, so its pixel is not its authored lightness.
-    expect(palette.hosts.border.l).not.toBe(parsed(border).l);
-  });
-}
-
-test("a base no seed paints has no seed palette", () => {
-  expect(seedTonePalette("oklch(0.5 0.01 60)")).toBeNull();
-  expect(seedTonePalette(undefined)).toBeNull();
 });

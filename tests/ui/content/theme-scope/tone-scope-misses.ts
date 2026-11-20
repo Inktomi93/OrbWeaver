@@ -14,7 +14,7 @@ import {
 } from "@orb/kit/theme-derivation";
 import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
@@ -30,6 +30,38 @@ export function parsed(color: string): ParsedOklch {
   }
   return value;
 }
+
+/** One palette a scope can sit on, with the value it declares for any token it overrides. */
+export interface SeedPage {
+  readonly name: string;
+  readonly background: string;
+  readonly polarity: "light" | "dark";
+  readonly value: (token: keyof typeof TOKENS) => string;
+}
+
+/** The root palette Hearth, then each seed value set: every palette a scope can sit on. */
+export const SEED_PAGES: readonly SeedPage[] = [
+  {
+    name: "hearth",
+    background: TOKENS["color.background"].value,
+    polarity: "dark",
+    value: (token) => TOKENS[token].value,
+  },
+  ...Object.entries(SEED_THEME_VALUE_SETS).map(
+    ([name, set]): SeedPage => ({
+      name,
+      background: set.vars[TOKENS["color.background"].cssVar],
+      polarity: set.colorScheme,
+      value: (token) => {
+        const declared = (set.vars as Readonly<Record<string, string | undefined>>)[TOKENS[token].cssVar];
+        if (declared === undefined) {
+          throw new Error(`the ${name} seed declares no ${token}`);
+        }
+        return declared;
+      },
+    }),
+  ),
+];
 
 /** An emitted `oklch(from <origin> <l> 0 h / <alpha>)` as the achromatic pixel it paints at `hue`, and its alpha. */
 export function emittedGrey(spelling: string | undefined, hue = 0): { readonly color: Oklch; readonly alpha: number } {
