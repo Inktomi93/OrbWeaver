@@ -96,7 +96,9 @@ export {
 export type {
   ExtractionRefs,
   RpgExtraction,
+  RpgMergeLosses,
   RpgRecordedToolCall,
+  RpgRefusedQuestCall,
   RpgToolCall,
   RpgToolCallVerdict,
 } from "./extraction.ts";
@@ -107,7 +109,8 @@ export {
   healedJournalTypes,
   malformedToolCallDetails,
   malformedToolCalls,
-  markLockSuppressions,
+  markMergeLosses,
+  markRefusedQuestCalls,
   parseToolCallArgs,
   projectIssueSentValue,
   RPG_NO_CHANGES_TOOL,
@@ -244,6 +247,7 @@ export {
   RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
   rollDiceToolResultSchema,
+  rpgNameMatchKey,
   setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,

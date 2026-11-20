@@ -567,7 +567,7 @@ For example, a three-line sign is enough:
   },
   "rpg.extract.tool.upsertQuest": {
     home: "preset",
-    version: 2,
+    version: 3,
     text:
       "Create/update/complete/fail a quest. Call it only when the story opens, advances or resolves a goal; do not " +
       "call it for a passing errand nobody tracks, or to log an event (add_journal_entry). Give a description and objectives[] on create; use action " +
@@ -576,7 +576,8 @@ For example, a three-line sign is enough:
       "the list itself; repeated lines keep the progress already on them). EXAMPLE — a new task opens: " +
       "`{name:'Reach the Vault of Ash', action:'create', description:'Get to the vault before the new moon', " +
       "objectives:['Find the road north','Enter the vault']}`. EXAMPLE — the road is found: " +
-      "`{name:'Reach the Vault of Ash', action:'update', completeObjectives:['Find the road north']}`.",
+      "`{name:'Reach the Vault of Ash', action:'update', completeObjectives:['Find the road north']}`." +
+      " A quest is matched by name, ignoring letter case and surrounding spaces. update/complete/fail on a name no quest has is refused, so use action 'create' for a new quest.",
     requiredMacros: [],
     requiredTokens: [],
     title: "upsert_quest",

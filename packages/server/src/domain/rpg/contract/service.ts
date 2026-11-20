@@ -24,6 +24,7 @@ import type {
   RoomAdmission,
   RpgCardCorpus,
   SetRpgPointer,
+  TurnKind,
   ViewerVisibility,
 } from "@orb/contracts/chat";
 import type { Can, ParticipantRoleState } from "@orb/contracts/identity";
@@ -49,6 +50,7 @@ import type {
   RpgJournalEntryView,
   RpgParticipantActor,
   RpgRecordedToolCall,
+  RpgRefusedQuestCall,
   RpgRevealView,
   RpgSheet,
   RpgSnapshotState,
@@ -105,6 +107,7 @@ import type {
   RollDiceParams,
   StagedJournalEntry,
   StagedTurnFlush,
+  TurnSnapshotTarget,
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params.ts";
@@ -144,7 +147,7 @@ export interface ResolvedSnapshotHead {
   readonly seq: number;
 }
 
-/** What the flush's post-write reconciliation did (`foldTurnWriteIntoHandHead`). EVERY arm carries `headId` —
+/** What the flush's post-write reconciliation did (`commitTurnWrite`). EVERY arm carries `headId` —
  *  the snapshot that is head once the fold has run — because the `snapshotPatched` event must name the row the
  *  panel will actually resolve, and on three of these four arms that is NOT the row the flush just wrote.
  *
@@ -152,20 +155,39 @@ export interface ResolvedSnapshotHead {
  *  and so could not tell "nothing was shadowing us" apart from "something erased us and we said nothing" — a
  *  silent loss window the verifier drove (the user sends their next message mid-flight, then hand-edits).
  *    • `head`      — the flush's own row is head. The ordinary flush; nothing to reconcile.
- *    • `folded`    — a hand row outranked it and this turn's writes were replayed onto that row.
+ *    • `folded`    — a hand row outranked it, or a later concurrent beat's row did, and this turn's writes were
+ *                    replayed onto that row.
  *    • `refused`   — the fold was attempted and the merged state failed the contract belt. Nothing was written;
  *                    the turn's writes stay shadowed, and `reason` says why (LOGGED, never silent).
  *    • `shadowed`  — something outranks the flush's row that is not foldable (a sibling variant selected by a
- *                    mid-flight swipe, a concurrent later turn). The turn's writes are lost; `reason` says what
+ *                    mid-flight swipe, or the fallback walk). The turn's writes are lost; `reason` says what
  *                    won. Deliberately distinct from `refused`: one is a rejected merge, the other never had a
  *                    merge to attempt. */
 export type TurnWriteFoldOutcome =
   | { readonly kind: "head"; readonly headId: RpgSnapshotId }
   /** `suppressed` — the dotted paths the HAND HEAD's locks dropped out of the replay: the second of the
-   *  two suppression sites, and the only one that exists on a mid-flight hand edit. The flush records them. */
-  | { readonly kind: "folded"; readonly headId: RpgSnapshotId; readonly suppressed: readonly string[] }
+   *  two suppression sites, and the only one that exists on a mid-flight hand edit. `superseded` — this turn's
+   *  written paths a later concurrent beat wrote too, whose value stands. The flush records both. */
+  | { readonly kind: "folded"; readonly headId: RpgSnapshotId; readonly suppressed: readonly string[]; readonly superseded: readonly string[] }
   | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
   | { readonly kind: "shadowed"; readonly headId: RpgSnapshotId; readonly reason: string };
+
+/** A taken flush at its write boundary (`commitTurnWrite`): the staged flush, the turn it belongs to (its kind
+ *  decides whether a later beat supersedes it — `snapshot-edit.ts` header), the row target and the journal rows
+ *  already minted, which ride the row's batch. */
+export interface TurnWriteInput {
+  readonly flush: StagedTurnFlush;
+  readonly turn: { readonly kind: TurnKind; readonly messageId: MessageId; readonly variantId: MessageVariantId };
+  readonly target: TurnSnapshotTarget;
+  readonly journal: readonly NewRpgJournal[];
+}
+
+/** What a turn's write boundary did (`commitTurnWrite`): the backstop refused the row (`dropped`, nothing
+ *  written), or the row landed and was reconciled. `suppressedByLocks` is the base's lock losses as the row
+ *  was finally composed: the accumulator's, or the replay's when an earlier beat's row landed under the round. */
+export type TurnWriteOutcome =
+  | { readonly kind: "dropped"; readonly reason: string }
+  | { readonly kind: "written"; readonly fold: TurnWriteFoldOutcome; readonly suppressedByLocks: readonly string[] };
 
 /** A sheet row as the persistence read returns it: its `sheet` parsed, so stored text that is not a sheet never reaches a
  *  verb (the read refuses it with `RpgStateCorruptError`). */
@@ -589,6 +611,9 @@ export interface RpgStateDelta {
    *  projection only after the round survives cancellation, so cheap post-commit rounds are as inspectable as
    *  folded character turns without letting an aborted round leave an observability ghost. */
   readonly recordedToolCalls?: readonly RpgRecordedToolCall[];
+  /** The `upsert_quest` calls the fold refused against the state it ran over, in call order; absent when none.
+   *  The flush marks them `dropped` on the turn's tool-call record (`markRefusedQuestCalls`). */
+  readonly refusedQuestCalls?: readonly RpgRefusedQuestCall[];
   /** THE ROUND COULD NOT RUN — the legible sentence saying why, present ONLY on that arm (`undefined` on every
    *  round that actually produced a verdict, including the quiet one).
    *

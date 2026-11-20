@@ -19,17 +19,28 @@
 //     the message plane: the old empty-body "state anchor" slot it used to mint was a non-message that every
 //     canon reader had to filter (render, export, digest, plugin, automation, counts), and the row class is
 //     now unspellable — `postNarratorMessage` refuses blank content.
-// THE THIRD DOOR IS THE FLUSH'S: `foldTurnWriteIntoHandHead` is what a turn's
-// flush calls at its own write boundary when a HAND ROW outranks the row it just wrote. It is not a fourth
-// mechanism — it is `writeHandState` again, deriving `applyLockedPatch(handState, turnColumns, handLocks)`
-// inside the same head resolve. The two writers can no longer erase each other: a mid-flight hand edit keeps
-// every field it locked (that is what the auto-lock above MEANS), and the turn keeps every plane the hand did
-// not claim. See that function for the loss it closes and why the ranking that caused it is nonetheless right.
+// THE THIRD DOOR IS THE FLUSH'S: `commitTurnWrite` is a turn's write boundary. It writes the turn's row and
+// reconciles it with whatever outranks it inside the same per-game section the hand doors use, so a turn write, a
+// second turn write and a hand write never interleave. Reconciling with a HAND ROW is `writeHandState` again,
+// replaying the turn's patches under the hand's locks: a mid-flight hand edit keeps every field it locked (that is
+// what the auto-lock above MEANS), and the turn keeps every plane the hand did not claim.
+//
+// WHICH LATER BEAT SUPERSEDES A TURN (the turn-kind rule, `OPENS_TAIL_SLOT`). A head past a turn's own beat is
+// either the story having moved on before the turn began, or a turn that arrived while it ran:
+//   • `send`, `generate`, `auto`, `force`, `opening` and `impersonate` open a NEW slot at the tail, so every
+//     later beat arrived while they ran. Their state goes UNDER the later beat's change; what the later beat
+//     replaced is recorded on the turn's tool-call row, never dropped in silence.
+//   • `swipe` and `continue` target an EXISTING slot. They regenerate an older message, and stay silently
+//     superseded, exactly when a visible assistant slot after theirs existed before their variant was created
+//     (`laterSlotPredatesVariant`). A later slot created after the variant is concurrent, as above.
+// A turn whose base moved while its round ran (an earlier beat's row landed under it) is replayed onto the new
+// base before its row is written, so the earlier beat's writes stay under it.
 //
 // It also homes the two STATE READERS every other surface projects from — `currentSnapshotState` (the head) and
 // `snapshotStateBeforeSlot` (the state before a slot: the flush's write base + a regen turn's read base) — so
 // "which snapshot am I reasoning from, and what does a game with no rows read?" is answered in ONE place.
 
+import type { TurnKind } from "@orb/contracts/chat";
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
@@ -44,11 +55,22 @@ import type {
   RpgContext,
   RpgGameRow,
   TurnWriteFoldOutcome,
+  TurnWriteInput,
+  TurnWriteOutcome,
 } from "./contract/service.ts";
 import { snapshotRowToState } from "./contract/service.ts";
-import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
+import {
+  findLatestAssistantSlotSeq,
+  findMessageSeq,
+  laterSlotPredatesVariant,
+  resolveSnapshotBeforeSlot,
+  resolveSnapshotHead,
+  updateSnapshotState,
+  writeHandSnapshot,
+  writeStagedSnapshotAndJournal,
+} from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
-import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "./substrate/merge.ts";
+import { applyLockedPatch, applyLockedPatchTracked, netChange, rebasePatchOntoHead, replacedWritePaths, sameSnapshotState } from "./substrate/merge.ts";
 
 /** The game a hand write lands on and chat's admission of its room, which the write's claim spends. */
 type HandWriteRoom = Pick<RpgAuthorized, "game" | "admission">;
@@ -155,7 +177,7 @@ function toColumns(state: RpgSnapshotState): StateColumns {
 
 /** Apply a hand patch to the current snapshot with an auto-lock DELTA. `patch` is a partial snapshot-state
  *  overlay; `locks.lock` are dotted paths to auto-lock (editSnapshot locks every touched top-level key; the
- *  quest verbs lock `quests.<id>`), `locks.clear` are paths to un-lock (deleteQuest drops the removed quest's
+ *  quest verbs lock `quests.<id>`), `locks.clear` are paths to un-lock (a removal drops the removed element's
  *  lock — a deleted element leaves no ghost lock, the symmetric grammar). The hand edit ALWAYS WINS: the
  *  overlay runs with NO lock-honoring (`fieldLocks: null`), because the human editor is the authority a lock
  *  exists to protect — a lock blocks a later TOOL write, never the human re-editing/removing their own locked
@@ -230,9 +252,123 @@ async function writeOwnedHandState(ctx: RpgContext, room: HandWriteRoom, derive:
   return { ok: true, snapshotId };
 }
 
-/** REPLAY a just-written turn flush's own writes onto the HAND ROW that outranks it — the write-boundary half
- *  of the HAND-EDIT-VS-FLUSH fix. Always returns a TOTAL {@link TurnWriteFoldOutcome} carrying the id that is
- *  head afterwards; the caller emits that id and logs the two losing arms.
+/** The base a turn's round reads and its row is composed on. A continuation's canon and reminder INCLUDE the
+ *  selected slot, and its variant is extended in place, so it reads the current head. Every other turn writes a
+ *  new variant and must exclude its own slot (VER-1a), especially a swipe whose rejected sibling already has
+ *  consequences. This mirrors the gather's `regenSlotMessageId` fork, so what the model was told and what its
+ *  writes land on stay identical. The flush reads it before the round and the write boundary reads it again. */
+export function turnBaseState(ctx: RpgContext, game: RpgGameRow, turn: Pick<TurnWriteInput["turn"], "kind" | "messageId">): Promise<RpgSnapshotState> {
+  return turn.kind === "continue" ? currentSnapshotState(ctx, game) : snapshotStateBeforeSlot(ctx, game, turn.messageId);
+}
+
+/** Does a turn of this kind write a NEW slot at the story's tail? Only such a turn can be overtaken by a later
+ *  beat; a swipe or continue targets an existing slot, which may sit anywhere in the story. */
+const OPENS_TAIL_SLOT: Readonly<Record<TurnKind, boolean>> = {
+  send: true,
+  generate: true,
+  auto: true,
+  force: true,
+  opening: true,
+  impersonate: true,
+  swipe: false,
+  continue: false,
+};
+
+/** THE TURN WRITE BOUNDARY: write a taken flush's row and journal, then reconcile the row against whatever
+ *  outranks it, as ONE section of the per-game hand-write owner. Always returns a TOTAL {@link TurnWriteOutcome}.
+ *
+ *  WHY THE WRITE ITSELF IS INSIDE THE SECTION. A turn reads its base at flush start and its round then runs a
+ *  model call. Two turns of one game whose rounds overlap (a lock-free generate beside a send, or a flush past the
+ *  barrier's bound) used to lose one turn's writes in either release order: the later turn's row landed first and
+ *  the earlier turn's fold took it for a regen, or the earlier row landed first and the later turn wrote a row
+ *  composed on the base it read before that, erasing it. Inside one section each question is asked against rows
+ *  no other turn write or hand write can move until the answer is written:
+ *    • the base is re-read; when an earlier beat's row landed under the round, the round's patches are replayed
+ *      onto it ({@link composeOnCurrentBase}) before the row is written;
+ *    • a later concurrent beat that already outranks the row gets this turn's state under its own change.
+ *  The section awaits only database reads and writes and the claim, never a provider call, so a stuck turn
+ *  cannot hold another turn's write behind it. */
+export function commitTurnWrite(ctx: RpgContext, room: HandWriteRoom, input: TurnWriteInput): Promise<TurnWriteOutcome> {
+  return ctx.handWrites.run(room.game.id, () => commitOwnedTurnWrite(ctx, room, input));
+}
+
+/** The owned body of {@link commitTurnWrite}. It calls the un-serialized halves (`writeOwnedHandState`) because
+ *  the chain is not re-entrant: a nested `writeHandState` would wait on a tail only this call can settle. */
+async function commitOwnedTurnWrite(ctx: RpgContext, room: HandWriteRoom, input: TurnWriteInput): Promise<TurnWriteOutcome> {
+  const composed = await composeOnCurrentBase(ctx, room.game, input);
+  const written = await writeStagedSnapshotAndJournal(ctx.db, composed.state, input.target, input.journal);
+  if (!written.ok) {
+    return { kind: "dropped", reason: written.reason };
+  }
+  const seq = await findMessageSeq(ctx.db, input.turn.messageId);
+  // A racing delete took this turn's slot: there is no position to reconcile at.
+  const fold: TurnWriteFoldOutcome =
+    seq === undefined
+      ? { kind: "head", headId: written.row.id }
+      : await foldOwnedTurnWrite(ctx, room, { ...composed, patches: input.flush.patches, snapshotId: written.row.id }, { seq, turn: input.turn });
+  return { kind: "written", fold, suppressedByLocks: composed.suppressed };
+}
+
+/** The state this turn's row carries, composed on the base as it stands NOW. The ordinary case is the
+ *  accumulator's own state. When the base reader answers differently from the seed the round read, an earlier
+ *  beat's row landed while the round ran, and the row is rebuilt by replaying the round's patches onto it: the
+ *  later beat's writes win where both wrote, as they would have in sequence. */
+async function composeOnCurrentBase(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  input: TurnWriteInput,
+): Promise<{ readonly seed: RpgSnapshotState; readonly state: RpgSnapshotState; readonly suppressed: readonly string[] }> {
+  const { flush } = input;
+  const base = await turnBaseState(ctx, game, input.turn);
+  if (sameSnapshotState(base, flush.seed)) {
+    return { seed: flush.seed, state: flush.state, suppressed: flush.suppressedByLocks };
+  }
+  return { seed: base, ...replayPatches(base, flush.patches, base.fieldLocks) };
+}
+
+/** Replay a turn's staged patches onto `start` in STAGE ORDER, against `locks` — the identical composition the
+ *  accumulator performed over its seed, differing only in the state it starts from and whose locks arbitrate.
+ *
+ *  REBASED FIRST: every applier in `tools/apply.ts` composes WHOLE PLANES from the base it was handed, so a
+ *  staged patch is not a delta — a round that merely mentions the scene carries every on-stage actor in it.
+ *  Replaying that verbatim re-inserted an actor the host had dismissed mid-flight, silently, because the removal
+ *  verbs release the very lock that would have stopped it. The rebase keeps what the round ADDED, CHANGED or
+ *  REMOVED and drops what it merely CARRIED (`substrate/merge.ts`).
+ *
+ *  EACH ENTRY AGAINST ITS OWN BASE: a turn stages once per tool call, and patch N was composed against
+ *  `seed + patches[0..N-1]`. Measuring every patch against the SEED re-scored an element patch 1 had already
+ *  added as a fresh ADD for patch 2 and appended it a second time. The pairing is carried by the accumulator
+ *  (`StagedPatch`), so the invariant is local and the replay is a pure function of the stored patches. */
+function replayPatches(
+  start: RpgSnapshotState,
+  patches: readonly StagedPatch[],
+  locks: RpgFieldLocks | null,
+): { readonly state: RpgSnapshotState; readonly suppressed: readonly string[] } {
+  const suppressed: string[] = [];
+  let state = start;
+  for (const staged of patches) {
+    const merged = applyLockedPatchTracked(state, rebasePatchOntoHead(staged.patch, staged.base, state), locks);
+    state = merged.state;
+    for (const path of merged.suppressed) {
+      if (!suppressed.includes(path)) {
+        suppressed.push(path);
+      }
+    }
+  }
+  return { state, suppressed };
+}
+
+/** What the reconcile needs of the row just written: its id, the state it carries, the base that state was
+ *  composed on, and the patches that composed it. */
+interface WrittenTurnRow {
+  readonly snapshotId: RpgSnapshotId;
+  readonly seed: RpgSnapshotState;
+  readonly state: RpgSnapshotState;
+  readonly patches: readonly StagedPatch[];
+}
+
+/** RECONCILE a just-written turn row with the row that outranks it — the write-boundary half of the
+ *  HAND-EDIT-VS-FLUSH fix and of the REGEN-VS-LATER-FLUSH fix. Runs INSIDE the per-game section.
  *
  *  THE LOSS IT CLOSES. A turn's flush resolves its write base at flush START and its round then runs a 0.8-2.9s
  *  model call (`flush-barrier.ts`). A host hand-editing the panel inside that window writes a HAND ROW stamped
@@ -265,40 +401,17 @@ async function writeOwnedHandState(ctx: RpgContext, room: HandWriteRoom, derive:
  *  round's patches are the newest MODEL knowledge regardless of which beat produced them, so replaying them
  *  onto the newer hand head is right — and the human's locks arbitrate exactly as they do at the same beat.
  *
- *  WHAT IS *NOT* FOLDED: a flush for a slot that is no longer the story's current beat (`slotSeq` below
- *  {@link findLatestAssistantSlotSeq}) — that is a REGEN of an old message, whose row is legitimately
- *  superseded by the beats after it. Injecting an old beat's consequences into the present would be the
- *  resurrection bug wearing the fix's clothes, and shouting about it would be noise about the normal case.
- *
- *  THE WHOLE FOLD OWNS THE PER-GAME SECTION, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT *AND* A SECOND FLUSH.
- *  Every question above — is a newer row head, is this slot still the current beat, what does the hand head
- *  hold — is asked inside the shared hand-write owner, and the replay writes without leaving it. A hand edit already
- *  queued ahead is therefore the base it replays onto; one queued behind derives from the fold's result; and a
- *  NEWER FLUSH that landed while this one waited is seen by the supersede check rather than rebased over (the
- *  bug the pre-section check had: it measured the beat, then queued, then re-resolved the head without
- *  re-measuring). The in-process chain closes that window under the standing single-replica assumption. */
-export function foldTurnWriteIntoHandHead(
-  ctx: RpgContext,
-  room: HandWriteRoom,
-  written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
-  slotSeq: number,
-): Promise<TurnWriteFoldOutcome> {
-  // THE WHOLE DECISION IS SERIALIZED, not just the write. The head resolve, the supersede check and
-  // the replay are ONE read-modify-write against the per-game chain: run outside it, the supersede check
-  // answered about a head that a newer flush replaced while this call waited its turn in the queue, and the
-  // queued callback re-resolved the head WITHOUT re-asking whether this slot was still the current beat — so
-  // a superseded turn's patches were rebased onto the newer head instead of being refused. The body calls
-  // `writeOwnedHandState` (the un-serialized half) precisely because the chain is not re-entrant: nesting a
-  // `writeHandState` inside its own critical section would wait on a tail that only this call can settle.
-  return ctx.handWrites.run(room.game.id, () => foldOwnedTurnWrite(ctx, room, written, slotSeq));
-}
-
-/** The owned body of {@link foldTurnWriteIntoHandHead} — runs INSIDE the per-game critical section. */
+ *  A LATER CONCURRENT BEAT IS COMPOSED OVER, NOT SKIPPED. A head past this turn's beat is one of two things,
+ *  and the file header's turn-kind rule tells them apart. A REGEN of an old message is superseded by the beats
+ *  after it by design, so it stays silent: injecting an old beat's consequences into the present would be the
+ *  resurrection bug wearing the fix's clothes. A later turn that arrived while this round ran is the next beat
+ *  of the same story, so this turn's state goes UNDER the later head's change ({@link composeUnderLaterBeat}),
+ *  and every path of this turn the later beat replaced is returned for the turn's tool-call record. */
 async function foldOwnedTurnWrite(
   ctx: RpgContext,
   room: HandWriteRoom,
-  written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
-  slotSeq: number,
+  written: WrittenTurnRow,
+  at: { readonly seq: number; readonly turn: TurnWriteInput["turn"] },
 ): Promise<TurnWriteFoldOutcome> {
   const { game } = room;
   const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
@@ -308,54 +421,44 @@ async function foldOwnedTurnWrite(
     return { kind: "head", headId: written.snapshotId };
   }
   const currentBeat = await findLatestAssistantSlotSeq(ctx.db, game.chatId);
-  if (currentBeat !== undefined && currentBeat > slotSeq) {
-    // A REGEN of an earlier message. Its row is superseded by later beats BY DESIGN — not a loss, not a fold.
-    return { kind: "head", headId: head.row.id };
+  if (currentBeat !== undefined && currentBeat > at.seq) {
+    const regen = !OPENS_TAIL_SLOT[at.turn.kind] && (await laterSlotPredatesVariant(ctx.db, game.chatId, at.seq, at.turn.variantId));
+    return regen ? { kind: "head", headId: head.row.id } : composeUnderLaterBeat(ctx, room, written, head.row.id);
   }
   if (head.arm !== "hand") {
     // A non-hand row outranks us AT OUR OWN BEAT: a sibling variant selected by a mid-flight swipe, or the
     // game-wide fallback answering. There is no hand gesture to reconcile against and no defensible merge —
     // but the turn's writes ARE lost, so the caller says so.
-    //
-    // This does NOT reach here for "a concurrent later turn" — the regen guard above returns first for any
-    // head past our beat, so a later turn that flushed while we were in flight is classified as a supersede
-    // and stays SILENT (speaker 2 commits mid-flight, speaker 1's write is gone with no trail). That gap is
-    // the boarded REGEN-VS-LATER-FLUSH row, which needs ladder state that does not exist today.
     return { kind: "shadowed", headId: head.row.id, reason: `the ${head.arm} row ${head.row.id} outranks this flush's row at seq ${head.seq}` };
   }
-  // What the HAND HEAD's locks drop out of this replay — collected at the merge and returned to the
-  // flush, which puts it on the turn's tool-call record. The human keeps their field either way; the trail is
-  // what stops the record from claiming the model's write landed.
-  const suppressed: string[] = [];
+  // What the HAND HEAD's locks drop out of this replay — collected at the merge and returned to the flush,
+  // which puts it on the turn's tool-call record. The human keeps their field either way; the trail is what
+  // stops the record from claiming the model's write landed.
+  let suppressed: readonly string[] = [];
   const folded = await writeOwnedHandState(ctx, room, (hand) => {
-    // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
-    // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
-    //
-    // REBASED FIRST: every applier in `tools/apply.ts` composes WHOLE PLANES from the base it was
-    // handed, so a staged patch is not a delta — a round that merely mentions the scene carries every on-stage
-    // actor in it. Replaying that verbatim re-inserted an actor the host had dismissed mid-flight, silently,
-    // because the removal verbs release the very lock that would have stopped it. The rebase keeps what the
-    // round ADDED, CHANGED or REMOVED and drops what it merely CARRIED (`substrate/merge.ts`).
-    //
-    // EACH ENTRY AGAINST ITS OWN BASE: a turn stages once per tool call, and patch N was composed
-    // against `seed + patches[0..N-1]`. Measuring every patch against the SEED re-scored an element patch 1
-    // had already added as a fresh ADD for patch 2 and appended it a second time — two `update_scene` calls
-    // wrote the opening beat twice and put a character on stage twice. The pairing is carried by the
-    // accumulator (`StagedPatch`), so the invariant is local: patch N's diff is measured against the state
-    // patch N actually saw.
-    let state = hand.state;
-    for (const staged of written.patches) {
-      const merged = applyLockedPatchTracked(state, rebasePatchOntoHead(staged.patch, staged.base, state), hand.locks);
-      state = merged.state;
-      for (const path of merged.suppressed) {
-        if (!suppressed.includes(path)) {
-          suppressed.push(path);
-        }
-      }
-    }
+    const replayed = replayPatches(hand.state, written.patches, hand.locks);
+    suppressed = replayed.suppressed;
+    return { ok: true, state: replayed.state };
+  });
+  return folded.ok
+    ? { kind: "folded", headId: folded.snapshotId, suppressed, superseded: [] }
+    : { kind: "refused", headId: head.row.id, reason: folded.reason };
+}
+
+/** Put this turn's state UNDER a later concurrent beat's row: this turn's composed state first, then the later
+ *  head's change relative to the base this turn read, so the later beat wins wherever both wrote, exactly as two
+ *  turns in sequence would. The later head was composed on that same base: its row landed while this one was
+ *  unwritten, and the section re-read its base before writing it. An element both wrote is the later beat's
+ *  whole, so a field only this turn changed on it is replaced too, and recorded as such. Written onto the later
+ *  head through the hand door's tail (in place on its uncommitted draft), with no lock added. */
+async function composeUnderLaterBeat(ctx: RpgContext, room: HandWriteRoom, written: WrittenTurnRow, laterId: RpgSnapshotId): Promise<TurnWriteFoldOutcome> {
+  let superseded: readonly string[] = [];
+  const folded = await writeOwnedHandState(ctx, room, (later) => {
+    const state = applyLockedPatch(written.state, rebasePatchOntoHead(netChange(written.seed, later.state), written.seed, written.state), null);
+    superseded = replacedWritePaths(written.seed, written.state, state);
     return { ok: true, state };
   });
-  return folded.ok ? { kind: "folded", headId: folded.snapshotId, suppressed } : { kind: "refused", headId: head.row.id, reason: folded.reason };
+  return folded.ok ? { kind: "folded", headId: folded.snapshotId, suppressed: [], superseded } : { kind: "refused", headId: laterId, reason: folded.reason };
 }
 
 /** The current resolved snapshot state (a read the tracker view + the quest verbs project from). For a turnless

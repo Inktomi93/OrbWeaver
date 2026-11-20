@@ -248,6 +248,13 @@ export const upsertQuestArgsSchema = z
   .strip();
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
+/** The key a quest or objective NAME matches by: letter case and surrounding whitespace folded, because a model
+ *  writes "the dragon" and "The Dragon " for one quest. The `rpg.extract.tool.upsertQuest` description tells the
+ *  model this rule. */
+export function rpgNameMatchKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 // Strip mode: also reads model output.
 /** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}`.
  *

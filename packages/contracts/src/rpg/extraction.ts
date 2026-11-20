@@ -24,9 +24,10 @@
 import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 import { rpgNpcSlug } from "./actor.ts";
-import type { UpdateSceneArgs } from "./tools.ts";
+import type { UpdateSceneArgs, UpsertQuestArgs } from "./tools.ts";
 import {
   addJournalEntryArgsSchema,
+  rpgNameMatchKey,
   setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,
@@ -948,7 +949,9 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 //  THE FOURTH MEMBER IS A DIFFERENT LAYER OF LOSS. `salvaged`/`dropped` are SCHEMA verdicts: the vocabulary
 //  could not hold what the model sent. `overridden` is a MERGE verdict: the call was well-formed and applied,
 //  and then a hand LOCK dropped part of the write it produced (`domain/rpg/substrate/merge.ts` — manual-edit-
-//  wins). Both are real losses the reader is owed, and neither may report as `applied`.
+//  wins), or a later concurrent beat wrote the same datum and its value stands. Both are real losses the reader is owed, and neither may report as `applied`.
+//  A whole call the FOLD refused against the state it ran over (an `upsert_quest` naming no quest, see
+//  {@link markRefusedQuestCalls}) is `dropped` too: like a schema drop, nothing it sent reached the state.
 //  Precedence when a call earns more than one, worst first: `dropped`, then `salvaged`, then `overridden`,
 //  then `applied` — the badge names the loss the reader must act on first, and `issues` carries EVERY reason
 //  regardless of which verdict won.
@@ -1073,13 +1076,26 @@ export function recordUnassembledCall(name: string, args: string, values: readon
   };
 }
 
-/** One suppressed path as the disclosure says it. The PATH is the load-bearing half — it is what lets a
- *  reader of a multi-call turn tell which of their pins ate which write. */
+/** One suppressed path as the disclosure says it. The PATH is the half that lets a reader of a multi-call turn
+ *  tell which of their pins ate which write. */
 function lockIssue(path: string): string {
   return `locked ${path} — your manual edit holds this value`;
 }
 
-/** Mark a turn's recorded calls with the writes a hand LOCK suppressed at the merge.
+/** One path a later beat replaced, as the disclosure says it. */
+function supersededIssue(path: string): string {
+  return `replaced ${path} — a later turn wrote it while this one was still recording, and its value stands`;
+}
+
+/** The writes a turn lost at a merge, by cause: a hand LOCK held the path, or a later concurrent beat wrote it
+ *  too and its value stands (`domain/rpg/snapshot-edit.ts` header). */
+export interface RpgMergeLosses {
+  readonly locked: readonly string[];
+  readonly superseded: readonly string[];
+}
+
+/** Mark a turn's recorded calls with the writes it lost at a merge: a hand LOCK suppressed them, or a later
+ *  concurrent beat replaced them.
  *
  *  WHY IT IS A SEPARATE PASS over {@link recordToolCalls}: the schema verdicts are knowable the instant the
  *  calls parse, while a lock drop is only knowable after the state is composed and merged — two different
@@ -1092,16 +1108,56 @@ function lockIssue(path: string): string {
  *  Every call that CONTRIBUTED to the patch therefore carries the trail, and the path in the issue text is
  *  what disambiguates. Calls that contributed NOTHING are left alone: a `dropped` call never reached the
  *  merge, and `no_changes` authors no state by definition — marking either would be a plain lie. */
-export function markLockSuppressions(calls: readonly RpgRecordedToolCall[], suppressedPaths: readonly string[]): readonly RpgRecordedToolCall[] {
-  if (suppressedPaths.length === 0) {
+export function markMergeLosses(calls: readonly RpgRecordedToolCall[], losses: RpgMergeLosses): readonly RpgRecordedToolCall[] {
+  const issues = [...losses.locked.map(lockIssue), ...losses.superseded.map(supersededIssue)];
+  if (issues.length === 0) {
     return calls; // the ordinary turn — byte-identical to the schema projection
   }
-  const issues = suppressedPaths.map(lockIssue);
   return calls.map((call): RpgRecordedToolCall => {
     if (call.verdict === "dropped" || call.name === RPG_NO_CHANGES_TOOL) {
       return call;
     }
     return { ...call, verdict: call.verdict === "salvaged" ? "salvaged" : "overridden", issues: [...call.issues, ...issues] };
+  });
+}
+
+/** One `upsert_quest` call the fold refused against the state it ran over. Only `create` mints a quest, so
+ *  update, complete or fail on a name no quest matches ({@link rpgNameMatchKey}) is dropped: a misspelled
+ *  completion must not invent a finished quest and leave the real one open. `name` is the model's own text. */
+export interface RpgRefusedQuestCall {
+  readonly name: string;
+  readonly action: UpsertQuestArgs["action"];
+}
+
+const QUEST_NAME_UNKNOWN = "no quest has this name, and only create starts a quest";
+
+/** Mark the recorded `upsert_quest` calls the fold refused as `dropped`, with the reason.
+ *
+ *  THE JOIN IS IN CALL ORDER. The fold decides each call against the running state, so a refusal list is in call
+ *  order, and each refusal claims the FIRST still-unclaimed call with the same action and name key. That keeps
+ *  "complete X, create X, complete X" honest: the first complete is the refused one, the second applied. A call
+ *  the schema already dropped never reached the fold, so it is never claimed. */
+export function markRefusedQuestCalls(calls: readonly RpgRecordedToolCall[], refused: readonly RpgRefusedQuestCall[]): readonly RpgRecordedToolCall[] {
+  if (refused.length === 0) {
+    return calls;
+  }
+  const pending = [...refused];
+  return calls.map((call): RpgRecordedToolCall => {
+    if (call.name !== TOOL_ROUND_ARRAY_ARM_DEFS.quest.name || call.verdict === "dropped") {
+      return call;
+    }
+    const args = parseToolCallArgs(call.args);
+    const parsed = args === null ? null : salvageArgs(upsertQuestArgsSchema, args);
+    if (parsed === null) {
+      return call;
+    }
+    const at = pending.findIndex((entry) => entry.action === parsed.data.action && rpgNameMatchKey(entry.name) === rpgNameMatchKey(parsed.data.name));
+    const claimed = pending[at];
+    if (claimed === undefined) {
+      return call;
+    }
+    pending.splice(at, 1);
+    return { ...call, verdict: "dropped", issues: [...call.issues, `name: ${QUEST_NAME_UNKNOWN}${SENT_VALUE_MARKER}${sentValueAtPath(claimed.name, [])}`] };
   });
 }
 

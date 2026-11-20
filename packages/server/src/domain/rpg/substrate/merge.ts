@@ -455,6 +455,107 @@ function rebaseFlatArray(patch: readonly unknown[], base: readonly unknown[], he
   return [...withoutCopies(head, surplus(baseCounts, patchCounts)), ...onlyCopies(patch, surplus(patchCounts, baseCounts))];
 }
 
+// ── A LATER TURN'S CHANGE, AND WHAT IT REPLACED (REGEN-VS-LATER-FLUSH) ─────────────────────────────
+//
+// When a later beat's row landed while an earlier turn's round was in flight, the earlier turn composes ITS
+// state first and the later head's change second, so the later beat wins where both wrote, exactly as two turns
+// in sequence would. These three helpers are that composition's pure half: the later change as a patch, and the
+// earlier turn's paths it replaced, which the flush records instead of losing them in silence.
+
+/** Structural equality over two snapshot states (the plain-JSON planes `deepEqual` already compares). */
+export function sameSnapshotState(a: object, b: object): boolean {
+  return deepEqual(a, b);
+}
+
+// The lock map rides on the state but is never a plane a turn writes: the hand door owns it.
+const NOT_A_PLANE = "fieldLocks";
+
+/** What `head` changed relative to `base`, as a [merge-clear] patch: a changed plain-object plane recurses to its
+ *  changed keys, so a sibling key the head merely carried does not overwrite another writer's value; every
+ *  other changed plane (an array, a scalar) is whole, and {@link rebasePatchOntoHead} turns an array into its
+ *  adds and removes. A record key is never removed by any writer (a hand clear writes `null`, a value), so a
+ *  key `base` holds and `head` lacks contributes nothing. */
+export function netChange(base: Record<string, unknown>, head: Record<string, unknown>): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(head)) {
+    if (key === NOT_A_PLANE) {
+      continue;
+    }
+    const prior = base[key];
+    if (deepEqual(prior, value)) {
+      continue;
+    }
+    patch[key] = isPlainObject(prior) && isPlainObject(value) ? netChange(prior, value) : value;
+  }
+  return patch;
+}
+
+/** The dotted paths where `next` differs from `prior`, in the lock grammar: a keyed array plane per element
+ *  (`quests.<id>`), recursing into an element both sides hold; a plain object per key; anything else at its own
+ *  path. */
+function changedPaths(prior: unknown, next: unknown, path: string): string[] {
+  if (deepEqual(prior, next)) {
+    return [];
+  }
+  const keyOf = KEYED_ARRAYS[lastSegment(path)]?.keyOf;
+  if (keyOf !== undefined && Array.isArray(prior) && Array.isArray(next)) {
+    const before = new Map(prior.map((element) => [keyOf(element), element]));
+    const after = new Map(next.map((element) => [keyOf(element), element]));
+    const out: string[] = [];
+    for (const key of new Set([...before.keys(), ...after.keys()])) {
+      out.push(...(key === undefined ? [path] : changedPaths(before.get(key), after.get(key), `${path}.${key}`)));
+    }
+    return [...new Set(out)];
+  }
+  if (isPlainObject(prior) && isPlainObject(next)) {
+    return [...new Set([...Object.keys(prior), ...Object.keys(next)])].flatMap((key) =>
+      key === NOT_A_PLANE && path === "" ? [] : changedPaths(prior[key], next[key], path === "" ? key : `${path}.${key}`),
+    );
+  }
+  return [path];
+}
+
+/** The value at a path `changedPaths` produced: a segment under a keyed array plane names an element by its key. */
+function valueAt(root: unknown, path: string): unknown {
+  let node = root;
+  let plane = "";
+  for (const segment of path.split(".")) {
+    const keyOf = KEYED_ARRAYS[plane]?.keyOf;
+    if (Array.isArray(node) && keyOf !== undefined) {
+      node = node.find((element) => keyOf(element) === segment);
+    } else {
+      node = isPlainObject(node) ? node[segment] : undefined;
+    }
+    plane = segment;
+  }
+  return node;
+}
+
+/** Does `composed` still hold what one write made of an UNKEYED array: every copy it added and none it removed?
+ *  A multiset question, because a later beat appending its own line beside this one replaced nothing. */
+function flatWriteHolds(prior: readonly unknown[], wrote: readonly unknown[], composed: readonly unknown[]): boolean {
+  const before = counts(prior);
+  const after = counts(wrote);
+  const now = counts(composed);
+  const addsHold = [...surplus(after, before)].every(([key]) => (now.get(key) ?? 0) >= (after.get(key) ?? 0));
+  const removesHold = [...surplus(before, after)].every(([key]) => (now.get(key) ?? 0) <= (after.get(key) ?? 0));
+  return addsHold && removesHold;
+}
+
+/** The paths the earlier turn wrote (`seed` → `ours`) that `composed` no longer holds as it wrote them: exactly
+ *  the writes a later beat replaced. */
+export function replacedWritePaths(seed: object, ours: object, composed: object): string[] {
+  return changedPaths(seed, ours, "").filter((path) => {
+    const prior = valueAt(seed, path);
+    const wrote = valueAt(ours, path);
+    const now = valueAt(composed, path);
+    if (Array.isArray(prior) && Array.isArray(wrote) && Array.isArray(now)) {
+      return !flatWriteHolds(prior, wrote, now);
+    }
+    return !deepEqual(wrote, now);
+  });
+}
+
 /** Rebase a staged patch composed against `base` so it can be replayed onto `head` without re-asserting the
  *  parts of `base` the applier merely carried. Top-level ARRAY planes only — see the block comment above for
  *  why records and scalars are deliberately left to the lock grammar. */

@@ -332,7 +332,7 @@ test("a held checkpoint commit serializes a competing hand edit through its new 
   }
 });
 
-test("a real continuation overlaps the held bookmark without replacing its saved state or source variant identity", async () => {
+test("a real continuation during a held bookmark writes after it without replacing its saved state or source variant identity", async () => {
   using held = await freshHeldDb();
   using wire = physicalScene("rain");
   await using ownership = new AsyncDisposableStack();
@@ -346,22 +346,17 @@ test("a real continuation overlaps the held bookmark without replacing its saved
     pending.push(checkpointWrite.then(() => undefined));
     await checkpointGate.reached;
     checkpointGate.disarm();
-    const turnGate = held.hold(/^insert into "rpg_snapshots"/u);
-    try {
-      const continuation = root.services.chat.continueTurn({ ...params, messageId: scene.assistant.id, intent: INTENT });
-      pending.push(continuation.then(() => undefined));
-      expect((await continuation).aborted).toBe(false);
-      await turnGate.reached;
-    } finally {
-      turnGate.release();
-    }
+    // The continuation's turn write shares the bookmark's per-game section, so it queues behind the held bookmark.
+    const continuation = root.services.chat.continueTurn({ ...params, messageId: scene.assistant.id, intent: INTENT });
+    pending.push(continuation.then(() => undefined));
+    expect((await continuation).aborted).toBe(false);
     checkpointGate.release();
     const checkpointId = await checkpointWrite;
     await root.settleBackground();
     const [checkpoint] = await root.services.rpg.listCheckpoints(params);
     expect(checkpoint?.id).toBe(checkpointId);
     if (checkpoint === undefined) {
-      throw new Error("the actual overlapping checkpoint did not commit");
+      throw new Error("the actual held checkpoint did not commit");
     }
     const bookmark = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
     expect(bookmark.weather).toEqual(scene.snapshot.weather);

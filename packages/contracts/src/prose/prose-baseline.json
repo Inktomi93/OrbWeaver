@@ -521,8 +521,8 @@
       "sha256": "6fa8e335400fb9d915cf089a192d2000378080fde3b4b2ef202051c6a2832f6c"
     },
     "rpg.extract.tool.upsertQuest": {
-      "version": 2,
-      "sha256": "0a0ca116ea012a3872ea9e3dc0b68bf1bcc315767b09b1d64459cd2b18668b8c"
+      "version": 3,
+      "sha256": "91d84ab89cfecdb3a613cae3ec07bad974a5e7e492d31c2a25bcaa966470e3b9"
     },
     "rpg.extract.tool.addJournalEntry": {
       "version": 2,

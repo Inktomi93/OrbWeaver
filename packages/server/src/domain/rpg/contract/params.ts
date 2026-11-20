@@ -18,6 +18,7 @@ import type {
   RpgJournalType,
   RpgNpcRef,
   RpgQuestStatus,
+  RpgRefusedQuestCall,
   RpgRuleset,
   RpgSnapshotState,
   RpgStateCaptureVehicle,
@@ -84,6 +85,9 @@ export interface HandSnapshotTarget extends SnapshotWriteBase {
  *  can never resurrect a datum the round never mentioned. The flush writes its row from `state` (a variant's
  *  snapshot stays absolute, VER-1a); only the fold uses `patches`. */
 export interface StagedTurnFlush {
+  /** The base the turn's bucket was seeded from — what its round read. The write boundary compares it with the
+   *  base reader's answer at write time to learn whether an earlier beat's row landed under the round. */
+  readonly seed: RpgSnapshotState;
   readonly state: RpgSnapshotState;
   readonly journal: readonly StagedJournalEntry[];
   /** Every write staged for this turn, in the order it was staged — the tools' mid-turn writes and/or the
@@ -120,6 +124,12 @@ export interface StagedPatch {
 // domain-internal shapes — §7.4 puts them in the domain's own `contract/` like every other param above. Two
 // of the three additionally cross OUT of the domain (`domain/rpg/index.ts` re-exports them for
 // `tools/rounds/`), which is precisely the case the one-home rule exists for.
+
+/** What `applyUpsertQuest` made of one call: the next quest plane, or the refusal the flush records on the
+ *  turn's tool-call row (only `create` mints a quest). */
+export type UpsertQuestOutcome =
+  | { readonly ok: true; readonly quests: RpgSnapshotState["quests"] }
+  | { readonly ok: false; readonly refused: RpgRefusedQuestCall };
 
 /** A name→actor-ref index over the participants (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the participant's canonical ref key. Built once per
