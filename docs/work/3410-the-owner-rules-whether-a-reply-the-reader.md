@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-15
+status: doing
+updated: 2026-11-20
 priority: P2
 area: chat
+lane: wt/agent-a97cbe1e5a30f9041
 ---
 
 # The owner rules whether a reply the reader stopped carries a mark
@@ -18,7 +19,7 @@ The kept row was built as an ordinary reply on purpose. A quiet mark is a design
 
 ## Done when
 
-The owner rules mark or no mark. With a mark, the kept row says the reader stopped it in a neutral tone on every chat style, and a CT covers it; with none, this item closes with the ruling recorded.
+Owner ruling, taken from the recommendation: a reply the reader stopped keeps a quiet Stopped mark on its kept row, in a neutral tone, on every chat style; a CT covers it on each style.
 
 ## Evidence
 

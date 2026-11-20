@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-20
 priority: P2
 area: world-info
+lane: wt/agent-aea6829df7ac23517
 plan: import-robustness
 ---
 
