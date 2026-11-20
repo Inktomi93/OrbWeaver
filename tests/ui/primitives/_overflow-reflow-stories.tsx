@@ -11,6 +11,9 @@ import type { ReactElement } from "react";
 /** The one word the tooltip and the toggle cells carry: no space to break at, and wider than a phone column at enlarged text. */
 export const LONG_WORD = "Incomprehensibilities";
 
+/** Three one-word labels, each narrower than a phone column at every text size and wider than a third of it at enlarged text. */
+const WORDS = ["Explore", "Insights", "Tags"] as const;
+
 /** An open accordion panel holding a control that fills its inline size, so the control's focus ring is flush with the panel's inline edges. */
 export function AccordionEdgeStory(): ReactElement {
   return (
@@ -60,6 +63,23 @@ export function ToggleGroupFillStory(): ReactElement {
         <ToggleGroup aria-label="View mode" fill={true}>
           <Toggle value="one">{LONG_WORD}</Toggle>
           <Toggle value="two">{LONG_WORD}</Toggle>
+        </ToggleGroup>
+      </Stack>
+    </CtIsolation>
+  );
+}
+
+/** A strip of equal cells in a phone-wide column, each cell one short word that fits the column whole. */
+export function ToggleGroupWordsStory(): ReactElement {
+  return (
+    <CtIsolation subject="ToggleGroup" isolates="The equal-cell strip's reach for whole words: cells that cannot hold their words take further rows">
+      <Stack data-probe="column">
+        <ToggleGroup aria-label="Word strip" fill={true} semantics="radio">
+          {WORDS.map((word) => (
+            <Toggle checked={word === WORDS[0]} key={word} semantics="radio" value={word}>
+              {word}
+            </Toggle>
+          ))}
         </ToggleGroup>
       </Stack>
     </CtIsolation>

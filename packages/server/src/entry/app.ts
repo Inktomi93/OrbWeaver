@@ -50,6 +50,7 @@ import type {
   AuthSessionsPort,
   BlobAssetsPort,
   BlobCasPort,
+  CardFrameDeps,
   FirstRunRouteDeps,
   HealthzDeps,
   OidcRoutesDeps,
@@ -211,6 +212,10 @@ export interface AppDeps {
   readonly childProcessEnv: DebugRoutesOptions["childProcessEnv"];
   readonly physicalPeer?: PhysicalPeerRead;
   readonly liveBuses: LiveBuses;
+  /** Hears each turn that ends in a room, as the room's id only (`ServicesResult.onChatTurnEnded`). */
+  readonly onChatTurnEnded: CardFrameDeps["onTurnEnded"];
+  /** Chat's present-seat read (`ServicesResult.chatRpgOps.getMembership`). */
+  readonly chatMembership: CardFrameDeps["participants"]["getMembership"];
   readonly importStagingDir: string;
   readonly authConfig: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
@@ -437,13 +442,14 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // through the security headers' own-policy registrar, so the frame's own, tighter policy survives (see
   // security-headers.ts).
   registerCardFrame(app, {
-    participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params) },
+    participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params), getMembership: deps.chatMembership },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
     // The install's script ceiling. Same live read the participant resolver uses, applied a second time at the
     // boundary that actually mints the policy.
     installAllowsCardScripts: () => installAllowsCardScripts(deps.services.settings.getEffectiveConfig()),
     // The viewer's consent reads an unreadable settings blob as no (`viewerRunsCardScripts`).
     viewerRunsCardScripts: async (viewer) => viewerRunsCardScripts(await deps.services.settings.getUserSettings({ principal: viewer })),
+    onTurnEnded: deps.onChatTurnEnded,
     now: deps.now,
     logger: deps.logger,
     registerOwnPolicyRoute: security.registerOwnPolicyRoute,

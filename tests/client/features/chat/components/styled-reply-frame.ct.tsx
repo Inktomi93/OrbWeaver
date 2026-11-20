@@ -23,8 +23,18 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CardFrameMintRecord, CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
-import { captureCookieAuth, createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { finiteReplies, forEachNonEmpty } from "@orb/testkit/iso";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  captureCookieAuth,
+  createCorpusHarness,
+  createCorpusProviderExecution,
+  makePluginBundle,
+} from "@orb/testkit/node/composed";
 import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 import { FRAMED_LINK_CONFIRM_LABEL } from "#client/components/framed-link-names.ts";
@@ -125,6 +135,7 @@ const TRANSCRIPT_READS = [
   "plugin.listSurfaces",
   "regex.listScripts",
   "plugin.transformForDisplay",
+  "chat.listMessageVariants",
 ] as const;
 
 interface StyledRoom {
@@ -499,9 +510,9 @@ test("on a row whose character renders plain text the same reply draws through t
 });
 
 /** The styled room with no display script, so no reply in it is styled. */
-async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
+async function openUnscriptedRoom(body: string, options?: Parameters<typeof createCorpusHarness>[1]): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
-  const room = await openStyledRoom(body);
+  const room = await openStyledRoom(body, options);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
   for (const script of await caller.regex.listScripts()) {
@@ -631,20 +642,10 @@ test("a streaming reply draws each panel once it is complete, never a half panel
   const capped = { forming: true, scripts: false, externalMedia: false };
   expect(traffic.minted.map(grantOf)).toEqual([capped, capped]);
   // The turn commits: the stored reply holds the streamed text.
-  const caller = await root.internalCallerFor(root.ownerId);
-  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
-  const stored = (await caller.chat.listMessages({ chatId: room.chatId })).messages.at(-1);
-  if (stored === undefined || stored.id === room.messageId) {
-    throw new Error("The reply did not land as the room's newest row");
-  }
-  await caller.chat.editMessage({ chatId: room.chatId, messageId: stored.id, content: TWO_PANEL_CHUNKS.join(""), timeZone: UTC_TIME_ZONE });
-  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.find((message) => message.id === stored.id);
-  if (view === undefined) {
-    throw new Error("The stored reply did not read back");
-  }
+  const view = await storeStreamedReply(room, TWO_PANEL_CHUNKS);
   await component.update({ ...props, commit: { view, label: COMMIT_LABEL } });
   await page.getByRole("button", { name: COMMIT_LABEL, exact: true }).click();
-  const settled = rowOf(page, stored.id).locator(REPLY_FRAME).last();
+  const settled = rowOf(page, view.id).locator(REPLY_FRAME).last();
   await expect(settled.locator(SANDBOX)).toHaveAttribute("data-drawn", "");
   const reply = settled.locator(SANDBOX).contentFrame();
   await expect(reply.locator("#w6p-one")).toHaveText("Banner one");
@@ -657,6 +658,140 @@ test("a streaming reply draws each panel once it is complete, never a half panel
   expect(seen).toContain("He bows.");
   expect(hits).toEqual([]);
 });
+
+/** The server writes the streamed reply as the room's newest row, as its turn would. Returns the stored view. */
+async function storeStreamedReply(room: StyledRoom, chunks: readonly string[]): Promise<MessageView> {
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
+  const stored = (await caller.chat.listMessages({ chatId: room.chatId })).messages.at(-1);
+  if (stored === undefined || stored.id === room.messageId) {
+    throw new Error("The reply did not land as the room's newest row");
+  }
+  await caller.chat.editMessage({ chatId: room.chatId, messageId: stored.id, content: chunks.join(""), timeZone: UTC_TIME_ZONE });
+  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.find((message) => message.id === stored.id);
+  if (view === undefined) {
+    throw new Error("The stored reply did not read back");
+  }
+  return view;
+}
+
+const SETTLE_RUNS_KEY = "w6pSettleRuns";
+const GHOST_ROW = '[data-slot="ghost-message-row"]';
+// What the reader sees on one painted frame across settle: the streamed row with both panels drawn, the settled row with
+// its frame drawn, a forming chip, or anything else (a blank, a half-drawn row).
+const SETTLE_VIEWS = ["ghost", "settled", "chip", "gap"] as const;
+type SettleView = (typeof SETTLE_VIEWS)[number];
+
+// How a streamed reply lands: a fresh reply appended after the room's last row (its row takes the ghost's item), or a
+// swipe of that row (the ghost already holds the row's own item).
+const SETTLE_LANDINGS = ["reply", "swipe"] as const;
+type SettleLanding = (typeof SETTLE_LANDINGS)[number];
+
+// The loopback corpus provider, answering each chat turn with the reply `take` holds.
+function scriptedProvider(take: () => string): ReturnType<typeof createCorpusProviderExecution> {
+  return createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "unused finite reply fallback",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+    completion: () => ({ text: take(), toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } }),
+  });
+}
+
+/** The stored row the turn commits as: the server's new row for a reply, the swiped row itself for a swipe. */
+async function storeLanding(room: StyledRoom, landing: SettleLanding): Promise<MessageView> {
+  if (landing === "reply") {
+    return await storeStreamedReply(room, TWO_PANEL_CHUNKS);
+  }
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  const connection = await room.root.services.connection.create({
+    principal: await room.root.principalFor(room.root.ownerId),
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: { kind: "generation", generation: { input: ["text"], context: { window: 32_000 } }, features: { detectServer: false } },
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  // A swipe lands as a new variant of the same row, so the list must tell it from the variant it was swiped from.
+  await caller.chat.swipe({ chatId: room.chatId, messageId: room.messageId, timeZone: UTC_TIME_ZONE });
+  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.find((message) => message.id === room.messageId);
+  if (view === undefined) {
+    throw new Error("The swiped row did not read back");
+  }
+  return view;
+}
+
+for (const landing of SETTLE_LANDINGS) {
+  test(`a streamed ${landing}'s drawn panels stay on screen on every frame across settle until the settled frame draws, with one more mint`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    using plan = finiteReplies(`streamed ${landing}`, landing === "swipe" ? [TWO_PANEL_CHUNKS.join("")] : []);
+    const room = await openUnscriptedRoom("Unchanged.", { providerFetch: scriptedProvider(plan.take).execute });
+    await using root = room.root;
+    await using traffic = await serveRoom(page, root, corpus);
+    const props = {
+      chatId: room.chatId,
+      speakerCharacterId: room.characterId,
+      chunks: TWO_PANEL_CHUNKS,
+      chunkLabel: CHUNK_LABEL,
+      swipeOf: landing === "swipe" ? room.messageId : undefined,
+    };
+    const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+    await streamEachChunk(page, TWO_PANEL_CHUNKS);
+    const ghostFrames = page.locator(`${GHOST_BODY} ${REPLY_FRAME} ${SANDBOX}[data-drawn]`);
+    await expect(ghostFrames).toHaveCount(2);
+    expect(traffic.mints).toBe(2);
+    const view = await storeLanding(room, landing);
+    await component.update({ ...props, commit: { view, label: COMMIT_LABEL } });
+    // From here, what every painted frame shows, as runs of one view.
+    await page.evaluate(
+      ({ key, ghostRow, chip, drawn, views }) => {
+        const [ghostView, settledView, chipView, gapView] = views;
+        const shown = (selector: string): number =>
+          [...document.querySelectorAll(selector)].filter((node) => node.checkVisibility({ visibilityProperty: true })).length;
+        const runs: SettleView[] = [];
+        const sample = (): void => {
+          const ghosts = shown(ghostRow);
+          const frames = shown(drawn);
+          let seen: SettleView = gapView;
+          if (shown(chip) > 0) {
+            seen = chipView;
+          } else if (ghosts > 0 && frames >= 2) {
+            seen = ghostView;
+          } else if (ghosts === 0 && frames >= 1) {
+            seen = settledView;
+          }
+          if (runs.at(-1) !== seen) {
+            runs.push(seen);
+            document.documentElement.dataset[key] = runs.join(",");
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      },
+      { key: SETTLE_RUNS_KEY, ghostRow: GHOST_ROW, chip: FORMING_CHIP, drawn: `${SANDBOX}[data-drawn]`, views: SETTLE_VIEWS },
+    );
+    const runs = async (): Promise<readonly SettleView[]> =>
+      (await page.evaluate((key) => document.documentElement.dataset[key] ?? "", SETTLE_RUNS_KEY)).split(",").filter((run): run is SettleView => run !== "");
+    await expect.poll(runs).toEqual(["ghost"]);
+    await page.getByRole("button", { name: COMMIT_LABEL, exact: true }).click();
+    const settled = rowOf(page, view.id).locator(`${REPLY_FRAME} ${SANDBOX}`);
+    await expect(page.locator(GHOST_ROW)).toHaveCount(0);
+    await expect(settled).toHaveAttribute("data-drawn", "");
+    await expect(settled).toBeVisible();
+    // Every frame showed the streamed panels until the settled frame showed the reply: no chip, no blank between.
+    await expect.poll(runs).toEqual(["ghost", "settled"]);
+    const reply = settled.contentFrame();
+    await expect(reply.locator("#w6p-one")).toHaveText("Banner one");
+    await expect(reply.locator("#w6p-two")).toHaveText("Banner two");
+    // The settled reply's frame is the only mint past the two forming ones: standing the ghost over the row spent none.
+    expect(traffic.mints).toBe(3);
+  });
+}
 
 test("a model panel streams behind the forming chip from its first tag, and no tag, CSS or script text ever shows", async ({ corpus, mount, page }) => {
   const room = await openUnscriptedRoom("Unchanged.");

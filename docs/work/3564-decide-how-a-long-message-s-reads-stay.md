@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-16
+status: blocked
+updated: 2026-11-20
 priority: P2
 area: chat
+blocked: owner
 plan: chat-html-and-presets
 ---
 

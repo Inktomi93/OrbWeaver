@@ -68,5 +68,12 @@ export const FOCUS_RING_OUTLINE =
 export const FOCUS_RING_OUTLINE_INSET =
   "focus-visible:outline-(length:--border-width-rule) focus-visible:outline-ring focus-visible:-outline-offset-(length:--border-width-rule)";
 
+// _LANDING is the ring a programmatic focus target paints while a focus hand-off has landed on it (`FOCUS_LANDING_ATTRIBUTE`): the
+// hand-off picked the target because nothing inside it could take focus, so the controls inside cannot draw the ring for it.
+// Inset, because a focus target fills its pane and an outer ring is cut by the port edge. A ring, not an outline: the target
+// carries `outline-none`, which its outline utilities cannot override.
+export const FOCUS_RING_LANDING =
+  "data-focus-landing:focus-visible:ring-(length:--border-width-rule) data-focus-landing:focus-visible:ring-ring data-focus-landing:focus-visible:ring-inset";
+
 /** No ring of its own: a field inside a host box that draws the focus state for it (the composer card). */
 export const FOCUS_RING_NONE = "focus-visible:ring-0 focus-visible:ring-offset-0";

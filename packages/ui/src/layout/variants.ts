@@ -13,6 +13,7 @@ import {
   FIELD_ROW,
   FLOOR,
   FOCUS_RING,
+  FOCUS_RING_LANDING,
   GROUND,
   GROW,
   HEIGHT,
@@ -273,8 +274,9 @@ const FADE = {
 const FADE_FROM = { raised: "from-surface-raised", sidebar: "from-sidebar" } as const;
 
 // A surface the router or a list hands focus to (`tabIndex={-1}`) draws no outline of its own: arrival is announced, not
-// painted, and the controls inside draw their own rings.
-const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
+// painted, and the controls inside draw their own rings. A hand-off that lands on the target because no control inside can take
+// focus marks it (`FOCUS_LANDING_ATTRIBUTE`), and the target draws the ring for that landing.
+const FOCUS_TARGET = { true: `outline-none ${FOCUS_RING_LANDING}`, false: "" } as const;
 
 // The edge-fade recipe for a box that scrolls on one axis (`globals.css`); the `useScrollFadeX`/`useScrollFadeY` hooks
 // mark which edges are hiding content, and the fade shows only there.

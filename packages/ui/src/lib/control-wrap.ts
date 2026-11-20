@@ -9,11 +9,13 @@ export const CONTROL_WRAP = {
    */
   anywhere: `wrap-anywhere whitespace-normal ${CAP.fit}`,
   /**
-   * The `anywhere` break for each cell of an equal-cell `ToggleGroup`, written on the group: a cell's width is its share of the strip, so its
-   * min-content must be lowered for a one-word label to break inside it. The prefix is a Tailwind variant, so it cannot be built from
+   * The cell of an equal-cell `ToggleGroup`, written on the group. A cell is its share of the strip (`grow`, no basis) but never less than its
+   * label on one line, or the strip's whole width when the label alone is wider: `min-inline-fit` is that floor, so a cell that cannot hold its
+   * label takes a further row of the wrapping strip and no word is cut. `wrap-anywhere` lowers the cell's min-content so the floor above is
+   * the only one, and it cuts a word only in a cell that already fills the strip. The prefix is a Tailwind variant, so it cannot be built from
    * `anywhere`; the two change together.
    */
-  cell: "*:data-[slot=toggle]:wrap-anywhere *:data-[slot=toggle]:whitespace-normal *:data-[slot=toggle]:min-inline-0",
+  cell: "*:data-[slot=toggle]:grow *:data-[slot=toggle]:basis-0 *:data-[slot=toggle]:min-inline-fit *:data-[slot=toggle]:text-center *:data-[slot=toggle]:wrap-anywhere *:data-[slot=toggle]:whitespace-normal",
   /**
    * The value the reader chose the control for: it wraps between its words and hyphenates a word wider than the room at one of its own
    * hyphenation points, and `min-inline-0` lets the flex child shrink to its trigger. Select's value.

@@ -2,7 +2,7 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { HOVER_REVEAL, INERT_UNTIL_HOVER } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 
-/** One row (`group`) carrying each hover-reveal fragment, each on its own child. */
+/** One row (`group`) carrying each hover-reveal fragment, each on its own child, and a named setting row (`group/setting`). */
 export function HoverRevealStory(): ReactElement {
   return (
     <CtIsolation subject="Hover-reveal fragments" isolates="The class fragments reveal on a row hover and need no application services.">
@@ -14,6 +14,10 @@ export function HoverRevealStory(): ReactElement {
         <span className={HOVER_REVEAL.faint}>ui pin</span>
         <span className={HOVER_REVEAL.focus}>ui focus</span>
         <button type="button">row control</button>
+      </div>
+      <div className="group/setting">
+        <span className={HOVER_REVEAL.setting}>ui setting</span>
+        <button type="button">setting control</button>
       </div>
     </CtIsolation>
   );

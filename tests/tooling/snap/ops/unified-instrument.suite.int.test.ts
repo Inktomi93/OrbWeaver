@@ -89,7 +89,9 @@ globalThis.__orb={
 
 const DIRTY_MOTION_FIXTURE = FIXTURE.replace(
   'animations:()=>[{target:"#spin",properties:["transform"],compositorClean:true}],\n  flags:()=>[]',
-  'animations:()=>[],\n  flags:()=>[{tag:"anim",at:40,offender:"#spin",detail:"animating non-compositor width",overBudget:true,animation:{target:"#spin",properties:["width"],compositorClean:false,attribution:{owner:"application",mechanism:"css-transition"}}}]',
+  'animations:()=>[],\n  flags:()=>[{tag:"anim",at:40,offender:"#spin",detail:"animating non-compositor width",overBudget:true,animation:{target:"#spin",properties:["width"],compositorClean:false,attribution:{owner:"application",mechanism:"css-transition"}}},' +
+    // A scroll timeline does not excuse a layout property: the scroll-driven allowance covers fades only.
+    '{tag:"anim",at:41,offender:"#scroll-width",detail:"animating non-compositor width",overBudget:true,animation:{target:"#scroll-width",properties:["width"],compositorClean:false,attribution:{owner:"application",mechanism:"css-animation"},timeline:"scroll"}}]',
 );
 
 interface AnalyzerProblem {
@@ -425,6 +427,7 @@ test("a failing motion artifact carries the exact offender and threshold into th
   expect(artifact.problems).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#spin", observed: "width", threshold: "compositor-only" }),
+      expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#scroll-width", observed: "width", threshold: "compositor-only" }),
     ]),
   );
   const index = JSON.parse(await readFile(resultValue(motion.stdout, "index"), "utf8")) as {
@@ -464,6 +467,7 @@ test("a failing motion artifact carries the exact offender and threshold into th
   const report = await runCli("snap", ["--report", resultValue(motion.stdout, "index"), "--problems", "--arm", "motion"]);
   await expect(report).toExitWith(EXIT.clean);
   expect(report.stdout).toMatch(/FINDING\s+error \| dirty-animation: width \(threshold compositor-only\) \| #spin/u);
+  expect(report.stdout).toMatch(/FINDING\s+error \| dirty-animation: width \(threshold compositor-only\) \| #scroll-width/u);
   expect(report.stdout).not.toMatch(/^PROBLEM\s+arm=motion/gmu);
 });
 

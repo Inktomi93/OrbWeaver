@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-15
+status: doing
+updated: 2026-11-20
 priority: P2
 area: chat
+lane: wt/agent-a5e5717c910efab00
 plan: cross-surface-consistency
 ---
 

@@ -7,12 +7,14 @@ import { contextPaneLabel, contextToggleLabel, panelCloseName, SIDECAR_PANELS_NO
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import {
+  dropOn,
   emulateMedia,
   LAYOUT_SUBPIXEL_PX,
   releaseEmulatedMedia,
   resolvedLength,
   seedShellState,
   setPlatformTextSize,
+  settledBox,
   shellTracks,
 } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -22,8 +24,10 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page, PlaywrightTestArgs } from "@playwright/test";
+import sharp from "sharp";
 import { z } from "zod";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
+import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -974,6 +978,129 @@ test.describe("on a phone", () => {
   });
 });
 
+const HELD_SWAPS = z.array(z.object({ groups: z.array(z.string()), refused: z.string().nullable() }));
+
+/**
+ * Wrap the swap driver so each transition records its capture groups as it becomes ready: every name a box carries on
+ * the incoming side, and every name a snapshot animation runs under, which is how an outgoing-only group shows. It then
+ * holds the first frame, every float's own motion with it, until the spec has photographed what covers what. Call it
+ * before `mount()`, which navigates.
+ */
+async function holdSwapFirstFrame(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const seen: { groups: string[]; refused: string | null }[] = [];
+    Reflect.set(globalThis, "__heldSwaps", seen);
+    const start = document.startViewTransition.bind(document);
+    document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
+      const record: { groups: string[]; refused: string | null } = { groups: [], refused: null };
+      seen.push(record);
+      const transition = start(update);
+      transition.ready.then(
+        () => {
+          // Paused before anything is read, so the frame the spec photographs is the first one.
+          const held = document.getAnimations();
+          for (const animation of held) {
+            animation.pause();
+          }
+          const incoming = [...document.querySelectorAll("*")].map((element) => getComputedStyle(element).viewTransitionName);
+          const animated = held
+            .map((animation) => (animation.effect instanceof KeyframeEffect ? animation.effect.pseudoElement : null))
+            .map((pseudo) => /^::view-transition-[a-z-]+\((.+)\)$/u.exec(pseudo ?? "")?.[1] ?? "none");
+          record.groups = [...new Set([...incoming, ...animated])].filter((name) => name !== "none").sort();
+          Reflect.set(globalThis, "__swapHeld", true);
+          const release = (): void => {
+            if (Reflect.get(globalThis, "__swapRelease") !== true) {
+              requestAnimationFrame(release);
+              return;
+            }
+            for (const animation of held) {
+              animation.play();
+            }
+          };
+          requestAnimationFrame(release);
+        },
+        (error: unknown) => {
+          record.refused = error instanceof Error ? error.name : String(error);
+        },
+      );
+      return transition;
+    };
+  });
+}
+
+interface Clip {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** A region of the viewport, cut from a whole-viewport shot. A clipped shot taken while a swap holds its frame lands
+ *  offset from the clip in Chromium, so every frame a held one is compared with is cut the same way. */
+async function clipShot(page: Page, clip: Clip): Promise<Buffer> {
+  const whole = await page.screenshot();
+  const viewport = page.viewportSize();
+  const { width } = await sharp(whole).metadata();
+  if (viewport === null) {
+    throw new Error("The page has no viewport to cut a clip from");
+  }
+  const scale = width / viewport.width;
+  return await sharp(whole)
+    .extract({
+      left: Math.round(clip.x * scale),
+      top: Math.round(clip.y * scale),
+      width: Math.round(clip.width * scale),
+      height: Math.round(clip.height * scale),
+    })
+    .png()
+    .toBuffer();
+}
+
+/** Photograph `clip` on the held first frame of the swap `act` starts, release it, and return the frame with every swap's
+ *  record. A float that moves with the swap names its clip as a read of where it is on that frame. A case that judges one
+ *  layer under another names the groups above it in `setAside`, which the photograph leaves out. */
+async function heldSwapFrame(
+  page: Page,
+  clip: Clip | (() => Promise<Clip>),
+  act: () => Promise<void>,
+  setAside: readonly string[] = [],
+): Promise<{ readonly frame: Buffer; readonly swaps: z.infer<typeof HELD_SWAPS> }> {
+  await act();
+  await page.waitForFunction(() => Reflect.get(globalThis, "__swapHeld") === true);
+  const aside =
+    setAside.length === 0
+      ? null
+      : await page.addStyleTag({ content: setAside.map((group) => `::view-transition-group(${group}) { visibility: hidden; }`).join("\n") });
+  const frame = await clipShot(page, typeof clip === "function" ? await clip() : clip);
+  await aside?.evaluate((style): void => {
+    style.parentNode?.removeChild(style);
+  });
+  await page.evaluate(() => Reflect.set(globalThis, "__swapRelease", true));
+  await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
+  return { frame, swaps: HELD_SWAPS.parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__heldSwaps"))) };
+}
+
+/** The mean absolute difference per channel between two shots of one clip, 0 to 255. A float captured for a swap loses
+ *  the backdrop it blurs, so its snapshot is near its live paint but not byte-equal to it. */
+async function frameDistance(a: Buffer, b: Buffer): Promise<number> {
+  const [left, right] = await Promise.all([sharp(a).raw().toBuffer(), sharp(b).raw().toBuffer()]);
+  if (left.length !== right.length || left.length === 0) {
+    throw new Error("The two shots are not of one clip");
+  }
+  let total = 0;
+  for (const [index, value] of left.entries()) {
+    total += Math.abs(value - (right[index] ?? value));
+  }
+  return total / left.length;
+}
+
+/** The held frame is the float's own frame, not the frame the float was missing from. */
+async function expectFloatHeld(held: Buffer, withFloat: Buffer, withoutFloat: Buffer): Promise<void> {
+  // The control: the two reference frames tell the float apart.
+  expect(await frameDistance(withFloat, withoutFloat)).toBeGreaterThan(0);
+  expect(await frameDistance(held, withFloat)).toBeLessThan(await frameDistance(held, withoutFloat));
+}
+
 // A band of the phone screen the open Context sheet paints as its bare body, below its empty-state copy, where the
 // list behind it paints rows.
 const SHEET_BODY = { x: 0, y: 320, width: PHONE.width, height: 420 } as const;
@@ -982,73 +1109,113 @@ test.describe("a section swap under the phone Context sheet", () => {
   test.use({ hasTouch: true, viewport: PHONE });
 
   test("keeps the sheet above the list's snapshot through the transition", async ({ corpus, mount, page }) => {
-    await page.addInitScript(() => {
-      const seen: { sheetName: string; refused: string | null }[] = [];
-      Reflect.set(globalThis, "__sheetSwaps", seen);
-      const start = document.startViewTransition.bind(document);
-      document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
-        const record: { sheetName: string; refused: string | null } = { sheetName: "", refused: null };
-        seen.push(record);
-        const transition = start(update);
-        transition.ready.then(
-          () => {
-            const sheet = document.querySelector('.shell-panel[data-panel-side="context"]');
-            record.sheetName = sheet === null ? "" : getComputedStyle(sheet).viewTransitionName;
-            // Hold the first frame, the sheet's own slide with it, until the spec has photographed what covers what.
-            const held = document.getAnimations();
-            for (const animation of held) {
-              animation.pause();
-            }
-            Reflect.set(globalThis, "__swapHeld", true);
-            const release = (): void => {
-              if (Reflect.get(globalThis, "__swapRelease") !== true) {
-                requestAnimationFrame(release);
-                return;
-              }
-              for (const animation of held) {
-                animation.play();
-              }
-            };
-            requestAnimationFrame(release);
-          },
-          (error: unknown) => {
-            record.refused = error instanceof Error ? error.name : String(error);
-          },
-        );
-        return transition;
-      };
-    });
+    await holdSwapFirstFrame(page);
     await seedShellState(page, { activeSection: "chats" });
     await routeMotion(page, corpus);
     await mount<typeof AppShellStory>(STORY, {});
     const grid = page.locator(".shell-grid");
     await expect(grid).toHaveAttribute("data-list-mode", "docked");
     await waitForShellIdle(page);
-    const listAlone = await page.screenshot({ clip: SHEET_BODY });
+    const listAlone = await clipShot(page, SHEET_BODY);
 
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).tap();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "overlay");
     await waitForShellIdle(page);
-    const sheetOpen = await page.screenshot({ clip: SHEET_BODY });
+    const sheetOpen = await clipShot(page, SHEET_BODY);
     // The control: the band tells the two apart, so a held frame equal to the sheet's is not the list's.
     expect(sheetOpen.equals(listAlone)).toBe(false);
 
-    // The frame under the sheet is inert, so the swap comes from a door that is live over it: the palette's Go to row.
+    // The frame under the sheet is inert, so the swap comes from a door that is live over it: the palette's Go to row. The
+    // palette leaves with the outgoing side on its own layer, which the case after this one judges, so it is set aside here.
     await page.keyboard.press("Meta+KeyK");
     const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
-    await palette.getByRole("option", { name: SECTION_LABELS.characters, exact: true }).click();
-    await page.waitForFunction(() => Reflect.get(globalThis, "__swapHeld") === true);
-    const heldFrame = await page.screenshot({ clip: SHEET_BODY });
-    await page.evaluate(() => Reflect.set(globalThis, "__swapRelease", true));
+    const { frame, swaps } = await heldSwapFrame(
+      page,
+      SHEET_BODY,
+      () => palette.getByRole("option", { name: SECTION_LABELS.characters, exact: true }).click(),
+      ["orb-shell-floats"],
+    );
     await expect(grid).toHaveAttribute("data-section", "characters");
-    await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
 
     // Before the fix the held frame was the old list's snapshot painted over the sheet.
-    expect(heldFrame.equals(sheetOpen)).toBe(true);
-    const swaps = z
-      .array(z.object({ sheetName: z.string(), refused: z.string().nullable() }))
-      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetSwaps")));
-    expect(swaps).toStrictEqual([{ sheetName: "orb-shell-context-sheet", refused: null }]);
+    expect(frame.equals(sheetOpen)).toBe(true);
+    expect(swaps).toStrictEqual([{ groups: expect.arrayContaining(["orb-shell-context-sheet", "orb-shell-floats", "orb-section-content"]), refused: null }]);
+  });
+});
+
+const TOAST = '[data-slot="toast-root"]';
+
+test.describe("a section swap under a portalled float", () => {
+  test.describe("on a phone", () => {
+    test.use({ hasTouch: true, viewport: PHONE });
+
+    test("keeps a notice above the content's snapshot through the transition", async ({ corpus, mount, page }) => {
+      await holdSwapFirstFrame(page);
+      // The chat list is the phone's screen and paints its rows under the notice, so its snapshot would cover the notice.
+      await seedShellState(page, { activeSection: "chats" });
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-mode", "docked");
+      const list = page.locator(LIST);
+      await waitForShellIdle(page);
+      // A stray file drop is the production way to raise a notice over the content.
+      const raise = async (): Promise<void> => {
+        expect(await dropOn(list, { file: "card.png", type: "image/png" })).toBe(true);
+      };
+      await raise();
+      const notice = await settledBox(page.locator(TOAST));
+      await page.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
+      await expect(page.locator(TOAST)).toHaveCount(0);
+      await waitForShellIdle(page);
+      const contentAlone = await clipShot(page, notice);
+      await raise();
+      expect(await settledBox(page.locator(TOAST))).toEqual(notice);
+      await waitForShellIdle(page);
+      const noticeOpen = await clipShot(page, notice);
+      // The notice keeps clear of the incoming screen's chrome, so on the held frame it already sits where that screen puts it.
+      const noticeNow = async (): Promise<Clip> => {
+        const box = await page.locator(TOAST).boundingBox();
+        if (box === null) {
+          throw new Error("The notice has no box on the held frame");
+        }
+        return box;
+      };
+      const { frame, swaps } = await heldSwapFrame(page, noticeNow, () =>
+        page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).tap(),
+      );
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "characters");
+      // The notice is still up once the swap lands: it is a float the swap keeps.
+      await expect(page.locator(TOAST)).toHaveCount(1);
+      // Before the fix the held frame was the outgoing content's snapshot painted over the notice.
+      await expectFloatHeld(frame, noticeOpen, contentAlone);
+      expect(swaps).toStrictEqual([{ groups: expect.arrayContaining(["orb-shell-toasts"]), refused: null }]);
+    });
+  });
+
+  test("keeps the palette above the content's snapshot as its Go to row leaves for another section", async ({ corpus, mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await holdSwapFirstFrame(page);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellStory>(STORY, {});
+    await waitForShellIdle(page);
+    const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
+    await page.keyboard.press("Meta+KeyK");
+    const box = await settledBox(palette);
+    await page.keyboard.press("Escape");
+    await expect(palette).toBeHidden();
+    await waitForShellIdle(page);
+    const contentAlone = await clipShot(page, box);
+    await page.keyboard.press("Meta+KeyK");
+    expect(await settledBox(palette)).toEqual(box);
+    await waitForShellIdle(page);
+    const paletteOpen = await clipShot(page, box);
+    const { frame, swaps } = await heldSwapFrame(page, box, () => palette.getByRole("option", { name: SECTION_LABELS.characters, exact: true }).click());
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "characters");
+    await expect(palette).toBeHidden();
+    // Before the fix the palette closed before the old frame was taken, and the held frame was the content alone.
+    await expectFloatHeld(frame, paletteOpen, contentAlone);
+    expect(swaps).toStrictEqual([{ groups: expect.arrayContaining(["orb-shell-floats"]), refused: null }]);
   });
 });
 

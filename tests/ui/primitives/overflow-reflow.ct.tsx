@@ -4,10 +4,17 @@
 // @subject packages/ui/src/lib/control-wrap.ts
 // @subject packages/ui/src/primitives/text/variants.ts
 // Shared primitives at the browser's enlarged text on a phone: an open accordion panel leaves the focus ring of a control flush with its inline
-// edge whole, a tooltip breaks a word wider than its measure inside its popup, and an equal-cell toggle strip keeps a one-word label inside its cell.
-import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, ringCuts, setPlatformTextSize } from "@orb/testkit/browser/spec";
+// edge whole, a tooltip breaks a word wider than its measure inside its popup, and an equal-cell toggle strip keeps a one-word label inside its cell and every word whole, taking a further row for cells its column cannot hold.
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, ringCuts, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
-import type { AccordionEdgeStory, ToggleGroupFillStory, TooltipLongWordStory, TruncatingSpansStory, WrapControlsStory } from "./_overflow-reflow-stories.tsx";
+import type {
+  AccordionEdgeStory,
+  ToggleGroupFillStory,
+  ToggleGroupWordsStory,
+  TooltipLongWordStory,
+  TruncatingSpansStory,
+  WrapControlsStory,
+} from "./_overflow-reflow-stories.tsx";
 
 const STORIES = "tests/ui/primitives/_overflow-reflow-stories";
 const PHONE_WIDTH = 390;
@@ -84,6 +91,28 @@ for (const scale of PLATFORM_TEXT_SCALES) {
       expect(reach.strip).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       expect(reach.column).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       await expect(column).toBeVisible();
+    });
+
+    test("an equal-cell toggle strip keeps every word whole and takes a further row for the cells its column cannot hold", async ({
+      browserName,
+      mount,
+      page,
+    }) => {
+      test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+      await using _textSize = await setPlatformTextSize(page, scale);
+      const component = await mount<typeof ToggleGroupWordsStory>(`${STORIES}/ToggleGroupWordsStory`, {});
+      const group = component.getByRole("radiogroup", { name: "Word strip", exact: true });
+      await expect(group.getByRole("radio")).toHaveCount(3);
+      const layout = await toggleStripLayout(group);
+      expect(layout.cutWords).toEqual([0, 0, 0]);
+      expect(layout.pastStrip).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      // The control: at the default size the three words share one row, so a layout that stacks everything fails; enlarged, they cannot.
+      expect(layout.rows > 1).toBe(scale > 1);
+      for (const row of layout.widthsByRow) {
+        for (const width of row) {
+          expect(width).toBeCloseTo(row[0] ?? 0, 0);
+        }
+      }
     });
   });
 }

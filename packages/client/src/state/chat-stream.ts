@@ -172,6 +172,8 @@ function handoverOf(slot: LiveSlot): GhostHandover | null {
   }
   return {
     committedMessageId: slot.committedMessageId,
+    intent: slot.intent,
+    targetMessageId: slot.targetMessageId,
     speakerCharacterId: slot.speakerCharacterId,
     text: slot.phase === "pending" ? "" : slot.text,
     reasoning: slot.phase === "pending" ? "" : slot.reasoning,
@@ -430,6 +432,20 @@ export function useHeldGhost(chatId: ChatId | null): GhostHandover | null {
   return useChatStreamStore((s) => {
     const slot = chatId === null ? IDLE_TURN : (s.turns[chatId] ?? IDLE_TURN);
     return slot.phase === "completed" || slot.phase === "aborted" ? slot.handover : null;
+  });
+}
+
+/** The committed row this turn's ghost streams AFTER rather than in place of: a `continue` target, which stays on screen
+ *  as its own row while the extension streams below it. Live or held, so it holds across the slot's close. `null` for a
+ *  fresh reply, a swipe (its ghost takes the target's place), or no turn. */
+export function useGhostExtendsMessageId(chatId: ChatId | null): MessageId | null {
+  return useChatStreamStore((s) => {
+    const slot = chatId === null ? IDLE_TURN : (s.turns[chatId] ?? IDLE_TURN);
+    if (slot.phase === "idle") {
+      return null;
+    }
+    const placed = slot.phase === "completed" || slot.phase === "aborted" ? slot.handover : slot;
+    return placed === null || placed.intent === "swipe" ? null : placed.targetMessageId;
   });
 }
 

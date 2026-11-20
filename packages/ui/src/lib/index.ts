@@ -27,7 +27,7 @@ export { CARD_CORNERS } from "./card-corners.ts";
 // for the import-order race that shape kills.
 export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
-export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
+export { coarsePointerNow, finePointerNow, useCoarsePointer, useHoverCapable } from "./coarse-pointer-now.ts";
 export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
 export { CONTROL_WRAP } from "./control-wrap.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
@@ -35,12 +35,14 @@ export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export { CONTROL_INSET, FLOOR, GROW, PASS_THROUGH, PUSH, RUN_INSET, SELF, WRAP } from "./flex-share.ts";
+export { FOCUS_LANDING_ATTRIBUTE } from "./focus-landing.ts";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,
   FOCUS_RING_DESTRUCTIVE,
   FOCUS_RING_HAS,
   FOCUS_RING_INSET,
+  FOCUS_RING_LANDING,
   FOCUS_RING_NONE,
   FOCUS_RING_ON_POPOVER,
   FOCUS_RING_ON_SIDEBAR,

@@ -3,8 +3,8 @@
 @layer shell {
   /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the screen's content: this pane, or
    * on a phone the list when the list is the screen (mobile.css), never both at once. A root capture paints a still
-   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The shell's own floats
-   * carry names of their own during a swap (below), so they stay above the content they cover. The
+   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The shell's sheets and the
+   * portalled floats carry names of their own during a swap (below), so they stay above the content they cover. The
    * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
   :root {
     view-transition-name: none;
@@ -127,5 +127,37 @@
     to {
       opacity: 0;
     }
+  }
+
+  /* The portalled floats take the same cover as the shell sheets, by their two shared owners: the themed portal root, where
+   * every dialog, palette, popover, menu, select and tooltip mounts, and the toast viewport, which mounts on the body. One
+   * name per owner, never per float: two open floats of one kind would share a name, and a duplicate name aborts the swap
+   * to a hard cut. The portal root adds no box at rest (grid.css), and a name needs one, so while a swap runs it is a
+   * fixed box over the viewport, the box the floats inside already resolve their coordinates against. Each is named only
+   * while it holds a float, so an empty layer costs the swap no snapshot; the toast viewport holds its toasts inside one
+   * stack, so a toast is a grandchild. */
+  :root:active-view-transition .shell-portal-root:not(:empty) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    view-transition-name: orb-shell-floats;
+  }
+  :root:active-view-transition .shell-toast-viewport:has(> * > *) {
+    view-transition-name: orb-shell-toasts;
+  }
+  /* A layer can hold a float that stays and one the swap closes at once, so neither side is hidden: the two cross-fade at
+   * the outgoing step with the default blend, which sums to the same pixels where the float did not change. A float that
+   * stays reads unchanged, and one that closed leaves with the outgoing content. */
+  ::view-transition-group(orb-shell-floats),
+  ::view-transition-group(orb-shell-toasts) {
+    animation-name: none;
+  }
+  ::view-transition-old(orb-shell-floats),
+  ::view-transition-old(orb-shell-toasts),
+  ::view-transition-new(orb-shell-floats),
+  ::view-transition-new(orb-shell-toasts) {
+    animation-duration: var(--motion-fast);
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
   }
 }

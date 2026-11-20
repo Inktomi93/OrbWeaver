@@ -13,7 +13,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
-import { useCoarsePointer } from "@orb/ui/lib";
+import { useHoverCapable } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useRenderPolicyFloor } from "#data";
@@ -358,9 +358,9 @@ export function MessageRow({
   const swipeFoot = renderRowSwipe({ editing, showSwipes, role, greeting, message, foot: skin.swipeFoot });
   const swipeInside = skin.swipeFoot.placement === "inside" ? swipeFoot : null;
   const swipeBelow = skin.swipeFoot.placement === "below" ? swipeFoot : null;
-  const coarse = useCoarsePointer();
-  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions, coarse);
-  const shape = headerShape(skin, lastRow, coarse);
+  const canHover = useHoverCapable();
+  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions, canHover);
+  const shape = headerShape(skin, lastRow, canHover);
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from

@@ -51,6 +51,9 @@ export type TurnSlot =
  */
 export interface GhostHandover {
   readonly committedMessageId: MessageId;
+  /** The closing turn's own intent and target, so the list still knows where its ghost stood after the slot closed. */
+  readonly intent: TurnIntent;
+  readonly targetMessageId: MessageId | null;
   readonly speakerCharacterId: CharacterId | null;
   readonly text: string;
   readonly reasoning: string;

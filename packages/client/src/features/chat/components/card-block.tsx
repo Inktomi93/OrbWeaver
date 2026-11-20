@@ -19,6 +19,7 @@ import type { ReactElement } from "react";
 import { FormingChip, FramedMediaNotice, FramedScriptNotice, useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
+import { HoldsRowDraw } from "./row-handover.tsx";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -55,9 +56,14 @@ function TierBCard({
   const { mint } = frame;
   // The routed document's own grant; the srcdoc floor runs no script and loads external media only as the row allows.
   const granted = mint.state === "routed" ? mint.granted : { externalMedia: allowExternal, interactive: false };
-  // Pending and routed wait behind the chip; only the floor draws at once.
+  // Pending and routed wait behind the chip; only the floor draws at once. The chip holds a settled row's hand-over
+  // (`row-handover.tsx`), so a streamed card stays on screen until this one draws.
   const forming =
-    mint.state === "floor" ? undefined : <FormingChip title={block.title !== undefined && block.title !== "" ? block.title : FORMING_CARD_UNTITLED} />;
+    mint.state === "floor" ? undefined : (
+      <HoldsRowDraw>
+        <FormingChip title={block.title !== undefined && block.title !== "" ? block.title : FORMING_CARD_UNTITLED} />
+      </HoldsRowDraw>
+    );
   return (
     <>
       <ImmersiveCard
