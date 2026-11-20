@@ -12,7 +12,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import process from "node:process";
 import { unzipSync } from "fflate";
 
@@ -22,6 +22,7 @@ const READY_TIMEOUT_MS = 120_000;
 const READY_POLL_MS = 500;
 const PROFILE = "default-user";
 const LOG_TAIL_CHARS = 4000;
+const PATH_SEPARATORS = /[\\/]/u;
 
 const args = process.argv.slice(2);
 const keep = args.includes("--keep");
@@ -42,23 +43,35 @@ async function freePort(): Promise<number> {
   });
 }
 
+// Whether `target` sits inside `dir`, compared as resolved paths so a trailing slash or a `..` segment cannot pass.
+function inside(dir: string, target: string): boolean {
+  const rel = relative(dir, target);
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+const source = resolvePath(checkout);
 const work = await mkdtemp(join(tmpdir(), "st-export-boot-"));
 const copy = join(work, "SillyTavern");
 const dataRoot = join(work, "data");
 let server: ReturnType<typeof spawn> | undefined;
 try {
-  await cp(checkout, copy, { recursive: true, filter: (source) => !NOT_COPIED.has(source.slice(checkout.length + 1).split("/")[0] ?? "") });
+  await cp(source, copy, { recursive: true, filter: (entry) => !NOT_COPIED.has(relative(source, entry).split(PATH_SEPARATORS)[0] ?? "") });
   await mkdir(join(copy, "plugins"), { recursive: true });
   const install = spawnSync("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: copy, stdio: "inherit" });
   if (install.status !== 0) {
     throw new Error(`npm ci --ignore-scripts failed with ${String(install.status)}`);
   }
 
+  const profileDir = join(dataRoot, PROFILE);
   for (const [path, bytes] of Object.entries(unzipSync(new Uint8Array(await readFile(zipPath))))) {
     if (path.endsWith("/") || !path.startsWith(`data/${PROFILE}/`)) {
       continue;
     }
-    const target = join(work, path);
+    // A zip entry names its own path; one that resolves outside the scratch profile is refused, never written.
+    const target = resolvePath(work, path);
+    if (!inside(profileDir, target)) {
+      throw new Error(`the export holds an entry outside data/${PROFILE}/: ${path}`);
+    }
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, bytes);
   }
@@ -148,7 +161,7 @@ try {
   console.log(
     JSON.stringify(
       {
-        sillyTavern: spawnSync("git", ["-C", checkout, "log", "-1", "--format=%h %cs"], { encoding: "utf8" }).stdout.trim(),
+        sillyTavern: spawnSync("git", ["-C", source, "log", "-1", "--format=%h %cs"], { encoding: "utf8" }).stdout.trim(),
         "POST /api/characters/all": { status: characters.status, avatars },
         "POST /api/characters/chats": Object.fromEntries(chats),
         "POST /api/groups/all": {
