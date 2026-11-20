@@ -26,6 +26,11 @@
 // persona counts replace the folder preview's. The preview is held back (`reading`) until that answer lands, so a
 // count judged under an old answer is never shown beside the answers on screen.
 //
+// A `.zip` pick dry-runs through the profile zip door the moment it is staged. A SillyTavern profile zip previews and
+// imports as its folder would, its personas listed from the dry run's answer; a changed answer sends the zip again,
+// because only the server reads inside it. An Orbweaver backup zip is answered with no content and imports through the
+// bundle door, as before.
+//
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
@@ -33,12 +38,14 @@ import type { ImportPreview, PersonaCollision, PersonaCollisionChoice, PersonaCo
 import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews, personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef, useState } from "react";
-import type { TreeImportCaps, TreeImportPlan } from "#data";
+import type { ProfileZipOutcome, TreeImportCaps, TreeImportPlan } from "#data";
 import {
   HttpError,
   importBundle,
   importCharacters,
   importTree,
+  importTreeZip,
+  ProfileZipRefusedError,
   personaFilesOf,
   plannedFiles,
   planServedFolderImport,
@@ -49,7 +56,7 @@ import {
   useUploadCaps,
 } from "#data";
 import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
-import { IMPORT_PREVIEW_FAILURE } from "../lib/import-library-names.ts";
+import { IMPORT_PREVIEW_FAILURE, IMPORT_ZIP_REFUSAL } from "../lib/import-library-names.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, withPersonaCounts } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
@@ -76,6 +83,9 @@ const CONFLICT_RETRY_LIMIT = 30;
 
 /** What the reader is told when the dry run could not start. The status and the server's text stay out of it. */
 function previewFailureMessage(error: unknown): string {
+  if (error instanceof ProfileZipRefusedError) {
+    return IMPORT_ZIP_REFUSAL[error.reason];
+  }
   if (!(error instanceof HttpError)) {
     return IMPORT_PREVIEW_FAILURE.unreachable;
   }
@@ -105,6 +115,8 @@ type LibraryImportState =
       readonly files: readonly File[];
       readonly folder: boolean;
       readonly plan: TreeImportPlan | null;
+      /** A `.zip` pick the profile zip door took as a SillyTavern profile: it imports there, not through the bundle door. */
+      readonly profileZip: boolean;
       readonly collisions: readonly PersonaCollision[];
       readonly choices: PersonaCollisionChoices;
       readonly preview: ImportPreviewState;
@@ -171,19 +183,36 @@ interface FolderRun {
   done: BundleCounts;
 }
 
-/** A folder's dry run, one upload after another. Held in a ref for the same reason as {@link FolderRun}. A run that
- *  judges the personas again is the same shape: its one upload is the persona files, and `base` is the folder preview
- *  its persona counts amend. */
+/** What a dry run sends: a folder's planned uploads, or one zip the server reads. */
+type PreviewSource = { readonly kind: "folder"; readonly plan: TreeImportPlan } | { readonly kind: "zip"; readonly file: File };
+
+/** A folder's dry run, one upload after another, or a zip's in one upload. Held in a ref for the same reason as
+ *  {@link FolderRun}. A run that judges a folder's personas again is the same shape: its one upload is the persona
+ *  files, and `base` is the folder preview its persona counts amend. A zip's is judged again whole. */
 interface PreviewRun {
   /** Ends the upload in flight when the preview is dropped. */
   readonly upload: AbortController;
-  readonly plan: TreeImportPlan;
+  readonly source: PreviewSource;
   /** The persona answers every upload of this run is sent under. */
   readonly choices: PersonaCollisionChoices;
   readonly base: ImportPreview | null;
   index: number;
   workloadId: WorkloadId | null;
   readonly previews: ImportPreview[];
+}
+
+type StagedState = Extract<LibraryImportState, { readonly status: "staged" }>;
+
+/** The staged zip pick once the zip door has answered: a backup imports through the bundle door; a profile lists the
+ *  personas its dry run was judged under, keeping any answer already given and the default for a new one. */
+function withZipOutcome(staged: StagedState, outcome: ProfileZipOutcome): StagedState {
+  if (outcome.kind === "backup") {
+    return { ...staged, profileZip: false, collisions: [], choices: {} };
+  }
+  const choices = Object.fromEntries(
+    outcome.collisions.map((c): [string, PersonaCollisionChoice] => [c.key, personaCollisionChoiceFor(staged.choices, c.key)]),
+  );
+  return { ...staged, profileZip: true, collisions: outcome.collisions, choices };
 }
 
 /** The folder preview the staged pick last finished, which a changed persona answer amends. */
@@ -207,6 +236,8 @@ export function useLibraryImport(): LibraryImport {
   const folderRun = useRef<FolderRun | null>(null);
   const previewRun = useRef<PreviewRun | null>(null);
   const folderPreview = useRef<FolderPreview | null>(null);
+  // The staged `.zip` pick, which a changed persona answer sends again.
+  const zipPick = useRef<File | null>(null);
   // The answers on screen, kept beside the state because a dry run that ends reads them from a callback, not a render.
   const answers = useRef<PersonaCollisionChoices>({});
   const conflictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -252,22 +283,34 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  /** Forget the staged pick's preview altogether: its run and the finished folder preview a changed answer would amend. */
+  /** Forget the staged pick's preview altogether: its run, and the finished folder preview or the zip a changed answer
+   *  would judge again. */
   const dropPreview = (): void => {
     stopPreviewRun();
     folderPreview.current = null;
+    zipPick.current = null;
   };
 
   /** Judge the personas again under the answers now on screen: the persona files go up alone as a dry run, and what it
    *  counts replaces the folder preview's persona counts. Whatever dry run was in flight is superseded. */
   const rejudgePersonas = (): void => {
+    const zip = zipPick.current;
+    if (zip !== null) {
+      startPreview({ kind: "zip", file: zip }, answers.current, null);
+      return;
+    }
     const held = folderPreview.current;
     if (held === null) {
       return;
     }
-    stopPreviewRun();
     const plan: TreeImportPlan = { ...held.plan, batches: [personaFilesOf(plannedFiles(held.plan))] };
-    const run: PreviewRun = { upload: new AbortController(), plan, choices: answers.current, base: held.preview, index: 0, workloadId: null, previews: [] };
+    startPreview({ kind: "folder", plan }, answers.current, held.preview);
+  };
+
+  /** Supersede whatever dry run is in flight with a new one over `source`, under `choices`. */
+  const startPreview = (source: PreviewSource, choices: PersonaCollisionChoices, base: ImportPreview | null): void => {
+    stopPreviewRun();
+    const run: PreviewRun = { upload: new AbortController(), source, choices, base, index: 0, workloadId: null, previews: [] };
     previewRun.current = run;
     sendPreviewBatch(run);
   };
@@ -282,7 +325,9 @@ export function useLibraryImport(): LibraryImport {
       previewRun.current = null;
       return;
     }
-    folderPreview.current = { plan: run.plan, preview: judged };
+    if (run.source.kind === "folder") {
+      folderPreview.current = { plan: run.source.plan, preview: judged };
+    }
     if (!sameAnswers(run.choices, answers.current)) {
       rejudgePersonas();
       return;
@@ -291,19 +336,41 @@ export function useLibraryImport(): LibraryImport {
     previewRun.current = null;
   };
 
+  /** Send upload `run.index` of the run, resolving the dry run's workload; null when the zip is an Orbweaver backup. */
+  const sendPreviewUpload = async (run: PreviewRun, index: number): Promise<WorkloadId | null> => {
+    const options = { dryRun: true, signal: run.upload.signal };
+    if (run.source.kind === "folder") {
+      const batch = run.source.plan.batches[index] ?? [];
+      return (await importTree(batch, run.choices, run.source.plan.layout, options)).workloadId;
+    }
+    const outcome = await importTreeZip(run.source.file, run.choices, options);
+    if (previewRun.current === run) {
+      setState((prev) => (prev.status === "staged" ? withZipOutcome(prev, outcome) : prev));
+    }
+    return outcome.kind === "started" ? outcome.workloadId : null;
+  };
+
   const sendPreviewBatch = (run: PreviewRun, attempt = 0): void => {
-    const batch = run.plan.batches[run.index];
-    if (batch === undefined) {
+    const total = run.source.kind === "folder" ? run.source.plan.batches.length : 1;
+    if (run.index >= total) {
       finishPreview(run);
       return;
     }
-    const position = { index: run.index, total: run.plan.batches.length };
+    const position = { index: run.index, total };
     run.workloadId = null;
     setPreview(run, { status: "reading", workloadId: null, progress: NO_PROGRESS, batch: position });
     // the .catch below calls failPreview(), which leaves the staged import available and shows why. A refusal
     // for a running import is retried while this run is still the live one.
-    importTree(batch, run.choices, run.plan.layout, { dryRun: true, signal: run.upload.signal })
-      .then(({ workloadId }) => {
+    sendPreviewUpload(run, run.index)
+      .then((workloadId) => {
+        if (workloadId === null) {
+          // An Orbweaver backup zip has no preview; it imports through the bundle door.
+          setPreview(run, NO_PREVIEW);
+          if (previewRun.current === run) {
+            previewRun.current = null;
+          }
+          return;
+        }
         if (previewRun.current !== run) {
           cancelWorkload.mutate({ id: workloadId });
           return;
@@ -326,19 +393,20 @@ export function useLibraryImport(): LibraryImport {
   };
 
   const retryPreview = (): void => {
-    if (state.status !== "staged" || state.preview.status !== "failed" || state.plan === null || !state.plan.previewable) {
+    if (state.status !== "staged" || state.preview.status !== "failed") {
       return;
     }
     // A failed persona judgement leaves the folder's own preview, which is all it amends; a failed folder read has none.
-    if (folderPreview.current !== null) {
+    // A zip is judged again whole.
+    if (folderPreview.current !== null || zipPick.current !== null) {
       rejudgePersonas();
       return;
     }
-    stopPreviewRun();
-    const run: PreviewRun = { upload: new AbortController(), plan: state.plan, choices: state.choices, base: null, index: 0, workloadId: null, previews: [] };
+    if (state.plan === null || !state.plan.previewable) {
+      return;
+    }
     answers.current = state.choices;
-    previewRun.current = run;
-    sendPreviewBatch(run);
+    startPreview({ kind: "folder", plan: state.plan }, state.choices, null);
   };
 
   const finish = (epoch: number, summary: ImportSummary): void => {
@@ -359,9 +427,16 @@ export function useLibraryImport(): LibraryImport {
   };
 
   const stageFiles = (files: readonly File[]): void => {
-    if (files.length > 0) {
-      dropPreview();
-      setState({ status: "staged", files: [...files], folder: false, plan: null, collisions: [], choices: {}, preview: NO_PREVIEW });
+    const [first] = files;
+    if (first === undefined) {
+      return;
+    }
+    dropPreview();
+    setState({ status: "staged", files: [...files], folder: false, plan: null, profileZip: false, collisions: [], choices: {}, preview: NO_PREVIEW });
+    if (files.length === 1 && isZip(first)) {
+      zipPick.current = first;
+      answers.current = {};
+      startPreview({ kind: "zip", file: first }, {}, null);
     }
   };
   const stageFolder = (files: readonly File[]): void => {
@@ -377,12 +452,10 @@ export function useLibraryImport(): LibraryImport {
       .then(({ plan, collisions }) => {
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
-          setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices, preview: NO_PREVIEW });
+          setState({ status: "staged", files: [...files], folder: true, plan, profileZip: false, collisions, choices, preview: NO_PREVIEW });
           answers.current = choices;
           if (plan.previewable && plan.batches.length > 0) {
-            const run: PreviewRun = { upload: new AbortController(), plan, choices, base: null, index: 0, workloadId: null, previews: [] };
-            previewRun.current = run;
-            sendPreviewBatch(run);
+            startPreview({ kind: "folder", plan }, choices, null);
           }
         }
       })
@@ -400,29 +473,47 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "idle" });
   };
 
-  const importFiles = (files: readonly File[]): void => {
+  const importFiles = (files: readonly File[], profileZip: boolean, choices: PersonaCollisionChoices): void => {
     const [first] = files;
     if (first === undefined) {
       return;
     }
     const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: first.name });
-    if (isZip(first)) {
+    if (profileZip) {
       // the .catch below calls fail(), whose
       // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
-      importBundle(first)
-        .then(({ workloadId }) => {
-          if (epoch === requestEpoch.current) {
-            setState({ status: "running", epoch, workloadId, progress: { pct: null, label: null }, batch: null });
+      importTreeZip(first, choices)
+        .then((outcome) => {
+          if (outcome.kind === "backup") {
+            importBackupZip(epoch, first);
+          } else if (epoch === requestEpoch.current) {
+            setState({ status: "running", epoch, workloadId: outcome.workloadId, progress: { pct: null, label: null }, batch: null });
           }
         })
-        .catch((error: unknown) => fail(epoch, errorMessage(error)));
+        .catch((error: unknown) => fail(epoch, error instanceof ProfileZipRefusedError ? IMPORT_ZIP_REFUSAL[error.reason] : errorMessage(error)));
+      return;
+    }
+    if (isZip(first)) {
+      importBackupZip(epoch, first);
       return;
     }
     // the .catch below calls fail(), whose
     // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importCharacters(files)
       .then((result) => finish(epoch, summarizeCardImport(result)))
+      .catch((error: unknown) => fail(epoch, errorMessage(error)));
+  };
+
+  const importBackupZip = (epoch: number, first: File): void => {
+    // the .catch below calls fail(), whose
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    importBundle(first)
+      .then(({ workloadId }) => {
+        if (epoch === requestEpoch.current) {
+          setState({ status: "running", epoch, workloadId, progress: { pct: null, label: null }, batch: null });
+        }
+      })
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
   };
 
@@ -542,7 +633,7 @@ export function useLibraryImport(): LibraryImport {
       importFolder(state.plan, state.choices);
       return;
     }
-    importFiles(state.files);
+    importFiles(state.files, state.profileZip, state.choices);
   };
 
   /** Record the answers now on screen, and judge the personas again when a finished preview was counted under others. */

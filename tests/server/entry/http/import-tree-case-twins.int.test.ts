@@ -77,6 +77,37 @@ test("a name past the clip is cut in the refusal, so a hostile name is not echoe
   expect(reason).not.toContain(long);
 });
 
+// The pairs a Windows or macOS volume holds as one name although `toLowerCase` keeps them apart: a final and a medial
+// sigma fold to one letter, a composed and a decomposed accent are one name on a normalization-insensitive volume, and
+// the Kelvin sign normalizes to the Latin capital K.
+const COLLIDING_PAIRS = [
+  { name: "a final and a medial sigma", first: "Ολος.png", second: "Ολοσ.png" },
+  { name: "a composed and a decomposed accent", first: "Café.png", second: "Café.png" },
+  { name: "the Kelvin sign and a k", first: "Kite.png", second: "kite.png" },
+] as const;
+
+test.each(COLLIDING_PAIRS)("a folder holding $name in two card names is refused naming both, and stages nothing", async ({ first, second }) => {
+  await using root = await harness();
+
+  const response = await postProfile(root, [first, second]);
+
+  expect(response.status).toBe(REFUSED_STATUS);
+  const reason = await refusalOf(response);
+  expect(reason).toContain(`characters/${first}`);
+  expect(reason).toContain(`characters/${second}`);
+  expect(await stagedEntries(root)).toEqual([]);
+});
+
+// Both volumes fold one code point to one code point, so a letter whose capital is two letters keeps its own name there.
+test("a folder holding Straße and Strasse stages both, because neither volume folds a sharp s into two letters", async () => {
+  await using root = await harness();
+
+  const response = await postProfile(root, ["Straße.png", "Strasse.png"]);
+
+  expect(response.status).toBe(ACCEPTED_STATUS);
+  expect(await stagedEntries(root)).not.toEqual([]);
+});
+
 test("the same folder with its second card named apart stages, so the refusal is the case twin and not the folder", async () => {
   await using root = await harness();
 

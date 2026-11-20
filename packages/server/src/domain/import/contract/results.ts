@@ -40,6 +40,22 @@ export interface ImportCharacterResult {
    *  re-upload KEEPS instead of replacing, because the character already holds a primary book the owner may
    *  have edited since (the restore verb is how they ask for the card's version back). */
   readonly skippedOverlays: readonly string[];
+  /** The card's embedded world book when this import landed it, with the SillyTavern activation fields its
+   *  entries keep inert; null when the card carries none, a carried reference stood in for it, or the seat was kept. */
+  readonly embeddedBook: ImportBookNote | null;
+}
+
+/** One world book an import landed, by its entry count and the inert activation fields its entries keep. */
+export interface ImportBookNote {
+  readonly name: string;
+  readonly entries: number;
+  /** Each inert activation field present with a non-default value, with how many entries carry it. */
+  readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
+}
+
+/** The embedded world book one imported card landed, named by its card file. */
+export interface ImportCardBookNote extends ImportBookNote {
+  readonly file: string;
 }
 
 /** The RESTORE door's outcome. Never throws for a bad/unmatched card — the refusal is a value the
@@ -193,14 +209,10 @@ export interface ImportThemeNote {
 
 /** One standalone world book the run landed: where it landed, and the SillyTavern activation fields its
  *  entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
-export interface ImportWorldNote {
-  readonly name: string;
+export interface ImportWorldNote extends ImportBookNote {
   /** The file's own name when the landed name took a collision suffix (a different same-named book exists). */
   readonly renamedFrom: string | null;
   readonly created: boolean;
-  readonly entries: number;
-  /** Each inert activation field present with a non-default value, with how many entries carry it. */
-  readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
 }
 
 /** One ST group the importer could NOT turn into a room, with the reason (no member resolved, the chat write
@@ -279,6 +291,8 @@ export interface ImportReport {
   readonly skippedCardTags: readonly ImportSkippedCardTag[];
   /** What an imported card did not land, by card file: a refused or narrowed regex script, a kept world book. */
   readonly cardNotes: readonly ImportSkippedCard[];
+  /** The embedded world book each imported card landed, with the inert activation fields its entries keep. */
+  readonly cardBookNotes: readonly ImportCardBookNote[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly unreadableCards: readonly string[];

@@ -34,9 +34,10 @@ import {
   observedBody,
   PENDING_ROUTES,
   PLUGIN_DELETE_ROUTE,
+  TREE_ZIP_ROUTE,
 } from "./_body-limit-inputs.ts";
 
-const GUARDED_INGEST = [...INTAKE_ROUTES.map(({ path }) => path), BUNDLE_ROUTE];
+const GUARDED_INGEST = [...INTAKE_ROUTES.map(({ path }) => path), BUNDLE_ROUTE, TREE_ZIP_ROUTE];
 const PASSWORD = "body-limit-owner-password";
 
 test("every actual ingest refuses anonymous bytes before any input pull", async () => {

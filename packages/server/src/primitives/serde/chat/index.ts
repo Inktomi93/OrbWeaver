@@ -23,7 +23,6 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
-import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
 import { boundedJsonObjectSchema, parseJsonText } from "@orb/kit/json";
@@ -31,6 +30,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
 import { z } from "zod";
+import type { SliceBudget } from "#primitives/abort";
+import { sliceMeter } from "#primitives/abort";
 import { sha256HexOfParts } from "#primitives/content-hash";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/primitives type-home-exempt) ──────────
@@ -819,12 +820,12 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
 // UTF-8 BOM prefix (Windows exports) — stripped before line-splitting.
 const BOM = /^\uFEFF/;
 
-// The parse costs time per line, and the file is as large as the upload cap allows. It hands the event loop back
-// after this many characters of lines, a few milliseconds of work, so a large file never holds the server.
-const PARSE_SLICE_CHARS = 262_144;
-// A swipe costs time by itself, not by its text: a line of short swipes parses about 9 µs a swipe, so a slice also
-// ends after this many variants.
-const PARSE_SLICE_VARIANTS = 4096;
+/**
+ * One turn of the loop's share of a pass over a transcript as large as the upload cap allows: its parse, its identity
+ * hash and its translation for the write. The pass hands the event loop back after this many characters, a few
+ * milliseconds of work, or this many variants: a swipe costs time by itself, about 9 µs to parse whatever its length.
+ */
+export const CHAT_SLICE_BUDGET: SliceBudget = { chars: 262_144, items: 4096 };
 
 /**
  * Parse one ST chat `.jsonl` → a `ParsedChat`. `fileName` (the Branch-prefix + filename-date hint) and
@@ -868,15 +869,9 @@ export async function parseChatJsonl(text: string, opts: { readonly fileName: st
 // The message lines in order, a slice of lines a turn of the loop; a corrupt or debris line is skipped.
 async function parseMessageLines(lines: readonly string[]): Promise<ParsedChatMessage[]> {
   const messages: ParsedChatMessage[] = [];
-  let sliceChars = 0;
-  let sliceVariants = 0;
+  const spend = sliceMeter(CHAT_SLICE_BUDGET);
   for (const line of lines) {
-    sliceChars += line.length;
-    if (sliceChars >= PARSE_SLICE_CHARS || sliceVariants >= PARSE_SLICE_VARIANTS) {
-      sliceChars = 0;
-      sliceVariants = 0;
-      await yieldToEventLoop();
-    }
+    await spend(line.length, 0);
     const t = line.trim();
     if (t.length === 0) {
       continue;
@@ -884,7 +879,7 @@ async function parseMessageLines(lines: readonly string[]): Promise<ParsedChatMe
     const message = parseMessageLine(t);
     if (message !== null) {
       messages.push(message);
-      sliceVariants += message.variants.length;
+      await spend(0, message.variants.length);
     }
   }
   return messages;
@@ -1061,7 +1056,7 @@ export function buildChatTxt(chat: ParsedChat): string {
 // re-identifies every imported chat and a re-import duplicates it (D290).
 async function* chatIdentityParts(parsed: ParsedChat): AsyncGenerator<string> {
   yield `{"characterName":${stableStringify(parsed.characterName)},"createDate":${stableStringify(parsed.createDate)},"messages":[`;
-  let sliceChars = 0;
+  const spend = sliceMeter(CHAT_SLICE_BUDGET);
   for (const [index, m] of parsed.messages.entries()) {
     const part = stableStringify({
       role: m.role,
@@ -1072,11 +1067,7 @@ async function* chatIdentityParts(parsed: ParsedChat): AsyncGenerator<string> {
       activeVariantIdx: m.activeVariantIdx,
       variants: m.variants.map((v) => v.content),
     });
-    sliceChars += part.length;
-    if (sliceChars >= PARSE_SLICE_CHARS) {
-      sliceChars = 0;
-      await yieldToEventLoop();
-    }
+    await spend(part.length, 0);
     yield index === 0 ? part : `,${part}`;
   }
   yield `],"userName":${stableStringify(parsed.userName)}}`;

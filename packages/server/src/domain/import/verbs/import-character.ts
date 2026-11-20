@@ -26,9 +26,10 @@ import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import { fileStem } from "@orb/kit/strings";
+import { inertFieldCounts } from "@orb/kit/world-info";
 import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
-import type { ImportCharacterResult } from "../contract/results.ts";
+import type { ImportBookNote, ImportCharacterResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import {
   cardToCreateInput,
@@ -131,15 +132,17 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
+): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays" | "embeddedBook">> {
   const attachedBooksLinked = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
+  let embeddedBook: ImportBookNote | null = null;
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
     if (await primaryBookTaken(ctx, characterId)) {
       skippedOverlays.push(BOOK_KEPT_NOTE);
     } else {
       await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
+      embeddedBook = { name: carried.book.name, entries: carried.book.entries.length, inertFields: inertFieldCounts(carried.book.entries) };
     }
   }
 
@@ -158,7 +161,7 @@ async function attachCarriedContent(
     skippedOverlays.push(...lift.refused.map((refusal) => `regex script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`));
   }
 
-  return { regexScriptsLifted, regexScriptsReused, skippedOverlays };
+  return { regexScriptsLifted, regexScriptsReused, skippedOverlays, embeddedBook };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:

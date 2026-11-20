@@ -25,6 +25,28 @@ export async function yieldToLoop(): Promise<void> {
   await yieldToEventLoop();
 }
 
+/** How much synchronous work one turn of the loop may carry, in the two units a pass's cost grows by. */
+export interface SliceBudget {
+  readonly chars: number;
+  readonly items: number;
+}
+
+/** A meter over one long synchronous pass: each step spends what it cost, and the meter hands the event loop back
+ *  once a slice's budget is spent, so a pass as large as an upload cap never holds the server. */
+export function sliceMeter(budget: SliceBudget): (chars: number, items: number) => Promise<void> {
+  let chars = 0;
+  let items = 0;
+  return async (spentChars, spentItems) => {
+    chars += spentChars;
+    items += spentItems;
+    if (chars >= budget.chars || items >= budget.items) {
+      chars = 0;
+      items = 0;
+      await yieldToEventLoop();
+    }
+  };
+}
+
 /** `map` over `items` in order, one at a time and one event-loop turn apart, so a long list never holds the loop. Once
  *  `signal` aborts it stops before the next item and returns the results so far. */
 export async function mapYielding<Item, Result>(
