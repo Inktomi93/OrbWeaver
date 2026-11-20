@@ -1502,6 +1502,14 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
     "members": false
   },
   {
+    "name": "data-appearance-follow-system-transparency",
+    "values": [
+      "false",
+      "true"
+    ],
+    "members": false
+  },
+  {
     "name": "data-appearance-increased-contrast",
     "values": [
       "system",

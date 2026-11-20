@@ -45,6 +45,9 @@
 @custom-variant appearance-increased-contrast-on (&:where(:root[data-appearance-increased-contrast="on"], :root[data-appearance-increased-contrast="on"] *));
 @custom-variant appearance-increased-contrast-off (&:where(:root[data-appearance-increased-contrast="off"], :root[data-appearance-increased-contrast="off"] *));
 
+@custom-variant appearance-follow-system-transparency-false (&:where(:root[data-appearance-follow-system-transparency="false"], :root[data-appearance-follow-system-transparency="false"] *));
+@custom-variant appearance-follow-system-transparency-true (&:where(:root[data-appearance-follow-system-transparency="true"], :root[data-appearance-follow-system-transparency="true"] *));
+
 @custom-variant appearance-blur-surfaces-panels (&:where(:root[data-appearance-blur-surfaces~="panels"], :root[data-appearance-blur-surfaces~="panels"] *));
 @custom-variant appearance-blur-surfaces-composer (&:where(:root[data-appearance-blur-surfaces~="composer"], :root[data-appearance-blur-surfaces~="composer"] *));
 @custom-variant appearance-blur-surfaces-messages (&:where(:root[data-appearance-blur-surfaces~="messages"], :root[data-appearance-blur-surfaces~="messages"] *));

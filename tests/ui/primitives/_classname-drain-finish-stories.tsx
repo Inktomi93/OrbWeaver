@@ -157,7 +157,7 @@ export function ButtonFinishStory(): ReactElement {
   );
 }
 
-/** The Card shapes, tones and state axes the drain added, tier-less, inside a tier and under the glow elevation. */
+/** The Card shapes, tones and state axes the drain added, tier-less and inside a tier. */
 export function CardFinishStory(): ReactElement {
   return (
     <CtIsolation subject="Card shapes, tones and axes" isolates="Each remaining arm against its token, tier-less and inside an instrument Surface">
@@ -178,12 +178,6 @@ export function CardFinishStory(): ReactElement {
       <Card data-case="own-slot" ownSlot="named-hook">
         named
       </Card>
-      <div data-elevation="glow">
-        <Card data-case="glow-follow" interactive={true}>
-          follows
-        </Card>
-        <Card data-case="glow-none">static</Card>
-      </div>
       <span data-case="away">elsewhere</span>
       <Probe name="radius-card" style={{ borderRadius: `var(${TOKENS["radius.card"].cssVar})`, padding: `var(${TOKENS["spacing.field"].cssVar})` }} />
       <Probe

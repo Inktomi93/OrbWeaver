@@ -184,6 +184,9 @@ export const appearanceSettingsSchema = z
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.preprocess(liftReducedMotion, osPreference()).default(OS_PREFERENCE_DEFAULT),
     increasedContrast: osPreference().default(OS_PREFERENCE_DEFAULT),
+    // Off keeps the chosen glass when the device asks for reduced transparency; turning glass off is the Frosted glass
+    // control's own empty choice, so this switch has only the two answers.
+    followSystemTransparency: z.boolean().catch(true).default(true),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
     // NOTE: no flat `backgroundSeededId` — the `kind:"seeded"` catalog slug is retired; the WHY is on
     // `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover

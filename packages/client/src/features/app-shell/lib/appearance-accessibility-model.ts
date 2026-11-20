@@ -10,10 +10,10 @@ import { OS_PREFERENCE_ITEMS } from "./appearance-select-items.ts";
 export const APPEARANCE_ACCESSIBILITY_SUBCATEGORY: ConfigSubcategory = {
   id: "accessibility",
   label: "Accessibility",
-  keywords: ["a11y", "motion", "contrast"],
+  keywords: ["a11y", "motion", "contrast", "transparency"],
   teach: {
-    summary: "The app's answer to your device's motion and contrast settings. Glass surfaces always go solid when your device asks for reduced transparency.",
-    affects: ["animation and contrast app-wide, on this account"],
+    summary: "The app's answer to your device's motion, contrast and transparency settings.",
+    affects: ["animation, contrast and glass app-wide, on this account"],
   },
   settings: [
     {
@@ -38,6 +38,16 @@ export const APPEARANCE_ACCESSIBILITY_SUBCATEGORY: ConfigSubcategory = {
         summary:
           "System follows your device's increase-contrast setting. On draws stronger edges, a denser glass fill and drops the texture; Off keeps the standard look even when the device asks for more contrast.",
         affects: ["panel, composer and dialog edges on large screens", "the glass fill and the texture overlay"],
+      },
+    },
+    {
+      id: "follow-system-transparency",
+      key: "followSystemTransparency",
+      label: "Follow the device's reduced transparency",
+      keywords: ["transparency", "glass", "blur", "solid", "accessibility"],
+      teach: {
+        summary: "On, glass surfaces go solid when your device asks for reduced transparency. Off keeps the glass you chose in Frosted glass even then.",
+        affects: ["every glass surface while the device asks for reduced transparency"],
       },
     },
   ],

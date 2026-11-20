@@ -1,4 +1,5 @@
-// The "Accessibility" appearance SECTION: the two OS preferences, reduce motion and increase contrast. A settings
+// The "Accessibility" appearance SECTION: reduce motion, increase contrast and whether glass follows the device's
+// reduced transparency. A settings
 // contribution at the `appearance` anchor owned by features/app-shell, the feature that writes them to the root
 // appearance channel. S1 — PATCH MINIMALITY: `OWNS` is spelled once and drives the projection, the seeded defaults,
 // the form type and the contribution's `owns` claim (SET-SEAMS §2).
@@ -30,7 +31,7 @@ export function AppearanceAccessibilitySection({ anchorId, sectionId }: { readon
   return (
     <QueryBoundary
       resetKeys={[]}
-      fallback={<SkeletonRows count={2} shape="line" />}
+      fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your accessibility settings" onRetry={retry} />}
     >
       <AccessibilityFormBody anchorId={anchorId} sectionId={sectionId} />
@@ -79,6 +80,11 @@ function AccessibilityBody({
               {(field): ReactElement => (
                 <field.SegmentField label={configSettingLabel(APPEARANCE_ACCESSIBILITY_SUBCATEGORY, "increasedContrast")} items={OS_PREFERENCE_ITEMS} />
               )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="follow-system-transparency">
+            <form.AppField name="followSystemTransparency">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_ACCESSIBILITY_SUBCATEGORY, "followSystemTransparency")} />}
             </form.AppField>
           </SettingRow>
         </SettingRowGroup>

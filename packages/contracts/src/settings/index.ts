@@ -27,6 +27,8 @@ import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { pluginSurfaceIdSchema } from "#plugin";
 import type { ProseOverrides } from "#prose";
 import { proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
+import type { ProseOverride } from "#prose-slot";
+import { proseOverrideFromLegacy } from "#prose-slot";
 import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
@@ -798,6 +800,9 @@ function liftAppearanceCleanup(appearance: unknown): unknown {
   if (reducedTransparency === "on") {
     lifted["blurSurfaces"] = [];
   }
+  if (reducedTransparency === "off") {
+    lifted["followSystemTransparency"] = false;
+  }
   return lifted;
 }
 
@@ -821,19 +826,18 @@ function legacyImageryOverrides<Mode extends string>(
   group: unknown,
   modes: readonly Mode[],
   slotIds: Readonly<Record<Mode, string>>,
-): Record<string, { text: string; baseVersion: number }> {
-  const moved: Record<string, { text: string; baseVersion: number }> = {};
+): Record<string, ProseOverride> {
+  const moved: Record<string, ProseOverride> = {};
   for (const mode of modes) {
     const text = isPlainObject(group) ? group[mode] : undefined;
-    if (typeof text === "string") {
-      moved[slotIds[mode]] = { text, baseVersion: LEGACY_IMAGERY_BASE_VERSION };
+    const override = typeof text === "string" ? proseOverrideFromLegacy(text) : undefined;
+    if (override !== undefined) {
+      moved[slotIds[mode]] = override;
     }
   }
   return moved;
 }
 
-// The version the legacy bare-string imagery overrides were adapted at (`proseOverrideFromLegacy`).
-const LEGACY_IMAGERY_BASE_VERSION = 1;
 // The v10 round count an enabled auto-continue ran when no count was stored.
 const LEGACY_AUTO_CONTINUE_ROUNDS = 1;
 

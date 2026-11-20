@@ -144,8 +144,8 @@ export interface ImageryContext {
     readonly timeZone?: IanaTimeZone | undefined;
     readonly signal: AbortSignal;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
-  /** ⑫ — the run-as principal's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]`
-   *  override ⊕ the shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose
+  /** ⑫ — the run-as principal's per-mode EXTRACTION instruction: the mode's `UserSettings.prose` slot override
+   *  ⊕ the shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose
    *  off `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
   readonly resolvePromptTemplate: (runAs: Principal, mode: ExtractionMode) => Promise<string>;
   /** ⑫ — the run-as principal's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */

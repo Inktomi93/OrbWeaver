@@ -635,6 +635,22 @@ test.describe("reduced transparency", () => {
     await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toBe("none");
   });
 
+  test("keeps the chosen glass when the reader turned off following the device", async ({ corpus, mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAppearance(page, corpus, { blurSurfaces: ["panels", "modals"], followSystemTransparency: false });
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+    const pane = page.locator(LIST);
+    const dialog = page.locator(DIALOG);
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute(channelName("followSystemTransparency"), "false");
+    await expect.poll(() => fillAlpha(pane, "::before")).toBeLessThan(1);
+    await expect.poll(() => carrierBlur(pane)).toContain("blur(");
+    await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
+    await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toContain("blur(");
+  });
+
   test("leaves the phone's own pane and reading-surface fills standing", async ({ corpus, mount, page }) => {
     await page.setViewportSize(PHONE);
     await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });

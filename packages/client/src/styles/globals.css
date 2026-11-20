@@ -625,43 +625,47 @@
       --blur-fill-chrome: var(--blur-fill-contrast);
       --blur-fill-dense: var(--blur-fill-contrast);
     }
-    /* This later declaration wins when both preferences are enabled. The device's reduced-transparency setting
-     * always wins over the glass: no reader setting overrides it. */
+    /* This later declaration wins when both preferences are enabled. The device's reduced-transparency setting wins
+     * over the glass unless the reader turned off following it (`appearance.followSystemTransparency`). */
     @variant transparency-reduce {
-      --blur-fill-chrome: var(--blur-fill-solid);
-      --blur-fill-dense: var(--blur-fill-solid);
+      @variant appearance-follow-system-transparency-true {
+        --blur-fill-chrome: var(--blur-fill-solid);
+        --blur-fill-dense: var(--blur-fill-solid);
+      }
     }
   }
 
-  /* Reduced transparency (`prefers-reduced-transparency: reduce`): solid, through the glass's own fill knob above,
+  /* Reduced transparency (`prefers-reduced-transparency: reduce`), while the reader follows it: solid, through the glass's own fill knob above,
    * so every surface stays tinted as itself (`revert` would roll past the author origin to transparent). The blur
    * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
    * the box its glass counterpart paints, so this layer's declaration lands on it. */
   @variant transparency-reduce {
-    @variant appearance-blur-surfaces-panels {
-      .shell-panel::before,
-      .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"],
-      .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
-        backdrop-filter: none;
+    @variant appearance-follow-system-transparency-true {
+      @variant appearance-blur-surfaces-panels {
+        .shell-panel::before,
+        .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"],
+        .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
+          backdrop-filter: none;
+        }
       }
-    }
-    @variant appearance-blur-surfaces-composer {
-      [data-slot="composer"] {
-        backdrop-filter: none;
+      @variant appearance-blur-surfaces-composer {
+        [data-slot="composer"] {
+          backdrop-filter: none;
+        }
       }
-    }
-    @variant appearance-blur-surfaces-modals {
-      [data-slot="dialog-popup"]::before,
-      [data-slot="alert-dialog-popup"]::before,
-      [data-slot="dialog-footer"],
-      [data-slot="dialog-header"],
-      [data-slot="new-chat-actions"] {
-        backdrop-filter: none;
+      @variant appearance-blur-surfaces-modals {
+        [data-slot="dialog-popup"]::before,
+        [data-slot="alert-dialog-popup"]::before,
+        [data-slot="dialog-footer"],
+        [data-slot="dialog-header"],
+        [data-slot="new-chat-actions"] {
+          backdrop-filter: none;
+        }
       }
-    }
-    @variant appearance-blur-surfaces-messages {
-      [data-role] [data-slot="message-bubble"] {
-        backdrop-filter: none;
+      @variant appearance-blur-surfaces-messages {
+        [data-role] [data-slot="message-bubble"] {
+          backdrop-filter: none;
+        }
       }
     }
   }

@@ -57,12 +57,12 @@ test.for([
 });
 
 test.for([
-  ["on", []],
-  ["off", ["panels", "modals"]],
-  ["system", ["panels", "modals"]],
-] as const)("a stored app reduce-transparency %s leaves the glass surfaces as %o", ([stored, surfaces]) => {
+  ["on", [], true],
+  ["off", ["panels", "modals"], false],
+  ["system", ["panels", "modals"], true],
+] as const)("a stored app reduce-transparency %s leaves the glass surfaces as %o and following the device as %s", ([stored, surfaces, follows]) => {
   const appearance = lifted({ appearance: { reducedTransparency: stored, blurSurfaces: ["panels", "modals"] } }).appearance;
-  expect(appearance.blurSurfaces).toStrictEqual(surfaces);
+  expect({ surfaces: appearance.blurSurfaces, follows: appearance.followSystemTransparency }).toStrictEqual({ surfaces, follows });
 });
 
 test("the derived appearance knobs leave without taking a neighbouring choice with them", () => {

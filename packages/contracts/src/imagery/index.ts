@@ -26,7 +26,7 @@ export { PROMPT_TEMPLATE_MODES, promptTemplateModeSchema } from "./modes.ts";
 
 // ── The prompt-building CATALOG — the SHIPPED-DEFAULT authored content, as-data ──────────────────────
 // Homed HERE as the catalog (the ONE imagery-vocabulary home, grown additively) so a per-user
-// `UserSettings.imagery` override composes over it (unset ⇒ byte-identical to the shipped default). The
+// `UserSettings.prose` slot override composes over it (unset ⇒ byte-identical to the shipped default). The
 // consumers read these canonical defaults directly (never re-spelled — the §7.5
 // discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve through the ONE
 // `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
@@ -84,10 +84,9 @@ const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
 
 // ── The prose slot table — the catalog's registry metadata ──────────────────────────────────────────
 // The catalog above IS the shipped-default home; these rows give it the registry metadata every
-// prose slot carries (version + macro mode + required tokens + editor copy). The override STORAGE is
-// unchanged — still `UserSettings.imagery.templates/.captions` (adapted, never duplicated) —
-// and `resolveImageryTemplate`/`resolveImageryCaption` funnel through `resolveProse` so precedence and
-// staleness come from ONE place.
+// prose slot carries (version + macro mode + required tokens + editor copy). An override is the slot's row in
+// `UserSettings.prose`, edited in the Prose section, and `resolveImageryTemplate`/`resolveImageryCaption` funnel
+// through `resolveProse` so precedence and staleness come from ONE place.
 //
 // `requiredTokens` mirrors `REQUIRED_PREFIXES` (server `imagery/substrate/templates.ts`): a host who drops
 // the "Begin your reply with:" prefix from an override is warned, because `ensurePrefix` will re-assert it

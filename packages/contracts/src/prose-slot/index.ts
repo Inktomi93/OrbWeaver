@@ -322,7 +322,7 @@ export interface ProseResolution {
   readonly text: string;
 }
 
-// The legacy override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
+// The legacy override fields (`formatStrings.*`, and a stored `imagery` section the settings lift moves into `prose`) store a BARE string with no
 //  authored-against version. They are adapted, never duplicated: a legacy string is stamped
 //  at the FIRST slot version, so it reads as non-stale today and correctly reports stale the first time its
 //  shipped default is revised.

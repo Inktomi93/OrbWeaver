@@ -96,7 +96,7 @@ const MESSAGE_APPEARANCE = { file: "packages/client/src/features/chat/hooks/use-
 const CHAT_STYLE = { file: "packages/client/src/features/chat/hooks/use-chat-style.ts", symbol: "useChatStyle" } as const;
 
 export const APPEARANCE_OWNER_KEYS = {
-  accessibility: ["reducedMotion", "increasedContrast"],
+  accessibility: ["reducedMotion", "increasedContrast", "followSystemTransparency"],
   sizing: ["chatWidthPct", "fontScale", "density", "elevation"],
   effects: ["blurSurfaces", "surfaceTexture", "enableThemeColorization"],
   background: [
@@ -174,6 +174,7 @@ export const APPEARANCE_CARRIER_MANIFEST = {
   elevation: { owner: "sizing", ...GRID, requiredDistinctArms: ["flat", "ramp"] },
   reducedMotion: { owner: "accessibility", ...ROOT, channel: { kind: "attribute", preference: "motion-reduce" }, ...PREFERENCE },
   increasedContrast: { owner: "accessibility", ...ROOT, channel: { kind: "attribute", preference: "contrast-more" }, ...PREFERENCE },
+  followSystemTransparency: { owner: "accessibility", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
 
   blurSurfaces: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [[], ["panels"]] },
   surfaceTexture: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: ["none", "grain"] },
@@ -346,6 +347,7 @@ export const APPEARANCE_CARRIER_OBSERVABLES = {
   readingLetterSpacing: rootObservable("readingLetterSpacing"),
   readingBodyScale: rootObservable("readingBodyScale"),
   justifyBodyText: rootObservable("justifyBodyText"),
+  followSystemTransparency: rootObservable("followSystemTransparency"),
   showInChatAvatars: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "showInChatAvatars" },
   avatarSize: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarSize" },
   avatarShape: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarShape" },
