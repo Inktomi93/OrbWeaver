@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-15
+status: doing
+updated: 2026-11-20
 priority: P2
 area: security
+lane: wt/agent-a8c72080671572f19
 plan: import-robustness
 ---
 
