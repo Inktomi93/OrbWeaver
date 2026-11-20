@@ -3,6 +3,8 @@
 // profile nested two folders deep and the archiver's litter beside it. The door is a hostile-input boundary: an entry
 // that inflates past the size it states is refused by its name with nothing staged and no job, and a file that is not
 // a zip is refused with the reason that says what it is. An Orbweaver backup zip is not this door's and stages nothing.
+// An entry named to leave the staged tree, or more entries than the tree door admits, refuses the whole zip with nothing
+// staged; a credentials file is never staged in any letter case; and a zip stages only under the account that sent it.
 // @subject packages/server/src/entry/http/import-tree-zip.ts
 // @subject packages/server/src/infra/storage/zip.ts
 
@@ -19,9 +21,11 @@ import {
   TREE_DRY_RUN_VALUE,
 } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import type { WorkloadId } from "@orb/kit/ids";
+import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
+import { createAuthModeRoot, mintMember, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { strToU8, zipSync } from "fflate";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
@@ -67,9 +71,13 @@ function bytesOf(value: Uint8Array | string): Uint8Array {
   return typeof value === "string" ? strToU8(value) : value;
 }
 
-/** The profile's files zipped under `prefix`, beside what a macOS archiver and a whole install add around it. */
-function profileZip(files: Files, prefix = NESTED): Uint8Array {
-  const entries: Record<string, Uint8Array> = Object.fromEntries(Object.entries(files).map(([path, bytes]) => [`${prefix}${path}`, bytesOf(bytes)]));
+/** The profile's files zipped under `prefix`, beside what a macOS archiver and a whole install add around it. `raw`
+ *  entries keep their names as given, outside the prefix. */
+function profileZip(files: Files, prefix = NESTED, raw: Files = {}): Uint8Array {
+  const entries: Record<string, Uint8Array> = {
+    ...Object.fromEntries(Object.entries(files).map(([path, bytes]) => [`${prefix}${path}`, bytesOf(bytes)])),
+    ...Object.fromEntries(Object.entries(raw).map(([path, bytes]) => [path, bytesOf(bytes)])),
+  };
   entries[`__MACOSX/${prefix}._${ST_SETTINGS_FILE}`] = strToU8("fork");
   entries[`${prefix}.DS_Store`] = strToU8("finder");
   entries[`${prefix}${ST_SECRETS_FILE}`] = strToU8('{"api_key_openai":"sk-never"}');
@@ -80,14 +88,21 @@ function profileZip(files: Files, prefix = NESTED): Uint8Array {
 interface ZipPost {
   readonly dryRun?: boolean;
   readonly choices?: PersonaCollisionChoices;
+  /** A signed-in account's request headers; the single-user owner's loopback request sends none. */
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
-async function postZip(root: ServerTestHarness, body: Uint8Array, { dryRun = false, choices = {} }: ZipPost = {}): Promise<Response> {
+async function postZip(root: ServerTestHarness, body: Uint8Array, { dryRun = false, choices = {}, headers = {} }: ZipPost = {}): Promise<Response> {
   const query = new URLSearchParams(encodePersonaCollisionChoices(choices).map((choice) => [PERSONA_COLLISION_FIELD, choice]));
   if (dryRun) {
     query.append(TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE);
   }
-  return await root.http.request(`${PORTABILITY_ROUTES.importTreeZip}?${query.toString()}`, { method: "POST", headers: CSRF_HEADERS, body });
+  return await root.http.request(`${PORTABILITY_ROUTES.importTreeZip}?${query.toString()}`, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body });
+}
+
+/** Every path staged for one account, under its staged tree's directory. */
+async function stagedPaths(root: ServerTestHarness, ownerId?: UserId): Promise<readonly string[]> {
+  return (await stagedEntries(root, ownerId)).map((entry) => entry.split("/").slice(1).join("/"));
 }
 
 async function admitZip(root: ServerTestHarness, body: Uint8Array, options: ZipPost = {}): Promise<WorkloadId> {
@@ -224,4 +239,72 @@ test("an Orbweaver backup zip is not a profile: the door answers no content, sta
   expect((await postZip(root, backup, { dryRun: true })).status).toBe(NO_CONTENT);
   expect(await stagedEntries(root)).toEqual([]);
   expect(await jobsOf(root)).toBe(0);
+});
+
+// Names an archive can hold that would leave the staged tree or alias a path in it. The archive reader refuses the
+// first five before any entry inflates; the tree door's path check refuses a dot or an empty segment.
+const ESCAPING_NAMES: Readonly<Record<string, string>> = {
+  parent: `${NESTED}../../../escape.txt`,
+  absolute: "/escape.txt",
+  backslash: `${NESTED}..\\..\\escape.txt`,
+  drive: "C:/escape.txt",
+  nul: `${NESTED}characters/escape\0.png`,
+  dot: `${NESTED}./characters/escape.png`,
+  empty: `${NESTED}characters//escape.png`,
+};
+
+test.each(Object.entries(ESCAPING_NAMES))(
+  "an entry named to leave the staged tree (%s) refuses the whole zip, with nothing staged and no job",
+  async (_kind, name) => {
+    await using root = await harness();
+    const files = bothKindFolders(root).held;
+    const refused = await refusalOf(await postZip(root, profileZip(files, NESTED, { [name]: "escape" }), { dryRun: true }));
+    expect(refused).toMatchObject({ status: REFUSED, reason: "unsafe" });
+    expect(refused.error).not.toContain(root.stagedImportsOf(root.ownerId));
+    expect(await stagedEntries(root)).toEqual([]);
+    expect(await jobsOf(root)).toBe(0);
+    // The control: the same zip without that entry is admitted.
+    expect((await postZip(root, profileZip(files), { dryRun: true })).status).toBe(ACCEPTED);
+  },
+);
+
+test("a credentials file in any letter case, at any depth of the profile, is never staged", async () => {
+  await using root = await harness();
+  const credentials = '{"api_key_openai":"sk-never"}';
+  const zip = profileZip({ ...bothKindFolders(root).held, "SECRETS.JSON": credentials, "worlds/Secrets.Json": credentials });
+  expect((await postZip(root, zip, { dryRun: true })).status).toBe(ACCEPTED);
+  const staged = await stagedPaths(root);
+  expect(staged.filter((path) => path.toLowerCase().endsWith("secrets.json"))).toEqual([]);
+  // The control: the admitted dry run's tree is still staged, its settings file and world books included.
+  expect(staged).toContain(`profile/${ST_SETTINGS_FILE}`);
+  expect(staged.filter((path) => path.startsWith("profile/worlds/")).length).toBeGreaterThan(0);
+});
+
+// Building a real archive one entry past the cap takes most of this case's time.
+test("a zip with more entries than the tree door admits is refused as too large, with nothing staged and no job", { tags: ["slow"] }, async () => {
+  await using root = await harness();
+  const files = bothKindFolders(root).held;
+  const padding: Files = Object.fromEntries(Array.from({ length: IMPORT_TREE_MAX_FILES + 1 }, (_, index) => [`worlds/${String(index)}.json`, "{}"]));
+  const refused = await refusalOf(await postZip(root, profileZip({ ...files, ...padding }), { dryRun: true }));
+  expect(refused).toMatchObject({ status: TOO_LARGE, reason: "too-large" });
+  expect(await stagedEntries(root)).toEqual([]);
+  expect(await jobsOf(root)).toBe(0);
+  // The control: the profile without the padding is admitted.
+  expect((await postZip(root, profileZip(files), { dryRun: true })).status).toBe(ACCEPTED);
+});
+
+test("a zip stages only under the account that sent it, and another account can neither see the stage nor read the job", async () => {
+  await using root = await createAuthModeRoot("local", { physicalPeer: () => "127.0.0.1", startJobs: false });
+  const owner = await signIn(root, await ownerSubject(root));
+  const member = await signIn(root, await mintMember(root));
+  // The owner sends it: an admin reads every account's jobs, so the member is the account that must be refused.
+  const workloadId = await admitZip(root, profileZip(bothKindFolders(root).held), { dryRun: true, headers: owner.headers });
+
+  expect(await stagedPaths(root, owner.principal.userId)).toContain(`profile/${ST_SETTINGS_FILE}`);
+  expect(await stagedEntries(root, member.principal.userId)).toEqual([]);
+  await expect(root.services.workloads.get({ caller: member.principal, id: workloadId })).rejects.toThrow(DomainNotFoundError);
+  await expect(root.services.workloads.get({ caller: owner.principal, id: workloadId })).resolves.toMatchObject({
+    kind: "import-st",
+    ownerId: owner.principal.userId,
+  });
 });
