@@ -46,7 +46,9 @@ import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import type { EntryPosition, StSeatlessPosition } from "@orb/kit/world-info";
 import {
+  ANCHOR_POSITIONS,
   ENTRY_POSITIONS,
+  entryPositionOfStSlot,
   inertActivationFields,
   resolveEntryInjection,
   resolveEntryKeyMode,
@@ -55,6 +57,7 @@ import {
   resolveEntryStSlot,
   ST_SEATLESS_POSITIONS,
   ST_SLOT_METADATA_KEY,
+  ST_SLOT_OF_ENTRY_POSITION,
   ST_WORLD_INFO_POSITION,
 } from "@orb/kit/world-info";
 import type { StScriptNote } from "#primitives/serde/regex";
@@ -552,15 +555,17 @@ function storedBucket(meta: Readonly<Record<string, unknown>>): EntryPosition | 
   return ENTRY_POSITIONS.find((position) => position === meta["position"]) ?? null;
 }
 
-/** The numeric SillyTavern slot one stored entry fills: at-depth for an inject directive; the seatless slot the import
- *  kept while the entry still sits in the bucket it was placed in; else its before or after bucket. */
+/** The numeric SillyTavern slot one stored entry fills: at-depth for an inject directive; the slot the import
+ *  kept while the entry still sits in the bucket it was placed in; else the slot of its seat. */
 function stWorldPosition(meta: Readonly<Record<string, unknown>>, injects: boolean): number {
   if (injects) {
     return ST_POSITION_AT_DEPTH;
   }
   const kept = resolveEntryStSlot(meta);
   const stored = storedBucket(meta);
-  return kept !== null && kept.placed === stored ? ST_WORLD_INFO_POSITION[kept.slot] : ST_WORLD_INFO_POSITION[resolveEntryPosition(meta)];
+  return kept !== null && kept.placed === stored
+    ? ST_WORLD_INFO_POSITION[kept.slot]
+    : ST_WORLD_INFO_POSITION[ST_SLOT_OF_ENTRY_POSITION[resolveEntryPosition(meta)]];
 }
 
 // The `spec_version` emitted per spec marker. V3 is "3.0"; a V2-sourced card round-trips as "2.0".
@@ -726,41 +731,37 @@ export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColum
   };
 }
 
-/** Map ST's world-info `position` onto orb's `before`/`after` anchor bucket (or `null` = no bucket). ST
- *  spells the field THREE incompatible ways, all of which collide with orb's `metadata.position` enum at the
- *  write seam if passed through raw:
+/** Map ST's world-info `position` onto the seat it is (or `null` = no seat). ST spells the field THREE
+ *  incompatible ways, all of which collide with orb's `metadata.position` enum at the write seam if passed
+ *  through raw:
  *    • the chara_card_v2 string enum (`before_char` / `after_char`) — embedded card books;
  *    • ST's numeric `WORLD_INFO_POSITION` (0 before-char · 1 after-char · 2 AN-top · 3 AN-bottom ·
- *      4 at-depth · 5 EM-top · 6 EM-bottom) — native standalone `worlds/*.json` entries;
- *    • our own already-normalized `before` / `after` (a re-import of an orb export — the fixpoint).
- *  At-depth (4) is not an anchor bucket — it becomes an `inject` directive (below), so it returns `null`
- *  here; an empty string / unknown value also returns `null` so the entry carries no `position` at all. */
-// ST numeric WORLD_INFO_POSITION values that map onto each orb anchor bucket. before-char/AN-top/EM-top all
-// render ahead of the anchor; after-char/AN-bottom/EM-bottom after it. `atDepth` (4) is handled as an inject.
-// biome-ignore lint/style/noMagicNumbers: these Sets ARE the named extraction — ST's WORLD_INFO_POSITION enum values
-const ST_POSITIONS_BEFORE: ReadonlySet<number> = new Set([0, 2, 5]);
-// biome-ignore lint/style/noMagicNumbers: these Sets ARE the named extraction — ST's WORLD_INFO_POSITION enum values
-const ST_POSITIONS_AFTER: ReadonlySet<number> = new Set([1, 3, 6]);
-
-function orbEntryPositionFromSt(raw: unknown): "before" | "after" | null {
-  if (raw === "before" || raw === "after") {
-    return raw;
+ *      4 at-depth · 5 EM-top · 6 EM-bottom · 7 outlet) — native standalone `worlds/*.json` entries, and the
+ *      `extensions.position` of a card entry, which ST reads first;
+ *    • our own already-normalized seat names (a re-import of an orb export — the fixpoint).
+ *  At-depth (4) is not a seat — it becomes an `inject` directive (below) — and the outlet has none, so both
+ *  return `null` here; an empty string / unknown value also returns `null` so the entry carries no `position`
+ *  at all. */
+function orbEntryPositionFromSt(entry: Record<string, unknown>, rawPosition: unknown): EntryPosition | null {
+  // A card entry's before or after slot is spelled by its top-level string, which an export writes only for a stored
+  // bucket, so an entry that names none re-imports naming none and keeps its identity. `extensions.position` decides
+  // alone for the seats that string cannot spell.
+  const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
+  const extSeat = entryPositionOfStSlot(ext?.["position"]);
+  if (extSeat !== null && !ANCHOR_POSITIONS.some((anchor) => anchor === extSeat)) {
+    return extSeat;
   }
-  if (raw === "before_char") {
+  const seat = entryPositionOfStSlot(rawPosition);
+  if (seat !== null) {
+    return seat;
+  }
+  if (rawPosition === ST_CARD_POSITION_BEFORE) {
     return "before";
   }
-  if (raw === "after_char") {
+  if (rawPosition === ST_CARD_POSITION_AFTER) {
     return "after";
   }
-  if (typeof raw === "number" && Number.isInteger(raw)) {
-    if (ST_POSITIONS_BEFORE.has(raw)) {
-      return "before";
-    }
-    if (ST_POSITIONS_AFTER.has(raw)) {
-      return "after";
-    }
-  }
-  return null;
+  return ENTRY_POSITIONS.find((position) => position === rawPosition) ?? null;
 }
 
 /** The seatless SillyTavern slot an ST entry names numerically (its card `extensions.position`, else a native world
@@ -795,9 +796,9 @@ function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unk
  *  ST's encoding when absent:
  *    • `constant: true` → `scopeMode: "always"` — the runtime reads `scopeMode`, NOT `constant`, so a KEYED
  *      constant entry would otherwise silently demote to keyword scope on import (load-bearing).
- *    • `position` NORMALIZED to orb's `before`/`after` enum via {@link orbEntryPositionFromSt} — the raw ST
- *      value (v2 string, numeric 0-6, or empty) would otherwise fail `metadata.position` at the write seam
- *      (the whole book import aborts). At-depth / unknown ⇒ the key is omitted entirely.
+ *    • `position` NORMALIZED to orb's seat enum via {@link orbEntryPositionFromSt} — the raw ST
+ *      value (v2 string, numeric 0-7, or empty) would otherwise fail `metadata.position` at the write seam
+ *      (the whole book import aborts). At-depth / outlet / unknown ⇒ the key is omitted entirely.
  *    • at-depth `{depth, role}` → `metadata.inject` (role via the `@orb/kit/message-role` bimap), read from
  *      ST's `extensions.position:4` (embedded card book) OR a top-level numeric `position:4` (native ST
  *      world-info entry), with `depth`/`role` beside whichever. 4 is ST's `WORLD_INFO_POSITION.atDepth`.
@@ -811,7 +812,7 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
   if (meta["scopeMode"] === undefined && entry["constant"] === true) {
     meta["scopeMode"] = "always";
   }
-  const orbPosition = orbEntryPositionFromSt(rawPosition);
+  const orbPosition = orbEntryPositionFromSt(entry, rawPosition);
   if (orbPosition !== null) {
     meta["position"] = orbPosition;
   }

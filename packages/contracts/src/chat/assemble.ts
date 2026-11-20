@@ -92,7 +92,8 @@ interface AssembleWorldEntryFields {
   enabled: boolean;
   /** When true, the entry bypasses the per-turn WI token budget (must-have lore). Absent ⇒ false. */
   ignoreBudget?: boolean;
-  /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
+  /** The seat this entry renders at (ST worldInfoBefore/After, the Author's Note and example-message edges).
+   *  Defaults `before`. A seat the turn lacks leaves the entry at its default placement. */
   position: EntryPosition;
   /** How `keys` compile for the keyword scan — `regex` = the keys ARE patterns (a Character-Card-V3
    *  `use_regex` entry, resolved off the stored metadata). Absent ⇒ `literal` (every key escaped). */
@@ -796,6 +797,12 @@ export interface AssembleContext {
    *  in the prompt order. Absent ⇒ nothing fired at that anchor. */
   worldInfoBeforeDynamic?: string;
   worldInfoAfterDynamic?: string;
+  /** Pre-rendered WI for the top and bottom seats of the example-messages section: always-scope lore rides the
+   *  section's own text, keyword-fired lore rides the per-turn half at the section's place. Absent ⇒ none. */
+  exampleMessagesTop?: string;
+  exampleMessagesBottom?: string;
+  exampleMessagesTopDynamic?: string;
+  exampleMessagesBottomDynamic?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
   /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/character/chat scope

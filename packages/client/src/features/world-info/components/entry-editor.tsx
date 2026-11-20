@@ -50,6 +50,8 @@ import {
   WORLD_INFO_ENTRY_TITLE_NAME,
   WORLD_INFO_FIRE_MODE_NAME,
   WORLD_INFO_KEYWORD_TRIGGERS_NAME,
+  WORLD_INFO_PLACEMENT_HINT,
+  WORLD_INFO_POSITION_LABELS,
   WORLD_INFO_PRIORITY_NAME,
   worldInfoEntryDeleteName,
 } from "../lib/world-info-names.ts";
@@ -73,13 +75,9 @@ const SCOPE_MODE_ITEMS: SelectItems = ENTRY_SCOPE_MODES.map((value) => ({
   label: SCOPE_MODE_LABELS[value],
 }));
 
-const POSITION_LABELS: Record<(typeof ENTRY_POSITIONS)[number], string> = {
-  before: "Before the character definitions",
-  after: "After the character definitions",
-};
 const POSITION_ITEMS: SelectItems = ENTRY_POSITIONS.map((value) => ({
   value,
-  label: POSITION_LABELS[value],
+  label: WORLD_INFO_POSITION_LABELS[value],
 }));
 
 export interface EntryEditorProps {
@@ -235,13 +233,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
             </Row>
           ) : (
             <form.AppField name="position">
-              {(field): ReactElement => (
-                <field.SelectField
-                  label={WORLD_INFO_ENTRY_PLACEMENT_NAME}
-                  hint="Which system-half anchor an always-scope entry joins (needs the preset's WI markers)."
-                  items={POSITION_ITEMS}
-                />
-              )}
+              {(field): ReactElement => <field.SelectField label={WORLD_INFO_ENTRY_PLACEMENT_NAME} hint={WORLD_INFO_PLACEMENT_HINT} items={POSITION_ITEMS} />}
             </form.AppField>
           )
         }

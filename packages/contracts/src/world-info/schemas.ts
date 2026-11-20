@@ -70,7 +70,7 @@ export const entryMetadataSchema = z
     keyMode: z.enum(ENTRY_KEY_MODES).exactOptional(),
     inject: injectionDirectiveSchema.exactOptional(),
     position: z.enum(ENTRY_POSITIONS).exactOptional(),
-    /** The SillyTavern slot with no seat here that the entry came from, kept so the SillyTavern export restores it. */
+    /** A SillyTavern slot the entry was not seated at (the outlet, or a seat slot an earlier import parked), kept so the SillyTavern export restores it. */
     [ST_SLOT_METADATA_KEY]: stSlotSchema.exactOptional(),
     provenance: loreEntryProvenanceSchema.exactOptional(),
   })

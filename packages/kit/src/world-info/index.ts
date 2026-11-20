@@ -20,10 +20,30 @@ export type EntryScopeMode = (typeof ENTRY_SCOPE_MODES)[number];
 // chat history at `depth` with `role` — the shared `@orb/kit/injection` primitive. Depth 0 = at the
 // tail after the new user turn.
 
-// For always-scope entries rendering into the system half, `position` selects which WI anchor
-// bucket they join. Only takes effect when the active preset has the matching anchor marker.
-export const ENTRY_POSITIONS = ["before", "after"] as const;
+// `position` selects the seat an entry renders at, one tuple per place the prompt has for it. Each seat exists
+// only on a turn that has its place: the before and after seats need the preset's matching world-info section,
+// the Author's Note seats need a chat injection, the example-message seats need the preset's example-messages
+// section. An entry whose seat is missing keeps its default placement (always-scope in the static system block,
+// keyword-fired in the per-turn suffix) and is never dropped.
+/** The seats beside the character definitions: the preset's world-info sections. */
+export const ANCHOR_POSITIONS = ["before", "after"] as const;
+/** The seats at the top and bottom of the chat's Author's Note, which is its list of injections. */
+const AUTHORS_NOTE_POSITIONS = ["authors_note_top", "authors_note_bottom"] as const;
+/** The seats at the top and bottom of the preset's example-messages section. */
+const EXAMPLE_MESSAGES_POSITIONS = ["example_messages_top", "example_messages_bottom"] as const;
+export const ENTRY_POSITIONS = [...ANCHOR_POSITIONS, ...AUTHORS_NOTE_POSITIONS, ...EXAMPLE_MESSAGES_POSITIONS] as const;
 export type EntryPosition = (typeof ENTRY_POSITIONS)[number];
+export type AuthorsNotePosition = (typeof AUTHORS_NOTE_POSITIONS)[number];
+
+/** Which end of the Author's Note each of its seats is. */
+export const AUTHORS_NOTE_EDGE = { ["authors_note_top"]: "top", ["authors_note_bottom"]: "bottom" } as const satisfies Record<
+  AuthorsNotePosition,
+  "top" | "bottom"
+>;
+
+export function isAuthorsNotePosition(position: EntryPosition): position is AuthorsNotePosition {
+  return AUTHORS_NOTE_POSITIONS.some((seat) => seat === position);
+}
 
 /** Field-isolated read of a metadata blob — a malformed sibling field never poisons this one
  *  (read-side leniency: one bad `scopeMode` must not also drop a valid `inject`). */
@@ -58,9 +78,9 @@ export function resolveEntryScope(metadata: unknown, hasKeys: boolean): "always"
   return hasKeys ? "keyword" : "always";
 }
 
-/** Which WI anchor bucket a system-half entry joins (ST worldInfoBefore/After): an always-scope entry in the
- *  static half, a keyword-fired one in the per-turn half. Reads `metadata.position` in isolation; defaults to
- *  `before` (ST default). Only consulted when the active preset has the matching anchor marker — otherwise the
+/** The seat an entry renders at (ST worldInfoBefore/After and the Author's Note and example-message edges): an
+ *  always-scope entry in the static half, a keyword-fired one in the per-turn half. Reads `metadata.position` in
+ *  isolation; defaults to `before` (ST default). Only consulted when the turn has the seat's place — otherwise the
  *  entry uses default placement. */
 export function resolveEntryPosition(metadata: unknown): EntryPosition {
   const parsed = z.enum(ENTRY_POSITIONS).safeParse(metadataField(metadata, "position"));
@@ -72,25 +92,46 @@ export function resolveEntryPosition(metadata: unknown): EntryPosition {
 export const ST_WORLD_INFO_POSITION = { before: 0, after: 1, anTop: 2, anBottom: 3, atDepth: 4, emTop: 5, emBottom: 6, outlet: 7 } as const;
 export type StWorldInfoPosition = keyof typeof ST_WORLD_INFO_POSITION;
 
-/** The SillyTavern slots with no seat here: the Author's Note and example-message edges and a named outlet. An entry
- *  from one is placed in the before or after bucket, and its metadata keeps the slot it came from. */
-export const ST_SEATLESS_POSITIONS = ["anTop", "anBottom", "emTop", "emBottom", "outlet"] as const satisfies readonly StWorldInfoPosition[];
+/** The SillyTavern slot each seat is. A `Record`, so a seat added to {@link ENTRY_POSITIONS} fails `tsc` until it names its slot. */
+export const ST_SLOT_OF_ENTRY_POSITION = {
+  before: "before",
+  after: "after",
+  ["authors_note_top"]: "anTop",
+  ["authors_note_bottom"]: "anBottom",
+  ["example_messages_top"]: "emTop",
+  ["example_messages_bottom"]: "emBottom",
+} as const satisfies Record<EntryPosition, StWorldInfoPosition>;
+
+/** The seat a SillyTavern numeric slot is, or null for a slot that has no seat (at-depth, outlet, unknown). */
+export function entryPositionOfStSlot(slot: unknown): EntryPosition | null {
+  return ENTRY_POSITIONS.find((position) => ST_WORLD_INFO_POSITION[ST_SLOT_OF_ENTRY_POSITION[position]] === slot) ?? null;
+}
+
+/** The SillyTavern slots with no seat here: a named outlet. An entry from one is placed in the before bucket, and its
+ *  metadata keeps the slot it came from. */
+export const ST_SEATLESS_POSITIONS = ["outlet"] as const satisfies readonly StWorldInfoPosition[];
 export type StSeatlessPosition = (typeof ST_SEATLESS_POSITIONS)[number];
 
-/** The metadata key that keeps a seatless slot, with the bucket the entry was placed in when it was kept. */
+/** Every slot an entry's metadata can keep. The Author's Note and example-message slots are kept by entries an
+ *  earlier import placed in the before or after bucket; they stay readable, and such an entry keeps its bucket and
+ *  its SillyTavern slot on export. A new import keeps only the seatless slots. */
+const ST_KEPT_SLOTS = ["anTop", "anBottom", "emTop", "emBottom", ...ST_SEATLESS_POSITIONS] as const satisfies readonly StWorldInfoPosition[];
+export type StKeptSlot = (typeof ST_KEPT_SLOTS)[number];
+
+/** The metadata key that keeps a slot the entry was not seated at, with the bucket the entry was placed in when it was kept. */
 export const ST_SLOT_METADATA_KEY = "stSlot";
 
-export const stSlotSchema = z.strictObject({ slot: z.enum(ST_SEATLESS_POSITIONS), placed: z.enum(ENTRY_POSITIONS).nullable() });
+export const stSlotSchema = z.strictObject({ slot: z.enum(ST_KEPT_SLOTS), placed: z.enum(ENTRY_POSITIONS).nullable() });
 export type StSlot = z.infer<typeof stSlotSchema>;
 
-/** The seatless slot an entry's metadata keeps, read in isolation; null when it keeps none or a malformed one. */
+/** The kept slot an entry's metadata holds, read in isolation; null when it keeps none or a malformed one. */
 export function resolveEntryStSlot(metadata: unknown): StSlot | null {
   return stSlotSchema.safeParse(metadataField(metadata, ST_SLOT_METADATA_KEY)).data ?? null;
 }
 
-/** Each seatless slot a book's entries came from, with how many entries came from it, in first-seen order. */
-export function seatlessSlotCounts(entries: readonly { readonly metadata?: unknown }[]): { readonly slot: StSeatlessPosition; readonly entries: number }[] {
-  const counts = new Map<StSeatlessPosition, number>();
+/** Each kept slot a book's entries came from, with how many entries came from it, in first-seen order. */
+export function seatlessSlotCounts(entries: readonly { readonly metadata?: unknown }[]): { readonly slot: StKeptSlot; readonly entries: number }[] {
+  const counts = new Map<StKeptSlot, number>();
   for (const entry of entries) {
     const kept = resolveEntryStSlot(entry.metadata);
     if (kept !== null) {

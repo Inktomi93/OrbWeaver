@@ -99,7 +99,8 @@ function resolveSpliceRole(
   };
 }
 
-const DEFAULT_INJECTION_ORDER = 100;
+/** The `order` an injection without one takes. */
+export const DEFAULT_INJECTION_ORDER = 100;
 
 /** The splice order. Primary: depth desc (deepest splices first). Then the new-chat marker: it is always the first
  *  history row, so an over-deep injection that clamps to the same top depth lands below it. Then `order` asc —

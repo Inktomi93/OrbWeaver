@@ -592,11 +592,67 @@ describe("lorebook entries cross the wire in both directions", () => {
     { position: "after_char", expected: "after" },
     { position: 0, expected: "before" },
     { position: 1, expected: "after" },
-    { position: 2, expected: "before" },
-    { position: 6, expected: "after" },
+    { position: 2, expected: "authors_note_top" },
+    { position: 3, expected: "authors_note_bottom" },
+    { position: 5, expected: "example_messages_top" },
+    { position: 6, expected: "example_messages_bottom" },
     { position: "after", expected: "after" },
+    { position: "example_messages_top", expected: "example_messages_top" },
   ])("ST position $position normalises to $expected, so the raw spelling never reaches the write seam", ({ position, expected }) => {
     expect(loreEntryMetadata({ content: "c", position })["position"]).toBe(expected);
+  });
+
+  test("an entry that names no position re-imports naming none, whatever slot its extensions carry", () => {
+    const out = bookEntry(buildCardV3(exportFields(), [worldEntry({ metadata: null })]));
+    expect(out["extensions"]).toMatchObject({ position: 0 });
+    expect(loreEntryMetadata(out)).not.toHaveProperty("position");
+  });
+
+  test("a card entry's extensions.position decides the seat, as SillyTavern reads it, over the card's before/after string", () => {
+    expect(loreEntryMetadata({ content: "c", position: "after_char", extensions: { position: 2 } })["position"]).toBe("authors_note_top");
+    expect(loreEntryMetadata({ content: "c", position: "before_char", extensions: { position: 6 } })["position"]).toBe("example_messages_bottom");
+  });
+
+  // Each row is one SillyTavern slot, spelled by its number, with the seat it imports into.
+  test.each([
+    { slot: 0, seat: "before", card: "before_char" },
+    { slot: 1, seat: "after", card: "after_char" },
+    { slot: 2, seat: "authors_note_top", card: "after_char" },
+    { slot: 3, seat: "authors_note_bottom", card: "after_char" },
+    { slot: 5, seat: "example_messages_top", card: "after_char" },
+    { slot: 6, seat: "example_messages_bottom", card: "after_char" },
+  ])("ST slot $slot imports into the $seat seat, parks no slot, and exports back to the same number", ({ slot, seat, card }) => {
+    const st = json(`{"keys":["k"],"content":"c","comment":"Lore","insertion_order":1,"enabled":true,"position":"${card}","extensions":{"position":${slot}}}`);
+    const metadata = loreEntryMetadata(st);
+    expect(metadata["position"]).toBe(seat);
+    expect(metadata).not.toHaveProperty("stSlot");
+    const out = bookEntry(buildCardV3(exportFields(), [{ ...loreEntryColumns(st), metadata }]));
+    expect(out["extensions"]).toMatchObject({ position: slot });
+    // A card's own before/after string is SillyTavern's: only the before slot is before_char.
+    expect(out["position"]).toBe(card);
+    expect(loreEntryMetadata(out)["position"]).toBe(seat);
+  });
+
+  test("the outlet slot has no seat: the entry keeps it, parks in no bucket, and exports back to the outlet", () => {
+    const st = json('{"keys":["k"],"content":"c","comment":"Lore","insertion_order":1,"enabled":true,"extensions":{"position":7,"outlet_name":"harbor"}}');
+    const metadata = loreEntryMetadata(st);
+    expect(metadata).not.toHaveProperty("position");
+    expect(metadata["stSlot"]).toEqual({ slot: "outlet", placed: null });
+    expect(bookEntry(buildCardV3(exportFields(), [{ ...loreEntryColumns(st), metadata }]))["extensions"]).toMatchObject({
+      position: 7,
+      ["outlet_name"]: "harbor",
+    });
+  });
+
+  // A row an earlier import stored: its Author's Note slot was kept beside the bucket it was placed in.
+  const parkedRow = { position: "before", stSlot: { slot: "anTop", placed: "before" } };
+
+  test("a stored row that parked an Author's Note slot still reads as stored, stays in its bucket and exports to that slot", () => {
+    expect(narrowEntryMetadata(parkedRow)).toEqual(parkedRow);
+    const exported = (metadata: Record<string, unknown>): unknown => bookEntry(buildCardV3(exportFields(), [worldEntry({ metadata })]))["extensions"];
+    expect(exported(parkedRow)).toMatchObject({ position: 2 });
+    // Moved to another bucket since, it leaves the slot it was kept for.
+    expect(exported({ ...parkedRow, position: "after" })).toMatchObject({ position: 1 });
   });
 
   test.each(["", "garbage"])("an empty or unknown ST position %j drops the key and leaves the entry its default", (position) => {

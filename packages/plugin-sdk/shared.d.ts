@@ -156,13 +156,15 @@ interface PluginVariablePrecondition {
  *  unset) so you can re-derive and try again. A lost race is DATA, not an exception. */
 type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
-/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). */
+/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). `position`
+ *  is the seat the entry renders at: before or after the character definitions, or the top or bottom of the chat's
+ *  Author's Note or of the example messages. A seat a turn lacks leaves the entry in the system prompt. */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
-  readonly position: "before" | "after";
+  readonly position: "before" | "after" | "authors_note_top" | "authors_note_bottom" | "example_messages_top" | "example_messages_bottom";
 }
 
 /** One lore book ATTACHED to the invocation chat (`worldInfo.listBooks`). `id` is what you pass to
