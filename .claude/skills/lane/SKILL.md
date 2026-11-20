@@ -159,6 +159,17 @@ List each command and its result in the report. The whole-tree check is the orch
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
 - Stop only a process you started. Killing `git commit` leaves its hook running.
 
+## Scripts
+
+These apply when the session gives you the `REPL` tool. Each script costs a dispatch turn and a `Poll` turn, and every turn re-reads your whole context.
+
+- Put every step a decision needs in one script: the reads, the edit, the test run and the read of its result.
+- Chain dependent steps inside the script and branch on exit codes there, not in a new turn.
+- Keep large output in a variable. Return only the lines you need: the failing cases, a `preview()`, a slice.
+- Never return a whole file, test log or diff. Search or slice the variable in the next script instead.
+- Never read a file again when its text is already in a variable.
+- Start a run that outlives the script with a short `.timeout()`, then end your turn; its completion wakes you.
+
 ## Shell shapes in a worktree
 
 These restrictions apply to Claude's guarded worktree shell.

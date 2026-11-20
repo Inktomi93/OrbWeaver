@@ -18,7 +18,7 @@ An overnight run stops on a permission prompt nobody answers.
 
 ## Done when
 
-orb-guard refuses a shell command that starts with or chains a cd and names the git -C or env -C form as the next step, the lane and orchestrator skills say the same, and a guard test covers a chained cd and a plain git -C.
+orb-guard refuses a main-session shell command that chains a cd and names the git -C or env -C form as the next step. The orchestrator skill says the same. Lanes keep the lane skill's run-from-the-worktree-root rule. A guard test covers a chained cd and a plain git -C.
 
 ## Evidence
 
