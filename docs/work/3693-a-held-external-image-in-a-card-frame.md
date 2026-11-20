@@ -2,7 +2,7 @@
 kind: work
 status: open
 updated: 2026-11-20
-priority: P2
+priority: P3
 area: chat
 plan: chat-html-and-presets
 ---
@@ -11,7 +11,7 @@ plan: chat-html-and-presets
 
 ## What
 
-When character trust or the install holds internet media, an external image inside a card or styled reply frame is refused by the frame's CSP and shows the browser's broken-image icon, with no way to act on it from the image. The frame document is minted by the server (packages/server/src/entry/http/card-frame.ts), so the external image URLs are known at mint time. Design to settle: a frame-owned stylesheet that swaps each held image for a designed placeholder without changing the author's markup, and a click on the placeholder that reaches the app and opens the control that holds it (the row notice's action). In frames that run no scripts this needs a host-owned bridge allowed only by a CSP nonce while author scripts stay blocked; that is a change to the frame sandbox. The fixer's claim that a placeholder needs rewriting authored HTML cites no ruling in docs/law or docs/adr.
+When character trust or the install holds internet media, an external image inside a card or styled reply frame is refused by the frame's CSP and draws as the browser's broken-image icon. The row's Character trust notice already names held media and offers the one action that opens the deciding control, so the image itself needs no action of its own. The frame document is minted by the server (packages/server/src/entry/http/card-frame.ts), which knows the external image URLs at mint time, so a frame-owned stylesheet can draw a designed placeholder in place of each held image without changing the author's markup or the frame sandbox.
 
 ## Why
 
@@ -19,7 +19,7 @@ A broken-image icon tells the user nothing and offers no fix, while the reason a
 
 ## Done when
 
-Each held external image draws as a placeholder that names why it is held; clicking it opens the deciding control for a host and shows the reason to a member; author markup and scripts are unchanged; frames that run no author scripts still run none, proven by a test that an author inline script stays blocked beside the host bridge; a security-builder review passes; CTs cover a held image at each trust step.
+Each held external image in a frame draws as a designed placeholder instead of the broken-image icon, in Chromium, WebKit and Firefox; author markup, scripts and the frame sandbox are unchanged; a CT covers a held image at each trust step.
 
 ## Evidence
 
