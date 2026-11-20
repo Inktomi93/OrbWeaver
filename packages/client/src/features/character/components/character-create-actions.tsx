@@ -45,10 +45,13 @@ export function NewCharacterDialog({
   open,
   onOpenChange,
   finalFocus,
+  trigger,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly finalFocus?: ComponentProps<typeof FormDialog>["finalFocus"];
+  /** The door beside the dialog, rendered as its trigger so it speaks the dialog's open state. */
+  readonly trigger?: ReactElement;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -96,6 +99,7 @@ export function NewCharacterDialog({
     <FormDialog
       description={CHARACTER_NEW_DESCRIPTION}
       {...(finalFocus === undefined ? {} : { finalFocus })}
+      {...(trigger === undefined ? {} : { trigger })}
       onOpenChange={onOpenChange}
       open={open}
       submit={{ label: DIALOG_VERBS.create, disabled: incomplete || create.isPending, onSubmit: onCreate }}
@@ -171,20 +175,30 @@ export function CharacterLandingDoors(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
   return (
     <Row align="center" wrap={true} cap="fit" gap="field">
-      <Button onClick={(): void => setCreateOpen(true)} ref={newCharacterDoorRef} size="sm">
-        <Icon icon={Plus} size="sm" />
-        New character
-      </Button>
+      <NewCharacterDialog
+        onOpenChange={setCreateOpen}
+        open={createOpen}
+        trigger={
+          <Button ref={newCharacterDoorRef} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New character
+          </Button>
+        }
+      />
       {/* THE SECONDARY ENTRY RECEDES (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, sixth instance). This
           file's own header calls Import "beside it as a GHOST icon, a secondary entry into the same 'get a
           character' job" — #969 flipped `ghost` to `text-current`, so it now paints at the same weight as
           the primary beside it. The primitive keeps inheriting; this composite states its own ink. */}
-      <Button variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm">
-        <Icon icon={Upload} size="sm" />
-        {CHARACTER_IMPORT_CARD_NAME}
-      </Button>
-      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
-      <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />
+      <CharacterImportDialog
+        onOpenChange={setImportOpen}
+        open={importOpen}
+        trigger={
+          <Button variant="ghost" ink="muted" size="sm">
+            <Icon icon={Upload} size="sm" />
+            {CHARACTER_IMPORT_CARD_NAME}
+          </Button>
+        }
+      />
     </Row>
   );
 }
@@ -209,10 +223,15 @@ export function CharacterImportDoor(): ReactElement {
           display boxes that would have shrunk the visible target beside the `sm` New primary. */}
       {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
           twin of the same Import door, beside the same `New` primary. */}
-      <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" onClick={(): void => setOpen(true)} size="sm" square={true}>
-        <Icon icon={Upload} size="sm" />
-      </Button>
-      <CharacterImportDialog onOpenChange={setOpen} open={open} />
+      <CharacterImportDialog
+        onOpenChange={setOpen}
+        open={open}
+        trigger={
+          <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" size="sm" square={true}>
+            <Icon icon={Upload} size="sm" />
+          </Button>
+        }
+      />
     </>
   );
 }
@@ -230,18 +249,21 @@ export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boo
     }
   });
   return (
-    <>
-      {iconOnly ? (
-        <Button aria-label={CHARACTER_NEW_NAME} onClick={(): void => setOpen(true)} ref={newCharacterDoorRef} size="sm" square={true} type="button">
-          <Icon icon={Plus} size="sm" />
-        </Button>
-      ) : (
-        <Button onClick={(): void => setOpen(true)} ref={newCharacterDoorRef} size="sm">
-          <Icon icon={Plus} size="sm" />
-          {BAND_NEW_LABEL}
-        </Button>
-      )}
-      <NewCharacterDialog onOpenChange={setOpen} open={open} />
-    </>
+    <NewCharacterDialog
+      onOpenChange={setOpen}
+      open={open}
+      trigger={
+        iconOnly ? (
+          <Button aria-label={CHARACTER_NEW_NAME} ref={newCharacterDoorRef} size="sm" square={true} type="button">
+            <Icon icon={Plus} size="sm" />
+          </Button>
+        ) : (
+          <Button ref={newCharacterDoorRef} size="sm">
+            <Icon icon={Plus} size="sm" />
+            {BAND_NEW_LABEL}
+          </Button>
+        )
+      }
+    />
   );
 }

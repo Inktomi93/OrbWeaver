@@ -7,7 +7,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
 import { Corner, DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
@@ -26,6 +26,12 @@ export interface FormDialogRootProps {
   readonly onOpenChange: (open: boolean) => void;
   /** Native completion seam for a forward-navigation dismissal, after the modal finishes closing. */
   readonly onOpenChangeComplete?: ComponentProps<typeof Dialog>["onOpenChangeComplete"];
+  /**
+   * The control that opens the dialog, when it sits beside it. It renders through the dialog's own trigger, so it states
+   * `aria-haspopup="dialog"` and `aria-expanded` from the dialog's open state, opens it through `onOpenChange` and takes
+   * focus back on close. A dialog opened from a menu command or another section has no trigger here.
+   */
+  readonly trigger?: ReactElement;
   readonly children: ReactNode;
 }
 
@@ -81,7 +87,7 @@ export type RequiredFormDialogProps<L extends string = string> = Omit<DialogFram
  * every open; a body that renders `FormDialogPopup` sits above the popup, so this root gives it the same lifetime, from the
  * open through the end of the close motion.
  */
-export function FormDialogRoot({ open, onOpenChange, onOpenChangeComplete, children }: FormDialogRootProps): ReactElement {
+export function FormDialogRoot({ open, onOpenChange, onOpenChangeComplete, trigger, children }: FormDialogRootProps): ReactElement {
   const [held, setHeld] = useState(open);
   if (open && !held) {
     setHeld(true);
@@ -97,6 +103,7 @@ export function FormDialogRoot({ open, onOpenChange, onOpenChangeComplete, child
       }}
       open={open}
     >
+      {trigger === undefined ? null : <DialogTrigger render={trigger} />}
       {open || held ? children : null}
     </Dialog>
   );
@@ -216,9 +223,14 @@ export function CommitFooter<L extends string>({ formId, submit, footerLead, exi
 }
 
 /** The whole commit dialog, for a caller that holds the form state. A body that holds it renders {@link FormDialogPopup} under {@link FormDialogRoot}. */
-export function FormDialog<L extends string>({ open, onOpenChange, onOpenChangeComplete, ...popup }: FormDialogProps<L>): ReactElement {
+export function FormDialog<L extends string>({ open, onOpenChange, onOpenChangeComplete, trigger, ...popup }: FormDialogProps<L>): ReactElement {
   return (
-    <FormDialogRoot onOpenChange={onOpenChange} open={open} {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}>
+    <FormDialogRoot
+      onOpenChange={onOpenChange}
+      open={open}
+      {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}
+      {...(trigger === undefined ? {} : { trigger })}
+    >
       <FormDialogPopup {...popup} />
     </FormDialogRoot>
   );
@@ -231,11 +243,17 @@ export function DismissDialog<L extends string>({
   onOpenChangeComplete,
   dismissLabel,
   dismissPrimary = false,
+  trigger,
   children,
   ...frame
 }: DismissDialogProps<L>): ReactElement {
   return (
-    <FormDialogRoot onOpenChange={onOpenChange} open={open} {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}>
+    <FormDialogRoot
+      onOpenChange={onOpenChange}
+      open={open}
+      {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}
+      {...(trigger === undefined ? {} : { trigger })}
+    >
       <DialogFrame {...frame}>
         {children}
         {dismissLabel === undefined ? null : (

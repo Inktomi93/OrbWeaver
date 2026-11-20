@@ -43,6 +43,7 @@ import { RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, deleteConfirmTitle, rowActionSubject, rowActionsName, rowStarToggleName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
+import { characterRowQualifier } from "../lib/character-row-qualifier.ts";
 
 export type CharacterCardItem = Pick<
   CharacterSummary,
@@ -74,15 +75,6 @@ export interface CharacterCardTileProps {
   readonly rowFocus: RowDeleteFocus;
 }
 
-/** The row spends its owner-unique handle as a visible and announced disambiguator only when character.list
- *  says nameIsAmbiguous (#492/#517). A loaded-page collision scan would change names as later pages arrive;
- *  handle derivability misses genuine collisions. Ambiguity is library-wide, page-independent, and lens-
- *  independent, while the handle separates the colliding rows.
- */
-function handleQualifier(character: Pick<CharacterCardItem, "handle" | "nameIsAmbiguous">): string | undefined {
-  return character.nameIsAmbiguous ? character.handle : undefined;
-}
-
 export function CharacterCardTile({
   character,
   selected,
@@ -106,7 +98,7 @@ export function CharacterCardTile({
   // ONE announced identity for the row AND every control that acts on it (`rowActionSubject`, #443/#458/#463):
   // "Star Eleni" / "Chat with Eleni" / "Actions for Eleni" collided across the three Elenis exactly as the row
   // body did, so fixing only the body would have left three identically-named kebabs behind it.
-  const qualifier = handleQualifier(character);
+  const qualifier = characterRowQualifier(character);
   const subject = rowActionSubject(character.name, qualifier);
 
   const bulkActions = <Checkbox aria-label={selectActionName(subject)} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
@@ -169,6 +161,8 @@ export function CharacterCardTile({
       subtitleStep="label"
       title={character.name}
       {...(qualifier === undefined ? {} : { titleQualifier: qualifier })}
+      // The qualifier is part of the row's name, so it reads in the name's face, not the mono datum face (ui-surface-and-interaction-rules §6.6).
+      titleQualifierFace="body"
       // Not in bulk mode (the row is a checkbox target, no hover disclosure).
       {...(bulkMode ? {} : { subtitleReveal: `${character.handle} · ${character.tokenSize}` })}
     />
@@ -225,7 +219,7 @@ function NormalRowActions({
   rowFocus,
 }: {
   readonly character: CharacterCardItem;
-  /** The row's announced identity (`rowActionSubject(name, handleQualifier)`) — what every control here
+  /** The row's announced identity (`rowActionSubject(name, characterRowQualifier)`) — what every control here
    *  embeds, so a library holding three "Eleni"s cannot ship three identically-named kebabs (#492). The
    *  ROW BODY renders and announces the same pair without the action grammar's quotes
    *  (`ListRow.titleQualifier` → a visible `Eleni · eleni-3`): one identity, two sentence shapes — a name

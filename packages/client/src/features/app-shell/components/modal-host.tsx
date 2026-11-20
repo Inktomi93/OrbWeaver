@@ -107,27 +107,21 @@ interface DrawerModalProps {
 
 function DrawerModal({ body, container, def, onOpenChange, titleId }: DrawerModalProps): ReactElement {
   // Base UI asks the old popup for finalFocus after a replacement Dialog has mounted. Only a close
-  // initiated by this Drawer should restore its captured trigger; replacing the shared modal slot never
+  // initiated by this Drawer returns focus to its trigger; replacing the shared modal slot never
   // sends this Drawer an onOpenChange(false), so its queued cleanup must leave the Dialog's initialFocus.
+  // The trigger is the declared one, not a capture: a tap on a phone opens the sheet without focusing the tab.
   const closeRequestedRef = useRef(false);
   const onDrawerOpenChange = (nextOpen: boolean): void => {
     closeRequestedRef.current = !nextOpen;
     onOpenChange(nextOpen);
   };
-  const resolveDrawerFinalFocus = (): boolean => closeRequestedRef.current;
+  const resolveDrawerFinalFocus = (): HTMLElement | boolean => closeRequestedRef.current && (visibleModalTrigger(def.id) ?? true);
 
   // A modal body is arbitrary (the settings panes are full of form fields), so the phone's modal presentation is the sheet composite,
-  // which carries the keyboard-aware wrap.
+  // which carries the keyboard-aware wrap. It is a full modal, the tab bar included (ui-surface-and-interaction-rules §2.12):
+  // the page behind it, the bar too, leaves the accessibility tree and answers no press until the sheet closes.
   return (
-    <SheetDialog
-      open={true}
-      onOpenChange={onDrawerOpenChange}
-      modal="trap-focus"
-      title={def.title}
-      titleId={titleId}
-      container={container}
-      finalFocus={resolveDrawerFinalFocus}
-    >
+    <SheetDialog open={true} onOpenChange={onDrawerOpenChange} title={def.title} titleId={titleId} container={container} finalFocus={resolveDrawerFinalFocus}>
       {body}
     </SheetDialog>
   );

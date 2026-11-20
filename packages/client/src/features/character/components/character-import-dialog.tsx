@@ -59,10 +59,12 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
 export interface CharacterImportDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** The door beside the dialog, rendered as its trigger so it speaks the dialog's open state. */
+  readonly trigger?: ReactElement;
 }
 
 /** The card-import dialog: drop PNG/JSON → upload → say the real outcome → open the imported card and close when something landed. */
-export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDialogProps): ReactElement {
+export function CharacterImportDialog({ open, onOpenChange, trigger }: CharacterImportDialogProps): ReactElement {
   const invalidation = useInvalidation();
   const [refusal, setRefusal] = useState<string | null>(null);
 
@@ -120,6 +122,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       }}
       open={open}
       title={CHARACTER_IMPORT_NAME}
+      {...(trigger === undefined ? {} : { trigger })}
     >
       <FileDropzone
         accept={CARD_ACCEPT}

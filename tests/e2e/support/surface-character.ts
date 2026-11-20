@@ -72,6 +72,7 @@ import {
   characterFiltersOpenName,
   characterShowMoreTagsName,
 } from "#client/features/character/lib/character-names.ts";
+import { characterRowQualifier } from "#client/features/character/lib/character-row-qualifier.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { GREETING_EDIT_NAME, GREETING_MAKE_NEW_NAME, GREETING_STUDIO_NAME, greetingOrdinalLabel } from "#client/features/character/lib/greeting-copy.ts";
 import {
@@ -1340,7 +1341,8 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
   try {
     const original = await sourceCharacter(flow);
     flow.provenance.original = original.id;
-    const rowName = original.nameIsAmbiguous ? `${original.name} · ${original.handle}` : original.name;
+    const qualifier = characterRowQualifier(original);
+    const rowName = qualifier === undefined ? original.name : `${original.name} · ${qualifier}`;
     if (area === "library") {
       await listJourney(flow, original.name, rowName);
       await libraryWalk(flow);

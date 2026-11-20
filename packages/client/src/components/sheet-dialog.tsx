@@ -1,5 +1,6 @@
 // The one phone bottom sheet: a drawer under a sticky header that holds its title and Close while the body scrolls beneath. Features reach
-// the drawer primitive only through this composite (`orb/sheet-via-composite`), so every sheet draws the same chrome.
+// the drawer primitive only through this composite (`orb/sheet-via-composite`), so every sheet draws the same chrome. Every sheet is a
+// full modal: what it covers, the phone tab bar included, is inert until it closes (ui-surface-and-interaction-rules §2.12).
 
 import { Button } from "@orb/ui/button";
 import { DialogHeader } from "@orb/ui/dialog";
@@ -10,7 +11,6 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { DIALOG_VERBS } from "#lib";
 import { ModalTitle } from "./modal-title.tsx";
 
-type DrawerRootProps = ComponentProps<typeof Drawer>;
 type DrawerPopupProps = ComponentProps<typeof DrawerPopup>;
 
 export interface SheetDialogProps {
@@ -24,8 +24,6 @@ export interface SheetDialogProps {
   readonly container?: DrawerPopupProps["container"];
   /** Where focus goes on close; `false` leaves it where it is. */
   readonly finalFocus?: DrawerPopupProps["finalFocus"];
-  /** How the sheet holds the page behind it. Base UI's default is a full modal. */
-  readonly modal?: DrawerRootProps["modal"];
   readonly children: ReactNode;
 }
 
@@ -35,9 +33,9 @@ export interface SheetDialogProps {
  * `interactive-widget=resizes-content` is inert there. A body that pins an input to the sheet's foot reads
  * `var(--drawer-keyboard-inset, 0px)`, always with the `0px` fallback: the provider sets it only while the keyboard is aligned.
  */
-export function SheetDialog({ open, onOpenChange, title, titleId, container, finalFocus, modal, children }: SheetDialogProps): ReactElement {
+export function SheetDialog({ open, onOpenChange, title, titleId, container, finalFocus, children }: SheetDialogProps): ReactElement {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} {...(modal === undefined ? {} : { modal })}>
+    <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup {...(container === undefined ? {} : { container })} {...(finalFocus === undefined ? {} : { finalFocus })}>
           {/* Sticky so the title and Close stay in view as the sheet scrolls, except where the short-box law scrolls them away. Beside

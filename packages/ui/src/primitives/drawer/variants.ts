@@ -4,12 +4,13 @@ import { MIN_HEIGHT, POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib"
 // (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
 // SCRIM_BASE (the bare `bg-backdrop` fill) but keep their OWN `--motion-layout` fade — a drawer's scrim
 // tracks the sliding panel, not the standard overlay fade of SCRIM(tier).
-// A bottom sheet's viewport and scrim stop `--drawer-bottom-inset` short of the floor; the host sets that
-// variable where something (the phone tab bar) must stay visible and tappable below the sheet.
+// A bottom sheet's viewport stops `--drawer-bottom-inset` short of the floor; the host sets that variable where
+// something (the phone tab bar) must stay in view below the sheet. The scrim still runs to the floor: the sheet is
+// modal, so what stays in view under it is inert, and the scrim says so (ui-surface-and-interaction-rules §2.11).
 export const drawerVariants = tv({
   slots: {
     backdrop: `${SCRIM_BASE}
-      inset-be-(--drawer-bottom-inset,0) z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo min-block-0
+      z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo min-block-0
       data-ending-style:opacity-0
       data-starting-style:opacity-0
     `,
