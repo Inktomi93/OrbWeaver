@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-20
 priority: P2
 area: chat
+lane: wt/agent-abf28919555a27932
 ---
 
 # A real user can find the manual bot trigger in the app

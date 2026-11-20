@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-15
+status: doing
+updated: 2026-11-20
 priority: P2
 area: chat
+lane: wt/agent-aed0764109e75562b
 plan: import-robustness
 ---
 

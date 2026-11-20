@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-20
 priority: P1
 area: chat
+lane: wt/agent-abf28919555a27932
 ---
 
 # A shared room can wait for every human before the characters reply
