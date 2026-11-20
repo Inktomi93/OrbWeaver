@@ -268,6 +268,7 @@ export {
   groupConfigInputSchema,
   groupConfigSchema,
   guidedSteerSchema,
+  humansYetToWrite,
   MEMBER_CARD_VISIBILITY_LEVELS,
   narratorPolicyOf,
   openingPolicySchema,
@@ -389,6 +390,9 @@ export {
   regexTierKeySchema,
 } from "./regex-tiers.ts";
 export type {
+  CardScriptConsents,
+  CardScriptHolder,
+  CardScriptVerdict,
   CarriedAppearance,
   CharacterMemberSpec,
   CreateInviteInput,
@@ -446,6 +450,7 @@ export {
   redeemInviteSchema,
   renderPolicyOverrideForStep,
   rendersTrustedHtml,
+  resolveCardScriptVerdict,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,
   resolveCarriedTheme,

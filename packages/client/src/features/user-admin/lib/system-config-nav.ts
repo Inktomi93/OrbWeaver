@@ -7,10 +7,18 @@
 // id survives anywhere.
 
 import type { ConfigSubcategory } from "#state";
-import { FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "#state";
+import {
+  ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
+  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+  MEDIA_TRUST_CONFIG_SUB,
+  MULTI_USER_CONFIG_SUB,
+  TRUST_HTML_CONFIG_SETTING,
+} from "#state";
 
 /** The install's trust-HTML setting, as its nav entry and its switch both name it. */
 export const TRUST_HTML_SETTING_LABEL = "Render rich HTML as trusted";
+/** The install's interactive-card ceiling, as its nav entry and its switch both name it. */
+export const INTERACTIVE_CARDS_SETTING_LABEL = "Let interactive cards run their own scripts";
 
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: MEDIA_TRUST_CONFIG_SUB,
@@ -37,6 +45,15 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       teach: {
         summary: "Renders rich HTML cards as trusted instead of sanitized. Only for deployments where every author is trusted.",
         affects: ["every account's message rendering, deployment-wide"],
+      },
+    },
+    {
+      id: ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
+      label: INTERACTIVE_CARDS_SETTING_LABEL,
+      keywords: ["interactive", "cards", "scripts", "javascript"],
+      teach: {
+        summary: "Lets cards from characters set to Interactive or Inherit default run their own scripts in a sealed frame. Off stops every card's scripts.",
+        affects: ["every account's interactive cards, deployment-wide"],
       },
     },
     {

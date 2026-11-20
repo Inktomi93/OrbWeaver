@@ -29,6 +29,7 @@ const NARRATOR_OF_ONE: GroupConfig = {
   autoModeDelayMs: DEFAULT_GROUP_CONFIG.autoModeDelayMs,
   allowSelfResponses: DEFAULT_GROUP_CONFIG.allowSelfResponses,
   memberCardVisibility: DEFAULT_GROUP_CONFIG.memberCardVisibility,
+  waitForEveryone: DEFAULT_GROUP_CONFIG.waitForEveryone,
 };
 
 async function posture(group: GroupConfig): Promise<{

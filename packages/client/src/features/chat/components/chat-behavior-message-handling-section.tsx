@@ -27,6 +27,7 @@ import {
   AUTO_SWIPE_MIN_LENGTH_MIN,
   CHAT_MESSAGE_HANDLING_SUBCATEGORY,
   projectMessageHandlingForm,
+  RUN_CARD_SCRIPTS_SETTING_ID,
   TEMP_CHAT_TTL_HOURS_MAX,
   TEMP_CHAT_TTL_HOURS_MIN,
   toMessageHandlingPatch,
@@ -172,7 +173,7 @@ function MessageHandlingBody({
               {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "charactersCanReact")} />}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="run-card-scripts">
+          <SettingRow settingId={RUN_CARD_SCRIPTS_SETTING_ID}>
             <form.AppField name="runCardScripts">
               {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "runCardScripts")} />}
             </form.AppField>

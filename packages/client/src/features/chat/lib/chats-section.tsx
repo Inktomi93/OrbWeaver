@@ -37,7 +37,7 @@ import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { CHAT_CONTEXT_EMPTY, CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "./chat-context-tab-labels.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
-import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
+import { membersTabJustified, resolveGroupBehaviorScope } from "./roster.ts";
 
 function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
   return {
@@ -85,7 +85,7 @@ function chatContextTabs(
           roomOverrides={s.roomOverrides}
           isHost={s.isHost}
           background={s.background}
-          showGroup={s.isHost && resolveIsGroupChat(s.participants)}
+          groupScope={s.isHost ? resolveGroupBehaviorScope(s.participants) : null}
           sections={settingsSections}
         />
       ),

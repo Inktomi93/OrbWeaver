@@ -2,7 +2,8 @@
 // debounces a whole-config write, no save-bar). Source-agnostic: GroupConfigForm takes config + save,
 // owning neither read nor write; committed wires setGroupConfig/getGroupConfig, draft wires
 // setDraftGroupConfig directly. Output is the DU discriminator — a mode switch re-derives the coupled
-// speakerTags default so the legible default follows the mode.
+// speakerTags default so the legible default follows the mode. The room's shape picks the knobs: the
+// arbitration knobs need two characters, and the wait switch needs two people and one character.
 
 import type { GroupConfig, GroupPolicy } from "@orb/contracts/chat";
 import {
@@ -35,6 +36,7 @@ import {
   GROUP_POLICY_FIELD_NAME,
   GROUP_SPEAKER_TAGS_NAME,
   GROUP_VISIBILITY_FIELD_NAME,
+  GROUP_WAIT_FOR_EVERYONE_NAME,
 } from "../lib/chat-settings-names.ts";
 import type { GroupConfigFormValues } from "../lib/group-config-model.ts";
 import {
@@ -45,6 +47,7 @@ import {
   GROUP_VISIBILITY_LABELS,
   toGroupConfigForm,
 } from "../lib/group-config-model.ts";
+import type { GroupBehaviorScope } from "../lib/roster.ts";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -164,6 +167,9 @@ const VISIBILITY_ITEMS: SelectItems = MEMBER_CARD_VISIBILITY_LEVELS.map((value) 
   label: GROUP_VISIBILITY_LABELS[value],
 }));
 
+const WAIT_FOR_EVERYONE_HELP =
+  "A message waits until everyone in the room has written since the last reply, then the characters answer. Anyone can start the reply sooner from the line under the message box.";
+
 const MAX_TURNS_MIN = 1;
 const MAX_TURNS_MAX = 20;
 const DELAY_MS_MIN = 0;
@@ -180,6 +186,7 @@ interface GroupConfigFormProps {
    * tab would mount the boundary's declared `readOnly` arm, not an absent save.
    */
   readonly save: (config: GroupConfig) => Promise<unknown>;
+  readonly scope: GroupBehaviorScope;
 }
 
 // The session-boundary autosave form (D78 L3). Built at MODULE scope (stable component identity, §13.1) —
@@ -201,7 +208,7 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
 // group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
 // (the committed Group tab and the draft arm) are protected.
 
-function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
+function GroupConfigForm({ entityId, config, save, scope }: GroupConfigFormProps): ReactElement {
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
   // Which room's switch to Narrator turned Smart into Natural; keyed by room so a chat switch never carries it over.
   const [healedSmartIn, setHealedSmartIn] = useState<string | null>(null);
@@ -211,179 +218,188 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
     <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} save={factorySave}>
       {({ form }): ReactElement => (
         <Stack gap="section" data-slot="group-config-form">
-          <form.AppField name="output">
-            {(field): ReactElement => (
-              <Stack gap="field">
-                <Text voice="label">{GROUP_OUTPUT_FIELD_NAME}</Text>
-                <ToggleGroup
-                  value={[field.state.value]}
-                  onValueChange={(value): void => {
-                    const next = value[0];
-                    if (next !== undefined && next !== field.state.value) {
-                      const output = next as GroupOutput;
-                      field.handleChange(output);
-                      form.setFieldValue("speakerTags", defaultSpeakerTags(output));
-                      // A Narrator room cannot hold Smart: it becomes Natural, and switching back does not restore it.
-                      // The status line describes only the switch just made, so leaving Narrator clears it.
-                      const policy = form.getFieldValue("policy");
-                      const heals = output === "narrator" && policy !== narratorPolicyOf(policy);
-                      if (heals) {
-                        form.setFieldValue("policy", narratorPolicyOf(policy));
-                      }
-                      noteHeal(heals);
-                    }
-                  }}
-                  aria-label={GROUP_OUTPUT_FIELD_NAME}
-                >
-                  <Toggle value="per-speaker">{GROUP_OUTPUT_LABELS["per-speaker"]}</Toggle>
-                  <Toggle value="narrator">{GROUP_OUTPUT_LABELS.narrator}</Toggle>
-                </ToggleGroup>
-                <Text voice="gloss">
-                  {field.state.value === "narrator"
-                    ? "One message voices everyone. You can't swipe individuals."
-                    : "Each character replies in their own message. Swipe them individually."}
-                </Text>
-                {/* Always mounted, so a screen reader is already watching the region when the heal fills it. */}
-                <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
-                  {healedSmartIn === entityId ? NARRATOR_HEALED_SMART : ""}
-                </Text>
-              </Stack>
-            )}
-          </form.AppField>
+          {scope.people ? (
+            <form.AppField name="waitForEveryone">
+              {(field): ReactElement => <field.SwitchField label={GROUP_WAIT_FOR_EVERYONE_NAME} description={WAIT_FOR_EVERYONE_HELP} />}
+            </form.AppField>
+          ) : null}
+          {scope.characters ? (
+            <>
+              <form.AppField name="output">
+                {(field): ReactElement => (
+                  <Stack gap="field">
+                    <Text voice="label">{GROUP_OUTPUT_FIELD_NAME}</Text>
+                    <ToggleGroup
+                      value={[field.state.value]}
+                      onValueChange={(value): void => {
+                        const next = value[0];
+                        if (next !== undefined && next !== field.state.value) {
+                          const output = next as GroupOutput;
+                          field.handleChange(output);
+                          form.setFieldValue("speakerTags", defaultSpeakerTags(output));
+                          // A Narrator room cannot hold Smart: it becomes Natural, and switching back does not restore it.
+                          // The status line describes only the switch just made, so leaving Narrator clears it.
+                          const policy = form.getFieldValue("policy");
+                          const heals = output === "narrator" && policy !== narratorPolicyOf(policy);
+                          if (heals) {
+                            form.setFieldValue("policy", narratorPolicyOf(policy));
+                          }
+                          noteHeal(heals);
+                        }
+                      }}
+                      aria-label={GROUP_OUTPUT_FIELD_NAME}
+                    >
+                      <Toggle value="per-speaker">{GROUP_OUTPUT_LABELS["per-speaker"]}</Toggle>
+                      <Toggle value="narrator">{GROUP_OUTPUT_LABELS.narrator}</Toggle>
+                    </ToggleGroup>
+                    <Text voice="gloss">
+                      {field.state.value === "narrator"
+                        ? "One message voices everyone. You can't swipe individuals."
+                        : "Each character replies in their own message. Swipe them individually."}
+                    </Text>
+                    {/* Always mounted, so a screen reader is already watching the region when the heal fills it. */}
+                    <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
+                      {healedSmartIn === entityId ? NARRATOR_HEALED_SMART : ""}
+                    </Text>
+                  </Stack>
+                )}
+              </form.AppField>
 
-          <form.Subscribe selector={(state): GroupOutput => state.values.output}>
-            {(output): ReactElement => (
-              <>
-                <form.AppField name="speakerTags">
-                  {(field): ReactElement => (
-                    // Only the narrator round reads speakerTags; in a per-speaker room the switch would be a
-                    // no-op, so it stays visible, disabled, and explained by its description.
-                    <field.SwitchField label={GROUP_SPEAKER_TAGS_NAME} description={SPEAKER_TAGS_HELP[output]} disabled={output === "per-speaker"} />
-                  )}
-                </form.AppField>
-                <form.AppField name="groupNudge">
-                  {(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" description={GROUP_NUDGE_HELP[output]} />}
-                </form.AppField>
-              </>
-            )}
-          </form.Subscribe>
+              <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                {(output): ReactElement => (
+                  <>
+                    <form.AppField name="speakerTags">
+                      {(field): ReactElement => (
+                        // Only the narrator round reads speakerTags; in a per-speaker room the switch would be a
+                        // no-op, so it stays visible, disabled, and explained by its description.
+                        <field.SwitchField label={GROUP_SPEAKER_TAGS_NAME} description={SPEAKER_TAGS_HELP[output]} disabled={output === "per-speaker"} />
+                      )}
+                    </form.AppField>
+                    <form.AppField name="groupNudge">
+                      {(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" description={GROUP_NUDGE_HELP[output]} />}
+                    </form.AppField>
+                  </>
+                )}
+              </form.Subscribe>
 
-          <Accordion>
-            <AccordionItem value="advanced">
-              <AccordionTrigger>{GROUP_ADVANCED_LABEL}</AccordionTrigger>
-              <AccordionPanel>
-                <Stack gap="section" paddingBlockStart="block">
-                  <PolicyField>
-                    {(utility, rerank): ReactElement => (
-                      <form.Subscribe selector={(state): GroupOutput => state.values.output}>
-                        {(output): ReactElement => (
-                          <form.Subscribe selector={(state): boolean => state.values.smartUsesUtility}>
-                            {(usesUtility): ReactElement => (
-                              <form.AppField name="policy">
-                                {(field): ReactElement => (
-                                  <Stack gap="field">
-                                    <field.SelectField
-                                      label={GROUP_POLICY_FIELD_NAME}
-                                      items={policyItemsFor(output)}
-                                      description={policyHelp(field.state.value, output, utility, usesUtility)}
-                                    />
-                                    {needsRerankDoor(field.state.value, rerank, usesUtility) ? (
-                                      <Row>
-                                        <RerankModelDoor />
-                                      </Row>
-                                    ) : null}
-                                  </Stack>
+              <Accordion>
+                <AccordionItem value="advanced">
+                  <AccordionTrigger>{GROUP_ADVANCED_LABEL}</AccordionTrigger>
+                  <AccordionPanel>
+                    <Stack gap="section" paddingBlockStart="block">
+                      <PolicyField>
+                        {(utility, rerank): ReactElement => (
+                          <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                            {(output): ReactElement => (
+                              <form.Subscribe selector={(state): boolean => state.values.smartUsesUtility}>
+                                {(usesUtility): ReactElement => (
+                                  <form.AppField name="policy">
+                                    {(field): ReactElement => (
+                                      <Stack gap="field">
+                                        <field.SelectField
+                                          label={GROUP_POLICY_FIELD_NAME}
+                                          items={policyItemsFor(output)}
+                                          description={policyHelp(field.state.value, output, utility, usesUtility)}
+                                        />
+                                        {needsRerankDoor(field.state.value, rerank, usesUtility) ? (
+                                          <Row>
+                                            <RerankModelDoor />
+                                          </Row>
+                                        ) : null}
+                                      </Stack>
+                                    )}
+                                  </form.AppField>
                                 )}
-                              </form.AppField>
+                              </form.Subscribe>
                             )}
                           </form.Subscribe>
                         )}
+                      </PolicyField>
+
+                      {/* The upgrade inside Smart, which only a per-speaker room can hold. */}
+                      <form.Subscribe selector={(state): boolean => state.values.policy === "smart"}>
+                        {(picks): ReactElement | null =>
+                          picks ? (
+                            <form.AppField name="smartUsesUtility">
+                              {(field): ReactElement => (
+                                <Stack gap="field">
+                                  <field.SwitchField label={SMART_UTILITY_SWITCH_LABEL} description={SMART_POLICY_COST_SENTENCE} />
+                                  <UtilityDoorUnderSwitch usesUtility={field.state.value} />
+                                </Stack>
+                              )}
+                            </form.AppField>
+                          ) : null
+                        }
                       </form.Subscribe>
-                    )}
-                  </PolicyField>
 
-                  {/* The upgrade inside Smart, which only a per-speaker room can hold. */}
-                  <form.Subscribe selector={(state): boolean => state.values.policy === "smart"}>
-                    {(picks): ReactElement | null =>
-                      picks ? (
-                        <form.AppField name="smartUsesUtility">
-                          {(field): ReactElement => (
-                            <Stack gap="field">
-                              <field.SwitchField label={SMART_UTILITY_SWITCH_LABEL} description={SMART_POLICY_COST_SENTENCE} />
-                              <UtilityDoorUnderSwitch usesUtility={field.state.value} />
-                            </Stack>
-                          )}
-                        </form.AppField>
-                      ) : null
-                    }
-                  </form.Subscribe>
+                      <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                        {(output): ReactElement | null =>
+                          output === "per-speaker" ? (
+                            <form.AppField name="scopedCards">
+                              {(field): ReactElement => (
+                                <field.SwitchField
+                                  label={GROUP_OWN_CARD_ONLY_NAME}
+                                  description="Each reply is written from that character's card alone, and with memory on they recall only what happened while they were in the room. Off, every reply sees every card."
+                                />
+                              )}
+                            </form.AppField>
+                          ) : null
+                        }
+                      </form.Subscribe>
 
-                  <form.Subscribe selector={(state): GroupOutput => state.values.output}>
-                    {(output): ReactElement | null =>
-                      output === "per-speaker" ? (
-                        <form.AppField name="scopedCards">
+                      <form.AppField name="memberCardVisibility">
+                        {(field): ReactElement => (
+                          <field.SelectField
+                            label={GROUP_VISIBILITY_FIELD_NAME}
+                            items={VISIBILITY_ITEMS}
+                            description="What the other people in this room can open on each character's card. You always see the whole card."
+                          />
+                        )}
+                      </form.AppField>
+
+                      <Stack gap="field">
+                        <form.AppField name="autoMode">
                           {(field): ReactElement => (
                             <field.SwitchField
-                              label={GROUP_OWN_CARD_ONLY_NAME}
-                              description="Each reply is written from that character's card alone, and with memory on they recall only what happened while they were in the room. Off, every reply sees every card."
+                              label={AUTO_MODE_LABEL}
+                              description="They keep the conversation going on their own. Each auto-turn is a full generation you pay for."
                             />
                           )}
                         </form.AppField>
-                      ) : null
-                    }
-                  </form.Subscribe>
+                        <form.Subscribe selector={(state): boolean => state.values.autoMode}>
+                          {(autoMode): ReactElement | null =>
+                            autoMode ? (
+                              <Stack gap="field">
+                                <form.AppField name="autoModeMaxTurns">
+                                  {(field): ReactElement => <field.SliderField label={MAX_TURNS_LABEL} min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
+                                </form.AppField>
+                                <form.AppField name="autoModeDelayMs">
+                                  {(field): ReactElement => (
+                                    <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
+                                  )}
+                                </form.AppField>
+                              </Stack>
+                            ) : null
+                          }
+                        </form.Subscribe>
+                      </Stack>
 
-                  <form.AppField name="memberCardVisibility">
-                    {(field): ReactElement => (
-                      <field.SelectField
-                        label={GROUP_VISIBILITY_FIELD_NAME}
-                        items={VISIBILITY_ITEMS}
-                        description="What the other people in this room can open on each character's card. You always see the whole card."
-                      />
-                    )}
-                  </form.AppField>
-
-                  <Stack gap="field">
-                    <form.AppField name="autoMode">
-                      {(field): ReactElement => (
-                        <field.SwitchField
-                          label={AUTO_MODE_LABEL}
-                          description="They keep the conversation going on their own. Each auto-turn is a full generation you pay for."
-                        />
-                      )}
-                    </form.AppField>
-                    <form.Subscribe selector={(state): boolean => state.values.autoMode}>
-                      {(autoMode): ReactElement | null =>
-                        autoMode ? (
-                          <Stack gap="field">
-                            <form.AppField name="autoModeMaxTurns">
-                              {(field): ReactElement => <field.SliderField label={MAX_TURNS_LABEL} min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
-                            </form.AppField>
-                            <form.AppField name="autoModeDelayMs">
-                              {(field): ReactElement => (
-                                <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
-                              )}
-                            </form.AppField>
-                          </Stack>
-                        ) : null
-                      }
-                    </form.Subscribe>
-                  </Stack>
-
-                  {/* Not an auto-mode knob: `verbs/turn.ts::banLastFor` reads it on every round the app picks
+                      {/* Not an auto-mode knob: `verbs/turn.ts::banLastFor` reads it on every round the app picks
                       speakers for. The form mounts only in a room with more than one character. */}
-                  <form.AppField name="allowSelfResponses">
-                    {(field): ReactElement => (
-                      <field.SwitchField
-                        label="Let a character reply to itself"
-                        description="Off, whoever spoke last sits out of every round the app picks speakers for. Under Natural, a character you name can always answer."
-                      />
-                    )}
-                  </form.AppField>
-                </Stack>
-              </AccordionPanel>
-            </AccordionItem>
-          </Accordion>
+                      <form.AppField name="allowSelfResponses">
+                        {(field): ReactElement => (
+                          <field.SwitchField
+                            label="Let a character reply to itself"
+                            description="Off, whoever spoke last sits out of every round the app picks speakers for. Under Natural, a character you name can always answer."
+                          />
+                        )}
+                      </form.AppField>
+                    </Stack>
+                  </AccordionPanel>
+                </AccordionItem>
+              </Accordion>
+            </>
+          ) : null}
         </Stack>
       )}
     </GroupConfigFormBoundary>
@@ -392,9 +408,10 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
 
 export interface CommittedGroupConfigTabProps {
   readonly chatId: ChatId;
+  readonly scope: GroupBehaviorScope;
 }
 
-export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps): ReactElement {
+export function CommittedGroupConfigTab({ chatId, scope }: CommittedGroupConfigTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setGroupConfig = useSetGroupConfig({ trpc, invalidation });
@@ -404,6 +421,7 @@ export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps
     <GroupConfigForm
       entityId={`${GROUP_CONFIG_ENTITY_PREFIX}${chatId}`}
       config={config}
+      scope={scope}
       // NO `.catch` HERE, AND THAT IS THE CONTRACT (#1501). `createAutosaveEntityForm` decides saved-vs-error
       // by whether this promise RESOLVES (`forms/editor/create-autosave-entity-form.tsx` onSubmit: it re-baselines,
       // clears the crash draft and sets "saved" on resolve; on rejection it keeps the draft, sets "error" and

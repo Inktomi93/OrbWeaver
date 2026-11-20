@@ -548,6 +548,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
   "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
+  "packages/client/src/features/chat/lib/composer-tail-copy.ts": "waitingForLabel and REPLY_NOW_NAME: the words of the line under the composer",
   "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
   "packages/client/src/lib/context-pane-names.ts":
