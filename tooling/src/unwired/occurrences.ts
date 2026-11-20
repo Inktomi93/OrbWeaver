@@ -425,7 +425,7 @@ function bindingReaders({ binding, scope }: DerivedBinding): readonly Identifier
 
 /** What a world's files say about derived bindings, joined over every world by {@link joinFacts}: each binding with
  *  its reads, each call that supplies one of its parameters, and each identifier written into a member. */
-export interface DerivedFacts {
+interface DerivedFacts {
   readonly bindings: readonly {
     readonly members: readonly string[];
     readonly reads: readonly Site[];
