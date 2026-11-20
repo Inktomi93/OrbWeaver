@@ -14,7 +14,7 @@
 // here would mean a second spelling of a SECURITY verdict.
 
 import type { DeploymentRenderPolicy, MessageKind, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
-import { rendersTrustedHtml } from "@orb/contracts/chat";
+import { rendersTrustedHtml, resolveCardScriptVerdict } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
@@ -63,9 +63,21 @@ export interface RowRenderPolicy {
    *
    *  `tierA` (the default inert allowlist — no `<style>`, no inline `style=`) otherwise. */
   readonly cardTier: CardTier;
+  /** Set in a game room whose immersive HTML cards are off, for the notice that says a reply's card markup is not drawn
+   *  as a card. Absent everywhere else, and while the game's read has not landed. */
+  readonly heldCards?: HeldCards | undefined;
   /** Whose content a `tierA` row is and what its own policy says, for the plain-content notice; absent on `tierB`.
    *  {@link resolvePlainVerdict} turns it into the reason and the remedy once the viewer's standing is read. */
   readonly plain?: PlainSubject | undefined;
+}
+
+/** The reason the held-cards notice names. */
+export const HELD_CARDS_REASON = "game-cards-off";
+
+/** A game room's card wrap held off by its immersive HTML switch, and whether this viewer may turn it on. */
+export interface HeldCards {
+  /** Only the host edits the game's switches. */
+  readonly viewerIsHost: boolean;
 }
 
 /** What makes a `tierA` row plain, read off the same policy the tier came from. */
@@ -95,6 +107,10 @@ const PLAIN_REMEDIES = [
   "ask-host",
   // Only the server's admin can change it.
   "ask-admin",
+  // The viewer's own Run story-card scripts setting.
+  "own-scripts",
+  // The game's host console: the viewer hosts the room.
+  "game-settings",
   // Nothing turns it on.
   "none",
 ] as const;
@@ -134,6 +150,8 @@ export interface ResolveRowRenderPolicyInput {
   readonly narrator?: NarratorRenderPolicy | undefined;
   /** The chat-level §4.8 lenient-wrap verdict the surface resolved (game + immersiveHtml). Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
+  /** The room is a game whose `immersiveHtml` read landed as off. Absent ⇒ not. */
+  readonly gameCardsOff?: boolean | undefined;
   /** The user's quoted-speech tint pref; absent ⇒ ON (the contract default). */
   readonly colorQuotedSpeech?: boolean | undefined;
   /** Whether the viewer hosts the room (`ChatDetail.viewerIsHost`); absent ⇒ not. */
@@ -255,6 +273,76 @@ export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsA
   return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
 }
 
+/** Which consent holds a framed card's or styled reply's own scripts off, as the notice names it. */
+const FRAMED_SCRIPT_REASONS = ["install-scripts", "character-scripts", "viewer-scripts", "unattributed-scripts"] as const;
+export type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
+
+/** A framed card's or styled reply's mint selector, beside the roster, install and settings reads every viewer has. */
+export interface FramedScriptSubject {
+  /** The character the frame was minted for (`CardOrigin.characterId`). */
+  readonly characterId: CharacterId | null;
+  readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
+  /** The room's narrator policy (`ChatDetail.narratorRender`). */
+  readonly narrator: NarratorRenderPolicy | undefined;
+  /** The install's `allowInteractiveCards`, as `/api/auth/config` serves it to every viewer. */
+  readonly installAllowsScripts: boolean;
+  /** The viewer's own `chat.runCardScripts`. */
+  readonly viewerRunsScripts: boolean;
+  readonly viewerIsHost: boolean;
+}
+
+export interface FramedScriptVerdict {
+  readonly reason: FramedScriptReason;
+  readonly remedy: PlainRemedy;
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | undefined;
+}
+
+// The policy the frame was minted under, and the seat whose setting binds it. A selector with no seat is a narrator
+// row's group character, which the card-frame route resolves to the narrator policy, bound by the narrator's seat.
+function framedScriptAuthor(subject: FramedScriptSubject): RowAuthor {
+  const { characterId, participants, narrator } = subject;
+  const seat = characterId === null ? undefined : participants.get(characterId);
+  if (seat !== undefined || characterId === null || narrator === undefined) {
+    return { characterId, seat, policy: seat?.renderPolicy, source: seat?.renderSource };
+  }
+  return { characterId: narrator.characterId, seat: participants.get(narrator.characterId), policy: narrator.renderPolicy, source: narrator.renderSource };
+}
+
+/** Which consent holds a framed row's own scripts off and where this viewer can change it, or `undefined` when they
+ *  run. The rule is the card-frame route's own (`resolveCardScriptVerdict`), over the same three reads, so this names
+ *  the consent the route applied. A row no seated policy covers mints at the static floor, which no setting lifts. */
+export function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerIsAdmin: boolean): FramedScriptVerdict | undefined {
+  const { characterId, seat, policy, source } = framedScriptAuthor(subject);
+  const unnamed = { characterId: null, characterName: undefined };
+  if (policy === undefined) {
+    return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
+  }
+  const verdict = resolveCardScriptVerdict({ installAllows: subject.installAllowsScripts, step: policy.htmlTrust, viewerRuns: subject.viewerRunsScripts });
+  if (verdict.runs) {
+    return undefined;
+  }
+  switch (verdict.heldBy) {
+    case "install":
+      return { reason: "install-scripts", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
+    case "character":
+      // A seat with no card, or a room with no consenting host, never reaches the interactive step, and no setting
+      // of a character's lifts it.
+      if (source === "no-card" || source === "no-host" || characterId === null) {
+        return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
+      }
+      return { reason: "character-scripts", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
+    case "viewer":
+      return { reason: "viewer-scripts", remedy: "own-scripts", ...unnamed };
+    default:
+      return assertNeverHolder(verdict.heldBy);
+  }
+}
+
+function assertNeverHolder(holder: never): never {
+  throw new Error(`render-trust: unhandled script holder ${String(holder)}`);
+}
+
 /** The character a row's policy is read from, with that policy as the server resolved it. */
 interface RowAuthor {
   readonly characterId: CharacterId | null;
@@ -288,7 +376,15 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   // EITHER consent grants the sandboxed tier — see the field doc. Both come from the host or the box (the
   // character's resolved step, or the room's immersive-HTML switch); neither is anything the MODEL can assert.
   const cardTier: CardTier = trust === "trusted" || lenientCards ? "tierB" : "tierA";
-  const base = { trust, allowExternal: !policy.forbidExternalMedia, lenientCards, colorQuotes: input.colorQuotedSpeech !== false, cardTier };
+  const viewerIsHost = input.viewerIsHost === true;
+  const base = {
+    trust,
+    allowExternal: !policy.forbidExternalMedia,
+    lenientCards,
+    colorQuotes: input.colorQuotedSpeech !== false,
+    cardTier,
+    heldCards: input.gameCardsOff === true ? { viewerIsHost } : undefined,
+  };
   if (cardTier === "tierB") {
     return base;
   }
@@ -305,7 +401,7 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
       source: author === "character" ? source : undefined,
       characterId: author === "character" ? characterId : null,
       characterName: seat?.displayName,
-      viewerIsHost: input.viewerIsHost === true,
+      viewerIsHost,
     },
   };
 }

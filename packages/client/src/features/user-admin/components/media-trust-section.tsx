@@ -23,7 +23,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
-import { MEDIA_TRUST_SUBCATEGORY, TRUST_HTML_SETTING_LABEL } from "../lib/system-config-nav.ts";
+import { INTERACTIVE_CARDS_SETTING_LABEL, MEDIA_TRUST_SUBCATEGORY, TRUST_HTML_SETTING_LABEL } from "../lib/system-config-nav.ts";
 import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
@@ -131,7 +131,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
             beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can
             also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
           <AdminOverrideSwitch
-            label="Let interactive cards run their own scripts"
+            label={INTERACTIVE_CARDS_SETTING_LABEL}
             hint="On by default. Cards from characters set to “Interactive” or “Inherit default” can run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Turn this off to stop all cards from running scripts. A card already on screen stops the next time it loads. Any character can be switched to Rich HTML on its Trust tab."
             value={resolved.allowInteractiveCards}
             overridden={interactiveOverridden}

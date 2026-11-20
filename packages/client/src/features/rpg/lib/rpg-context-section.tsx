@@ -25,6 +25,7 @@ import type { ReactElement, ReactNode } from "react";
 import { ContextTabBody, QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { CommittedChatContext, ContextTabDef } from "#lib";
+import { GAME_SETTINGS_TAB_ID } from "#state";
 import { RpgErrorState } from "../components/rpg-error-state.tsx";
 import { RpgGameDoor } from "../components/rpg-game-door.tsx";
 import { RpgGameTab } from "../components/rpg-game-tab.tsx";
@@ -133,7 +134,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // (the `gameTab` wrapper — panel-state resolve + boundary; the console owns its OWN inner
       // `getConfigView` boundary, a second server-side host gate); a non-game / PAUSED chat renders the
       // Game DOOR (start a freeform|d20 game / turn a preserved game back on).
-      id: "rpg.game",
+      id: GAME_SETTINGS_TAB_ID,
       label: RPG_CONTEXT_TAB_LABELS.game,
       icon: Crown,
       strip: "meta",

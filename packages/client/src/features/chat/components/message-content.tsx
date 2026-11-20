@@ -20,7 +20,7 @@ import { FormingChip } from "#components";
 import type { RowRenderPolicy } from "#lib";
 import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
 import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
-import { toContentBlocks } from "../lib/content-blocks.ts";
+import { holdsUnwrappedCard, toContentBlocks } from "../lib/content-blocks.ts";
 import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyLayout, ReplyPart } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
@@ -28,7 +28,7 @@ import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
-import { PlainContentNotice, PlainReplyNotice } from "./plain-content-notice.tsx";
+import { HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "./plain-content-notice.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
 
 function assertNever(value: never): never {
@@ -214,15 +214,26 @@ function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, style
   return styled || holdsCard() ? <PlainContentNotice key="plain-notice" subject={render.plain} /> : null;
 }
 
-// What a row says under its body about content it draws plain: the trust notice, and for a styled reply too heavy to
-// frame, why it is plain whole. Null when it says nothing.
+// A game room with its card wrap off says once, under the row, that card markup in it is not drawn as a card. A row
+// still waiting on its scripts shows none until its answer lands.
+function rowHeldCardsNotice(texts: readonly string[], render: RowRenderPolicy, pending: boolean): ReactElement | null {
+  if (render.heldCards === undefined || pending || !texts.some(holdsUnwrappedCard)) {
+    return null;
+  }
+  return <HeldCardsNotice key="held-cards-notice" viewerIsHost={render.heldCards.viewerIsHost} />;
+}
+
+// What a row says under its body about content it draws plain: the trust notice, for a game room whose card wrap is off
+// the held-cards notice, and for a styled reply too heavy to frame, why it is plain whole. Null when it says nothing.
 function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayout | undefined, render: RowRenderPolicy): ReactElement | null {
   const texts = drawn.spans.map((span) => (drawn.styled ? stripStyleElements(span.text) : span.text));
   const trust = rowPlainNotice(texts, render, drawn.styled || drawn.modelPanel, drawn.pending);
+  const held = rowHeldCardsNotice(texts, render, drawn.pending);
   const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
-  return trust === null && heavy === null ? null : (
+  return trust === null && held === null && heavy === null ? null : (
     <>
       {trust}
+      {held}
       {heavy}
     </>
   );
