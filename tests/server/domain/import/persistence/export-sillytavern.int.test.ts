@@ -8,14 +8,12 @@
 import type { StExportReport } from "@orb/contracts/import";
 import {
   ST_EXPORT_DOORS,
-  ST_EXPORT_DRY_RUN_QUERY,
-  ST_EXPORT_FORMAT,
   ST_EXPORT_PROFILE_DIR,
   ST_EXPORT_REPORT_FILE,
   ST_SETTINGS_FILE,
   stExportReportSchema,
+  stProfileExportPath,
 } from "@orb/contracts/import";
-import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
@@ -62,18 +60,14 @@ function profile(root: ServerTestHarness): Files {
   };
 }
 
-function exportUrl(dryRun: boolean): string {
-  return `${PORTABILITY_ROUTES.exportLibrary}?format=${ST_EXPORT_FORMAT}${dryRun ? `&${ST_EXPORT_DRY_RUN_QUERY}=1` : ""}`;
-}
-
 async function exported(root: ServerTestHarness): Promise<Readonly<Record<string, Uint8Array>>> {
-  const response = await root.http.request(exportUrl(false));
+  const response = await root.http.request(stProfileExportPath(false));
   expect(response.status).toBe(OK);
   return unzipSync(new Uint8Array(await response.arrayBuffer()));
 }
 
 async function dryRunReport(root: ServerTestHarness): Promise<StExportReport> {
-  const response = await root.http.request(exportUrl(true));
+  const response = await root.http.request(stProfileExportPath(true));
   expect(response.status).toBe(OK);
   return stExportReportSchema.parse(await response.json());
 }
@@ -234,7 +228,7 @@ test("the exported tree imports back as the same library, Data Bank scopes and g
 test("the SillyTavern format refuses a kinds filter, since SillyTavern pairs chats with their cards by folder", async () => {
   await using root = await harness();
 
-  const response = await root.http.request(`${exportUrl(false)}&kinds=character`);
+  const response = await root.http.request(`${stProfileExportPath(false)}&kinds=character`);
 
   expect(response.status).toBe(BAD_REQUEST);
 });

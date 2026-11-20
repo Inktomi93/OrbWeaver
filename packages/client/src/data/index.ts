@@ -72,6 +72,7 @@ export {} from "./session-freshness.ts";
 export { clearJoinStash, peekJoinStash } from "./session-resume.ts";
 export { PICKER_FIRST_OPEN_BOX, PICKER_FIRST_OPEN_BOX_WITH_DOOR, skeletonLengthFor, skeletonRowCountFor } from "./skeleton-row-metrics.ts";
 export { SkeletonRows } from "./skeleton-rows.tsx";
+export { fetchStExportPreview } from "./st-export-preview.ts";
 export { completeReauth } from "./stale-session.ts";
 export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";

@@ -4,7 +4,7 @@
 // export names the door that takes it back.
 
 import { z } from "zod";
-import { PORTABLE_KINDS } from "../portability/index.ts";
+import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "../portability/index.ts";
 import type { ImportPreviewKind } from "./preview.ts";
 import { IMPORT_PREVIEW_KINDS, importTextSchema } from "./preview.ts";
 
@@ -13,6 +13,11 @@ export const ST_EXPORT_FORMAT = "sillytavern";
 
 /** The library export door's query that asks for the plan alone: no zip, nothing written. */
 export const ST_EXPORT_DRY_RUN_QUERY = "dryRun";
+
+/** The library export door's address for the SillyTavern profile, or for its dry run (the report alone). */
+export function stProfileExportPath(dryRun: boolean): string {
+  return `${PORTABILITY_ROUTES.exportLibrary}?format=${ST_EXPORT_FORMAT}${dryRun ? `&${ST_EXPORT_DRY_RUN_QUERY}=1` : ""}`;
+}
 
 /** The profile directory inside the zip, as SillyTavern lays a user out under its data root. */
 export const ST_EXPORT_PROFILE_DIR = "data/default-user/";

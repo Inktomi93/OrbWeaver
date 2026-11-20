@@ -1,19 +1,25 @@
 // export-library-section — the Backup & Restore pane's export half: a checkbox per portable kind, a
-// note that media travels automatically, and the "Download my library" action. Owner-scoped by the
-// server; this surface just picks the kinds and triggers the browser download.
+// note that media travels automatically, and the "Download my library" action; then the SillyTavern export, whose
+// preflight previews what carries and what stays before the download. Owner-scoped by the server; this surface just
+// picks the kinds and triggers the browser download. The SillyTavern export is always the whole library, since
+// SillyTavern pairs chats with their cards by folder, so it offers no kind picks.
 
 import type { PortableKind } from "@orb/contracts/portability";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
 import { Download, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { SettingCheckboxRow, SettingRowGroup, SettingTrackRow } from "#components";
+import { CommitRow, SettingCheckboxRow, SettingRowGroup, SettingTrackRow } from "#components";
 import { downloadUrl, testId } from "#lib";
+import { useStExportPreview } from "../hooks/use-st-export-preview.ts";
 import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model.ts";
+import { ST_EXPORT_DOWNLOAD_NAME, ST_EXPORT_LEDE, ST_EXPORT_OPEN_NAME, ST_EXPORT_PLACEMENT_NOTE, ST_EXPORT_TITLE } from "../lib/st-export-names.ts";
 import { EXPORT_DOWNLOAD_NAME, EXPORT_INCLUDE_LEGEND } from "../lib/workloads-names.ts";
+import { StExportPreviewSummary } from "./import-preview-summary.tsx";
 
 /** THE "INCLUDE" GROUP IS A BULK DEFAULT, SO IT SPENDS NO ACCENT (#1110, owner ruling 2026-09-02).
  *  Every exportable kind starts SELECTED — that is the useState seed below and it is the right default —
@@ -22,6 +28,40 @@ import { EXPORT_DOWNLOAD_NAME, EXPORT_INCLUDE_LEGEND } from "../lib/workloads-na
  *  fieldset (not per row): one group-level decision, applied to every row it owns. Polarity is unchanged
  *  — checked still carries its own ink (`checkbox/variants.ts`'s `quiet` arm), just not the ember. */
 const INCLUDE_GROUP_TONE = "quiet";
+
+/** The SillyTavern export: its open button, then the preflight that previews the dry run and confirms the download. The
+ *  download appears only beside a preview that read. */
+function StExport(): ReactElement {
+  const { state, open, close, download } = useStExportPreview();
+  if (state.status === "off") {
+    return (
+      <Stack gap="field">
+        <Text cap="prose" ink="muted">
+          {ST_EXPORT_LEDE}
+        </Text>
+        <Row justify="start">
+          <Button variant="outline" onClick={open}>
+            {ST_EXPORT_OPEN_NAME}
+          </Button>
+        </Row>
+      </Stack>
+    );
+  }
+  return (
+    <Card aria-label={ST_EXPORT_TITLE} padding="none" role="group" shape="row" variant="outline">
+      <Stack gap="field" padding="field">
+        <Text voice="promoted">{ST_EXPORT_TITLE}</Text>
+        <StExportPreviewSummary state={state} onRetry={open} />
+        <Text cap="prose" voice="reading">
+          {ST_EXPORT_PLACEMENT_NOTE}
+        </Text>
+        <CommitRow surface="island" onCancel={close}>
+          {state.status === "ready" ? <Button onClick={download}>{ST_EXPORT_DOWNLOAD_NAME}</Button> : null}
+        </CommitRow>
+      </Stack>
+    </Card>
+  );
+}
 
 /** The export controls: per-kind checkboxes + the download button. */
 export function ExportLibrarySection(): ReactElement {
@@ -71,6 +111,7 @@ export function ExportLibrarySection(): ReactElement {
           {EXPORT_DOWNLOAD_NAME}
         </Button>
       </Row>
+      <StExport />
     </Stack>
   );
 }

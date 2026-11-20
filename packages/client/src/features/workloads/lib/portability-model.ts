@@ -63,7 +63,7 @@ function isExportable(kind: PortableKind): kind is ExportableKind {
 export const EXPORTABLE_KINDS: readonly ExportableKind[] = PORTABLE_KINDS.filter(isExportable);
 
 /** The human label per portable kind (checkboxes + report copy). */
-export const PORTABLE_KIND_LABELS: Record<ExportableKind, string> = {
+export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   character: "Characters",
   chat: "Chats",
   persona: "Personas",
@@ -76,6 +76,8 @@ export const PORTABLE_KIND_LABELS: Record<ExportableKind, string> = {
   tag: "Tags",
   gallery: "Gallery",
   imagery: "Image generation history",
+  assets: "Media",
+  spend: "Spend history",
 };
 
 /** Build the `/api/export/library` download href for the picked kinds. All selected ⇒ no `kinds` param; a partial pick appends `assets` so blobs always travel. */

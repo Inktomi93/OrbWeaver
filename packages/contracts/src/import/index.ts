@@ -53,6 +53,7 @@ export {
   ST_EXPORT_REPORT_FILE,
   ST_IMPORT_DOORS,
   stExportReportSchema,
+  stProfileExportPath,
 } from "./st-export.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";

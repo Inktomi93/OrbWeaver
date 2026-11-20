@@ -413,8 +413,8 @@ function leaveSettings(plan: PlanBuilder, settings: Readonly<Record<string, unkn
       }
       continue;
     }
-    const fallbacks = isPlainObject(defaults) ? defaults : {};
-    const uncarried = Object.entries(isPlainObject(value) ? value : {}).filter(([key, setting]) => !carried.has(key) && differs(setting, fallbacks[key]));
+    const fallbacks = new Map<string, unknown>(Object.entries(isPlainObject(defaults) ? defaults : {}));
+    const uncarried = Object.entries(isPlainObject(value) ? value : {}).filter(([key, setting]) => !carried.has(key) && differs(setting, fallbacks.get(key)));
     for (const [key] of uncarried) {
       plan.leave("user-settings", `${namespace}.${key}`, "no-sillytavern-field");
     }

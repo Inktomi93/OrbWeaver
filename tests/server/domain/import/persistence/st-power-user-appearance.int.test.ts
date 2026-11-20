@@ -4,8 +4,7 @@
 // @subject packages/server/src/primitives/serde/st-appearance/index.ts
 // @subject packages/server/src/primitives/serde/theme/st.ts
 
-import { ST_EXPORT_FORMAT, ST_EXPORT_PROFILE_DIR, ST_EXPORT_REPORT_FILE, ST_SETTINGS_FILE, stExportReportSchema } from "@orb/contracts/import";
-import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { ST_EXPORT_PROFILE_DIR, ST_EXPORT_REPORT_FILE, ST_SETTINGS_FILE, stExportReportSchema, stProfileExportPath } from "@orb/contracts/import";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -35,7 +34,7 @@ async function appearanceOf(root: ServerTestHarness): Promise<Readonly<Record<st
 }
 
 async function exported(root: ServerTestHarness): Promise<Readonly<Record<string, Uint8Array>>> {
-  const response = await root.http.request(`${PORTABILITY_ROUTES.exportLibrary}?format=${ST_EXPORT_FORMAT}`);
+  const response = await root.http.request(stProfileExportPath(false));
   expect(response.status).toBe(OK);
   return unzipSync(new Uint8Array(await response.arrayBuffer()));
 }
