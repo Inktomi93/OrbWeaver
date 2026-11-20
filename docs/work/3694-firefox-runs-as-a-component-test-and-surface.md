@@ -11,7 +11,7 @@ plan: cross-platform
 
 ## What
 
-Owner ruling: Firefox is a supported browser. playwright-ct.config.ts and playwright-surface.config.ts run Chromium and WebKit only, and no Playwright Firefox build is installed on this box (system Firefox is at /usr/bin/firefox). Rendered claims about frames, focus and CSS therefore have no Firefox evidence.
+Owner ruling: Firefox is a supported browser. playwright-ct.config.ts and playwright-surface.config.ts run Chromium and WebKit only. Playwright's own Firefox build (firefox-1555, Firefox 157) is installed for the main pin and launches headless on this box, so a Firefox project can run here now.
 
 ## Why
 
