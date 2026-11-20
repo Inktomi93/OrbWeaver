@@ -143,14 +143,8 @@
     border-block-end: none;
   }
 
-  /* Elevation `glow`: the layered float recipe on a pane beside the content, which only the desktop columns have. A
-   * collapsed pane is off screen and casts nothing onto the edge it parks behind. On a phone a docked pane is the
-   * screen itself and an open sheet already wears the overlay shadow (panels.css), so glow adds nothing there. */
-  @variant shell-desktop {
-    .shell-grid[data-elevation="glow"] .shell-panel:not([data-panel-mode="collapsed"]) {
-      box-shadow: var(--shadow-overlay);
-    }
-  }
+  /* Elevation `glow` writes nothing here: a docked pane is chrome and never casts, and an overlay pane casts the float
+   * shadow at every setting (panels.css). Glow lifts only an interactive Card (ui-surface-and-interaction-rules §2.4). */
 
   /* Under a wallpaper the grid is transparent so the fixed background layer behind it shows through. */
   .shell-grid[data-has-bg-image] {

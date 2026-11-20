@@ -233,7 +233,6 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await computedStyle(kase(root, "tab-cell"), "opacity")).toBe("1");
   expect(await computedStyle(kase(root, "tabs-panel"), "background-color")).toBe(await probe(root, "sidebar", "background-color"));
   expect(await computedStyle(kase(root, "dialog-header"), "position")).toBe("sticky");
-  expect(await computedStyle(kase(root, "command"), "box-shadow")).not.toBe("none");
   expect(await computedStyle(kase(root, "swatch-online"), "background-color")).toBe(await probe(root, "success", "background-color"));
   expect(await computedStyle(kase(root, "swatch-online"), "border-start-start-radius")).not.toBe("0px");
   expect(await computedStyle(kase(root, "swatch-offline"), "border-block-start-width")).toBe("1px");

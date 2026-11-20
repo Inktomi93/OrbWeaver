@@ -55,8 +55,9 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       options: ELEVATION_ITEMS,
       keywords: ["layered", "depth", "shadow", "flat"],
       teach: {
-        summary: "Layered lifts the panels and content into a brightness ladder and drops the region borders; Flat keeps one tone with hairlines.",
-        affects: ["panel backgrounds and region borders app-wide"],
+        summary:
+          "Flat parts the regions with hairlines, Layered with a brightness ladder, and Lifted keeps Flat's hairlines and adds a shadow under clickable cards. Panels never cast a shadow.",
+        affects: ["panel backgrounds and region borders app-wide", "the shadow under clickable cards"],
       },
     },
     {

@@ -6,9 +6,10 @@ import { DISABLED_STATE } from "./disabled-state.ts";
 
 // The anchored scrollable list popup (select/autocomplete/combobox). The WIDTH class is per-seal
 // (select uses `min-w-(--anchor-width)` so a long option can grow the popup; autocomplete/combobox
-// lock to `w-(--anchor-width)`), so it is NOT baked here — the consumer adds it.
+// lock to `w-(--anchor-width)`), so it is NOT baked here — the consumer adds it. A list popup is a float, so it casts
+// the one float shadow like every other float (ui-surface-and-interaction-rules §2.1).
 export const POPUP_SURFACE =
-  "relative z-(--z-popover) max-block-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover tone-host-popover p-field text-popover-foreground";
+  "relative z-(--z-popover) max-block-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover tone-host-popover p-field text-popover-foreground shadow-overlay";
 
 // The centered modal popup surface shared by dialog + alert-dialog. The sizing (dialog's
 // `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-24`) is per-seal.

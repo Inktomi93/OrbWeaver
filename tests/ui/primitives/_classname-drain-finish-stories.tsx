@@ -3,7 +3,6 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Command } from "@orb/ui/command";
 import { DialogHeader } from "@orb/ui/dialog";
 import { ChevronDown, Circle, Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
@@ -338,9 +337,6 @@ export function PartsFinishStory(): ReactElement {
       <DialogHeader data-case="dialog-header" sticky={true}>
         Title
       </DialogHeader>
-      <Command data-case="command" elevated={true} label="Palette">
-        {null}
-      </Command>
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-online" fill="success" shape="pill" />
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-offline" edge="ring" shape="pill" />
       <Swatch className="block-(--size-dot) inline-(--size-dot)" data-case="swatch-outline" edge="outline" fill="primary" />

@@ -40,6 +40,10 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const DIALOG = '[data-slot="dialog-popup"]';
 const ART_LAYER = '[data-slot="theme-background-layer"]';
 const WIDE = { width: 1280, height: 800 } as const;
+// Wide enough for the desktop shell, too narrow to dock the list beside the content, so the list opens as an overlay.
+const NARROW_DESKTOP = { width: 900, height: 900 } as const;
+// Every elevation value, read off the setting's own enum under its prefault, default and catch wrappers.
+const ELEVATIONS = appearanceSettingsSchema.unwrap().shape.elevation.unwrap().unwrap().options;
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
 // Every axis the cascade cases read, pinned so the corpus viewer's own appearance never decides a case.
 const BASE_APPEARANCE: Partial<AppearanceSettings> = {
@@ -346,6 +350,18 @@ async function borderWidths(locator: Locator): Promise<string> {
   return widths.join(" ");
 }
 
+/** The shadow token resolved inside `host`, so it reads that box's theme ingredients. */
+function resolvedShadow(host: Locator, token: string): Promise<string> {
+  return host.evaluate((element, name) => {
+    const probe = element.ownerDocument.createElement("div");
+    probe.style.boxShadow = `var(${name})`;
+    element.append(probe);
+    const shadow = getComputedStyle(probe).boxShadow;
+    probe.remove();
+    return shadow;
+  }, token);
+}
+
 /** `color-mix(in oklab, var(token) pct, partner)` resolved inside `host`, so it inherits that box's theme and colour scheme. */
 function mixedFill(host: Locator, token: string, pct: string, partner: string): Promise<string> {
   return host.evaluate(
@@ -456,42 +472,56 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(pane)).toContain("saturate(");
   });
 
-  test("glow lifts a docked pane beside the content on a desktop, and casts nothing from the phone's list-as-screen", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { elevation: "glow" });
-    await seedShellState(page, BOTH_DOCKED);
-    await mount<typeof AppShellStory>(STORY, {});
-    const grid = page.locator(".shell-grid");
-    const pane = page.locator(LIST);
-    await expect(grid).toHaveAttribute("data-elevation", "glow");
-    await expect(pane).toHaveAttribute("data-panel-mode", "docked");
-    await expect.poll(() => computed(pane, "box-shadow")).not.toBe("none");
+  // Docked chrome never casts, at any elevation, and a pane sliding over content casts the float shadow at every one
+  // (ui-surface-and-interaction-rules §2.2 and §2.4).
+  for (const elevation of ELEVATIONS) {
+    test(`${elevation} elevation: a docked pane casts nothing at a desktop or a phone, and the same pane floating casts the float shadow`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeAppearance(page, corpus, { elevation });
+      await seedShellState(page, BOTH_DOCKED);
+      await mount<typeof AppShellStory>(STORY, {});
+      const grid = page.locator(".shell-grid");
+      const pane = page.locator(LIST);
+      await expect(grid).toHaveAttribute("data-elevation", elevation);
+      await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+      for (const docked of [LIST, CONTEXT]) {
+        await expect.poll(() => computed(page.locator(docked), "box-shadow"), `${docked} docked at a desktop`).toBe("none");
+      }
 
-    await page.setViewportSize(PHONE);
-    await expect(grid).toHaveAttribute("data-list-mode", "docked");
-    await expect(pane).toHaveAttribute("data-panel-mode", "docked");
-    await expect.poll(() => computed(pane, "box-shadow")).toBe("none");
-  });
+      await page.setViewportSize(PHONE);
+      await expect(grid).toHaveAttribute("data-list-mode", "docked");
+      await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+      await expect.poll(() => computed(pane, "box-shadow")).toBe("none");
 
-  test("glow lifts Home's surface through its first child while the surface root stays a box-less contents wrapper", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { elevation: "glow" });
-    await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", "glow");
-    const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
-    await expect(surface).toHaveCSS("display", "contents");
-    await expect(surface).toHaveCSS("border-top-width", "0px");
-    await expect(surface).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await expect(surface).toHaveCSS("border-top-left-radius", "0px");
-    await expect.poll(() => computed(surface.locator("> :first-child"), "filter")).toContain("drop-shadow(");
-  });
+      await page.setViewportSize(NARROW_DESKTOP);
+      await page.getByRole("button", { name: "Show list panel", exact: true }).click();
+      await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+      const floatShadow = await resolvedShadow(pane, TOKENS["shadow.overlay"].cssVar);
+      expect(floatShadow).not.toBe("none");
+      await expect.poll(() => computed(pane, "box-shadow")).toBe(floatShadow);
+    });
 
-  test("flat elevation gives Home's surface carrier no glow filter", async ({ corpus, mount, page }) => {
-    await routeAppearance(page, corpus, { elevation: "flat" });
-    await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", "flat");
-    const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
-    await expect(surface).toBeAttached();
-    await expect.poll(() => computed(surface.locator("> :first-child"), "filter")).toBe("none");
-  });
+    test(`${elevation} elevation: Home's surface root stays a box-less contents wrapper and neither it nor its first child casts`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeAppearance(page, corpus, { elevation });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", elevation);
+      const surface = page.getByRole("main").locator('[data-slot="surface-root"]').first();
+      await expect(surface).toHaveCSS("display", "contents");
+      await expect(surface).toHaveCSS("border-top-width", "0px");
+      await expect(surface).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(surface).toHaveCSS("border-top-left-radius", "0px");
+      const carrier = surface.locator("> :first-child");
+      await expect(carrier).toBeVisible();
+      expect([await computed(carrier, "filter"), await computed(carrier, "box-shadow")]).toStrictEqual(["none", "none"]);
+    });
+  }
 
   test("an open pane's carrier blurs and a collapsed pane's carrier pays for no backdrop filter", async ({ corpus, mount, page }) => {
     await seedShellState(page, BOTH_DOCKED);
