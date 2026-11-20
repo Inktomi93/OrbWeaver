@@ -320,8 +320,10 @@ const STATED_CONTROL: Readonly<Record<Exclude<CapabilityKnob, SamplerKnob>, (cap
   quality: (capability) => capability.reasoning.mode !== "none" || capability.sampling.temperature !== undefined,
   // The on/off switch: a model that cannot reason, or cannot stop reasoning, has nothing for it to change.
   reasoning: (capability) => capability.reasoning.mode !== "none" && capability.reasoning.mandatory !== true,
-  effort: (capability) => capability.reasoning.mode === "effort" && (capability.reasoning.effortLevels?.length ?? 0) > 0,
-  thinkingBudgetTokens: (capability) => capability.reasoning.mode === "budget",
+  // An adaptive model takes a level too; a budget model derives its budget from the budget control instead.
+  effort: (capability) =>
+    (capability.reasoning.mode === "effort" || capability.reasoning.mode === "adaptive") && (capability.reasoning.effortLevels?.length ?? 0) > 0,
+  thinkingBudgetTokens: (capability) => capability.reasoning.mode === "budget" && capability.reasoning.budgetRange !== undefined,
   thinkingDisplay: (capability) => capability.reasoning.mode !== "none" && (capability.reasoning.displayModes?.length ?? 0) > 0,
   reasoningSeed: (capability) => capability.reasoning.mode !== "none" && capability.reasoning.seedable === true,
   verbosity: (capability) => (capability.verbosity?.length ?? 0) > 0,

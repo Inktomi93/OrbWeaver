@@ -4,7 +4,7 @@
 
 import type { ResolvedWarning } from "@orb/contracts/inference";
 import type { ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
-import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
+import { rolePresetParamsOf, splittableTagPair, statedIntent, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { toError } from "@orb/kit/error-message";
@@ -16,7 +16,7 @@ import { GenerationObservationPersistenceError } from "../contract/chat.ts";
 import { ProviderError } from "../contract/errors.ts";
 
 import type { Resolved } from "../contract/resolved.ts";
-import { withPresetWindow } from "../contract/resolved.ts";
+import { generationOf, withPresetWindow } from "../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "../contract/roles.ts";
 import type { SideGenDeps, SideGenItem } from "../contract/side-generation.ts";
 
@@ -47,7 +47,8 @@ export function sideGenChatRequest(args: {
   const common = {
     connection,
     onObservedResult: args.onObservedResult,
-    params: args.params,
+    // A value whose control this model does not take never reaches the turn (D68).
+    params: statedIntent(args.params, generationOf(connection)),
     posture: SIDE_GEN_POSTURE,
     systemPrompt: { static: item.systemPrompt, dynamic: "" },
     ...(args.chatId !== undefined ? { chatId: args.chatId } : {}),

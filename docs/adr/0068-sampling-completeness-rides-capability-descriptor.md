@@ -16,10 +16,10 @@ Sampling completeness rides the capability descriptor, never model-name sniffing
 
 A preset, generation or sampling control renders only where the descriptor of the active connection's model states it. This holds on every surface: the params deck, the readouts and every other editor section.
 
-- `statesKnob` in `packages/contracts/src/inference/capability/reads.ts` is the one answer to "can this control apply". `CAPABILITY_KNOBS` in the same file lists the controls it answers for.
+- `statesKnob` in `packages/contracts/src/inference/capability/reads.ts` is the one answer to "can this control apply". `CAPABILITY_KNOBS` in the same file lists the controls it answers for. Every editor gate reads it.
 - A section with no control left is not rendered. No empty-state line replaces it, and no surface lists stored values the model ignores.
-- A stored value for a hidden control stays stored and is not sent. A connection whose model takes it shows it again.
-- A chat turn names a dropped control only where the descriptor states it (`announcesWarning` in `packages/contracts/src/inference/warnings.ts`). Conflict, clamp and downgrade warnings are always announced.
+- A stored value for a hidden control stays stored and never affects a generation. A connection whose model takes it shows it again.
+- `statedIntent` in `packages/contracts/src/preset/index.ts` removes every hidden value where a generation forms its params: the chat pipeline's fold, quiet generation and side generation. The readout (`preset.resolveEffective`) previews the turn through the same projection. No reader after it sees the value, so no body field, clamp, warning or recorded param comes from it.
 - With no chat connection, no model-fed control renders. The no-model notice and its Connections door stand in their place.
 - A fact the route decides rather than the model is stamped onto the descriptor after synthesis (`markRouteFacts` in `packages/inference/src/capability/floor.ts`): `reasoning.seedable`, `contextCompression` and the agent-sdk wire's missing parallel tool control.
 
@@ -27,10 +27,11 @@ The anth-direct clause shares D67's purge, noted with D121: `ANTH_DIRECT_SAMPLIN
 
 ## Consequences
 
-- A new preset control joins `CAPABILITY_KNOBS` and names its descriptor fact, or `tsc` fails at `statesKnob`.
+- A new preset control joins `CAPABILITY_KNOBS` and names its descriptor fact, or `tsc` fails at `statesKnob`. A new `UserIntent` field names its control in `statedIntent`, or `tsc` fails there.
 - A preset shared across connections keeps every value, and each connection shows only what it can apply.
 
 ## Alternatives rejected
 
 - Show an unsupported control with a marker or a "not honored" list: the owner ruled it confuses users.
 - Disable an unsupported control in place: a disabled control still says the setting exists for this model.
+- Gate each funnel reader on the descriptor, or filter its warnings: a reader that is missed acts on a value the user cannot see.

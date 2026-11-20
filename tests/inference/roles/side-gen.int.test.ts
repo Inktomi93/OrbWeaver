@@ -413,7 +413,7 @@ function agentFrames(model: string, structuredOutput?: unknown): Record<string, 
   ];
 }
 
-test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops a role temperature by name", async () => {
+test("(7) agent-sdk summarize runs a preset's effort with thinking on, and a role temperature the model does not take never reaches the turn", async () => {
   await using edge = physicalSdkScenario({ frames: agentFrames("claude-opus-5") });
   const model = "claude-opus-5";
   await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn });
@@ -430,7 +430,8 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   expect(edge.args[0]).toContain("--thinking=adaptive");
   expect(edge.args[0]).toContain("--effort=high");
   expect(edge.environments[0]?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
-  expect(warnedCodes(warning.mock.calls)).toContain(WARNING_CODE.samplingKnobDropped);
+  // The model takes no sampler, so the temperature is removed before the turn (D68) and nothing names it.
+  expect(warnedCodes(warning.mock.calls)).not.toContain(WARNING_CODE.samplingKnobDropped);
 });
 
 test("(7) agent-sdk structured still refuses a turn that produced no structured_output frame", async () => {

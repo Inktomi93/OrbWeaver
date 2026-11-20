@@ -55,11 +55,12 @@ import { EditorPage, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#co
 import { useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import {
+  budgetRangeFor,
+  effortLevelsFor,
   pageStep,
   QUALITY_SELECT_ITEMS,
   qualityFromSelect,
   qualitySelectValue,
-  reasoningControlFor,
   samplerStagesFor,
   samplingKnobsFor,
 } from "../lib/capability-panel-model.ts";
@@ -276,12 +277,11 @@ function ReasoningCluster({
   readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement | null {
-  const control = reasoningControlFor(capability);
   const switchable = statesKnob(capability, "reasoning");
-  const effort = control.kind === "effort" && statesKnob(capability, "effort") ? control.effortLevels : undefined;
+  const effort = effortLevelsFor(capability);
   const display = statesKnob(capability, "thinkingDisplay") ? (capability.reasoning.displayModes ?? []) : [];
   const seedable = statesKnob(capability, "reasoningSeed");
-  const budget = control.kind === "budget" ? control.budgetRange : undefined;
+  const budget = budgetRangeFor(capability);
   if (!switchable && effort === undefined && display.length === 0 && !seedable && budget === undefined) {
     return null;
   }

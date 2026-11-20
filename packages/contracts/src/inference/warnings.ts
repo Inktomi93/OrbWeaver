@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { ADJUSTED_KNOBS } from "../chat/adjusted-knobs.ts";
-import type { GenerationCapability } from "./capability/generation.ts";
 import { effortLevelSchema } from "./capability/generation.ts";
-import type { CapabilityKnob } from "./capability/reads.ts";
-import { statesKnob } from "./capability/reads.ts";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
  *  NAMED client home (§5.3a): the ambient capability panel, the aggregated per-turn notice, the Extras row,
@@ -131,51 +128,3 @@ export const emittedWarningSchema = z.discriminatedUnion("code", [
   z.strictObject({ code: z.enum(DETAIL_CODES.appliedBudget), message, appliedBudget }),
   z.strictObject({ code: z.enum(DETAIL_CODES.appliedEffort), message, appliedEffort }),
 ]) satisfies z.ZodType<ResolvedWarning>;
-
-/** The control a drop warning says was not used: the named knob, or the one its class always names. `undefined` for
- *  a warning that is not a drop of a preset control (a conflict, a clamp, a downgrade). */
-function droppedControlOf(warning: ResolvedWarning): CapabilityKnob | undefined {
-  switch (warning.code) {
-    case WARNING_CODE.samplingKnobDropped:
-    case WARNING_CODE.sdkUnsupportedSetting:
-      return warning.knob;
-    case WARNING_CODE.effortDropped:
-      return "effort";
-    case WARNING_CODE.adaptiveBudgetDropped:
-      return "thinkingBudgetTokens";
-    case WARNING_CODE.displayDropped:
-      return "thinkingDisplay";
-    case WARNING_CODE.verbosityDropped:
-      return "verbosity";
-    case WARNING_CODE.prefillReasoningDropped:
-      return "reasoningSeed";
-    // Not a drop of a preset control: a conflict, a clamp, a downgrade or a dropped piece of the turn.
-    case WARNING_CODE.backgroundTaskDegraded:
-    case WARNING_CODE.cacheControlAdjusted:
-    case WARNING_CODE.carryReasoningDowngraded:
-    case WARNING_CODE.customParametersIgnored:
-    case WARNING_CODE.declaredOverridesMeasured:
-    case WARNING_CODE.dynamicContextDemoted:
-    case WARNING_CODE.imageCountDropped:
-    case WARNING_CODE.imageEditDropped:
-    case WARNING_CODE.imageSizeDropped:
-    case WARNING_CODE.prefillSuppressedByTools:
-    case WARNING_CODE.reasoningBudgetClamped:
-    case WARNING_CODE.reasoningDroppedForPrefill:
-    case WARNING_CODE.reasoningMandatoryClamp:
-    case WARNING_CODE.samplingKnobConflict:
-    case WARNING_CODE.sdkCompatibility:
-    case WARNING_CODE.sdkUnsupportedTool:
-    case WARNING_CODE.toolChoiceDowngraded:
-    case WARNING_CODE.toolResultErrorDropped:
-      return undefined;
-  }
-}
-
-/** Does a turn tell the user about this warning? A drop of a control the descriptor does not state is kept quiet:
- *  the editor hides that control ({@link statesKnob}), so the notice would name a setting the user cannot see. The
- *  stored value stays and is not sent. Every other warning is announced. */
-export function announcesWarning(capability: GenerationCapability, warning: ResolvedWarning): boolean {
-  const dropped = droppedControlOf(warning);
-  return dropped === undefined || statesKnob(capability, dropped);
-}

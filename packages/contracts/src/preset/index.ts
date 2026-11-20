@@ -24,13 +24,14 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
-import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
+import type { CapabilityKnob, GenerationCapability, EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
 import {
   capabilityTargetSchema,
   EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
   REASONING_DISPLAY_MODES,
   SAMPLER_KNOBS,
   samplerOrderSchema,
+  statesKnob,
   userRoleHandlingSchema,
   VERBOSITY_LEVELS,
 } from "#inference";
@@ -585,6 +586,103 @@ export const userIntentSchema = z.strictObject({
     .optional(),
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
+
+// A generation runs only on the controls its model takes (D68). The editor hides every other control and the
+// preset keeps its value, so `statedIntent` removes the value where a generation forms its params, and no reader
+// downstream ever sees it: no body field, no clamp, no warning, no recorded param.
+
+type Advanced = NonNullable<UserIntent["advanced"]>;
+
+// `ours`: a setting of this app, not of the model (caps, compaction, replay, message handling), so it always passes.
+type IntentControl = CapabilityKnob | "ours";
+
+// The Reasoning switch stores its off as `effort: "none"`; every other effort value is the level select.
+const EFFORT_OFF = "none";
+
+const INTENT_CONTROL: { readonly [K in Exclude<keyof UserIntent, "effort" | "advanced">]-?: IntentControl } = {
+  quality: "quality",
+  thinkingBudgetTokens: "thinkingBudgetTokens",
+  thinkingDisplay: "thinkingDisplay",
+  carryReasoning: "carryReasoning",
+  reasoningSeed: "reasoningSeed",
+  maxOutputTokens: "ours",
+  maxContextTokens: "ours",
+  providerContextCompression: "providerContextCompression",
+  responseCache: "ours",
+  temperature: "temperature",
+  topP: "topP",
+  topK: "topK",
+  minP: "minP",
+  topA: "topA",
+  frequencyPenalty: "frequencyPenalty",
+  presencePenalty: "presencePenalty",
+  repetitionPenalty: "repetitionPenalty",
+  repetitionPenaltyRange: "repetitionPenaltyRange",
+  typicalP: "typicalP",
+  topNSigma: "topNSigma",
+  xtcProbability: "xtcProbability",
+  xtcThreshold: "xtcThreshold",
+  dryMultiplier: "dryMultiplier",
+  dryBase: "dryBase",
+  dryAllowedLength: "dryAllowedLength",
+  dryPenaltyLastN: "dryPenaltyLastN",
+  drySequenceBreakers: "drySequenceBreakers",
+  mirostatMode: "mirostatMode",
+  mirostatTau: "mirostatTau",
+  mirostatEta: "mirostatEta",
+  dynatempRange: "dynatempRange",
+  dynatempExponent: "dynatempExponent",
+  smoothingFactor: "smoothingFactor",
+  smoothingCurve: "smoothingCurve",
+  adaptiveTarget: "adaptiveTarget",
+  adaptiveDecay: "adaptiveDecay",
+  minKeep: "minKeep",
+  bannedStrings: "bannedStrings",
+  banEos: "banEos",
+  samplerOrder: "samplerOrder",
+  seed: "seed",
+  logitBias: "logitBias",
+  stop: "stop",
+  verbosity: "verbosity",
+  replyMedia: "replyMedia",
+  compaction: "ours",
+};
+
+const ADVANCED_CONTROL: { readonly [K in keyof Advanced]-?: IntentControl } = {
+  claudeEnv: "ours",
+  squashSystemMessages: "ours",
+  roleHandling: "ours",
+  parallelToolCalls: "parallelToolCalls",
+};
+
+function applies(capability: GenerationCapability, control: IntentControl): boolean {
+  return control === "ours" || statesKnob(capability, control);
+}
+
+function statedFields<T extends object>(source: T, controls: { readonly [K in keyof T]-?: IntentControl }, capability: GenerationCapability): Partial<T> {
+  const kept: Partial<T> = {};
+  // `Object.keys` is typed `string[]`; the keys of `source` are exactly `keyof T` (the `stripUndefined` posture).
+  for (const key of Object.keys(source) as (keyof T)[]) {
+    if (applies(capability, controls[key])) {
+      kept[key] = source[key];
+    }
+  }
+  return kept;
+}
+
+/** The params a generation on `capability` runs with: `intent` minus every value whose control the model does not
+ *  take. The stored preset is untouched, so a model that takes the control uses the value again. */
+export function statedIntent(intent: UserIntent, capability: GenerationCapability): UserIntent {
+  const { effort, advanced, ...rest } = intent;
+  const stated: UserIntent = statedFields(rest, INTENT_CONTROL, capability);
+  const effortControl: CapabilityKnob = effort === EFFORT_OFF ? "reasoning" : "effort";
+  const statedAdvanced = advanced === undefined ? undefined : statedFields(advanced, ADVANCED_CONTROL, capability);
+  return {
+    ...stated,
+    ...(effort !== undefined && statesKnob(capability, effortControl) ? { effort } : {}),
+    ...(statedAdvanced === undefined || Object.keys(statedAdvanced).length === 0 ? {} : { advanced: statedAdvanced }),
+  };
+}
 
 // What a non-chat model role takes from its preset (D304): generation params plus its inline reasoning tag pair,
 // which splits a prose reply; never other prompt structure.

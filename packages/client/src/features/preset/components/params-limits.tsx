@@ -202,7 +202,7 @@ function OutputCluster({
 
 /** OUTPUT's label/control rows: verbosity, reply pictures and the EOS ban, each where the model takes it. */
 function OutputRows({ form, capability }: { readonly form: AppForm; readonly capability: GenerationCapability }): ReactElement | null {
-  const verbosityLevels = statesKnob(capability, "verbosity") ? verbosityLevelsFor(capability) : undefined;
+  const verbosityLevels = verbosityLevelsFor(capability);
   const pictures = statesKnob(capability, "replyMedia");
   const banEos = statesKnob(capability, "banEos");
   if (verbosityLevels === undefined && !pictures && !banEos) {

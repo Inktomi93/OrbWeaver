@@ -2,6 +2,7 @@
 // The Params deck renders a control only on a Chat model whose descriptor takes it (D68): the same stored preset
 // shows Top-K and Reply pictures on a server that takes them, and neither on gpt-4o. A stored value the model does
 // not take is kept through an edit of another knob, and shows again once the chat moves back to a model that takes it.
+// An adaptive-reasoning model takes an effort level, so its Effort select renders; gpt-4o reasons not at all.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
@@ -117,4 +118,31 @@ test("a stored knob the model does not take survives an edit of another knob and
   expect(await bindChat(caller, connections.takes)).toEqual({ topK: true, pictures: true });
   await openParams(page, mount, preset.id);
   await expect(page.getByRole("textbox", { name: "Top-K value", exact: true })).toHaveValue(String(STORED_TOP_K));
+});
+
+test("an adaptive-reasoning model offers its effort levels and a model that does not reason offers none", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false, secretBoxKey: Buffer.alloc(32, 17) });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const connections = await seedConnections(caller);
+  const credential = await caller.credentials.add({ provider: "anthropic", key: "synthetic-adaptive-key" });
+  const adaptive = await caller.connection.create({
+    providerId: "anthropic",
+    credentialId: credential.id,
+    baseUrl: null,
+    model: "claude-opus-5",
+    label: "Opus",
+  });
+  const preset = await caller.preset.create({ name: "Effort", kind: "generation" });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+
+  await caller.connection.setBinding({ task: "chat", connectionId: adaptive.id });
+  const view = await caller.connection.resolveChatCapability();
+  expect(view.capability.kind === "generation" ? view.capability.generation.reasoning.mode : null).toBe("adaptive");
+  await openParams(page, mount, preset.id);
+  await expect(page.getByRole("combobox", { name: "Effort", exact: true })).toBeVisible();
+
+  await bindChat(caller, connections.lacks);
+  await openParams(page, mount, preset.id);
+  await expect(page.getByRole("textbox", { name: "Temperature value", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Effort", exact: true })).toHaveCount(0);
 });
