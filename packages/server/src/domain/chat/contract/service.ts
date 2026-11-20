@@ -204,8 +204,8 @@ export interface ChatService {
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantData[]>;
-  /** The policy content stamped with one character id renders at: the room's narrator policy for the room host's
-   *  synthetic group character, else that character's seat. Member-gated; `undefined` when neither applies. */
+  /** The policy content stamped with one character id renders at: that character's present seat, else the room's
+   *  narrator policy when the room's canon proves the id a narrator author. Member-gated; `undefined` otherwise. */
   readonly resolveAuthorRenderPolicy: (params: ResolveAuthorRenderPolicyParams) => Promise<RenderPolicy | undefined>;
   /** The turn in flight, from generation start through `throughSeq`, for a device attaching with no cursor. */
   readonly replayLiveTurn: (params: ReplayLiveTurnParams) => Promise<ChatBusReplayEvent[]>;

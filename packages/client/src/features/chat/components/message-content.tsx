@@ -13,10 +13,12 @@ import { scanStyledHold, stripStyleElements } from "@orb/kit/content";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
+import { holdsExternalMedia, holdsScript } from "@orb/ui/sandbox-frame";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
-import { FormingChip, HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "#components";
+import type { ReportedFrame } from "#components";
+import { CharacterTrustNotice, FormingChip, HeldCardsNotice, PlainReplyNotice, RowTrustScope, useRowFrames } from "#components";
 import type { RowRenderPolicy } from "#lib";
 import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
 import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
@@ -202,16 +204,27 @@ function FramedReply({
   );
 }
 
-// A tierA row draws rich content plain when a display script styled it, when its prose holds a panel its author wrote,
-// or when it carries a card: the notice says once, under the row, which setting holds it there. A row still waiting on
-// its scripts shows none until its answer lands.
-function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, styled: boolean, pending: boolean): ReactElement | null {
-  if (render.plain === undefined || pending) {
+// The row's one character-trust notice. A tierA row draws rich content plain when a display script styled it, when its
+// prose holds a panel its author wrote, or when it carries a card, and the notice lists what else its content holds
+// back; a framed row's frames report their grants (`RowTrustScope`). A row still waiting on its scripts shows none until
+// its answer lands.
+function rowTrustNotice(
+  texts: readonly string[],
+  render: RowRenderPolicy,
+  drawn: Pick<DrawnMessage, "styled" | "modelPanel" | "pending">,
+  frames: readonly ReportedFrame[],
+): ReactElement | null {
+  if (drawn.pending) {
     return null;
   }
+  const styled = drawn.styled || drawn.modelPanel;
   const holdsCard = (): boolean =>
     texts.some((text) => toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards }).some((block) => block.kind === "html-card"));
-  return styled || holdsCard() ? <PlainContentNotice key="plain-notice" subject={render.plain} /> : null;
+  const plain =
+    render.plain !== undefined && (styled || holdsCard())
+      ? { subject: render.plain, needs: { scripts: texts.some(holdsScript), media: texts.some((text) => holdsExternalMedia(text, undefined)) } }
+      : undefined;
+  return plain === undefined && frames.length === 0 ? null : <CharacterTrustNotice key="trust-notice" plain={plain} frames={frames} />;
 }
 
 // A game room with its card wrap off says once, under the row, that card markup in it is not drawn as a card. A row
@@ -223,11 +236,16 @@ function rowHeldCardsNotice(texts: readonly string[], render: RowRenderPolicy, p
   return <HeldCardsNotice key="held-cards-notice" viewerIsHost={render.heldCards.viewerIsHost} />;
 }
 
-// What a row says under its body about content it draws plain: the trust notice, for a game room whose card wrap is off
+// What a row says under its body about content it holds back: the trust notice, for a game room whose card wrap is off
 // the held-cards notice, and for a styled reply too heavy to frame, why it is plain whole. Null when it says nothing.
-function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayout | undefined, render: RowRenderPolicy): ReactElement | null {
+function rowNotices(
+  drawn: Omit<DrawnMessage, "observeBody">,
+  layout: ReplyLayout | undefined,
+  render: RowRenderPolicy,
+  frames: readonly ReportedFrame[],
+): ReactElement | null {
   const texts = drawn.spans.map((span) => (drawn.styled ? stripStyleElements(span.text) : span.text));
-  const trust = rowPlainNotice(texts, render, drawn.styled || drawn.modelPanel, drawn.pending);
+  const trust = rowTrustNotice(texts, render, drawn, frames);
   const held = rowHeldCardsNotice(texts, render, drawn.pending);
   const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
   return trust === null && held === null && heavy === null ? null : (
@@ -239,7 +257,8 @@ function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayou
   );
 }
 
-/** The row's notices about content it draws plain, said once under the row however many bubbles draw it. */
+/** The row's notices about content it holds back, said once under the row however many bubbles draw it. Mounted
+ *  inside the row's {@link RowTrustScope}, so it reads every frame's report. */
 export function RowNotices({
   drawn,
   layout,
@@ -249,17 +268,47 @@ export function RowNotices({
   readonly layout: ReplyLayout | undefined;
   readonly render: RowRenderPolicy;
 }): ReactElement | null {
-  return rowNotices(drawn, layout, render);
+  return rowNotices(drawn, layout, render, useRowFrames());
 }
 
-function withNotice(body: ReactElement, notice: ReactElement | null): ReactElement {
-  return notice === null ? (
-    body
-  ) : (
+// A body and, under it, the row's notices. Mounted inside the row's scope, so the frames the body draws report to the
+// notice. The body keeps one place in the tree whether a notice shows or not: a frame's report can raise the notice, and
+// moving the body then would remount the frame, withdraw its report and drop the notice again, without end.
+function BodyWithNotices({
+  body,
+  drawn,
+  layout,
+  render,
+}: {
+  readonly body: ReactElement;
+  readonly drawn: Omit<DrawnMessage, "observeBody">;
+  readonly layout: ReplyLayout | undefined;
+  readonly render: RowRenderPolicy;
+}): ReactElement {
+  return (
     <Stack gap="row">
       {body}
-      {notice}
+      {rowNotices(drawn, layout, render, useRowFrames())}
     </Stack>
+  );
+}
+
+interface NoticedBody {
+  readonly body: ReactElement;
+  /** False for a bubble of a train, which says the row's notices once itself. */
+  readonly notices: boolean;
+  readonly drawn: Omit<DrawnMessage, "observeBody">;
+  readonly layout: ReplyLayout | undefined;
+  readonly render: RowRenderPolicy;
+}
+
+function withNotices({ body, notices, drawn, layout, render }: NoticedBody): ReactElement {
+  return notices ? (
+    <RowTrustScope>
+      <BodyWithNotices body={body} drawn={drawn} layout={layout} render={render} />
+    </RowTrustScope>
+  ) : (
+    body
   );
 }
 
@@ -289,10 +338,15 @@ export function MessageBody({
     const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
     const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
     // A framed row says the same row notices an unframed one does: the held-cards notice is the one a sandboxed row can owe.
-    return withNotice(
-      <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />,
-      notices ? rowNotices(drawn, layout, render) : null,
-    );
+    return withNotices({
+      body: (
+        <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />
+      ),
+      notices,
+      drawn,
+      layout,
+      render,
+    });
   }
   const { spans, styled, pending, observeBody } = drawn;
   const inert = renderInert({ spans, styled, pending, render, speakerThemes, cardOrigin, observeBody });
@@ -308,7 +362,7 @@ export function MessageBody({
   // A body still waiting on its scripts is laid out unseen, so it holds a settled row's hand-over (`row-handover.tsx`).
   return (
     <>
-      {withNotice(body, notices ? rowNotices(drawn, layout, render) : null)}
+      {withNotices({ body, notices, drawn, layout, render })}
       {pending ? <HoldsRowDraw /> : null}
     </>
   );

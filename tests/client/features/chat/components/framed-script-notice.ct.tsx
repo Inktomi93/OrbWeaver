@@ -1,11 +1,13 @@
-// A framed card or styled reply whose controls need scripts the frame's posture does not run says why, naming the
-// install's "Default for characters" step an inheriting character takes, the character's own step or the viewer's own
-// script setting, with a control only for a viewer who may change it: the real transcript (`MessageListSurface`) over a
-// corpus room, its reads, `/api/auth/config` and the card-frame mint and serve answered by the corpus root, so the
-// frame's posture is the server's own. A static card shows none, and a card whose scripts run shows none while its
-// script visibly runs, a character's own Interactive step under a lower default included.
+// A row's one character-trust notice: a framed card or styled reply whose controls need scripts the frame's posture does
+// not run says why, naming the install's "Default for characters" step an inheriting character takes, the character's
+// own step or the viewer's own script setting, with a control only for a viewer who may change it. Every combination of
+// held scripts, held internet media and a plain row says so in ONE notice that lists each held kind, with one control.
+// The real transcript (`MessageListSurface`) over a corpus room, its reads, `/api/auth/config` and the card-frame mint
+// and serve answered by the corpus root, so the frame's posture and grant are the server's own. A static card shows none,
+// and a card whose scripts run shows none while its script visibly runs, a character's own Interactive step under a
+// lower default included.
 
-import type { FramedScriptReason, PlainRemedy } from "@orb/client/lib";
+import type { HeldKind, PlainRemedy, TrustCause } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID, DEFAULT_HTML_STEP_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
 import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
@@ -78,16 +80,30 @@ async function scriptRoom(host: Caller, viewer: Caller, body: string): Promise<S
 const INHERIT_DEFAULT = "inherit";
 type FramedStep = Exclude<HtmlTrustStep, "untrusted">;
 
+/** The two media consents: the install's ceiling and the character's own tighten-only block. */
+interface MediaConsents {
+  readonly installForbids: boolean;
+  readonly characterForbids: boolean;
+}
+
 /** The consents the frame's script posture reads: the install's default, the character's step and the viewer's own. */
 async function setConsents(
   owner: Caller,
   viewer: Caller,
   room: ScriptRoom,
-  consents: { readonly defaultStep: FramedStep; readonly character: typeof INHERIT_DEFAULT | FramedStep; readonly viewerRuns: boolean },
+  consents: {
+    readonly defaultStep: FramedStep;
+    readonly character: typeof INHERIT_DEFAULT | HtmlTrustStep;
+    readonly viewerRuns: boolean;
+    readonly media?: MediaConsents | undefined;
+  },
 ): Promise<void> {
-  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: consents.defaultStep } });
+  await owner.settings.updateAppSettings({
+    partial: { defaultHtmlStep: consents.defaultStep, ...(consents.media === undefined ? {} : { forbidExternalMedia: consents.media.installForbids }) },
+  });
   const input = consents.character === INHERIT_DEFAULT ? { trustHtml: null, interactiveHtml: null } : renderPolicyOverrideForStep(consents.character);
-  await owner.character.update({ characterId: room.characterId, input });
+  const media = consents.media === undefined ? {} : { forbidExternalMedia: consents.media.characterForbids ? true : null };
+  await owner.character.update({ characterId: room.characterId, input: { ...input, ...media } });
   await viewer.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: consents.viewerRuns } });
 }
 
@@ -100,10 +116,11 @@ async function serveRoom(page: Page, root: Root, viewer: Caller, viewerId: UserI
   await routeCardFrames(page, root, cookie);
 }
 
-async function expectVerdict(page: Page, reason: FramedScriptReason, remedy: PlainRemedy): Promise<Locator> {
+async function expectVerdict(page: Page, reason: TrustCause | readonly TrustCause[], remedy: PlainRemedy, held: readonly HeldKind[]): Promise<Locator> {
   const notice = page.locator(NOTICE);
   await expect(notice).toHaveCount(1);
-  await expect(notice).toHaveAttribute("data-reason", reason);
+  await expect(notice).toHaveAttribute("data-reason", typeof reason === "string" ? reason : reason.join(" "));
+  await expect(notice).toHaveAttribute("data-held", held.join(" "));
   await expect(notice).toHaveAttribute("data-remedy", remedy);
   await expect(notice.locator("p")).toBeVisible();
   return notice;
@@ -130,7 +147,7 @@ test("a scripted card of an inheriting character held by the install's default n
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   // The frame drew the card and ran none of its script.
   await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
-  const notice = await expectVerdict(page, "install-scripts", "system-trust");
+  const notice = await expectVerdict(page, "install-scripts", "system-trust", ["scripts"]);
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
   await expect(readout).toHaveAttribute("data-section", "config");
@@ -158,7 +175,7 @@ test("a scripted card of a character below Interactive names her, and the host's
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
-  const notice = await expectVerdict(page, "character-scripts", "character-trust");
+  const notice = await expectVerdict(page, "character-scripts", "character-trust", ["scripts"]);
   await expect(notice).toContainText((await owner.character.get({ characterId: room.characterId })).name);
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
@@ -180,7 +197,7 @@ test("a styled reply whose panel carries script, viewed with the viewer's own sc
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(REPLY_FRAME).getByText(STATIC_TEXT)).toBeVisible();
-  const notice = await expectVerdict(page, "viewer-scripts", "own-scripts");
+  const notice = await expectVerdict(page, "viewer-scripts", "own-scripts", ["scripts"]);
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
   await expect(readout).toHaveAttribute("data-section", "config");
@@ -197,7 +214,7 @@ test("a member who cannot change the character's step is told who can, with no c
   await serveRoom(page, root, member, memberId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
-  await expectVerdict(page, "character-scripts", "ask-host");
+  await expectVerdict(page, "character-scripts", "ask-host", ["scripts"]);
   await expect(page.locator(NOTICE_ACTION)).toHaveCount(0);
   await page.unrouteAll({ behavior: "wait" });
 });
@@ -232,3 +249,154 @@ async function latestReplyId(host: Caller, room: ScriptRoom): Promise<Awaited<Re
   }
   return reply.id;
 }
+
+// A card that asks for both scripts and an internet image, so each consent can hold either kind back.
+const MEDIA_URL = "https://media.example.test/tide.png";
+const SCRIPTED_MEDIA_CARD = `:::card title="Tide clock"\n<p id="clock">${STATIC_TEXT}</p><img src="${MEDIA_URL}" alt="The tide">\n<script>document.getElementById("clock").textContent = "${RAN_TEXT}";</script>\n:::`;
+const MEDIA_CARD = `:::card title="Tide clock"\n<p>${STATIC_TEXT}</p><img src="${MEDIA_URL}" alt="The tide">\n:::`;
+const PLAIN_CARD = `:::card title="Tide clock"\n<p>${STATIC_TEXT}</p>\n:::`;
+const TWO_SCRIPTED_CARDS = `${SCRIPTED_CARD}\n\nBetween the clocks.\n\n${SCRIPTED_CARD}`;
+const MEDIA_OPEN: MediaConsents = { installForbids: false, characterForbids: false };
+const CHARACTER_BLOCKS_MEDIA: MediaConsents = { installForbids: false, characterForbids: true };
+const INSTALL_BLOCKS_MEDIA: MediaConsents = { installForbids: true, characterForbids: false };
+
+/** Every combination of held kinds one row can owe, each the one notice the host reads and the control it opens. A plain
+ *  row is the character at Plain text; its card's script and image are held by the same consents a frame's are. */
+const COMBINATIONS = [
+  {
+    name: "a framed card whose scripts alone are held",
+    body: SCRIPTED_MEDIA_CARD,
+    character: "trusted",
+    media: MEDIA_OPEN,
+    reason: ["character-scripts"],
+    held: ["scripts"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a framed card whose internet media alone is held",
+    body: MEDIA_CARD,
+    character: "interactive",
+    media: CHARACTER_BLOCKS_MEDIA,
+    reason: ["character-media"],
+    held: ["media"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a framed card whose scripts and media are both held by the character",
+    body: SCRIPTED_MEDIA_CARD,
+    character: "trusted",
+    media: CHARACTER_BLOCKS_MEDIA,
+    reason: ["character-scripts", "character-media"],
+    held: ["scripts", "media"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a plain row alone",
+    body: PLAIN_CARD,
+    character: "untrusted",
+    media: MEDIA_OPEN,
+    reason: ["character"],
+    held: ["styling"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a plain row whose card holds script",
+    body: SCRIPTED_CARD,
+    character: "untrusted",
+    media: MEDIA_OPEN,
+    reason: ["character"],
+    held: ["styling", "scripts"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a plain row whose card's media the character blocks",
+    body: MEDIA_CARD,
+    character: "untrusted",
+    media: CHARACTER_BLOCKS_MEDIA,
+    reason: ["character", "character-media"],
+    held: ["styling", "media"],
+    remedy: "character-trust",
+  },
+  {
+    name: "a plain row whose card holds script and media the install blocks",
+    body: SCRIPTED_MEDIA_CARD,
+    character: "untrusted",
+    media: INSTALL_BLOCKS_MEDIA,
+    reason: ["character", "install-media"],
+    held: ["styling", "scripts", "media"],
+    remedy: "character-trust",
+  },
+] as const satisfies readonly {
+  readonly name: string;
+  readonly body: string;
+  readonly character: HtmlTrustStep;
+  readonly media: MediaConsents;
+  readonly reason: readonly TrustCause[];
+  readonly held: readonly HeldKind[];
+  readonly remedy: PlainRemedy;
+}[];
+
+for (const combination of COMBINATIONS) {
+  test(`${combination.name} says it in one notice with one control to her Trust tab`, async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const owner = await root.internalCallerFor(root.ownerId);
+    const room = await scriptRoom(owner, owner, combination.body);
+    await setConsents(owner, owner, room, { defaultStep: "interactive", character: combination.character, viewerRuns: true, media: combination.media });
+    await serveRoom(page, root, owner, root.ownerId);
+    await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+    // The row drew its text, framed or plain, so the notice explains a row that is on screen.
+    const drawn = combination.character === "untrusted" ? page.getByText(STATIC_TEXT) : page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT);
+    await expect(drawn).toBeVisible();
+    const notice = await expectVerdict(page, combination.reason, combination.remedy, combination.held);
+    await expect(notice.locator(NOTICE_ACTION)).toHaveCount(1);
+    await notice.locator(NOTICE_ACTION).click();
+    const readout = page.locator(READOUT);
+    await expect(readout).toHaveAttribute("data-character", room.characterId);
+    await expect(readout).toHaveAttribute("data-context-tab", CHARACTER_TRUST_TAB_ID);
+    await page.unrouteAll({ behavior: "wait" });
+  });
+}
+
+test("held scripts and held media with two different holders share one notice, whose one control is the first the admin can change", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const room = await scriptRoom(owner, owner, SCRIPTED_MEDIA_CARD);
+  await setConsents(owner, owner, room, { defaultStep: "interactive", character: "interactive", viewerRuns: false, media: INSTALL_BLOCKS_MEDIA });
+  await serveRoom(page, root, owner, root.ownerId);
+  await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+  await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
+  const notice = await expectVerdict(page, ["viewer-scripts", "install-media"], "own-scripts", ["scripts", "media"]);
+  await expect(notice.locator(NOTICE_ACTION)).toHaveCount(1);
+  await notice.locator(NOTICE_ACTION).click();
+  await expect(page.locator(READOUT)).toHaveAttribute("data-section", "config");
+  await page.unrouteAll({ behavior: "wait" });
+});
+
+test("a row with two framed cards that hold the same kind says it once", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const room = await scriptRoom(owner, owner, TWO_SCRIPTED_CARDS);
+  await setConsents(owner, owner, room, { defaultStep: "interactive", character: "trusted", viewerRuns: true });
+  await serveRoom(page, root, owner, root.ownerId);
+  await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+  // Both cards drew, so both frames reported before the one notice is read.
+  await expect(page.frameLocator(`${CARD_FRAME} >> nth=1`).getByText(STATIC_TEXT)).toBeVisible();
+  await expectVerdict(page, "character-scripts", "character-trust", ["scripts"]);
+  await page.unrouteAll({ behavior: "wait" });
+});
+
+test("a member reads every held kind with who can change each, and gets no control", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { owner, member, memberId } = await sharedRoomPeople(root, corpus);
+  const room = await scriptRoom(owner, member, SCRIPTED_MEDIA_CARD);
+  await setConsents(owner, member, room, { defaultStep: "interactive", character: "trusted", viewerRuns: true, media: INSTALL_BLOCKS_MEDIA });
+  await serveRoom(page, root, member, memberId);
+  await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+  await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
+  await expectVerdict(page, ["character-scripts", "install-media"], "ask-host", ["scripts", "media"]);
+  await expect(page.locator(NOTICE_ACTION)).toHaveCount(0);
+  await page.unrouteAll({ behavior: "wait" });
+});

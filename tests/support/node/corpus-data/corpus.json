@@ -4299,7 +4299,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000013t"
+          "characterIds": ["character_0000000000000000000000013t", "character_000000000000000000000005pr"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6066,7 +6066,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_000000000000000000000006ny"
+          "characterIds": ["character_000000000000000000000006ny"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6203,7 +6203,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000013t"
+          "characterIds": ["character_0000000000000000000000013t", "character_000000000000000000000005pr"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6313,7 +6313,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_000000000000000000000005f2"
+          "characterIds": ["character_000000000000000000000005f2"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6441,7 +6441,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000002f"
+          "characterIds": ["character_0000000000000000000000002f"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6578,7 +6578,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_000000000000000000000004fq"
+          "characterIds": ["character_000000000000000000000004fq", "character_000000000000000000000004fx"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6711,7 +6711,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_00000000000000000000000453"
+          "characterIds": ["character_00000000000000000000000453"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6843,7 +6843,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000041b"
+          "characterIds": ["character_0000000000000000000000041b"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -6952,7 +6952,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_000000000000000000000003vd"
+          "characterIds": ["character_000000000000000000000003vd"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -7073,6 +7073,7 @@
             "surfaceTexture": "none",
             "reducedMotion": "system",
             "increasedContrast": "system",
+            "followSystemTransparency": true,
             "backgroundImageKind": "none",
             "backgroundAssetId": "",
             "backgroundAssetHash": "",
@@ -7743,7 +7744,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000016t"
+          "characterIds": ["character_0000000000000000000000016t"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -7852,7 +7853,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000016t"
+          "characterIds": ["character_0000000000000000000000016t"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -7961,7 +7962,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000028d"
+          "characterIds": ["character_0000000000000000000000028d"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -8093,7 +8094,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_000000000000000000000004fq"
+          "characterIds": ["character_000000000000000000000004fq", "character_000000000000000000000004fx"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -8222,7 +8223,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000002f"
+          "characterIds": ["character_0000000000000000000000002f"]
         },
         "viewerActivePersonaId": "persona_00000000000000000000000140",
         "viewerIsHost": true,
@@ -9979,6 +9980,7 @@
             "surfaceTexture": "none",
             "reducedMotion": "system",
             "increasedContrast": "system",
+            "followSystemTransparency": true,
             "backgroundImageKind": "none",
             "backgroundAssetId": "",
             "backgroundAssetHash": "",
@@ -11667,7 +11669,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000002f"
+          "characterIds": ["character_0000000000000000000000002f"]
         },
         "viewerActivePersonaId": null,
         "viewerIsHost": true,
@@ -11900,7 +11902,7 @@
         "narratorRender": {
           "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
           "renderSource": "inherited",
-          "characterId": "character_0000000000000000000000006t"
+          "characterIds": ["character_0000000000000000000000006t", "character_0000000000000000000000009g", "character_0000000000000000000000005w"]
         },
         "viewerActivePersonaId": null,
         "viewerIsHost": true,

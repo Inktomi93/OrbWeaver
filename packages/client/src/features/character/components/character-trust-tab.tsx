@@ -1,8 +1,10 @@
-// The CONTEXT **Trust** tab — how this card's messages are allowed to RENDER: the block-external-media switch and
-// the HTML-trust ladder, both immediate-commit on `character.update` (no save bar, no dirty pill). `trustHtml`
-// resolves `override ?? global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling
-// (`resolveRenderPolicy` in @orb/contracts/chat), so a stored `false` resolves exactly like no override: the control
-// is one switch whose off writes the clear, and while the deployment blocks external media it renders locked.
+// The CONTEXT **Trust** tab — how this card's messages are allowed to RENDER, as ONE Character trust block (owner
+// ruling: everything that decides whether a character's content loads, internet media included, is character trust):
+// the HTML-trust ladder and the load-internet-media switch, both immediate-commit on `character.update` (no save bar, no
+// dirty pill). The stored axes stay two, what content may do and what it may fetch. `forbidExternalMedia` is
+// TIGHTEN-ONLY over the deployment ceiling (`resolveRenderPolicy` in @orb/contracts/chat), so a stored `false`
+// resolves exactly like no override: the switch's on writes the clear, and while the deployment blocks internet media
+// the switch cannot apply, so it is not shown and a line says why.
 //
 // IT IS ITS OWN DOOR SINCE #841/#860 (owner 2026-08-30). It used to be the third of four concerns inside a
 // tab called "Options" — a three-paragraph security essay under a twelve-field colour editor, in a pane
@@ -17,8 +19,8 @@
 // is unwritable here and unrepresentable in the resolved policy. The top step runs card-authored scripts, and
 // "Inherit default" lands on the install's "Default for characters" step, which is Interactive by default (owner
 // ruling). Every explicit step wins over that default, Interactive included (D294), so this surface says which step
-// the character resolves to and names the lower steps as the per-character disable. Only the external-media row locks,
-// because there the install's setting is a ceiling.
+// the character resolves to and names the lower steps as the per-character disable. Only the media switch can be
+// overruled, because there the install's setting is a ceiling.
 
 import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -29,10 +31,10 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { HTML_TRUST_STEP_LABELS } from "#lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
-import { CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL, CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
+import { CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 
 /** The HTML-trust LADDER as one control (#111). `inherit` is the absence of an override, not a rung, and it
@@ -79,8 +81,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
   const update = useUpdateCharacter({ trpc, invalidation });
   // The deployment ceiling (`/api/auth/config.forbidExternalMedia`) — the value the document CSP was built
-  // from. While it is on, this character is blocked whatever it stores, so the switch is inert: render it
-  // locked on + explained rather than as a dead switch (D107).
+  // from. While it is on, this character is blocked whatever it stores, so the switch cannot apply and is not shown.
   const externalMediaBlocked = useExternalMediaBlocked();
   // What the stored pair actually RESOLVES to on this deployment — the same resolver compose runs. The
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
@@ -93,22 +94,10 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
 
   return (
     <Stack gap="section">
-      {/* The external-media switch can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling —
-          enforced twice, by the tighten-only render-policy resolver (@orb/contracts/chat) and by the page's
-          Content-Security-Policy — and no per-character value can widen it. So the switch has two honest
-          states, block or follow the install; off writes the clear, never a stored `false`. While the
-          deployment blocks, the switch is locked on and says why. */}
-      <Section heading="Trust">
-        <SettingSwitchRow
-          label={CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL}
-          checked={externalMediaBlocked || data.forbidExternalMedia === true}
-          onChange={(next): void => commit({ forbidExternalMedia: next ? true : null })}
-          disabled={externalMediaBlocked}
-          {...(externalMediaBlocked ? { disabledReason: "Blocked for everyone by your admin." } : {})}
-        />
+      <Section heading={CHARACTER_TRUST_BLOCK_LABEL}>
         <Row gap="field" wrap={true}>
-          {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted < Render HTML <
-              Interactive, in that order, with Inherit as the absence of an override rather than a rung.
+          {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted <
+              Render HTML < Interactive, in that order, with Inherit as the absence of an override rather than a rung.
               The write direction is the contracts helper, so this control cannot store the incoherent
               "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
           <Select
@@ -129,6 +118,22 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
         <Text voice="reading" data-slot="trust-resolved-step">
           This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
         </Text>
+        {/* The media switch can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling, enforced by the
+            tighten-only render-policy resolver (@orb/contracts/chat) and by the page's Content-Security-Policy. So the
+            switch has two honest states, load as the install allows or block; on writes the clear, never a stored
+            `false`. */}
+        {externalMediaBlocked ? (
+          <Text voice="reading" data-slot="trust-media-blocked">
+            Internet media is blocked for everyone on this server, so this character's content loads none.
+          </Text>
+        ) : (
+          <SettingSwitchRow
+            label={LOAD_INTERNET_MEDIA_LABEL}
+            description="Images and media from the internet can show who viewed them."
+            checked={data.forbidExternalMedia !== true}
+            onChange={(next): void => commit({ forbidExternalMedia: next ? null : true })}
+          />
+        )}
         <Text voice="reading">Changes apply right away.</Text>
       </Section>
     </Stack>

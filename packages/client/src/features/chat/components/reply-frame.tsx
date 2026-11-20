@@ -34,11 +34,11 @@ import type { CharacterId } from "@orb/kit/ids";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
 import { FILLS_MEASURE } from "@orb/ui/lib";
-import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
+import { holdsExternalMedia, holdsScript, resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { FramedMediaNotice, FramedScriptNotice, PlainReplyNotice, useFramedLinkConfirm } from "#components";
+import { PlainReplyNotice, useFramedLinkConfirm, useReportFrameTrust } from "#components";
 import { readFramePanels, rememberFramePanels, useCardFrame } from "#data";
 import { PLAIN_REPLY_REASON } from "#lib";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
@@ -201,6 +201,20 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
   const holding = <HoldsRowDraw>{held}</HoldsRowDraw>;
   const unframed = delivery === "held" ? holding : fallback;
   const links = useFramedLinkConfirm();
+  // A routed settled run tells the row's one trust notice what its grant held back; a forming panel says nothing,
+  // because its settled row says it.
+  useReportFrameTrust(
+    mint.state !== "routed" || built === undefined || cardOrigin === undefined || forming
+      ? undefined
+      : {
+          chatId: cardOrigin.chatId,
+          characterId: cardOrigin.characterId,
+          carriedFrom,
+          granted: mint.granted,
+          needsScripts: holdsScript(built.html),
+          needsMedia: holdsExternalMedia(built.html, built.look.css),
+        },
+  );
 
   return (
     <Stack ref={host} {...FILLS_MEASURE} tabIndex={-1} data-slot="reply-frame" data-delivery={delivery}>
@@ -231,19 +245,6 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
       {/* A run that lost its frame says so; a forming panel does not, because its settled row says it. */}
       {delivery === "fallback" && (mintRefused || framed.state === "failed") && !forming ? (
         <PlainReplyNotice reason={PLAIN_REPLY_REASON.frameUnavailable} />
-      ) : null}
-      {mint.state === "routed" && built !== undefined && !forming ? (
-        <>
-          <FramedMediaNotice
-            chatId={cardOrigin?.chatId}
-            characterId={cardOrigin?.characterId ?? null}
-            carriedFrom={carriedFrom}
-            html={built.html}
-            css={built.look.css}
-            granted={mint.granted}
-          />
-          <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} granted={mint.granted} />
-        </>
       ) : null}
     </Stack>
   );

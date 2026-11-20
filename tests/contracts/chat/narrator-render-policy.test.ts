@@ -1,5 +1,6 @@
-// The narrator policy's own arithmetic over a resolved roster: a tie keeps the earlier seat, external media closes when
-// any seat closes it even when another seat binds the step, and a seat with no resolved policy leaves nothing to bound.
+// The narrator policy's own arithmetic over a resolved roster: every seat at the lowest step binds, in roster order, and
+// the reported source is the narrowest among them; external media closes when any seat closes it even when another
+// seat binds the step; and a seat with no resolved policy leaves nothing to bound.
 // @subject packages/contracts/src/chat/roster.ts
 import type { ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { resolveNarratorRenderPolicy } from "@orb/contracts/chat";
@@ -17,13 +18,24 @@ function characterSeat(htmlTrust: RenderPolicy["htmlTrust"], forbidExternalMedia
 
 const HUMAN: Seat = { kind: "human", characterId: null, renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, renderSource: "no-card" };
 
-test("a tie at the lowest step keeps the earlier seat, and a human seat's floor never binds a narrator row", () => {
-  const first = characterSeat("trusted", false);
-  const second = characterSeat("trusted", false, "inherited");
-  expect(resolveNarratorRenderPolicy([HUMAN, characterSeat("interactive", false), first, second])).toEqual({
+test("every seat at the lowest step binds in roster order, and a human seat's floor never binds a narrator row", () => {
+  const first = characterSeat("trusted", false, "inherited");
+  const second = characterSeat("trusted", false);
+  const third = characterSeat("trusted", false, "inherited");
+  expect(resolveNarratorRenderPolicy([HUMAN, characterSeat("interactive", false), first, second, third])).toEqual({
     renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
+    // A character's own step outranks the install default it ties with: raising the default would not lift it.
     renderSource: "own",
-    characterId: first.characterId,
+    characterIds: [first.characterId, second.characterId, third.characterId],
+  });
+});
+
+test("a lower step replaces the seats that bound before it", () => {
+  const lower = characterSeat("untrusted", false, "inherited");
+  expect(resolveNarratorRenderPolicy([characterSeat("trusted", false), characterSeat("trusted", false), lower])).toEqual({
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: false },
+    renderSource: "inherited",
+    characterIds: [lower.characterId],
   });
 });
 
@@ -32,7 +44,7 @@ test("one seat that forbids external media closes it for the narrator row, thoug
   expect(resolveNarratorRenderPolicy([characterSeat("interactive", true), binding])).toEqual({
     renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true },
     renderSource: "own",
-    characterId: binding.characterId,
+    characterIds: [binding.characterId],
   });
 });
 

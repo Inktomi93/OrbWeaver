@@ -14,9 +14,9 @@ import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
-import { useSandboxTheme } from "@orb/ui/sandbox-frame";
+import { holdsExternalMedia, holdsScript, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
-import { FormingChip, FramedMediaNotice, FramedScriptNotice, useFramedLinkConfirm } from "#components";
+import { FormingChip, useFramedLinkConfirm, useReportFrameTrust } from "#components";
 import { useCardFrame } from "#data";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
 import { HoldsRowDraw } from "./row-handover.tsx";
@@ -58,6 +58,20 @@ function TierBCard({
   const granted = mint.state === "routed" ? mint.granted : { externalMedia: allowExternal, interactive: false };
   // Pending and routed wait behind the chip; only the floor draws at once. The chip holds a settled row's hand-over
   // (`row-handover.tsx`), so a streamed card stays on screen until this one draws.
+  // What the row's one trust notice says about this card. Only the routed document runs under the mint's script
+  // posture; the floor runs no script under any setting.
+  useReportFrameTrust(
+    cardOrigin === undefined
+      ? undefined
+      : {
+          chatId: cardOrigin.chatId,
+          characterId: cardOrigin.characterId,
+          carriedFrom: [],
+          granted,
+          needsScripts: mint.state === "routed" && holdsScript(block.html),
+          needsMedia: holdsExternalMedia(block.html, block.css),
+        },
+  );
   const forming =
     mint.state === "floor" ? undefined : (
       <HoldsRowDraw>
@@ -79,11 +93,6 @@ function TierBCard({
         {...(block.origin === undefined ? {} : { origin: block.origin })}
       />
       {links.confirm}
-      <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} css={block.css} granted={granted} />
-      {/* Only the routed document runs under the mint's script posture; the floor runs no script under any setting. */}
-      {mint.state === "routed" ? (
-        <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} granted={granted} />
-      ) : null}
     </>
   );
 }
