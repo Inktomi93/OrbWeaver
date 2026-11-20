@@ -31,8 +31,8 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
     // or a gone card resolves to Plain text + a null card (fail-closed, never a throw into roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
     // The tier combine is the ONE contracts resolver (`resolveSeatRenderPolicy`, over `resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
-    // deployment (which the app-document CSP enforces independently), and the ladder's top step needs the install's
-    // `defaultHtmlStep` at Interactive, which is also the step of a card that inherits.
+    // deployment (which the app-document CSP enforces independently), and a card's own ladder step wins over the
+    // install's `defaultHtmlStep`, which is the step of a card that inherits.
     resolveSeatDeco: async ({ ownerId, characterId }): ReturnType<CharacterRoomProjections["resolveSeatDeco"]> => {
       const floor = deps.readRenderPolicy();
       // A seat with no readable card gets Plain text from the SAME resolver, never a hand-built policy.

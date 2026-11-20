@@ -24,7 +24,7 @@ const CHARACTER_ANSWERS = {
   "a handoff copy of Rich HTML": { ...INHERIT, trustHtml: true },
   // Reachable only by a direct write; the Trust tab shows it as Inherit default.
   "render inherited, Interactive refused": { ...INHERIT, interactiveHtml: false },
-  // Reachable only by a direct write; the top step wins inside the ceiling.
+  // Reachable only by a direct write; the top step wins over the render answer.
   "Interactive over Plain text": { ...INHERIT, trustHtml: false, interactiveHtml: true },
 } as const satisfies Record<string, RenderPolicyOverride>;
 type CharacterAnswer = keyof typeof CHARACTER_ANSWERS;
@@ -48,10 +48,10 @@ const DRAWS = {
     "Inherit default": "trusted",
     "Plain text": "untrusted",
     "Rich HTML": "trusted",
-    ["Interactive"]: "trusted",
+    ["Interactive"]: "interactive",
     "a handoff copy of Rich HTML": "trusted",
     "render inherited, Interactive refused": "trusted",
-    "Interactive over Plain text": "untrusted",
+    "Interactive over Plain text": "interactive",
     "no-card": "untrusted",
     "no-host": "untrusted",
   },
@@ -59,10 +59,10 @@ const DRAWS = {
     "Inherit default": "untrusted",
     "Plain text": "untrusted",
     "Rich HTML": "trusted",
-    ["Interactive"]: "trusted",
+    ["Interactive"]: "interactive",
     "a handoff copy of Rich HTML": "trusted",
     "render inherited, Interactive refused": "untrusted",
-    "Interactive over Plain text": "untrusted",
+    "Interactive over Plain text": "interactive",
     "no-card": "untrusted",
     "no-host": "untrusted",
   },

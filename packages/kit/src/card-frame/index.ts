@@ -87,11 +87,12 @@
 // dead config teaching the next reader a lie; it is NOT emitted. This channel is outside `connect-src`
 // AND outside the external-media ceiling: an interactive card can beacon a view-receipt, a fingerprint,
 // or anything a viewer is socially engineered into typing INSIDE the frame, on any deployment. It cannot
-// reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE —
-// which is why the deployment ceiling below is a precondition of the grant rather than a convenience. Its
-// floor is ON by owner ruling (interactive cards are the default for every character), so R1 is open on a
-// default deployment and the ceiling is the revocation an operator uses to close it. Each viewer can also
-// close it for their own browser (`UserSettings.chat.runCardScripts`, honored at the server mint).
+// reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE, and
+// three consents decide that (D294): a character's own ladder step, the install's "Default for characters" for
+// every character that inherits it, and each viewer's own `UserSettings.chat.runCardScripts`, honored at the
+// server mint. The default's floor is Interactive by owner ruling, so R1 is open on a default deployment; an
+// operator closes it for inheriting characters by lowering the default, a character's owner keeps it open for
+// that character by setting it to Interactive, and a viewer closes it for their own browser.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -140,20 +141,20 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  * security pass.
  *
  *   • `static` — only OUR hash-pinned measurement script may execute. What a card gets when its character
- *     sits below the top rung ("Render HTML", "Untrusted"), when the deployment ceiling is off, and on
+ *     sits below the top rung ("Rich HTML", "Plain text"), when the viewer's own switch is off, and on
  *     every failure arm of the mint.
  *   • `interactive` — the card's character resolves to the TOP RUNG of the one ordered html-trust ladder
  *     (`RenderPolicy.htmlTrust`, contracts/chat: `untrusted` then `trusted` then `interactive`), resolved
- *     off the `characters` ladder columns against the install's `defaultHtmlStep` AppSetting. A character on
- *     "Inherit default" (an imported card included) resolves there whenever that step is Interactive. Interactive
- *     IMPLIES trusted by construction, so a frame in this posture always has the `data:` door too.
+ *     off the `characters` ladder columns against the install's `defaultHtmlStep` AppSetting. A character set to
+ *     Interactive resolves there under any default; a character on "Inherit default" (an imported card included)
+ *     resolves there whenever that step is Interactive. Interactive IMPLIES trusted by construction, so a frame in
+ *     this posture always has the `data:` door too.
  *
- * THE CEILING IS AN AND (never `override ??`). The `defaultHtmlStep` AppSetting ("Default for characters") is the
- * DEPLOYMENT OPERATOR's, its floor is Interactive by owner ruling, and it is both the step of an inheriting card and,
- * below Interactive, the veto no per-character answer rises above. It is the revocation because of residual R1 in the header
- * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so switching
- * the posture off is the one control that exists. The per-character disable is a lower rung picked on the
- * character's Trust tab.
+ * The `defaultHtmlStep` AppSetting ("Default for characters") is the DEPLOYMENT OPERATOR's, its floor is Interactive by
+ * owner ruling, and it is the step of an inheriting card only: a character's own step wins over it, as Plain text and
+ * Rich HTML do (D294). Because of residual R1 in the header above, the grant opens a WebRTC/STUN channel that no CSP
+ * directive in Chromium can close, so not serving this posture is the one control that exists: a lower rung on the
+ * character's Trust tab, a lower default for inheriting characters, or the viewer's own switch.
  *
  * The sandbox grant does NOT vary by posture: it is still `allow-scripts` alone (never `allow-same-origin`,
  * never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src` moves — so

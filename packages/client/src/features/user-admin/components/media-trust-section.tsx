@@ -115,8 +115,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss" prose={true} cap="prose">
-          A character's own HTML setting wins over the default, except Interactive, which needs the default at Interactive. External media can only be
-          tightened.
+          A character's own HTML setting wins over the default. External media can only be tightened.
         </Text>
         <SettingRowGroup>
           <AdminOverrideSwitch
@@ -127,13 +126,14 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
             floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
             onSet={(next): void => write({ forbidExternalMedia: next })}
           />
-          {/* The install's step and the script ceiling in one control (D294). Interactive by default (owner ruling), and
-            the loudest hint in this section: a step below Interactive is the only box-wide control over the WebRTC
-            beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can also turn card
-            scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
+          {/* The step every inheriting character takes (D294). Interactive by default (owner ruling), and the loudest hint
+            in this section: a step below Interactive closes the WebRTC beacon the grant opens, which no
+            Content-Security-Policy directive can close, for every inheriting character. A character set to Interactive on
+            its own Trust tab keeps it open, and each viewer can turn card scripts off for themselves
+            (`UserSettings.chat.runCardScripts`). */}
           <AdminOverrideSelect
             label={DEFAULT_HTML_STEP_SETTING_LABEL}
-            hint="Characters on “Inherit default” use this. Interactive cards run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Below Interactive, no card or styled reply runs scripts, whatever a character says; a card already on screen stops the next time it loads. Rich HTML keeps presets styled without scripts."
+            hint="Characters on “Inherit default” use this. Interactive cards run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Below Interactive, those characters' cards and styled replies run no scripts; a card already on screen stops the next time it loads. A character set to Interactive on its own Trust tab still runs scripts. Rich HTML keeps presets styled without scripts."
             value={resolved.defaultHtmlStep}
             items={DEFAULT_HTML_STEP_ITEMS}
             overridden={stepOverridden}

@@ -8,8 +8,8 @@
 
 import type { FramedScriptReason, PlainReason, PlainRemedy } from "@orb/client/lib";
 import { resolveFramedMediaVerdict, resolveFramedScriptVerdict, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
-import type { ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
-import { participantViewSchema, resolveNarratorRenderPolicy, resolveRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
+import type { HtmlTrustStep, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
+import { participantViewSchema, resolveNarratorRenderPolicy, resolveRenderPolicy, resolveSeatRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -253,14 +253,15 @@ test("a row from a character that renders trusted HTML is not plain and carries 
   expect(row.plain).toBeUndefined();
 });
 
-// A framed row's script posture, over the seat `resolveRenderPolicy` folds from the install ceiling and the character's
-// stored pair, and the viewer's own switch. Each case states the verdict per viewer: the install's remedy turns on admin
-// standing, the character's on hosting, and the viewer's own switch is every viewer's to change.
+// A framed row's script posture, over the seat `resolveRenderPolicy` folds from the install's default step and the
+// character's stored pair, and the viewer's own switch. Each case states the verdict per viewer: a character's own step
+// is the host's to change, the default an inheriting character takes is the admin's (or the host's, by giving the
+// character its own step), and the viewer's own switch is every viewer's to change.
 type ScriptExpectation = undefined | { readonly reason: FramedScriptReason; readonly named: boolean; readonly remedies: Readonly<Record<Viewer, PlainRemedy>> };
-const INSTALL_HOLDS_SCRIPTS = {
+const DEFAULT_HOLDS_SCRIPTS = {
   reason: "install-scripts",
-  named: false,
-  remedies: { "admin host": "system-trust", "admin member": "system-trust", host: "ask-admin", member: "ask-admin" },
+  named: true,
+  remedies: { "admin host": "system-trust", "admin member": "system-trust", host: "character-trust", member: "ask-host" },
 } as const;
 const CHARACTER_HOLDS_SCRIPTS = {
   reason: "character-scripts",
@@ -274,49 +275,56 @@ const VIEWER_HOLDS_SCRIPTS = {
 } as const;
 const FRAMED_SCRIPT_CASES: readonly {
   readonly name: string;
-  readonly install: boolean;
+  readonly defaultStep: HtmlTrustStep;
   readonly stored: { readonly trustHtml: boolean | null; readonly interactiveHtml: boolean | null };
   readonly viewerRuns: boolean;
   readonly expected: ScriptExpectation;
 }[] = [
   {
-    name: "an Interactive character under a lowered ceiling",
-    install: false,
+    name: "an Interactive character under a Rich HTML default",
+    defaultStep: "trusted",
     stored: { trustHtml: true, interactiveHtml: true },
     viewerRuns: true,
-    expected: INSTALL_HOLDS_SCRIPTS,
+    expected: undefined,
   },
   {
-    name: "a lowered ceiling with the viewer's switch off too",
-    install: false,
+    name: "an Interactive character under a Plain text default with the viewer's switch off",
+    defaultStep: "untrusted",
     stored: { trustHtml: true, interactiveHtml: true },
     viewerRuns: false,
-    expected: INSTALL_HOLDS_SCRIPTS,
+    expected: VIEWER_HOLDS_SCRIPTS,
   },
   {
-    name: "an inheriting character under a lowered ceiling",
-    install: false,
+    name: "an inheriting character under a Rich HTML default",
+    defaultStep: "trusted",
     stored: { trustHtml: null, interactiveHtml: null },
     viewerRuns: true,
-    expected: INSTALL_HOLDS_SCRIPTS,
+    expected: DEFAULT_HOLDS_SCRIPTS,
   },
   {
-    name: "a Rich HTML character under a raised ceiling",
-    install: true,
+    name: "an inheriting character under a Rich HTML default with the viewer's switch off too",
+    defaultStep: "trusted",
+    stored: { trustHtml: null, interactiveHtml: null },
+    viewerRuns: false,
+    expected: DEFAULT_HOLDS_SCRIPTS,
+  },
+  {
+    name: "a Rich HTML character under an Interactive default",
+    defaultStep: "interactive",
     stored: { trustHtml: true, interactiveHtml: false },
     viewerRuns: true,
     expected: CHARACTER_HOLDS_SCRIPTS,
   },
   {
     name: "an inheriting character with the viewer's switch off",
-    install: true,
+    defaultStep: "interactive",
     stored: { trustHtml: null, interactiveHtml: null },
     viewerRuns: false,
     expected: VIEWER_HOLDS_SCRIPTS,
   },
   {
     name: "an inheriting character with every consent on",
-    install: true,
+    defaultStep: "interactive",
     stored: { trustHtml: null, interactiveHtml: null },
     viewerRuns: true,
     expected: undefined,
@@ -326,30 +334,29 @@ const FRAMED_SCRIPT_CASES: readonly {
 function scriptSubject(
   characterId: CharacterId | null,
   seats: readonly ParticipantView[],
-  consents: { readonly install: boolean; readonly viewerRuns: boolean },
+  viewerRuns: boolean,
   viewerIsHost: boolean,
 ): Parameters<typeof resolveFramedScriptVerdict>[0] {
   return {
     characterId,
     participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
     narrator: resolveNarratorRenderPolicy(seats),
-    installAllowsScripts: consents.install,
-    viewerRunsScripts: consents.viewerRuns,
+    viewerRunsScripts: viewerRuns,
     viewerIsHost,
   };
 }
 
-for (const { name, install, stored, viewerRuns, expected } of FRAMED_SCRIPT_CASES) {
+for (const { name, defaultStep, stored, viewerRuns, expected } of FRAMED_SCRIPT_CASES) {
   test(`framed scripts for ${name}`, () => {
     const characterId = mintTypeId(ID_PREFIX.character, ids.next);
-    const policy = resolveRenderPolicy(
-      { defaultHtmlStep: install ? "interactive" : "trusted", forbidExternalMedia: false },
+    const { renderPolicy, renderSource } = resolveSeatRenderPolicy(
+      { defaultHtmlStep: defaultStep, forbidExternalMedia: false },
       { ...stored, forbidExternalMedia: false },
     );
-    const seat = { ...mediaSeat(characterId, CHARACTER_NAME, policy), renderSource: stored.trustHtml === null ? "inherited" : "own" } as const;
+    const seat = { ...mediaSeat(characterId, CHARACTER_NAME, renderPolicy), renderSource } as const;
     for (const viewer of VIEWERS) {
       const { viewerIsHost, isAdmin } = viewerStanding(viewer);
-      const verdict = resolveFramedScriptVerdict(scriptSubject(characterId, [seat], { install, viewerRuns }, viewerIsHost), isAdmin);
+      const verdict = resolveFramedScriptVerdict(scriptSubject(characterId, [seat], viewerRuns, viewerIsHost), isAdmin);
       expect(verdict, viewer).toEqual(
         expected === undefined
           ? undefined
@@ -372,17 +379,14 @@ test("a narrator row's frame names the seat that binds the narrator step, and a 
     mediaSeat(interactive, "Arthur", { htmlTrust: "interactive", forbidExternalMedia: false }),
     mediaSeat(richHtml, CHARACTER_NAME, { htmlTrust: "trusted", forbidExternalMedia: false }),
   ];
-  expect(resolveFramedScriptVerdict(scriptSubject(groupCharacter, seats, { install: true, viewerRuns: true }, true), false)).toEqual({
+  expect(resolveFramedScriptVerdict(scriptSubject(groupCharacter, seats, true, true), false)).toEqual({
     reason: "character-scripts",
     remedy: "character-trust",
     characterId: richHtml,
     characterName: CHARACTER_NAME,
   });
   const noCard = { ...characterSeat(richHtml, "trusted", "no-card"), renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false } } as const;
-  for (const subject of [
-    scriptSubject(richHtml, [noCard], { install: true, viewerRuns: true }, true),
-    scriptSubject(mintTypeId(ID_PREFIX.character, ids.next), [], { install: true, viewerRuns: true }, true),
-  ]) {
+  for (const subject of [scriptSubject(richHtml, [noCard], true, true), scriptSubject(mintTypeId(ID_PREFIX.character, ids.next), [], true, true)]) {
     expect(resolveFramedScriptVerdict(subject, true)).toEqual({ reason: "unattributed-scripts", remedy: "none", characterId: null, characterName: undefined });
   }
 });
