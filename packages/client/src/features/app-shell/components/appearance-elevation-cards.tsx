@@ -4,8 +4,8 @@
 // faithful mini-PREVIEW is impossible (a nested box has no seams to lose) — but the DIFFERENCE between
 // the options is depictable, and the diagram is ALLOWED TO EXAGGERATE it: at diagram size a truthful
 // 1px seam shows nothing, and an under-drawn honest diagram teaches nothing (the actual failure mode).
-// The KIND of difference stays honest — flat = seams, ramp = a seamless brightness ladder, glow =
-// floating islands — while the AMOUNT is scaled for instant reading.
+// The KIND of difference stays honest — flat = seams, ramp = a seamless brightness ladder, glow = flat's
+// seams with a lifted card — while the AMOUNT is scaled for instant reading.
 //
 // THE LADDER IS AN EXAGGERATION OF THE RAMP, NOT THE RAMP ITSELF (#1099 G4, and the ramp-neighbour
 // ceiling). `Layered` used to paint `bg-sidebar` / `bg-surface-raised` / `bg-card` — the shell's REAL
@@ -67,15 +67,16 @@ function RampDiagram(): ReactElement {
   );
 }
 
-/** LIFTED (GLOW) — separation BY LINE + LIFT: flat's seams STAY (shell.css keeps them under glow) and the
- *  surfaces additionally float on the shell's own `shadow-overlay`. EXAGGERATED: visible air and a
- *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
+/** LIFTED (GLOW) — flat's chrome with its seams, plus a lift on the clickable card in the content: glow lifts
+ *  only an interactive Card, never a pane (ui-surface-and-interaction-rules §2.4). EXAGGERATED: the card sits
+ *  in visible air so its `shadow-overlay` reads at diagram size. */
 function GlowDiagram(): ReactElement {
   return (
-    <ThemePreviewPane fill="background" shape="row" padding="none" height="strip" width="full" className="overflow-hidden">
-      <Row gap="row" width="full" height="fill" padding="row">
-        <ThemePreviewPane grow={true} height="part" padding="none" fill="sidebar" lifted={true} shape="inset" />
-        <ThemePreviewPane grow="double" height="part" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
+    <ThemePreviewPane fill="sidebar" shape="row" padding="none" holdsLine={true} height="strip" width="full" className="overflow-hidden">
+      <Row grow={true} />
+      <Row grow={true} divider="start" dividerTone="sidebar" dividerWeight="rule" />
+      <Row grow="double" height="fill" align="center" padding="row" divider="start" dividerTone="sidebar" dividerWeight="rule">
+        <ThemePreviewPane grow={true} height="part" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
       </Row>
     </ThemePreviewPane>
   );

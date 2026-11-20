@@ -63,6 +63,27 @@ test("the Jump chip and both chords open the palette on its search, and Escape r
   }
 });
 
+// A part inside a float casts nothing of its own (ui-surface-and-interaction-rules §2.1): the dialog lifts the palette once.
+test("the palette's dialog casts the float shadow once and the command inside it casts none", async ({ mount, page }) => {
+  await mount<typeof AppShellStory>(STORY, {});
+  await page.getByRole("button", { name: JUMP_CHIP }).click();
+  const palette = page.getByRole("dialog", PALETTE);
+  await expect(palette).toBeVisible();
+  const recipe = await palette.evaluate((element, name) => {
+    const probe = element.ownerDocument.createElement("div");
+    probe.style.boxShadow = `var(${name})`;
+    element.append(probe);
+    const shadow = getComputedStyle(probe).boxShadow;
+    probe.remove();
+    return shadow;
+  }, TOKENS["shadow.overlay"].cssVar);
+  expect(recipe).not.toBe("none");
+  expect((await palette.evaluate((element) => getComputedStyle(element).boxShadow)).endsWith(recipe)).toBe(true);
+  // The root keeps its own focus ring in the same property, so only the recipe's presence is the second shadow.
+  const command = await palette.locator('[data-slot="command-root"]').evaluate((element) => getComputedStyle(element).boxShadow);
+  expect(command.includes(recipe)).toBe(false);
+});
+
 test("the shortcut cancels only an exact, non-repeating chord and leaves every text-entry target alone", async ({ mount, page }) => {
   await mount<typeof AppShellStory>(STORY, {});
   await expect(page.getByRole("button", { name: JUMP_CHIP })).toBeVisible();

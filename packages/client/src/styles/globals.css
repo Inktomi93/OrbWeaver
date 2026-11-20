@@ -430,7 +430,7 @@
       /* The pane's glass paints on a `::before` carrier, not the pane, so the pane is not a backdrop root for any
        * glass nested inside it (the dialog carrier below states the same rule). The pane's own fill goes to none
        * so the composite is one tint over one filtered backdrop;
-       * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
+       * `box-shadow: inherit` repaints an overlay pane's float-shadow highlight above the blur. The pane's container type
        * is what contains the carrier. */
       @variant appearance-blur-surfaces-panels {
         .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
@@ -575,14 +575,6 @@
     .shell-grid [data-slot="card-root"]::after {
       content: none;
     }
-  }
-
-  /* An instrument surface carries no card box, and `Surface` is `display: contents`, so its first rendered child
-   * carries the ambient lift. */
-  .shell-grid[data-elevation="glow"] [data-slot="surface-root"] > :first-child {
-    /* `filter: drop-shadow()` accepts exactly one non-inset shadow, so it carries the overlay recipe's deep
-     * ambient layer on its own; feeding it the whole recipe computes to `none`. */
-    filter: drop-shadow(var(--shadow-layer-ambient-far));
   }
 }
 

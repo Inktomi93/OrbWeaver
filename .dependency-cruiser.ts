@@ -150,6 +150,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/preset/components/_guessed-limits-probe\\.ts$":
     "the navigation probe names the guessed-limits preset story authors and its spec reads the door's request by",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
+  "^tests/ui/primitives/float-shadow-cases\\.ts$": "the anchored floats and options the float-shadow story mounts and its spec opens and reads",
   "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
   "^tests/ui/primitives/toast/one-alert-names\\.ts$": "the control name and notice title the one-alert story authors and its spec locates them by",
   "^tests/ui/primitives/tooltip/keyboard-focus-names\\.ts$": "the control names and hints the tooltip rail story authors and its focus spec locates them by",
