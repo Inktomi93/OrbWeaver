@@ -190,9 +190,9 @@ Claude Code loads a rule when it reads a file that matches the rule's `paths:`. 
   (drizzle tables/columns/FKs) and `packages/db/src/migrations/` before searching words. Every table and
   column names a persistent concept; migrations show removed keys and widened CHECK allowlists that types
   cannot (`0000_baseline.sql` is the authority for constraints).
-- **Dead surface.** `pnpm unwired scan` is this repo's own type-aware dead-member scan (~9 min; writes its JSON
-  report into the gitignored reports tree). Verified baseline: scanned=4420, unwired=5, deliberate=34,
-  disagreements=0. Read the report before proposing dead code: `deliberate` members have external callers
+- **Dead surface.** `pnpm unwired scan` is this repo's own type-aware dead-member scan (~15 min on a loaded box; writes its JSON
+  report into the gitignored reports tree). Verified baseline: scanned=4440, unwired=2, deliberate=34.
+  `--cross-check` adds the TypeScript 6 audit and lists its disagreements. Read the report before proposing dead code: `deliberate` members have external callers
   with recorded reasons. `pnpm unwired ports` lists hand-restated members. Never a gate, never per-review.
 - **Report home.** Reviews land in `reports/code-reviewer/YYYY-MM-DD-<slug>.md` (house convention).
 - **Vocab.** This app says "memory" for the digest/recall subsystem, "strike" for removing a remembered

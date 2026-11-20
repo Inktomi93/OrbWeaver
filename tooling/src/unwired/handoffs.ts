@@ -1,5 +1,7 @@
 // Value flows no name shows: a value handed to a slot of a restated type carries its members across. A compiler-checked
 // hand-off makes same-named members one value, so each pair is a flow, from the handed type's members to the slot's.
+// A slot a library declares is read by the library (`mutate(input, settle)` calls `settle.onError`), so a member handed
+// into one is read at the hand-off.
 import type { Expression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -22,6 +24,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, SignatureKind, TypeFlags } from "@typescript/native/sync";
+import type { Site } from "./classify.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
 import { isProduction } from "./worlds.ts";
@@ -40,6 +43,14 @@ interface TypePair {
   readonly source: Type;
   readonly sink: Type;
   readonly depth: number;
+  /** The production node that hands the value over. */
+  readonly at: Node;
+}
+
+/** A member a library slot receives: the hand-off site reads it. */
+export interface LibraryRead {
+  readonly site: Site;
+  readonly keys: readonly string[];
 }
 
 // An object literal has its keys resolved by name already.
@@ -108,14 +119,14 @@ function handedValues(world: NativeWorld, home: ReadonlySet<string>): Handed {
 
 function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair | null> {
   const sink = yield* world.checker.getContextualType.gen(handed as Expression);
-  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(handed), sink, depth: 0 };
+  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(handed), sink, depth: 0, at: handed };
 }
 
 // A spread hands its whole value to the literal it sits in, so the nested members of both types meet as well.
 function* spreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
   const { expression } = spread as Node & { readonly expression: Expression };
   const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
-  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0 };
+  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0, at: expression };
 }
 
 // At a generic call the contextual type of an argument is already instantiated, so the value and the slot are one type.
@@ -131,7 +142,7 @@ function* genericPairs(world: NativeWorld, call: Node): APIRequestGenerator<read
   const [own, generic] = yield* all(resolved.getParameters.gen(), target.getParameters.gen());
   const shared = Math.min(own.length, generic.length);
   const [sources, sinks] = yield* all(checker.getTypeOfSymbol.gen(own.slice(0, shared)), checker.getTypeOfSymbol.gen(generic.slice(0, shared)));
-  return sources.map((source, at) => ({ source, sink: sinks[at] as Type, depth: 0 }));
+  return sources.map((source, index) => ({ source, sink: sinks[index] as Type, depth: 0, at: call }));
 }
 
 const isObjectLike = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Object) || hasFlag(type.flags, TypeFlags.Intersection);
@@ -148,10 +159,15 @@ function* slotMembers(world: NativeWorld, type: Type): APIRequestGenerator<reado
 
 interface Compared {
   readonly flows: readonly Flow[];
+  /** The keys of each in-tree member handed into a library-declared slot. */
+  readonly libraryReads: readonly (readonly string[])[];
   readonly next: readonly TypePair[];
 }
 
 const isDeclaredInTree = (world: NativeWorld, symbol: NativeSymbol): boolean => symbol.declarations.some((handle) => world.fileOf(handle) !== null);
+
+// A mapped member such as a `Record` key's carries no declaration, so it is no library's slot.
+const isLibraryDeclared = (world: NativeWorld, symbol: NativeSymbol): boolean => symbol.declarations.length > 0 && !isDeclaredInTree(world, symbol);
 
 // A generic of one library target, `Array<Row>` beside `Array<Twin>`: the element is the value, not its methods.
 function* sameTargetArguments(world: NativeWorld, source: Type, sink: Type): APIRequestGenerator<readonly { readonly from: Type; readonly to: Type }[] | null> {
@@ -174,7 +190,7 @@ function* sameTargetArguments(world: NativeWorld, source: Type, sink: Type): API
 }
 
 // A callable's parameters flow against the hand-off: the caller of the slot supplies them. Its result flows with it.
-function* signaturePairs(world: NativeWorld, source: Type, sink: Type, depth: number): APIRequestGenerator<readonly TypePair[]> {
+function* signaturePairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<readonly TypePair[]> {
   const { checker } = world;
   const [[from], [into]] = yield* all(checker.getSignaturesOfType.gen(source, SignatureKind.Call), checker.getSignaturesOfType.gen(sink, SignatureKind.Call));
   if (from === undefined || into === undefined) {
@@ -183,25 +199,30 @@ function* signaturePairs(world: NativeWorld, source: Type, sink: Type, depth: nu
   const [returned, expected, own, theirs] = yield* all(from.getReturnType.gen(), into.getReturnType.gen(), from.getParameters.gen(), into.getParameters.gen());
   const shared = Math.min(own.length, theirs.length);
   const [supplied, taken] = yield* all(checker.getTypeOfSymbol.gen(theirs.slice(0, shared)), checker.getTypeOfSymbol.gen(own.slice(0, shared)));
-  const pairs: TypePair[] = [{ source: returned, sink: expected, depth }];
-  for (const [at, type] of supplied.entries()) {
-    pairs.push({ source: type, sink: taken[at] as Type, depth });
+  const pairs: TypePair[] = [{ source: returned, sink: expected, depth, at }];
+  for (const [index, type] of supplied.entries()) {
+    pairs.push({ source: type, sink: taken[index] as Type, depth, at });
   }
   return pairs;
 }
 
-function* propertyPairs(world: NativeWorld, source: Type, sink: Type, depth: number): APIRequestGenerator<Compared> {
+function* propertyPairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<Compared> {
   const { checker } = world;
   const properties = yield* checker.getPropertiesOfType.gen(source);
   const named = yield* all(...properties.map((property) => propertiesNamed(checker, sink, property.name)));
   const flows: Flow[] = [];
+  const libraryReads: (readonly string[])[] = [];
   const held: (readonly [NativeSymbol, NativeSymbol])[] = [];
-  for (const [at, property] of properties.entries()) {
+  for (const [index, property] of properties.entries()) {
     const own = declarationKeys(property);
-    for (const member of (named[at] ?? []).filter((candidate) => candidate !== undefined)) {
+    const inTree = isDeclaredInTree(world, property);
+    for (const member of (named[index] ?? []).filter((candidate) => candidate !== undefined)) {
       // One generic's member under two instantiations is no flow by itself, but its types may still differ.
-      if (isDeclaredInTree(world, property) && isDeclaredInTree(world, member) && !declarationKeys(member).every((key) => own.includes(key))) {
+      if (inTree && isDeclaredInTree(world, member) && !declarationKeys(member).every((key) => own.includes(key))) {
         flows.push({ source: own, sink: declarationKeys(member) });
+      }
+      if (inTree && isLibraryDeclared(world, member)) {
+        libraryReads.push(own);
       }
       held.push([property, member]);
     }
@@ -210,27 +231,35 @@ function* propertyPairs(world: NativeWorld, source: Type, sink: Type, depth: num
     checker.getTypeOfSymbol.gen(held.map(([property]) => property)),
     checker.getTypeOfSymbol.gen(held.map(([, member]) => member)),
   );
-  return { flows, next: sources.map((type, at) => ({ source: type, sink: sinks[at] as Type, depth })) };
+  return { flows, libraryReads, next: sources.map((type, index) => ({ source: type, sink: sinks[index] as Type, depth, at })) };
 }
 
-function* comparedMembers(world: NativeWorld, from: Type, into: Type, depth: number): APIRequestGenerator<Compared> {
+function* comparedMembers(world: NativeWorld, pair: TypePair): APIRequestGenerator<Compared> {
+  const { source: from, sink: into, depth, at } = pair;
   const elements = from.id === into.id ? [] : yield* sameTargetArguments(world, from, into);
   if (elements !== null) {
-    return { flows: [], next: elements.map(({ from: element, to }) => ({ source: element, sink: to, depth: depth + 1 })) };
+    return { flows: [], libraryReads: [], next: elements.map(({ from: element, to }) => ({ source: element, sink: to, depth: depth + 1, at })) };
   }
-  const [signatures, members] = yield* all(signaturePairs(world, from, into, depth + 1), propertyPairs(world, from, into, depth + 1));
-  return { flows: members.flows, next: [...signatures, ...members.next] };
+  const deeper = { ...pair, depth: depth + 1 };
+  const [signatures, members] = yield* all(signaturePairs(world, deeper), propertyPairs(world, deeper));
+  return { flows: members.flows, libraryReads: members.libraryReads, next: [...signatures, ...members.next] };
 }
 
-function* compared(world: NativeWorld, { source, sink, depth }: TypePair): APIRequestGenerator<Compared> {
-  const [froms, intos] = yield* all(objectMembers(world, source), slotMembers(world, sink));
-  const answers = yield* all(...froms.flatMap((from) => intos.map((into) => comparedMembers(world, from, into, depth))));
-  return { flows: answers.flatMap((answer) => answer.flows), next: answers.flatMap((answer) => answer.next) };
+function* compared(world: NativeWorld, pair: TypePair): APIRequestGenerator<Compared> {
+  const [froms, intos] = yield* all(objectMembers(world, pair.source), slotMembers(world, pair.sink));
+  const answers = yield* all(...froms.flatMap((from) => intos.map((into) => comparedMembers(world, { ...pair, source: from, sink: into }))));
+  return {
+    flows: answers.flatMap((answer) => answer.flows),
+    libraryReads: answers.flatMap((answer) => answer.libraryReads),
+    next: answers.flatMap((answer) => answer.next),
+  };
 }
 
-/** Every member flow the production hand-offs of a world make, each distinct pair of types compared once. */
-export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): readonly Flow[] {
+/** Every member flow the production hand-offs of a world make, each distinct pair of types compared once, and each
+ *  in-tree member a library slot receives, read at the first hand-off that pairs those types. */
+export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): { readonly flows: readonly Flow[]; readonly reads: readonly LibraryRead[] } {
   const flows: Flow[] = [];
+  const reads: LibraryRead[] = [];
   const seen = new Set<string>();
   const { values, calls, spreads } = handedValues(world, home);
   const handed = [...world.batch(values.map((value) => pairAt(world, value))), ...world.batch(spreads.map((spread) => spreadPair(world, spread)))];
@@ -244,10 +273,20 @@ export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): rea
       seen.add(key);
     }
     const answers = world.batch(unseen.map(([, pair]) => compared(world, pair)));
-    for (const flow of answers.flatMap((answer) => answer.flows)) {
-      flows.push(flow);
+    // One answer can hold more flows than a spread's argument ceiling, so each is pushed alone.
+    for (const [index, answer] of answers.entries()) {
+      for (const flow of answer.flows) {
+        flows.push(flow);
+      }
+      const given = unseen[index]?.[1].at;
+      if (given !== undefined) {
+        const site = world.siteOf(given);
+        for (const keys of answer.libraryReads) {
+          reads.push({ site, keys });
+        }
+      }
     }
     pending = answers.flatMap((answer) => answer.next);
   }
-  return flows;
+  return { flows, reads };
 }

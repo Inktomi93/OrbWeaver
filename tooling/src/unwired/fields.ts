@@ -634,7 +634,8 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const tally = new Map<string, Tally>();
   const declared = new Set<string>();
   const configs = [...worlds, ...testWorlds];
-  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const lists = NativeWorld.fileLists(options.root, configs);
+  const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
   for (const config of configs) {
     const started = performance.now();
@@ -654,7 +655,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const reported = new Set(judged.map(({ field }) => field.key));
   const wiredHomes = new Set(rolled.filter(({ field }) => !reported.has(field.key)).map(({ field }) => homeOf(field)));
   const asked = judged.flatMap(({ field }) => namesOf(field));
-  const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
+  const second = serviceReferences(options.root, configs, asked, { log: options.log, crossCheck: options.crossCheck, lists });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const surface = sdkSurface(options.root);
   const aliases = homeAliases(options.root);

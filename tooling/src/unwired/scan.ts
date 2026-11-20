@@ -1,5 +1,7 @@
-// The member scan: engine one indexes every world, then engine two asks find-references about the members engine one
-// found unused. A member is unwired only when neither engine finds a production use; a test-only use makes it test-only.
+// The member scan: one pass of engine one, each world's program built once, judges every callable member; a test-only
+// use makes a member test-only. Engine two's find-references adds no use engine one lacks (every fixture in
+// tests/tooling/unwired/scan.int.test.ts and the real tree agree), so it runs only as the `--cross-check` audit, through
+// the TypeScript 6 language service, and a member it finds used is a disagreement.
 
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { ReferenceKind, Site } from "./classify.ts";
@@ -33,9 +35,7 @@ export interface UnwiredReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredMember[];
   readonly deliberate: readonly (UnwiredMember & { readonly reason: string })[];
-  /** Members no reference reaches that production code hands into a reached member's slot, with that slot. */
-  readonly reachedByFlow: readonly { readonly key: string; readonly via: string }[];
-  /** Members engine one found unused and engine two found used: reported so a resolution gap stays visible. */
+  /** Under `--cross-check`, members engine one found unused and the audit found used: a resolution gap to fix. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
 
@@ -46,7 +46,7 @@ export interface ScanOptions {
   readonly testWorlds?: readonly string[];
   readonly deliberate: readonly DeliberateEntry[];
   readonly log: (line: string) => void;
-  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1, as an audit of the 7.1 answers. */
+  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1, as an audit of engine one. */
   readonly crossCheck?: boolean;
 }
 
@@ -151,14 +151,15 @@ function kindOf(tests: number, builders: number): UnwiredKind {
   return builders > 0 ? "builder-only" : "unreferenced";
 }
 
-/** Run both engines over the worlds of `root`. */
+/** Run engine one over the worlds of `root`, and the `--cross-check` audit when asked. */
 export function scanUnwired(options: ScanOptions): UnwiredReport {
   const { worlds, testWorlds } = scanWorlds(options);
   const sources = new Sources(options.root);
   const tally = new Map<string, Tally>();
   const counted: UnwiredReport["worlds"][number][] = [];
   const configs = [...worlds, ...testWorlds];
-  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const lists = NativeWorld.fileLists(options.root, configs);
+  const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
   const declared = new Map<string, TypeMember>();
   for (const config of configs) {
@@ -174,36 +175,23 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
   const testFiles = new Set(testWorlds.flatMap((config) => [...(homes.get(config) ?? [])]));
   tallyMembers(tally, memberReferences([...declared.values()], joinFacts(facts).index, sources), testFiles);
   const candidates = [...tally.values()].filter((entry) => entry.use === 0);
-  const packages = new Set(worlds);
-  const flows = new Map<string, Set<string>>();
-  const second = serviceReferences(
-    options.root,
-    [...worlds, ...testWorlds],
-    candidates.map((entry) => entry.first.member.site),
-    {
-      log: options.log,
-      crossCheck: options.crossCheck,
-      visit: (world) => {
-        // A test world's production files repeat the package worlds' flows; only those count.
-        for (const [value, slots] of packages.has(world.config) ? world.flows() : []) {
-          flows.set(value, new Set([...(flows.get(value) ?? []), ...slots]));
-        }
-      },
-    },
-  );
-  const judged = candidates.map((entry) => ({ entry, references: classifySites(sources, second.get(siteKey(entry.first.member.site)) ?? []) }));
-  const usedByTwo = new Set(judged.filter(({ references }) => references.some((reference) => reference.kind === "use")).map(({ entry }) => entry.first.key));
-  const reached = reachedByFlow(flows, (key) => (tally.get(key)?.use ?? 0) > 0 || usedByTwo.has(key));
+  const audited =
+    options.crossCheck === true
+      ? serviceReferences(
+          options.root,
+          configs,
+          candidates.map((entry) => entry.first.member.site),
+          { log: options.log, crossCheck: true, lists },
+        )
+      : new Map<string, readonly Site[]>();
   const findings: UnwiredMember[] = [];
   const disagreements: UnwiredReport["disagreements"][number][] = [];
-  for (const { entry, references } of judged) {
+  for (const entry of candidates) {
     const { site, line, home, member } = entry.first.member;
+    const references = classifySites(sources, audited.get(siteKey(site)) ?? []);
     const uses = references.filter((reference) => reference.kind === "use");
     if (uses.length > 0) {
       disagreements.push({ key: entry.first.key, uses: uses.map((reference) => `${reference.file}:${sources.line(reference)}`) });
-      continue;
-    }
-    if (reached.has(entry.first.key)) {
       continue;
     }
     for (const reference of references.filter((candidate) => candidate.kind === "test")) {
@@ -212,27 +200,5 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
     const tests = entry.tests.size;
     findings.push({ key: entry.first.key, file: site.file, line, home, member, kind: kindOf(tests, entry.builder), tests });
   }
-  const viaFlow = candidates.flatMap(({ first: { key } }) => {
-    const via = reached.get(key);
-    return via === undefined ? [] : [{ key, via }];
-  });
-  return { worlds: counted, scanned: tally.size, ...sortDeliberate(findings, options.deliberate), reachedByFlow: viaFlow, disagreements };
-}
-
-// The members production reaches through a chain of flows that ends in a referenced member, each with the slot it
-// flows into. The slot is the consumer's port; the composition root that wires the two is the production use.
-function reachedByFlow(flows: ReadonlyMap<string, ReadonlySet<string>>, used: (key: string) => boolean): ReadonlyMap<string, string> {
-  const reached = new Map<string, string>();
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const [value, slots] of flows) {
-      const via = reached.has(value) ? undefined : [...slots].find((slot) => used(slot) || reached.has(slot));
-      if (via !== undefined) {
-        reached.set(value, via);
-        grew = true;
-      }
-    }
-  }
-  return reached;
+  return { worlds: counted, scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
 }

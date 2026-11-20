@@ -19,6 +19,7 @@ import { SymbolFlags } from "@typescript/native/sync";
 import type { CallShape, Site } from "./classify.ts";
 import { callAt, isProductionFile, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { serviceReferences } from "./language-service.ts";
+import type { WorldFiles } from "./native.ts";
 import { declarationKeys, hasFlag, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
 import { joinFacts, propertyFacts, valueIndex } from "./occurrences.ts";
@@ -270,9 +271,14 @@ function addSites(entry: Tallied, references: ReferenceIndex): void {
 }
 
 // Each file's value sites come from its home world, and a property site joins every world's links and flows at the end.
-function engineOne(root: string, configs: readonly string[], log: (line: string) => void): ReadonlyMap<string, Tallied> {
+function engineOne(
+  root: string,
+  configs: readonly string[],
+  lists: ReadonlyMap<string, WorldFiles>,
+  log: (line: string) => void,
+): ReadonlyMap<string, Tallied> {
   const tally = new Map<string, Tallied>();
-  const homes = homeFiles(configs, NativeWorld.fileLists(root, configs));
+  const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
   for (const config of configs) {
     using world = NativeWorld.open(root, config);
@@ -301,16 +307,18 @@ function engineOne(root: string, configs: readonly string[], log: (line: string)
 export function scanParams(options: ScanOptions): ParamsReport {
   const { worlds, testWorlds } = scanWorlds(options);
   const sources = new Sources(options.root);
-  const tally = engineOne(options.root, [...worlds, ...testWorlds], options.log);
+  const configs = [...worlds, ...testWorlds];
+  const lists = NativeWorld.fileLists(options.root, configs);
+  const tally = engineOne(options.root, configs, lists, options.log);
   const judged = [...tally.values()].flatMap(({ callable, sites }) => {
     const findings = judge(callable, callsOf(sources, callable, sites.values()));
     return findings.length === 0 ? [] : [{ callable, findings }];
   });
   const second = serviceReferences(
     options.root,
-    [...worlds, ...testWorlds],
+    configs,
     judged.map(({ callable }) => callable.site),
-    { log: options.log, crossCheck: options.crossCheck },
+    { log: options.log, crossCheck: options.crossCheck, lists },
   );
   const findings: UnwiredParam[] = [];
   const disagreements: string[] = [];
