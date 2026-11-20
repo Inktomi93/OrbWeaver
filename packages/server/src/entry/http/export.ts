@@ -25,7 +25,7 @@ import { ST_EXPORT_DRY_RUN_QUERY, ST_EXPORT_FORMAT, ST_EXPORT_RUNNING_CODE } fro
 import type { ExportPersonaOp, ListPersonasOp } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableFile, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService, StPersonaFile, StProfileSource } from "#domain/export";
@@ -76,8 +76,6 @@ export interface ExportDeps {
   /** The owner's personas with their avatar hashes: the backup's persona file carries no avatar. */
   readonly listPersonas: ListPersonasOp;
   readonly exportPersona: ExportPersonaOp;
-  /** The owner's cards, in the order the library backup carries them. */
-  readonly listCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
 }
 
 /** The result of parsing the `kinds` query: the set to export (null = all), or the first bad token. */
@@ -131,7 +129,7 @@ function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSourc
         yield* entity.exportAll(principal.userId, note);
       }
     },
-    cards: async () => deps.export.listStCards({ principal, characterIds: await deps.listCharacterIds(principal.userId) }),
+    cards: async () => deps.export.listStCards({ principal }),
     card: async (characterId, note) => (await deps.export.exportCharacter({ principal, characterId, note }))?.bytes ?? null,
     rooms: () => deps.export.listHostChats({ principal }),
     transcript: (chatId, attachments) => deps.export.exportChat({ principal, chatId, format: "jsonl", attachments }),

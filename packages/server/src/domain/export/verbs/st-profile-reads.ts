@@ -5,7 +5,7 @@
 
 import { assets, characters, characterTags, chatDocuments, chatParticipants, documents, tags } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { isMissingFile } from "#primitives/errno";
 import type { ListStCardsParams, OwnedBlobParams, OwnedBlobsParams } from "../contract/params.ts";
 import type { StCardRef } from "../contract/results.ts";
@@ -13,15 +13,14 @@ import type { ExportContext, ExportService } from "../contract/service.ts";
 import { ACCEPTED_TAG_STATUS } from "../substrate/card-tags.ts";
 
 export function createListStCards(ctx: ExportContext): ExportService["listStCards"] {
-  return async ({ principal, characterIds }: ListStCardsParams): Promise<readonly StCardRef[]> => {
-    if (characterIds.length === 0) {
-      return [];
-    }
+  return async ({ principal }: ListStCardsParams): Promise<readonly StCardRef[]> => {
     const ownerId = principal.userId;
+    // A synthetic group character carries no card; its room exports as a SillyTavern group instead.
     const rows = await ctx.db
       .select({ characterId: characters.id, handle: characters.handle })
       .from(characters)
-      .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])));
+      .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
+      .orderBy(asc(characters.createdAt), asc(characters.id));
     const tagRows = await ctx.db
       .select({ characterId: characterTags.characterId, name: tags.name })
       .from(characterTags)
@@ -35,12 +34,7 @@ export function createListStCards(ctx: ExportContext): ExportService["listStCard
           eq(characterTags.status, ACCEPTED_TAG_STATUS),
         ),
       );
-    // The backup's order: the ids as listed, each card once.
-    const byId = new Map(rows.map((row) => [row.characterId, row]));
-    return characterIds.flatMap((characterId) => {
-      const row = byId.get(characterId);
-      return row === undefined ? [] : [{ ...row, tags: tagRows.filter((tag) => tag.characterId === characterId).map((tag) => tag.name) }];
-    });
+    return rows.map((row) => ({ ...row, tags: tagRows.filter((tag) => tag.characterId === row.characterId).map((tag) => tag.name) }));
   };
 }
 

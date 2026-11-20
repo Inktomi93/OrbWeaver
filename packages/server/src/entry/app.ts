@@ -484,7 +484,6 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     registry: deps.portability,
     listPersonas: deps.services.persona.list,
     exportPersona: deps.services.persona.export,
-    listCharacterIds: deps.services.character.listEmbeddableCharacterIds,
   });
   registerImportBundle(app, {
     workloads: deps.services.workloads,

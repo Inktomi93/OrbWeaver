@@ -49,9 +49,7 @@ export interface ExportChatParams extends ExportActorParams {
 }
 
 /** The owned cards among `characterIds`, in that order. */
-export interface ListStCardsParams extends ExportActorParams {
-  readonly characterIds: readonly CharacterId[];
-}
+export interface ListStCardsParams extends ExportActorParams {}
 
 export interface OwnedBlobsParams extends ExportActorParams {
   readonly hashes: readonly string[];
