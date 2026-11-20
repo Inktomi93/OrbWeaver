@@ -2,13 +2,13 @@
 
 import type { StExportFile } from "@orb/contracts/import";
 import type { PortableExportNotes, PortableFile, PortableKind } from "@orb/contracts/portability";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import type { StAttachedFile } from "#primitives/serde/databank";
-import type { ExportedText, HostChatRef, StCardRef } from "./results.ts";
+import type { ExportedText, HostChatRef, StCardRef, StDocumentRef } from "./results.ts";
 
 /** The kinds the plan reads as backup streams: each file is metadata or a small text, read one at a time. Cards,
  *  chats, personas and blobs have reads of their own, so no stream of a whole kind's bodies is ever opened. */
-export type StStreamedKind = Exclude<PortableKind, "character" | "chat" | "persona" | "assets">;
+export type StStreamedKind = Exclude<PortableKind, "character" | "chat" | "persona" | "assets" | "databank">;
 
 /** One persona's backup file with the content hash of its avatar (null for none), paired by persona id. */
 export interface StPersonaFile {
@@ -16,14 +16,16 @@ export interface StPersonaFile {
   readonly avatarHash: string | null;
 }
 
-/** What the plan reads, all under one owner. A body read (`card`, `transcript`, `blob`) happens only when the zip
- *  writes that entry, and answers null when its row is gone by then. */
+/** What the plan reads, all under one owner. A body read (`card`, `transcript`, `documentText`, `blob`) happens only
+ *  when the zip writes that entry, and answers null when its row is gone by then. */
 export interface StProfileSource {
   readonly files: (kind: StStreamedKind, note: PortableExportNotes) => AsyncIterable<PortableFile>;
   readonly cards: () => Promise<readonly StCardRef[]>;
   readonly card: (characterId: CharacterId, note: PortableExportNotes) => Promise<Uint8Array | null>;
   readonly rooms: () => Promise<readonly HostChatRef[]>;
   readonly transcript: (chatId: ChatId, attachments: readonly StAttachedFile[]) => Promise<ExportedText | null>;
+  readonly documents: () => Promise<readonly StDocumentRef[]>;
+  readonly documentText: (documentId: DocumentId) => Promise<string | null>;
   /** The import hash of each owned document attached to each hosted chat. */
   readonly chatDocumentHashes: () => Promise<ReadonlyMap<ChatId, readonly string[]>>;
   readonly personas: (note: PortableExportNotes) => AsyncIterable<StPersonaFile>;
@@ -38,10 +40,18 @@ export interface StEntrySource {
   readonly item: string;
 }
 
-/** One file of the profile tree, its body read only when the zip writes it. */
+/** One file of the profile tree, its body read only when the zip writes it. `written` runs once the zip has taken the
+ *  body, so the settings file and the transcripts name only files the zip holds. */
 export interface StProfileEntry extends StExportFile {
   readonly source: StEntrySource | null;
   readonly bytes: () => Promise<Uint8Array | null>;
+  readonly written?: ((bytes: Uint8Array) => void) | undefined;
+}
+
+/** The zip writer's caps: the largest body one entry may hold, and the most entries one archive may hold. */
+export interface StZipLimits {
+  readonly maxEntryBytes: number;
+  readonly maxEntries: number;
 }
 
 /** One file of the zip: a profile entry's body, or the report. */

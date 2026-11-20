@@ -1,6 +1,7 @@
-// The SillyTavern export holds one file body at a time and its dry run reads none, and an owner runs one export or
-// dry run at a time. A second request while one runs is refused with the running code, and the hold comes back when
-// the run ends by any path: a finished stream, a cancelled download, a failed read and a failed dry run.
+// The SillyTavern export holds one file body at a time and its dry run reads none, document text included, and an
+// owner runs one export or dry run at a time. A second request while one runs is refused with the running code, and the
+// hold comes back when the run ends by any path: a finished stream, a cancelled download, a failed read, a failed dry
+// run and an entry the zip writer refuses. A row past the zip's entry or size cap is named and the zip completes.
 // @subject packages/server/src/domain/export/verbs/export-st-profile.ts
 // @subject packages/server/src/entry/http/export.ts
 
@@ -16,18 +17,21 @@ import {
   ST_EXPORT_PROFILE_DIR,
   ST_EXPORT_REPORT_FILE,
   ST_EXPORT_RUNNING_CODE,
+  ST_SETTINGS_FILE,
   stExportRefusalSchema,
   stExportReportSchema,
   stProfileExportPath,
 } from "@orb/contracts/import";
-import { chatDocuments } from "@orb/db";
+import { chatDocuments, documents, worldBooks } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import { ZIP_WRITE_LIMITS } from "@orb/server/infra/storage/zip";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makeAssetBytes, withheldTable } from "@orb/testkit/node/composed";
-import { strFromU8 } from "fflate";
+import { eq, getTableName, sql } from "drizzle-orm";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, cardJson, exportDryRun, exportedZip, finishRun, harness, storedBlobs } from "./_st-tree-door.ts";
 
@@ -37,9 +41,10 @@ const EISDIR = "EISDIR";
 const CONFLICT = 409;
 const MIB = 1024 * 1024;
 const PICTURE_BYTES = 8 * MIB;
-const LARGE_COUNT = 6;
-// One body and its zip copy fit well under this; the library is many times it.
-const HELD_BOUND = 32 * MIB;
+const LARGE_COUNT = 10;
+// Eight bodies: a read body, its deflated copy and the chunks in flight fit well under this however loaded the box, and
+// the library (two pictures per count) is two and a half times it.
+const HELD_BOUND = 8 * PICTURE_BYTES;
 const IEND_CHUNK_BYTES = 12;
 const PNG_CHUNK_TYPE = "abCd";
 const U32_BYTES = 4;
@@ -248,4 +253,133 @@ test("a stored file gone by the time the zip writes it is named in the zip's rep
   for (const name of SMALL_NAMES) {
     expect(written[`${ST_EXPORT_PROFILE_DIR}characters/${name.toLowerCase()}.png`], name).toBeDefined();
   }
+});
+
+const EPUB_MIME = "application/epub+zip";
+const EPUB_XML = '<?xml version="1.0" encoding="UTF-8"?>';
+const EPUB_CHAPTERS = ["a", "b", "c", "d", "e"] as const;
+const ZIP_MTIME = new Date("2025-07-01T12:00:00Z");
+const BIG_DOCUMENT = "Lantern road";
+
+// A small epub whose chapters extract to more text than one zip entry may hold: five 17 MiB chapters of one line.
+function overflowingEpub(): Uint8Array {
+  const paragraph = `<p>${"Lanterns line the long road home. ".repeat(1000)}</p>`;
+  const chapter = `<html><body>${paragraph.repeat(Math.ceil((17 * MIB) / paragraph.length))}</body></html>`;
+  const manifest = EPUB_CHAPTERS.map((id) => `<item id="${id}" href="${id}.xhtml" media-type="application/xhtml+xml"/>`).join("");
+  const spine = EPUB_CHAPTERS.map((id) => `<itemref idref="${id}"/>`).join("");
+  return zipSync(
+    {
+      "META-INF/container.xml": strToU8(
+        `${EPUB_XML}<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+      ),
+      "content.opf": strToU8(
+        `${EPUB_XML}<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><manifest>${manifest}</manifest><spine>${spine}</spine></package>`,
+      ),
+      ...Object.fromEntries(EPUB_CHAPTERS.map((id) => [`${id}.xhtml`, strToU8(chapter)])),
+    },
+    { mtime: ZIP_MTIME },
+  );
+}
+
+test("a Data Bank file whose text is past the zip's entry cap is named and left out, the zip completes, and the next export starts", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  const signal = new AbortController().signal;
+  await root.services.databank.upload({ principal, signal, bytes: overflowingEpub(), mime: EPUB_MIME, name: BIG_DOCUMENT, destination: { kind: "global" } });
+  // The control: the dry run lists the file, so the zip leaving it out is the zip's own refusal.
+  const planned = (await exportDryRun(root)).files.filter(({ path }) => path.startsWith(`${ST_EXPORT_PROFILE_DIR}user/files/`));
+  expect(planned).toHaveLength(1);
+
+  const download = await root.http.request(stProfileExportPath(false));
+  const body = await download.arrayBuffer().then(
+    (buffer) => new Uint8Array(buffer),
+    (err: unknown) => err,
+  );
+
+  // The hold is back however the download ended, so this holds even when the zip fails.
+  expect(await dryRunStatus(root)).toBe(OK);
+  expect(body).toBeInstanceOf(Uint8Array);
+  const zip = unzipSync(body instanceof Uint8Array ? body : new Uint8Array());
+  expect(zip[present(planned[0]).path]).toBeUndefined();
+  const report = stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE]))));
+  expect(report.left).toEqual(expect.arrayContaining([{ kind: "databank", item: BIG_DOCUMENT, reason: "past-zip-limit" }]));
+  expect(strFromU8(present(zip[`${ST_EXPORT_PROFILE_DIR}${ST_SETTINGS_FILE}`]))).not.toContain(BIG_DOCUMENT);
+});
+
+const INSERT_CHUNK = 500;
+const BOOK_PREFIX = "Book ";
+
+test("a library past the zip's entry cap names every row it cannot hold, the zip completes, and the next export starts", { tags: ["slow"] }, async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  // One book through the product, then its row copied under new ids: a library holding more books than one zip may.
+  const made = await root.services.worldInfo.createBook({ principal, input: { name: `${BOOK_PREFIX}0` } });
+  const [row] = await root.db.select().from(worldBooks).where(eq(worldBooks.id, made.id));
+  const copies = Array.from({ length: ZIP_WRITE_LIMITS.maxEntries }, (_, index) => ({
+    ...present(row),
+    id: root.idSource.typeId(ID_PREFIX.worldBook),
+    name: `${BOOK_PREFIX}${String(index + 1)}`,
+  }));
+  for (let start = 0; start < copies.length; start += INSERT_CHUNK) {
+    await root.db.insert(worldBooks).values(copies.slice(start, start + INSERT_CHUNK));
+  }
+
+  const download = await root.http.request(stProfileExportPath(false));
+  const body = await download.arrayBuffer().then(
+    (buffer) => new Uint8Array(buffer),
+    (err: unknown) => err,
+  );
+
+  // A second download starts (its answer comes before any body is read), so the first one gave its hold back.
+  const next = await root.http.request(stProfileExportPath(false));
+  expect(next.status).toBe(OK);
+  await next.body?.cancel();
+  expect(body).toBeInstanceOf(Uint8Array);
+  const zip = unzipSync(body instanceof Uint8Array ? body : new Uint8Array());
+  expect(Object.keys(zip).length).toBeLessThanOrEqual(ZIP_WRITE_LIMITS.maxEntries);
+  const report = stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE]))));
+  const past = report.left.filter(({ reason }) => reason === "past-zip-limit");
+  // Every copied book is either written or named; none vanishes. The owner's default content holds books of its own.
+  const written = Object.keys(zip).filter((path) => path.startsWith(`${ST_EXPORT_PROFILE_DIR}worlds/${BOOK_PREFIX}`)).length;
+  const named = past.filter(({ kind, item }) => kind === "world-info" && item.startsWith(BOOK_PREFIX)).length;
+  expect(named).toBeGreaterThan(0);
+  expect(written + named).toBe(copies.length + 1);
+  expect(zip[`${ST_EXPORT_PROFILE_DIR}${ST_SETTINGS_FILE}`]).toBeDefined();
+});
+
+// A document's text column renamed away, so any read of a document's text fails and every other read of the table runs.
+async function withheldDocumentText(root: ServerTestHarness): Promise<AsyncDisposable> {
+  const table = getTableName(documents);
+  const column = documents.extractedText.name;
+  const withheld = `withheld_${column}`;
+  await root.db.run(sql`ALTER TABLE ${sql.identifier(table)} RENAME COLUMN ${sql.identifier(column)} TO ${sql.identifier(withheld)}`);
+  return {
+    async [Symbol.asyncDispose](): Promise<void> {
+      await root.db.run(sql`ALTER TABLE ${sql.identifier(table)} RENAME COLUMN ${sql.identifier(withheld)} TO ${sql.identifier(column)}`);
+    },
+  };
+}
+
+test("the dry run reads no document's text: it answers in full when no text can be read, and the zip does not", async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  const signal = new AbortController().signal;
+  await root.services.databank.upload({
+    principal,
+    signal,
+    bytes: new TextEncoder().encode("The ford floods at dusk."),
+    mime: "text/plain",
+    name: "Field notes",
+    destination: { kind: "global" },
+  });
+  const planned = await exportDryRun(root);
+  expect(planned.files.filter(({ path }) => path.startsWith(`${ST_EXPORT_PROFILE_DIR}user/files/`))).toHaveLength(1);
+  await using _withheld = await withheldDocumentText(root);
+
+  expect(await exportDryRun(root)).toEqual(planned);
+  // The control: the zip reads the document's text and fails on it.
+  const zip = await root.http.request(stProfileExportPath(false));
+  await expect(zip.arrayBuffer()).rejects.toThrow(documents.extractedText.name);
 });

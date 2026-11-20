@@ -3,7 +3,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableExportNotes } from "@orb/contracts/portability";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import type { PortableSeatCard } from "#primitives/serde/chat-bundle";
 import type { StAttachedFile } from "#primitives/serde/databank";
 
@@ -50,6 +50,12 @@ export interface ExportChatParams extends ExportActorParams {
 
 /** The owned cards among `characterIds`, in that order. */
 export interface ListStCardsParams extends ExportActorParams {}
+
+export interface ListStDocumentsParams extends ExportActorParams {}
+
+export interface StDocumentTextParams extends ExportActorParams {
+  readonly documentId: DocumentId;
+}
 
 export interface OwnedBlobsParams extends ExportActorParams {
   readonly hashes: readonly string[];

@@ -4,8 +4,10 @@
 //
 // BOUNDED: one generator yields every entry in zip order with a lazy body. The zip reads each body only when it writes
 // that entry, under the response's pull, so the export holds one body at a time; the dry run reads no body at all (no
-// card PNG, no blob, no transcript). A body whose row is gone by write time is left out and named as unreadable, so the
-// zip's report can name more than the dry run's.
+// card PNG, no blob, no transcript, no document text). A body whose row is gone by write time is left out and named as
+// unreadable, and a body over the zip's entry cap is named as past the zip's limit, so the zip's report can name more
+// than the dry run's. An entry's `written` registers it in the settings file and the transcripts only once the zip
+// holds it.
 //
 // SECURITY: every path segment built from a stored name goes through SillyTavern's own filename rule
 // (`stExportFilename`), is clipped to the name byte limit with its collision suffix, and is compared after the volume
@@ -30,7 +32,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { IMAGE_EXTENSION_BY_MIME } from "@orb/kit/image-sniff";
 import { parseJsonText } from "@orb/kit/json";
 import type { StAttachedFile } from "#primitives/serde/databank";
-import { parseDocumentFile, stAttachmentEntry } from "#primitives/serde/databank";
+import { stAttachmentEntry } from "#primitives/serde/databank";
 import { parseGallery } from "#primitives/serde/gallery";
 import { parsePersonaBackup } from "#primitives/serde/persona";
 import { readPresetFileScripts } from "#primitives/serde/preset";
@@ -43,7 +45,7 @@ import { buildStWorldFile, parseWorldBookFile } from "#primitives/serde/world-in
 import { stClipStem, stExportFilename } from "#primitives/st-filename";
 import { volumeFold } from "#primitives/volume-fold";
 import type { HostChatRef } from "../contract/results.ts";
-import type { StEntrySource, StProfileEntry, StProfileSource, StProfileZipFile, StStreamedKind } from "../contract/st-profile.ts";
+import type { StEntrySource, StProfileEntry, StProfileSource, StProfileZipFile, StStreamedKind, StZipLimits } from "../contract/st-profile.ts";
 
 // The kinds SillyTavern keeps nothing of. Each owned file of them is named in the report.
 const NO_HOME_KINDS = ["imagery", "spend"] as const satisfies readonly StStreamedKind[];
@@ -230,30 +232,30 @@ async function* planCharacters(source: StProfileSource, plan: PlanBuilder): Asyn
 // list, or a chat header (`planChats`). A document none of those lists has no SillyTavern home.
 async function* planDocuments(source: StProfileSource, plan: PlanBuilder, chatHashes: ReadonlySet<string>): AsyncGenerator<StProfileEntry> {
   const name = namer();
-  for await (const file of source.files("databank", plan.notes)) {
-    const document = parseDocumentFile(file.bytes);
-    if (!document.ok) {
-      plan.leave("databank", stemOf(file.filename), "unreadable");
+  for (const document of await source.documents()) {
+    const cards = document.characterHandles.flatMap((handle) => plan.cards.get(handle) ?? []);
+    if (!document.global && cards.length === 0 && !chatHashes.has(document.importHash)) {
+      plan.leave("databank", document.name, "no-sillytavern-home");
       continue;
     }
-    const { value } = document;
-    const cards = value.characterHandles.flatMap((text) => plan.cards.get(portableCharacterHandle(text)) ?? []);
-    if (!value.global && cards.length === 0 && !chatHashes.has(value.importHash)) {
-      plan.leave("databank", value.name, "no-sillytavern-home");
-      continue;
-    }
-    const bytes = ENCODER.encode(value.extractedText);
-    const stored = name(value.name.toLowerCase().endsWith(TXT_EXT) ? stemOf(value.name) : value.name, FALLBACK_NAMES.document, TXT_EXT);
-    const attached: StAttachedFile = { file: stored, name: value.name, size: bytes.byteLength, created: value.createdAt ?? 0 };
-    plan.documents.set(value.importHash, attached);
-    const entry = stAttachmentEntry(attached);
-    if (value.global) {
-      plan.settings.attachments.push(entry);
-    }
-    for (const card of cards) {
-      plan.settings.characterAttachments[card] = [...(plan.settings.characterAttachments[card] ?? []), entry];
-    }
-    yield plan.entry("documents", `user/files/${stored}`, { kind: "databank", item: value.name }, held(bytes));
+    const stored = name(document.name.toLowerCase().endsWith(TXT_EXT) ? stemOf(document.name) : document.name, FALLBACK_NAMES.document, TXT_EXT);
+    const body = async (): Promise<Uint8Array | null> => {
+      const text = await source.documentText(document.documentId);
+      return text === null ? null : ENCODER.encode(text);
+    };
+    // The attachment entry carries the written file's size, so it is listed once the zip holds the file.
+    const written = (bytes: Uint8Array): void => {
+      const attached: StAttachedFile = { file: stored, name: document.name, size: bytes.byteLength, created: document.createdAt };
+      plan.documents.set(document.importHash, attached);
+      const entry = stAttachmentEntry(attached);
+      if (document.global) {
+        plan.settings.attachments.push(entry);
+      }
+      for (const card of cards) {
+        plan.settings.characterAttachments[card] = [...(plan.settings.characterAttachments[card] ?? []), entry];
+      }
+    };
+    yield { ...plan.entry("documents", `user/files/${stored}`, { kind: "databank", item: document.name }, body), written };
   }
 }
 
@@ -282,19 +284,22 @@ async function* planChats(source: StProfileSource, plan: PlanBuilder, chatHashes
   const namers = new Map<string, ReturnType<typeof namer>>();
   const groupName = namer();
   for (const room of await source.rooms()) {
-    const attachments = (chatHashes.get(room.chatId) ?? []).flatMap((hash) => plan.documents.get(hash) ?? []);
-    // A transcript gone by write time is named once, and its group file is left out with it.
-    let carried = true;
+    // A transcript gone or left out at write time is named once, and its group file is left out with it.
+    let carried = false;
     const transcript = async (): Promise<Uint8Array | null> => {
+      // The Data Bank files the zip already holds: every document entry is written before the first transcript.
+      const attachments = (chatHashes.get(room.chatId) ?? []).flatMap((hash) => plan.documents.get(hash) ?? []);
       const text = await source.transcript(room.chatId, attachments);
-      carried = text !== null;
       return text === null ? null : ENCODER.encode(text.text);
+    };
+    const markCarried = (): void => {
+      carried = true;
     };
     const item = { kind: "chat", item: room.title ?? room.chatId } as const;
     if (room.isGroup) {
       const leaf = stemOf(groupName(room.chatId, FALLBACK_NAMES.chat, JSONL_EXT));
       const group = json(stGroupFile(room, leaf, plan));
-      yield plan.entry("groups", `group chats/${leaf}${JSONL_EXT}`, item, transcript);
+      yield { ...plan.entry("groups", `group chats/${leaf}${JSONL_EXT}`, item, transcript), written: markCarried };
       yield plan.entry("groups", `groups/${leaf}.json`, null, () => Promise.resolve(carried ? group : null));
       continue;
     }
@@ -426,13 +431,12 @@ async function* planBackgrounds(
     }
     const stored = name(stemOf(entry.name), FALLBACK_NAMES.background, `.${extOf(mime)}`);
     const chosen = appearance.backgroundImageKind === BACKGROUND_FROM_ASSET && appearance.backgroundAssetHash === entry.assetHash;
-    yield plan.entry("backgrounds", `backgrounds/${stored}`, { kind: "user-settings", item: entry.name }, async () => {
-      const bytes = await source.blob(entry.assetHash);
-      if (bytes !== null && chosen && plan.settings.background === null) {
+    const written = (): void => {
+      if (chosen && plan.settings.background === null) {
         plan.settings.background = { name: stored, url: `url("backgrounds/${encodeURIComponent(stored)}")`, fitting: appearance.backgroundFit };
       }
-      return bytes;
-    });
+    };
+    yield { ...plan.entry("backgrounds", `backgrounds/${stored}`, { kind: "user-settings", item: entry.name }, () => source.blob(entry.assetHash)), written };
   }
 }
 
@@ -483,14 +487,11 @@ async function* planPersonas(source: StProfileSource, plan: PlanBuilder): AsyncG
       continue;
     }
     const avatar = name(persona.name, FALLBACK_NAMES.persona, `.${extOf(mime)}`);
-    yield plan.entry("personas", `User Avatars/${avatar}`, { kind: "persona", item: persona.name }, async () => {
-      const bytes = await source.blob(persona.hash);
-      if (bytes !== null) {
-        plan.settings.personas[avatar] = persona.name;
-        plan.settings.personaDescriptions[avatar] = { description: persona.description, title: persona.title };
-      }
-      return bytes;
-    });
+    const written = (): void => {
+      plan.settings.personas[avatar] = persona.name;
+      plan.settings.personaDescriptions[avatar] = { description: persona.description, title: persona.title };
+    };
+    yield { ...plan.entry("personas", `User Avatars/${avatar}`, { kind: "persona", item: persona.name }, () => source.blob(persona.hash)), written };
   }
 }
 
@@ -532,13 +533,10 @@ async function* planGallery(source: StProfileSource, plan: PlanBuilder): AsyncGe
       continue;
     }
     const folder = stemOf(card);
-    yield plan.entry("gallery", `user/images/${folder}/${hash}.${extOf(mime)}`, { kind: "gallery", item: hash }, async () => {
-      const bytes = await source.blob(hash);
-      if (bytes !== null) {
-        plan.settings.galleryFolders[card] = folder;
-      }
-      return bytes;
-    });
+    const written = (): void => {
+      plan.settings.galleryFolders[card] = folder;
+    };
+    yield { ...plan.entry("gallery", `user/images/${folder}/${hash}.${extOf(mime)}`, { kind: "gallery", item: hash }, () => source.blob(hash)), written };
   }
 }
 
@@ -591,10 +589,26 @@ function listed({ path, kind, door }: StExportFile): StExportFile {
 
 /** The SillyTavern export's dry run: every file it would write with the door that takes it, and every row it leaves
  *  behind with why. It reads no card, blob or transcript body. */
-export async function stProfileDryRun(source: StProfileSource): Promise<StExportReport> {
+// The zip writer refuses an entry over its byte cap and an archive past its entry cap. A row the zip cannot hold is
+// named and left out instead, so one large row never fails the whole export. The settings file, the report and a
+// group file after its transcript have no row of their own to name, so the entry cap keeps room for them.
+const UNNAMED_ENTRIES_RESERVED = 3;
+
+// Whether the zip is too full for this row: the dry run and the zip judge by the same count.
+function pastEntryCap(entry: StProfileEntry, count: number, limits: StZipLimits): entry is StProfileEntry & { readonly source: StEntrySource } {
+  return entry.source !== null && count + UNNAMED_ENTRIES_RESERVED >= limits.maxEntries;
+}
+
+/** What the SillyTavern export would carry and leave, with no stored body read. A body too large for the zip is known
+ *  only when the zip reads it, so only the zip's report names it. */
+export async function stProfileDryRun(source: StProfileSource, limits: StZipLimits): Promise<StExportReport> {
   const plan = new PlanBuilder();
   const files: StExportFile[] = [];
   for await (const entry of planEntries(source, plan)) {
+    if (pastEntryCap(entry, files.length, limits)) {
+      plan.leave(entry.source.kind, entry.source.item, "past-zip-limit");
+      continue;
+    }
     files.push(listed(entry));
   }
   return { files, left: plan.left };
@@ -602,10 +616,14 @@ export async function stProfileDryRun(source: StProfileSource): Promise<StExport
 
 /** The SillyTavern export's zip files, one body read per pull, then its report at the zip root. The report names the
  *  files written, and a body gone by write time among the rows left behind. */
-export async function* stProfileZip(source: StProfileSource): AsyncGenerator<StProfileZipFile> {
+export async function* stProfileZip(source: StProfileSource, limits: StZipLimits): AsyncGenerator<StProfileZipFile> {
   const plan = new PlanBuilder();
   const files: StExportFile[] = [];
   for await (const entry of planEntries(source, plan)) {
+    if (pastEntryCap(entry, files.length, limits)) {
+      plan.leave(entry.source.kind, entry.source.item, "past-zip-limit");
+      continue;
+    }
     const bytes = await entry.bytes();
     if (bytes === null) {
       if (entry.source !== null) {
@@ -613,6 +631,11 @@ export async function* stProfileZip(source: StProfileSource): AsyncGenerator<StP
       }
       continue;
     }
+    if (bytes.byteLength > limits.maxEntryBytes && entry.source !== null) {
+      plan.leave(entry.source.kind, entry.source.item, "past-zip-limit");
+      continue;
+    }
+    entry.written?.(bytes);
     files.push(listed(entry));
     yield { path: entry.path, bytes };
   }

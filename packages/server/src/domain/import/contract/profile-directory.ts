@@ -118,6 +118,9 @@ export interface ProfileDirImportDeps {
   readonly newBackgroundEntryId?: NewBackgroundEntryId;
   /** The databank's write for a Data Bank file, after every wave whose rows its scopes name. */
   readonly importDocument: ImportAttachedDocument<AbortSignal>;
+  /** The Data Bank's effective per-file cap: the collector skips a larger file with its reason, so the preview and the
+   *  run agree with the upload verb, which refuses it. */
+  readonly maxDocumentBytes: () => number;
   /** The assets write for a gallery image, after the character wave. */
   readonly importGalleryImage: ImportGalleryImage;
   /** The reads a dry run asks for the kinds whose write has no dry-run mode. */

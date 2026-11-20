@@ -182,7 +182,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     if (profile === null) {
       continue;
     }
-    const result = await collectBundlesFromDir(fs, profile, []);
+    const result = await collectBundlesFromDir(fs, profile, [], deps.maxDocumentBytes());
     profiles.push({ name: ent.name, result });
     bundles.push(...result.bundles);
     personas.push(...result.personas);

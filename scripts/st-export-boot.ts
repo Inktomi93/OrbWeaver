@@ -5,8 +5,8 @@
 // Usage: node scripts/st-export-boot.ts <export.zip> [<sillytavern checkout>] [--keep]
 //
 // The checkout's data/ and backups/ hold its owner's real SillyTavern data, so they are never copied or read. The copy
-// installs from the checkout's own lockfile with install scripts off, binds 127.0.0.1 on a free port, and is deleted
-// when the run ends (unless --keep).
+// installs from the checkout's own lockfile with install scripts off, binds 127.0.0.1 on a free port with SillyTavern's
+// CSRF check on, and is deleted when the run ends (unless --keep).
 
 import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -93,8 +93,6 @@ try {
       dataRoot,
       "--configPath",
       join(work, "config.yaml"),
-      "--disableCsrf",
-      "true",
       "--browserLaunchEnabled",
       "false",
     ],
@@ -119,8 +117,25 @@ try {
     await new Promise((resolve) => setTimeout(resolve, READY_POLL_MS));
   }
 
+  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const field = (value: unknown, key: string): unknown => (typeof value === "object" && value !== null ? (value as Record<string, unknown>)[key] : undefined);
+
+  // SillyTavern keeps its CSRF check on: the token is bound to the session the first read opens, so every later request
+  // sends that session's cookie and the token, as SillyTavern's own client does (`getRequestHeaders`).
+  const tokenResponse = await fetch(`${base}/csrf-token`);
+  const session = {
+    cookie: tokenResponse.headers
+      .getSetCookie()
+      .map((line) => line.split(";")[0] ?? "")
+      .join("; "),
+    token: String(field(await tokenResponse.json(), "token")),
+  };
   const post = async (route: string, body: unknown = {}): Promise<{ status: number; json: unknown }> => {
-    const response = await fetch(`${base}${route}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const response = await fetch(`${base}${route}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: session.cookie, "x-csrf-token": session.token },
+      body: JSON.stringify(body),
+    });
     const text = await response.text();
     let json: unknown = text;
     try {
@@ -130,8 +145,6 @@ try {
     }
     return { status: response.status, json };
   };
-  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-  const field = (value: unknown, key: string): unknown => (typeof value === "object" && value !== null ? (value as Record<string, unknown>)[key] : undefined);
 
   const characters = await post("/api/characters/all");
   const avatars = list(characters.json).map((character) => String(field(character, "avatar")));
@@ -150,7 +163,10 @@ try {
   const gallery = await Promise.all(galleryFolders.map(async (folder) => [folder, list((await post("/api/images/list", { folder })).json).length] as const));
   const attachments = list(field(extension, "attachments"));
   const files = await Promise.all(
-    attachments.map(async (entry) => [String(field(entry, "url")), (await fetch(`${base}${String(field(entry, "url"))}`)).status] as const),
+    attachments.map(
+      async (entry) =>
+        [String(field(entry, "url")), (await fetch(`${base}${String(field(entry, "url"))}`, { headers: { cookie: session.cookie } })).status] as const,
+    ),
   );
   const groupChats = await Promise.all(
     list(groups.json).flatMap((group) =>

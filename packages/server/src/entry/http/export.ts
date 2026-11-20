@@ -32,7 +32,7 @@ import type { ExportCardFormat, ExportChatFormat, ExportService, StPersonaFile, 
 import { createBundlePaths, stProfileDryRun, stProfileZip } from "#domain/export";
 import type { Logger, TraceRing } from "#foundation/observability";
 import type { ZipEntry } from "#infra/storage";
-import { packZip } from "#infra/storage";
+import { packZip, ZIP_WRITE_LIMITS } from "#infra/storage";
 import { isStoredConfigUnreadable, refuseExportNote } from "#primitives/stored-config";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
@@ -70,7 +70,16 @@ export interface ExportDeps {
   readonly traces: TraceRing;
   readonly export: Pick<
     ExportService,
-    "exportCharacter" | "exportChat" | "exportChatBundle" | "listHostChats" | "listStCards" | "ownedBlobMimes" | "readOwnedBlob" | "listChatDocumentHashes"
+    | "exportCharacter"
+    | "exportChat"
+    | "exportChatBundle"
+    | "listHostChats"
+    | "listStCards"
+    | "ownedBlobMimes"
+    | "readOwnedBlob"
+    | "listChatDocumentHashes"
+    | "listStDocuments"
+    | "readStDocumentText"
   >;
   readonly registry: PortabilityRegistry;
   /** The owner's personas with their avatar hashes: the backup's persona file carries no avatar. */
@@ -133,6 +142,8 @@ function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSourc
     card: async (characterId, note) => (await deps.export.exportCharacter({ principal, characterId, note }))?.bytes ?? null,
     rooms: () => deps.export.listHostChats({ principal }),
     transcript: (chatId, attachments) => deps.export.exportChat({ principal, chatId, format: "jsonl", attachments }),
+    documents: () => deps.export.listStDocuments({ principal }),
+    documentText: (documentId) => deps.export.readStDocumentText({ principal, documentId }),
     chatDocumentHashes: () => deps.export.listChatDocumentHashes({ principal }),
     async *personas(note): AsyncGenerator<StPersonaFile> {
       for (const persona of await deps.listPersonas({ principal })) {
@@ -166,7 +177,8 @@ function createExportHolds(): ExportHolds {
   };
 }
 
-// The zip's files, the hold given back when the stream ends, fails or is cancelled (`packZip` returns the iterator).
+// The zip's files, the hold given back when the stream ends, is cancelled, or fails in the source or in the writer
+// (`packZip` returns the iterator on cancel and on a refused entry).
 async function* heldZip(files: AsyncIterable<ZipEntry>, release: () => void): AsyncGenerator<ZipEntry> {
   try {
     yield* files;
@@ -184,12 +196,12 @@ async function serveStProfile(deps: ExportDeps, holds: ExportHolds, principal: P
   const source = stProfileSource(deps, principal);
   if (dryRun) {
     try {
-      return Response.json(await stProfileDryRun(source));
+      return Response.json(await stProfileDryRun(source, ZIP_WRITE_LIMITS));
     } finally {
       release();
     }
   }
-  const profile = packZip(heldZip(stProfileZip(source), release), deps.logger, deps.traces);
+  const profile = packZip(heldZip(stProfileZip(source, ZIP_WRITE_LIMITS), release), deps.logger, deps.traces);
   return new Response(profile, { headers: { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${ST_PROFILE_FILENAME}"` } });
 }
 

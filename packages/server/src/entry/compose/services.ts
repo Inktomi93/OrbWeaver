@@ -1004,6 +1004,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     toolUse,
   });
 
+  // The Data Bank's effective per-file cap: the upload verb and the profile import's preview both judge by it.
+  const databankUploadBytes = (): number => resolveUploadCaps(settings.getEffectiveConfig()).databankUpload;
   // ── databank (the databank seam) — built BEFORE chat so `gatherDatabank` (DB6) can inject into the chat build.
   const { databank, databankIngest, databankPortability } = buildDatabank({
     logger: deps.logger,
@@ -1014,7 +1016,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     audit,
     assetsStore: assets.store,
-    maxUploadBytes: () => resolveUploadCaps(settings.getEffectiveConfig()).databankUpload,
+    maxUploadBytes: databankUploadBytes,
     loadAssetBytes: createAssetEmbeddingReads(assets).loadAssetBytes,
     embeddings,
     extractText,
@@ -1377,6 +1379,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
     databankCtx: databankPortability,
     importAttachedDocument: databank.importAttached,
+    maxDatabankUploadBytes: databankUploadBytes,
     persona,
     exportService,
     exportCurrentCard,

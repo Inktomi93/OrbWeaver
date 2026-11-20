@@ -9,7 +9,14 @@ import { createExportCharacter } from "./verbs/export-character.ts";
 import { createExportChat } from "./verbs/export-chat.ts";
 import { createExportChatBundle } from "./verbs/export-chat-bundle.ts";
 import { createListHostChats, createListHostChatsCreatedAt } from "./verbs/list-host-chats.ts";
-import { createListChatDocumentHashes, createListStCards, createOwnedBlobMimes, createReadOwnedBlob } from "./verbs/st-profile-reads.ts";
+import {
+  createListChatDocumentHashes,
+  createListStCards,
+  createListStDocuments,
+  createOwnedBlobMimes,
+  createReadOwnedBlob,
+  createReadStDocumentText,
+} from "./verbs/st-profile-reads.ts";
 
 export function createExportService(input: DbAssemblyInput<ExportContext>): ExportService {
   const ctx: ExportContext = { ...input, db: databaseForOwner(input.db) };
@@ -24,5 +31,7 @@ export function createExportService(input: DbAssemblyInput<ExportContext>): Expo
     ownedBlobMimes: createOwnedBlobMimes(ctx),
     readOwnedBlob: createReadOwnedBlob(ctx),
     listChatDocumentHashes: createListChatDocumentHashes(ctx),
+    listStDocuments: createListStDocuments(ctx),
+    readStDocumentText: createReadStDocumentText(ctx),
   };
 }

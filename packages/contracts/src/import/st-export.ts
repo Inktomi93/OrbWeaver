@@ -51,8 +51,16 @@ export const ST_EXPORT_DOORS = {
  *  named part of it has no field in SillyTavern's file (the item reads `<row>: <part>`). `rides-its-card-or-preset`:
  *  a scoped regex script travels only inside the card or preset it runs on. `unreadable`: the stored row or its
  *  blob did not read. `persona-without-art`: SillyTavern lists a persona only by its avatar image, and this one has
- *  none. */
-const ST_EXPORT_LEFT_REASONS = ["no-sillytavern-home", "no-sillytavern-field", "rides-its-card-or-preset", "unreadable", "persona-without-art"] as const;
+ *  none. `past-zip-limit`: the file is larger than one zip entry may be, or the zip already holds as many files as it
+ *  may. */
+const ST_EXPORT_LEFT_REASONS = [
+  "no-sillytavern-home",
+  "no-sillytavern-field",
+  "rides-its-card-or-preset",
+  "unreadable",
+  "persona-without-art",
+  "past-zip-limit",
+] as const;
 export type StExportLeftReason = (typeof ST_EXPORT_LEFT_REASONS)[number];
 
 const stExportFileSchema = z.strictObject({

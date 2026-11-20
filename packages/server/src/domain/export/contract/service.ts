@@ -18,11 +18,13 @@ import type {
   ListHostChatsCreatedAtParams,
   ListHostChatsParams,
   ListStCardsParams,
+  ListStDocumentsParams,
   OwnedBlobParams,
   OwnedBlobsParams,
   SeatCardIdentity,
+  StDocumentTextParams,
 } from "./params.ts";
-import type { ExportedCard, ExportedText, HostChatRef, StCardRef } from "./results.ts";
+import type { ExportedCard, ExportedText, HostChatRef, StCardRef, StDocumentRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
@@ -70,4 +72,8 @@ export interface ExportService {
   readonly readOwnedBlob: (params: OwnedBlobParams) => Promise<Uint8Array | null>;
   /** The import hash of each of the caller's documents attached to each chat the caller hosts. */
   readonly listChatDocumentHashes: (params: ListHostChatsParams) => Promise<ReadonlyMap<ChatId, readonly string[]>>;
+  /** The caller's Data Bank documents with their scopes, and no document text read. */
+  readonly listStDocuments: (params: ListStDocumentsParams) => Promise<readonly StDocumentRef[]>;
+  /** One document's extracted text, or null when the caller holds it no more. */
+  readonly readStDocumentText: (params: StDocumentTextParams) => Promise<string | null>;
 }

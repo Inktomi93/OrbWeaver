@@ -53,6 +53,7 @@ export const ST_EXPORT_LEFT_REASON_NAMES: Readonly<Record<StExportLeftReason, st
   "rides-its-card-or-preset": "a scoped regex script travels only inside the card or preset it runs on",
   unreadable: "it could not be read",
   "persona-without-art": "a persona with no image, which SillyTavern cannot list",
+  "past-zip-limit": "too large for the zip, or past the number of files a zip can hold",
 };
 
 /** One kind's line: how many files, and the door that takes them. */

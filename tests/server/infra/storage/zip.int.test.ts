@@ -1,5 +1,6 @@
 // The upload extractor reads an archive by position from a staged file and whole from memory; both sources
-// stage the same entries and refuse the same hostile shapes, leaving nothing staged.
+// stage the same entries and refuse the same hostile shapes, leaving nothing staged. The writer finalizes its source
+// when it refuses an entry.
 // @subject packages/server/src/infra/storage/zip.ts
 
 import { createCipheriv } from "node:crypto";
@@ -7,7 +8,7 @@ import { mkdir, mkdtemp, open, readdir, rename, rm, symlink, writeFile } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
-import { extractZip, packZip } from "@orb/server/infra/storage/zip";
+import { extractZip, packZip, ZIP_WRITE_LIMITS } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { onTestFinished } from "vitest";
@@ -320,4 +321,36 @@ test.for<{ name: string; swap: (dir: string) => Promise<void> }>([
 
   await expect(staged.entries[0]?.read()).rejects.toMatchObject({ code: STAGED_FILE_CHANGED });
   await staged.dispose();
+});
+
+test("a source the writer refuses mid-stream is finalized, whether one entry is over the entry cap or the archive is past it", async () => {
+  const cases = {
+    *"too-large"(): Generator<{ readonly path: string; readonly bytes: Uint8Array }> {
+      yield { path: "big.bin", bytes: new Uint8Array(ZIP_WRITE_LIMITS.maxEntryBytes + 1) };
+    },
+    *"too-many-entries"(): Generator<{ readonly path: string; readonly bytes: Uint8Array }> {
+      const empty = new Uint8Array();
+      for (let index = 0; index <= ZIP_WRITE_LIMITS.maxEntries; index += 1) {
+        yield { path: `e/${String(index)}`, bytes: empty };
+      }
+    },
+  } as const;
+  for (const [kind, entries] of Object.entries(cases)) {
+    let finalized = false;
+    async function* source(): AsyncGenerator<{ readonly path: string; readonly bytes: Uint8Array }> {
+      try {
+        yield* entries();
+      } finally {
+        finalized = true;
+      }
+    }
+
+    const refusal = await new Response(packZip(source(), createTestLogger(), null)).arrayBuffer().then(
+      () => null,
+      (err: unknown) => (err instanceof Error ? (REJECTION_KIND.exec(err.message)?.groups?.["kind"] ?? err.message) : String(err)),
+    );
+
+    expect(refusal, kind).toBe(kind);
+    expect(finalized, kind).toBe(true);
+  }
 });

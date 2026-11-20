@@ -30,7 +30,15 @@ import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import { createHeldDocumentHashes } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, OwnedChatTitle, SettleImportMemory } from "#domain/import";
+import type {
+  ExportCurrentCard,
+  ExportCurrentChats,
+  ImportDriverDeps,
+  ImportWorkloadDeps,
+  OwnedChatTitle,
+  ProfileDirImportDeps,
+  SettleImportMemory,
+} from "#domain/import";
 import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
@@ -85,6 +93,8 @@ export interface PortabilityRunnerComposeDeps {
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   /** The databank's write for a Data Bank file a SillyTavern profile carries. */
   readonly importAttachedDocument: ImportAttachedDocument<AbortSignal>;
+  /** The Data Bank's effective per-file cap, which a profile's Data Bank file meets in the preview as in the run. */
+  readonly maxDatabankUploadBytes: ProfileDirImportDeps["maxDocumentBytes"];
   readonly persona: PersonaService;
   readonly exportService: ExportService;
   /** The import lookup's last step for a card or room the app wrote (D290). */
@@ -215,6 +225,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
             galleryHashes: createHeldGalleryHashes(deps.galleryCtx),
           },
           importDocument: deps.importAttachedDocument,
+          maxDocumentBytes: deps.maxDatabankUploadBytes,
           importGalleryImage: createImportGalleryImage({ ...deps.galleryCtx, store: deps.assets.store }),
           importPresetScripts: deps.importPresetScripts,
           planPresetScripts: deps.planPresetScripts,

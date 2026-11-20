@@ -3,12 +3,13 @@
 // dry run holds the library. Every read is the caller's own: the owner predicate sits in each WHERE, and a chat's
 // attachments are read only for a chat the caller hosts.
 
-import { assets, characters, characterTags, chatDocuments, chatParticipants, documents, tags } from "@orb/db";
+import { portableCharacterHandle } from "@orb/contracts/character";
+import { assets, characterDocuments, characters, characterTags, chatDocuments, chatParticipants, documents, globalDocuments, tags } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { isMissingFile } from "#primitives/errno";
-import type { ListStCardsParams, OwnedBlobParams, OwnedBlobsParams } from "../contract/params.ts";
-import type { StCardRef } from "../contract/results.ts";
+import type { ListStCardsParams, ListStDocumentsParams, OwnedBlobParams, OwnedBlobsParams, StDocumentTextParams } from "../contract/params.ts";
+import type { StCardRef, StDocumentRef } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { ACCEPTED_TAG_STATUS } from "../substrate/card-tags.ts";
 
@@ -92,5 +93,41 @@ export function createListChatDocumentHashes(ctx: ExportContext): ExportService[
       out.set(row.chatId, [...(out.get(row.chatId) ?? []), row.importHash]);
     }
     return out;
+  };
+}
+
+/** The caller's documents with their scopes: the global bank and the non-synthetic cards each is attached to. No
+ *  extracted text is read, so a dry run never loads a document's body. */
+export function createListStDocuments(ctx: ExportContext): ExportService["listStDocuments"] {
+  return async ({ principal }: ListStDocumentsParams): Promise<readonly StDocumentRef[]> => {
+    const ownerId = principal.userId;
+    const rows = await ctx.db
+      .select({ documentId: documents.id, name: documents.name, importHash: documents.importHash, createdAt: documents.createdAt })
+      .from(documents)
+      .where(eq(documents.ownerId, ownerId))
+      .orderBy(asc(documents.createdAt), asc(documents.id));
+    const globalRows = await ctx.db.select({ documentId: globalDocuments.documentId }).from(globalDocuments).where(eq(globalDocuments.ownerId, ownerId));
+    const cardRows = await ctx.db
+      .select({ documentId: characterDocuments.documentId, handle: characters.handle })
+      .from(characterDocuments)
+      .innerJoin(characters, and(eq(characters.id, characterDocuments.characterId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
+    const global = new Set(globalRows.map((row) => row.documentId));
+    return rows.map((row) => ({
+      ...row,
+      global: global.has(row.documentId),
+      characterHandles: cardRows.filter((card) => card.documentId === row.documentId).map((card) => portableCharacterHandle(card.handle)),
+    }));
+  };
+}
+
+/** One of the caller's documents' extracted text; null when the caller holds it no more. */
+export function createReadStDocumentText(ctx: ExportContext): ExportService["readStDocumentText"] {
+  return async ({ principal, documentId }: StDocumentTextParams): Promise<string | null> => {
+    const [row] = await ctx.db
+      .select({ text: documents.extractedText })
+      .from(documents)
+      .where(and(eq(documents.ownerId, principal.userId), eq(documents.id, documentId)))
+      .limit(1);
+    return row?.text ?? null;
   };
 }

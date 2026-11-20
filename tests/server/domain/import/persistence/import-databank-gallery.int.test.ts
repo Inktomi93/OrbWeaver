@@ -210,8 +210,12 @@ test("a profile's Data Bank file over the admin's Data Bank limit is named and s
     [NOTES_PATH]: "The ford floods at dusk.",
   };
 
+  // The preview judges by the same limit, so it promises only the write the run makes.
+  const preview = await dryRun(root, files);
   const result = await finishRun(root, await admit(root, files));
 
+  expect(preview.kinds.documents.counts).toMatchObject({ writes: 1 });
+  expect(preview.skipped.items.map((item) => item.source.path)).toContain("user/files/big.txt");
   expect([...(await documentsByName(root)).keys()]).toEqual(["Field notes"]);
   const report = await readFile(present(result.reportPath), "utf8");
   expect(report).toContain("big.txt");

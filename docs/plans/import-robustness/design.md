@@ -55,7 +55,7 @@ The reasons the report shows for each no-home kind live in `ST_PROFILE_UNHANDLED
 
 The library export door's `sillytavern` format writes the library as `data/default-user/` in the layout above. The plan is `packages/server/src/domain/export/verbs/export-st-profile.ts`. One generator yields each entry with a reader for its body, so the dry run and the zip walk the same entries and the client preview reads the dry run's report.
 
-- The zip reads one body per entry as the response pulls it, and the dry run reads metadata and sizes only. A body gone by write time is named `unreadable` in the zip's report, which can therefore name rows the dry run did not. An owner runs one export or dry run at a time; a second gets `ST_EXPORT_RUNNING_CODE`. `tests/server/domain/import/persistence/export-sillytavern-bounds.int.test.ts` holds the memory bound and the hold's release on every exit.
+- The zip reads one body per entry as the response pulls it, and the dry run reads metadata and sizes only. A body gone by write time is named `unreadable`, and a body over the zip writer's entry cap is named `past-zip-limit`, in the zip's report, which can therefore name rows the dry run did not. Rows past the writer's entry count are named `past-zip-limit` by both. A refused entry never strands the hold: `packZip` finalizes its source on every error. An owner runs one export or dry run at a time; a second gets `ST_EXPORT_RUNNING_CODE`. `tests/server/domain/import/persistence/export-sillytavern-bounds.int.test.ts` holds the memory bound and the hold's release on every exit.
 
 - A Data Bank file attached to a chat rides that chat's header. A library-only Data Bank file and a picture no character holds have no SillyTavern home and are named.
 

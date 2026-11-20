@@ -12,7 +12,7 @@ import { DATABANK_NAME_MAX } from "@orb/contracts/databank";
 import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_DATABANK_PLANE, ST_GALLERY_PLANE, ST_SETTINGS_FILE, ST_USER_DIR, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
-import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { sha256Hex } from "#primitives/content-hash";
@@ -782,8 +782,9 @@ async function collectDocuments(args: {
   readonly bundles: readonly CollectedCard[];
   readonly chats: readonly CollectedChat[];
   readonly state: CollectState;
+  readonly maxBytes: number;
 }): Promise<void> {
-  const { fs, profile, settingsRaw, bundles, chats, state } = args;
+  const { fs, profile, settingsRaw, bundles, chats, state, maxBytes } = args;
   const index = dataBankIndex(settingsRaw, chats);
   await using userDir = await listedPlane(fs, profile, ST_USER_DIR);
   await using dir = userDir === null ? null : await openPlane(fs, userDir, ST_DATABANK_PLANE);
@@ -805,8 +806,8 @@ async function collectDocuments(args: {
       state.skippedDocuments.push({ file: sourceFile, reason: "not a Data Bank text file" });
       continue;
     }
-    if ((await statStagedFile(fs, dir, file)).size > DATABANK_UPLOAD_MAX_BYTES) {
-      state.skippedDocuments.push({ file: sourceFile, reason: `over the ${String(DATABANK_UPLOAD_MAX_BYTES)}-byte Data Bank file limit` });
+    if ((await statStagedFile(fs, dir, file)).size > maxBytes) {
+      state.skippedDocuments.push({ file: sourceFile, reason: `over the ${String(maxBytes)}-byte Data Bank file limit` });
       continue;
     }
     const bytes = await readStagedFile(fs, dir, file);
@@ -957,7 +958,13 @@ async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: 
   return out;
 }
 
-export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: ImportDirectory, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
+/** `maxDocumentBytes` is the Data Bank's effective per-file cap, which the upload verb refuses a larger file by. */
+export async function collectBundlesFromDir(
+  fs: ImportFsPort,
+  profileDir: ImportDirectory,
+  skipCharacterNames: readonly string[],
+  maxDocumentBytes: number,
+): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
@@ -1023,7 +1030,7 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
   // The Data Bank and the galleries name cards and transcripts, so they collect against the bundles this run returns.
   const settingsRaw = await readSettingsJson(fs, profileDir);
   const chats = [...bundles, ...orphanBundles, ...state.groups].flatMap((owner) => owner.chats);
-  await collectDocuments({ fs, profile, settingsRaw, bundles, chats, state });
+  await collectDocuments({ fs, profile, settingsRaw, bundles, chats, state, maxBytes: maxDocumentBytes });
   await collectGallery({ fs, profile, settingsRaw, bundles, state });
 
   return {

@@ -780,6 +780,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts": {
     "domain/chat": "ChatOperationError: the refusal the host gate raises for a handed-off installer",
   },
+  // The SillyTavern export leaves out what the zip writer would refuse, so its bounds suite needs the writer's own caps.
+  "tests/server/domain/import/persistence/export-sillytavern-bounds.int.test.ts": {
+    "infra/storage": "ZIP_WRITE_LIMITS: the entry count past which the zip writer refuses an archive",
+  },
   // A staged upload's life ends at a boot, and the boot sweep removes the zip extractor's directories by their name.
   "tests/server/domain/import/persistence/import-staging-lifetime.int.test.ts": {
     "entry/boot": "reclaimLocksOnBoot: the boot step the sweep runs in",

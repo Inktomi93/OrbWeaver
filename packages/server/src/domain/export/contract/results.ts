@@ -3,7 +3,7 @@
 
 import type { GroupConfig } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
-import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 
 /** One chat the owner HOSTS, paired with the handle of its primary seated character (first by join order).
  *  The bundle descriptor nests each transcript under that handle and import parses the handle back out of
@@ -26,6 +26,17 @@ export interface StCardRef {
   readonly characterId: CharacterId;
   readonly handle: CharacterHandle;
   readonly tags: readonly string[];
+}
+
+/** One owned Data Bank document as the SillyTavern export files it, read without its text: its scopes, by the global
+ *  bank and the handles of the cards it is attached to. */
+export interface StDocumentRef {
+  readonly documentId: DocumentId;
+  readonly name: string;
+  readonly importHash: string;
+  readonly global: boolean;
+  readonly characterHandles: readonly CharacterHandle[];
+  readonly createdAt: number;
 }
 
 /** The character card's container-agnostic output (`png` or unwrapped `json`). */
