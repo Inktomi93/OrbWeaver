@@ -109,12 +109,13 @@ function deliveryOf(input: {
   return !input.framedable || input.documentFailed || input.mintRefused ? "fallback" : "held";
 }
 
-// The open panels a run's next document restores: read once per run's bytes, so a toggle the reader makes is kept for a
-// later mount and never re-mints the frame on show.
-function useRestoredPanels(panelsKey: string): readonly number[] | undefined {
-  const [restored, setRestored] = useState(() => ({ key: panelsKey, panels: readFramePanels(panelsKey) }));
-  if (restored.key !== panelsKey) {
-    const next = { key: panelsKey, panels: readFramePanels(panelsKey) };
+// The open panels a run's next document restores: read once per frame (its origin and its bytes), so a toggle the reader
+// makes is kept for a later mount and never re-mints the frame on show. A run with no origin mints no frame.
+function useRestoredPanels(origin: CardOrigin | undefined, bytes: string): readonly number[] | undefined {
+  const read = (): readonly number[] | undefined => (origin === undefined ? undefined : readFramePanels(origin, bytes));
+  const [restored, setRestored] = useState(() => ({ chatId: origin?.chatId, characterId: origin?.characterId, bytes, panels: read() }));
+  if (restored.chatId !== origin?.chatId || restored.characterId !== origin?.characterId || restored.bytes !== bytes) {
+    const next = { chatId: origin?.chatId, characterId: origin?.characterId, bytes, panels: read() };
     setRestored(next);
     return next.panels;
   }
@@ -124,8 +125,8 @@ function useRestoredPanels(panelsKey: string): readonly number[] | undefined {
 export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
   const host = useRef<HTMLDivElement>(null);
   const sandbox = useSandboxTheme();
-  const panelsKey = JSON.stringify([segments, styles]);
-  const restoredPanels = useRestoredPanels(panelsKey);
+  const panelsBytes = JSON.stringify([segments, styles]);
+  const restoredPanels = useRestoredPanels(cardOrigin, panelsBytes);
   // The sandbox theme is in the key, so a theme flip, a custom theme or a text scale reads the page's look again.
   const framed = useFrameDocument(
     JSON.stringify([segments, styles, colorQuotes, sandbox]),
@@ -176,8 +177,8 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
           onHostMessage={(data): void => {
             // SandboxFrame proved the sender is this frame's window; the parse bounds what the report may say.
             const panels = readCardFramePanels(data);
-            if (panels !== undefined) {
-              rememberFramePanels(panelsKey, panels);
+            if (panels !== undefined && cardOrigin !== undefined) {
+              rememberFramePanels(cardOrigin, panelsBytes, panels);
             }
           }}
           pending={held}
