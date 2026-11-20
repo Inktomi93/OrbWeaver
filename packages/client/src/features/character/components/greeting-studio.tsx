@@ -120,7 +120,7 @@ export function GreetingStudio({
             </Markdown>
           </Stack>
         </MessageBubble>
-        <Row gap="field" align="center" justify="end">
+        <Row wrap={true} gap="field" align="center" justify="end">
           <Button
             variant="ghost"
             size="sm"

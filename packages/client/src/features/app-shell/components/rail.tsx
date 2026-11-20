@@ -26,7 +26,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { PRIMARY_NAV_NAME } from "#lib";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
-import { closeModal, mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry, useOpenModal } from "#state";
+import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
 import { useRailSectionsFit } from "../hooks/use-rail-sections-fit.ts";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 import { RailButton } from "./rail-button.tsx";
@@ -208,7 +208,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
   );
 }
 
-export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, inert }: RailProps): ReactElement {
+export function Rail({ activeSection, onSelectSection, onOpenModal, inert }: RailProps): ReactElement {
   const sectionsRef = useRef<HTMLDivElement>(null);
   // The fit writes the scroller's size, so the fade is told after each fit and never observes the box itself.
   useScrollFadeY(sectionsRef, { sizedByCaller: true });
@@ -236,15 +236,6 @@ export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, in
   // the sheet (`mobileBarCuration`, #state), so the door and its contents can never disagree about who is a
   // tab right now. Desktop is untouched — the rail column renders every entry regardless of `data-mobile`.
   const curation = mobileBarCuration(entries, activeSection);
-  const openModalId = useOpenModal();
-  // A sheet opened from the bar ends above it, so the bar stays live: a tab pressed while the sheet is up closes
-  // the sheet first (the way its own section rows do), then navigates, so focus lands on the new section.
-  const onSelectSection = (id: SectionId): void => {
-    if (youModal !== undefined && openModalId === youModal.id) {
-      closeModal();
-    }
-    navigate(id);
-  };
   return (
     <nav className="shell-rail" aria-label={PRIMARY_NAV_NAME} data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
@@ -352,7 +343,9 @@ export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, in
           mobile="tab"
           mobileOnly={true}
           modalId={youModal.id}
-          onClick={(): void => (openModalId === youModal.id ? closeModal() : onOpenModal(youModal.id))}
+          // The sheet is modal and its scrim covers the bar, so the tab is never pressed while its sheet is up:
+          // a tap there lands on the scrim and closes the sheet (ui-surface-and-interaction-rules §2.12).
+          onClick={(): void => onOpenModal(youModal.id)}
         />
       )}
     </nav>

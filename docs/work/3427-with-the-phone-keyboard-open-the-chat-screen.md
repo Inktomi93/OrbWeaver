@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-11-20
 priority: P1
 area: client
-lane: wt/agent-a0f363f919c3e186a
+blocked: owner
 plan: cross-surface-consistency
 ---
 
@@ -20,7 +20,7 @@ The composer and the transcript slide away under the finger while typing. The ow
 
 ## Done when
 
-With the keyboard open the page itself does not scroll or rubber-band on a drag from the composer, the bar or the chrome. The transcript still scrolls. The cause is fixed for every surface with a text field above the keyboard, not the chat composer alone, and it is checked on a real iPhone or the closest faithful substitute.
+With the keyboard open the page itself does not scroll or rubber-band on a drag from the composer, the bar or the chrome. The transcript still scrolls. The cause is fixed for every surface with a text field above the keyboard, not the chat composer alone, and it is checked on a real iPhone or the closest faithful substitute. The owner checks on an iPhone that the chat screen no longer drags with the keyboard up and that a long-press text selection drag in the composer still works.
 
 ## Evidence
 
