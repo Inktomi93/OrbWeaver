@@ -28,7 +28,7 @@
 //     either axis here is a security decision, not a polish item.
 
 import type { CardTrust } from "@orb/contracts/chat";
-import type { GhostContentSegment } from "@orb/kit/content";
+import type { FrameStyleSheet, GhostContentSegment } from "@orb/kit/content";
 import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -56,7 +56,7 @@ import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
-import { PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
+import { carriedRoomSheets, PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
@@ -118,9 +118,14 @@ function formsPanel(text: string, opts: GhostSegmentOptions): boolean {
   return opts.cardTier === "tierB" && (opts.panelSeen || ARRIVING_TAG_LINE.test(text));
 }
 
-// Whether the stream shows a panel yet. Past the read bound it holds unread, as a settled body that long never frames.
-function streamShowsPanel(held: string): boolean {
-  return held.length > PANEL_READ_MAX_CHARS || modelPanels(held).length > 0;
+// Whether the stream shows a panel yet, or markup using a class the room's sheets name, which settles framed the same
+// way. Past the read bound it holds unread, as a settled body that long never frames.
+function streamShowsPanel(held: string, roomSheets: readonly FrameStyleSheet[] | undefined): boolean {
+  return (
+    held.length > PANEL_READ_MAX_CHARS ||
+    modelPanels(held).length > 0 ||
+    (roomSheets !== undefined && carriedRoomSheets(roomSheets, held, { lenientHtml: false }).length > 0)
+  );
 }
 
 // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text. A
@@ -166,6 +171,7 @@ function GhostBubbleBody({
   colorQuotes,
   cardTier,
   holdsMarkup,
+  roomSheets,
   providerWaiting,
 }: {
   readonly held: string;
@@ -173,12 +179,13 @@ function GhostBubbleBody({
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
   readonly holdsMarkup: boolean;
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   readonly providerWaiting: boolean;
 }): ReactElement {
   // A stream that has shown a panel holds to its end, so the whole-text read stops there: each delta would otherwise read
   // the whole reply again, which over a stream costs the square of its length.
   const [panelSeen, setPanelSeen] = useState(false);
-  const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held));
+  const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held, roomSheets));
   if (showsPanel && !panelSeen) {
     setPanelSeen(true);
   }
@@ -226,6 +233,7 @@ function GhostBubbleContent(props: {
   readonly cardTier: CardTrust;
   readonly heldCards: HeldCards | undefined;
   readonly holdsMarkup: boolean;
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   readonly providerWaiting: boolean;
 }): ReactElement {
   return (
@@ -246,6 +254,7 @@ function GhostBubbleContent(props: {
         colorQuotes={props.colorQuotedSpeech}
         cardTier={props.cardTier}
         holdsMarkup={props.holdsMarkup}
+        roomSheets={props.roomSheets}
         providerWaiting={props.providerWaiting}
       />
       {props.heldCards === undefined ? null : <GhostHeldCardsNotice held={props.held} heldCards={props.heldCards} />}
@@ -321,6 +330,9 @@ export interface GhostMessageRowProps {
   /** The viewer's display scripts draw markup, so the reply may settle styled (D354): the stream holds its own HTML
    *  blocks as forming chips and drops its inline tags. Absent ⇒ the stream renders as any reply does. */
   readonly holdsMarkup?: boolean | undefined;
+  /** The room's sheets (`roomSheetsBefore`): markup using a class they name settles framed, so the stream holds it as
+   *  it holds a panel. Absent ⇒ none. */
+  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
 }
 
 export function GhostMessageRow({
@@ -348,6 +360,7 @@ export function GhostMessageRow({
   stickyAttribution = false,
   generationCredit = false,
   holdsMarkup = false,
+  roomSheets,
 }: GhostMessageRowProps): ReactElement {
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
@@ -449,6 +462,7 @@ export function GhostMessageRow({
         cardTier={cardTier}
         heldCards={heldCards}
         holdsMarkup={holdsMarkup}
+        roomSheets={roomSheets}
         providerWaiting={providerWaiting}
       />
     ),

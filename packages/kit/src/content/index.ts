@@ -1771,12 +1771,16 @@ export interface FrameStyleSheet {
 const TAG_ATTRIBUTE_RE = /[\s/]*([^\s/>][^\s/>=]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/y;
 const STYLE_OPENER_NAME_LENGTH = "<style".length;
 const CSS_TYPE = "text/css";
+// An opener's `<` and name, the part before its attributes.
+const OPENER_NAME_RE = /<[A-Za-z][^\s/>]*/y;
+const CLASS_ATTRIBUTE = "class";
+const CLASS_LIST_SEPARATOR_RE = /[\t\n\f\r ]+/u;
 
-// The attributes of a `<style ...>` opener the reader already bounded, each name lower case, the first of a repeated
-// name kept as HTML keeps it. One pass over the opener.
-function styleOpenerAttributes(opener: string): ReadonlyMap<string, string> {
+// The attributes of an opener the reader already bounded, from `nameLength` past its `<`, each name lower case, the
+// first of a repeated name kept as HTML keeps it. One pass over the opener.
+function openerAttributes(opener: string, nameLength: number): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
-  TAG_ATTRIBUTE_RE.lastIndex = STYLE_OPENER_NAME_LENGTH;
+  TAG_ATTRIBUTE_RE.lastIndex = nameLength;
   for (let found = TAG_ATTRIBUTE_RE.exec(opener); found !== null; found = TAG_ATTRIBUTE_RE.exec(opener)) {
     const name = found[1]?.toLowerCase() ?? "";
     if (!attributes.has(name)) {
@@ -1795,13 +1799,38 @@ export function frameStyleElements(content: string): readonly FrameStyleSheet[] 
     if (element.name !== "style" || !element.closed) {
       return [];
     }
-    const attributes = styleOpenerAttributes(content.slice(element.start, element.bodyStart - 1));
+    const attributes = openerAttributes(content.slice(element.start, element.bodyStart - 1), STYLE_OPENER_NAME_LENGTH);
     const type = attributes.get("type")?.trim().toLowerCase() ?? "";
     if (type !== "" && type !== CSS_TYPE) {
       return [];
     }
     return [{ media: attributes.get("media"), title: attributes.get("title"), css: content.slice(element.bodyStart, element.bodyEnd) }];
   });
+}
+
+/** The class names on the openers of the elements `content`'s prose holds, read as Markdown shows it: none in code or
+ *  behind an escape, none in a text element's text, and none in a card, a choice set or a hidden span, which are never
+ *  prose (see {@link modelPanels}). A void element (`<img>`, `<hr>`) is no element the reader pairs, so its class is not
+ *  read. */
+export function markupClassNames(content: string, options: { readonly lenientHtml?: boolean | undefined } = {}): ReadonlySet<string> {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const prose = rangeCursor(proseRanges(content, options.lenientHtml === true));
+  const names = new Set<string>();
+  for (const lt of [...markup.closes.keys(), ...markup.unclosed].toSorted((a, b) => a - b)) {
+    const end = tagEndFrom(content, lt, false);
+    OPENER_NAME_RE.lastIndex = lt;
+    const name = OPENER_NAME_RE.exec(content);
+    if (end === -1 || name === null || prose(lt) === undefined) {
+      continue;
+    }
+    const classes = openerAttributes(content.slice(lt, end), name[0].length).get(CLASS_ATTRIBUTE) ?? "";
+    for (const className of classes.split(CLASS_LIST_SEPARATOR_RE)) {
+      if (className !== "") {
+        names.add(className);
+      }
+    }
+  }
+  return names;
 }
 
 /** `content` with the text of each closed `<style>` and `<script>` element a Markdown renderer reads as one replaced by
@@ -2219,6 +2248,8 @@ interface MarkupRead {
   readonly samples: readonly TextRange[];
   /** With a probe, each place the probe starts inside Markdown code, to that code's end, ascending. */
   readonly probed: readonly TextRange[];
+  /** The `<` of each element opener whose close never arrived. */
+  readonly unclosed: readonly number[];
 }
 
 // The elements whose contents the renderer draws folded until opened.
@@ -2277,7 +2308,7 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
     const open = (openers.get(name) ?? []).map((start) => [start, content.length] as const);
     return [...closed, ...open].map(([start, end]) => ({ start, end }));
   });
-  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples, probed };
+  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples, probed, unclosed: [...openers.values()].flat() };
 }
 
 // Records the code a probe at `at` opens in, if any, and returns where the read resumes. A probe is no markup: it asks

@@ -48,6 +48,7 @@ import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
+import { useRoomSheetSources } from "../hooks/use-room-sheets.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { CHAT_EMPTY_THREAD_TITLE, CHAT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
@@ -60,6 +61,7 @@ import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
+import { roomSheetsBefore } from "../lib/room-sheets.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
 import { CHAT_PRINT_COVERAGE } from "../lib/transcript-copy.ts";
 
@@ -303,6 +305,21 @@ function ChatThread({
       lenientHtmlCards,
     }),
   );
+  // The room's stylesheet cascade, each source at the tier its own row draws at.
+  const roomSources = useRoomSheetSources(chatId, messages, (view) =>
+    resolveRowRenderPolicy({
+      role: view.role,
+      authorUserId: view.authorUserId,
+      characterId: view.characterId,
+      viewerUserId,
+      participants,
+      kind: view.kind,
+      narrator: chatDetail.narratorRender,
+      lenientHtmlCards,
+      gameCardsOff,
+      viewerIsHost: chatDetail.viewerIsHost,
+    }),
+  );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
   const newArrivalKeys = useNewArrivalKeys(items, chatId);
@@ -387,6 +404,7 @@ function ChatThread({
         heldCards={ghostPolicy.heldCards}
         generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
         holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
+        roomSheets={roomSheetsBefore(roomSources, Number.POSITIVE_INFINITY)}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
@@ -438,6 +456,7 @@ function ChatThread({
         viewerUserId={viewerUserId}
         lenientHtmlCards={lenientHtmlCards}
         gameCardsOff={gameCardsOff}
+        roomSheets={roomSheetsBefore(roomSources, item.view.seq)}
         enterMotion={newArrivalKeys.has(item.view.id)}
         surfaceContributors={surfaceContributors}
         toolRenderers={toolRenderers}
