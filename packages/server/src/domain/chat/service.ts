@@ -4,6 +4,7 @@
 
 import type { ClaimChatOp, RequestTurnOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
+import type { ChatId } from "@orb/kit/ids";
 import { createChatContext } from "./context.ts";
 import type { ChatServiceDeps } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
@@ -35,7 +36,7 @@ import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
-import { createDeferredSettlement, createRequestTurn, createTurn } from "./verbs/turn.ts";
+import { createDeferredSettlement, createReleaseWaitingRound, createRequestTurn, createTurn } from "./verbs/turn.ts";
 import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
 
 export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQuietDeps>): VisibleExtractQuiet {
@@ -148,6 +149,8 @@ export function createChatService(
       deps.resolveConnection({ ...args, signal: ctx.backgroundSignal }),
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
+    // ASSUMES(single-replica): one claim set per composed service, the turn verbs' only home for it.
+    replyClaims: new Set<ChatId>(),
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
@@ -178,7 +181,12 @@ export function createChatService(
   });
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews, saveGreetingTexts });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat, admission });
-  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat, saveGreetingTexts });
+  const participants = createParticipants(ctx, {
+    emit: deps.emitChecked,
+    claimChat,
+    saveGreetingTexts,
+    releaseWaiting: createReleaseWaitingRound(ctx, turnDeps),
+  });
   const admitted = createAdmittedChatOperations(ctx, {
     barrier: admission,
     operations: { ...turn, ...imageGen, compact, acceptHostHandoff: participants.acceptHostHandoff },

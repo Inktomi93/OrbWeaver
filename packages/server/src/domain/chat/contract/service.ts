@@ -109,6 +109,7 @@ import type {
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  ReplyToTailParams,
   ResolveAuthorRenderPolicyParams,
   RestoreMemoryParams,
   RevertContinueParams,
@@ -232,6 +233,9 @@ export interface ChatService {
   readonly impersonateStream: (params: ImpersonateStreamParams) => AsyncIterable<ImpersonateStreamDelta>;
   /** A lock-free auxiliary generation (runs concurrent with a locked send; active-turns Set). */
   readonly generate: (params: GenerateParams) => Promise<TurnOutcome>;
+  /** Start the round the room's unanswered user tail is owed, at most once per tail, and only by a present member: the
+   *  line under the composer's reply action. A tail with nothing owed, a reply already running or queued, is a no-op. */
+  readonly replyToTail: (params: ReplyToTailParams) => Promise<TurnOutcome>;
   /** Extend the tail assistant message in place (continue snapshot per-variant). */
   readonly continueTurn: (params: ContinueTurnParams) => Promise<TurnOutcome>;
   /** Revert the last continuation on a variant (restores `preContinue*`). */

@@ -55,7 +55,14 @@ import { MESSAGE_TOOLS_LABEL, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, S
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
-import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_REGENERATE_NAME } from "../lib/composer-menu-names.ts";
+import {
+  COMPOSER_CLEAR_INPUT_NAME,
+  COMPOSER_CORRECTIONS_NAME,
+  COMPOSER_REGENERATE_NAME,
+  COMPOSER_SIMPLE_SEND_NAME,
+  SIMPLE_SEND_HELPER,
+  SIMPLE_SEND_NEEDS_TEXT,
+} from "../lib/composer-menu-names.ts";
 import { ImpersonatePersonItems } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
@@ -63,7 +70,6 @@ import { ComposerMediaGroup } from "./composer-media-group.tsx";
 const PLOT_STEERS_LABEL = "Steer the plot";
 
 interface UtilityMenuProps {
-  readonly hasText: boolean;
   readonly generationEnabled: boolean;
   readonly generationUnavailableReason: string;
   readonly canTargetTail: boolean;
@@ -174,7 +180,6 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
   return (
     <UtilityMenu
       moved={moved}
-      hasText={hasText}
       generationEnabled={idle}
       generationUnavailableReason={generationUnavailableReason}
       canTargetTail={canTargetTail}
@@ -203,7 +208,6 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
 function UtilityMenu(props: UtilityMenuProps): ReactElement {
   const {
     moved,
-    hasText,
     generationEnabled,
     generationUnavailableReason,
     canTargetTail,
@@ -337,10 +341,11 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
           />
           <UtilityActionItem
             icon={MessageSquarePlus}
-            label="Simple send"
+            label={COMPOSER_SIMPLE_SEND_NAME}
+            helper={SIMPLE_SEND_HELPER}
             onAction={onSimpleSend}
             enabled={onSimpleSend !== undefined}
-            disabledReason={hasText ? "Send your first message normally, then Simple send is available" : "Type a message to post"}
+            disabledReason={SIMPLE_SEND_NEEDS_TEXT}
           />
           {/* NOT GAME-GATED, and it lives HERE rather than in the game-only Story group: it is not a plot
               steer. Both halves of the pair are general — the room-level toggle is in "This chat", the tokenizer

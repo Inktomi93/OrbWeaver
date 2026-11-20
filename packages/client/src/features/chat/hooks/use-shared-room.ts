@@ -4,9 +4,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { roomRosterOptions, useTRPC } from "#data";
-import { presentMemberCount } from "../lib/roster.ts";
-
-const SHARED_ROOM_FLOOR = 2;
+import { presentMemberCount, SHARED_ROOM_FLOOR } from "../lib/roster.ts";
 
 export function useSharedRoom(chatId: ChatId): boolean {
   const trpc = useTRPC();

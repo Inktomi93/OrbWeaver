@@ -18,7 +18,7 @@ function Tab({ chatId, isHost }: { readonly chatId: ChatId; readonly isHost: boo
   const sheet = useOpenOverlayPanel();
   return (
     <>
-      <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} showGroup={false} />
+      <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} groupScope={null} />
       <output data-probe="shell">{`active=${active ?? "none"} sheet=${sheet ?? "none"}`}</output>
     </>
   );
@@ -52,7 +52,7 @@ function TranscriptBesideTab({ chatId, isHost }: { readonly chatId: ChatId; read
         <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
       </Container>
       <Container role="group" aria-label="Chat context host" style={{ inlineSize: 480 }}>
-        <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} showGroup={false} />
+        <CommittedSettingsTab chatId={chatId} roomOverrides={{}} isHost={isHost} background={null} groupScope={null} />
       </Container>
     </Row>
   );

@@ -69,6 +69,7 @@ const READ_GATES = {
   swipe: "elsewhere",
   impersonateStream: "elsewhere",
   generate: "elsewhere",
+  replyToTail: "elsewhere",
   continueTurn: "elsewhere",
   undoContinue: "elsewhere",
   revertContinue: "elsewhere",

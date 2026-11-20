@@ -253,6 +253,9 @@ export interface GenerateParams extends ChatScopedParams, ViewerClockParams {
   readonly afterAssistant?: boolean | undefined;
 }
 
+/** `replyToTail` — start the one round a room's unanswered user line is owed, as that line's send would have. */
+export interface ReplyToTailParams extends ChatScopedParams, ViewerClockParams {}
+
 /** `continueTurn` — extends the tail assistant message in place. */
 export interface ContinueTurnParams extends MessageScopedParams, ViewerClockParams {
   readonly intent?: UserIntent | undefined;
