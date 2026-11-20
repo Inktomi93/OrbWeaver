@@ -1,4 +1,4 @@
-// The SillyTavern export's preflight: open reads the dry run, the download fetches the zip the preview described, and
+// The SillyTavern export's preflight: open reads the dry run (or learns another export runs), the download fetches the zip the preview described, and
 // closing drops a read still in flight.
 
 import type { StExportReport } from "@orb/contracts/import";
@@ -11,6 +11,7 @@ export type StExportPreviewState =
   | { readonly status: "off" }
   | { readonly status: "reading" }
   | { readonly status: "failed" }
+  | { readonly status: "running" }
   | { readonly status: "ready"; readonly report: StExportReport };
 
 export interface StExportPreview {
@@ -43,9 +44,9 @@ export function useStExportPreview(): StExportPreview {
     setState({ status: "reading" });
     fetchStExportPreview(controller.signal)
       .then(
-        (report) => {
+        (answer) => {
           if (!controller.signal.aborted) {
-            setState({ status: "ready", report });
+            setState("report" in answer ? { status: "ready", report: answer.report } : { status: "running" });
           }
         },
         (error: unknown) => {

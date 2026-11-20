@@ -25,6 +25,9 @@ export const ST_EXPORT_READING = "Reading your library. Nothing is downloaded ye
 /** A dry run that did not answer, before the retry. */
 export const ST_EXPORT_PREVIEW_FAILED = "No preview. The library could not be read for the export. Try again.";
 
+/** A dry run refused because another SillyTavern export or preview of this library is still running. */
+export const ST_EXPORT_RUNNING = "Another SillyTavern export of your library is still running. Try again when it finishes.";
+
 /** How the zip goes into SillyTavern, under the preview. */
 export const ST_EXPORT_PLACEMENT_NOTE =
   "Unzip it and place data/default-user inside SillyTavern's data folder, or bring each file in through the SillyTavern import its line names. The zip's orbweaver-export-report.json repeats this preview.";

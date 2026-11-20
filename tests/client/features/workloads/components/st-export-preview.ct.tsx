@@ -12,6 +12,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { SettingsCompositionStory } from "@orb/testkit/browser";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { present } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -22,6 +23,7 @@ import {
   ST_EXPORT_OPEN_NAME,
   ST_EXPORT_PREVIEW_FAILED,
   ST_EXPORT_REPORT_NAME,
+  ST_EXPORT_RUNNING,
   ST_EXPORT_TITLE,
   ST_IMPORT_DOOR_NAMES,
 } from "#client/features/workloads/lib/st-export-names.ts";
@@ -110,4 +112,26 @@ test("a preview that does not read offers a retry and no download", async ({ mou
   await preflight.getByRole("button", { name: RETRY_NAME, exact: true }).click();
   await expect(preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true })).toBeVisible();
   await expect(preflight.getByRole("button", { name: ST_EXPORT_DOWNLOAD_NAME, exact: true })).toBeVisible();
+});
+
+test("a preview asked while another export runs says so and reads once that export ends", async ({ mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  await openSection(page, root);
+  await routeExport(page, root);
+  // An export of this library already streaming, held open by its reader.
+  const running = present((await root.http.request(stProfileExportPath(false))).body).getReader();
+  await running.read();
+  await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "backup-export", width: 342, paneInset: true });
+
+  await page.getByRole("button", { name: ST_EXPORT_OPEN_NAME, exact: true }).click();
+  const preflight = page.getByRole("group", { name: ST_EXPORT_TITLE, exact: true });
+
+  await expect(preflight.getByText(ST_EXPORT_RUNNING, { exact: true })).toBeVisible();
+  await expect(preflight.getByRole("button", { name: ST_EXPORT_DOWNLOAD_NAME, exact: true })).toHaveCount(0);
+  // Positive control: once the running export is read through, the retry reads the preview.
+  for (let chunk = await running.read(); !chunk.done; chunk = await running.read()) {
+    expect(chunk.value.byteLength).toBeGreaterThan(0);
+  }
+  await preflight.getByRole("button", { name: RETRY_NAME, exact: true }).click();
+  await expect(preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true })).toBeVisible();
 });

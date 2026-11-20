@@ -17,7 +17,7 @@ import { IMPORT_PREVIEW_HIDE_NAMES, IMPORT_PREVIEW_REPORT_NAME, IMPORT_PREVIEW_S
 import { counted, KIND_NOUNS, previewKindLine, previewPresetDetailLines, previewProfiles } from "../lib/portability-model.ts";
 import type { PreviewLine, PreviewReasonGroup } from "../lib/st-export-model.ts";
 import { stExportKindLines, stExportLeftGroups, stExportNameLines } from "../lib/st-export-model.ts";
-import { ST_EXPORT_PREVIEW_FAILED, ST_EXPORT_READING, ST_EXPORT_REPORT_NAME } from "../lib/st-export-names.ts";
+import { ST_EXPORT_PREVIEW_FAILED, ST_EXPORT_READING, ST_EXPORT_REPORT_NAME, ST_EXPORT_RUNNING } from "../lib/st-export-names.ts";
 
 function namesLine(names: readonly string[], total: number): string {
   const unlisted = total - names.length;
@@ -217,6 +217,8 @@ export function StExportPreviewSummary({ state, onRetry }: { readonly state: StE
       );
     case "failed":
       return <PreviewFailed line={ST_EXPORT_PREVIEW_FAILED} onRetry={onRetry} />;
+    case "running":
+      return <PreviewFailed line={ST_EXPORT_RUNNING} onRetry={onRetry} />;
     case "ready": {
       const { report } = state;
       const left = stExportLeftGroups(report);
