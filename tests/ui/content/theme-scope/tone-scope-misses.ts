@@ -20,7 +20,7 @@ import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scop
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import type { CarriedTone, CarriedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { carriedToneScheme, carriedToneSources, MIX_FALLBACK } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
+import { carriedToneScheme, carriedToneSources, MIX_FALLBACK, seedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 
 /** A colour the case authored, parsed; a spelling that does not parse is a broken case. */
 export function parsed(color: string): ParsedOklch {
@@ -178,18 +178,45 @@ export function nestedAccentScope(background: string, accent: string): EmittedSc
   return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
 }
 
+/**
+ * An accent-only scope over a seed palette painted on `background`: the seed's scheme, the variables the clamp emitted
+ * (the seed's own knobs and literals stay the cascade's, so only the primary's are here), and the seed's tones with the primary painted.
+ */
+export function seedAccentScope(background: string, accent: string): EmittedScope {
+  const scheme = seedToneScheme(background);
+  if (scheme === null) {
+    throw new Error(`${background} is not a seed palette's page`);
+  }
+  const { vars } = clampThemeTokens({ accent }, background, undefined, { palette: "seed" });
+  const primary: CarriedTone = {
+    tone: "primary",
+    source: { base: parsed(vars[TOKENS["color.primary"].cssVar] ?? ""), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) },
+  };
+  return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
+}
+
 /** Every D336 floor the emitted scope misses, and every tint closer than the separation to the page or to a non-adjacent tone's tint. */
 export function emittedMisses(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): readonly string[] {
   return scopeMisses(emittedScope(background, tokens, ambientAccent), `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""}`);
 }
 
-/** The scope's misses over every host a wash sits on: a mix that falls back reads the host, a literal serves them all. */
-export function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): readonly string[] {
+/**
+ * The scope's misses over every host a wash sits on: a mix that falls back reads the host, a literal serves them all.
+ * A seed holds each tint off its host and no tint off another tone's, so a seed's scope turns the pair check off.
+ */
+export function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string, { pairs = true }: { readonly pairs?: boolean } = {}): readonly string[] {
   const emitted = tones.map((carried) => emittedTone(vars, carried));
-  return TONE_HOSTS.flatMap((host) => hostMisses({ ...scheme, palette: tonePaletteOn(scheme.palette, host) }, emitted, label, host));
+  return TONE_HOSTS.flatMap((host) => hostMisses({ ...scheme, palette: tonePaletteOn(scheme.palette, host) }, emitted, { label, host, withPairs: pairs }));
 }
 
-function hostMisses(scheme: CarriedToneScheme, emitted: readonly EmittedTone[], label: string, host: ToneHost): readonly string[] {
+/** What one host's findings are named by, and whether tones are held apart from each other as well as from the host. */
+interface HostCheck {
+  readonly label: string;
+  readonly host: ToneHost;
+  readonly withPairs: boolean;
+}
+
+function hostMisses(scheme: CarriedToneScheme, emitted: readonly EmittedTone[], { label, host, withPairs }: HostCheck): readonly string[] {
   const painted = emitted.map((tone) => ({ carried: tone.carried, roles: rolesOn(scheme, tone) }));
   const colored = painted.flatMap(({ carried, roles }) => (carried.source === "neutral" ? [] : [{ tone: carried.tone, base: carried.source.base, roles }]));
   const floors = painted.flatMap(({ carried, roles }) =>
@@ -203,7 +230,7 @@ function hostMisses(scheme: CarriedToneScheme, emitted: readonly EmittedTone[], 
   );
   const pairs = colored.flatMap((a, index) =>
     colored.slice(index + 1).flatMap((b) =>
-      hueAdjacent(a.base, b.base)
+      !withPairs || hueAdjacent(a.base, b.base)
         ? []
         : TINT_ROLES.flatMap((role) => {
             const distance = paintedDistance(a.roles[role], b.roles[role]);

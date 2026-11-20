@@ -36,13 +36,14 @@ import { bubbleInsetForeground, carriedReadingHosts, derivedForegroundLightness,
 import { z } from "zod";
 import type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "#lib";
 import { PROSE_INK_FIELDS } from "#lib";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
+import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette, InputBorderFallback } from "./derive-vars.ts";
 import { carriedPaletteOf, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
-import type { CarriedToneScheme } from "./tone-knobs.ts";
+import { seedInksOf, seedReadingHosts } from "./seed-palette.ts";
+import type { CarriedTone, CarriedToneMix, CarriedToneScheme } from "./tone-knobs.ts";
 import {
   accentInk,
   carriedToneLiterals,
@@ -53,6 +54,8 @@ import {
   primaryLiteralResets,
   primaryToneMix,
   primaryToneVars,
+  seedInactiveOpacityVars,
+  seedToneScheme,
   solveCarriedToneMix,
   toneHostReset,
   toneLiteralVars,
@@ -157,7 +160,7 @@ const AMBIENT_PALETTES = ["seed", "carried"] as const;
 
 /**
  * What painted a scope's ambient background: a seed palette's static block, or an outer scope that carried its own
- * background and solved its tone roles there (D336). Only the second gives an accent-only scope a palette to solve on.
+ * background and solved its tone roles there (D336). An accent-only scope solves its primary on either palette.
  */
 export type AmbientPalette = (typeof AMBIENT_PALETTES)[number];
 
@@ -236,45 +239,9 @@ function readingHostsOn(inkBase: ParsedOklch | null, seedHosts: readonly Oklch[]
   return seedHosts === null ? carriedReadingHosts(base) : [base, ...seedHosts];
 }
 
-/** The token each prose field overrides, read for a seed's static value. */
-const PROSE_INK_TOKENS = {
-  speaker: "color.speaker",
-  dialogueColor: "color.dialogue",
-  narrationColor: "color.narration",
-  bodyColor: "color.prose-body",
-} as const satisfies Record<(typeof PROSE_INK_FIELDS)[number], keyof typeof TOKENS>;
-
 /** The ambient base when a seed painted it. A carried scope's pixel can spell a seed's base exactly (a duplicated seed theme) yet derive its own hosts and inks. */
 function seedBackgroundOf(ambientBackground: string | undefined, palette: AmbientPalette): string | undefined {
   return palette === "seed" ? ambientBackground : undefined;
-}
-
-/** A seed's value for a token, read through its base: the root palette's, or the value set that paints that base. `null` when no seed paints it. */
-function seedValuesOf(background: string | undefined): ((token: keyof typeof TOKENS) => string) | null {
-  if (background === undefined) {
-    return null;
-  }
-  const backgroundVar = TOKENS["color.background"].cssVar;
-  const set = Object.values(SEED_THEME_VALUE_SETS).find(({ vars }) => (vars as Readonly<Record<string, string>>)[backgroundVar] === background);
-  if (set === undefined && background !== TOKENS["color.background"].value) {
-    return null;
-  }
-  const seeded = set?.vars as Readonly<Record<string, string>> | undefined;
-  return (token) => seeded?.[TOKENS[token].cssVar] ?? TOKENS[token].value;
-}
-
-/** A seed's inks are static CSS that no scope hands down, so its base names them. */
-function seedInksOf(background: string | undefined): ProseInks {
-  const seed = seedValuesOf(background);
-  return seed === null ? {} : Object.fromEntries(PROSE_INK_FIELDS.map((field) => [field, seed(PROSE_INK_TOKENS[field])]));
-}
-
-const SEED_READING_HOSTS = ["color.card", "color.user-bubble", "color.ai-bubble", "color.system-bubble"] as const;
-
-/** The surfaces a pick is read on over a seed: the ones it paints, which its generated block retunes away from the derived ramp. */
-function seedReadingHosts(background: string | undefined): readonly Oklch[] | null {
-  const seed = seedValuesOf(background);
-  return seed === null ? null : SEED_READING_HOSTS.flatMap((token) => toOklch(seed(token)) ?? []);
 }
 
 function insideBox(t: ThemeScopeTokens, inside: boolean): ThemeScopeTokens {
@@ -473,17 +440,17 @@ interface AccentAndTones {
 /**
  * The accent emission and, under a carried palette, what its `[data-tone]` roles read (D336): the knobs, solved over
  * its ramp, its intent arms and the primary it paints, and each colored tone's literal roles; with no accent at all,
- * primary is left out of both. A scope that paints its own accent over a carried ambient palette solves its primary on
- * that palette; over a seed palette it resets the primary literals.
+ * primary is left out of both. A scope that paints its own accent over an ambient palette, carried or seed, solves its
+ * primary on that palette; over a base no seed paints it resets the primary literals.
  */
 function accentAndTonesOn(
   picked: string | undefined,
   ambientAccent: string | undefined,
   carried: CarriedPalette | null,
-  carriedAmbient: CarriedPalette | null,
+  ambient: AccentAmbient | null,
 ): AccentAndTones {
-  if (carried === null && picked !== undefined && carriedAmbient !== null) {
-    return nestedAccentOn(picked, carriedAmbient);
+  if (carried === null && picked !== undefined && ambient !== null) {
+    return ambient.kind === "carried" ? nestedAccentOn(picked, ambient.palette) : seedAccentOn(picked, ambient.scheme);
   }
   if (carried === null) {
     const accent = accentEmissionOn(picked, ambientAccent, null);
@@ -508,6 +475,38 @@ function accentAndTonesOn(
   };
 }
 
+/** The palette an accent-only scope's primary lands on: an outer scope's carried one, or the seed that paints the page. */
+type AccentAmbient = { readonly kind: "carried"; readonly palette: CarriedPalette } | { readonly kind: "seed"; readonly scheme: CarriedToneScheme };
+
+/** The primary a scope painted on a palette, solved there: its fill, the tones the palette paints, and the knobs and literals the primary needs. */
+interface PrimarySolve {
+  readonly accent: AccentEmission;
+  readonly sources: readonly CarriedTone[];
+  readonly mix: CarriedToneMix;
+  readonly literals: ReturnType<typeof carriedToneLiterals>;
+  readonly fallback: ToneFallback | undefined;
+}
+
+function primarySolveOn(picked: string, scheme: CarriedToneScheme): PrimarySolve | undefined {
+  const accent = accentEmissionOn(picked, undefined, scheme);
+  if (accent === undefined) {
+    return;
+  }
+  const sources = carriedToneSources(scheme, accent.painted);
+  const mix = solveCarriedToneMix(
+    scheme,
+    sources.filter(({ tone }) => tone === "primary"),
+  );
+  const steps = primaryToneMix(mix);
+  return {
+    accent,
+    sources,
+    mix,
+    literals: carriedToneLiterals(scheme, sources),
+    fallback: accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active },
+  };
+}
+
 /**
  * An accent-only scope over a carried palette (D336): its primary lands on that palette's ramp, which the outer scope
  * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there. Its own
@@ -515,16 +514,11 @@ function accentAndTonesOn(
  */
 function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones {
   const scheme = carriedToneScheme(ambient);
-  const accent = accentEmissionOn(picked, undefined, scheme);
-  if (accent === undefined) {
-    return { accent, toneVars: primaryLiteralResets(), fallback: undefined };
+  const solve = primarySolveOn(picked, scheme);
+  if (solve === undefined) {
+    return { accent: undefined, toneVars: primaryLiteralResets(), fallback: undefined };
   }
-  const sources = carriedToneSources(scheme, accent.painted);
-  const primary = sources.filter(({ tone }) => tone === "primary");
-  const mix = solveCarriedToneMix(scheme, primary);
-  const literals = carriedToneLiterals(scheme, sources);
-  const steps = primaryToneMix(mix);
-  const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
+  const { accent, sources, mix, literals, fallback } = solve;
   // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
   const ring = nestedRingOn(ambient, accent.painted);
   return {
@@ -540,12 +534,37 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
 }
 
 /**
- * The palette an accent-only scope solves its primary on: the ambient, when an outer carried scope painted it. Only an
- * accent-only scope reads it, so every other scope skips the ink solves.
+ * An accent-only scope over a seed palette (D336, D355): its primary lands on the seed's hosts, which the seed's own
+ * accent was tuned for, so it judges and solves the primary's fill, ink, steps and literals there, and re-derives the
+ * inactive-control opacity for it. Every other tone stays the seed's, through the cascade.
  */
-function carriedAmbientOf(t: ThemeScopeTokens, ambientBackground: string | undefined, ambientPalette: AmbientPalette): CarriedPalette | null {
-  const accentOnly = t.background === undefined && t.accent !== undefined;
-  return accentOnly && ambientPalette === "carried" && ambientBackground !== undefined ? carriedPaletteOf(toOklch(ambientBackground)) : null;
+function seedAccentOn(picked: string, scheme: CarriedToneScheme): AccentAndTones {
+  const solve = primarySolveOn(picked, scheme);
+  if (solve === undefined) {
+    return { accent: undefined, toneVars: primaryLiteralResets(), fallback: undefined };
+  }
+  const { accent, sources, mix, literals, fallback } = solve;
+  return {
+    accent,
+    toneVars: { ...primaryToneVars(mix, literals), ...seedInactiveOpacityVars({ scheme, tones: sources, mix, literals }) },
+    fallback,
+  };
+}
+
+/**
+ * What an accent-only scope solves its primary on: the palette that paints its ambient background, when an outer carried
+ * scope or a seed did. Only an accent-only scope reads it, so every other scope skips the ink solves.
+ */
+function accentAmbientOf(t: ThemeScopeTokens, ambientBackground: string | undefined, ambientPalette: AmbientPalette): AccentAmbient | null {
+  if (t.background !== undefined || t.accent === undefined || ambientBackground === undefined) {
+    return null;
+  }
+  if (ambientPalette === "carried") {
+    const palette = carriedPaletteOf(toOklch(ambientBackground));
+    return palette === null ? null : { kind: "carried", palette };
+  }
+  const scheme = seedToneScheme(ambientBackground);
+  return scheme === null ? null : { kind: "seed", scheme };
 }
 
 /**
@@ -558,11 +577,12 @@ function accentGroundOn(
   ambientBackground: string | undefined,
   ambientPalette: AmbientPalette,
   fill: string | undefined,
-): { readonly picked: string | undefined; readonly ambient: CarriedPalette | null } {
+): { readonly picked: string | undefined; readonly ambient: AccentAmbient | null } {
   if (fill === undefined || t.accent === undefined) {
-    return { picked: t.accent, ambient: carriedAmbientOf(t, ambientBackground, ambientPalette) };
+    return { picked: t.accent, ambient: accentAmbientOf(t, ambientBackground, ambientPalette) };
   }
-  return { picked: boxAccentOn(fill, t.accent), ambient: carriedPaletteOf(toOklch(fill)) };
+  const palette = carriedPaletteOf(toOklch(fill));
+  return { picked: boxAccentOn(fill, t.accent), ambient: palette === null ? null : { kind: "carried", palette } };
 }
 
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */
@@ -667,11 +687,11 @@ export function clampThemeTokens(
   };
   const carriedBase = t.background === undefined ? null : compositedBase(t.background, ambientBackground);
   const carried = carriedPaletteOf(carriedBase);
-  const { picked, ambient: carriedAmbient } = accentGroundOn(t, ambientBackground, palette, boxed);
+  const { picked, ambient: accentAmbient } = accentGroundOn(t, ambientBackground, palette, boxed);
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(picked, ambientAccent, carried, carriedAmbient);
+  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(picked, ambientAccent, carried, accentAmbient);
   put(THEME_OVERRIDE_COLOR_VARS.accent, accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark
