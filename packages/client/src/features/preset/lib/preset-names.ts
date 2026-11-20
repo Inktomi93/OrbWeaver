@@ -195,13 +195,6 @@ export const PRESET_TEMPLATE_FILTER_NAME = "Filter templates";
 export const PRESET_ADD_VARIABLE_NAME = "Add variable";
 export const PRESET_EDIT_VARIABLE_TITLE = "Edit variable";
 
-/** The lead of a row's line naming knobs the bound model does not honor. */
-export const PRESET_NOT_HONORED_LEAD = "Set but not honored by this model:";
-
-/** The staleness row's two answers: hide the row and keep the stored knobs, or clear them. */
-export const PRESET_STALE_KEEP_NAME = "Keep";
-export const PRESET_STALE_CLEAR_NAME = "Clear";
-
 /** The readout pane's heading when no preset is picked, and its active-preset block kicker. */
 export const PRESET_READOUT_ACTIVE_LABEL = "Active preset";
 

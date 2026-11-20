@@ -1,13 +1,15 @@
-// Descriptor-driven params-panel model: the panel renders from `GenerationCapability` — a sampling knob
-// shows only where the descriptor lists it, ranges come from each knob's `Range`, reasoning control is
-// keyed by the model's actual `reasoning` axis. Never hardcode a knob stack or model-name string-match;
-// the knob vocabulary comes only from @orb/contracts.
+// Descriptor-driven params-panel model: the panel renders from `GenerationCapability` — ranges come from each
+// knob's `Range`, reasoning control is keyed by the model's actual `reasoning` axis. Never hardcode a knob stack or
+// model-name string-match; the knob vocabulary comes only from @orb/contracts.
+//
+// A control the model cannot apply is not rendered (D68): every gate is `statesKnob` from @orb/contracts, the
+// same question a turn asks before it names a dropped knob. A cluster with nothing left disappears, with no
+// empty-state line in its place. The stored value stays and is not sent.
 //
 // The `quality` dial (fast/balanced/deep) is a distinct user field the server-side resolver maps onto
 // the descriptor axes; this client model owns only the dial's display copy.
 
-import type { EffortLevel, EndpointFeatures, GenerationCapability, Range, SamplerKnob, SamplerStage, Verbosity } from "@orb/contracts/inference";
-import { DEFAULT_SAMPLER_KEYS, foldFeatures } from "@orb/contracts/inference";
+import type { EffortLevel, GenerationCapability, Range, SamplerStage, Verbosity } from "@orb/contracts/inference";
 import type { Quality } from "@orb/contracts/preset";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select/items";
@@ -34,25 +36,6 @@ export function samplingKnobsFor(capability: GenerationCapability): readonly Res
     }
   }
   return knobs;
-}
-
-/** `true` when the descriptor supports a raw integer `seed` (a distinct control from the sliders above). */
-export function supportsSeed(capability: GenerationCapability): boolean {
-  return capability.sampling.seed === true;
-}
-
-/** `true` when the target takes a DRY sequence-breaker list. */
-/** The body key each sampler rides under on the deck's target connection: its provider row's spellings, then
- *  the connection's own declared ones, over the defaults (the fold a turn's wire reads). */
-export function samplerSpellingOf(
-  providerFeatures: EndpointFeatures | undefined,
-  declaredFeatures: EndpointFeatures | undefined,
-): Readonly<Record<SamplerKnob, string>> {
-  return { ...DEFAULT_SAMPLER_KEYS, ...foldFeatures(providerFeatures, declaredFeatures).samplerKeys };
-}
-
-export function supportsDrySequenceBreakers(capability: GenerationCapability): boolean {
-  return capability.sampling.drySequenceBreakers === true;
 }
 
 /** The stages the target server can order, in its default order; `undefined` when it takes no order (D295). */

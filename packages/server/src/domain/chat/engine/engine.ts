@@ -40,7 +40,7 @@ import {
   VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
-import { projectGenerationUsage } from "@orb/contracts/inference";
+import { announcesWarning, projectGenerationUsage } from "@orb/contracts/inference";
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -2473,6 +2473,7 @@ async function emitCapabilityDropWarnings(
     readonly guidedPlacedAsInjection: boolean;
     readonly runnerWarnings: readonly ResolvedWarning[];
     readonly providerRefused: boolean;
+    readonly request: { readonly connection: Resolved<"chat"> };
   },
 ): Promise<void> {
   if (result.imageDropped) {
@@ -2497,12 +2498,15 @@ async function emitCapabilityDropWarnings(
   }
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
   // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL:
-  // the translation answers for every infra code, so nothing is filtered out here.
+  // the translation answers for every infra code; only the two filters below keep a warning off the room.
   // `declared_overrides_measured` is NOT a turn-stream notice by ruling (inference program §5.3a): it renders
-  // as a badge on the connection row, and the user asked for the override — filtered BEFORE the fold.
+  // as a badge on the connection row, and the user asked for the override — filtered BEFORE the fold. A drop of a
+  // control the model the turn ran on does not state is not announced either (D68): the editor hides that control,
+  // and the wire-outcome ring keeps the raw warning.
+  const generation = generationOf(result.request.connection);
   await Promise.all(
     result.runnerWarnings
-      .filter((warning) => warning.code !== "declared_overrides_measured")
+      .filter((warning) => warning.code !== "declared_overrides_measured" && announcesWarning(generation, warning))
       .map((warning) => emit({ type: "warning", chatId, ...toChatWarning(warning) })),
   );
 }
@@ -2521,7 +2525,9 @@ async function emitCapabilityDropWarnings(
  *  requested knob / reasoning budget / tool result applied when the provider ignored or clamped it.
  *  The owner ruled SURFACE: they ride ONE `settings_adjusted` code carrying the drop's structured detail, which
  *  the client re-voices per class. No `null` arm survives, and no `default: return null` may replace this list
- *  — listing every code one by one is what keeps the `assertNever` honest. */
+ *  — listing every code one by one is what keeps the `assertNever` honest. The one filter sits before this map and
+ *  reads the descriptor, not the code: a drop of a control the model does not state is not a degrade the user can
+ *  see or act on (D68, `announcesWarning`). */
 function toChatWarning(warning: ResolvedWarning): ChatWarning {
   const code = warning.code;
   switch (code) {

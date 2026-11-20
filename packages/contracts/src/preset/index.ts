@@ -4053,18 +4053,6 @@ export interface EffectiveKnobReading {
   readonly provenance: EffectiveProvenance;
 }
 
-/** The stored non-slider knobs (lists, the sampler order, the EOS ban) the deck's staleness row also names. */
-export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder", "bannedStrings", "banEos"] as const;
-export type StaleCollectionKnob = (typeof STALE_COLLECTION_KNOBS)[number];
-
-/** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is
- *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. A
- *  collection knob's `value` is its display form. */
-export interface StaleKnob {
-  readonly knob: EffectiveKnob | StaleCollectionKnob;
-  readonly value: number | string;
-}
-
 /** ONE knob the quality dial feeds, as the dial declares it — NOT as the funnel resolved it. The Params
  *  surface's "quality mapping" datum ("deep → effort high · temp 1.0") answers "what does this dial DO",
  *  which is a fact about the dial and stays true whether or not an explicit knob currently overrides it.
@@ -4093,7 +4081,6 @@ export interface EffectivePreset {
   /** Only the knobs that actually resolve; an absent knob means the funnel produces NOTHING for it on this
    *  model (nothing to ghost — the honest empty, never a fabricated default). */
   readonly knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>>;
-  readonly stale: readonly StaleKnob[];
   /** What the QUALITY dial feeds, per the dial's own table — `null` with no dial set. */
   readonly qualityMapping: QualityMapping | null;
 }
@@ -4120,10 +4107,6 @@ const effectiveKnobReadingSchema = z.strictObject({
   value: effectiveKnobValueSchema,
   provenance: z.enum(EFFECTIVE_PROVENANCES),
 }) satisfies z.ZodType<EffectiveKnobReading>;
-const staleKnobSchema = z.strictObject({
-  knob: z.enum([...EFFECTIVE_KNOBS, ...STALE_COLLECTION_KNOBS]),
-  value: effectiveKnobValueSchema,
-}) satisfies z.ZodType<StaleKnob>;
 const qualityMappingEntrySchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<QualityMappingEntry>;
 const qualityMappingSchema = z.strictObject({
   quality: z.string(),
@@ -4135,7 +4118,6 @@ export const effectivePresetSchema = z.strictObject({
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId("ModelId"),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
-  stale: z.array(staleKnobSchema).readonly(),
   qualityMapping: qualityMappingSchema.nullable(),
 }) satisfies z.ZodType<EffectivePreset>;
 

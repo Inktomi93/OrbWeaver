@@ -5099,7 +5099,6 @@
         "presetId": "preset_0000000000000000000000014y",
         "model": "corpus-text-v1",
         "knobs": { "maxOutputTokens": { "value": 2048, "provenance": "floor" } },
-        "stale": [],
         "qualityMapping": null
       },
       "rulesFirst": [

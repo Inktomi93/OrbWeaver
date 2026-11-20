@@ -20,20 +20,15 @@ import type {
   EffectiveProvenance,
   QualityMapping,
   QualityMappingEntry,
-  StaleCollectionKnob,
-  StaleKnob,
   UserIntent,
 } from "@orb/contracts/preset";
-import { DEFAULT_MAX_OUTPUT_TOKENS, EFFECTIVE_KNOBS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING, STALE_COLLECTION_KNOBS } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, EFFECTIVE_KNOBS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs } from "@orb/inference";
 import { postureOfTask, resolveCachePolicy, resolveChat } from "@orb/inference";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResolveEffectiveParams } from "../contract/params.ts";
 import type { PresetContext, PresetService } from "../contract/service.ts";
 import { readablePreset } from "../persistence/queries.ts";
-
-const LOGIT_BIAS_UNIT = "tokens";
-const STAGE_JOINER = " → ";
 
 /** The `replyMedia` value that asks the model for pictures beside its prose. */
 const REPLY_MEDIA_IMAGE = "text+image" satisfies UserIntent["replyMedia"];
@@ -58,7 +53,7 @@ interface KnobProbe {
 }
 
 /** The effective EFFORT the funnel landed on. Reasoning collapses several surfaces into one decision: a CHOSEN
- *  off is itself the effective effort `none` (not an absent knob, and not staleness), while in `budget` mode there
+ *  off is itself the effective effort `none` (not an absent knob), while in `budget` mode there
  *  is no effort at all — the model takes a token budget instead of a level. An UNSET effort sends no field, so the
  *  model runs at its own default and there is no value to report, as for any unset knob.
  *
@@ -131,29 +126,6 @@ function readingOf(knob: EffectiveKnob, probe: KnobProbe, capability: Generation
   return serverDefault === undefined ? undefined : { value: serverDefault, provenance: "serverDefault" };
 }
 
-/** The display form of a stored list the deck names as not honored. */
-function listValue(items: readonly string[]): string {
-  return items.map((item) => JSON.stringify(item)).join(" ");
-}
-
-/** The stored COLLECTION knobs (no slider row, so not in `EFFECTIVE_KNOBS`) the funnel dropped for this model,
- *  so the deck's not-honored line names them beside the scalar ones. */
-function staleCollections(params: UserIntent, sampling: ResolvedChatKnobs["sampling"]): StaleKnob[] {
-  const values: Record<StaleCollectionKnob, string | undefined> = {
-    stop: params.stop === undefined || sampling.stop !== undefined ? undefined : listValue(params.stop),
-    logitBias: params.logitBias === undefined || sampling.logitBias !== undefined ? undefined : `${Object.keys(params.logitBias).length} ${LOGIT_BIAS_UNIT}`,
-    drySequenceBreakers:
-      params.drySequenceBreakers === undefined || sampling.drySequenceBreakers !== undefined ? undefined : listValue(params.drySequenceBreakers),
-    samplerOrder: params.samplerOrder === undefined || sampling.samplerOrder !== undefined ? undefined : params.samplerOrder.join(STAGE_JOINER),
-    bannedStrings: params.bannedStrings === undefined || sampling.bannedStrings !== undefined ? undefined : listValue(params.bannedStrings),
-    banEos: params.banEos === undefined || sampling.banEos !== undefined ? undefined : String(params.banEos),
-  };
-  return STALE_COLLECTION_KNOBS.flatMap((knob) => {
-    const value = values[knob];
-    return value === undefined ? [] : [{ knob, value }];
-  });
-}
-
 /** The per-knob probe table. EXHAUSTIVE over `EFFECTIVE_KNOBS` (a `Record`, not a switch — house dispatch
  *  discipline): a new knob in the tuple fails `tsc` here until it names its three rungs. */
 function probeKnobs(params: UserIntent, capability: GenerationCapability, resolved: ResolvedChatKnobs): Record<EffectiveKnob, KnobProbe> {
@@ -204,8 +176,7 @@ function probeKnobs(params: UserIntent, capability: GenerationCapability, resolv
     // read. That is the "floor" rung, and it is what the ghost row must show when the knob is unset.
     maxOutputTokens: { explicit: params.maxOutputTokens, resolved: resolved.maxOutputTokens, floor: DEFAULT_MAX_OUTPUT_TOKENS },
     verbosity: { explicit: params.verbosity, resolved: resolved.verbosity },
-    // Only the image ask is a knob: `text` is what every reply already is, so a stored `text` resolves to
-    // nothing and is never stale. A stored image ask the model cannot produce is dropped, so it reads stale.
+    // Only the image ask is a knob: `text` is what every reply already is, so a stored `text` resolves to nothing.
     replyMedia: {
       explicit: params.replyMedia === REPLY_MEDIA_IMAGE ? REPLY_MEDIA_IMAGE : undefined,
       resolved: resolved.replyImages ? REPLY_MEDIA_IMAGE : undefined,
@@ -234,20 +205,14 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
     const probes = probeKnobs(intent, capability, turn);
 
     const knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>> = {};
-    const stale: StaleKnob[] = [];
+    // A stored knob the capability does not honour resolves to nothing and has no reading: it stays stored, unsent
+    // and unshown (D68).
     for (const knob of EFFECTIVE_KNOBS) {
-      const probe = probes[knob];
-      // Nothing on the wire for this knob. A STORED value here is the F7 case: the capability does not honor
-      // it, so it is dropped at the funnel and invisible in both directions until the deck names it.
-      if (probe.resolved === undefined && probe.explicit !== undefined) {
-        stale.push({ knob, value: probe.explicit });
-      }
-      const reading = readingOf(knob, probe, capability);
+      const reading = readingOf(knob, probes[knob], capability);
       if (reading !== undefined) {
         knobs[knob] = reading;
       }
     }
-    stale.push(...staleCollections(intent, turn.sampling));
     const cache = resolveCachePolicy({
       context: resolved.cacheContext,
       generation: capability,
@@ -258,7 +223,6 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
       presetId: params.id,
       model,
       knobs,
-      stale,
       qualityMapping: qualityMappingOf(intent.quality, capability),
       cache: cache.plan,
       cacheWarnings: cache.warnings,

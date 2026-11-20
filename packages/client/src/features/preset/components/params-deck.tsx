@@ -10,9 +10,16 @@
 // `KNOB_NUMBER_FORMAT`), never locale-grouped.
 //
 // Still descriptor-driven: every sampling knob, effort level and verbosity level comes from
-// `GenerationCapability` via capability-panel-model.ts — never a hardcoded knob stack or a model-name match, and
-// an unlisted knob is ABSENT, never a disabled slider. What CHANGED is the row grammar: the override
-// Switch is gone (D4). A knob is a `KnobRow` — slider + editable mono twin — and an UNSET knob ghosts at
+// `GenerationCapability` via capability-panel-model.ts — never a hardcoded knob stack or a model-name match.
+// A control the Chat connection's model cannot apply is NOT RENDERED (D68): no disabled slider, no "not honored"
+// list, and a cluster with nothing left disappears without an empty-state line. A stored value for a hidden
+// control stays stored and unsent, so switching to a model that takes it brings it back.
+//
+// NO MODEL KNOWN: every model-fed control (quality, sampling, reasoning, output, advanced) needs a descriptor to
+// say it applies, so with no Chat connection none renders; the boundary's no-model notice with its Connections
+// door stands in their place. Context is Orbweaver's own and renders without one.
+//
+// The row grammar: the override Switch is gone (D4). A knob is a `KnobRow` — slider + editable mono twin — and an UNSET knob ghosts at
 // its RESOLVED EFFECTIVE value with a provenance gloss, so the datum is never hidden (F2) and the funnel's
 // own output is finally visible in the editor (F9).
 //
@@ -34,7 +41,8 @@
 // (`--width-label-col`), and the two tokens are deliberately different widths (see their descriptions).
 
 import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
-import type { Quality } from "@orb/contracts/preset";
+import { statesKnob } from "@orb/contracts/inference";
+import type { Quality, ThinkingDisplay } from "@orb/contracts/preset";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
@@ -43,7 +51,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { EditorPage, MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { EditorPage, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import {
@@ -54,23 +62,19 @@ import {
   reasoningControlFor,
   samplerStagesFor,
   samplingKnobsFor,
-  supportsDrySequenceBreakers,
-  supportsSeed,
 } from "../lib/capability-panel-model.ts";
 import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { MIROSTAT_SKIPPED_GLOSS, mirostatSkipped, qualityDeckGloss } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { PRESET_QUALITY_LABEL } from "../lib/preset-names.ts";
-import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
+import { thinkingDisplayItems, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { CapabilityGate, CapabilityGatePending } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 import { SamplerOrder } from "./sampler-order.tsx";
 import { DrySequenceBreakers } from "./sequence-chips.tsx";
-import type { StalenessRowProps } from "./staleness-row.tsx";
-import { StalenessRow } from "./staleness-row.tsx";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
@@ -85,14 +89,12 @@ export interface ParamsDeckProps {
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
-  /** The target connection's sampler spellings, for the staleness row; `undefined` until they load. */
-  readonly samplerSpelling: StalenessRowProps["spelling"];
 }
 
 /** A knob row whose slider moves in whole steps — it also pages by a range-sized step. */
 const INTEGER_STEP = 1;
 
-export function ParamsDeck({ form, capability, chatConnectionId, effective, samplerSpelling }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, chatConnectionId, effective }: ParamsDeckProps): ReactElement {
   return (
     <>
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
@@ -116,7 +118,6 @@ export function ParamsDeck({ form, capability, chatConnectionId, effective, samp
           deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
           breathe around it. */}
       <EditorPage gap="section" kind="instrument">
-        <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two
             are exhaustive and why the old connect-a-model empty state was a flash, not a state. */}
@@ -125,7 +126,7 @@ export function ParamsDeck({ form, capability, chatConnectionId, effective, samp
           fallback={<CapabilityGatePending />}
           renderError={(error, retry): ReactElement => <CapabilityGate error={error} onRetry={retry} />}
         >
-          <ModelFedClusters effective={effective} form={form} samplerSpelling={samplerSpelling} />
+          <ModelFedClusters effective={effective} form={form} />
         </QueryBoundary>
         <ParamsLimits capability={capability} chatConnectionId={chatConnectionId} effective={effective} form={form} />
       </EditorPage>
@@ -133,17 +134,10 @@ export function ParamsDeck({ form, capability, chatConnectionId, effective, samp
   );
 }
 
-/** SAMPLING and REASONING, which need the chat model's descriptor. A settled resolve that describes no generation model has
- *  nothing for them to show, so it keeps the pending skeleton rather than claiming an empty model. */
-function ModelFedClusters({
-  form,
-  effective,
-  samplerSpelling,
-}: {
-  readonly form: AppForm;
-  readonly effective: EffectiveProfileRow | undefined;
-  readonly samplerSpelling: StalenessRowProps["spelling"];
-}): ReactElement {
+/** QUALITY, SAMPLING and REASONING, which need the chat model's descriptor. A settled resolve that describes no
+ *  generation model has nothing for them to show, so it keeps the pending skeleton rather than claiming an empty
+ *  model. */
+function ModelFedClusters({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.connection.resolveChatCapability.queryOptions());
   const capability = chatCapabilityOf(data);
@@ -152,7 +146,8 @@ function ModelFedClusters({
   }
   return (
     <>
-      <SamplingCluster capability={capability} effective={effective} form={form} samplerSpelling={samplerSpelling} />
+      {statesKnob(capability, "quality") ? <QualityCluster effective={effective} form={form} /> : null}
+      <SamplingCluster capability={capability} effective={effective} form={form} />
       <ReasoningCluster capability={capability} effective={effective} form={form} />
     </>
   );
@@ -204,56 +199,55 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
   );
 }
 
-/** SAMPLING (§4 cluster 2) — one KnobRow per capability-listed knob, the seed row, then the staleness row. */
+/** SAMPLING (§4 cluster 2) — one KnobRow per capability-listed knob, then the seed row, the DRY breakers and the
+ *  sampler order where the model takes them. Absent when the model takes none of them. */
 function SamplingCluster({
   form,
   capability,
   effective,
-  samplerSpelling,
 }: {
   readonly form: AppForm;
   readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
-  readonly samplerSpelling: StalenessRowProps["spelling"];
-}): ReactElement {
+}): ReactElement | null {
   const knobs = samplingKnobsFor(capability);
   const stages = samplerStagesFor(capability);
+  const seed = statesKnob(capability, "seed");
+  const breakers = statesKnob(capability, "drySequenceBreakers");
   const skipped = mirostatSkipped(effective, capability.sampling.mirostatSkips);
-  if (knobs.length === 0 && !supportsSeed(capability)) {
-    return (
-      <Section kicker="Sampling">
-        <MutedLine>This model exposes no sampling controls.</MutedLine>
-      </Section>
-    );
+  if (knobs.length === 0 && !seed && !breakers && stages === undefined) {
+    return null;
   }
   return (
     <Section kicker="Sampling">
-      <form.Subscribe selector={(state): Quality | undefined => state.values.params.quality}>
-        {(quality): ReactElement => (
-          // ONE grid per cluster: the name track sizes to the widest name IN THIS CLUSTER, which is what
-          // gives the column its single x (`KnobGrid`'s own note carries why the track keeps the token as a
-          // floor rather than sizing purely to content).
-          <KnobGrid>
-            {knobs.map((knob) => (
-              <KnobRow
-                effective={effective?.knobs[knob.key]}
-                form={form}
-                hint={knob.description}
-                key={knob.field}
-                label={knob.label}
-                max={knob.range.max}
-                min={knob.range.min}
-                name={knob.field}
-                note={skipped.has(knob.key) ? MIROSTAT_SKIPPED_GLOSS : undefined}
-                quality={quality}
-                step={knob.step}
-                {...(knob.step === INTEGER_STEP ? { largeStep: pageStep(knob.range.min, knob.range.max) } : {})}
-              />
-            ))}
-          </KnobGrid>
-        )}
-      </form.Subscribe>
-      {supportsSeed(capability) ? (
+      {knobs.length === 0 ? null : (
+        <form.Subscribe selector={(state): Quality | undefined => state.values.params.quality}>
+          {(quality): ReactElement => (
+            // ONE grid per cluster: the name track sizes to the widest name IN THIS CLUSTER, which is what
+            // gives the column its single x (`KnobGrid`'s own note carries why the track keeps the token as a
+            // floor rather than sizing purely to content).
+            <KnobGrid>
+              {knobs.map((knob) => (
+                <KnobRow
+                  effective={effective?.knobs[knob.key]}
+                  form={form}
+                  hint={knob.description}
+                  key={knob.field}
+                  label={knob.label}
+                  max={knob.range.max}
+                  min={knob.range.min}
+                  name={knob.field}
+                  note={skipped.has(knob.key) ? MIROSTAT_SKIPPED_GLOSS : undefined}
+                  quality={quality}
+                  step={knob.step}
+                  {...(knob.step === INTEGER_STEP ? { largeStep: pageStep(knob.range.min, knob.range.max) } : {})}
+                />
+              ))}
+            </KnobGrid>
+          )}
+        </form.Subscribe>
+      )}
+      {seed ? (
         <SettingRowGroup>
           <SettingTrackRow>
             <form.AppField name="params.seed">
@@ -264,16 +258,15 @@ function SamplingCluster({
           </SettingTrackRow>
         </SettingRowGroup>
       ) : null}
-      {supportsDrySequenceBreakers(capability) ? <DrySequenceBreakers form={form} /> : null}
+      {breakers ? <DrySequenceBreakers form={form} /> : null}
       {stages === undefined ? null : <SamplerOrder form={form} stages={stages} />}
-      <StalenessRow form={form} spelling={samplerSpelling} stale={effective?.stale ?? []} />
     </Section>
   );
 }
 
-/** REASONING (§4 cluster 3) — the switch, the model's real effort levels or its budget KnobRow, the
- *  adaptive note, and `thinkingDisplay` RE-HOMED beside its own axis (F4: it lived two groups away, in the
- *  Prompt tab's "Message delivery" collapsible). */
+/** REASONING (§4 cluster 3) — the switch, the model's real effort levels or its budget KnobRow, the display mode
+ *  and the seeded reasoning, each only where the model takes it. Absent on a model that cannot reason, and on one
+ *  where none of its controls applies. */
 function ReasoningCluster({
   form,
   capability,
@@ -282,64 +275,68 @@ function ReasoningCluster({
   readonly form: AppForm;
   readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
-}): ReactElement {
+}): ReactElement | null {
   const control = reasoningControlFor(capability);
-  if (!control.reasons) {
-    return (
-      <Section kicker="Reasoning">
-        <Text voice="gloss">This model does not expose reasoning controls.</Text>
-        <SettingRowGroup>
-          <ThinkingDisplayField effective={effective} form={form} />
-        </SettingRowGroup>
-      </Section>
-    );
+  const switchable = statesKnob(capability, "reasoning");
+  const effort = control.kind === "effort" && statesKnob(capability, "effort") ? control.effortLevels : undefined;
+  const display = statesKnob(capability, "thinkingDisplay") ? (capability.reasoning.displayModes ?? []) : [];
+  const seedable = statesKnob(capability, "reasoningSeed");
+  const budget = control.kind === "budget" ? control.budgetRange : undefined;
+  if (!switchable && effort === undefined && display.length === 0 && !seedable && budget === undefined) {
+    return null;
   }
   return (
     <Section kicker="Reasoning">
-      <SettingRowGroup>
-        <form.AppField name="params.effort">
-          {(field): ReactElement => {
-            const effort = field.state.value;
-            const on = effort !== "none";
-            return (
-              // A FRAGMENT, NOT A BOX: both rows are CELLS of the group's shared track set (the switch and
-              // the effort select start their controls at one x), and a wrapper would make the pair ONE
-              // grid item, which is the same reason `KnobRow` returns a fragment into `KnobGrid`.
-              <>
-                <SettingTrackRow>
-                  <Field label="Reasoning" name={field.name}>
-                    <Switch checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
-                  </Field>
-                </SettingTrackRow>
-                {on && control.kind === "effort" ? <EffortField levels={control.effortLevels} onChange={field.handleChange} value={effort} /> : null}
-              </>
-            );
-          }}
-        </form.AppField>
-        <ThinkingDisplayField effective={effective} form={form} />
-      </SettingRowGroup>
+      {switchable || effort !== undefined || display.length > 0 ? (
+        <SettingRowGroup>
+          <form.AppField name="params.effort">
+            {(field): ReactElement => {
+              const stored = field.state.value;
+              // A model that cannot stop reasoning has no switch, and its effort select always shows.
+              const on = !switchable || stored !== "none";
+              return (
+                // A FRAGMENT, NOT A BOX: both rows are CELLS of the group's shared track set (the switch and
+                // the effort select start their controls at one x), and a wrapper would make the pair ONE
+                // grid item, which is the same reason `KnobRow` returns a fragment into `KnobGrid`.
+                <>
+                  {switchable ? (
+                    <SettingTrackRow>
+                      <Field label="Reasoning" name={field.name}>
+                        <Switch checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
+                      </Field>
+                    </SettingTrackRow>
+                  ) : null}
+                  {on && effort !== undefined ? (
+                    <EffortField levels={effort} onChange={field.handleChange} value={stored === "none" ? undefined : stored} />
+                  ) : null}
+                </>
+              );
+            }}
+          </form.AppField>
+          {display.length === 0 ? null : <ThinkingDisplayField effective={effective} form={form} offered={display} />}
+        </SettingRowGroup>
+      ) : null}
       {/* The authored chain of thought the model CONTINUES FROM (the seed on the continue row). OUTSIDE the
           row group like the knobs below: a textarea is not a docked control column. Both behaviors are
           measured vendor facts (docs/law/deepseek-api-surface.md): a finished seed is adopted whole and the
           answer follows it; a seed that stops mid-thought is completed by the model in its own reasoning.
-          One textarea, no toggle — the seed's own shape picks the mode. */}
-      <form.AppField name="params.reasoningSeed">
-        {(field): ReactElement => (
-          <field.TextareaField
-            hint="Reasoning you write for the model. Finish the thought and the model adopts it whole and answers from it; stop mid-thought and the model finishes it in its own reasoning. Rides only replies started for the model (prefill) — other routes drop it with a notice."
-            label="Seeded reasoning"
-            placeholder="The user asked in English, but my instructions say to answer in Spanish…"
-            rows={3}
-          />
-        )}
-      </form.AppField>
-      {/* OUTSIDE the row group, both of them: a KnobGrid declares its OWN tracks (a rail is not a docked
-          control column) and the adaptive note is a paragraph, and either one dropped into the group's
-          grid would take the label track alone. */}
-      {control.kind === "budget" && control.budgetRange !== undefined ? <BudgetKnob effective={effective} form={form} range={control.budgetRange} /> : null}
-      {control.kind === "adaptive" ? (
-        <Text voice="gloss">This model reasons adaptively. It self-budgets per turn, so there is no manual effort dial.</Text>
+          One textarea, no toggle — the seed's own shape picks the mode. Only a route that carries the seed
+          shows it (`reasoning.seedable`). */}
+      {seedable ? (
+        <form.AppField name="params.reasoningSeed">
+          {(field): ReactElement => (
+            <field.TextareaField
+              hint="Reasoning you write for the model. Finish the thought and the model adopts it whole and answers from it; stop mid-thought and the model finishes it in its own reasoning. Rides only replies started for the model (prefill)."
+              label="Seeded reasoning"
+              placeholder="The user asked in English, but my instructions say to answer in Spanish…"
+              rows={3}
+            />
+          )}
+        </form.AppField>
       ) : null}
+      {/* OUTSIDE the row group: a KnobGrid declares its OWN tracks (a rail is not a docked control column), and
+          dropped into the group's grid it would take the label track alone. */}
+      {budget === undefined ? null : <BudgetKnob effective={effective} form={form} range={budget} />}
     </Section>
   );
 }
@@ -404,7 +401,16 @@ function EffortField({
 /** `params.thinkingDisplay` — re-homed from Prompt ▸ Message delivery (§3 map, F4). Unset GHOSTS the
  *  funnel's own resolved display mode rather than rendering an empty combobox (side-eye F-05); with no
  *  reading it says "model default" instead of inventing one. */
-function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
+function ThinkingDisplayField({
+  form,
+  effective,
+  offered,
+}: {
+  readonly form: AppForm;
+  readonly effective: EffectiveProfileRow | undefined;
+  /** The display modes the model offers; only those are choices. */
+  readonly offered: readonly ThinkingDisplay[];
+}): ReactElement {
   const resolved = effective?.knobs["thinkingDisplay"]?.value;
   return (
     <SettingTrackRow>
@@ -412,7 +418,7 @@ function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; rea
         {(field): ReactElement => (
           <field.SelectField
             hint="How the model's reasoning is shown, when it reasons."
-            items={THINKING_DISPLAY_ITEMS}
+            items={thinkingDisplayItems(offered)}
             label="Reasoning display"
             placeholder={resolved === undefined ? "Model default" : thinkingDisplayLabel(String(resolved))}
           />

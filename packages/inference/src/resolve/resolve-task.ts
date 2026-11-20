@@ -32,7 +32,15 @@ import { googleModelId } from "../backends/google/model.ts";
 import { abortableWait, RESOLUTION_ABORTED_MESSAGE, requireActiveSignal } from "../backends/http/abort-wait.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
+import type { RouteFacts } from "../capability/floor.ts";
+import {
+  applyEndpointPosture,
+  applyServerToolChoice,
+  clampToServedWindow,
+  clampToTrainedWindow,
+  markRouteFacts,
+  markSettableWindow,
+} from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedPricing, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -478,17 +486,22 @@ function connectionCapability(
     [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.input !== undefined);
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
   // clamp, the window a route that sends none runs, and the window a route that sends one lets the preset set.
+  // The route facts last: they follow the code path a turn takes, so no tier may state them.
+  const route: RouteFacts = { wire: provider.wire, api, dialect: provider.dialect ?? "openai-compatible", prefill: features.prefill };
   const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
-    markSettableWindow(
-      clampToServedWindow(
-        clampToTrainedWindow(
-          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated, rowsStateInput), entry?.toolChoice),
-          entry?.contextTrained,
+    markRouteFacts(
+      markSettableWindow(
+        clampToServedWindow(
+          clampToTrainedWindow(
+            applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated, rowsStateInput), entry?.toolChoice),
+            entry?.contextTrained,
+          ),
+          servedWindowOf(features, entry, windowDeclared),
         ),
-        servedWindowOf(features, entry, windowDeclared),
+        features.nativeChat === "ollama",
+        entry?.contextTrained,
       ),
-      features.nativeChat === "ollama",
-      entry?.contextTrained,
+      route,
     );
   const capability = postured(
     synthesized.capability,

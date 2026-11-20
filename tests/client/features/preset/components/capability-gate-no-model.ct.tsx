@@ -1,6 +1,7 @@
 // @subject packages/client/src/features/preset/components/capability-gate.tsx
 // An account with no model set for chat opens the preset editor to a plain state, one door to Connections and no
-// server sentence, while the clusters that need no model still render; a bound chat model draws no such state.
+// server sentence, while the clusters that need no model still render and the model-fed ones do not; a bound chat
+// model draws no such state.
 
 import { CONNECTIONS_LIST_ADDRESS } from "@orb/client/lib";
 import type { PresetId } from "@orb/kit/ids";
@@ -61,8 +62,9 @@ test("with no model set for chat, the deck says so plainly with one door to Conn
   await expect(gate).toHaveCount(1);
   await expect(gate.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
   await expect(gate).toHaveText(`${PRESET_NO_CHAT_MODEL_TITLE}${PRESET_NO_CHAT_MODEL_DETAIL}${PRESET_OPEN_CONNECTIONS_NAME}`);
-  await expect(page.getByText(PRESET_QUALITY_LABEL, { exact: true }).first()).toBeVisible();
+  // The model-free clusters render; the quality dial needs a model to say it applies (D68), so it does not.
   await expect(page.getByLabel(PRESET_VERBATIM_TAIL_LABEL, { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_QUALITY_LABEL, { exact: true })).toHaveCount(0);
 
   await gate.getByRole("button", { name: PRESET_OPEN_CONNECTIONS_NAME, exact: true }).click();
   await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.group })).toHaveText(CONNECTIONS_LIST_ADDRESS.group);
@@ -84,5 +86,6 @@ test("a model bound for chat draws no no-model state, and the sampling knobs ren
   await openParams(page, mount, caller, preset.id);
 
   await expect(page.getByRole("textbox", { name: "Temperature value", exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_QUALITY_LABEL, { exact: true }).first()).toBeVisible();
   await expect(noModelStates(page)).toHaveCount(0);
 });
