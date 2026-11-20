@@ -36,6 +36,7 @@ type HttpAppDeps = Pick<
     ServicesResult,
     | "liveBuses"
     | "onChatTurnEnded"
+    | "chatRpgOps"
     | "services"
     | "forwardJwtVerifier"
     | "trpcContext"
@@ -115,6 +116,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     childProcessEnv: built.childProcessEnv,
     liveBuses: built.liveBuses,
     onChatTurnEnded: built.onChatTurnEnded,
+    chatMembership: built.chatRpgOps.getMembership,
     authConfig,
     now,
     newOpaqueId,

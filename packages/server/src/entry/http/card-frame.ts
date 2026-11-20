@@ -33,7 +33,10 @@
 //     a save-pass script, a stop string or an abort can still remove them. `data:` images keep the step's answer: they
 //     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows). A forming
 //     handle lives until a turn ends in its room, every account's at once: the stream it drew a panel of is over, and
-//     the settled reply mints its own frame. A second turn streaming beside the first in one room loses its forming
+//     the settled reply mints its own frame. ONLY A PRESENT MEMBER'S handle joins that release (`getMembership`): a
+//     handle that vanished at a foreign room's turn end would tell its minter when that room's turns end. A
+//     non-member's forming handle stays untagged and lives its TTL, and its mint answers exactly as a member's does,
+//     because a refusal would itself answer the membership question. A second turn streaming beside the first in one room loses its forming
 //     handles at the first one's end; its frames on screen keep their loaded documents, and a remount spends the one
 //     re-mint.
 //
@@ -59,6 +62,7 @@
 // ceilings (this doorway's are `CARD_FRAME_CEILINGS`, sized there for split replies), oldest-first eviction, a
 // sliding 30-minute TTL, and the owner check as the last word.
 
+import type { GetMembership } from "@orb/contracts/chat";
 import {
   CARD_FRAME_MINT_BODY_MAX_BYTES,
   CARD_FRAME_MINTS_IN_FLIGHT,
@@ -96,6 +100,8 @@ const TOO_MANY_REQUESTS = 429;
  *  narrator policy. Structural port so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
   readonly resolveAuthorRenderPolicy: ChatService["resolveAuthorRenderPolicy"];
+  /** The present-seat read. A forming handle joins its room's turn-end release only when the minter sits there. */
+  readonly getMembership: GetMembership;
 }
 
 export interface CardFrameDeps {
@@ -275,12 +281,14 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     // nothing left to withdraw.
     const grant =
       body.characterId === null ? {} : { grant: { chatId: body.chatId, characterId: body.characterId, media: policy.media, posture: policy.posture } };
+    // The selector falls to the floor for a non-member by design, so the turn-end tag needs its own present-seat read.
+    const sitsInRoom = body.forming === true && (await deps.participants.getMembership(body.chatId, principal.userId)) !== null;
     const id = store.put({
       userId: principal.userId,
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
       ...grant,
-      ...(body.forming === true ? { formingIn: body.chatId } : {}),
+      ...(sitsInRoom ? { formingIn: body.chatId } : {}),
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({
