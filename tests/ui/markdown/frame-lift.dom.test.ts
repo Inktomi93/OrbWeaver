@@ -376,6 +376,8 @@ test.each([
   ["a code span, by a name that closes it", SPAN, "x` <img src=x onerror=alert(3)> `"],
   ["a fenced block, by a name that breaks its line", FENCED, "x\n```\n<img src=x onerror=alert(4)>"],
   ["a fence inside a held panel, which the frame reads as HTML", `<div style="color:red">\n\n${FENCED}\n\n</div>`, HOSTILE_NAME],
+  ["what reads as a code span until math that opens first takes its opening tick", "$x `y$ {{user}}`", HOSTILE_NAME],
+  ["inline math, by a name that closes it", "$x {{user}} y$", "$ <img src=x onerror=alert(5)> $"],
 ])("a hostile name in %s draws no element in the frame document", (_name, body, personaName) => {
   const html = framed(renderMessageForDisplay(`<div style="color:red">HUD</div>\n\n${body}`, displayContext(personaName), REPLY));
   // Positive control: the panel drew as markup.

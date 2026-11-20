@@ -1,7 +1,7 @@
 // A frame body's `<style>` and `<script>` text, kept whole through the Markdown parse. CommonMark ends an HTML block at
 // a blank line, so a stylesheet holding one inside a block another tag opens (`<div><style>`) is cut: the parse turns
 // the rest into paragraphs, `raw` replays the first paragraph's close tag inside the style and so closes it, and every
-// later paragraph prints as prose. Each closed element's text is lifted before the parse (`liftRawTextBodies`) and put
+// later paragraph prints as prose. Each element's raw text is lifted before the parse (`liftRawTextBodies`) and put
 // back after `raw` has rebuilt the element. Only the text moves: the tags stay, so the parse finds the same elements.
 //
 // THE STAND-IN MUST BE ONE NO REPLY CAN SPELL. It is a private-use mark around the text's index, and the mark is one
@@ -145,7 +145,7 @@ function restoreRawText({ mark, bodies }: Lifted): (tree: unknown) => void {
   };
 }
 
-/** Lift each closed `<style>` and `<script>` text out of `markdown` for the parse; see the file header. */
+/** Lift each element's raw text out of `markdown` for the parse (`liftRawTextBodies`); see the file header. */
 export function liftRawText(markdown: string): RawTextLift {
   const mark = freeMark(markdown);
   const lifted = liftRawTextBodies(markdown, mark);

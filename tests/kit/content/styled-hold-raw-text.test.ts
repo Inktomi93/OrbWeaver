@@ -134,13 +134,13 @@ test("the elements are read from their opener to just past their close", () => {
   expect(script).toEqual({ name: "script", start: text.length - 9, bodyStart: text.length - 1, bodyEnd: text.length, end: text.length, closed: false });
 });
 
-test("the frame's lift takes out each closed element's text, keeps its tags, and leaves a fenced sample and an unclosed element alone", () => {
+test("the frame's lift takes out each element's text, an unclosed one's to the end, keeps its tags, and leaves a fenced sample alone", () => {
   const mark = "\u{E000}";
   const fenced = "```html\n<style>\n.x{}\n\n.y{}\n</style>\n```";
-  const { text, bodies } = liftRawTextBodies(`${PANEL}\n\n${fenced}\n\n<script>let a;</script><style>.open{`, mark);
-  expect(bodies).toEqual([PANEL.slice(PANEL.indexOf(">", PANEL.indexOf("<style")) + 1, PANEL.indexOf("</style>")), "let a;"]);
+  const { text, bodies } = liftRawTextBodies(`${PANEL}\n\n${fenced}\n\n<script>let a;</script><style>.open{\n\n.more{`, mark);
+  expect(bodies).toEqual([PANEL.slice(PANEL.indexOf(">", PANEL.indexOf("<style")) + 1, PANEL.indexOf("</style>")), "let a;", ".open{\n\n.more{"]);
   expect(text).toBe(
-    `<div class="hud"><style>${mark}0${mark}</style><details class="hud"><summary>Tracker</summary><div>Row one</div></details></div>\n\n${fenced}\n\n<script>${mark}1${mark}</script><style>.open{`,
+    `<div class="hud"><style>${mark}0${mark}</style><details class="hud"><summary>Tracker</summary><div>Row one</div></details></div>\n\n${fenced}\n\n<script>${mark}1${mark}</script><style>${mark}2${mark}`,
   );
 });
 

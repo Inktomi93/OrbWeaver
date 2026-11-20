@@ -551,6 +551,15 @@ catalogs:
     remark-math:
       specifier: ^6.0.0
       version: 6.0.0
+    remark-parse:
+      specifier: ^11.0.0
+      version: 11.0.0
+    remark-rehype:
+      specifier: ^11.1.2
+      version: 11.1.2
+    remend:
+      specifier: 1.4.0
+      version: 1.4.0
     streamdown:
       specifier: ^2.7.1
       version: 2.7.1
@@ -593,6 +602,9 @@ catalogs:
     undici:
       specifier: ^8.12.3
       version: 8.12.3
+    unified:
+      specifier: ^11.0.5
+      version: 11.0.5
     vite:
       specifier: ^8.3.5
       version: 8.3.5
@@ -896,9 +908,21 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.3.1(react@19.3.1)
+      remark-parse:
+        specifier: 'catalog:'
+        version: 11.0.0(supports-color@7.2.0)
+      remark-rehype:
+        specifier: 'catalog:'
+        version: 11.1.2
+      remend:
+        specifier: 'catalog:'
+        version: 1.4.0
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.6.5)
+      streamdown:
+        specifier: 'catalog:'
+        version: 2.7.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)
       stylelint:
         specifier: 'catalog:'
         version: 17.16.0(@typescript/typescript6@6.0.2)(supports-color@7.2.0)
@@ -926,6 +950,9 @@ importers:
       undici:
         specifier: 'catalog:'
         version: 8.12.3
+      unified:
+        specifier: 'catalog:'
+        version: 11.0.5
       vite:
         specifier: 'catalog:'
         version: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
