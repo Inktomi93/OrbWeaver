@@ -6,6 +6,7 @@
 // @subject packages/server/src/domain/rpg/persistence/snapshots.ts
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 
+import { setImmediate } from "node:timers/promises";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_SNAPSHOT_KIND } from "@orb/contracts/rpg";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
@@ -32,6 +33,8 @@ import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "@orb
 import { and, eq, getTableName } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };
+// Enough event-loop turns for a flush that is not queued behind a held section to finish against in-memory SQLite.
+const QUEUE_TURNS = 40;
 const SAVED_LOCATION = "Bookmarked observatory";
 const EDITED_LOCATION = "Later observatory";
 
@@ -332,36 +335,41 @@ test("a held checkpoint commit serializes a competing hand edit through its new 
   }
 });
 
-test("a real continuation overlaps the held bookmark without replacing its saved state or source variant identity", async () => {
+test("a real continuation during a held bookmark writes after it without replacing its saved state or source variant identity", async () => {
   using held = await freshHeldDb();
   using wire = physicalScene("rain");
   await using ownership = new AsyncDisposableStack();
-  const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
+  const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute, rpgTrace: true }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
   const pending: Promise<void>[] = [];
+  const settled = (): number => (root.app.rpgTrace?.recent({ chatId: scene.chatId }) ?? []).filter(({ event }) => event.phase === "flushed").length;
+  const settledBefore = settled();
   const checkpointGate = held.hold(/^insert into "rpg_checkpoints"/u);
   try {
     const checkpointWrite = root.services.rpg.createCheckpoint({ ...params, label: "Continuation bookmark" });
     pending.push(checkpointWrite.then(() => undefined));
     await checkpointGate.reached;
     checkpointGate.disarm();
-    const turnGate = held.hold(/^insert into "rpg_snapshots"/u);
-    try {
-      const continuation = root.services.chat.continueTurn({ ...params, messageId: scene.assistant.id, intent: INTENT });
-      pending.push(continuation.then(() => undefined));
-      expect((await continuation).aborted).toBe(false);
-      await turnGate.reached;
-    } finally {
-      turnGate.release();
+    // The continuation's turn write shares the bookmark's per-game section, so it queues behind the held bookmark.
+    const continuation = root.services.chat.continueTurn({ ...params, messageId: scene.assistant.id, intent: INTENT });
+    pending.push(continuation.then(() => undefined));
+    expect((await continuation).aborted).toBe(false);
+    // Queued, not lost and not early: while the bookmark holds the section the continuation's flush has not
+    // settled and its variant's row still carries the saved weather; it lands once the bookmark commits.
+    for (let turn = 0; turn < QUEUE_TURNS; turn += 1) {
+      await setImmediate();
     }
+    expect(settled()).toBe(settledBefore);
+    expect((await root.services.rpg.getTrackerView(params)).ambient?.weather).toEqual(scene.snapshot.weather);
     checkpointGate.release();
     const checkpointId = await checkpointWrite;
     await root.settleBackground();
+    expect(settled()).toBe(settledBefore + 1);
     const [checkpoint] = await root.services.rpg.listCheckpoints(params);
     expect(checkpoint?.id).toBe(checkpointId);
     if (checkpoint === undefined) {
-      throw new Error("the actual overlapping checkpoint did not commit");
+      throw new Error("the actual held checkpoint did not commit");
     }
     const bookmark = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
     expect(bookmark.weather).toEqual(scene.snapshot.weather);

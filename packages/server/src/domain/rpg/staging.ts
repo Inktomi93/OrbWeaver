@@ -37,6 +37,7 @@ import { applyLockedPatchTracked } from "./substrate/merge.ts";
  *  the composed STATE instead would re-assert this turn's now-stale base over a hand edit that landed mid-flight
  *  (see `StagedTurnFlush.patches`). */
 interface TurnBucket {
+  readonly seed: RpgSnapshotState;
   state: RpgSnapshotState;
   readonly journal: StagedJournalEntry[];
   /** The dotted paths this turn's writes lost to the base snapshot's hand LOCKS. Collected where the
@@ -66,7 +67,7 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (existing) {
         return existing.state;
       }
-      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [], suppressed: [] };
+      const bucket: TurnBucket = { seed: clone(base), state: clone(base), journal: [], patches: [], suppressed: [] };
       buckets.set(turnId, bucket);
       return bucket.state;
     },
@@ -105,7 +106,7 @@ export function createRpgStagingStore(): RpgStagingStore {
         return;
       }
       buckets.delete(turnId);
-      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches, suppressedByLocks: bucket.suppressed };
+      return { seed: bucket.seed, state: bucket.state, journal: bucket.journal, patches: bucket.patches, suppressedByLocks: bucket.suppressed };
     },
     clear(turnId: ChatTurnId): void {
       buckets.delete(turnId);

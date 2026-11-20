@@ -22,6 +22,7 @@ import type {
   RpgInventoryItem,
   RpgQuestObjective,
   RpgQuestStatus,
+  RpgRefusedQuestCall,
   RpgSnapshotState,
   RpgTrackerDef,
   RpgTrackerValue,
@@ -36,6 +37,7 @@ import {
   journalTitleFor,
   journalTypeFor,
   RPG_TRACKER_VALUE_EMPTY,
+  rpgNameMatchKey,
   rpgNpcSlug,
   TIME_OF_DAY_HOURS,
   trackerCeiling,
@@ -43,7 +45,7 @@ import {
 } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { RpgQuestId } from "@orb/kit/ids";
-import type { ActorRefIndex, ExtractionFoldRefs, ExtractionMints, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
+import type { ActorRefIndex, ExtractionFoldRefs, ExtractionMints, ScenePatch, StagedJournalEntry, UpsertQuestOutcome } from "../contract/params.ts";
 import type { RpgStateDelta } from "../contract/service.ts";
 import { emptyActorEntry } from "../substrate/actor-ops.ts";
 
@@ -495,10 +497,6 @@ export function applySetTracker(
 /** The MATCH key for an objective line (EXT-4c): trimmed + case-folded. A model restating its own objective
  *  list re-types it, and "Find the road north" vs "find the road north " is the same objective — matching on
  *  the raw string would re-mint it (losing its completion) for a difference no reader can see. */
-function objectiveMatchKey(text: string): string {
-  return text.trim().toLowerCase();
-}
-
 /** MERGE the authored objective list onto the quest's existing lines (EXT-4c — the defect: an `update` carrying
  *  `objectives` used to re-mint every line `completed:false`, so a model could not mark ONE objective done
  *  without wiping the others, and the host's hand-edits died with them). A line whose text matches an existing
@@ -506,9 +504,9 @@ function objectiveMatchKey(text: string): string {
  *  unmatched line is a genuinely new objective and mints fresh. A line the list omits is dropped: the authored
  *  list IS the quest's objectives. */
 function mergeObjectives(existing: readonly RpgQuestObjective[], texts: readonly string[], mintObjectiveId: () => string): RpgQuestObjective[] {
-  const byText = new Map(existing.map((o) => [objectiveMatchKey(o.text), o]));
+  const byText = new Map(existing.map((o) => [rpgNameMatchKey(o.text), o]));
   return texts.map((text) => {
-    const prior = byText.get(objectiveMatchKey(text));
+    const prior = byText.get(rpgNameMatchKey(text));
     return prior === undefined ? { id: mintObjectiveId(), text, completed: false } : { ...prior, text };
   });
 }
@@ -517,21 +515,27 @@ function mergeObjectives(existing: readonly RpgQuestObjective[], texts: readonly
  *  without restating the list at all. A name matching no live objective is DROPPED (errors-as-data: completing
  *  an objective that doesn't exist is a ghost, never a mint — the `ghostTargetRefs` posture). */
 function withCompletedObjectives(list: readonly RpgQuestObjective[], names: readonly string[]): RpgQuestObjective[] {
-  const wanted = new Set(names.map(objectiveMatchKey));
-  return list.map((o) => (wanted.has(objectiveMatchKey(o.text)) ? { ...o, completed: true } : { ...o }));
+  const wanted = new Set(names.map(rpgNameMatchKey));
+  return list.map((o) => (wanted.has(rpgNameMatchKey(o.text)) ? { ...o, completed: true } : { ...o }));
 }
 
-/** `upsert_quest` → the new `quests` plane (§2.5). `create` mints a quest via the injected `mintQuestId`;
- *  `update`/`complete`/`fail` address the quest by NAME (the model never sees ids). `objectives` MERGES by text
- *  (ids + completion preserved, {@link mergeObjectives}) and `completeObjectives` marks lines done by text —
- *  the two gestures the model needs to advance a quest without destroying its own progress. */
+/** `upsert_quest` → the new `quests` plane (§2.5). Every action addresses the quest by NAME (the model never
+ *  sees ids), matched by {@link rpgNameMatchKey}. Only `create` mints a quest via the injected `mintQuestId`;
+ *  `update`/`complete`/`fail` on a name no quest matches is REFUSED as data, so a misspelled completion never
+ *  invents a finished quest beside the real open one. `objectives` MERGES by text (ids + completion preserved,
+ *  {@link mergeObjectives}) and `completeObjectives` marks lines done by text — the two gestures the model
+ *  needs to advance a quest without destroying its own progress. */
 export function applyUpsertQuest(
   state: RpgSnapshotState,
   args: UpsertQuestArgs,
   mintQuestId: () => RpgQuestId,
   mintObjectiveId: () => string,
-): { quests: RpgSnapshotState["quests"] } {
-  const i = state.quests.findIndex((q) => q.name === args.name);
+): UpsertQuestOutcome {
+  const wanted = rpgNameMatchKey(args.name);
+  const i = state.quests.findIndex((q) => rpgNameMatchKey(q.name) === wanted);
+  if (i === -1 && args.action !== "create") {
+    return { ok: false, refused: { name: args.name, action: args.action } };
+  }
   const existing = i === -1 ? [] : (state.quests[i]?.objectives ?? []);
   const merged = args.objectives === undefined ? undefined : mergeObjectives(existing, args.objectives, mintObjectiveId);
   const statusFor = (): RpgQuestStatus => {
@@ -557,7 +561,7 @@ export function applyUpsertQuest(
       description: args.description ?? "",
       objectives: resolveObjectives([]),
     };
-    return { quests: [...state.quests, created] };
+    return { ok: true, quests: [...state.quests, created] };
   }
   const quests = state.quests.map((q, idx) => {
     if (idx !== i) {
@@ -571,7 +575,7 @@ export function applyUpsertQuest(
       ...(touchesObjectives ? { objectives: resolveObjectives(q.objectives) } : {}),
     };
   });
-  return { quests };
+  return { ok: true, quests };
 }
 
 /** `add_journal_entry` → a staged journal entry (flushed at commit stamped with the committed variant, §2.5).
@@ -661,7 +665,8 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
  *  staging accumulator during a cheap turn: entry N sees entry N-1's write), so the delta's `statePatch` is the
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).
  *  A GHOST-targeted party/inventory arg is DROPPED ({@link ghostTargetRefs}, R5 — errors-as-data: a
- *  hallucinated name never fails the turn and never mints an actor). */
+ *  hallucinated name never fails the turn and never mints an actor), and so is a non-create quest action on a
+ *  name no quest matches, which the delta names in `refusedQuestCalls` for the turn's record. */
 export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, fold: ExtractionFoldRefs): RpgStateDelta {
   const { participantIndex, trackerDefs } = fold;
   let state = base;
@@ -681,8 +686,14 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   for (const args of extraction.trackers) {
     overlay(applySetTracker(state, args, trackerDefs));
   }
+  const refusedQuestCalls: RpgRefusedQuestCall[] = [];
   for (const args of extraction.quests) {
-    overlay(applyUpsertQuest(state, args, mints.quest, mints.objective));
+    const applied = applyUpsertQuest(state, args, mints.quest, mints.objective);
+    if (applied.ok) {
+      overlay({ quests: applied.quests });
+    } else {
+      refusedQuestCalls.push(applied.refused);
+    }
   }
 
   // The statePatch is the accumulated ABSOLUTE planes — but ONLY the planes any write touched, so an empty
@@ -712,7 +723,7 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   // did she turn"). Derived at the fold (both old + new state are in hand), NOT model-authored (a second write
   // is a second failure point). Appended AFTER the model's own beats. Only fires when the actor plane changed.
   const relationshipBeats = state.actorState === base.actorState ? [] : deriveRelationshipBeats(base.actorState, state.actorState);
-  return { statePatch, journal: [...journal, ...relationshipBeats] };
+  return { statePatch, journal: [...journal, ...relationshipBeats], ...(refusedQuestCalls.length > 0 ? { refusedQuestCalls } : {}) };
 }
 
 /** Derive the relationship-change journal beats (§2.4) — one `event` entry per npc whose relationship

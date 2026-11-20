@@ -57,6 +57,7 @@ import { messages, rpgJournal, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors.ts";
@@ -317,26 +318,41 @@ async function ladderPosOf(db: Db, row: RpgSnapshotRow): Promise<LadderPos | und
   return { seq: asOfSeq ?? NO_SEQ, hand: true, createdAt: row.createdAt, id: row.id };
 }
 
-/** The GAME-WIDE fallback rungs: latest COMMITTED by `createdAt`, else latest ANY. `excludeMessageId` drops
- *  every snapshot keyed to that assistant SLOT — the flushing turn's own slot, whose sibling variants are
- *  precisely the ones a new variant must not inherit (VER-1a). HAND rows carry no `messageId`, so they are
- *  never that slot's siblings and must survive the exclusion (a bare `ne` on a NULL column drops them).
+/** A row stamped at a story position strictly below `seq`: a turn row's own slot, a hand row's as-of slot
+ *  ({@link NO_SEQ} when it has none). The state BEFORE a slot may never come from a beat at or after it, so the
+ *  position-blind fallback takes this bound whenever the slot still has a position. */
+function positionedBelow(seq: number): SQL {
+  const slotSeq = (column: typeof rpgSnapshots.messageId | typeof rpgSnapshots.asOfMessageId): SQL =>
+    sql`coalesce((select ${sql.identifier("m")}.${sql.identifier("seq")} from ${messages} as ${sql.identifier("m")} where ${sql.identifier("m")}.${sql.identifier("id")} = ${column}), ${NO_SEQ})`;
+  return sql`((${TURN_ARM_ROW}) and ${slotSeq(rpgSnapshots.messageId)} < ${seq}) or ((${HAND_ARM_ROW}) and ${slotSeq(rpgSnapshots.asOfMessageId)} < ${seq})`;
+}
+
+/** The GAME-WIDE fallback rungs: latest COMMITTED by `createdAt`, else latest ANY. `before` drops every
+ *  snapshot keyed to the flushing turn's own SLOT, whose sibling variants are precisely the ones a new variant
+ *  must not inherit (VER-1a), and, while that slot still has a position, every snapshot at or after it
+ *  ({@link positionedBelow}). HAND rows carry no `messageId`, so they are never that slot's siblings and must
+ *  survive the slot exclusion (a bare `ne` on a NULL column drops them).
  *
- *  IT IS SCOPED TO THE LIVE LINEAGE. This walk is ordered by `createdAt` and is
+ *  IT IS SCOPED TO THE LIVE LINEAGE. This walk is ordered by `createdAt` and, without `before`, is
  *  blind to story position, which is tolerable for "any state at all" — but it must never answer with a row
  *  belonging to a variant NOBODY IS LOOKING AT. Under D26 each variant's snapshot is that variant's truth, so
  *  an unselected sibling's row is the truth of prose the user navigated away from; returning it would be a
  *  stuck state where BOTH the turn and hand arms are dark and the only rows left are dead variants'.
  *  HAND rows (`variantId IS NULL`) stay eligible unconditionally — a hand write has no variant to rewind with
  *  (`db/schema/rpg.ts`), and this file's header rules that a hand row survives a swipe of any slot. */
-async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
+async function latestSnapshot(
+  db: Db,
+  gameId: RpgGameId,
+  before?: { readonly messageId: MessageId; readonly seq: number | undefined },
+): Promise<RpgSnapshotRow | undefined> {
   // A variant belongs to exactly ONE message, so the existence of a slot selecting it is unambiguous without a
   // chat scope — this asks "is this row's variant the one on screen anywhere", which is a global fact.
   const onLiveLineage = or(HAND_ARM_ROW, sql`exists (select 1 from ${messages} where ${messages.selectedVariantId} = ${rpgSnapshots.variantId})`);
   const scope = [
     eq(rpgSnapshots.gameId, gameId),
     onLiveLineage,
-    ...(excludeMessageId === undefined ? [] : [or(isNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, excludeMessageId))]),
+    ...(before === undefined ? [] : [or(isNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, before.messageId))]),
+    ...(before?.seq === undefined ? [] : [positionedBelow(before.seq)]),
   ];
   const committed = await db
     .select()
@@ -412,7 +428,8 @@ export async function resolveSnapshotHead(db: Db, game: SnapshotGameRef): Promis
  *  strictly before this slot, unioned with the newest HAND row whose as-of slot is strictly below it — the
  *  same rows the pre-D124 walk found as anchor slots below the slot. So rerolling a MID-chat message bases on
  *  its predecessor (including a host hand-edit made back there), never on a downstream beat. The game-wide
- *  fallbacks (committed → any) still exclude this slot's own rows. */
+ *  fallbacks (committed → any) still exclude this slot's own rows and every row at or after its position: a
+ *  later beat that committed while this turn ran is not this turn's base, and its row must not become one. */
 export async function resolveSnapshotBeforeSlot(db: Db, game: SnapshotGameRef, messageId: MessageId): Promise<RpgSnapshotRow | undefined> {
   const seq = await findMessageSeq(db, messageId);
   if (seq !== undefined) {
@@ -421,7 +438,7 @@ export async function resolveSnapshotBeforeSlot(db: Db, game: SnapshotGameRef, m
       return prev.row;
     }
   }
-  return latestSnapshot(db, game.id, messageId);
+  return latestSnapshot(db, game.id, { messageId, seq });
 }
 
 /** The turn's prev→current snapshot PAIR on the selected lineage (parity-plus §2.7 — the delta block's input).

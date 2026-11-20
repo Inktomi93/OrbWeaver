@@ -183,8 +183,12 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolHand
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        const patch = applyUpsertQuest(state, args, () => ctx.ids.quest(), extractionMints.objective);
-        ctx.staging.stage(resolved.turn.turnId, patch);
+        const applied = applyUpsertQuest(state, args, () => ctx.ids.quest(), extractionMints.objective);
+        if (!applied.ok) {
+          // Refused before anything stages: the model reads why and can create the quest instead.
+          return { ok: false, error: `upsert_quest: no quest is named "${args.name}", and only action "create" starts a quest` };
+        }
+        ctx.staging.stage(resolved.turn.turnId, { quests: applied.quests });
         return { ok: true, value: { name: args.name, action: args.action } };
       },
     }),
