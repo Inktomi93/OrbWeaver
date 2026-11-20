@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-11-20
 priority: P2
 area: chat
-lane: wt/agent-a8c72080671572f19
+blocked: on 3605
 plan: chat-html-and-presets
 ---
 
