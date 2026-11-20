@@ -6,7 +6,7 @@
 // @subject packages/client/src/components/settings-pane.tsx
 // Each page template holds its tier, its one scroll box and its control floors in every seed, density and pointer class.
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { REFINERY_EDIT_SCOPE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type {
@@ -40,6 +40,16 @@ const box = async (locator: Locator): Promise<{ x: number; y: number; width: num
   }
   return found;
 };
+
+/** A wheel over the point; mobile WebKit has no mouse wheel, so there the scroller scrolls itself, which the caller's hit-target check ties to that point. */
+async function scrollPaneBy200(page: Page, pane: Locator, [x, y]: readonly [number, number], wheelless: boolean): Promise<void> {
+  if (wheelless) {
+    await pane.evaluate((node) => node.scrollBy(0, 200));
+    return;
+  }
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, 200);
+}
 
 const px = (locator: Locator, property: string): Promise<number> =>
   locator.evaluate((element, name) => Number.parseFloat(getComputedStyle(element).getPropertyValue(name)), property);
@@ -161,6 +171,7 @@ for (const coarse of [false, true]) {
     test("ContentPane: the scroll edge is the pane edge, the inset sits inside it, the band spans it and every part rides one column", async ({
       mount,
       page,
+      browserName,
     }) => {
       const root = await mount<typeof ContentPaneMatrixStory>(`${STORIES}/ContentPaneMatrixStory`, {});
       // Each measure's column width in a pane below the breathe step and above it; `full` is the pane less its inset.
@@ -200,8 +211,18 @@ for (const coarse of [false, true]) {
           ).toBeLessThanOrEqual(1);
           expect([bandColumn.x, bandColumn.width], `${id}: the band's content rides the body's column`).toEqual([bodyColumn.x, bodyColumn.width]);
           // The wheel over the pane's inset, outside the column, scrolls the pane, and the band stays pinned at its top.
-          await page.mouse.move(paneBox.x + inset / 2, paneBox.y + paneBox.height / 2);
-          await page.mouse.wheel(0, 200);
+          const insetX = paneBox.x + inset / 2;
+          const insetY = paneBox.y + paneBox.height / 2;
+          // The inset is the body's padding, so a point in it hits the body or the scroller, never the column.
+          const hit = await pane.evaluate(
+            (node, [x, y]) => {
+              const target = document.elementFromPoint(x ?? 0, y ?? 0);
+              return target === node || target?.matches('[data-slot="content-pane-body"]') === true;
+            },
+            [insetX, insetY],
+          );
+          expect(hit, `${id}: the inset hits the pane's own surface`).toBe(true);
+          await scrollPaneBy200(page, pane, [insetX, insetY], browserName === "webkit" && coarse);
           await expect.poll(() => pane.evaluate((node) => node.scrollTop), `${id}: the wheel scrolls from the inset`).toBeGreaterThan(0);
           expect((await box(band)).y, `${id}: the band stays pinned`).toBe(paneBox.y);
         }
