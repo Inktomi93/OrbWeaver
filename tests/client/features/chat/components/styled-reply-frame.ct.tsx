@@ -20,7 +20,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
+import type { CardFrameMintRecord, CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
@@ -575,6 +575,15 @@ for (const [name, body, shown] of INLINE_MARKUP) {
   });
 }
 
+// What a mint asked for and the two grants the forming cap withholds.
+function grantOf(record: CardFrameMintRecord): {
+  readonly forming: boolean;
+  readonly scripts: boolean | undefined;
+  readonly externalMedia: boolean | undefined;
+} {
+  return { forming: record.forming, scripts: record.granted?.interactive, externalMedia: record.granted?.externalMedia };
+}
+
 // Two panels the model writes itself, streamed so the first closes and has prose after it while the second is still
 // arriving, cut inside its own text.
 const TWO_PANEL_CHUNKS = [
@@ -589,6 +598,13 @@ const GHOST_BODY = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-bod
 test("a streaming reply draws each panel once it is complete, never a half panel, and settles with one more mint", async ({ corpus, mount, page }) => {
   const room = await openUnscriptedRoom("Unchanged.");
   await using root = room.root;
+  // The speaker is Interactive and external media is allowed, so an ordinary mint here carries every grant: only the
+  // forming cap keeps the streamed panels static with no external media.
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { forbidExternalMedia: false } });
+  await (await root.internalCallerFor(root.ownerId)).character.update({
+    characterId: room.characterId,
+    input: { trustHtml: true, interactiveHtml: true },
+  });
   await using traffic = await serveRoom(page, root, corpus);
   // A panel's words live only inside its frame: the row's own text never shows them, whole or half.
   await watchForSource(page, GHOST_BODY, [...SOURCE_MARKERS, "padding", "Banner", "Ban"]);
@@ -608,8 +624,11 @@ test("a streaming reply draws each panel once it is complete, never a half panel
   await streamEachChunk(page, [fourth, fifth]);
   await expect(ghostFrames.nth(1).contentFrame().locator("#w6p-two")).toHaveText("Banner two");
   await expect(body.locator(FORMING_CHIP)).toHaveCount(0);
-  // One forming mint per complete panel, and none for the unchanged first panel as the stream went on.
+  // One forming mint per complete panel, and none for the unchanged first panel as the stream went on. Each asked for
+  // the forming cap and got no scripts and no external media.
   expect(traffic.mints).toBe(2);
+  const capped = { forming: true, scripts: false, externalMedia: false };
+  expect(traffic.minted.map(grantOf)).toEqual([capped, capped]);
   // The turn commits: the stored reply holds the streamed text.
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
@@ -629,8 +648,10 @@ test("a streaming reply draws each panel once it is complete, never a half panel
   const reply = settled.locator(SANDBOX).contentFrame();
   await expect(reply.locator("#w6p-one")).toHaveText("Banner one");
   await expect(reply.locator("#w6p-two")).toHaveText("Banner two");
-  // The settled reply's one frame is its only new mint past the two forming ones.
+  // The settled reply's one frame is its only new mint past the two forming ones. Positive control: that ordinary mint
+  // carries the scripts and external media the cap withheld.
   expect(traffic.mints).toBe(3);
+  expect(traffic.minted.map(grantOf).at(-1)).toEqual({ forming: false, scripts: true, externalMedia: true });
   const { hits, seen } = await sourceSeen(page);
   expect(seen).toContain("He bows.");
   expect(hits).toEqual([]);

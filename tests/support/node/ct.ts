@@ -11,7 +11,7 @@ export { ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES } from "./c
 export { createShellAmbientReads } from "./ct-shell-reads.ts";
 export { HOST_BAND, openContextSections } from "./open-context-sections.ts";
 export { routeAuthConfig } from "./route-auth-config.ts";
-export type { CardFrameServing, CardFrameTraffic } from "./route-card-frames.ts";
+export type { CardFrameMintRecord, CardFrameServing, CardFrameTraffic } from "./route-card-frames.ts";
 export { routeCardFrames } from "./route-card-frames.ts";
 export { routeOrbSocket } from "./route-orb-socket.ts";
 export { routeToServer } from "./route-to-server.ts";

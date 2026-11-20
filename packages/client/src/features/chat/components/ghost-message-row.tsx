@@ -22,8 +22,8 @@
 //     so the frame is the srcdoc floor (which additionally inherits the app document's `img-src`) and no
 //     routed mint fires. This is the SAME fail-closed lattice the markdown-trust pin already applies,
 //     extended to the one capability mounting-earlier would actually grant: a model-authored outbound
-//     media fetch inside the pre-commit window. Today the ghost makes ZERO model-controlled requests
-//     (the untrusted markdown allowlist drops `<img>` entirely) and this keeps it that way; the row's
+//     media fetch inside the pre-commit window. The ghost's own markdown makes no model-controlled
+//     request off the box (the untrusted markdown allowlist drops `<img>` entirely); the row's
 //     real media verdict + the routed door arrive with the settled row, one second later. Widening
 //     either axis here is a security decision, not a polish item.
 //
