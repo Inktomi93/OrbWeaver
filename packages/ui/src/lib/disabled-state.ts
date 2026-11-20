@@ -73,19 +73,19 @@ export const DISABLED_SELECTION = `
 /** A slider's range and knob on their own `data-disabled` parts: the muted ink as their fill, at full strength, over the muted rail. */
 export const DISABLED_MARK = "data-disabled:bg-muted-foreground data-disabled:opacity-100";
 
-// A switch keeps a fill polarity inside the neutral pair: on paints the muted ink as its track under a muted knob, off
-// keeps the muted track under a knob dimmed by the derived step, so a disabled switch is never louder than an enabled
-// off one. D355's solve judges that dimmed knob over the muted track.
-/** A switch's track: muted when off, the muted ink when on. */
+// A disabled switch sits on the muted track on and off, so it is never louder than an enabled one, and its knob carries
+// the state: the muted ink at full strength at the on end, dimmed by the derived step at the off end. D355's solve judges
+// the dimmed knob over the muted track, which bounds the full-strength one too.
+/** A switch's track: the muted fill and the field edge, on or off. The checked arm outranks a tone's checked track. */
 export const DISABLED_SWITCH = `
   data-disabled:pointer-events-none data-disabled:bg-muted
-  data-checked:data-disabled:border-muted-foreground data-checked:data-disabled:bg-muted-foreground
+  data-checked:data-disabled:border-input-border data-checked:data-disabled:bg-muted
 `;
 
-/** A switch's knob: the muted ink at the derived step when off, the muted fill at full strength when on. */
+/** A switch's knob: the muted ink, dimmed by the derived step when off and at full strength when on. */
 export const DISABLED_SWITCH_THUMB = `
   data-disabled:bg-muted-foreground data-disabled:opacity-disabled
-  data-checked:data-disabled:bg-muted data-checked:data-disabled:opacity-100
+  data-checked:data-disabled:bg-muted-foreground data-checked:data-disabled:opacity-100
 `;
 
 // A busy solid button is disabled too but is working, so it keeps its fill.

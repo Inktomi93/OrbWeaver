@@ -77,6 +77,7 @@ const RENDERS = {
   "number field": (disabled: boolean) => <NumberField aria-label="Count" defaultValue={3} disabled={disabled} />,
   "select trigger": (disabled: boolean) => <Select aria-label="Pick" defaultValue="one" disabled={disabled} items={SELECT_ITEMS} />,
   "checked switch": (disabled: boolean) => <Switch aria-label="On" checked={true} disabled={disabled} />,
+  "quiet checked switch": (disabled: boolean) => <Switch aria-label="Quiet on" checked={true} disabled={disabled} tone="quiet" />,
   "off switch": (disabled: boolean) => <Switch aria-label="Off" checked={false} disabled={disabled} />,
   "checked checkbox": (disabled: boolean) => <Checkbox aria-label="Ticked" checked={true} disabled={disabled} />,
   "checked radio": (disabled: boolean) => (

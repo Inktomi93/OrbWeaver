@@ -2192,7 +2192,8 @@ function rolePageInks<Role extends string, Knob extends string>(
 
 // The page inks a fill-less control paints on one host: the host's own ink and the muted ink a disabled one swaps to. A form
 // control drawn by its D159 edge keeps its box at full strength on the muted fill and dims only its content, the muted ink;
-// an off switch dims its muted-ink knob over the same muted track. Both are the muted ink dimmed over the opaque muted fill.
+// a disabled switch sits on the same muted track, its knob the muted ink dimmed when off and at full strength when on. One
+// pair judges all three: the dimmed muted ink over the opaque muted fill, which the full-strength knob clears a fortiori.
 function hostInactivePairs(palette: TonePalette<CarriedToneHost>): readonly InactiveInkPair[] {
   if (palette.carriesPageInks === false) {
     return [];

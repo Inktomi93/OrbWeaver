@@ -17,6 +17,7 @@ export const SIGNAL_CASES = [
   "select trigger",
   "color field",
   "checked switch",
+  "quiet checked switch",
   "off switch",
   "checked checkbox",
   "checked radio",

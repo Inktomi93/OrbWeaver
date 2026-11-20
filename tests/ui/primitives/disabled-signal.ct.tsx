@@ -3,9 +3,13 @@
 // on light and dark seeds and custom themes. A fill-less control drops to the muted ink and dims. A form control and a
 // selection control swap their box to the muted fill and never dim it, so their edge keeps its 3:1; a field's content and an
 // off switch's knob render at the derived step instead, which is the signal on a dark palette, where the muted fill sits
-// within a few percent of the field fill. A checked switch keeps on apart from off with the muted ink as its track. A
-// control dims once, by its scope's derived step, never by that step again at a part.
+// within a few percent of the field fill. A disabled switch keeps the muted track on and off, and its knob carries the
+// state, so it is never louder than an enabled one. A control dims once, by its scope's derived step, never by that step
+// again at a part.
 
+import type { Rgb } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelSurface } from "@orb/testkit/browser/spec";
 import { DARK_CUSTOM_THEME, LIGHT_TONE_THEME } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
@@ -70,7 +74,8 @@ const READS = {
     dims: false,
     content: { part: '[data-slot="select-icon"]', paint: "color" },
   },
-  "checked switch": { part: '[data-slot="switch-root"]', paint: "backgroundColor", dims: false, pair: "color" },
+  "checked switch": { part: '[data-slot="switch-root"]', paint: "backgroundColor", dims: false },
+  "quiet checked switch": { part: '[data-slot="switch-root"]', paint: "backgroundColor", dims: false },
   "off switch": {
     part: '[data-slot="switch-root"]',
     paint: "backgroundColor",
@@ -164,11 +169,56 @@ const CUSTOM_THEMES = [
   { name: "a dark custom theme", tokens: DARK_CUSTOM_THEME },
 ] as const;
 
+// The start of an on switch's root, where its knob is not parked: the track alone.
+const ON_TRACK_STRIP = { x0: 0.1, x1: 0.35, y0: 0.3, y1: 0.7 } as const;
+// The end of a case box, which no control reaches: the page the switch sits on.
+const PAGE_STRIP = { x0: 0.9, x1: 0.98, y0: 0.3, y1: 0.7 } as const;
+
+async function surfaceOf(target: Locator, region: typeof ON_TRACK_STRIP | typeof PAGE_STRIP): Promise<Rgb> {
+  await target.scrollIntoViewIfNeeded();
+  return (await pixelSurface(target.page(), target, { region })).rgb;
+}
+
+function onTrack(scope: Locator, name: SignalCase, state: string): Promise<Rgb> {
+  return surfaceOf(scope.locator(`[data-case="${name}"][data-state="${state}"]`).locator('[data-slot="switch-root"]'), ON_TRACK_STRIP);
+}
+
+interface SwitchLoudness {
+  /** A disabled switch that is on is no louder against the page than an enabled switch that is on, in either tone. */
+  readonly quieterThanEnabled: boolean;
+  /** Its track stands apart from the enabled quiet-on track by the non-text floor, so the two never read as one state. */
+  readonly apartFromQuietOn: boolean;
+  readonly ratios: Readonly<Record<string, number>>;
+}
+
+/** Measured off the composited pixels, since the loudness is what reaches the screen, not what a class names. */
+async function readSwitchLoudness(scope: Locator): Promise<SwitchLoudness> {
+  const page = await surfaceOf(scope.locator('[data-case="checked switch"][data-state="enabled"]'), PAGE_STRIP);
+  const disabledOn = await onTrack(scope, "checked switch", "disabled");
+  const accentOn = await onTrack(scope, "checked switch", "enabled");
+  const quietOn = await onTrack(scope, "quiet checked switch", "enabled");
+  const ratios = {
+    disabledOn: wcagContrastRatio(disabledOn, page),
+    accentOn: wcagContrastRatio(accentOn, page),
+    quietOn: wcagContrastRatio(quietOn, page),
+    disabledOnToQuietOn: wcagContrastRatio(disabledOn, quietOn),
+  };
+  return {
+    quieterThanEnabled: ratios.disabledOn <= Math.min(ratios.accentOn, ratios.quietOn),
+    apartFromQuietOn: ratios.disabledOnToQuietOn >= AA_NON_TEXT_RATIO,
+    ratios,
+  };
+}
+
+const OWED_LOUDNESS = { quieterThanEnabled: true, apartFromQuietOn: true } as const;
+
 for (const { name, theme } of SEEDS) {
   test(`every control kind carries a second disabled signal on ${name}`, async ({ mount }) => {
     const component = await mount<typeof SeedDisabledSignalStory>(`${STORIES}/SeedDisabledSignalStory`, theme === undefined ? {} : { theme });
     const { observed, owed } = await readSignals(component);
-    expect(observed).toEqual(owed);
+    expect.soft(observed).toEqual(owed);
+    const { ratios, ...loudness } = await readSwitchLoudness(component);
+    expect(loudness, JSON.stringify(ratios)).toEqual(OWED_LOUDNESS);
   });
 }
 
@@ -176,6 +226,8 @@ for (const { name, tokens } of CUSTOM_THEMES) {
   test(`every control kind carries a second disabled signal under ${name}`, async ({ mount }) => {
     const component = await mount<typeof CustomThemeDisabledSignalStory>(`${STORIES}/CustomThemeDisabledSignalStory`, { tokens });
     const { observed, owed } = await readSignals(component);
-    expect(observed).toEqual(owed);
+    expect.soft(observed).toEqual(owed);
+    const { ratios, ...loudness } = await readSwitchLoudness(component);
+    expect(loudness, JSON.stringify(ratios)).toEqual(OWED_LOUDNESS);
   });
 }
