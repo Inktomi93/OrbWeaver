@@ -7,10 +7,20 @@ import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema, BLUR_SURFACES, ELEVATIONS } from "@orb/contracts/settings/appearance";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId, ChatId, ThemeId } from "@orb/kit/ids";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { emulateMedia, landedMutedContrast, paintedArt, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import {
+  emulateMedia,
+  landedMutedContrast,
+  paintedArt,
+  pixel,
+  pixelContrast,
+  releaseEmulatedMedia,
+  resolvedLength,
+  seedShellState,
+} from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -75,6 +85,8 @@ const READING_BODY_SCALE = 1.6;
 const BLACK_ART_PASSWORD = "synthetic-corpus-ct-black-art-password";
 // Large enough that a cover fit paints it as a field, not a tile.
 const BLACK_ART_SIDE = 64;
+// Eight cells across the art, so a cover fit puts several black and white edges behind every line of a message.
+const CHECKER_CELL = 8;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SHIMMER_CLASS = "orb-weave-shimmer";
 
@@ -200,8 +212,18 @@ async function noiseSpread(page: Page, box: { x: number; y: number; width: numbe
   );
 }
 
-/** A one-grey PNG: pure black or white is the worst art a glass surface can sit over, built byte for byte so no image library is needed. */
+/** A one-grey PNG: pure black or white is the worst flat art a glass surface can sit over. */
 function greyPng(side: number, grey: number): Buffer {
+  return shadedPng(side, () => grey);
+}
+
+/** A black and white checkerboard: the busiest art there is, so text over it meets both extremes at once. */
+function checkerPng(side: number, cell: number): Buffer {
+  return shadedPng(side, (x, y) => ((Math.floor(x / cell) + Math.floor(y / cell)) % 2 === 0 ? 0 : 255));
+}
+
+/** A greyscale PNG whose every pixel is `shade(x, y)`, built byte for byte so no image library is needed. */
+function shadedPng(side: number, shade: (x: number, y: number) => number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const length = Buffer.alloc(4);
     length.writeUInt32BE(data.length);
@@ -217,26 +239,29 @@ function greyPng(side: number, grey: number): Buffer {
   header.writeUInt8(8, 8);
   header.writeUInt8(2, 9);
   // Each row is a zero filter byte followed by its RGB triples.
-  const rows = Buffer.alloc((side * 3 + 1) * side, grey);
-  for (let row = 0; row < side; row += 1) {
-    rows[row * (side * 3 + 1)] = 0;
+  const stride = side * 3 + 1;
+  const rows = Buffer.alloc(stride * side, 0);
+  for (let y = 0; y < side; y += 1) {
+    for (let x = 0; x < side; x += 1) {
+      rows.fill(shade(x, y), y * stride + 1 + x * 3, y * stride + 4 + x * 3);
+    }
   }
   return Buffer.concat([PNG_SIGNATURE, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
 }
 
 /**
- * A fresh corpus root whose owner uploaded a one-grey wallpaper through the production upload route and chose it at
- * the least dim the settings allow, in the given theme with every glass surface on. Its blob is served to the
- * page from the same root under the owner's own cookie.
+ * A fresh corpus root whose owner uploaded `png` as a wallpaper through the production upload route and chose it, in
+ * the given theme with every glass surface on and `appearance` over the pinned base. Its blob is served to the page
+ * from the same root under the owner's own cookie.
  */
-async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId | null): Promise<Root> {
+async function artRoot(page: Page, png: Buffer, selectedThemeId: ThemeId | null, appearance: Partial<AppearanceSettings> = {}): Promise<Root> {
   await using construction = new AsyncDisposableStack();
   const art = construction.use(await createCorpusHarness());
   const owner = await art.principalFor(art.ownerId);
   const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
   const form = new FormData();
   form.set("kind", "background");
-  form.set(UPLOAD_FILE_FIELD, new Blob([new Uint8Array(greyPng(BLACK_ART_SIDE, grey))], { type: "image/png" }), "solid.png");
+  form.set(UPLOAD_FILE_FIELD, new Blob([new Uint8Array(png)], { type: "image/png" }), "art.png");
   const uploaded = await art.http.request("/api/assets/upload", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1", forwarded: "" }, body: form });
   if (!uploaded.ok) {
     throw new Error(`the wallpaper upload failed (${String(uploaded.status)})`);
@@ -248,6 +273,7 @@ async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId |
     patch: {
       ...BASE_APPEARANCE,
       blurSurfaces: [...BLUR_SURFACES],
+      ...appearance,
       backgroundImageKind: "asset",
       backgroundAssetId: stored.assetId,
       backgroundAssetHash: stored.hash,
@@ -1207,6 +1233,37 @@ test.describe("the light arm's plate over a wallpaper", () => {
   });
 });
 
+test.describe("message text over the busiest wallpaper", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  // No text halo paints on a message: its legibility over art is its own fill, so every chat style must clear the
+  // text floor on that fill alone, over black and white at once, on the light and the dark polarity.
+  for (const theme of ["light", "dark"] as const) {
+    for (const chatStyle of THEME_CHAT_STYLES) {
+      test(`${chatStyle} on the ${theme} theme reads at the text floor over a black and white checkerboard`, async ({ corpus, mount, page }) => {
+        await using art = await artRoot(page, checkerPng(BLACK_ART_SIDE, CHECKER_CELL), themeIdFor(theme) ?? null, { chatStyle });
+        await serveArtRoom(page, corpus, art);
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+        await roomReady(page);
+        await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+        await expect.poll(() => computed(page.locator(".shell-main"), "color-scheme")).toBe(theme);
+        const ratios: string[] = [];
+        for (const role of ROOM_ROLES) {
+          const text = bubble(page, role).locator("p").first();
+          await text.scrollIntoViewIfNeeded();
+          const { ratio, describe } = await pixelContrast(page, text);
+          if (ratio < AA_NORMAL_RATIO) {
+            ratios.push(`${role}: ${ratio.toFixed(2)} (${describe})`);
+          }
+        }
+        expect(ratios).toStrictEqual([]);
+      });
+    }
+  }
+});
+
 test.describe("the dark arm over the brightest wallpaper a viewer can save", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(WIDE);
@@ -1218,7 +1275,7 @@ test.describe("the dark arm over the brightest wallpaper a viewer can save", () 
       mount,
       page,
     }) => {
-      await using art = await solidArtRoot(page, 255, await seedThemeId(seed));
+      await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 255), await seedThemeId(seed));
       await serveArtRoom(page, corpus, art);
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
       await roomReady(page);
@@ -1251,7 +1308,7 @@ test.describe("the dark arm over the brightest wallpaper a viewer can save", () 
   }
 
   test("the composer's glass takes the lift on hover and focus, and drops it at rest", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 255, null);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 255), null);
     await serveArtRoom(page, corpus, art);
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
     await roomReady(page);
@@ -1277,7 +1334,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
   });
 
   test("the pane and another section's reading surface clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 0, lightThemeId);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 0), lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
@@ -1309,7 +1366,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
   });
 
   test("in a room the composer and each role's bubble clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await solidArtRoot(page, 0, lightThemeId);
+    await using art = await artRoot(page, greyPng(BLACK_ART_SIDE, 0), lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
