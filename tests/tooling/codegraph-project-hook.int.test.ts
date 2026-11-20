@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 
 const HOOK_REL = ".claude/hooks/codegraph-project.mjs";
+const INDEX_SCRIPT_REL = "scripts/worktree-codegraph-index.sh";
 
 function git(cwd: string, ...args: string[]): void {
   execFixtureGit(cwd, ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args]);
@@ -71,7 +72,7 @@ test("main checkout and explicitly supplied projectPath remain untouched", ({ sc
   expect(runHook(repo.hook, repo.worktree, { projectPath: null })).toBe("");
 });
 
-test("missing index is refused, while foreign repo and unrelated tools receive no blanket allow", ({ scratch, repoRoot }) => {
+test("missing index is refused with the command that builds it, while foreign repo and unrelated tools receive no blanket allow", ({ scratch, repoRoot }) => {
   const trusted = plantRepo(join(scratch, "trusted"), repoRoot);
   const foreign = plantRepo(join(scratch, "foreign"), repoRoot);
   expect(runHook(trusted.hook, foreign.worktree)).toBe("");
@@ -83,7 +84,10 @@ test("missing index is refused, while foreign repo and unrelated tools receive n
   expect(runHook(trusted.hook, trusted.worktree, {}, "mcp__other__read")).toBe("");
   expect(runHook(trusted.hook, trusted.worktree, {}, "mcp__codegraph__control")).toBe("");
   unlinkSync(join(trusted.worktree, ".codegraph", "codegraph.db"));
-  expect(deniedReason(runHook(trusted.hook, trusted.worktree))).toContain("CodeGraph index is unavailable");
+  const reason = deniedReason(runHook(trusted.hook, trusted.worktree));
+  expect(reason).toContain("CodeGraph index is unavailable");
+  expect(reason).toContain(`bash ${join(realpathSync(trusted.worktree), INDEX_SCRIPT_REL)}`);
+  expect(existsSync(join(repoRoot, INDEX_SCRIPT_REL)), "the denied command names a script the checkout ships").toBe(true);
 });
 
 test("canonical worktree path is emitted and an index symlink escaping the checkout is refused", ({ scratch, repoRoot }) => {

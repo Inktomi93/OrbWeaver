@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 
 const INSTALLED_ROOT = path.resolve(path.dirname(realpathSync(fileURLToPath(import.meta.url))), "../..");
 const INDEX_DB = path.join(".codegraph", "codegraph.db");
+// A worktree builds its index on demand; the script is the only builder, and the hook names it so a lane can run it and retry.
+const INDEX_SCRIPT = path.join("scripts", "worktree-codegraph-index.sh");
 // Installed CodeGraph MCP tools all accept projectPath; new tools need an explicit routing decision.
 const PROJECT_TOOLS = new Set(
   ["search", "callers", "callees", "impact", "node", "explore", "status", "files"].map((name) => `mcp__codegraph__codegraph_${name}`),
@@ -103,7 +105,7 @@ if (worktree !== null) {
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
           permissionDecision: "deny",
-          permissionDecisionReason: `CodeGraph index is unavailable in this worktree (${worktree}); run codegraph index from that checkout before querying.`,
+          permissionDecisionReason: `CodeGraph index is unavailable in this worktree (${worktree}); run \`bash ${path.join(worktree, INDEX_SCRIPT)}\` once, then retry.`,
         },
       }),
     );

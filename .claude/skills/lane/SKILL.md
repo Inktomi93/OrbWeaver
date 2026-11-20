@@ -19,9 +19,11 @@ A lane owns a related batch of work in its own worktree. These rules bind every 
 
 ## Survey
 
+Before your first CodeGraph query, run `bash scripts/worktree-codegraph-index.sh` in your worktree. Without an index the CLI answers from main's tree, and the hook denies each MCP call.
+
 Survey before you edit. code-reviewer checks it. For every item, separately, before your first Edit or Write on it:
 
-1. Run `codegraph_explore` on the symbols and files that item names, then `codegraph_callers` and `codegraph_impact` on each symbol you will change, and read the callers and blast radius they return. One call for a whole batch does not count. `.claude/hooks/codegraph-project.mjs` routes each MCP call to your worktree's index. Inside a `REPL` script the tools are `tools.mcp__codegraph__codegraph_explore` and its siblings; the CLI (`codegraph callers <symbol>`, `codegraph impact <symbol>`) works from a worktree too. The server's watcher re-indexes an edited file within seconds, and `codegraph sync` fails on its lock while it runs; if a symbol you added is missing, query again.
+1. Run `codegraph_explore` on the symbols and files that item names, then `codegraph_callers` and `codegraph_impact` on each symbol you will change, and read the callers and blast radius they return. One call for a whole batch does not count. `.claude/hooks/codegraph-project.mjs` routes each MCP call to your worktree's index. Inside a `REPL` script the tools are `tools.mcp__codegraph__codegraph_explore` and its siblings; the CLI (`codegraph callers <symbol>`, `codegraph impact <symbol>`) works from a worktree once it has an index. The server's watcher re-indexes an edited file within seconds, and `codegraph sync` fails on its lock while it runs; if a symbol you added is missing, query again.
 2. Run `ast-grep` for each pattern you will change, with both `-l ts` and `-l tsx`. State the scanned-file count behind any "nothing else uses it" or "only caller" claim; an `rg` count alone is not a survey.
 3. Read the whole file you edit, not an excerpt.
 

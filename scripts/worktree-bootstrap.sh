@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Bootstrap a checkout with separate dependencies and a consistent local CodeGraph index.
-# Shared Git hooks remain owned by the main checkout.
+# Bootstrap a checkout with its own dependencies and showcase bundles.
+# Shared Git hooks remain owned by the main checkout. The CodeGraph index is built on demand by
+# scripts/worktree-codegraph-index.sh, never here.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -30,15 +31,6 @@ if [ -n "$MAIN" ] && [ "$MAIN" != "$ROOT" ]; then
   if [ -f "$MAIN/.claude/settings.local.json" ] && [ ! -e .claude/settings.local.json ]; then
     mkdir -p .claude
     ln -sfn "$MAIN/.claude/settings.local.json" .claude/settings.local.json
-  fi
-
-  # A SQLite backup is consistent while main's index is in use; copying the file is not.
-  if [ -f "$MAIN/.codegraph/codegraph.db" ] && command -v codegraph >/dev/null; then
-    if [ ! -e .codegraph ]; then
-      mkdir -p .codegraph
-      (cd .codegraph && sqlite3 "$MAIN/.codegraph/codegraph.db" ".backup codegraph.db")
-    fi
-    codegraph sync "$ROOT" </dev/null
   fi
 fi
 
