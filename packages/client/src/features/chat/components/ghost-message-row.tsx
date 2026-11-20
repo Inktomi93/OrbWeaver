@@ -40,8 +40,8 @@ import { Markdown } from "@orb/ui/markdown";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormingChip } from "#components";
-import type { MessageRenderContext } from "#lib";
+import { FormingChip, HeldCardsNotice } from "#components";
+import type { HeldCards, MessageRenderContext } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useDisplayText } from "../hooks/use-display-text.ts";
@@ -50,6 +50,7 @@ import { useGhostProviderWaiting, useGhostReasoning, useGhostText, useGhostThink
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import { CHAT_PROVIDER_WAITING_NOTE } from "../lib/chat-surface-names.ts";
+import { holdsUnwrappedCard } from "../lib/content-blocks.ts";
 import { bodyDisplayRow, ghostStamps, reasoningDisplayRow } from "../lib/display-row.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
@@ -200,6 +201,17 @@ function GhostBubbleBody({
   );
 }
 
+// The held-cards notice the settled row will say, shown from the moment the stream holds card markup the game's wrap
+// would draw. It latches as the panel read does, so the whole text is read per delta only until the first card.
+function GhostHeldCardsNotice({ held, heldCards }: { readonly held: string; readonly heldCards: HeldCards }): ReactElement | null {
+  const [seen, setSeen] = useState(false);
+  const holds = seen || holdsUnwrappedCard(held);
+  if (holds && !seen) {
+    setSeen(true);
+  }
+  return holds ? <HeldCardsNotice viewerIsHost={heldCards.viewerIsHost} /> : null;
+}
+
 /** The ghost bubble's body: the live reasoning trace, when there is one, over the streamed text. */
 function GhostBubbleContent(props: {
   readonly reasoning: string;
@@ -212,6 +224,7 @@ function GhostBubbleContent(props: {
   readonly streaming: boolean;
   readonly colorQuotedSpeech: boolean;
   readonly cardTier: CardTrust;
+  readonly heldCards: HeldCards | undefined;
   readonly holdsMarkup: boolean;
   readonly providerWaiting: boolean;
 }): ReactElement {
@@ -235,6 +248,7 @@ function GhostBubbleContent(props: {
         holdsMarkup={props.holdsMarkup}
         providerWaiting={props.providerWaiting}
       />
+      {props.heldCards === undefined ? null : <GhostHeldCardsNotice held={props.held} heldCards={props.heldCards} />}
     </>
   );
 }
@@ -279,10 +293,14 @@ export interface GhostMessageRowProps {
   readonly colorQuotedSpeech?: boolean | undefined;
   /** The CARD TIER this turn's row will settle at, resolved by the surface through the ONE trust authority
    *  (`resolveRowRenderPolicy`) with the same inputs `MessageRow` uses — so a card closed mid-stream does not
-   *  change tier at commit. ONLY the tier is threaded: see the file header for why the ghost's markdown
+   *  change tier at commit. Of the trust axes ONLY the tier is threaded: see the file header for why the ghost's markdown
    *  trust, external-media verdict and frame delivery stay pinned at the stream floor. Absent ⇒ `tierA`, the
    *  same fail-closed value the resolver returns for a mount with no roster. */
   readonly cardTier?: CardTrust | undefined;
+  /** The settled row's held-cards fact (`RowRenderPolicy.heldCards`): set in a game room whose immersive HTML cards are
+   *  off, so the stream says what the settled row will. The script notice has no ghost arm: the stream's cards draw on
+   *  the srcdoc floor by design, so a dead control there is the stream's, not a consent the viewer can change. */
+  readonly heldCards?: HeldCards | undefined;
   /** The `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
    *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
    *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
@@ -322,6 +340,7 @@ export function GhostMessageRow({
   showLLMReasoningIcon = false,
   colorQuotedSpeech = true,
   cardTier = "tierA",
+  heldCards,
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   reasoningAutoCollapse = true,
@@ -428,6 +447,7 @@ export function GhostMessageRow({
         streaming={streaming}
         colorQuotedSpeech={colorQuotedSpeech}
         cardTier={cardTier}
+        heldCards={heldCards}
         holdsMarkup={holdsMarkup}
         providerWaiting={providerWaiting}
       />

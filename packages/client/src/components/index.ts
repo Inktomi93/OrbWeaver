@@ -44,6 +44,7 @@ export type { OverflowAction } from "./overflow-actions.tsx";
 export { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export { PickerDialog } from "./picker-dialog.tsx";
+export { FramedMediaNotice, FramedScriptNotice, HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "./plain-content-notice.tsx";
 export { QueryBoundary } from "./query-boundary.tsx";
 export { RegexAxesGlyphs } from "./regex-axes-glyphs.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";

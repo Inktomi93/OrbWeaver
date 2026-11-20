@@ -10,7 +10,7 @@
 // client-side from the roster array was residue from before that field shipped.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
+import { buildParticipantsById } from "#lib";
 
 // Omit, not a same-key intersection — a known TS assignability footgun that gets harder to prove as
 // ParticipantView grows optional fields, silently losing the .filter narrow.
@@ -30,16 +30,6 @@ export function filterCharacters(participants: readonly ParticipantView[]): read
  *  characters are the Characters section, and a departed seat is gone. */
 export function presentMemberCount(participants: readonly ParticipantView[]): number {
   return participants.filter((p) => p.kind === "human" && p.leftSeq === null).length;
-}
-
-export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
-  const byId = new Map<CharacterId, ParticipantView>();
-  for (const participant of participants) {
-    if (participant.kind === "character" && participant.characterId !== null) {
-      byId.set(participant.characterId, participant);
-    }
-  }
-  return byId;
 }
 
 // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical

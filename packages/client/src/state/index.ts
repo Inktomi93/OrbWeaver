@@ -125,7 +125,9 @@ export {
   CONFIG_SHELVES,
   FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
   MEDIA_TRUST_CONFIG_SUB,
+  MESSAGE_HANDLING_CONFIG_SUB,
   MULTI_USER_CONFIG_SUB,
+  RUN_CARD_SCRIPTS_CONFIG_SETTING,
   TRUST_HTML_CONFIG_SETTING,
 } from "./config-group-ids.ts";
 export { setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";

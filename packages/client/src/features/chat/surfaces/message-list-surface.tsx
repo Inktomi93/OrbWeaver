@@ -31,7 +31,7 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { roomRosterOptions, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
+import { buildParticipantsById, displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useGhostSpeakerCharacterId, useTurnPhase } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
@@ -60,7 +60,6 @@ import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
-import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
 import { CHAT_PRINT_COVERAGE } from "../lib/transcript-copy.ts";
 
@@ -266,10 +265,11 @@ function ChatThread({
   });
   // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
   // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change
-  // tier at commit. Only the tier crosses: the ghost pins its markdown trust, external-media verdict and
-  // frame delivery at the stream floor (`ghost-message-row.tsx`'s header states why). `authorUserId: null`
-  // is the assistant arm — a generation is never the viewer's own input.
-  const ghostCardTier = resolveRowRenderPolicy({
+  // tier at commit. Of the trust axes only the tier crosses: the ghost pins its markdown trust, external-media verdict
+  // and frame delivery at the stream floor (`ghost-message-row.tsx`'s header states why). The held-cards fact crosses
+  // too; it is a notice, not a trust axis. `authorUserId: null` is the assistant arm — a generation is never the
+  // viewer's own input.
+  const ghostPolicy = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
     characterId: ghostSpeakerCharacterId,
@@ -278,7 +278,9 @@ function ChatThread({
     kind: ghostKind,
     narrator: chatDetail.narratorRender,
     lenientHtmlCards,
-  }).cardTier;
+    gameCardsOff,
+    viewerIsHost: chatDetail.viewerIsHost,
+  });
   // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
   // roster it already read: a room with no user row is still steppable, and the seated characters' cards say
   // what the alternates are. Per-row it is a map lookup (`resolveGreetingBinding`), so the N card reads are N
@@ -381,7 +383,8 @@ function ChatThread({
         showInChatAvatars={messageAppearance.showInChatAvatars}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        cardTier={ghostCardTier}
+        cardTier={ghostPolicy.cardTier}
+        heldCards={ghostPolicy.heldCards}
         generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
         holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
         smoothStream={behaviorPrefs.smoothStream}

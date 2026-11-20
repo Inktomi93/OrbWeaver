@@ -3490,7 +3490,8 @@ const PREVIEW_WHITESPACE_RE = /\s+/g;
  * preview is a durable, member-reachable artifact, exactly the class `projectBodyForSummary` fail-closes on,
  * so the strip here is UNCONDITIONAL rather than viewer-dependent), and `image` / `card` / `choices` /
  * `unknown-directive` spans carry no glanceable prose (a `[card: …]` stub or a raw fence would spend the whole
- * line on chrome). What remains is markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
+ * line on chrome). What remains loses its HTML: every tag goes with its attributes and its words stay, and an element
+ * whose text never shows (a stylesheet, a script) goes with that text. It is then markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
  * to their label, leading block markers and code-fence lines removed, every whitespace run collapsed to one
  * space — then trimmed and truncated with a single-char ellipsis, on a WORD BOUNDARY (`truncatePreview`).
  * Empty (a body that was all structure) ⇒
@@ -3508,7 +3509,9 @@ export function projectBodyForPreview(content: string, maxChars: number = PREVIE
   // raw `<speaker>` would leak into the one-line scent. Flatten through the ONE kit speaker engine
   // (`speakerTagsToPlain` — the prompt-history home) to `NAME: ` plain attribution rather than re-spelling the
   // tag grammar here (the content-class-wire duplication ban). A tagless per-speaker/solo row is a cheap no-op.
-  const flat = collapseMarkdownLinks(speakerTagsToPlain(prose))
+  // A reply's own markup (a panel, a coloured line) shows on screen as its words alone, so the line keeps those and
+  // drops every tag, attribute and stylesheet: elements whose text HTML never shows go first, with that text.
+  const flat = collapseMarkdownLinks(stripTags(stripUnreadElements(speakerTagsToPlain(prose))))
     .replace(PREVIEW_BLOCK_PREFIX_RE, "")
     .replace(PREVIEW_INLINE_MARKERS_RE, "")
     .replace(PREVIEW_WHITESPACE_RE, " ")
