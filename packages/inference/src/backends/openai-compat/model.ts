@@ -19,6 +19,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { CachePolicy, Dialect } from "@orb/contracts/inference";
+import { SETTABLE_WINDOW_FLOOR } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { wrapLanguageModel } from "ai";
 import { ProviderError } from "#contract";
@@ -155,10 +156,11 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
 }
 
 /** The window a native row sends as `num_ctx`: the resolved capability's, so the server runs what the fit
- *  budgets against. */
+ *  budgets against, never below the floor a settable route holds a preset value to (a guessed window takes the preset's
+ *  number as given for budgeting, but a server window that small only truncates the prompt). */
 function nativeWindow(call: ModelCall): number | undefined {
   const capability = call.connection.capability;
-  return capability.kind === "generation" ? capability.generation.context.window : undefined;
+  return capability.kind === "generation" ? Math.max(capability.generation.context.window, SETTABLE_WINDOW_FLOOR) : undefined;
 }
 
 /** What Ollama's `think` is spelled from: the resolved effort, the levels the model names, and the template switch. */

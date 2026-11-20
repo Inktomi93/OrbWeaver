@@ -6,6 +6,8 @@
 
 import type { FramedMediaReason, PlainRemedy } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
+import type { HtmlTrustStep } from "@orb/contracts/chat";
+import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -205,3 +207,35 @@ test("a card whose image may load, or that names no external media, shows no not
   await expect(page.locator(NOTICE)).toHaveCount(0);
   await page.unrouteAll({ behavior: "wait" });
 });
+
+// An Untrusted character's card draws as plain text outside a game, so it has no frame and no held image to draw.
+const FRAMED_STEPS = ["trusted", "interactive"] as const satisfies readonly HtmlTrustStep[];
+for (const step of FRAMED_STEPS) {
+  test(`at the ${step} step a card's held external image draws the frame's placeholder, and an allowed one does not`, async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const owner = await root.internalCallerFor(root.ownerId);
+    const room = await mediaRoom(owner, owner, CARD_WITH_IMAGE);
+    const image = page.frameLocator(CARD_FRAME).locator("img");
+    const borderStyle = (): Promise<string> => image.evaluate((node) => getComputedStyle(node).borderTopStyle);
+
+    await setMedia(owner, room, { install: false, character: false });
+    await owner.character.update({ characterId: room.characterId, input: renderPolicyOverrideForStep(step) });
+    await serveRoom(page, root, owner, root.ownerId);
+    const allowed = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+    await expect(page.frameLocator(CARD_FRAME).getByText(CARD_TEXT)).toBeVisible();
+    // Positive control: with the grant the image is the author's own element, unstyled by the frame.
+    expect(await borderStyle()).toBe("none");
+    await allowed.unmount();
+    await page.unrouteAll({ behavior: "wait" });
+    await page.context().unrouteAll({ behavior: "wait" });
+
+    await setMedia(owner, room, { install: false, character: true });
+    await owner.character.update({ characterId: room.characterId, input: renderPolicyOverrideForStep(step) });
+    const requested = await serveRoom(page, root, owner, root.ownerId);
+    await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+    await expect(page.frameLocator(CARD_FRAME).getByText(CARD_TEXT)).toBeVisible();
+    await expect.poll(borderStyle).toBe("dashed");
+    expect(requested).toEqual([]);
+    await page.unrouteAll({ behavior: "wait" });
+  });
+}

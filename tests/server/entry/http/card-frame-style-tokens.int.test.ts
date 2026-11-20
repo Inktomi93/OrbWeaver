@@ -75,8 +75,9 @@ test("an out-of-range root size is served at the nearest bound of the appearance
     ["10%", `${min}%`],
   ] as const) {
     const served = await mintAndServe(root, chatId, { styleTokens: { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.rootSize]: planted } });
-    expect(served.body).toContain(`${CARD_FRAME_STYLE_TOKEN.rootSize}: ${bounded};`);
-    expect(served.body).not.toContain(planted);
+    // The declaration the document's root reads, not the body's text: the planted value is gone from that declaration.
+    const declared = new RegExp(`${CARD_FRAME_STYLE_TOKEN.rootSize}: ([^;]*);`, "u").exec(served.body)?.[1];
+    expect(declared).toBe(bounded);
   }
 });
 
@@ -120,4 +121,13 @@ test("the served policy, sandbox and script hash are the production floor bytes,
   // The height script stays the only script, so the pinned hash still covers every script in the document.
   expect(styled.body.split("<script")).toHaveLength(2);
   expect(styled.body.split("</style>")).toHaveLength(2);
+});
+
+test("a document minted with no character holds every external image, so its served sheet draws the placeholder", async () => {
+  await using root = await openRoot();
+  const chatId = await openChat(root);
+  const served = await mintAndServe(root, chatId, { html: '<img src="https://media.example.test/a.png" alt="a">' });
+  expect(served.status).toBe(200);
+  expect(served.headers[POLICY]).toBe(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"));
+  expect(served.body).toContain('img:is([src^="http:" i], [src^="https:" i], [src^="//"])');
 });

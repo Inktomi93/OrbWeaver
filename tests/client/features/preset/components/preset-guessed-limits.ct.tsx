@@ -6,7 +6,7 @@
 
 import { CONNECTIONS_LIST_ADDRESS } from "@orb/client/lib";
 import type { DeclaredCapability, GenerationCapability, LimitSource } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, LIMIT_SOURCES } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, LIMIT_SOURCES, outputLimitSource } from "@orb/contracts/inference";
 import { DEFAULT_MAX_OUTPUT_TOKENS, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { PresetId, UserConnectionId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
@@ -105,10 +105,30 @@ const FONT_SCALES = [2, 3] as const;
 const LARGER_TEXT = 1.25;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
-/** The list NanoGPT's models route answers; the other lists (embedding, rerank) answer empty. */
+// A local Ollama whose `/api/show` states a trained maximum: its native chat route sends the window with each request.
+const OLLAMA_ORIGIN = "http://127.0.0.1:11434";
+const OLLAMA_MODEL = "witness:7b";
+const OLLAMA_TRAINED = 131_072;
+const OLLAMA_SHOW = { ["model_info"]: { ["general.architecture"]: "llama", ["llama.context_length"]: OLLAMA_TRAINED }, capabilities: ["completion"] };
+
+/** The list NanoGPT's models route answers, and the native routes a local Ollama answers; the other lists (embedding,
+ *  rerank) answer empty. */
 const nanoGptHost: typeof fetch = (input, init) => {
   const request = new Request(input, init);
-  return Promise.resolve(Response.json(new URL(request.url).pathname.endsWith("/models") ? NANOGPT_LIST : { object: "list", data: [] }));
+  const url = new URL(request.url);
+  if (url.origin === OLLAMA_ORIGIN) {
+    if (url.pathname === "/api/show") {
+      return Promise.resolve(Response.json(OLLAMA_SHOW));
+    }
+    if (url.pathname === "/api/ps") {
+      return Promise.resolve(Response.json({ models: [] }));
+    }
+    if (url.pathname === "/api/version") {
+      return Promise.resolve(Response.json({ version: "0.12.0" }));
+    }
+    return Promise.resolve(Response.json({ data: [{ id: OLLAMA_MODEL }] }));
+  }
+  return Promise.resolve(Response.json(url.pathname.endsWith("/models") ? NANOGPT_LIST : { object: "list", data: [] }));
 };
 
 /** NanoGPT's own host resolves to a public address; any other lookup is a defect in the case. */
@@ -558,3 +578,30 @@ async function expectWithinPhone(subject: Locator): Promise<void> {
   expect(box.x + box.width).toBeLessThanOrEqual(PHONE.width + 1);
   expect(await subject.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
 }
+
+test("a route that sends the window hides the context limit door and says the server runs the preset's window", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const connection = await caller.connection.create({
+    providerId: "ollama",
+    credentialId: null,
+    baseUrl: `${OLLAMA_ORIGIN}/v1`,
+    model: OLLAMA_MODEL,
+    label: "Witness Ollama",
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  const resolved = await caller.connection.resolveChatCapability();
+  if (resolved.capability.kind !== "generation") {
+    throw new Error("The chat role resolved a connection that is not a generation model");
+  }
+  const capability = resolved.capability.generation;
+  // Control: the route is the window-sending one, so the deck's rows below are not the plain-connection arm.
+  expect(capability.context.settable).toEqual({ max: OLLAMA_TRAINED });
+  const preset = await caller.preset.create({ name: "Sent window", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  await expect(page.getByText(presetBlankContextNote(groupThousands(capability.context.window), "reported", true), { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: presetLimitDoorName(PRESET_CONTEXT_LIMIT_NAME, "reported"), exact: true })).toHaveCount(0);
+  // Positive control: the output row still offers its door, so the context row's missing door is the route, not the deck.
+  await expect(page.getByRole("button", { name: presetLimitDoorName(PRESET_OUTPUT_LIMIT_NAME, outputLimitSource(capability)), exact: true })).toBeVisible();
+});

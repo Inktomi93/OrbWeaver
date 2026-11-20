@@ -83,7 +83,14 @@ import {
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
-import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_MISSING_ATTRIBUTE, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
+import {
+  buildCardFrameCsp,
+  buildCardFrameDocument,
+  CARD_FRAME_MISSING_ATTRIBUTE,
+  CARD_FRAME_SAFE_FLOOR,
+  cardFrameResponseHeaders,
+  holdCardFrameMedia,
+} from "@orb/kit/card-frame";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
@@ -234,6 +241,11 @@ function capForming(policy: ResolvedFramePolicy): ResolvedFramePolicy {
   return { media: { allowExternalMedia: false, allowInlineData: policy.media.allowInlineData }, posture: "static" };
 }
 
+// An external image the served policy refuses draws as the frame's placeholder, not the broken-image icon.
+function withHeldImages(doc: string, media: CardFrameMediaPolicy): string {
+  return media.allowExternalMedia ? doc : holdCardFrameMedia(doc);
+}
+
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
   const store = createFrameHandleStore(deps.now, CARD_FRAME_CEILINGS);
@@ -357,8 +369,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
         allowInlineData: entry.grant.media.allowInlineData && current.media.allowInlineData,
       };
       const posture: CardFramePosture = entry.grant.posture === "interactive" && current.posture === "interactive" ? "interactive" : "static";
-      return served(OK, entry.doc, buildCardFrameCsp(media, "document", posture));
+      return served(OK, withHeldImages(entry.doc, media), buildCardFrameCsp(media, "document", posture));
     }
-    return served(OK, entry.doc, entry.csp);
+    // No grant is stored only for the floor, which holds every external image.
+    return served(OK, withHeldImages(entry.doc, CARD_FRAME_SAFE_FLOOR), entry.csp);
   });
 }

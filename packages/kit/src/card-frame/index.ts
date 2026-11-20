@@ -710,6 +710,27 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: var(${CARD_FRAME_STYLE_TOKEN.inset}, 0); background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
+// An external image the frame's policy holds draws as a designed placeholder instead of the browser's broken-image icon.
+// The selector covers every absolute URL an `img` can name, so it needs no list of the card's URLs. The box is collapsed
+// to its padding so the icon is clipped; an `img` with alt text lays the icon out beside the text where clipping misses
+// it, so a pseudo-element paints over the box as well. Painting needs no request: a `url()` here would itself be held.
+const HELD_IMAGE = 'img:is([src^="http:" i], [src^="https:" i], [src^="//"])';
+const HELD_MEDIA_PATTERN = "repeating-linear-gradient(135deg, color-mix(in oklab, currentColor 10%, transparent) 0 0.5rem, transparent 0.5rem 1rem)";
+const HELD_MEDIA_CSS = [
+  `${HELD_IMAGE} { position: relative; box-sizing: content-box; width: 0; height: 0; overflow: hidden; font-size: 0; padding: 1.5rem 3rem; vertical-align: middle;`,
+  `border: 1px dashed color-mix(in oklab, currentColor 45%, transparent); border-radius: 0.4rem; background: ${HELD_MEDIA_PATTERN}; }`,
+  `${HELD_IMAGE}::before { content: ""; position: absolute; inset: 0; background: ${HELD_MEDIA_PATTERN}, var(--sandbox-bg); }`,
+].join(" ");
+
+/**
+ * Adds the held-media placeholder sheet to a document {@link buildCardFrameDocument} produced, ahead of the card's own
+ * sheet. The server calls it at each serve whose external-media grant is withdrawn, because a serve can narrow a grant
+ * minted wider and the stored bytes are the wider document.
+ */
+export function holdCardFrameMedia(doc: string): string {
+  return doc.replace("<style>", () => `<style>${HELD_MEDIA_CSS} `);
+}
+
 /**
  * Assembles the full card document. `metaCsp` is the SRCDOC arm's in-document policy; the routed arm passes
  * it `undefined` because its policy rides the response header (a `<meta>` copy there would be a second,

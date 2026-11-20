@@ -44,9 +44,9 @@ function accepts(capability: GenerationCapability, modality: Modality): boolean 
   return capability.input.includes(modality);
 }
 
-// The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
-//  runs, so a typo cannot shrink the server's window to nothing.
-const SETTABLE_WINDOW_FLOOR = 2048;
+/** The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
+ *  runs, so a typo cannot shrink the server's window to nothing. A native row's `num_ctx` never goes below it. */
+export const SETTABLE_WINDOW_FLOOR = 2048;
 
 /** Where a token limit on a connection comes from: the server or catalog stated it, the user declared it, or no tier
  *  stated it and the kind floor's guess stands. */

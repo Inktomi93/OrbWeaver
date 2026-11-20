@@ -1,7 +1,7 @@
 // @subject packages/inference/src/roles/side-gen.ts
 // @subject packages/inference/src/roles/executor.ts
 import type { Capability } from "@orb/contracts/inference";
-import { WARNING_CODE } from "@orb/contracts/inference";
+import { SETTABLE_WINDOW_FLOOR, WARNING_CODE } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
@@ -682,14 +682,21 @@ interface OllamaServer extends Disposable {
 
 /** Answer exactly `turns` chat calls in order, and each metadata read once. A call out of order or past the end throws,
  *  and a turn or read never asked for fails disposal. Declare it with `using` before the root that spends it. */
-function ollamaServer(recorded: RecordedRequest[], turns: readonly OllamaTurn[]): OllamaServer {
+function ollamaServer(recorded: RecordedRequest[], turns: readonly OllamaTurn[], trained: number | null = 32_768): OllamaServer {
   using construction = new DisposableStack();
   const nextTurn = construction.use(finiteReplies("ollama", turns)).take;
   const reads = new Map<string, JsonValue>([
     ["/v1/models", { data: [{ id: "qwen2.5:0.5b" }] }],
     ["/api/version", { version: "0.15.5" }],
     ["/api/ps", { models: [] }],
-    ["/api/show", { parameters: "", capabilities: ["completion"], ["model_info"]: { "general.architecture": "qwen2", "qwen2.context_length": 32_768 } }],
+    [
+      "/api/show",
+      {
+        parameters: "",
+        capabilities: ["completion"],
+        ["model_info"]: { "general.architecture": "qwen2", ...(trained === null ? {} : { "qwen2.context_length": trained }) },
+      },
+    ],
   ]);
   construction.defer(() => {
     if (reads.size > 0) {
@@ -749,6 +756,30 @@ test("(11) a Utility preset's Max context 16384 on an unpinned Ollama native row
   expect(connection.capability).toMatchObject({ kind: "generation", generation: { context: { window: 4096, settable: { max: 32_768 } } } });
   await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], maxContextTokens: 16_384 });
   expect(recorded[0]?.body["options"]).toMatchObject({ ["num_ctx"]: 16_384 });
+});
+
+test("(12) a Utility preset's Max context of 100 on an Ollama native row with no stated trained maximum sends num_ctx at the settable floor", async () => {
+  const recorded: RecordedRequest[] = [];
+  using server = ollamaServer(recorded, ["render", { content: "a summary" }], null);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const executor = root.app.runtime.executor;
+  const principal = await root.principalFor(root.ownerId);
+  const row = await root.services.connection.create({
+    principal,
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    baseUrl: OLLAMA_URL,
+    credentialId: null,
+    allowBackground: true,
+    declared: { kind: "generation", generation: { reasoning: { mode: "none", enabled: false } } },
+  });
+  const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, task: "summarize", connectionId: row.id });
+  const connection = { ...resolved, task: "summarize" as const };
+  // Control: no trained maximum, so the route is not settable and the window is the floor's guess.
+  expect(connection.capability).toMatchObject({ kind: "generation", generation: { context: { windowEstimated: true } } });
+  expect(connection.capability).not.toHaveProperty("generation.context.settable");
+  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], maxContextTokens: 100 });
+  expect(recorded[0]?.body["options"]).toMatchObject({ ["num_ctx"]: SETTABLE_WINDOW_FLOOR });
 });
 
 test("0525: an item refused as mandatory-reasoning replays alone; an item that already succeeded is never re-sent", async () => {

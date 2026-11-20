@@ -23,7 +23,8 @@
 // overruled, because there the install's setting is a ceiling.
 
 import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Field } from "@orb/ui/field";
+import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -88,6 +89,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
   const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
   const interactiveLockId = useId();
+  const resolvedStepId = useId();
   // A door that named this tab (the row notice's Trust settings control) lands on the control it means: the ladder.
   const arrivedHere = useRequestedCharacterTrust() === characterId;
   const ladderRef = useRef<HTMLButtonElement | null>(null);
@@ -105,20 +107,28 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   return (
     <Stack gap="section">
       <Section heading={CHARACTER_TRUST_BLOCK_LABEL}>
-        <Row gap="field" wrap={true}>
+        {/* The resolved step is the ladder's own hint: "Inherit default" alone does not say which rung applies. */}
+        <Field
+          label={CHARACTER_HTML_TRUST_LABEL}
+          description={
+            <Text as="span" voice="reading" data-slot="trust-resolved-step" id={resolvedStepId}>
+              This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
+            </Text>
+          }
+        >
           {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted <
               Render HTML < Interactive, in that order, with Inherit as the absence of an override rather than a rung.
               The write direction is the contracts helper, so this control cannot store the incoherent
               "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
           <Select
-            label={CHARACTER_HTML_TRUST_LABEL}
+            aria-label={CHARACTER_HTML_TRUST_LABEL}
             items={HTML_TRUST_ITEMS}
             value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
             onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
-            aria-describedby={interactiveLockId}
+            aria-describedby={`${resolvedStepId} ${interactiveLockId}`}
             triggerRef={ladderRef}
           />
-        </Row>
+        </Field>
         <Stack gap="field" id={interactiveLockId}>
           <Text voice="gloss">Plain text: no styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts.</Text>
           <Text voice="gloss">Rich HTML: styled messages, no scripts.</Text>
@@ -126,9 +136,6 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
             Interactive: cards can run scripts in a sealed frame. A script can still tell its author that you viewed it, and your IP address.
           </Text>
         </Stack>
-        <Text voice="reading" data-slot="trust-resolved-step">
-          This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
-        </Text>
         {/* The media switch can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling, enforced by the
             tighten-only render-policy resolver (@orb/contracts/chat) and by the page's Content-Security-Policy. So the
             switch has two honest states, load as the install allows or block; on writes the clear, never a stored
