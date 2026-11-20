@@ -10,7 +10,7 @@ import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/com
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody } from "./_body-limit-inputs.ts";
 
 /** The extractor's rejection kind for bytes that are not a zip, as opposed to its `too-large` size refusal. */
-const MALFORMED_ARCHIVE = /zip rejected \(malformed\)/u;
+const NO_ZIP_DIRECTORY = /zip rejected \(no-directory\)/u;
 
 // Staging a body one byte past the 4 GiB bundle cap writes 4 GiB to disk before the refusal: that is the proven runtime.
 test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", { tags: ["slow"] }, async () => {
@@ -57,5 +57,5 @@ test("a backup over the in-memory import cap is staged whole and its import read
   expect(staged.size).toBe(body.byteLength);
   await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
-  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(MALFORMED_ARCHIVE) });
+  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(NO_ZIP_DIRECTORY) });
 });

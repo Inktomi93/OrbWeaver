@@ -12,7 +12,7 @@ import { formatImportReport } from "../substrate/report.ts";
 async function settleBundle(deps: ImportDriverDeps, report: BundleImportReport, ownerId: UserId, from: number): Promise<BundleImportWorkloadResult> {
   // A held file still re-runs its planes (D290), so it settles like a written one.
   if (report.imported + report.inLibrary > 0) {
-    await deps.reconcileStats({ ownerId });
+    await deps.settleStats({ ownerId });
   }
   return {
     imported: report.imported,

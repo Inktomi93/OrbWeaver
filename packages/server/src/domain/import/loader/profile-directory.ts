@@ -9,7 +9,7 @@ import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
-import { inertActivationFields } from "@orb/kit/world-info";
+import { inertFieldCounts } from "@orb/kit/world-info";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -23,7 +23,15 @@ import type {
 import { importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { CollectedProfile, ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
-import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
+import type {
+  ImportCardBookNote,
+  ImportCharacterResult,
+  ImportReport,
+  ImportSkippedCard,
+  ImportSkippedCardTag,
+  ImportUnresolvedPinnedPersona,
+  ImportWorldNote,
+} from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
 import { seatsOf } from "../substrate/group.ts";
@@ -337,18 +345,6 @@ async function landBackgroundsAndAppearance(
   };
 }
 
-/** The inert SillyTavern activation fields a book's entries carry, each with the count of entries carrying
- *  it — the report's "kept but not active yet" line per book (owner ruling). */
-function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertFields"] {
-  const counts = new Map<string, number>();
-  for (const entry of book.entries) {
-    for (const { field } of inertActivationFields(entry.metadata)) {
-      counts.set(field, (counts.get(field) ?? 0) + 1);
-    }
-  }
-  return [...counts].map(([field, entries]) => ({ field, entries }));
-}
-
 /** Import the collected standalone ST worlds as UNATTACHED owner library books, additively: an equal book is
  *  reused and a same-named different one lands under a free name. Returns the net-new count, one note per
  *  book for the report, and the row each world landed as, keyed by the name the profile calls it — the map the
@@ -387,7 +383,7 @@ async function importCollectedWorlds(
       renamedFrom: bookResult.renamedFrom,
       created: bookResult.created,
       entries: world.book.entries.length,
-      inertFields: inertFieldCounts(world.book),
+      inertFields: inertFieldCounts(world.book.entries),
     });
   }
   return { created, reused, notes, landed };
@@ -414,6 +410,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   skippedPersonaAvatars: [],
   skippedCardTags: [],
   cardNotes: [],
+  cardBookNotes: [],
   appearanceKeysApplied: [],
   groupsImported: 0,
   groupChatsImported: 0,
@@ -664,6 +661,7 @@ async function importOneBundle(
   readonly scriptsReused: number;
   /** What the card did not land, as the Characters dialog names it. */
   readonly notes: readonly string[];
+  readonly embeddedBook: ImportCharacterResult["embeddedBook"];
 }> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
@@ -671,7 +669,12 @@ async function importOneBundle(
     changed += 1;
   }
   const card = { characterId: cardResult.characterId, cardReused: !cardResult.created };
-  const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused, notes: cardResult.skippedOverlays };
+  const scripts = {
+    scriptsLifted: cardResult.regexScriptsLifted,
+    scriptsReused: cardResult.regexScriptsReused,
+    notes: cardResult.skippedOverlays,
+    embeddedBook: cardResult.embeddedBook,
+  };
   if (bundle.chats.length === 0) {
     return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], skippedChatRows: [], ...scripts };
   }
@@ -749,6 +752,7 @@ async function importCollectedBundles(
   readonly skippedCardTags: ImportSkippedCardTag[];
   /** What each imported card did not land, by card file. */
   readonly cardNotes: ImportSkippedCard[];
+  readonly cardBookNotes: ImportCardBookNote[];
 }> {
   let changed = 0;
   let cardsReused = 0;
@@ -762,6 +766,7 @@ async function importCollectedBundles(
   let cardScriptsLifted = 0;
   const skippedCardTags: ImportSkippedCardTag[] = [];
   const cardNotes: ImportSkippedCard[] = [];
+  const cardBookNotes: ImportCardBookNote[] = [];
   let cardScriptsReused = 0;
   for (const { bundle, result: profile } of cardsWithProfile(profiles)) {
     if (deps.signal.aborted) {
@@ -782,6 +787,9 @@ async function importCollectedBundles(
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
       cardNotes.push(...result.notes.map((reason) => ({ file: bundle.filename, reason })));
+      if (result.embeddedBook !== null) {
+        cardBookNotes.push({ file: bundle.filename, ...result.embeddedBook });
+      }
       characterIdByCard.set(bundle, result.characterId);
       const tagNames = profile.tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
@@ -805,6 +813,7 @@ async function importCollectedBundles(
     cardScriptsReused,
     skippedCardTags,
     cardNotes,
+    cardBookNotes,
   };
 }
 
@@ -1018,6 +1027,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       skippedGroupMembers: groupResult.skippedMembers,
       skippedCardTags: bundleResult.skippedCardTags,
       cardNotes: bundleResult.cardNotes,
+      cardBookNotes: bundleResult.cardBookNotes,
       ambiguousSpeakerNames: groupResult.ambiguousSpeakerNames,
       seatedDisabledMembers: groupResult.seatedDisabledMembers,
       // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.

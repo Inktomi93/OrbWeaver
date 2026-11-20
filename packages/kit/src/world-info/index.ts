@@ -329,9 +329,9 @@ const nonEmptyArray = (value: unknown): boolean => Array.isArray(value) && value
 
 /** When each inert field carries a value ST would act on. A `Record` over the tuple, so a new member fails
  *  `tsc` until it says when it is set. */
-const SET_WHEN: Record<StInertActivationField, (value: unknown, metadata: Record<string, unknown>) => boolean> = {
+const SET_WHEN: Record<StInertActivationField, (value: unknown, gates: Readonly<Record<string, unknown>>) => boolean> = {
   keysecondary: nonEmptyArray,
-  probability: (value, metadata) => isNumber(value) && (value as number) < ST_PROBABILITY_ALWAYS && metadata["useProbability"] !== false,
+  probability: (value, gates) => isNumber(value) && (value as number) < ST_PROBABILITY_ALWAYS && gates["useProbability"] !== false,
   scanDepth: isNumber,
   caseSensitive: isBoolean,
   matchWholeWords: isBoolean,
@@ -355,17 +355,71 @@ const SET_WHEN: Record<StInertActivationField, (value: unknown, metadata: Record
   matchCreatorNotes: isTrue,
 };
 
-/** The inert ST activation fields an entry's metadata carries with a non-default value, in tuple order. */
+/** Where an embedded card book (`character_book`) keeps a field: a key of the entry, or of its `extensions`. */
+type CardSpelling = { readonly entry: string } | { readonly extensions: string };
+
+/** Each inert field's card spellings, read after the world-file spelling. A card entry names secondary keys
+ *  `secondary_keys` and keeps the rest under `extensions` in snake case; `characterFilter` has no card spelling. */
+const CARD_SPELLINGS: Record<StInertActivationField, readonly CardSpelling[]> = {
+  keysecondary: [{ entry: "secondary_keys" }],
+  probability: [{ extensions: "probability" }],
+  scanDepth: [{ extensions: "scan_depth" }],
+  caseSensitive: [{ extensions: "case_sensitive" }, { entry: "case_sensitive" }],
+  matchWholeWords: [{ extensions: "match_whole_words" }],
+  group: [{ extensions: "group" }],
+  sticky: [{ extensions: "sticky" }],
+  cooldown: [{ extensions: "cooldown" }],
+  delay: [{ extensions: "delay" }],
+  excludeRecursion: [{ extensions: "exclude_recursion" }],
+  preventRecursion: [{ extensions: "prevent_recursion" }],
+  delayUntilRecursion: [{ extensions: "delay_until_recursion" }],
+  vectorized: [{ extensions: "vectorized" }],
+  triggers: [{ extensions: "triggers" }],
+  characterFilter: [],
+  automationId: [{ extensions: "automation_id" }],
+  outletName: [{ extensions: "outlet_name" }],
+  matchPersonaDescription: [{ extensions: "match_persona_description" }],
+  matchCharacterDescription: [{ extensions: "match_character_description" }],
+  matchCharacterPersonality: [{ extensions: "match_character_personality" }],
+  matchCharacterDepthPrompt: [{ extensions: "match_character_depth_prompt" }],
+  matchScenario: [{ extensions: "match_scenario" }],
+  matchCreatorNotes: [{ extensions: "match_creator_notes" }],
+};
+
+/** The probability gate's switch, which both spellings name `useProbability`. */
+const USE_PROBABILITY = "useProbability";
+
+/** The first defined value among a field's spellings: the world-file key, then each card spelling in order. */
+function firstDefined(metadata: Record<string, unknown>, extensions: Record<string, unknown>, world: string, card: readonly CardSpelling[]): unknown {
+  const candidates = [metadata[world], ...card.map((spelling) => ("entry" in spelling ? metadata[spelling.entry] : extensions[spelling.extensions]))];
+  return candidates.find((value) => value !== undefined && value !== null);
+}
+
+/** The inert ST activation fields an entry's metadata carries with a non-default value, in tuple order. The one
+ *  reader of every spelling a stored entry can hold: a world-file entry and a card book entry, first defined wins. */
 export function inertActivationFields(metadata: unknown): InertActivationField[] {
   if (!isPlainObject(metadata)) {
     return [];
   }
+  const extensions = isPlainObject(metadata["extensions"]) ? metadata["extensions"] : {};
+  const gates = { [USE_PROBABILITY]: firstDefined(metadata, extensions, USE_PROBABILITY, [{ extensions: USE_PROBABILITY }]) };
   const out: InertActivationField[] = [];
   for (const field of ST_INERT_ACTIVATION_FIELDS) {
-    const value = metadata[field];
-    if (value !== undefined && value !== null && SET_WHEN[field](value, metadata)) {
+    const value = firstDefined(metadata, extensions, field, CARD_SPELLINGS[field]);
+    if (value !== undefined && SET_WHEN[field](value, gates)) {
       out.push({ field, value });
     }
   }
   return out;
+}
+
+/** Each inert field a book's entries carry, with how many entries carry it, in first-seen order. */
+export function inertFieldCounts(entries: readonly { readonly metadata?: unknown }[]): { readonly field: StInertActivationField; readonly entries: number }[] {
+  const counts = new Map<StInertActivationField, number>();
+  for (const entry of entries) {
+    for (const { field } of inertActivationFields(entry.metadata)) {
+      counts.set(field, (counts.get(field) ?? 0) + 1);
+    }
+  }
+  return [...counts].map(([field, count]) => ({ field, entries: count }));
 }

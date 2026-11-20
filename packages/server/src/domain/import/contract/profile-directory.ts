@@ -194,6 +194,7 @@ export type ProfileWaveOutcomes = Pick<
   | "skippedPersonaAvatars"
   | "skippedCardTags"
   | "cardNotes"
+  | "cardBookNotes"
   | "appearanceKeysApplied"
   | "groupsImported"
   | "groupChatsImported"

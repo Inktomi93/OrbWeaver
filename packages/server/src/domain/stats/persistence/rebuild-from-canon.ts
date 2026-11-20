@@ -17,6 +17,7 @@ import {
   ledgerSpendDelta,
   retiredCanonSpendDelta,
   STATS_REBUILD_ATTEMPTS,
+  StatsRebuildStarvedError,
 } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, chunkRows, isConstraintViolation } from "@orb/db/query";
-import { DomainUnavailableError } from "@orb/kit/errors";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
@@ -65,7 +65,6 @@ export const CHUNK = 250;
 const CHAR_COLS = 30;
 const DAILY_COLS = 22;
 const MODEL_COLS = 21;
-const REBUILD_STARVED = "the library kept changing while its stats were rebuilt; the live totals are unchanged, try again shortly";
 
 /** Full rebuild of the stats rollups from canon. `ownerId` scopes to one user; omit to rebuild every owner with
  *  canon or a rollup row: a character, an embedding call, a pending generation observation, or `owner_stats`,
@@ -133,7 +132,7 @@ async function untilCanonStable<T>(db: Db, ownerId: UserId, signal: AbortSignal,
       }
     }
   }
-  throw new DomainUnavailableError(REBUILD_STARVED);
+  throw new StatsRebuildStarvedError();
 }
 
 // The owner's chats (membership, husk-excluding) is `persistence/owner-chat-scope.ts` — ONE home, shared with

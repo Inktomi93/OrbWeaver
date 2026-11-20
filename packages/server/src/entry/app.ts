@@ -70,6 +70,7 @@ import {
   registerImportBundle,
   registerImportChat,
   registerImportTree,
+  registerImportTreeZip,
   registerJoin,
   registerPluginFrame,
   registerPluginUi,
@@ -487,14 +488,16 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     newOpaqueId: deps.newOpaqueId,
   });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
-  registerImportTree(app, {
+  const importTreeDeps = {
     logger: deps.logger,
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
     stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
-  });
+  };
+  registerImportTree(app, importTreeDeps);
+  registerImportTreeZip(app, importTreeDeps);
   registerAuthRoutes(app, {
     logger: deps.logger,
     emitUserEvent: deps.liveBuses.user.publishUserEvent,

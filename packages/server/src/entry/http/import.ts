@@ -51,7 +51,7 @@ export interface ImportBundleDeps {
  *  O_CREAT|O_EXCL|O_NOFOLLOW (the flags the zip + folder-tree stagers already carry): a staged upload is
  *  always a fresh regular file, so nothing our own writers put under the staging root can be a symlink for
  *  the import contribution's containment belt to meet. */
-async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<string | null> {
+export async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<string | null> {
   await using incomplete = new AsyncDisposableStack();
   let complete = false;
   let withinCap = false;
