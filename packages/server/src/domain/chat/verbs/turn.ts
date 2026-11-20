@@ -29,6 +29,8 @@
 // reply queued (`pending_turns`) and no turn in flight (`activeTurns`), so a press after the reply landed is a no-op.
 // A member's release while the host is dark defers exactly as that member's send would, so it never spends the dark
 // host's connection; the queued row then makes every later press a no-op until the drain answers the line once.
+// A Stop on that queued reply settles the debt, with or without kept text (D332): nothing is queued again, billed or
+// failed at a host handoff. A fault or a stale abort leaves the row queued.
 // `generate` stays lock-free and unclaimed: the wand and the empty send ask for an extra reply on purpose.
 // - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
 //   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.
@@ -3200,7 +3202,9 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
     const completed = await runDeferredRound(ctx, settlementDeps, claimed);
     // A reply that committed before the abort (a Stop's kept text, or the speakers who finished before it) has
     // answered the send, so the debt is settled; re-running it would generate and bill a second reply on top.
-    if (completed.aborted && completed.messages.length === 0) {
+    // A Stop that kept nothing settles it too: the member does not want that reply (D332). Any other abort
+    // (a stale lock) is not the member's call, so the debt stays owed.
+    if (completed.aborted && completed.messages.length === 0 && completed.abortReason !== "user") {
       throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
     }
   };

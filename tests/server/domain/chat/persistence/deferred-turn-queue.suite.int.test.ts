@@ -1,6 +1,7 @@
 // A host-offline send queues one pending_turns row carrying the member's identity and the host's run-as
 // principal; the drain consumes the row and commits the owed reply. A Stop on the owed reply that kept text
-// settles the debt, while a Stop that kept nothing and a transient fault leave the row queued for the next drain.
+// settles the debt, and so does a Stop that kept nothing (the reader does not want that reply); only a transient fault
+// leaves the row queued for the next drain.
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
@@ -122,19 +123,20 @@ test("a member's Stop on an owed reply that kept text settles the debt: no re-qu
   expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 0, dropped: 0 });
 });
 
-test("a member's Stop on an owed reply before any text leaves the debt queued, and the next drain answers it once", async () => {
+test("a member's Stop on an owed reply before any text drops the debt: no re-queue, no second generation, no drop notice", async () => {
   const held = coreHeldReply();
-  await using room = await owedRoom([held.respond, (): Response => coreProse("The owed reply, second time.")]);
+  // The plan holds one call: a re-run of the cancelled debt would fail on the unscripted request.
+  await using room = await owedRoom([held.respond]);
   const report = await stopTheDrain(room, held.reached);
-  expect(report).toEqual({ ran: 0, dropped: 0 });
-  expect(await queuedRows(room.h)).toBe(1);
+  expect(report).toEqual({ ran: 1, dropped: 0 });
+  expect(await queuedRows(room.h)).toBe(0);
   expect(await dropNotices(room)).toBe(0);
   const listed = async (): Promise<readonly string[]> => (await readRoomCanon(room.h.root, room.member, room.h.chatId)).map(({ role }) => role);
   expect(await listed()).toEqual(["user"]);
-  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 1, dropped: 0 });
+  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 0, dropped: 0 });
   await room.h.root.settleBackground();
-  expect(await queuedRows(room.h)).toBe(0);
-  expect(await listed()).toEqual(["user", "assistant"]);
+  expect(await listed()).toEqual(["user"]);
+  expect(await room.h.root.services.stats.overview(room.h.owner.userId)).toMatchObject({ assistantTurns: 0, tokensIn: null, tokensOut: null });
 });
 
 /** A stream that delivers one text frame and then loses its connection. Text has streamed, so the provider layer
