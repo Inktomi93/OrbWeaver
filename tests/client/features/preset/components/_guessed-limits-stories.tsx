@@ -13,7 +13,9 @@ function NavigationProbe(): ReactElement {
   return (
     <>
       <output aria-label={GUESSED_LIMITS_PROBE.group}>{group ?? ""}</output>
-      <output aria-label={GUESSED_LIMITS_PROBE.editor}>{requested === null ? "" : `${requested.connectionId} ${String(requested.openAdvanced)}`}</output>
+      <output aria-label={GUESSED_LIMITS_PROBE.editor}>
+        {requested === null ? "" : `${requested.connectionId} ${String(requested.openAdvanced)} ${requested.fact ?? ""}`}
+      </output>
     </>
   );
 }

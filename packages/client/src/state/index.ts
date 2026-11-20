@@ -69,6 +69,7 @@ export {
   useSelectedCharacterFacetId,
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
+export { clearRequestedCharacterTrust, useRequestedCharacterTrust } from "./character-trust-request-store.ts";
 export { setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
 export { type ActiveChatHandle, isLanding } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
@@ -194,6 +195,7 @@ export {
   useCollectionSelection,
 } from "./config-selection-store.ts";
 export { assertTeachHonesty } from "./config-teach.ts";
+export type { ConnectionEditorFact } from "./connection-editor-request-store.ts";
 export { clearConnectionEditorRequest, requestConnectionEditor, useRequestedConnectionEditor } from "./connection-editor-request-store.ts";
 export {
   setCorpusCompareA,

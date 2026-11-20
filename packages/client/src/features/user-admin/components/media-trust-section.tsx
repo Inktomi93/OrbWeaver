@@ -22,6 +22,7 @@ import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
 import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL, rethrowUnlessTrpcFailure } from "#lib";
+import { configSettingControlId, DEFAULT_HTML_STEP_CONFIG_SETTING, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -78,8 +79,8 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss" prose={true} cap="prose">
-          A character's own HTML setting wins over the default. Internet media can only be tightened: a character can block it, never load it here while it is
-          off.
+          A character's own HTML setting wins over the default. A character can turn internet media off for itself. It can't turn it on while it is off here. A
+          script can tell its author that you viewed it, and your IP address.
         </Text>
         <SettingRowGroup>
           {/* The step every inheriting character takes (D294). Interactive by default (owner ruling), and the loudest hint
@@ -88,6 +89,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
             its own Trust tab keeps it open, and each viewer can turn card scripts off for themselves
             (`UserSettings.chat.runCardScripts`). */}
           <AdminOverrideSelect
+            controlId={configSettingControlId("admin", DEFAULT_HTML_STEP_CONFIG_SETTING)}
             label={DEFAULT_HTML_STEP_SETTING_LABEL}
             hint="Characters on “Inherit default” use this. Interactive cards run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Below Interactive, those characters' cards and styled replies run no scripts; a card already on screen stops the next time it loads. A character set to Interactive on its own Trust tab still runs scripts. Rich HTML keeps presets styled without scripts."
             value={resolved.defaultHtmlStep}
@@ -104,6 +106,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
           {/* The install's media ceiling, read as the switch that lets characters' content load internet media. The same
             stored key: on clears the block, off stores it. */}
           <AdminOverrideSwitch
+            controlId={configSettingControlId("admin", FORBID_EXTERNAL_MEDIA_CONFIG_SETTING)}
             label={LOAD_INTERNET_MEDIA_LABEL}
             hint="Lets characters' content and your own messages load images and media from the internet. Off blocks them, which also blocks tracking pixels. Messages other people write stay click-to-load. It applies to everyone and takes effect when a tab reloads."
             value={!resolved.forbidExternalMedia}

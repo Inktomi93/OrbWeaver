@@ -53,6 +53,13 @@ const HELD_KIND_LABELS: Record<HeldKind, string> = {
   scripts: "its scripts",
   media: "its internet media",
 };
+// A character that turns media off for itself leaves each image a click-to-load control, so media is held back from loading on its own, not hidden.
+const CLICK_TO_LOAD_MEDIA_LABEL = "internet media loading on its own";
+
+function heldKindLabel(kind: HeldKind, holds: readonly TrustHold[]): string {
+  const clickToLoad = holds.every((hold) => hold.kind !== "media" || hold.cause === "character-media");
+  return kind === "media" && clickToLoad ? CLICK_TO_LOAD_MEDIA_LABEL : HELD_KIND_LABELS[kind];
+}
 
 const NOT_COVERED = "No character's settings cover this message.";
 const TRUST_CAUSE_LINES: Record<TrustCause, (name: string) => string> = {
@@ -220,7 +227,7 @@ export function CharacterTrustNotice({ plain, frames }: CharacterTrustNoticeProp
   }
   const action = actionHold(holds);
   const kinds = [...new Set(holds.map((hold) => hold.kind))];
-  const message = [`This shows without ${NAME_LIST.format(kinds.map((kind) => HELD_KIND_LABELS[kind]))}.`, ...holdLines(holds, action)].join(" ");
+  const message = [`This shows without ${NAME_LIST.format(kinds.map((kind) => heldKindLabel(kind, holds)))}.`, ...holdLines(holds, action)].join(" ");
   return (
     <PlainNotice
       reason={[...new Set(holds.map((hold) => hold.cause))].join(" ")}

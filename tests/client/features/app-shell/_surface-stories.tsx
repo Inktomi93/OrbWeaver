@@ -2,6 +2,9 @@ import { requireQueryBoundary } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
 import type { ConfigGroupId, ImageSubject, ImagineSeed, ModalSlotId, SectionId } from "@orb/client/state";
 import {
+  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+  MEDIA_TRUST_CONFIG_SUB,
+  openCharacterTrust,
   openConfigTo,
   openImageDetail,
   openImageEdit,
@@ -13,11 +16,11 @@ import {
   useSectionRegistry,
 } from "@orb/client/state";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
-import type { PresetId } from "@orb/kit/ids";
+import type { CharacterId, PresetId } from "@orb/kit/ids";
 import { CtAppearanceChannels, CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Every mount through these stories checks that each suspending read sits under a QueryBoundary.
 requireQueryBoundary();
@@ -124,6 +127,31 @@ export function PluginDialogModalStory({ subject }: { readonly subject: Paramete
   return (
     <CtClientProviders>
       <SeededShell seed={(): void => openPluginDialog(subject)} />
+    </CtClientProviders>
+  );
+}
+
+/** The production shell with the two doors the row notice's controls call, pressed by the window events the spec names. */
+export function TrustDoorsShellStory({
+  characterId,
+  events,
+}: {
+  readonly characterId: CharacterId;
+  readonly events: { readonly trust: string; readonly admin: string };
+}): ReactElement {
+  useEffect(() => {
+    const openTrust = (): void => openCharacterTrust(characterId);
+    const openAdmin = (): void => openConfigTo("admin", MEDIA_TRUST_CONFIG_SUB, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING);
+    globalThis.addEventListener(events.trust, openTrust);
+    globalThis.addEventListener(events.admin, openAdmin);
+    return (): void => {
+      globalThis.removeEventListener(events.trust, openTrust);
+      globalThis.removeEventListener(events.admin, openAdmin);
+    };
+  }, [characterId, events.trust, events.admin]);
+  return (
+    <CtClientProviders>
+      <AppShell />
     </CtClientProviders>
   );
 }

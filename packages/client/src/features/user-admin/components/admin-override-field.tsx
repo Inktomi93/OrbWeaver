@@ -107,14 +107,21 @@ export interface AdminOverrideSwitchProps {
   /** Set an override to `next` (immediate — a toggle IS the override). */
   readonly onSet: (next: boolean) => void;
   readonly disabled?: boolean;
+  /** The control's DOM id, so a setting-level door can land on it. */
+  readonly controlId?: string;
 }
 
 /** A boolean AppSettings-override row (immediate-write; a toggle is one value, no draft/save). */
-export function AdminOverrideSwitch({ label, hint, value, overridden, floorLabel, onSet, disabled }: AdminOverrideSwitchProps): ReactElement {
+export function AdminOverrideSwitch({ label, hint, value, overridden, floorLabel, onSet, disabled, controlId }: AdminOverrideSwitchProps): ReactElement {
   return (
     <SettingTrackRow>
       <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
-        <Switch checked={value} onCheckedChange={onSet} {...(disabled === true ? { disabled: true } : {})} />
+        <Switch
+          checked={value}
+          onCheckedChange={onSet}
+          {...(controlId === undefined ? {} : { id: controlId })}
+          {...(disabled === true ? { disabled: true } : {})}
+        />
       </Field>
     </SettingTrackRow>
   );
@@ -128,17 +135,20 @@ export interface AdminOverrideSelectProps {
   readonly overridden: boolean;
   readonly floorLabel: string | null;
   readonly onSet: (next: string) => void;
+  /** The control's DOM id, so a setting-level door can land on it. */
+  readonly controlId?: string;
 }
 
 /** An enum AppSettings-override row (immediate-write). Base UI's Select can emit `null`; ignore it (the
  *  control never clears to null — clear is the section reset). */
-export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet }: AdminOverrideSelectProps): ReactElement {
+export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet, controlId }: AdminOverrideSelectProps): ReactElement {
   return (
     <SettingTrackRow>
       <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
         <Select
           aria-label={label}
           items={items}
+          {...(controlId === undefined ? {} : { id: controlId })}
           value={value}
           onValueChange={(next): void => {
             if (next !== null) {

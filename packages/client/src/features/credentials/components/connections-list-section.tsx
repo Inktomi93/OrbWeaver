@@ -42,6 +42,7 @@ import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm } fr
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { connectionSummary, REVOKED_KEY_COPY } from "#lib";
+import type { ConnectionEditorFact } from "#state";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
@@ -105,11 +106,13 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
   const [takenRequest, setTakenRequest] = useState<typeof requestedEditor>(null);
   const [requestCount, setRequestCount] = useState(0);
   const [advancedOpenFor, setAdvancedOpenFor] = useState<ConnectionListItem["id"] | null>(null);
+  const [focusFact, setFocusFact] = useState<ConnectionEditorFact | undefined>(undefined);
   if (requestedEditor !== null && requestedEditor !== takenRequest) {
     setTakenRequest(requestedEditor);
     setRequestCount((count) => count + 1);
     setEditingId(requestedEditor.connectionId);
     setAdvancedOpenFor(requestedEditor.openAdvanced ? requestedEditor.connectionId : null);
+    setFocusFact(requestedEditor.fact);
   }
   useEffect(() => {
     if (requestedEditor !== null) {
@@ -140,6 +143,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
         <ConnectionEditor
           key={requestCount}
           advancedOpen={advancedOpenFor === editingId}
+          focusFact={advancedOpenFor === editingId ? focusFact : undefined}
           connectionId={editingId}
           invalidation={invalidation}
           onDone={(): void => {

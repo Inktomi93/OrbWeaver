@@ -3,8 +3,8 @@
 // hover. `@orb/ui` does no navigation, so the copy, the control's name and what it does all come from the caller.
 
 import type { ReactElement } from "react";
-import { CAPTION } from "#lib";
-import { Button } from "#primitives/button";
+import { CAP, CAPTION, cn } from "#lib";
+import { InlineAction } from "#primitives/inline-action";
 import { plainNoticeVariants } from "./variants.ts";
 
 export interface PlainNoticeAction {
@@ -33,11 +33,11 @@ const NO_ACTIONS: readonly PlainNoticeAction[] = [];
 export function PlainNotice({ reason, remedy, held, message, actions = NO_ACTIONS }: PlainNoticeProps): ReactElement {
   return (
     <div className={plainNoticeVariants()} data-slot="plain-notice" data-reason={reason} data-remedy={remedy} data-held={held}>
-      <p className={CAPTION}>{message}</p>
+      <p className={cn(CAPTION, CAP.prose)}>{message}</p>
       {actions.map((action) => (
-        <Button key={action.key} variant="ghost" size="sm" wrap={true} onClick={action.onAction} data-slot="plain-notice-action">
+        <InlineAction key={action.key} variant="link" step="label" onClick={action.onAction} data-slot="plain-notice-action">
           {action.label}
-        </Button>
+        </InlineAction>
       ))}
     </div>
   );
