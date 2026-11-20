@@ -1,12 +1,12 @@
 // A frame's saved open panels belong to that frame: byte-identical documents under another character, another room
 // or no character never see the report, so one frame's panel state never opens another's panels.
 // @subject packages/client/src/data/frame-panels.ts
-import type { FramePanelsOrigin } from "@orb/client/data";
 import { readFramePanels, rememberFramePanels } from "@orb/client/data";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 
 const ids = createIdSource();
+type FramePanelsOrigin = Parameters<typeof readFramePanels>[0];
 
 test("a panels report reads back only for the frame that reported it", () => {
   const chatId = ids.typeId(ID_PREFIX.chat);

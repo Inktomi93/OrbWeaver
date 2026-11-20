@@ -3,12 +3,14 @@
 // viewer's own script consent counts. Every table is exhaustive by type, so a new step or failure fails `tsc` here.
 // @subject packages/contracts/src/chat/roster.ts
 // @subject packages/contracts/src/settings/index.ts
-import type { CardMediaVerdict, DeploymentRenderPolicy, HtmlTrustStep, RenderPolicyOverride } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, HtmlTrustStep, RenderPolicyOverride } from "@orb/contracts/chat";
 import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, resolveCardMediaVerdict, resolveRenderPolicy, resolveSeatRenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS, viewerRunsCardScripts } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { expect, test } from "@orb/testkit/node";
+
+type CardMediaVerdict = ReturnType<typeof resolveCardMediaVerdict>;
 
 const INHERIT: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null, interactiveHtml: null };
 

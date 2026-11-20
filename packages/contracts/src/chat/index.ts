@@ -390,11 +390,6 @@ export {
   regexTierKeySchema,
 } from "./regex-tiers.ts";
 export type {
-  CardMediaHolder,
-  CardMediaVerdict,
-  CardScriptConsents,
-  CardScriptHolder,
-  CardScriptVerdict,
   CarriedAppearance,
   CharacterMemberSpec,
   CreateInviteInput,
@@ -425,7 +420,6 @@ export type {
 } from "./roster.ts";
 export {
   acceptInviteSchema,
-  allowsInteractiveCards,
   cardScriptsNeedViewerConsent,
   carriedAppearanceFromParticipants,
   characterMemberSpecSchema,
