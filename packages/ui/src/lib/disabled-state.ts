@@ -1,5 +1,6 @@
 // The one home of the disabled look (D355, ui-surface-and-interaction-rules §3). Every opacity, fill and ink a disabled
-// control paints is spelled here, and `better-tailwindcss/no-restricted-classes` refuses the spelling anywhere else.
+// control paints is spelled here, and `better-tailwindcss/no-restricted-classes` refuses the spelling anywhere else. A
+// sheet's one disabled selector is the CTA ring in primitives.css, which `selector-disallowed-list` admits and no other.
 // Opacity alone is too weak a signal on a light palette, so each control kind carries a second one:
 // - a fill-less control (a ghost or outline button, a tab, a row, an item) dims by the palette's derived step and drops
 //   to the muted ink;
@@ -101,8 +102,8 @@ export const DISABLED_PRESSED = "data-pressed:data-disabled:bg-muted data-presse
 /** Names the part that carries `data-disabled` for the `_WITHIN` spellings below. */
 export const DISABLED_GROUP = "group/disabled";
 
-/** A part that sets its own ink inside a {@link DISABLED_GROUP}: the muted ink while the group is disabled. */
-export const DISABLED_INK_WITHIN = "group-data-disabled/disabled:text-muted-foreground";
+/** A part that sets its own ink inside a {@link DISABLED_GROUP}: the muted ink while the group is disabled, selected or not (a list row's title). */
+export const DISABLED_INK_WITHIN = "group-data-disabled/disabled:text-muted-foreground group-data-selected:group-data-disabled/disabled:text-muted-foreground";
 
 /** {@link DISABLED_DIM} for a part inside a {@link DISABLED_GROUP} whose row stays at full strength (a select option's label). */
 export const DISABLED_DIM_WITHIN = "group-data-disabled/disabled:opacity-disabled group-data-disabled/disabled:text-muted-foreground";

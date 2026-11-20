@@ -40,6 +40,7 @@ const READS = {
   "outline button": { part: "button", paint: "color", dims: true },
   "ghost button": { part: "button", paint: "color", dims: true },
   "list row": { part: '[data-slot="list-row-title"]', paint: "color", dims: true },
+  "selected list row": { part: '[data-slot="list-row-title"]', paint: "color", dims: true },
   "option strip": { part: '[data-slot="option-strip-label"]', paint: "color", dims: true },
   "active tab": { part: '[data-slot="tabs-tab"]', paint: "color", dims: true },
   "active rail cell": { part: '[data-slot="tabs-tab"]', paint: "color", dims: true },

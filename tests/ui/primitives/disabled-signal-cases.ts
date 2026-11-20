@@ -6,6 +6,7 @@ export const SIGNAL_CASES = [
   "outline button",
   "ghost button",
   "list row",
+  "selected list row",
   "option strip",
   "active tab",
   "active rail cell",

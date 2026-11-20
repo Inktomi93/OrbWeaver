@@ -35,6 +35,7 @@ const RENDERS = {
     </Button>
   ),
   "list row": (disabled: boolean) => <ListRow clickable={true} data-disabled={disabled ? "" : undefined} title="Row" />,
+  "selected list row": (disabled: boolean) => <ListRow clickable={true} data-disabled={disabled ? "" : undefined} data-selected="" title="Row" />,
   "option strip": (disabled: boolean) => (
     <OptionStrip
       aria-label="Commands"
