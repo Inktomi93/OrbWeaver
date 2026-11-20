@@ -54,6 +54,7 @@ export { markExpectedSurfaceHttpFailure, observeSurfaceSession } from "./surface
 export { surfaceTopology } from "./surface-topology.ts";
 export { titleFit, titleReach } from "./title-fit.ts";
 export { watchToastMounts } from "./toast-mounts.ts";
+export { toggleStripLayout } from "./toggle-strip.ts";
 export { hitExtent, pressableWhole, touchFloorPx, touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,
