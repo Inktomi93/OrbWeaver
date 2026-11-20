@@ -2048,7 +2048,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: homes("packages/server/src/entry/compose/automation-watcher.ts", "packages/server/src/transport/trpc/index.ts"),
+      ignores: homes(
+        "packages/server/src/entry/compose/automation-watcher.ts",
+        "packages/server/src/entry/compose/turn-ends.ts",
+        "packages/server/src/transport/trpc/index.ts",
+      ),
       rules: { "orb/firehose-import-allowlist": "error" },
     },
     {

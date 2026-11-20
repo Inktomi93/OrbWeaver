@@ -35,6 +35,7 @@ type HttpAppDeps = Pick<
   readonly built: Pick<
     ServicesResult,
     | "liveBuses"
+    | "onChatTurnEnded"
     | "services"
     | "forwardJwtVerifier"
     | "trpcContext"
@@ -113,6 +114,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     auditFailures: built.auditFailures,
     childProcessEnv: built.childProcessEnv,
     liveBuses: built.liveBuses,
+    onChatTurnEnded: built.onChatTurnEnded,
     authConfig,
     now,
     newOpaqueId,

@@ -31,7 +31,11 @@
 //   • a FORMING mint (`forming: true`, a panel of a reply still streaming) is capped after the selector resolves: the
 //     static posture and no external media, whatever the selector grants, because the room has not kept those bytes and
 //     a save-pass script, a stop string or an abort can still remove them. `data:` images keep the step's answer: they
-//     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows).
+//     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows). A forming
+//     handle lives until a turn ends in its room, every account's at once: the stream it drew a panel of is over, and
+//     the settled reply mints its own frame. A second turn streaming beside the first in one room loses its forming
+//     handles at the first one's end; its frames on screen keep their loaded documents, and a remount spends the one
+//     re-mint.
 //
 // ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or an
 // INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
@@ -109,6 +113,8 @@ export interface CardFrameDeps {
    *  and per serve when the install and the author's step allow scripts, so turning it off reaches a handle minted
    *  before the switch, exactly as the deployment ceiling does. A rejection reads as no. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
+  /** Hears each turn that ends in a room, completed or aborted; returns the unsubscribe. */
+  readonly onTurnEnded: (listener: (chatId: ChatId) => void) => () => void;
   readonly now: Clock;
   readonly logger: Logger;
   /** Registers the served document's route, writes its policy and steps the app policy aside for its path. */
@@ -198,6 +204,7 @@ function capForming(policy: ResolvedFramePolicy): ResolvedFramePolicy {
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
   const store = createFrameHandleStore(deps.now, CARD_FRAME_CEILINGS);
+  deps.onTurnEnded(store.dropForming);
   const mintsInFlight = new Map<UserId, number>();
 
   // THE IN-FLIGHT GATE runs BEFORE the body limit, because the body limit buffers a chunked body whole before the
@@ -273,6 +280,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
       ...grant,
+      ...(body.forming === true ? { formingIn: body.chatId } : {}),
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({

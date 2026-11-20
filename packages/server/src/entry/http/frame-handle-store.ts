@@ -33,8 +33,15 @@
 // and up to eight card rows kept mounted): 16 documents and 4.2 MiB unsplit, 64 and 11.5 MiB at three splits, 176
 // and 28.4 MiB at ten.
 //
+// A reply still streaming adds FORMING documents, one per complete panel (D354): at most eight panels a stream, each
+// minted once plus one re-mint after a lost handle, so sixteen documents. Each carries one panel's markup, the app CSS
+// that markup matches and the earlier panels' sheets, so it is no larger than the settled document of the same reply,
+// and sixteen stay under 4.4 MiB. Every viewer watching the stream mints its own. A forming document is counted like
+// any other until its stream's turn ends in the room, when the store drops it (`dropForming`): by then the settled
+// reply mints its own frame, and a forming frame on screen has already loaded its document.
+//
 // THE CARD FRAME'S per-user byte ceiling, 64 MiB, holds the ten-split screen twice over and the three-split screen
-// five times. Its count ceiling is that byte ceiling's worth of ten-split documents (about 400), rounded up. Its
+// five times, with a stream's forming documents beside either. Its count ceiling is that byte ceiling's worth of ten-split documents (about 400), rounded up. Its
 // process ceiling holds four viewers at their ceiling. The plugin frame mints one document per open surface and
 // never splits, so it keeps the unsplit sizing: 8 MiB a viewer, four viewers.
 //
@@ -117,6 +124,8 @@ type FrameHandleScope = {
         readonly media: CardFrameMediaPolicy;
         readonly posture: CardFramePosture;
       };
+      /** A forming document (a panel of a reply still streaming) and the room it streams in: dropped when a turn there ends. */
+      readonly formingIn?: ChatId;
       readonly plugin?: never;
     }
   | {
@@ -127,6 +136,7 @@ type FrameHandleScope = {
         readonly surfaceId: string;
       };
       readonly grant?: never;
+      readonly formingIn?: never;
     }
 );
 
@@ -149,6 +159,8 @@ export interface FrameHandleStore {
   readonly touch: (id: string) => void;
   /** Revoke one owner's handle. Miss and foreign owner are the same `false` answer. */
   readonly drop: (id: string, userId: UserId) => boolean;
+  /** Drop every account's forming documents for `chatId`: a turn there ended, so its streamed panels are done. */
+  readonly dropForming: (chatId: ChatId) => void;
 }
 
 /** Create a per-process handle store. Created per registrar call, so a test gets a clean one. */
@@ -243,6 +255,13 @@ export function createFrameHandleStore(now: () => number, ceilings: FrameHandleC
     drop: (id, userId): boolean => {
       const found = live(id);
       return found?.userId === userId ? drop(id) : false;
+    },
+    dropForming: (chatId): void => {
+      for (const [id, entry] of [...entries]) {
+        if (entry.formingIn === chatId) {
+          drop(id);
+        }
+      }
     },
   };
 }
