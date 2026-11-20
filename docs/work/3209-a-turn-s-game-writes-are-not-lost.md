@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-20
 priority: P1
 area: rpg
+lane: wt/agent-a293ffd5d091b9451
 ---
 
 # A turn's game writes are not lost in silence when another turn commits first

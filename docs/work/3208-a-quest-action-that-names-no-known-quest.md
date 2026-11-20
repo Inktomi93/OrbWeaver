@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-20
 priority: P1
 area: rpg
+lane: wt/agent-a293ffd5d091b9451
 ---
 
 # A quest action that names no known quest mints a quest only on create

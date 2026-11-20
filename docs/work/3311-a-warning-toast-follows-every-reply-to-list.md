@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-20
 priority: P2
 area: chat
+lane: wt/agent-a884ad56156f68789
 ---
 
 # A warning toast follows every reply to list the settings the model ignored
