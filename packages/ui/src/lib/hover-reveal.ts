@@ -17,9 +17,11 @@ export const HOVER_REVEAL = {
   /** `hover` for a cluster of controls: it also takes no pointer while hidden, so a pass over the row lands on nothing. */
   interactive:
     "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 hover-capable:pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto",
-  /** Hidden and inert at rest at every pointer, shown on the row's hover or keyboard focus: a touch reader never sees it. */
+  /** Hidden and inert at rest at every pointer, shown on the row's hover or keyboard focus. It keys on `:focus-visible`, as
+   *  {@link HOVER_SWAP} does, because a tap focuses a control inside the row and sets `:focus-within` too
+   *  (ui-surface-and-interaction-rules §4.2). A caller that a touch reader reaches picks another arm. */
   focus:
-    "opacity-0 pointer-events-none transition-[opacity,scale] duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto",
+    "opacity-0 pointer-events-none transition-[opacity,scale] duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-hover:pointer-events-auto group-has-focus-visible:opacity-100 group-has-focus-visible:pointer-events-auto",
 } as const;
 
 /** Art that is also its own tap target dims while the pointer is over it: `self` on the art's box, `parent` on a layer

@@ -180,7 +180,7 @@ test.describe("the You tab", () => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellStory>(STORY, {});
     const bar = rail(page);
-    // The open sheet is modal, so it hides the bar from the accessibility tree; the tabs are still painted and pressable.
+    // The open sheet is modal, so it hides the bar from the accessibility tree; the tabs stay painted under its scrim.
     const tab = (name: string): Locator => bar.getByRole("button", { name, exact: true, includeHidden: true });
     const you = tab(YOU_TAB_LABEL);
     const chats = tab(SECTION_LABELS.chats);
@@ -193,6 +193,9 @@ test.describe("the You tab", () => {
     const pressed = await paint(chats);
     const rest = await paint(resting);
     expect(pressed).not.toEqual(rest);
+    // More than colour marks the pressed tab: a shape the resting tab does not draw.
+    expect(rest.markHeight).toBeNull();
+    expect(pressed.markHeight).toBeGreaterThan(0);
 
     /** The section's paint and the door's state once the sheet has gone, however it went. */
     const expectClosed = async (): Promise<void> => {
@@ -213,8 +216,13 @@ test.describe("the You tab", () => {
       await expect.poll(() => paint(chats)).toEqual(rest);
     };
 
+    // A second tap where the You tab sits lands on the sheet's scrim, which closes it.
     await open();
-    await you.tap();
+    const door = await you.boundingBox();
+    if (door === null) {
+      throw new Error("The You tab has no box");
+    }
+    await page.touchscreen.tap(door.x + door.width / 2, door.y + door.height / 2);
     await expectClosed();
 
     await open();
@@ -232,10 +240,18 @@ test.describe("the You tab", () => {
   });
 });
 
-/** The two colours a tab paints, as the browser resolved them. */
-function paint(tab: Locator): Promise<{ readonly background: string; readonly ink: string }> {
+interface TabPaint {
+  readonly background: string;
+  readonly ink: string;
+  /** The tab's shape mark, as tall as it paints; `null` when it draws none. */
+  readonly markHeight: number | null;
+}
+
+/** The two colours and the mark a tab paints, as the browser resolved them. */
+function paint(tab: Locator): Promise<TabPaint> {
   return tab.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
-    return { background: style.backgroundColor, ink: style.color };
+    const mark = globalThis.getComputedStyle(el, "::before");
+    return { background: style.backgroundColor, ink: style.color, markHeight: mark.content === "none" ? null : Number.parseFloat(mark.blockSize) };
   });
 }

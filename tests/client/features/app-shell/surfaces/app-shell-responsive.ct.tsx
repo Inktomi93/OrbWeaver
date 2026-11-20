@@ -1,7 +1,7 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
 
-import { contextToggleLabel, sectionBackName, YOU_TAB_LABEL } from "@orb/client/lib";
+import { contextToggleLabel, PRIMARY_NAV_NAME, sectionBackName, YOU_TAB_LABEL } from "@orb/client/lib";
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -21,6 +21,9 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const PHONE = { width: 390, height: 844 } as const;
 const NARROWEST = { width: 320, height: 800 } as const;
 const WARM_MARK = "warmEditorMark";
+// A held swipe far enough to carry an unclipped sheet well past the tab bar's top edge, short of a dismiss.
+const SWIPE_DOWN_PX = 80;
+const SWIPE_STEPS = 8;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -44,6 +47,32 @@ function youTab(page: Page): Locator {
 
 function sheet(page: Page): Locator {
   return page.locator('[data-slot="drawer-popup"]');
+}
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+async function boxOf(locator: Locator): Promise<Box> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("The element has no box");
+  }
+  return box;
+}
+
+/** The four corners, two px in, and the centre of a box: where a finger can land on it. */
+function hitPoints(box: Box): readonly { readonly x: number; readonly y: number }[] {
+  return [
+    { x: box.x + 2, y: box.y + 2 },
+    { x: box.x + box.width - 2, y: box.y + 2 },
+    { x: box.x + 2, y: box.y + box.height - 2 },
+    { x: box.x + box.width - 2, y: box.y + box.height - 2 },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  ];
 }
 
 /** Wait out `count` painted frames, the drawer's own cleanup lifetime. */
@@ -87,55 +116,72 @@ test.describe("the You sheet", () => {
     await expect(youTab(page)).toBeFocused();
   });
 
-  test("it ends above the tab bar: no sheet row sits under the You tab's hit box, the bar stays tappable, and the second tap closes the sheet", async ({
+  test("it ends above the tab bar, which stays in view under its scrim and inert: out of the accessibility tree, a tap on any tab only closes the sheet, and focus returns to the You tab", async ({
     mount,
     page,
   }) => {
     await mount<typeof AppShellStory>(STORY, {});
     expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const tab = youTab(page);
-    await tab.tap();
-    // The open sheet hides the page behind it from assistive tech, so the visible tab is found by its trigger stamp.
-    const barTab = page.locator('.shell-rail [data-modal-trigger="you"]');
+    const bar = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true });
+    await expect(bar).toHaveCount(1);
+    const section = await page.locator(".shell-grid").getAttribute("data-section");
+    // The open sheet hides the page behind it from assistive tech, so the painted tabs are found by their own stamps.
+    const barYou = page.locator('.shell-rail [data-modal-trigger="you"]');
+    const barChats = page.locator(`.shell-rail [data-mobile="tab"][aria-label=${JSON.stringify(SECTION_LABELS.chats)}]`);
     const drawer = sheet(page);
-    await expect(drawer).toBeVisible();
-    const box = await barTab.boundingBox();
-    if (box === null) {
-      throw new Error("The You tab has no box");
-    }
-    expect(box.height).toBeGreaterThanOrEqual(LENGTH_BASE_PX["size.control-md"]);
-    const sheetBottom = await drawer.evaluate((element) => element.getBoundingClientRect().bottom);
-    expect(sheetBottom).toBeLessThanOrEqual(box.y + 1);
-    // Every corner and the centre of the tab's hit box lands on the tab itself, never on a row or the scrim.
-    for (const [x, y] of [
-      [box.x + 2, box.y + 2],
-      [box.x + box.width - 2, box.y + 2],
-      [box.x + 2, box.y + box.height - 2],
-      [box.x + box.width - 2, box.y + box.height - 2],
-      [box.x + box.width / 2, box.y + box.height / 2],
-    ] as const) {
-      expect(await barTab.evaluate((element, [px, py]) => element.contains(document.elementFromPoint(px, py)), [x, y] as const)).toBe(true);
-    }
-    await barTab.tap();
+    /** Each tab's box, open the sheet, and prove what the bar is while it is up. */
+    const openOverInertBar = async (): Promise<{ readonly you: Box; readonly chats: Box }> => {
+      await tab.tap();
+      await expect(drawer).toBeVisible();
+      await expect(bar).toHaveCount(0);
+      const you = await boxOf(barYou);
+      const chats = await boxOf(barChats);
+      expect(you.height).toBeGreaterThanOrEqual(LENGTH_BASE_PX["size.control-md"]);
+      expect(await drawer.evaluate((element) => element.getBoundingClientRect().bottom)).toBeLessThanOrEqual(you.y + 1);
+      // Every corner and the centre of each tab lands on the sheet's scrim, never on the tab under it.
+      for (const box of [you, chats]) {
+        for (const point of hitPoints(box)) {
+          expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.getAttribute("data-slot") ?? null, point)).toBe("drawer-backdrop");
+        }
+      }
+      return { you, chats };
+    };
+
+    const first = await openOverInertBar();
+    await page.touchscreen.tap(first.you.x + first.you.width / 2, first.you.y + first.you.height / 2);
     await expect(drawer).toHaveCount(0);
+    await expect(bar).toHaveCount(1);
+    await expect(tab).toBeFocused();
+
+    const second = await openOverInertBar();
+    await page.touchscreen.tap(second.chats.x + second.chats.width / 2, second.chats.y + second.chats.height / 2);
+    await expect(drawer).toHaveCount(0);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section ?? "");
     await expect(tab).toBeFocused();
   });
 
-  test("a tap on another tab closes the open sheet first, then lands on that section with focus outside the modal layer", async ({ mount, page }) => {
+  test("a swipe that drags the sheet down never carries it over the tab bar: the sheet's viewport clips it at the bar's edge", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     await youTab(page).tap();
-    await expect(sheet(page)).toBeVisible();
-    await page.locator(`.shell-rail [data-mobile="tab"][aria-label=${JSON.stringify(SECTION_LABELS.chats)}]`).tap();
-    await expect(sheet(page)).toHaveCount(0);
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const active = document.activeElement;
-          return active !== null && active !== document.body && active.closest("[aria-hidden='true'], [inert]") === null;
-        }),
-      )
-      .toBe(true);
+    const drawer = sheet(page);
+    await expect(drawer).toBeVisible();
+    const bar = await boxOf(page.locator(".shell-rail"));
+    const title = await boxOf(drawer.locator('[data-slot="drawer-title-text"]'));
+    const start = { x: title.x + title.width / 2, y: title.y + title.height / 2 };
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+    for (let step = 1; step <= SWIPE_STEPS; step += 1) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start.x, y: start.y + (SWIPE_DOWN_PX * step) / SWIPE_STEPS }] });
+    }
+    // Held mid-swipe: the sheet's own box now runs past the bar's top edge, so the hit test below can fail.
+    await expect.poll(() => drawer.evaluate((element) => element.getBoundingClientRect().bottom)).toBeGreaterThan(bar.y + SWIPE_DOWN_PX / 2);
+    const strip = { x: bar.x, y: bar.y, width: bar.width, height: SWIPE_DOWN_PX / 2 };
+    for (const point of hitPoints(strip)) {
+      expect(await drawer.evaluate((element, { x, y }) => element.contains(document.elementFromPoint(x, y)), point)).toBe(false);
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
   });
 
   test("it names who a new chat starts you as, offers no theme switch, and keeps Report a bug off the topbar as an inline form", async ({

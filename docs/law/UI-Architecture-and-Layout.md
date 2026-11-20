@@ -215,8 +215,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             The persisted per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Characters · You (D271).
-         A bottom sheet opened from the tab bar ends above the bar (`--drawer-bottom-inset`, set on the phone
-         shell's portal root from `--dimension-rail` plus the device inset), and a second tap on its tab closes it.
+         A bottom sheet opened from the tab bar ends above the bar (`--drawer-bottom-inset`); the bar stays in
+         view, inert under the sheet's scrim (ui-surface-and-interaction-rules §2.12).
          Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity, whose
