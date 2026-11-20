@@ -10,7 +10,6 @@
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import { PORTABLE_EXPORT_CARRY } from "@orb/contracts/portability";
-import { tagStatusSchema } from "@orb/contracts/tag";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
 import { fetchOwned, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/query";
@@ -25,12 +24,11 @@ import { STORED_CONFIG_UNREADABLE } from "#primitives/stored-config";
 import type { ExportCharacterParams } from "../contract/params.ts";
 import type { ExportedCard } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
+import { ACCEPTED_TAG_STATUS } from "../substrate/card-tags.ts";
 import { slug } from "../substrate/download-slug.ts";
 import { PLACEHOLDER_PNG } from "../substrate/placeholder-png.ts";
 
 const PNG_MIME = "image/png";
-// The card's tags are the ACCEPTED junction rows; derived from the canonical schema, not an inline re-spell.
-const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
 // `cas.read` rejects with a Node ENOENT when the blob is absent — that one error falls through to the
 // placeholder; any other I/O error propagates (corrupt ≠ absent).
 const JSON_INDENT = 2;
@@ -113,7 +111,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .select({ name: tags.name })
       .from(characterTags)
       .innerJoin(tags, and(eq(characterTags.tagId, tags.id), eq(tags.ownerId, ownerId)))
-      .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_STATUS)));
+      .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_TAG_STATUS)));
     const acceptedTags = tagRows.map((row) => row.name);
 
     // The embedded clone is the PRIMARY book only, under its own name: an auxiliary book is a library

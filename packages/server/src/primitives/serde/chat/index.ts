@@ -33,8 +33,8 @@ import { z } from "zod";
 import type { SliceBudget } from "#primitives/abort";
 import { sliceMeter } from "#primitives/abort";
 import { sha256HexOfParts } from "#primitives/content-hash";
-import type { StAttachment } from "#primitives/serde/databank";
-import { readStAttachments } from "#primitives/serde/databank";
+import type { StAttachedFile, StAttachment } from "#primitives/serde/databank";
+import { readStAttachments, stAttachmentEntry } from "#primitives/serde/databank";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/primitives type-home-exempt) ──────────
 
@@ -1011,7 +1011,7 @@ function notePlacementFields(placement: ParsedNotePlacement | null): Record<stri
   };
 }
 
-export function buildChatJsonl(chat: ParsedChat): string {
+export function buildChatJsonl(chat: ParsedChat, attachments: readonly StAttachedFile[] = []): string {
   const header = {
     user_name: chat.userName,
     character_name: chat.characterName,
@@ -1024,6 +1024,7 @@ export function buildChatJsonl(chat: ParsedChat): string {
       // seat on each side travels both ways or the round trip is lossy in one). Omitted when null, so a
       // variable-less chat's header stays byte-identical.
       ...(chat.variables !== null ? { variables: chat.variables } : {}),
+      ...(attachments.length > 0 ? { attachments: attachments.map(stAttachmentEntry) } : {}),
     },
   };
   const lines = [JSON.stringify(header), ...chat.messages.map((m) => JSON.stringify(buildMessageLine(m, chat.createDate)))];

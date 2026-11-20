@@ -160,7 +160,7 @@ async function loadExportMeta(ctx: ExportContext, chat: ChatRow): Promise<{ char
 }
 
 export function createExportChat(ctx: ExportContext): ExportService["exportChat"] {
-  return async ({ principal, chatId, format }: ExportChatParams): Promise<ExportedText | null> => {
+  return async ({ principal, chatId, format, attachments = [] }: ExportChatParams): Promise<ExportedText | null> => {
     const [chat] = await ctx.db
       .select(getTableColumns(chats))
       .from(chats)
@@ -206,8 +206,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       // which door a row entered by (`/inject` vs note), so `script_injects` has no unambiguous inverse.
       // The import leg reads ST's key; the export leg is one-way (and the serde does not emit the key).
       scriptInjects: [],
-      // The chat serde does not write attachments back, so the export carries none.
-      attachments: [],
+      attachments,
       bucket: classifyChat(parsedMessages),
       messages: parsedMessages,
     };
@@ -215,6 +214,6 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     if (format === "txt") {
       return { text: buildChatTxt(parsedChat), filename: `${base}.txt` };
     }
-    return { text: buildChatJsonl(parsedChat), filename: `${base}.jsonl` };
+    return { text: buildChatJsonl(parsedChat, attachments), filename: `${base}.jsonl` };
   };
 }

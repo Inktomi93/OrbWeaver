@@ -43,13 +43,15 @@ export {
 } from "./preview.ts";
 export type { ProfileZipRefusal } from "./profile-zip.ts";
 export { profileZipRefusalSchema, profileZipStartedSchema } from "./profile-zip.ts";
-export type { StExportFile, StExportLeft, StExportLeftReason, StExportReport, StImportDoor } from "./st-export.ts";
+export type { StExportFile, StExportLeft, StExportLeftReason, StExportRefusal, StExportReport, StImportDoor } from "./st-export.ts";
 export {
   ST_EXPORT_DOORS,
   ST_EXPORT_DRY_RUN_QUERY,
   ST_EXPORT_FORMAT,
   ST_EXPORT_PROFILE_DIR,
   ST_EXPORT_REPORT_FILE,
+  ST_EXPORT_RUNNING_CODE,
+  stExportRefusalSchema,
   stExportReportSchema,
   stProfileExportPath,
 } from "./st-export.ts";

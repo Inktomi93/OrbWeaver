@@ -53,13 +53,22 @@ The reasons the report shows for each no-home kind live in `ST_PROFILE_UNHANDLED
 
 ## Profile export
 
-The library export door's `sillytavern` format writes the library as `data/default-user/` in the layout above. The plan is `packages/server/src/domain/export/verbs/export-st-profile.ts`. It returns the files and the report together, so the dry run, the zip's `orbweaver-export-report.json` and the client preview read one value.
+The library export door's `sillytavern` format writes the library as `data/default-user/` in the layout above. The plan is `packages/server/src/domain/export/verbs/export-st-profile.ts`. One generator yields each entry with a reader for its body, so the dry run and the zip walk the same entries and the client preview reads the dry run's report.
+
+- The zip reads one body per entry as the response pulls it, and the dry run reads metadata and sizes only. A body gone by write time is named `unreadable` in the zip's report, which can therefore name rows the dry run did not. An owner runs one export or dry run at a time; a second gets `ST_EXPORT_RUNNING_CODE`. `tests/server/domain/import/persistence/export-sillytavern-bounds.int.test.ts` holds the memory bound and the hold's release on every exit.
+
+- A Data Bank file attached to a chat rides that chat's header. A library-only Data Bank file and a picture no character holds have no SillyTavern home and are named.
 
 - `ST_EXPORT_DOORS` in `packages/contracts/src/import/st-export.ts` names the SillyTavern door for each import preview kind, so a new kind fails `tsc` until the export names its door.
+
 - `ST_EXPORT_LEFT_REASONS` in the same file names why a row stays here. The report lists every such row.
+
 - A world entry exports in SillyTavern's numeric slot with its depth and role, including a slot it was imported from that has no seat here. `tests/server/domain/import/persistence/export-sillytavern-world-position.int.test.ts` places each entry through a port of SillyTavern's placement.
+
 - A group room exports as `groups/<id>.json` with its transcript in `group chats/`. A persona carries its own avatar; a persona with no image stays here.
+
 - `tests/server/domain/import/persistence/export-sillytavern.int.test.ts` checks each file against a port of its SillyTavern door's validation and imports the tree back. `tests/server/domain/import/persistence/st-power-user-appearance.int.test.ts` checks the appearance round trip.
+
 - `scripts/st-export-boot.ts` boots a scratch copy of a SillyTavern checkout on an export. It is a local tool, outside CI.
 
 ## Rejected

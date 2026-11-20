@@ -20,14 +20,16 @@
 // cannot carry as stored is named in the zip's export report (`PORTABLE_EXPORT_REPORT_FILE`), never a broken stream.
 
 import type { Principal } from "@orb/contracts/identity";
-import { ST_EXPORT_DRY_RUN_QUERY, ST_EXPORT_FORMAT, ST_EXPORT_REPORT_FILE } from "@orb/contracts/import";
-import type { ListPersonasOp } from "@orb/contracts/persona";
+import type { StExportRefusal } from "@orb/contracts/import";
+import { ST_EXPORT_DRY_RUN_QUERY, ST_EXPORT_FORMAT, ST_EXPORT_RUNNING_CODE } from "@orb/contracts/import";
+import type { ExportPersonaOp, ListPersonasOp } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableFile, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
-import type { ExportCardFormat, ExportChatFormat, ExportService, StProfileSource } from "#domain/export";
-import { createBundlePaths, planStProfileExport } from "#domain/export";
+import type { ExportCardFormat, ExportChatFormat, ExportService, StPersonaFile, StProfileSource } from "#domain/export";
+import { createBundlePaths, stProfileDryRun, stProfileZip } from "#domain/export";
 import type { Logger, TraceRing } from "#foundation/observability";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
@@ -48,6 +50,7 @@ const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
 const ST_PROFILE_FILENAME = "orbweaver-sillytavern.zip";
 const DRY_RUN_VALUE = "1";
+const ST_EXPORT_RUNNING_ERROR = "an export is already running";
 const JSON_REPORT_INDENT = 2;
 
 /** R6 — the chat door's THIRD container: the orb-native bundle. Not an `ExportChatFormat` member, because
@@ -65,10 +68,16 @@ const WHOLE_LIBRARY_ONLY_VALUES: readonly string[] = WHOLE_LIBRARY_ONLY_KINDS;
 export interface ExportDeps {
   readonly logger: Logger;
   readonly traces: TraceRing;
-  readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle" | "listHostChats">;
+  readonly export: Pick<
+    ExportService,
+    "exportCharacter" | "exportChat" | "exportChatBundle" | "listHostChats" | "listStCards" | "ownedBlobMimes" | "readOwnedBlob" | "listChatDocumentHashes"
+  >;
   readonly registry: PortabilityRegistry;
   /** The owner's personas with their avatar hashes: the backup's persona file carries no avatar. */
   readonly listPersonas: ListPersonasOp;
+  readonly exportPersona: ExportPersonaOp;
+  /** The owner's cards, in the order the library backup carries them. */
+  readonly listCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
 }
 
 /** The result of parsing the `kinds` query: the set to export (null = all), or the first bad token. */
@@ -113,7 +122,8 @@ async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet
   }
 }
 
-// The SillyTavern export reads the same per-kind streams the library zip reads, under the same one owner.
+// The SillyTavern export reads the small kinds through the same per-kind streams the library zip reads, and cards,
+// rooms, personas and blobs through reads of their own, all under the same one owner.
 function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSource {
   return {
     async *files(kind, note): AsyncGenerator<PortableFile> {
@@ -121,19 +131,68 @@ function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSourc
         yield* entity.exportAll(principal.userId, note);
       }
     },
-    listHostChats: () => deps.export.listHostChats({ principal }),
-    exportChat: (chatId) => deps.export.exportChat({ principal, chatId, format: "jsonl" }),
-    personaArt: async () => new Map((await deps.listPersonas({ principal })).map((persona) => [persona.name, persona.avatarHash])),
+    cards: async () => deps.export.listStCards({ principal, characterIds: await deps.listCharacterIds(principal.userId) }),
+    card: async (characterId, note) => (await deps.export.exportCharacter({ principal, characterId, note }))?.bytes ?? null,
+    rooms: () => deps.export.listHostChats({ principal }),
+    transcript: (chatId, attachments) => deps.export.exportChat({ principal, chatId, format: "jsonl", attachments }),
+    chatDocumentHashes: () => deps.export.listChatDocumentHashes({ principal }),
+    async *personas(note): AsyncGenerator<StPersonaFile> {
+      for (const persona of await deps.listPersonas({ principal })) {
+        yield { file: await deps.exportPersona({ principal, personaId: persona.id, note }), avatarHash: persona.avatarHash };
+      }
+    },
+    blobMimes: (hashes) => deps.export.ownedBlobMimes({ principal, hashes }),
+    blob: (hash) => deps.export.readOwnedBlob({ principal, hash }),
   };
 }
 
-// The plan's files, then its report at the zip root. The report is the plan's own, so it says what the zip holds.
-async function* stProfileEntries(deps: ExportDeps, principal: Principal): AsyncGenerator<ZipEntry> {
-  const plan = await planStProfileExport(stProfileSource(deps, principal));
-  for (const entry of plan.entries) {
-    yield { path: entry.path, bytes: await entry.bytes() };
+// One SillyTavern export or dry run per owner at a time: each reads the whole library, so a second waits for nothing
+// and is refused. The hold is taken before the response is built and given back when the run ends, by any path.
+interface ExportHolds {
+  /** The release for the owner's new hold, or null while the owner already holds one. */
+  readonly take: (ownerId: UserId) => (() => void) | null;
+}
+
+function createExportHolds(): ExportHolds {
+  const running = new Set<UserId>();
+  return {
+    take(ownerId): (() => void) | null {
+      if (running.has(ownerId)) {
+        return null;
+      }
+      running.add(ownerId);
+      return () => {
+        running.delete(ownerId);
+      };
+    },
+  };
+}
+
+// The zip's files, the hold given back when the stream ends, fails or is cancelled (`packZip` returns the iterator).
+async function* heldZip(files: AsyncIterable<ZipEntry>, release: () => void): AsyncGenerator<ZipEntry> {
+  try {
+    yield* files;
+  } finally {
+    release();
   }
-  yield { path: ST_EXPORT_REPORT_FILE, bytes: new TextEncoder().encode(JSON.stringify(plan.report, null, JSON_REPORT_INDENT)) };
+}
+
+async function serveStProfile(deps: ExportDeps, holds: ExportHolds, principal: Principal, dryRun: boolean): Promise<Response> {
+  const release = holds.take(principal.userId);
+  if (release === null) {
+    const refusal: StExportRefusal = { code: ST_EXPORT_RUNNING_CODE, error: ST_EXPORT_RUNNING_ERROR };
+    return Response.json(refusal, { status: CONFLICT });
+  }
+  const source = stProfileSource(deps, principal);
+  if (dryRun) {
+    try {
+      return Response.json(await stProfileDryRun(source));
+    } finally {
+      release();
+    }
+  }
+  const profile = packZip(heldZip(stProfileZip(source), release), deps.logger, deps.traces);
+  return new Response(profile, { headers: { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${ST_PROFILE_FILENAME}"` } });
 }
 
 function serveDownload(body: Uint8Array | string, mime: string, filename: string): Response {
@@ -171,6 +230,7 @@ function transcriptMime(format: ExportChatFormat | undefined): string {
 
 /** Register the download routes on `app`. A downstream verb `null` (not-owned/not-host, or missing) → 404. */
 export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void {
+  const holds = createExportHolds();
   app.get(PORTABILITY_ROUTES.exportCharacter, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
@@ -227,11 +287,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
       if (c.req.query(KINDS_QUERY) !== undefined) {
         return c.json({ error: `"${KINDS_QUERY}" does not apply to the ${ST_EXPORT_FORMAT} format` }, BAD_REQUEST);
       }
-      if (c.req.query(ST_EXPORT_DRY_RUN_QUERY) === DRY_RUN_VALUE) {
-        return c.json((await planStProfileExport(stProfileSource(deps, principal))).report);
-      }
-      const profile = packZip(stProfileEntries(deps, principal), deps.logger, deps.traces);
-      return new Response(profile, { headers: { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${ST_PROFILE_FILENAME}"` } });
+      return await serveStProfile(deps, holds, principal, c.req.query(ST_EXPORT_DRY_RUN_QUERY) === DRY_RUN_VALUE);
     }
     const { kinds, invalid } = parseKinds(c.req.query(KINDS_QUERY));
     if (invalid !== null) {

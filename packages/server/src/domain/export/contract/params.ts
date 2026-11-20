@@ -5,6 +5,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortableExportNotes } from "@orb/contracts/portability";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { PortableSeatCard } from "#primitives/serde/chat-bundle";
+import type { StAttachedFile } from "#primitives/serde/databank";
 
 /** The hashes a seat's exported card restores under, without the seat's handle. */
 export type SeatCardIdentity = Omit<PortableSeatCard, "handle">;
@@ -43,6 +44,21 @@ export interface ExportCharacterParams extends ExportActorParams {
 export interface ExportChatParams extends ExportActorParams {
   readonly chatId: ChatId;
   readonly format?: ExportChatFormat | undefined;
+  /** The Data Bank files the transcript header names as attached to the chat (jsonl only). */
+  readonly attachments?: readonly StAttachedFile[] | undefined;
+}
+
+/** The owned cards among `characterIds`, in that order. */
+export interface ListStCardsParams extends ExportActorParams {
+  readonly characterIds: readonly CharacterId[];
+}
+
+export interface OwnedBlobsParams extends ExportActorParams {
+  readonly hashes: readonly string[];
+}
+
+export interface OwnedBlobParams extends ExportActorParams {
+  readonly hash: string;
 }
 
 /** R6 — the orb-native chat bundle. NO format axis by design: the bundle IS the format, and the ST

@@ -7,6 +7,7 @@ import { assetKindSchema } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { IMAGE_EXTENSION_BY_MIME } from "@orb/kit/image-sniff";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableAssetIdentity } from "../contract/portability.ts";
@@ -21,13 +22,7 @@ const INLINE_ASSET_REF = /asset:(?<id>asset_[a-z0-9]+)/g;
 const assetIdSchema = typeIdSchema(ID_PREFIX.asset);
 
 // Cosmetic extension per mime (import ignores it; `<mimeHex>` is authoritative). Unknown ⇒ `bin`.
-const EXT_BY_MIME: Readonly<Record<string, string>> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-  "application/pdf": "pdf",
-};
+const EXT_BY_MIME: Readonly<Record<string, string>> = { ...IMAGE_EXTENSION_BY_MIME, "application/pdf": "pdf" };
 const DEFAULT_EXT = "bin";
 
 /** sha-256 hex of the bytes — the CAS key; re-computed on import and compared to the filename's `<hash>`. */

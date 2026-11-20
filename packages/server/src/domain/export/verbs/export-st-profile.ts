@@ -1,32 +1,36 @@
-// verb: planStProfileExport — the owner's library laid out as a SillyTavern user directory. It reads the per-kind
-// streams the library backup reads and re-shapes each kind into the file one of SillyTavern's import doors takes
-// (`ST_EXPORT_DOORS`). The plan it returns is both the dry run's answer and the zip's content and report, so the
-// preview and the report are one value.
+// verb: the SillyTavern profile export — the owner's library laid out as a SillyTavern user directory. It reads the
+// per-kind backup streams for the small kinds and its own metadata reads for cards, rooms, personas and blobs, and
+// re-shapes each kind into the file one of SillyTavern's import doors takes (`ST_EXPORT_DOORS`).
+//
+// BOUNDED: one generator yields every entry in zip order with a lazy body. The zip reads each body only when it writes
+// that entry, under the response's pull, so the export holds one body at a time; the dry run reads no body at all (no
+// card PNG, no blob, no transcript). A body whose row is gone by write time is left out and named as unreadable, so the
+// zip's report can name more than the dry run's.
 //
 // SECURITY: every path segment built from a stored name goes through SillyTavern's own filename rule
 // (`stSanitizeFilename`) and then a case-folded collision suffix, so no name leaves its directory and no two files
-// share a path on a case-insensitive disk. Character folders use the card's file stem, which is a portable handle
-// (no separator) through the same rule; chat and group files use the chat id, whose alphabet holds no separator.
+// share a path on a case-insensitive disk. Card files use the card's portable handle; chat and group files use the
+// chat id, whose alphabet holds no separator; gallery files use the content hash.
 //
 // A ROOM WITH MORE THAN ONE SEAT, OR WITH A GROUP CONFIG, IS A SILLYTAVERN GROUP: `groups/<id>.json` naming its
 // members by card filename (`src/endpoints/groups.js` `/all` reads it, `public/scripts/group-chats.js`
 // `createGroup` is its shape) with its transcript in the flat `group chats/` folder (`src/endpoints/chats.js`
 // `/group/get`). It never lands as its first member's solo chat.
 
-import { CHARACTER_HANDLE_WIRE_KEY, characterHandleSchema, portableCharacterHandle } from "@orb/contracts/character";
-import { storedGroupConfigSchema } from "@orb/contracts/chat";
-import type { ImportPreviewKind, StExportLeft } from "@orb/contracts/import";
-import { clipImportText, ST_EXPORT_DOORS, ST_EXPORT_PROFILE_DIR, stChatPresetStem } from "@orb/contracts/import";
+import { portableCharacterHandle } from "@orb/contracts/character";
+import type { ImportPreviewKind, StExportFile, StExportLeft, StExportReport } from "@orb/contracts/import";
+import { clipImportText, ST_EXPORT_DOORS, ST_EXPORT_PROFILE_DIR, ST_EXPORT_REPORT_FILE, stChatPresetStem } from "@orb/contracts/import";
 import type { PortableExportNotes, PortableKind } from "@orb/contracts/portability";
 import { exportStChatCompletionPreset, parsePresetFile } from "@orb/contracts/preset";
 import { toRegexScriptCardWire } from "@orb/contracts/regex";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { isPlainObject } from "@orb/kit/guards";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { IMAGE_EXTENSION_BY_MIME } from "@orb/kit/image-sniff";
 import { parseJsonText } from "@orb/kit/json";
-import { readCardChunk } from "@orb/kit/png-card-chunk";
-import { CHAT_BUNDLE_EXT, parseChatBundleFile } from "#primitives/serde/chat-bundle";
-import { parseDocumentFile } from "#primitives/serde/databank";
+import type { StAttachedFile } from "#primitives/serde/databank";
+import { parseDocumentFile, stAttachmentEntry } from "#primitives/serde/databank";
 import { parseGallery } from "#primitives/serde/gallery";
 import { parsePersonaBackup } from "#primitives/serde/persona";
 import { readPresetFileScripts } from "#primitives/serde/preset";
@@ -37,13 +41,12 @@ import { parseThemeFile, stThemeToJson } from "#primitives/serde/theme";
 import { parseUserSettingsBackup } from "#primitives/serde/user-settings";
 import { buildStWorldFile, parseWorldBookFile } from "#primitives/serde/world-info";
 import { stSanitizeFilename } from "#primitives/st-filename";
-import type { StProfileEntry, StProfilePlan, StProfileSource } from "../contract/st-profile.ts";
+import type { HostChatRef } from "../contract/results.ts";
+import type { StEntrySource, StProfileEntry, StProfileSource, StProfileZipFile, StStreamedKind } from "../contract/st-profile.ts";
 
 // The kinds SillyTavern keeps nothing of. Each owned file of them is named in the report.
-const NO_HOME_KINDS = ["imagery", "spend"] as const satisfies readonly PortableKind[];
+const NO_HOME_KINDS = ["imagery", "spend"] as const satisfies readonly StStreamedKind[];
 
-const CARD_CHUNKS = ["ccv3", "chara"] as const;
-const HASH_LENGTH = 64;
 const FALLBACK_NAMES = {
   world: "World",
   persona: "Persona",
@@ -53,8 +56,12 @@ const FALLBACK_NAMES = {
   theme: "Theme",
   background: "Background",
 } as const;
+// A handle SillyTavern's filename rule empties (a Windows device name such as `con`) files under this prefix.
+const CARD_FALLBACK_PREFIX = "card-";
 const TXT_EXT = ".txt";
 const PNG_EXT = ".png";
+const JSONL_EXT = ".jsonl";
+const UNKNOWN_EXT = "bin";
 const JSON_INDENT = 2;
 const ENCODER = new TextEncoder();
 // SillyTavern's group defaults (`public/scripts/group-chats.js`): the stock group avatar, the NATURAL activation
@@ -71,10 +78,11 @@ function json(value: unknown): Uint8Array {
   return ENCODER.encode(JSON.stringify(value, null, JSON_INDENT));
 }
 
+const held = (bytes: Uint8Array) => (): Promise<Uint8Array> => Promise.resolve(bytes);
+
 // A stored handle in the portable alphabet, or null when the text is no handle.
-function portableHandle(text: unknown): string | null {
-  const handle = characterHandleSchema.safeParse(text).data;
-  return handle === undefined ? null : portableCharacterHandle(handle);
+function portableHandle(text: string | null): CharacterHandle | null {
+  return text === null ? null : portableCharacterHandle(text);
 }
 
 // One directory's names, folded the way a case-insensitive disk folds them.
@@ -96,23 +104,8 @@ function stemOf(filename: string): string {
   return dot <= 0 ? filename : filename.slice(0, dot);
 }
 
-// An asset file's extension, through the filename rule; the descriptor names it after its last dot.
-function assetExt(filename: string): string {
-  return stSanitizeFilename(filename.slice(filename.lastIndexOf(".") + 1));
-}
-
-// What an exported card says of itself on its own card chunk: its handle and its tag names.
-async function cardFacts(png: Uint8Array): Promise<{ readonly handle: string | null; readonly tags: readonly string[] }> {
-  for (const keyword of CARD_CHUNKS) {
-    const chunk = await readCardChunk(png, keyword);
-    if (chunk !== null) {
-      const card: unknown = JSON.parse(chunk);
-      const data = isPlainObject(card) ? card["data"] : null;
-      const tags = isPlainObject(data) && Array.isArray(data["tags"]) ? data["tags"].filter((tag): tag is string => typeof tag === "string") : [];
-      return { handle: portableHandle(isPlainObject(data) ? data[CHARACTER_HANDLE_WIRE_KEY] : null), tags };
-    }
-  }
-  return { handle: null, tags: [] };
+function extOf(mime: string): string {
+  return IMAGE_EXTENSION_BY_MIME[mime] ?? UNKNOWN_EXT;
 }
 
 interface StTag {
@@ -131,8 +124,8 @@ interface StTag {
 interface StSettings {
   readonly personas: Record<string, string>;
   readonly personaDescriptions: Record<string, { readonly description: string; readonly title: string }>;
-  readonly attachments: Record<string, unknown>[];
-  readonly characterAttachments: Partial<Record<string, Record<string, unknown>[]>>;
+  readonly attachments: Readonly<Record<string, unknown>>[];
+  readonly characterAttachments: Partial<Record<string, Readonly<Record<string, unknown>>[]>>;
   readonly galleryFolders: Record<string, string>;
   readonly tags: StTag[];
   readonly tagMap: Partial<Record<string, string[]>>;
@@ -141,21 +134,12 @@ interface StSettings {
   background: Record<string, unknown> | null;
 }
 
-type AssetUse = (file: { readonly filename: string; readonly bytes: Uint8Array }) => void;
-
-// One use of a blob, and what the export reports when the store no longer holds it.
-interface WantedAsset {
-  readonly use: AssetUse;
-  readonly missing: () => void;
-}
-
 class PlanBuilder {
-  readonly entries: StProfileEntry[] = [];
   readonly left: StExportLeft[] = [];
   /** Each card's handle with its file name under `characters/`, the key SillyTavern pairs everything with. */
-  readonly cards = new Map<string, string>();
-  /** Each wanted blob's content hash with what each use does with its bytes. */
-  readonly assets = new Map<string, WantedAsset[]>();
+  readonly cards = new Map<CharacterHandle, string>();
+  /** Each written Data Bank file by the document's import hash, for the chats it is attached to. */
+  readonly documents = new Map<string, StAttachedFile>();
   readonly settings: StSettings = {
     personas: {},
     personaDescriptions: {},
@@ -172,25 +156,12 @@ class PlanBuilder {
     this.leave(note.kind, note.item, "unreadable");
   };
 
-  add(kind: ImportPreviewKind, relative: string, bytes: () => Promise<Uint8Array>): void {
-    this.entries.push({ path: `${ST_EXPORT_PROFILE_DIR}${relative}`, kind, door: ST_EXPORT_DOORS[kind], bytes });
-  }
-
-  addBytes(kind: ImportPreviewKind, relative: string, bytes: Uint8Array): void {
-    this.add(kind, relative, () => Promise.resolve(bytes));
+  entry(kind: ImportPreviewKind, relative: string, source: StEntrySource | null, bytes: StProfileEntry["bytes"]): StProfileEntry {
+    return { path: `${ST_EXPORT_PROFILE_DIR}${relative}`, kind, door: ST_EXPORT_DOORS[kind], source, bytes };
   }
 
   leave(kind: PortableKind, item: string, reason: StExportLeft["reason"]): void {
     this.left.push({ kind, item: clipImportText(item), reason });
-  }
-
-  want(hash: string, missing: () => void, use: AssetUse): void {
-    this.assets.set(hash, [...(this.assets.get(hash) ?? []), { use, missing }]);
-  }
-
-  /** A card's file name, or the handle's own when the library holds no card for it. */
-  cardFile(handle: string): string {
-    return this.cards.get(handle) ?? `${stSanitizeFilename(handle)}${PNG_EXT}`;
   }
 
   /** The SillyTavern id of a tag, minted the first time a name is seen. */
@@ -214,28 +185,8 @@ class PlanBuilder {
   }
 }
 
-async function planCharacters(source: StProfileSource, plan: PlanBuilder): Promise<void> {
-  const name = namer();
-  const cardTags: (readonly [string, readonly string[]])[] = [];
-  for await (const file of source.files("character", plan.notes)) {
-    const { handle, tags } = await cardFacts(file.bytes);
-    const cardFile = name(handle ?? stemOf(file.filename), FALLBACK_NAMES.chat, PNG_EXT);
-    if (handle !== null) {
-      plan.cards.set(handle, cardFile);
-    }
-    cardTags.push([cardFile, tags]);
-    plan.addBytes("characters", `characters/${cardFile}`, file.bytes);
-  }
-  // Library tags first, so a tag keeps its colours and order; a card's own tag that is no library tag is minted.
-  await planTags(source, plan);
-  for (const [cardFile, tags] of cardTags) {
-    if (tags.length > 0) {
-      plan.settings.tagMap[cardFile] = [...new Set(tags.map((tag) => plan.tagId(tag)))];
-    }
-  }
-}
-
-// The tag library as SillyTavern's `tags` (`public/scripts/tags.js` `newTag`).
+// The tag library as SillyTavern's `tags` (`public/scripts/tags.js` `newTag`), ahead of the cards, so a tag keeps
+// its colours and order and a card's own tag that is no library tag is minted after it.
 async function planTags(source: StProfileSource, plan: PlanBuilder): Promise<void> {
   for await (const file of source.files("tag", plan.notes)) {
     const library = parseTagLibrary(file.bytes);
@@ -258,46 +209,64 @@ async function planTags(source: StProfileSource, plan: PlanBuilder): Promise<voi
   }
 }
 
-interface GroupRoom {
-  readonly chatId: string;
-  readonly name: string;
-  readonly handles: readonly string[];
-  readonly starred: boolean;
-  readonly group: unknown;
+async function* planCharacters(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
+  await planTags(source, plan);
+  const name = namer();
+  for (const card of await source.cards()) {
+    const handle = portableCharacterHandle(card.handle);
+    const cardFile = name(handle, `${CARD_FALLBACK_PREFIX}${handle}`, PNG_EXT);
+    plan.cards.set(handle, cardFile);
+    if (card.tags.length > 0) {
+      plan.settings.tagMap[cardFile] = [...new Set(card.tags.map((tag) => plan.tagId(tag)))];
+    }
+    yield plan.entry("characters", `characters/${cardFile}`, { kind: "character", item: handle }, () => source.card(card.characterId, plan.notes));
+  }
 }
 
-// The rooms that are groups, read off the library's own chat bundles; the descriptor names each `<handle>/<chatId>`.
-async function groupRooms(source: StProfileSource, plan: PlanBuilder): Promise<GroupRoom[]> {
-  const rooms: GroupRoom[] = [];
-  for await (const file of source.files("chat", plan.notes)) {
-    const chat = parseChatBundleFile(file.bytes);
-    const leaf = file.filename.slice(file.filename.lastIndexOf("/") + 1);
-    const chatId = leaf.endsWith(CHAT_BUNDLE_EXT) ? leaf.slice(0, -CHAT_BUNDLE_EXT.length) : stemOf(leaf);
-    if (!chat.ok) {
+// Each document's Data Bank file under `user/files/`, listed where SillyTavern lists it: the global list, a card's
+// list, or a chat header (`planChats`). A document none of those lists has no SillyTavern home.
+async function* planDocuments(source: StProfileSource, plan: PlanBuilder, chatHashes: ReadonlySet<string>): AsyncGenerator<StProfileEntry> {
+  const name = namer();
+  for await (const file of source.files("databank", plan.notes)) {
+    const document = parseDocumentFile(file.bytes);
+    if (!document.ok) {
+      plan.leave("databank", stemOf(file.filename), "unreadable");
       continue;
     }
-    const group = chat.value.metadata?.["group"];
-    if (chat.value.characterHandles.length > 1 || group !== undefined) {
-      const handles = chat.value.characterHandles.flatMap((handle) => portableHandle(handle) ?? []);
-      rooms.push({ chatId, name: chat.value.title, handles, starred: chat.value.starred, group });
+    const { value } = document;
+    const cards = value.characterHandles.flatMap((text) => plan.cards.get(portableCharacterHandle(text)) ?? []);
+    if (!value.global && cards.length === 0 && !chatHashes.has(value.importHash)) {
+      plan.leave("databank", value.name, "no-sillytavern-home");
+      continue;
     }
+    const bytes = ENCODER.encode(value.extractedText);
+    const stored = name(value.name.toLowerCase().endsWith(TXT_EXT) ? stemOf(value.name) : value.name, FALLBACK_NAMES.document, TXT_EXT);
+    const attached: StAttachedFile = { file: stored, name: value.name, size: bytes.byteLength, created: value.createdAt ?? 0 };
+    plan.documents.set(value.importHash, attached);
+    const entry = stAttachmentEntry(attached);
+    if (value.global) {
+      plan.settings.attachments.push(entry);
+    }
+    for (const card of cards) {
+      plan.settings.characterAttachments[card] = [...(plan.settings.characterAttachments[card] ?? []), entry];
+    }
+    yield plan.entry("documents", `user/files/${stored}`, { kind: "databank", item: value.name }, held(bytes));
   }
-  return rooms;
 }
 
 // One group room as SillyTavern's group file (`public/scripts/group-chats.js` `createGroup`).
-function stGroupFile(room: GroupRoom, chatLeaf: string, plan: PlanBuilder): Record<string, unknown> {
-  const config = storedGroupConfigSchema.safeParse(room.group).data;
-  const narrator = config?.output === "narrator";
+function stGroupFile(room: HostChatRef, chatLeaf: string, plan: PlanBuilder): Record<string, unknown> {
+  const config = room.groupConfig;
+  const handles = room.handles.map((handle) => portableCharacterHandle(handle));
   return {
     id: chatLeaf,
-    name: room.name || room.handles.join(", "),
-    members: room.handles.map((handle) => plan.cardFile(handle)),
+    name: room.title ?? handles.join(", "),
+    members: handles.map((handle) => plan.cards.get(handle) ?? `${handle}${PNG_EXT}`),
     ["avatar_url"]: ST_DEFAULT_GROUP_AVATAR,
     ["allow_self_responses"]: config?.allowSelfResponses ?? false,
     hideMutedSprites: false,
-    ["activation_strategy"]: config === undefined || config.policy === "smart" ? ST_GROUP_ACTIVATION.natural : ST_GROUP_ACTIVATION[config.policy],
-    ["generation_mode"]: narrator ? ST_GENERATION_APPEND : ST_GENERATION_SWAP,
+    ["activation_strategy"]: config === null || config.policy === "smart" ? ST_GROUP_ACTIVATION.natural : ST_GROUP_ACTIVATION[config.policy],
+    ["generation_mode"]: config?.output === "narrator" ? ST_GENERATION_APPEND : ST_GENERATION_SWAP,
     ["disabled_members"]: [],
     fav: room.starred,
     ["chat_id"]: chatLeaf,
@@ -306,30 +275,35 @@ function stGroupFile(room: GroupRoom, chatLeaf: string, plan: PlanBuilder): Reco
   };
 }
 
-function transcript(source: StProfileSource, chatId: Parameters<StProfileSource["exportChat"]>[0]): () => Promise<Uint8Array> {
-  return async () => ENCODER.encode((await source.exportChat(chatId))?.text ?? "");
-}
-
-async function planChats(source: StProfileSource, plan: PlanBuilder): Promise<void> {
-  const rooms = new Map((await groupRooms(source, plan)).map((room) => [room.chatId, room]));
+async function* planChats(source: StProfileSource, plan: PlanBuilder, chatHashes: ReadonlyMap<string, readonly string[]>): AsyncGenerator<StProfileEntry> {
   const namers = new Map<string, ReturnType<typeof namer>>();
   const groupName = namer();
-  for (const { chatId, handle } of await source.listHostChats()) {
-    const room = rooms.get(chatId);
-    if (room !== undefined) {
-      const leaf = stemOf(groupName(chatId, FALLBACK_NAMES.chat, ".jsonl"));
-      plan.addBytes("groups", `groups/${leaf}.json`, json(stGroupFile(room, leaf, plan)));
-      plan.add("groups", `group chats/${leaf}.jsonl`, transcript(source, chatId));
+  for (const room of await source.rooms()) {
+    const attachments = (chatHashes.get(room.chatId) ?? []).flatMap((hash) => plan.documents.get(hash) ?? []);
+    // A transcript gone by write time is named once, and its group file is left out with it.
+    let carried = true;
+    const transcript = async (): Promise<Uint8Array | null> => {
+      const text = await source.transcript(room.chatId, attachments);
+      carried = text !== null;
+      return text === null ? null : ENCODER.encode(text.text);
+    };
+    const item = { kind: "chat", item: room.title ?? room.chatId } as const;
+    if (room.isGroup) {
+      const leaf = stemOf(groupName(room.chatId, FALLBACK_NAMES.chat, JSONL_EXT));
+      const group = json(stGroupFile(room, leaf, plan));
+      yield plan.entry("groups", `group chats/${leaf}${JSONL_EXT}`, item, transcript);
+      yield plan.entry("groups", `groups/${leaf}.json`, null, () => Promise.resolve(carried ? group : null));
       continue;
     }
-    const dir = stemOf(plan.cardFile(portableCharacterHandle(handle)));
+    const handle = portableCharacterHandle(room.handle);
+    const dir = stemOf(plan.cards.get(handle) ?? `${stSanitizeFilename(handle) || `${CARD_FALLBACK_PREFIX}${handle}`}${PNG_EXT}`);
     const name = namers.get(dir) ?? namer();
     namers.set(dir, name);
-    plan.add("chats", `chats/${dir}/${name(chatId, FALLBACK_NAMES.chat, ".jsonl")}`, transcript(source, chatId));
+    yield plan.entry("chats", `chats/${dir}/${name(room.chatId, FALLBACK_NAMES.chat, JSONL_EXT)}`, item, transcript);
   }
 }
 
-async function planWorlds(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+async function* planWorlds(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
   const name = namer();
   for await (const file of source.files("world-info", plan.notes)) {
     const book = parseWorldBookFile(file.bytes, stemOf(file.filename));
@@ -337,12 +311,13 @@ async function planWorlds(source: StProfileSource, plan: PlanBuilder): Promise<v
       plan.leave("world-info", stemOf(file.filename), "unreadable");
       continue;
     }
-    plan.addBytes("worlds", `worlds/${name(book.value.name, FALLBACK_NAMES.world, ".json")}`, buildStWorldFile(book.value));
+    const world = buildStWorldFile(book.value);
+    yield plan.entry("worlds", `worlds/${name(book.value.name, FALLBACK_NAMES.world, ".json")}`, { kind: "world-info", item: book.value.name }, held(world));
   }
 }
 
 // Each preset as SillyTavern's chat-completion preset file, its scripts inside it.
-async function planPresets(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+async function* planPresets(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
   const name = namer();
   for await (const file of source.files("preset", plan.notes)) {
     const raw = parseJsonText(new TextDecoder("utf-8").decode(file.bytes));
@@ -356,11 +331,12 @@ async function planPresets(source: StProfileSource, plan: PlanBuilder): Promise<
     for (const { field } of left) {
       plan.leave("preset", `${preset.name}: ${field}`, "no-sillytavern-field");
     }
-    plan.addBytes("presets", `OpenAI Settings/${name(stChatPresetStem(preset.name), FALLBACK_NAMES.preset, ".json")}`, json(stPreset));
+    const relative = `OpenAI Settings/${name(stChatPresetStem(preset.name), FALLBACK_NAMES.preset, ".json")}`;
+    yield plan.entry("presets", relative, { kind: "preset", item: preset.name }, held(json(stPreset)));
   }
 }
 
-async function planThemes(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+async function* planThemes(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
   const name = namer();
   for await (const file of source.files("theme", plan.notes)) {
     const parsed = parseThemeFile(file.bytes, stemOf(file.filename));
@@ -374,7 +350,12 @@ async function planThemes(source: StProfileSource, plan: PlanBuilder): Promise<v
       for (const token of stored.css === null ? left : [...left, "css"]) {
         plan.leave("theme", `${stored.name}: ${token}`, "no-sillytavern-field");
       }
-      plan.addBytes("themes", `themes/${name(String(theme["name"]), FALLBACK_NAMES.theme, ".json")}`, json(theme));
+      yield plan.entry(
+        "themes",
+        `themes/${name(String(theme["name"]), FALLBACK_NAMES.theme, ".json")}`,
+        { kind: "theme", item: stored.name },
+        held(json(theme)),
+      );
     }
   }
 }
@@ -422,32 +403,37 @@ function leaveSettings(plan: PlanBuilder, settings: Readonly<Record<string, unkn
 }
 
 // The background library as SillyTavern's `backgrounds/`, and the chosen one as its `background` setting
-// (`public/scripts/backgrounds.js` `loadBackgroundSettings`).
-function planBackgrounds(plan: PlanBuilder, appearance: AppearanceSettings, carried: Set<string>): void {
-  const name = namer();
-  for (const entry of appearance.backgroundLibrary) {
-    plan.want(
-      entry.assetHash,
-      () => plan.leave("user-settings", entry.name, "unreadable"),
-      (file) => {
-        const stored = name(stemOf(entry.name), FALLBACK_NAMES.background, `.${assetExt(file.filename)}`);
-        plan.addBytes("backgrounds", `backgrounds/${stored}`, file.bytes);
-        if (
-          appearance.backgroundImageKind === BACKGROUND_FROM_ASSET &&
-          appearance.backgroundAssetHash === entry.assetHash &&
-          plan.settings.background === null
-        ) {
-          plan.settings.background = { name: stored, url: `url("backgrounds/${encodeURIComponent(stored)}")`, fitting: appearance.backgroundFit };
-        }
-      },
-    );
-  }
+// (`public/scripts/backgrounds.js` `loadBackgroundSettings`), set when its file is written.
+async function* planBackgrounds(
+  source: StProfileSource,
+  plan: PlanBuilder,
+  appearance: AppearanceSettings,
+  carried: Set<string>,
+): AsyncGenerator<StProfileEntry> {
   for (const key of ["backgroundLibrary", "backgroundImageKind", "backgroundAssetId", "backgroundAssetHash", "backgroundAssetMime", "backgroundFit"]) {
     carried.add(key);
   }
+  const name = namer();
+  const mimes = await source.blobMimes(appearance.backgroundLibrary.map((entry) => entry.assetHash));
+  for (const entry of appearance.backgroundLibrary) {
+    const mime = mimes.get(entry.assetHash);
+    if (mime === undefined) {
+      plan.leave("user-settings", entry.name, "unreadable");
+      continue;
+    }
+    const stored = name(stemOf(entry.name), FALLBACK_NAMES.background, `.${extOf(mime)}`);
+    const chosen = appearance.backgroundImageKind === BACKGROUND_FROM_ASSET && appearance.backgroundAssetHash === entry.assetHash;
+    yield plan.entry("backgrounds", `backgrounds/${stored}`, { kind: "user-settings", item: entry.name }, async () => {
+      const bytes = await source.blob(entry.assetHash);
+      if (bytes !== null && chosen && plan.settings.background === null) {
+        plan.settings.background = { name: stored, url: `url("backgrounds/${encodeURIComponent(stored)}")`, fitting: appearance.backgroundFit };
+      }
+      return bytes;
+    });
+  }
 }
 
-async function planUserSettings(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+async function* planUserSettings(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
   for await (const file of source.files("user-settings", plan.notes)) {
     const settings = parseUserSettingsBackup(file.bytes);
     if (!settings.ok) {
@@ -462,106 +448,94 @@ async function planUserSettings(source: StProfileSource, plan: PlanBuilder): Pro
       for (const key of ergonomics.carried) {
         carried.add(key);
       }
-      planBackgrounds(plan, appearance, carried);
+      yield* planBackgrounds(source, plan, appearance, carried);
     }
     leaveSettings(plan, settings.value, carried);
   }
 }
 
-// A persona is a SillyTavern persona only through its avatar file (`User Avatars/`), so one with no image is left.
-async function planPersonas(source: StProfileSource, plan: PlanBuilder): Promise<void> {
-  const art = await source.personaArt();
-  const name = namer();
-  for await (const file of source.files("persona", plan.notes)) {
+// A persona is a SillyTavern persona only through its avatar file (`User Avatars/`), so one with no image is left. Its
+// settings entry is written with its avatar.
+async function* planPersonas(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
+  const personas: { readonly name: string; readonly description: string; readonly title: string; readonly hash: string }[] = [];
+  for await (const { file, avatarHash } of source.personas(plan.notes)) {
     const backup = parsePersonaBackup(file.bytes);
     if (!backup.ok) {
       plan.leave("persona", stemOf(file.filename), "unreadable");
       continue;
     }
     const persona = backup.value;
-    const hash = art.get(persona.name) ?? null;
-    if (hash === null) {
+    if (avatarHash === null) {
       plan.leave("persona", persona.name, "persona-without-art");
       continue;
     }
-    plan.want(
-      hash,
-      () => plan.leave("persona", persona.name, "persona-without-art"),
-      (asset) => {
-        const avatar = name(persona.name, FALLBACK_NAMES.persona, `.${assetExt(asset.filename)}`);
-        plan.settings.personas[avatar] = persona.name;
-        plan.settings.personaDescriptions[avatar] = { description: persona.description, title: persona.title ?? "" };
-        plan.addBytes("personas", `User Avatars/${avatar}`, asset.bytes);
-      },
-    );
+    personas.push({ name: persona.name, description: persona.description, title: persona.title ?? "", hash: avatarHash });
   }
-}
-
-async function planDocuments(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+  const mimes = await source.blobMimes(personas.map(({ hash }) => hash));
   const name = namer();
-  for await (const file of source.files("databank", plan.notes)) {
-    const document = parseDocumentFile(file.bytes);
-    if (!document.ok) {
-      plan.leave("databank", stemOf(file.filename), "unreadable");
+  for (const persona of personas) {
+    const mime = mimes.get(persona.hash);
+    if (mime === undefined) {
+      plan.leave("persona", persona.name, "persona-without-art");
       continue;
     }
-    const { value } = document;
-    const bytes = ENCODER.encode(value.extractedText);
-    const stored = name(value.name.toLowerCase().endsWith(TXT_EXT) ? stemOf(value.name) : value.name, FALLBACK_NAMES.document, TXT_EXT);
-    // SillyTavern's attachment entry (`public/scripts/chats.js` `uploadFileAttachmentToServer`).
-    const entry = { url: `/user/files/${stored}`, size: bytes.byteLength, name: value.name, created: value.createdAt ?? 0 };
-    if (value.global) {
-      plan.settings.attachments.push(entry);
-    }
-    for (const handle of value.characterHandles.flatMap((text) => portableHandle(text) ?? [])) {
-      const card = plan.cardFile(handle);
-      plan.settings.characterAttachments[card] = [...(plan.settings.characterAttachments[card] ?? []), entry];
-    }
-    plan.addBytes("documents", `user/files/${stored}`, bytes);
+    const avatar = name(persona.name, FALLBACK_NAMES.persona, `.${extOf(mime)}`);
+    yield plan.entry("personas", `User Avatars/${avatar}`, { kind: "persona", item: persona.name }, async () => {
+      const bytes = await source.blob(persona.hash);
+      if (bytes !== null) {
+        plan.settings.personas[avatar] = persona.name;
+        plan.settings.personaDescriptions[avatar] = { description: persona.description, title: persona.title };
+      }
+      return bytes;
+    });
   }
 }
 
-async function planGallery(source: StProfileSource, plan: PlanBuilder): Promise<void> {
+// A gallery item's blob and the card whose folder holds it, or null with the item named.
+function galleryPicture(
+  item: { readonly assetHash: string | null; readonly subjectCharacterHandle: string | null },
+  plan: PlanBuilder,
+): { readonly hash: string; readonly card: string } | null {
+  const handle = portableHandle(item.subjectCharacterHandle);
+  const card = handle === null ? undefined : plan.cards.get(handle);
+  if (item.assetHash === null) {
+    plan.leave("gallery", handle ?? "", "unreadable");
+    return null;
+  }
+  if (card === undefined) {
+    plan.leave("gallery", item.assetHash, "no-sillytavern-home");
+    return null;
+  }
+  return { hash: item.assetHash, card };
+}
+
+// SillyTavern keeps a gallery per character (`user/images/<folder>/`), so a picture with no character's folder has
+// no home there.
+async function* planGallery(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
+  const pictures: { readonly hash: string; readonly card: string }[] = [];
   for await (const file of source.files("gallery", plan.notes)) {
     const gallery = parseGallery(file.bytes);
-    for (const item of gallery.ok ? gallery.value.items : []) {
-      const handle = portableHandle(item.subjectCharacterHandle);
-      if (item.assetHash === null || handle === null) {
-        continue;
+    if (!gallery.ok) {
+      plan.leave("gallery", stemOf(file.filename), "unreadable");
+      continue;
+    }
+    pictures.push(...gallery.value.items.flatMap((item) => galleryPicture(item, plan) ?? []));
+  }
+  const mimes = await source.blobMimes(pictures.map(({ hash }) => hash));
+  for (const { hash, card } of pictures) {
+    const mime = mimes.get(hash);
+    if (mime === undefined) {
+      plan.leave("gallery", hash, "unreadable");
+      continue;
+    }
+    const folder = stemOf(card);
+    yield plan.entry("gallery", `user/images/${folder}/${hash}.${extOf(mime)}`, { kind: "gallery", item: hash }, async () => {
+      const bytes = await source.blob(hash);
+      if (bytes !== null) {
+        plan.settings.galleryFolders[card] = folder;
       }
-      const folder = stemOf(plan.cardFile(handle));
-      plan.want(
-        item.assetHash,
-        () => plan.leave("gallery", item.assetHash ?? "", "unreadable"),
-        (asset) => {
-          plan.settings.galleryFolders[plan.cardFile(handle)] = folder;
-          plan.addBytes("gallery", `user/images/${folder}/${asset.filename.slice(0, HASH_LENGTH)}.${assetExt(asset.filename)}`, asset.bytes);
-        },
-      );
-    }
-  }
-}
-
-// One pass over the blobs: an asset file's name opens with its content hash, and only wanted blobs are used. A wanted
-// blob the store no longer holds is reported by the use that wanted it.
-async function planAssets(source: StProfileSource, plan: PlanBuilder): Promise<void> {
-  if (plan.assets.size === 0) {
-    return;
-  }
-  const found = new Set<string>();
-  for await (const file of source.files("assets", plan.notes)) {
-    const hash = file.filename.slice(0, HASH_LENGTH);
-    for (const { use } of plan.assets.get(hash) ?? []) {
-      use(file);
-    }
-    found.add(hash);
-  }
-  for (const [hash, wanted] of plan.assets) {
-    if (!found.has(hash)) {
-      for (const { missing } of wanted) {
-        missing();
-      }
-    }
+      return bytes;
+    });
   }
 }
 
@@ -573,6 +547,8 @@ async function planLeftKinds(source: StProfileSource, plan: PlanBuilder): Promis
   }
 }
 
+// Read when it is written, after every entry before it, so it names only the avatars, background and galleries the
+// zip holds.
 function settingsFile({ settings }: PlanBuilder): Uint8Array {
   return json({
     [ST_POWER_USER_KEY]: { ...settings.powerUser, personas: settings.personas, ["persona_descriptions"]: settings.personaDescriptions },
@@ -588,22 +564,55 @@ function settingsFile({ settings }: PlanBuilder): Uint8Array {
   });
 }
 
-/** The SillyTavern export of the library `source` reads: every file with the door that takes it, and every row it
- *  left behind with why. */
-export async function planStProfileExport(source: StProfileSource): Promise<StProfilePlan> {
-  const plan = new PlanBuilder();
-  await planCharacters(source, plan);
-  await planChats(source, plan);
-  await planWorlds(source, plan);
-  await planPresets(source, plan);
-  await planThemes(source, plan);
+// Every entry in zip order. Cards come first because every later kind files by card; documents come before chats,
+// whose headers list the files attached to them.
+async function* planEntries(source: StProfileSource, plan: PlanBuilder): AsyncGenerator<StProfileEntry> {
+  yield* planCharacters(source, plan);
+  const chatHashes = await source.chatDocumentHashes();
+  yield* planDocuments(source, plan, new Set([...chatHashes.values()].flat()));
+  yield* planChats(source, plan, chatHashes);
+  yield* planWorlds(source, plan);
+  yield* planPresets(source, plan);
+  yield* planThemes(source, plan);
   await planRegex(source, plan);
-  await planUserSettings(source, plan);
-  await planPersonas(source, plan);
-  await planDocuments(source, plan);
-  await planGallery(source, plan);
-  await planAssets(source, plan);
+  yield* planUserSettings(source, plan);
+  yield* planPersonas(source, plan);
+  yield* planGallery(source, plan);
   await planLeftKinds(source, plan);
-  plan.addBytes("personas", "settings.json", settingsFile(plan));
-  return { entries: plan.entries, report: { files: plan.entries.map(({ path, kind, door }) => ({ path, kind, door })), left: plan.left } };
+  yield plan.entry("personas", "settings.json", null, () => Promise.resolve(settingsFile(plan)));
+}
+
+function listed({ path, kind, door }: StExportFile): StExportFile {
+  return { path, kind, door };
+}
+
+/** The SillyTavern export's dry run: every file it would write with the door that takes it, and every row it leaves
+ *  behind with why. It reads no card, blob or transcript body. */
+export async function stProfileDryRun(source: StProfileSource): Promise<StExportReport> {
+  const plan = new PlanBuilder();
+  const files: StExportFile[] = [];
+  for await (const entry of planEntries(source, plan)) {
+    files.push(listed(entry));
+  }
+  return { files, left: plan.left };
+}
+
+/** The SillyTavern export's zip files, one body read per pull, then its report at the zip root. The report names the
+ *  files written, and a body gone by write time among the rows left behind. */
+export async function* stProfileZip(source: StProfileSource): AsyncGenerator<StProfileZipFile> {
+  const plan = new PlanBuilder();
+  const files: StExportFile[] = [];
+  for await (const entry of planEntries(source, plan)) {
+    const bytes = await entry.bytes();
+    if (bytes === null) {
+      if (entry.source !== null) {
+        plan.leave(entry.source.kind, entry.source.item, "unreadable");
+      }
+      continue;
+    }
+    files.push(listed(entry));
+    yield { path: entry.path, bytes };
+  }
+  const report: StExportReport = { files, left: plan.left };
+  yield { path: ST_EXPORT_REPORT_FILE, bytes: json(report) };
 }

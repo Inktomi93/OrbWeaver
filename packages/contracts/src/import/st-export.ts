@@ -69,7 +69,8 @@ const stExportLeftSchema = z.strictObject({
   reason: z.enum(ST_EXPORT_LEFT_REASONS),
 });
 
-/** What a SillyTavern export carries and leaves: the dry run's answer and the zip's report, one value. */
+/** What a SillyTavern export carries and leaves: the dry run's answer and the zip's report. The zip's report can also
+ *  name a row that was gone by the time its file was written. */
 export const stExportReportSchema = z.strictObject({
   files: z.array(stExportFileSchema).readonly(),
   left: z.array(stExportLeftSchema).readonly(),
@@ -77,3 +78,10 @@ export const stExportReportSchema = z.strictObject({
 export type StExportReport = z.infer<typeof stExportReportSchema>;
 export type StExportFile = StExportReport["files"][number];
 export type StExportLeft = StExportReport["left"][number];
+
+/** The code the export door refuses a second SillyTavern export or dry run with while one runs for the owner. */
+export const ST_EXPORT_RUNNING_CODE = "export-running";
+
+/** The export door's refusal body while the owner's SillyTavern export or dry run runs. */
+export const stExportRefusalSchema = z.strictObject({ code: z.literal(ST_EXPORT_RUNNING_CODE), error: z.string() });
+export type StExportRefusal = z.infer<typeof stExportRefusalSchema>;

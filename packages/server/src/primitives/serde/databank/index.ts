@@ -165,6 +165,19 @@ function stAttachment(raw: unknown): StAttachment | null {
   return { file, name: shown.length > 0 ? shown : file };
 }
 
+/** A Data Bank file as a SillyTavern attachment entry carries it: the file, the name shown, its byte size and when it
+ *  was made (epoch ms). */
+export interface StAttachedFile extends StAttachment {
+  readonly size: number;
+  readonly created: number;
+}
+
+/** SillyTavern's attachment entry for one `user/files/` file (`uploadFileAttachmentToServer`, public/scripts/chats.js
+ *  in SillyTavern), the shape both the settings lists and a chat header hold. */
+export function stAttachmentEntry(file: StAttachedFile): Readonly<Record<string, unknown>> {
+  return { url: `/${ST_ATTACHMENT_URL_PREFIX}${file.file}`, size: file.size, name: file.name, created: file.created };
+}
+
 /** The entries of one SillyTavern attachment list that name a single `user/files/` file. Anything else is no
  *  attachment, so a list that is not an array reads as empty. */
 export function readStAttachments(raw: unknown): StAttachment[] {
