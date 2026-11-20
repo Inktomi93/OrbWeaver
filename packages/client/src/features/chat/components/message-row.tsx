@@ -96,6 +96,8 @@ export interface MessageRowProps {
   /** The chat-level §4.8 lenient naked-HTML card-wrap verdict (game chat + `features.immersiveHtml`) —
    *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
+  /** The room is a game whose immersive HTML cards are off, folded into this row's render policy. Absent ⇒ not. */
+  readonly gameCardsOff?: boolean | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
    *  (D166). Absent ⇒ the ordinary variant strip. */
@@ -179,6 +181,7 @@ export function MessageRow({
   anchorPersonaId,
   viewerUserId,
   lenientHtmlCards,
+  gameCardsOff,
   greeting,
   autoFixMarkdown,
   displayScripts,
@@ -262,6 +265,7 @@ export function MessageRow({
     kind: message.kind,
     narrator: narratorRender,
     lenientHtmlCards,
+    gameCardsOff,
     colorQuotedSpeech,
     viewerIsHost,
   });

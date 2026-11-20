@@ -182,6 +182,12 @@ interface ChatThreadProps {
 type CanonPage = Pick<inferOutput<Trpc["chat"]["listMessages"]>, "messages" | "identities">;
 type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 
+// A game room's card wrap from its `immersiveHtml` read: on wraps naked HTML into cards, and a read that landed OFF lets
+// each row say its card markup is not drawn as one. An unsettled read is neither.
+function gameCardWrap(isGame: boolean, immersiveHtml: boolean | undefined): { readonly lenientHtmlCards: boolean; readonly gameCardsOff: boolean } {
+  return { lenientHtmlCards: isGame && immersiveHtml === true, gameCardsOff: isGame && immersiveHtml === false };
+}
+
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
 function ChatThread({
   chatId,
@@ -224,7 +230,7 @@ function ChatThread({
   // #40 — a DISENGAGED game (pointer engaged:false) reads like a non-game chat (one predicate home).
   const isGame = isRpgEngaged(chatDetail.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
-  const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
+  const { lenientHtmlCards, gameCardsOff } = gameCardWrap(isGame, gameQuery.data?.publicConfig.immersiveHtml);
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);
   const roomStanding = roomStandingOf(chatDetail.participants);
@@ -428,6 +434,7 @@ function ChatThread({
         anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}
         lenientHtmlCards={lenientHtmlCards}
+        gameCardsOff={gameCardsOff}
         enterMotion={newArrivalKeys.has(item.view.id)}
         surfaceContributors={surfaceContributors}
         toolRenderers={toolRenderers}
