@@ -49,6 +49,7 @@ import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
 import { RoomReadFailure } from "../components/room-read-failure.tsx";
+import { RowHandover } from "../components/row-handover.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -303,7 +304,7 @@ function ChatThread({
   const seatedCharacterIds = [...participants.keys()];
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost);
-  const items = useMessageItems(messages, chatId, !edges.later);
+  const { items, ghostKey, rowDrawn } = useMessageItems(messages, chatId, !edges.later);
   const displayDepths = displayDepthsOf(items, edges);
   const liveCardRows = liveCardRowIds(items, (view) =>
     resolveRowRenderPolicy({
@@ -336,7 +337,7 @@ function ChatThread({
   );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
-  const newArrivalKeys = useNewArrivalKeys(items, chatId);
+  const newArrivalKeys = useNewArrivalKeys(items, chatId, ghostKey);
 
   const live = isLiveTurnPhase(phase);
 
@@ -395,85 +396,98 @@ function ChatThread({
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = fit?.compactSummary ?? null;
 
-  // Identity stays with its row even when a short turn crosses the transcript edge.
+  // The live turn's row: on its own item while it streams, then over its committed row's item until that row draws.
+  const ghostRow = (enterMotion: boolean, displayDepth: number | undefined): ReactElement => (
+    <GhostMessageRow
+      chatId={chatId}
+      chatStyle={chatStyle}
+      streaming={phase === "streaming" || phase === "stopping"}
+      attribution={ghostAttribution}
+      speakerCharacterId={ghostSpeakerCharacterId}
+      renderContext={ghostRenderContext}
+      messageKind={ghostKind}
+      displayDepth={displayDepth}
+      avatarSize={messageAppearance.avatarSize}
+      avatarShape={messageAppearance.avatarShape}
+      avatarAspect={messageAppearance.avatarAspect}
+      avatarRing={messageAppearance.avatarRing}
+      showInChatAvatars={messageAppearance.showInChatAvatars}
+      showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+      colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+      cardTier={ghostPolicy.cardTier}
+      heldCards={ghostPolicy.heldCards}
+      generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
+      holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
+      roomSheets={roomSheetsBefore(roomSources, Number.POSITIVE_INFINITY)}
+      smoothStream={behaviorPrefs.smoothStream}
+      smoothStreamCps={behaviorPrefs.smoothStreamCps}
+      reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
+      enterMotion={enterMotion}
+      stickyAttribution={true}
+    />
+  );
+  // Identity stays with its row even when a short turn crosses the transcript edge. Every item renders through the one
+  // hand-over shape, so the ghost and its committed row keep their elements when one takes the other's place.
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
-      <GhostMessageRow
-        chatId={chatId}
-        chatStyle={chatStyle}
-        streaming={phase === "streaming" || phase === "stopping"}
-        attribution={ghostAttribution}
-        speakerCharacterId={ghostSpeakerCharacterId}
-        renderContext={ghostRenderContext}
-        messageKind={ghostKind}
-        displayDepth={displayDepths.ghost}
-        avatarSize={messageAppearance.avatarSize}
-        avatarShape={messageAppearance.avatarShape}
-        avatarAspect={messageAppearance.avatarAspect}
-        avatarRing={messageAppearance.avatarRing}
-        showInChatAvatars={messageAppearance.showInChatAvatars}
-        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
-        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        cardTier={ghostPolicy.cardTier}
-        heldCards={ghostPolicy.heldCards}
-        generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
-        holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
-        roomSheets={roomSheetsBefore(roomSources, Number.POSITIVE_INFINITY)}
-        smoothStream={behaviorPrefs.smoothStream}
-        smoothStreamCps={behaviorPrefs.smoothStreamCps}
-        reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
-        enterMotion={newArrivalKeys.has(item.id)}
-        stickyAttribution={true}
-      />
+      <RowHandover ghost={ghostRow(newArrivalKeys.has(item.id), displayDepths.ghost)} row={null} onDrawn={undefined} />
     ) : (
-      <MessageRow
-        message={item.view}
-        neighbours={moveNeighboursAt(
-          messages,
-          messages.findIndex((message) => message.id === item.view.id),
-          edges,
-        )}
-        chatStyle={chatStyle}
-        stickyAttribution={true}
-        {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
-          // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
-          const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
-          return greeting === undefined ? {} : { greeting };
-        })()}
-        avatarSize={messageAppearance.avatarSize}
-        avatarShape={messageAppearance.avatarShape}
-        avatarAspect={messageAppearance.avatarAspect}
-        avatarRing={messageAppearance.avatarRing}
-        showInChatAvatars={messageAppearance.showInChatAvatars}
-        autoFixMarkdown={messageAppearance.autoFixMarkdown}
-        displayScripts={displayScripts}
-        roomStanding={roomStanding}
-        displayDepth={displayDepths.rows.get(item.view.id)}
-        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
-        metadataVisibility={messageAppearance.metadataVisibility}
-        viewerIsHost={chatDetail.viewerIsHost}
-        messageActions={messageAppearance.messageActions}
-        showSwipes={item.view.id === lastRowId}
-        lastRow={item.view.id === lastRowId}
-        contextBoundary={item.view.id === contextBoundaryMessageId}
-        contextBoundaryLabel={contextBoundaryLabel}
-        contextBoundaryCompactSummary={contextBoundaryCompactSummary}
-        participants={participants}
-        narratorRender={chatDetail.narratorRender}
-        characterNamesById={characterNamesById}
-        personaNamesById={personaNamesById}
-        personaAvatarsById={personaAvatarsById}
-        characterAvatarsById={characterAvatarsById}
-        activePersonaId={activePersonaId}
-        anchorPersonaId={chatDetail.anchorPersonaId}
-        viewerUserId={viewerUserId}
-        lenientHtmlCards={lenientHtmlCards}
-        gameCardsOff={gameCardsOff}
-        roomSheets={roomSheetsBefore(roomSources, item.view.seq)}
-        enterMotion={newArrivalKeys.has(item.view.id)}
-        surfaceContributors={surfaceContributors}
-        toolRenderers={toolRenderers}
+      <RowHandover
+        ghost={item.underGhost ? ghostRow(false, displayDepths.rows.get(item.view.id)) : null}
+        onDrawn={(): void => {
+          rowDrawn(item.view.id);
+        }}
+        row={
+          <MessageRow
+            message={item.view}
+            neighbours={moveNeighboursAt(
+              messages,
+              messages.findIndex((message) => message.id === item.view.id),
+              edges,
+            )}
+            chatStyle={chatStyle}
+            stickyAttribution={true}
+            {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
+              // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
+              const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
+              return greeting === undefined ? {} : { greeting };
+            })()}
+            avatarSize={messageAppearance.avatarSize}
+            avatarShape={messageAppearance.avatarShape}
+            avatarAspect={messageAppearance.avatarAspect}
+            avatarRing={messageAppearance.avatarRing}
+            showInChatAvatars={messageAppearance.showInChatAvatars}
+            autoFixMarkdown={messageAppearance.autoFixMarkdown}
+            displayScripts={displayScripts}
+            roomStanding={roomStanding}
+            displayDepth={displayDepths.rows.get(item.view.id)}
+            colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+            showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+            metadataVisibility={messageAppearance.metadataVisibility}
+            viewerIsHost={chatDetail.viewerIsHost}
+            messageActions={messageAppearance.messageActions}
+            showSwipes={item.view.id === lastRowId}
+            lastRow={item.view.id === lastRowId}
+            contextBoundary={item.view.id === contextBoundaryMessageId}
+            contextBoundaryLabel={contextBoundaryLabel}
+            contextBoundaryCompactSummary={contextBoundaryCompactSummary}
+            participants={participants}
+            narratorRender={chatDetail.narratorRender}
+            characterNamesById={characterNamesById}
+            personaNamesById={personaNamesById}
+            personaAvatarsById={personaAvatarsById}
+            characterAvatarsById={characterAvatarsById}
+            activePersonaId={activePersonaId}
+            anchorPersonaId={chatDetail.anchorPersonaId}
+            viewerUserId={viewerUserId}
+            lenientHtmlCards={lenientHtmlCards}
+            gameCardsOff={gameCardsOff}
+            roomSheets={roomSheetsBefore(roomSources, item.view.seq)}
+            enterMotion={newArrivalKeys.has(item.key)}
+            surfaceContributors={surfaceContributors}
+            toolRenderers={toolRenderers}
+          />
+        }
       />
     );
 
@@ -507,7 +521,7 @@ function ChatThread({
           items={items}
           getItemKey={messageItemKey}
           estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
-          keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
+          keepMounted={(item): boolean => item.kind === "message" && liveCardRows.has(item.view.id)}
           renderItem={(item): ReactNode => {
             const highlighted =
               item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;

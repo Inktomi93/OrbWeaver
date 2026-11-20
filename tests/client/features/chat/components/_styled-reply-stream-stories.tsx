@@ -55,7 +55,18 @@ function Transcript({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf, c
       {commit === undefined ? null : (
         <Button
           onClick={(): void => {
+            // The bus applier's calls for the reply's commit, then for the turn's completion.
+            busDeps.stream.markCommitted(chatId, commit.view.id, TURN_ID);
             busDeps.invalidate({ type: "messageCommitted", chatId, messageId: commit.view.id, view: commit.view, turnId: TURN_ID });
+            const completed = {
+              type: "turnCompleted",
+              chatId,
+              turnId: TURN_ID,
+              intent: swipeOf === undefined ? "send" : "swipe",
+              messageId: commit.view.id,
+            } as const;
+            busDeps.stream.completeTurn(chatId, TURN_ID, commit.view.id);
+            busDeps.invalidate(completed);
           }}
         >
           {commit.label}

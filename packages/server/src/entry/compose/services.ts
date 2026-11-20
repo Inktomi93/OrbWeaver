@@ -168,6 +168,7 @@ import { createBoxOwnerRead, createHostPrincipalResolver, createMultiHumanCapabi
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
 import { createUserContentSeeder } from "../boot/seed-user-content.ts";
+import type { CardFrameDeps } from "../http/index.ts";
 import { createRateLimitGate } from "../rate-limit-gate.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
@@ -194,6 +195,7 @@ import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { buildServiceJobs } from "./service-jobs.ts";
 import type { SessionsCrypto } from "./sessions-crypto.ts";
+import { chatTurnEnds } from "./turn-ends.ts";
 import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -339,6 +341,9 @@ export interface ServicesResult extends AsyncDisposable {
   readonly startJobs: ServiceJobs["start"];
   readonly workloadEvents: WorkloadProgressBus;
   readonly liveBuses: LiveBuses;
+  /** Hears each turn that ends in any room, completed or aborted, as the room's id and nothing else: the card-frame
+   *  store drops that room's forming frames (D354). The firehose stays here; no member's content leaves it (D162). */
+  readonly onChatTurnEnded: CardFrameDeps["onTurnEnded"];
   readonly egress: ScopedEgress;
   /** Absent without `FORWARD_AUTH_JWKS`: no operator keys means the signed path refuses every JWT. */
   readonly forwardJwtVerifier: ForwardJwtVerifier | undefined;
@@ -1604,6 +1609,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     startJobs: jobs.start,
     workloadEvents,
     liveBuses,
+    onChatTurnEnded: chatTurnEnds(liveBuses.chat),
     egress,
     forwardJwtVerifier,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),

@@ -13,6 +13,7 @@ export { ownerClaimLoginUrl, registerAuthRoutes, serializeSessionCookie } from "
 export type { BlobAssetsPort, BlobCasPort } from "./blob.ts";
 export { registerBlob } from "./blob.ts";
 
+export type { CardFrameDeps } from "./card-frame.ts";
 export { registerCardFrame } from "./card-frame.ts";
 export type { PrincipalEnv } from "./contract/request-env.ts";
 
