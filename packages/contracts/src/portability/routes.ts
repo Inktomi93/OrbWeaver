@@ -8,6 +8,7 @@ export const PORTABILITY_ROUTES = {
   importBundle: "/api/import/bundle",
   importTree: "/api/import/tree",
   importTreeReview: "/api/import/tree/review",
+  importTreeZip: "/api/import/tree/zip",
   restoreCardLorebook: "/api/import/restore-card-lorebook",
   exportLibrary: "/api/export/library",
   exportCharacter: "/api/export/character/:characterId",

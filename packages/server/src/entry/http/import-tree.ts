@@ -68,14 +68,13 @@ const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
-const OWNER_ONLY_DIR = 0o700;
+export const OWNER_ONLY_DIR = 0o700;
 
 // Total batch cap — the ceiling on the whole multipart body (formData buffers it in memory). Raised to
 // 1 GiB (owner) for whole-ST-profile folder imports: a real SillyTavern default-user tree
 // runs 500 MiB–1 GiB (character-card PNGs + chat logs dominate), and the 256 MiB memory-DoS ceiling is a
-// MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. NOTE the
-// .zip/bundle route is NOT an escape hatch here: it caps at 256 MiB COMPRESSED and only accepts an ORB
-// backup layout (no ST sniff), so the multipart tree route is the sole whole-ST-folder ingest.
+// MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. A zipped
+// profile goes through `import-tree-zip.ts` under the same total, per-file and count caps.
 // Per-file cap — the same per-blob bound the asset store + the zip per-entry belt enforce (64 MiB).
 // File-count ceiling — the zip extractor's per-archive entry cap (50k); the collect.ts MAX_DIR_ENTRIES (100k)
 // is the loop-guard shape, this is the route-level DoS bound on a single upload.
@@ -97,7 +96,7 @@ export interface ImportTreeDeps {
 type RejectStatus = typeof BAD_REQUEST | typeof PAYLOAD_TOO_LARGE;
 
 /** A fail-closed rejection: nothing was staged, the whole upload fails with this typed reason + status. */
-class TreeRejected extends Error {
+export class TreeRejected extends Error {
   readonly status: RejectStatus;
   constructor(status: RejectStatus, message: string, options?: ErrorOptions) {
     super(message, options);
@@ -110,7 +109,7 @@ class TreeRejected extends Error {
  *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF needs the header
  *  on every `via`, because this is a CORS-"simple" multipart route with no preflight and every credential can
  *  be ambient — see the WHY-block in upload.ts's authCsrfGuard. */
-const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
+export const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
@@ -121,7 +120,7 @@ const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnTy
   await next();
 };
 
-function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
+export function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
   return bodyLimit({ maxSize: maxBytes, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
 }
 
@@ -131,7 +130,7 @@ function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
  * same call the zip belt's `assertSafeName` makes), NUL bytes, and empty / `.` / `..` segments. Returns the
  * path unchanged; the resolve-prefix check at stage time is the second, authoritative belt.
  */
-function sanitizeRelPath(raw: string): string {
+export function sanitizeRelPath(raw: string): string {
   if (raw.length === 0) {
     throw new TreeRejected(BAD_REQUEST, "empty file path");
   }
@@ -160,7 +159,7 @@ function sanitizeRelPath(raw: string): string {
 
 /** The single leading path segment shared by EVERY path (the browser's picked-folder wrapper), or null if the
  *  paths don't share one. Stripped so the layout sniff + staging see the picked folder's CONTENTS. */
-function commonWrapper(paths: readonly string[]): string | null {
+export function commonWrapper(paths: readonly string[]): string | null {
   const [first] = paths;
   if (first === undefined) {
     return null;
@@ -174,7 +173,7 @@ function commonWrapper(paths: readonly string[]): string | null {
   return paths.every((p) => p.startsWith(prefix)) ? wrapper : null;
 }
 
-function stripWrapper(path: string, wrapper: string | null): string {
+export function stripWrapper(path: string, wrapper: string | null): string {
   return wrapper !== null ? path.slice(wrapper.length + 1) : path;
 }
 
@@ -223,7 +222,7 @@ async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
 
 /** Write one part under `stagedRoot` at `relTarget`. Resolves the final path and prefix-checks it against
  *  `stagedRoot` (the authoritative escape belt — never trust the string filter alone), then writes it. */
-async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Array): Promise<void> {
+export async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Array): Promise<void> {
   const target = resolve(stagedRoot, relTarget);
   if (target !== stagedRoot && !target.startsWith(stagedRoot + sep)) {
     throw new TreeRejected(BAD_REQUEST, `file path escapes the staging root: ${relTarget}`);
@@ -244,7 +243,7 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
 }
 
 /** The one name a Windows or macOS volume stores `name` under, by the fold the file header states. */
-function volumeFold(name: string): string {
+export function volumeFold(name: string): string {
   let folded = "";
   for (const codePoint of name.normalize("NFC")) {
     const simple = codePoint.toUpperCase().toLowerCase();
@@ -257,7 +256,7 @@ function volumeFold(name: string): string {
 /** Refuse two files whose paths differ only in letter case. A Windows or macOS volume holds them as one name, so
  *  the second write would collide there; refusing on every platform keeps the answer the same on a Linux host, and
  *  does it before any byte is staged. Two spellings of one directory are no collision unless a file path repeats. */
-function refuseCaseTwins(paths: readonly string[]): void {
+export function refuseCaseTwins(paths: readonly string[]): void {
   const firstByFold = new Map<string, string>();
   for (const path of paths) {
     const fold = volumeFold(path);
@@ -391,10 +390,15 @@ interface TreeContext {
   readonly json: (body: { readonly error: string }, status: RejectStatus | typeof CONFLICT) => Response;
 }
 
+/** The registry's entity-dir names, the native directory set layout admission reads. */
+export function nativeDirsOf(registry: PortabilityRegistry): ReadonlySet<string> {
+  return new Set(registry.map((entity) => entity.dir.replace(TRAILING_SLASH, "")));
+}
+
 /** Register `POST /api/import/tree`. Auth-first, CSRF-guarded, DoS-capped; sanitizes + stages the folder
  *  batch, sniffs the layout, and starts the matching per-owner import workload, replying 202 with the id. */
 export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
-  const nativeDirs = new Set(deps.registry.map((entity) => entity.dir.replace(TRAILING_SLASH, "")));
+  const nativeDirs = nativeDirsOf(deps.registry);
   app.post(PORTABILITY_ROUTES.importTree, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {

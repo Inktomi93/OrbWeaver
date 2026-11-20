@@ -173,7 +173,7 @@ test.each(SOURCES)("a hostile archive read from %s is refused with its kind and 
 
   // A null census is a root the extractor never created: those archives are refused before staging starts.
   expect(outcomes).toEqual({
-    truncated: { refused: "malformed", leftovers: null },
+    truncated: { refused: "no-directory", leftovers: null },
     "central directory past the end": { refused: "malformed", leftovers: null },
     "a name that escapes the staging root": { refused: "zip-slip", leftovers: null },
     "more compressed bytes than any encoder writes": { refused: "malformed", leftovers: null },
