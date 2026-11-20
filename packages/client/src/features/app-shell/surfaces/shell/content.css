@@ -3,7 +3,8 @@
 @layer shell {
   /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the screen's content: this pane, or
    * on a phone the list when the list is the screen (mobile.css), never both at once. A root capture paints a still
-   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
+   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The shell's own floats
+   * carry names of their own during a swap (below), so they stay above the content they cover. The
    * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
   :root {
     view-transition-name: none;
@@ -40,6 +41,7 @@
     /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
     animation-fill-mode: both;
   }
+
   .shell-region-fill {
     flex: 1 1 auto;
     min-block-size: 0;
@@ -75,5 +77,55 @@
   .shell-scrim[data-visible="true"] {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  /* The snapshots paint above every live element, so a sheet over the captured region would sit under them for the
+   * whole fade (ui-surface-and-interaction-rules §5.7). Each shell sheet, and the scrim while it dims, therefore carry a
+   * capture name of their own while a swap runs, and paint above the content in their own paint order. A pane is a
+   * sheet while it floats (`overlay`) and, in a
+   * regime where it is only ever a sheet (`data-panel-sheet`, and every phone context pane in mobile.css), while it is
+   * parked too, so its exit slide stays on top. A docked pane that collapses is chrome and stays uncaptured. Named only
+   * during a swap, so at rest the pane is no capture root for the glass inside it. */
+  :root:active-view-transition .shell-panel[data-panel-side="list"]:is([data-panel-mode="overlay"], [data-panel-sheet]) {
+    view-transition-name: orb-shell-list-sheet;
+  }
+  :root:active-view-transition .shell-panel[data-panel-side="context"]:is([data-panel-mode="overlay"], [data-panel-sheet]) {
+    view-transition-name: orb-shell-context-sheet;
+  }
+  :root:active-view-transition .shell-scrim[data-visible="true"] {
+    view-transition-name: orb-shell-scrim;
+  }
+  /* A float paints live: its group follows the element's own box each frame and its new side is the live element, so
+   * its own slide or fade runs unchanged. A float the swap closes has only its old side, which leaves with the
+   * outgoing content at the outgoing step. */
+  ::view-transition-group(orb-shell-list-sheet),
+  ::view-transition-group(orb-shell-context-sheet),
+  ::view-transition-group(orb-shell-scrim) {
+    animation-name: none;
+  }
+  ::view-transition-new(orb-shell-list-sheet),
+  ::view-transition-new(orb-shell-context-sheet),
+  ::view-transition-new(orb-shell-scrim) {
+    animation: none;
+  }
+  ::view-transition-old(orb-shell-list-sheet),
+  ::view-transition-old(orb-shell-context-sheet),
+  ::view-transition-old(orb-shell-scrim) {
+    animation: none;
+    opacity: 0;
+  }
+  ::view-transition-old(orb-shell-list-sheet):only-child,
+  ::view-transition-old(orb-shell-context-sheet):only-child,
+  ::view-transition-old(orb-shell-scrim):only-child {
+    opacity: 1;
+    animation-name: orb-shell-float-leave;
+    animation-duration: var(--motion-fast);
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+  @keyframes orb-shell-float-leave {
+    to {
+      opacity: 0;
+    }
   }
 }

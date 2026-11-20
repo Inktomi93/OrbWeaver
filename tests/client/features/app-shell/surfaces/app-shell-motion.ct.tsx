@@ -3,7 +3,7 @@
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 
 import { spawn } from "node:child_process";
-import { contextToggleLabel, SIDECAR_PANELS_NOUN, sectionBackName } from "@orb/client/lib";
+import { contextPaneLabel, contextToggleLabel, panelCloseName, SIDECAR_PANELS_NOUN, sectionBackName } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import {
@@ -23,6 +23,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page, PlaywrightTestArgs } from "@playwright/test";
 import { z } from "zod";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -881,9 +882,12 @@ test.describe("on a phone", () => {
       const seen: Capture[] = [];
       Reflect.set(globalThis, "__swapCaptures", seen);
       Reflect.set(globalThis, "__swapStep", "mount");
-      // How many rendered boxes carry a capture name: the old side is read as the swap starts, the new side once it is ready.
+      // How many rendered boxes carry the content's capture name: the old side is read as the swap starts, the new side
+      // once it is ready. The shell's sheets carry names of their own during a swap, so they are not counted.
       const named = (): number =>
-        [...document.body.querySelectorAll("*")].filter((el) => getComputedStyle(el).viewTransitionName !== "none" && el.getClientRects().length > 0).length;
+        [...document.body.querySelectorAll("*")].filter(
+          (el) => getComputedStyle(el).viewTransitionName === "orb-section-content" && el.getClientRects().length > 0,
+        ).length;
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
         const record: Capture = { step: String(Reflect.get(globalThis, "__swapStep")), before: named(), after: -1, pseudos: [], refused: null };
@@ -970,6 +974,84 @@ test.describe("on a phone", () => {
   });
 });
 
+// A band of the phone screen the open Context sheet paints as its bare body, below its empty-state copy, where the
+// list behind it paints rows.
+const SHEET_BODY = { x: 0, y: 320, width: PHONE.width, height: 420 } as const;
+
+test.describe("a section swap under the phone Context sheet", () => {
+  test.use({ hasTouch: true, viewport: PHONE });
+
+  test("keeps the sheet above the list's snapshot through the transition", async ({ corpus, mount, page }) => {
+    await page.addInitScript(() => {
+      const seen: { sheetName: string; refused: string | null }[] = [];
+      Reflect.set(globalThis, "__sheetSwaps", seen);
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
+        const record: { sheetName: string; refused: string | null } = { sheetName: "", refused: null };
+        seen.push(record);
+        const transition = start(update);
+        transition.ready.then(
+          () => {
+            const sheet = document.querySelector('.shell-panel[data-panel-side="context"]');
+            record.sheetName = sheet === null ? "" : getComputedStyle(sheet).viewTransitionName;
+            // Hold the first frame, the sheet's own slide with it, until the spec has photographed what covers what.
+            const held = document.getAnimations();
+            for (const animation of held) {
+              animation.pause();
+            }
+            Reflect.set(globalThis, "__swapHeld", true);
+            const release = (): void => {
+              if (Reflect.get(globalThis, "__swapRelease") !== true) {
+                requestAnimationFrame(release);
+                return;
+              }
+              for (const animation of held) {
+                animation.play();
+              }
+            };
+            requestAnimationFrame(release);
+          },
+          (error: unknown) => {
+            record.refused = error instanceof Error ? error.name : String(error);
+          },
+        );
+        return transition;
+      };
+    });
+    await seedShellState(page, { activeSection: "chats" });
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellStory>(STORY, {});
+    const grid = page.locator(".shell-grid");
+    await expect(grid).toHaveAttribute("data-list-mode", "docked");
+    await waitForShellIdle(page);
+    const listAlone = await page.screenshot({ clip: SHEET_BODY });
+
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).tap();
+    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "overlay");
+    await waitForShellIdle(page);
+    const sheetOpen = await page.screenshot({ clip: SHEET_BODY });
+    // The control: the band tells the two apart, so a held frame equal to the sheet's is not the list's.
+    expect(sheetOpen.equals(listAlone)).toBe(false);
+
+    // The frame under the sheet is inert, so the swap comes from a door that is live over it: the palette's Go to row.
+    await page.keyboard.press("Meta+KeyK");
+    const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
+    await palette.getByRole("option", { name: SECTION_LABELS.characters, exact: true }).click();
+    await page.waitForFunction(() => Reflect.get(globalThis, "__swapHeld") === true);
+    const heldFrame = await page.screenshot({ clip: SHEET_BODY });
+    await page.evaluate(() => Reflect.set(globalThis, "__swapRelease", true));
+    await expect(grid).toHaveAttribute("data-section", "characters");
+    await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
+
+    // Before the fix the held frame was the old list's snapshot painted over the sheet.
+    expect(heldFrame.equals(sheetOpen)).toBe(true);
+    const swaps = z
+      .array(z.object({ sheetName: z.string(), refused: z.string().nullable() }))
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetSwaps")));
+    expect(swaps).toStrictEqual([{ sheetName: "orb-shell-context-sheet", refused: null }]);
+  });
+});
+
 test("at an overlay width a closing details sheet keeps its box below the topbar for its whole exit", async ({ corpus, mount, page }) => {
   await page.setViewportSize(OVERLAY_WIDTH);
   await seedShellState(page, { activeSection: "chats" });
@@ -1004,6 +1086,87 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
   const tops = z.array(z.number()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetTops")));
   expect(tops.length).toBeGreaterThan(3);
   expect(tops.filter((top) => top !== openTop)).toStrictEqual([]);
+});
+
+/** Per frame once the context pane is collapsing and still on screen: the shadow it casts. Read back by {@link exitShadows}. */
+function sampleExitShadows(page: Page): Promise<void> {
+  return page.evaluate((limit) => {
+    const panel = document.querySelector('.shell-panel[data-panel-side="context"]');
+    const shadows: string[] = [];
+    Reflect.set(globalThis, "__sheetShadows", shadows);
+    let frames = 0;
+    const tick = (): void => {
+      const box = panel?.getBoundingClientRect();
+      if (panel?.getAttribute("data-panel-mode") === "collapsed" && box !== undefined && box.left < window.innerWidth) {
+        shadows.push(getComputedStyle(panel).boxShadow);
+      }
+      frames += 1;
+      if (frames < limit) {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  }, SAMPLE_FRAMES);
+}
+
+async function exitShadows(page: Page): Promise<string[]> {
+  return z.array(z.string()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetShadows")));
+}
+
+// A held transition serializes its start colour in its interpolation space (`oklab`), the resting value in the
+// authored one (`oklch`), so two reads of one shadow compare on their layers' offsets, blurs, spreads and insets.
+const SHADOW_COLOR = /okl(?:ab|ch)\([^)]*\)/gu;
+const shadowLayers = (shadow: string): string => shadow.replace(SHADOW_COLOR, "colour");
+
+// A pane sliding over content is a float (ui-surface-and-interaction-rules §2.4): it casts until it is off screen.
+for (const [regime, viewport] of [
+  ["an overlay-width desktop", OVERLAY_WIDTH],
+  ["a phone", PHONE],
+] as const) {
+  test(`on ${regime} a closing context sheet casts its open float shadow on every frame it is on screen`, async ({ corpus, mount, page }) => {
+    await page.setViewportSize(viewport);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellStory>(STORY, {});
+    const pane = page.locator(CONTEXT);
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+    await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+    await waitForShellIdle(page);
+    const openShadow = await pane.evaluate((el) => getComputedStyle(el).boxShadow);
+    expect(openShadow).not.toBe("none");
+    await sampleExitShadows(page);
+    // The phone sheet's own dismiss stands in for the topbar toggle while it is open.
+    const close =
+      viewport === PHONE
+        ? pane.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true })
+        : page.getByRole("button", { name: contextToggleLabel(false), exact: true });
+    await close.click();
+    await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+    await waitForShellIdle(page);
+    const shadows = await exitShadows(page);
+    expect(shadows.length).toBeGreaterThan(3);
+    expect(shadows.map(shadowLayers)).toStrictEqual(shadows.map(() => shadowLayers(openShadow)));
+    // Parked off screen it casts nothing, so no shadow spills past the edge it left by.
+    await expect(pane).toHaveCSS("box-shadow", "none");
+  });
+}
+
+test("under reduced motion a closing context sheet leaves with its shadow in one frame", async ({ corpus, mount, page }) => {
+  await emulateMedia(page, { motion: "reduce" });
+  await page.setViewportSize(OVERLAY_WIDTH);
+  await seedShellState(page, { activeSection: "chats" });
+  await routeMotion(page, corpus);
+  await mount<typeof AppShellStory>(STORY, {});
+  const pane = page.locator(CONTEXT);
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+  await expect(pane).toHaveCSS("transition-property", "none");
+  await sampleExitShadows(page);
+  await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
+  await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(pane).toHaveCSS("box-shadow", "none");
+  // The floor removes the slide, so no frame finds the pane on screen once it is parked.
+  expect(await exitShadows(page)).toStrictEqual([]);
 });
 
 // The thread's rows and the composer sit on one axis whether the plugin column is in the row, parked or absent, and the

@@ -168,6 +168,32 @@ test("application, unattributed legacy, and unsupported Base UI dirty animations
   });
 });
 
+// The rail's scroll fade as Chromium reports it: a CSS animation whose keyframes animate only registered custom
+// properties, which `getKeyframes()` drops, so the record carries the name and the timeline and no property.
+const SCROLL_FADE = dirtyAnimation({
+  target: "nav[aria-label=Primary]",
+  properties: [],
+  targetState: { startingStyle: false, endingStyle: false },
+  lifecycleState: null,
+  attribution: { owner: "application", mechanism: "css-animation" },
+  name: "scroll-fade-top",
+  timeline: "scroll",
+});
+
+test("a CSS animation on a scroll timeline leaves the time budget, and the same animation on the document clock does not", () => {
+  const onTheClock = { ...SCROLL_FADE, timeline: "document" } as const;
+  const legacyBundle = dirtyAnimation({ properties: [], attribution: { owner: "application", mechanism: "css-animation" } });
+
+  expect(animationTotals([SCROLL_FADE])).toMatchObject({ rawDirty: 1, sanctionedScrollDriven: 1, budgetedDirty: 0 });
+  expect(evaluateMotionAudit(auditData({ animations: [SCROLL_FADE] }), 2500, "assert")).toMatchObject({
+    scrollDrivenAnimations: 1,
+    budgetedDirtyAnimations: 0,
+    budgetsPass: true,
+  });
+  expect(animationTotals([onTheClock, legacyBundle])).toMatchObject({ rawDirty: 2, sanctionedScrollDriven: 0, budgetedDirty: 2 });
+  expect(evaluateMotionAudit(auditData({ animations: [onTheClock] }), 2500, "assert")).toMatchObject({ budgetsPass: false });
+});
+
 test("a counterfeit Base UI owner/phase tuple is an attribution evidence gap", () => {
   const counterfeit = dirtyAnimation({
     targetState: { startingStyle: false, endingStyle: true },

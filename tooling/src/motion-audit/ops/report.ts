@@ -27,6 +27,7 @@ export interface MotionAuditEvaluation {
   /** Non-compositor-clean TRANSIENT raises — the 130–360ms band the sample above cannot see (#1070). */
   readonly transientDirtyAnimations: number;
   readonly sanctionedLibraryAnimations: number;
+  readonly scrollDrivenAnimations: number;
   readonly budgetedDirtyAnimations: number;
   /** FALSE ⇒ the dropped-frame arm was skipped because its population cannot support a rate (#1148).
    * Carried on the evaluation so a `budgetsPass: true` is never read as "frames were clean". */
@@ -45,6 +46,7 @@ export function evaluateMotionAudit(data: AuditData, windowMs: number, timingPol
     dirtyAnimations: animations.rawDirty,
     transientDirtyAnimations: animations.transientDirty,
     sanctionedLibraryAnimations: animations.sanctionedLibrary,
+    scrollDrivenAnimations: animations.sanctionedScrollDriven,
     budgetedDirtyAnimations: animations.budgetedDirty,
     framesBudgetJudged: timingPolicy === "assert" && framesBudgetJudgeable(data),
     measurementsOverBudget: overBudget,
