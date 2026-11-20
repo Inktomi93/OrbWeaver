@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: blocked
 updated: 2026-11-20
 priority: P2
 area: security
+blocked: owner
 plan: chat-html-and-presets
 ---
 
@@ -11,7 +12,7 @@ plan: chat-html-and-presets
 
 ## What
 
-Replies now carry stylesheets from earlier character-written rows at the sandboxed step, as SillyTavern applies every displayed message's sheet to every message. Rows whose classes are defined by a member's or system row's sheet stay unstyled: on the owner's real data, five relying rows in SillyTavern imports depend on an imported first row written by the user. Carrying a member's sheet would let one member's CSS style the character's replies on every member's screen, inside the sandboxed frame only.
+Today only character rows at the sandboxed step contribute room stylesheets (roomSheetSources), so imported rows that rely on a user-row sheet draw unstyled. Options: (a) never carry, today's behaviour, no new risk; (b) a member's sheet carries only into that member's own view, self-styling with no cross-author effect, which does not fix imports others view; (c) a member's sheet carries for every viewer behind a host room switch as a null author, so external media never loads; cross-author CSS inside frames can restyle or hide a character's text, with no script and no fetch; (d) carry only from rows an import wrote as the user, a narrow fix that adds a provenance bit. The security review recommends (c) with media forced off; the smallest step is (b).
 
 ## Why
 
