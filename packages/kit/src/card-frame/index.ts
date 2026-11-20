@@ -184,6 +184,10 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * only through its own confirm, raised from a frame its focus gate admitted. A document whose root carries
  * {@link CARD_FRAME_MISSING_ATTRIBUTE} (the server's miss notice) says so once it loads, so a reply frame can mint
  * again instead of showing the notice in place of the reply.
+ * PANELS: on every `toggle` it posts the indexes of the document's open `details` elements, and at load it sets
+ * each `details` open exactly when the root's {@link CARD_FRAME_OPEN_PANELS_ATTRIBUTE} names its index, so a host
+ * that kept the last report can restore the reader's panels in a fresh document. The report flows out only; nothing
+ * the host sends reaches a running document, so no card script can forge a host instruction.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
  * hash below is computed over exactly this string, so any edit (even whitespace) must recompute the digest.
  *
@@ -196,13 +200,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href],area[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}function panels(){var open=[];var all=document.querySelectorAll("details");for(var i=0;i<all.length;i++){if(all[i].open){open.push(i);}}parent.postMessage({orbCardFramePanels:open},"*");}addEventListener("DOMContentLoaded",function(){var root=document.documentElement;var saved=root.getAttribute("data-frame-open-panels");if(saved!==null){var marks=" "+saved+" ";var all=document.querySelectorAll("details");for(var i=0;i<all.length;i++){all[i].open=marks.indexOf(" "+i+" ")!==-1;}}new ResizeObserver(post).observe(document.body);if(root.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("toggle",panels,true);addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href],area[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-Uki64FSn1l3jNRK+040ZgvTzvEPqYmIQvLQYLzTCqY4='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-VIclTO6EVLJm+2EQf0XVBy7VYmZzl7ZN6oa/JwIRxEI='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -262,6 +266,7 @@ export type CardFrameHeightCap = keyof typeof CARD_FRAME_HEIGHT_CAPS;
 const HEIGHT_KEY = "orbCardFrameHeight";
 const LINK_KEY = "orbCardFrameLink";
 const MISSING_KEY = "orbCardFrameMissing";
+const PANELS_KEY = "orbCardFramePanels";
 
 /** The root attribute that marks the server's miss notice: the handle is unknown, expired or evicted. The pinned
  *  script reads it by this exact name. */
@@ -271,6 +276,44 @@ export const CARD_FRAME_MISSING_ATTRIBUTE = "data-frame-missing";
  *  the caller still owes the sender check, and the worst a lying frame earns is one fresh mint of its own reply. */
 export function readCardFrameMissing(data: unknown): boolean {
   return isPlainObject(data) && data[MISSING_KEY] === true;
+}
+
+/** The root attribute that carries a document's open panels into a fresh build: the indexes, in document order, of
+ *  the `details` elements to open, space-separated. The pinned script reads it by this exact name. */
+export const CARD_FRAME_OPEN_PANELS_ATTRIBUTE = "data-frame-open-panels";
+
+/** The bound on one panels report, sized so the longest value stays inside the root-attribute grammar's length. */
+export const CARD_FRAME_PANEL_LIMITS = { count: 32, maxIndex: 999 } as const;
+
+/**
+ * The open panels one `message` payload reports, sorted, deduplicated and within {@link CARD_FRAME_PANEL_LIMITS}, or
+ * `undefined` when the payload is no panels report. UNTRUSTED like every frame message: an interactive card's own
+ * script can post any report, so the caller still owes the sender check, and the worst a lying frame earns is which of
+ * its own panels open in its next document.
+ */
+export function readCardFramePanels(data: unknown): readonly number[] | undefined {
+  if (!isPlainObject(data)) {
+    return undefined;
+  }
+  const raw: unknown = data[PANELS_KEY];
+  // A list longer than the indexes it can name is no report, and refusing it unread keeps the scan bounded.
+  if (!Array.isArray(raw) || raw.length > CARD_FRAME_PANEL_LIMITS.maxIndex + 1) {
+    return undefined;
+  }
+  const entries: readonly unknown[] = raw;
+  const open = new Set<number>();
+  for (const index of entries) {
+    if (typeof index === "number" && Number.isSafeInteger(index) && index >= 0 && index <= CARD_FRAME_PANEL_LIMITS.maxIndex) {
+      open.add(index);
+    }
+  }
+  return [...open].toSorted((left, right) => left - right).slice(0, CARD_FRAME_PANEL_LIMITS.count);
+}
+
+/** The {@link CARD_FRAME_OPEN_PANELS_ATTRIBUTE} value for a report {@link readCardFramePanels} returned. An empty value
+ *  is a report too: the reader closed every panel, so the fresh document opens none. */
+export function cardFrameOpenPanelsValue(panels: readonly number[]): string {
+  return panels.join(" ");
 }
 // The only addresses a framed link may hand the host: a page (an absolute http or https URL with a host) or a mail
 // draft. `javascript:`, `data:`, `blob:`, a relative path and every app-internal scheme stay refused. No control

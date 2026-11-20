@@ -23,6 +23,7 @@
 // The frame then mints again once (`useCardFrame`); a second miss renders the inert fallback, never the notice in
 // place of the reply.
 
+import { CARD_FRAME_OPEN_PANELS_ATTRIBUTE, cardFrameOpenPanelsValue, readCardFramePanels } from "@orb/kit/card-frame";
 import type { FrameStyleSheet } from "@orb/kit/content";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
@@ -30,9 +31,9 @@ import { FILLS_MEASURE } from "@orb/ui/lib";
 import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useFramedLinkConfirm } from "#components";
-import { useCardFrame } from "#data";
+import { readFramePanels, rememberFramePanels, useCardFrame } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
@@ -109,9 +110,23 @@ function deliveryOf(input: {
   return !input.framedable || input.documentFailed || input.mintRefused ? "fallback" : "held";
 }
 
+// The open panels a run's next document restores: read once per run's bytes, so a toggle the reader makes is kept for a
+// later mount and never re-mints the frame on show.
+function useRestoredPanels(panelsKey: string): readonly number[] | undefined {
+  const [restored, setRestored] = useState(() => ({ key: panelsKey, panels: readFramePanels(panelsKey) }));
+  if (restored.key !== panelsKey) {
+    const next = { key: panelsKey, panels: readFramePanels(panelsKey) };
+    setRestored(next);
+    return next.panels;
+  }
+  return restored.panels;
+}
+
 export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
   const host = useRef<HTMLDivElement>(null);
   const sandbox = useSandboxTheme();
+  const panelsKey = JSON.stringify([segments, styles]);
+  const restoredPanels = useRestoredPanels(panelsKey);
   // The sandbox theme is in the key, so a theme flip, a custom theme or a text scale reads the page's look again.
   const framed = useFrameDocument(
     JSON.stringify([segments, styles, colorQuotes, sandbox]),
@@ -130,7 +145,10 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
           themeTokens: { ...built.look.themeTokens, ...sandbox.themeTokens },
           styleTokens: sandbox.styleTokens,
           fontFamily: sandbox.fontFamily,
-          rootAttributes: built.look.rootAttributes,
+          rootAttributes:
+            restoredPanels === undefined
+              ? built.look.rootAttributes
+              : { ...built.look.rootAttributes, [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: cardFrameOpenPanelsValue(restoredPanels) },
         },
   );
   const { mint } = frame;
@@ -156,6 +174,13 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
             links.requestLink(url, host.current);
           }}
           onMissing={frame.onMissing}
+          onHostMessage={(data): void => {
+            // SandboxFrame proved the sender is this frame's window; the parse bounds what the report may say.
+            const panels = readCardFramePanels(data);
+            if (panels !== undefined) {
+              rememberFramePanels(panelsKey, panels);
+            }
+          }}
           pending={held}
           onFloor={frame.giveUp}
         />
