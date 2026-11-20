@@ -635,8 +635,9 @@ export interface MessageView {
   reasoning: string | null;
   model: ModelId | null;
   provider: ProviderId | null;
-  /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
-   *  words, OPAQUE provenance never compared or switched on. */
+  /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason` and `terminalReason` are raw words, opaque
+   *  provenance never switched on, with one exception: a kept stopped reply stores the `TurnAbortReason` that cut it as its
+   *  `terminalReason`, so `user` there means the reader stopped it. */
   finishReason: NormalizedFinishReason | null;
   stopReason: string | null;
   terminalReason: string | null;

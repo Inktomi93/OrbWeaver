@@ -9,9 +9,19 @@
 // THE OUTCOME NOTICE WAS KILLED (#1876, owner ruling). The "cut off — length cap" badge caused confusion
 // (not role-gated, an edit triggered it, unreadable on some themes) and was removed entirely.
 // `messageOutcomeNotice`, `MessageOutcomeNotice` and the supporting types were deleted in the same commit.
+// A stop the reader pressed is not that notice: it reads the stored abort reason, never a finish reason or an edit, and
+// it is a neutral mark, not a badge about the model's output.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
+
+const READER_STOP = "user" satisfies TurnAbortReason;
+
+/** Whether the reader's Stop ended this swipe's generation. The engine stores the abort reason that cut a kept reply as its
+ *  terminal reason, and a reply continued past its stop is no longer the reply the reader stopped. */
+export function readerStoppedReply(message: MessageView): boolean {
+  return message.terminalReason === READER_STOP && !message.hasContinuation;
+}
 
 /** The server-counted #n of a row; null until a read numbers it, as with the rows `startChat` seeds into the cache. */
 export function messageNumberLabel(message: MessageView): string | null {

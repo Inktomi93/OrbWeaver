@@ -69,6 +69,7 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "rpg-doorway-line", to: null, see: "muted-line" },
   { kind: "slot", name: "rpg-veiled-log-unreadable", to: null, see: "muted-line" },
   { kind: "slot", name: "wire-params-unrecorded", to: null, see: "muted-line" },
+  { kind: "slot", name: "regex-on-screen-stop-reason", to: "regex-stop-reason" },
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },

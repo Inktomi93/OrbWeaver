@@ -1,12 +1,13 @@
-// A reply the reader stopped mid-stream stays in the room as an ordinary tail row: it can be continued, swiped,
+// A reply the reader stopped mid-stream stays in the room as a tail row carrying a quiet Stopped mark in every chat style: it can be continued, swiped,
 // edited and deleted like any finished reply. Across the Stop itself, the streamed text never leaves the screen, the
 // transcript never shrinks while the streaming bubble hands over to the kept row, and the bubble does not stay behind a
 // kept row that was deleted before this page saw it.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import {
   createShellAmbientReads,
   ROOM_PROCEDURES,
@@ -26,11 +27,14 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTINUE_REPLY_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_STOPPED_MARK } from "#client/features/chat/lib/transcript-copy.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
+import { openReadingRoom } from "./chat-style-reading.fixtures.ts";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const KEPT = "The lantern gutters as the door";
@@ -100,8 +104,10 @@ async function streamingRoom(root: Harness): Promise<{ readonly caller: Caller; 
   throw new Error("Corpus needs a room with a character reply");
 }
 
-test("a reply stopped after streamed text stays as the tail row and offers continue, swipe, edit and delete", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness(undefined, { providerFetch });
+type Kept = Awaited<ReturnType<Harness["services"]["chat"]["send"]>>["messages"][number];
+
+/** Press Stop once the reply's text streamed, and return the room and the reply the turn kept. */
+async function stopMidStream(root: Harness): Promise<{ readonly caller: Caller; readonly room: { readonly id: ChatId }; readonly kept: Kept }> {
   const principal = await root.principalFor(root.ownerId);
   const { caller, room } = await streamingRoom(root);
   const streamed = Promise.withResolvers<void>();
@@ -129,6 +135,12 @@ test("a reply stopped after streamed text stays as the tail row and offers conti
   if (kept === undefined) {
     throw new Error("the stopped turn kept no reply");
   }
+  return { caller, room, kept };
+}
+
+test("a reply stopped after streamed text stays as the tail row and offers continue, swipe, edit and delete", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { providerFetch });
+  const { caller, room, kept } = await stopMidStream(root);
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await seedShellState(page, { activeSection: "chats" });
@@ -310,4 +322,60 @@ test("a kept reply deleted before this page heard of it leaves no streaming bubb
   await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible();
   await expect(page.locator(BUBBLE)).toHaveCount(0);
   await expect(page.locator('[data-slot="message-row"]', { hasText: KEPT })).toHaveCount(0);
+});
+
+interface StoppedRoom {
+  readonly root: Harness;
+  readonly roomId: ChatId;
+  readonly keptId: MessageId;
+  readonly finishedId: MessageId;
+}
+
+// The room the suite below built; its cases read it through `stoppedRoom`, so a loop of cases never closes over a `let`.
+let built: StoppedRoom | undefined;
+
+function stoppedRoom(): StoppedRoom {
+  if (built === undefined) {
+    throw new Error("The stopped room is not built; the suite's beforeAll builds it");
+  }
+  return built;
+}
+
+test.describe("a reply the reader stopped", () => {
+  test.beforeAll(async () => {
+    await using construction = new AsyncDisposableStack();
+    const root = construction.use(await createCorpusHarness(undefined, { providerFetch }));
+    const { caller, room, kept } = await stopMidStream(root);
+    const { messages } = await caller.chat.listMessages({ chatId: room.id, limit: 6 });
+    const finished = messages.find((message) => message.role === "assistant" && message.id !== kept.id);
+    if (finished === undefined) {
+      throw new Error("The corpus room holds no reply the model finished");
+    }
+    built = { root, roomId: room.id, keptId: kept.id, finishedId: finished.id };
+    construction.move();
+  });
+
+  test.afterAll(async () => {
+    await stoppedRoom().root[Symbol.asyncDispose]();
+  });
+
+  for (const chatStyle of THEME_CHAT_STYLES) {
+    test(`carries the quiet Stopped mark in ${chatStyle}, and a reply the model finished does not`, async ({ corpus, mount, page }) => {
+      const { root, roomId, keptId, finishedId } = stoppedRoom();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await seedShellState(page, { activeSection: "chats" });
+      await openReadingRoom(page, corpus, root, { chatStyle, art: false });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: roomId });
+      const stopped = page.locator(`[data-slot="message-row"][data-message-id="${keptId}"]`);
+      const finished = page.locator(`[data-slot="message-row"][data-message-id="${finishedId}"]`);
+      await expect(stopped.locator('[data-slot="message-bubble"]')).toContainText(KEPT);
+      // The positive control: the finished reply is on screen, so its missing mark is not a missing row.
+      await expect(finished).toHaveCount(1);
+      const mark = stopped.getByText(MESSAGE_STOPPED_MARK, { exact: true });
+      await expect(mark).toBeVisible();
+      await expect(finished.getByText(MESSAGE_STOPPED_MARK, { exact: true })).toHaveCount(0);
+      // Neutral: the muted ink every metadata datum wears, never a warning or failure tone.
+      expect(await mark.evaluate((node) => getComputedStyle(node).color)).toBe(await tokenColor(mark, TOKENS["color.muted-foreground"].cssVar, "color"));
+    });
+  }
 });

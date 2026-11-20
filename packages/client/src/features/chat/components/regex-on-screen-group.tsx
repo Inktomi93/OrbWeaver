@@ -51,8 +51,8 @@ import {
   regexTierKicker,
   regexTierLever,
 } from "../lib/regex-section-model.ts";
-import { REGEX_BROWSER_STOPPED_MARK, REGEX_BROWSER_STOPPED_REASON, REGEX_NOT_APPLIED_MARK, regexNotAppliedReason } from "../lib/regex-stop-copy.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
+import { RegexStopMark, RegexStopReason } from "./regex-stop-mark.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
 const REGEX_COLLECTION = "regex";
@@ -254,16 +254,9 @@ function RowMarks({ off, stop }: { readonly off: boolean; readonly stop: Stopped
   return (
     <Row align="center" gap="tight">
       {off ? <InlineToken>{REGEX_OFF_MARK}</InlineToken> : null}
-      {stop === undefined ? null : <StopMark stop={stop} />}
+      {stop === undefined ? null : <RegexStopMark stop={stop} />}
     </Row>
   );
-}
-
-// A browser stop and a server one read differently because the next step differs: a browser stop lifts at a
-// reload, which does not fix it, and a server one holds until the pattern is fixed.
-function StopMark({ stop }: { readonly stop: StoppedDisplayScript }): ReactElement {
-  const mark = stop.side === "browser" ? REGEX_BROWSER_STOPPED_MARK : REGEX_NOT_APPLIED_MARK;
-  return <InlineToken tone="warning">{mark}</InlineToken>;
 }
 
 /** Under the source: the pattern on one truncating line, then the room switch holding it off and a stop's reason, in
@@ -287,11 +280,7 @@ function RowDetail({
           {offReason}
         </Text>
       )}
-      {stop === undefined ? null : (
-        <Text data-slot="regex-on-screen-stop-reason" tone="warning" voice="gloss">
-          {stop.side === "browser" ? REGEX_BROWSER_STOPPED_REASON : regexNotAppliedReason(stop.cause, stop.pass)}
-        </Text>
-      )}
+      {stop === undefined ? null : <RegexStopReason stop={stop} />}
     </>
   );
 }
