@@ -183,7 +183,7 @@ export { filteredCensus } from "./filtered-census.ts";
 export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
-export { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "./html-trust-labels.ts";
+export { CHARACTER_TRUST_BLOCK_LABEL, DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL } from "./html-trust-labels.ts";
 export {
   IMAGE_MODE_LABELS,
   IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
@@ -318,22 +318,30 @@ export type {
 export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type {
+  FramedHoldReads,
   FramedMediaReason,
   FramedScriptReason,
+  FrameTrustFacts,
   HeldCards,
+  HeldKind,
+  PlainContentNeeds,
   PlainReason,
   PlainRemedy,
   PlainReplyReason,
   PlainSubject,
   RowRenderPolicy,
+  TrustCause,
+  TrustHold,
 } from "./render-trust.ts";
 export {
+  actionHold,
   buildParticipantsById,
   DEPLOYMENT_FLOOR,
   HELD_CARDS_REASON,
+  mergeTrustHolds,
   PLAIN_REPLY_REASON,
-  resolveFramedMediaVerdict,
-  resolveFramedScriptVerdict,
+  resolveFramedHolds,
+  resolvePlainHolds,
   resolvePlainVerdict,
   resolveRowRenderPolicy,
 } from "./render-trust.ts";

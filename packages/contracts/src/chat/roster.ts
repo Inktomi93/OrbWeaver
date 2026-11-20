@@ -323,45 +323,76 @@ export function resolveSeatRenderPolicy(deployment: DeploymentRenderPolicy, basi
   return { renderPolicy: resolveRenderPolicy(deployment, basis), renderSource: stepFromRenderPolicyOverride(basis) === null ? "inherited" : "own" };
 }
 
-/** The policy every narrator row in a room renders at, with the present character whose setting binds it.
+/** The policy every narrator row in a room renders at, with the present characters whose settings bind it.
  *
  *  @remarks One narrator generation voices every character in the room, so the weakest consent bounds it: the lowest
  *  ladder step among the present character seats, and external media forbidden when any seat forbids it. The binding
- *  character is the first seat in roster order at that step, and the source is that seat's. Every input is a field
- *  each present member already reads on the roster, so a member learns nothing from this value that the seats do not
- *  show. docs/law/UI-Theming-and-Content.md §12.2 states the rule. */
+ *  characters are every seat at that step, in roster order, so lifting the row means lifting each of them. The source
+ *  is the binding seats' narrowest one: a character's own step, then the install default, then a seat with no card,
+ *  because the broader setting cannot lift the narrower one. Every input is a field each present member already reads
+ *  on the roster, so a member learns nothing from this value that the seats do not show.
+ *  docs/law/UI-Theming-and-Content.md §12.2 states the rule. */
 export interface NarratorRenderPolicy extends SeatRenderPolicy {
-  readonly characterId: CharacterId;
+  readonly characterIds: readonly CharacterId[];
 }
 
 /** The strict runtime twin of {@link NarratorRenderPolicy}, a member of the chat detail's schema. */
 export const narratorRenderPolicySchema = z.strictObject({
   renderPolicy: renderPolicySchema,
   renderSource: z.enum(RENDER_POLICY_SOURCES),
-  characterId: typeIdSchema(ID_PREFIX.character),
+  characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1).readonly(),
 }) satisfies z.ZodType<NarratorRenderPolicy>;
+
+type BindingSource = Exclude<RenderPolicySource, "no-host">;
+const NARROWEST_SOURCE_FIRST: Record<BindingSource, number> = { own: 0, inherited: 1, "no-card": 2 };
+type RosterSeat = Pick<ParticipantView, "kind" | "characterId" | "renderPolicy" | "renderSource">;
+
+interface BindingSeat {
+  readonly characterId: CharacterId;
+  readonly renderPolicy: RenderPolicy;
+  readonly renderSource: BindingSource;
+}
+
+// A seat as the narrator rule reads it: `null` for a seat that is not a character, `undefined` for a character seat
+// that leaves nothing to bound (no resolved policy, or a room with no consenting host).
+function bindingSeatOf(seat: RosterSeat): BindingSeat | null | undefined {
+  if (seat.kind !== "character" || seat.characterId === null) {
+    return null;
+  }
+  if (seat.renderPolicy === undefined || seat.renderSource === undefined || seat.renderSource === "no-host") {
+    return;
+  }
+  return { characterId: seat.characterId, renderPolicy: seat.renderPolicy, renderSource: seat.renderSource };
+}
 
 /** Resolve a room's {@link NarratorRenderPolicy} from its present roster, or `undefined` when nothing consents: no
  *  character seat, a room with no consenting host (its seats say `no-host`), or a seat with no resolved policy. */
-export function resolveNarratorRenderPolicy(
-  participants: readonly Pick<ParticipantView, "kind" | "characterId" | "renderPolicy" | "renderSource">[],
-): NarratorRenderPolicy | undefined {
-  let binding: NarratorRenderPolicy | undefined;
+export function resolveNarratorRenderPolicy(participants: readonly RosterSeat[]): NarratorRenderPolicy | undefined {
+  let step: HtmlTrustStep | undefined;
+  let renderSource: BindingSource = "own";
+  let characterIds: CharacterId[] = [];
   let forbidExternalMedia = false;
-  for (const { kind, characterId, renderPolicy, renderSource } of participants) {
-    if (kind !== "character" || characterId === null) {
+  for (const rosterSeat of participants) {
+    const seat = bindingSeatOf(rosterSeat);
+    if (seat === null) {
       continue;
     }
-    if (renderPolicy === undefined || renderSource === undefined || renderSource === "no-host") {
+    if (seat === undefined) {
       return;
     }
-    forbidExternalMedia ||= renderPolicy.forbidExternalMedia;
-    // The ladder's own order: a strictly lower step binds, so a tie keeps the earlier seat.
-    if (binding === undefined || HTML_TRUST_STEPS.indexOf(renderPolicy.htmlTrust) < HTML_TRUST_STEPS.indexOf(binding.renderPolicy.htmlTrust)) {
-      binding = { renderPolicy, renderSource, characterId };
+    forbidExternalMedia ||= seat.renderPolicy.forbidExternalMedia;
+    // The ladder's own order decides which seats bind; a lower step replaces them, an equal one joins them.
+    const rank = HTML_TRUST_STEPS.indexOf(seat.renderPolicy.htmlTrust);
+    if (step === undefined || rank < HTML_TRUST_STEPS.indexOf(step)) {
+      step = seat.renderPolicy.htmlTrust;
+      renderSource = seat.renderSource;
+      characterIds = [seat.characterId];
+    } else if (rank === HTML_TRUST_STEPS.indexOf(step)) {
+      characterIds.push(seat.characterId);
+      renderSource = NARROWEST_SOURCE_FIRST[seat.renderSource] < NARROWEST_SOURCE_FIRST[renderSource] ? seat.renderSource : renderSource;
     }
   }
-  return binding === undefined ? undefined : { ...binding, renderPolicy: { htmlTrust: binding.renderPolicy.htmlTrust, forbidExternalMedia } };
+  return step === undefined ? undefined : { renderPolicy: { htmlTrust: step, forbidExternalMedia }, renderSource, characterIds };
 }
 
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)

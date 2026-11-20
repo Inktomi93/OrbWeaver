@@ -13,7 +13,7 @@ A SillyTavern preset or card that styles its replies works after import with no 
 
 ## Shape
 
-One reader in the kit decides what is markup. One sandboxed frame per row draws it under the character's trust step, with the server rechecking each grant at mint and at serve. One shared notice names the setting that holds content back and opens it for whoever may change it. Work lands in this order: correctness of what draws, then what explains itself, then streaming and history cost, then the trust settings model.
+One reader in the kit decides what is markup. One sandboxed frame per row draws it under the character's trust step, with the server rechecking each grant at mint and at serve. One notice per row lists what character trust holds back and opens the deciding setting for whoever may change it. Work lands in this order: correctness of what draws, then what explains itself, then streaming and history cost, then the trust settings model.
 
 ## Rejected
 
@@ -191,3 +191,7 @@ The staged community preset files, Freaky Frankenstein 5.6 and 6.0, are read her
 6. A streaming panel mints static with no external media, and its scripts start at settle.
 7. The pinned script reports open panels, and the host restores them when it builds the document. No host-to-frame channel.
 8. The viewer's own messages keep the static frame (a null selector), so a display script that adds scripts to user rows never runs them.
+9. Character trust is one concept, internet media included (item 3666). The Trust tab and the install's defaults each show one Character trust block: the HTML ladder and the "Load internet media" switch. The stored axes stay separate.
+10. A row shows one character-trust notice. It lists every held kind (styling, scripts, internet media) with its holder and offers one control, for the first kind the viewer can change. Each frame reports its server grant to its row, so the notice never guesses a grant from the roster.
+11. Every narrator row follows the present room's rule, including one written before a host handoff. The card-frame read accepts a narrator selector only on stored proof: this room's canon, at or above the viewer's history floor, holds a narrator row stamped with it, and the id is a synthetic group character. A narrator row with no character id draws at the floor on both sides (items 3529, 3531).
+12. A tie at the narrator's binding step names every tied character, and the host gets one Trust control per character (item 3530).

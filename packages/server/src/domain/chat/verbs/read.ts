@@ -130,6 +130,7 @@ import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
+import { isNarratorAuthorOf } from "../persistence/narrator-author.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import type { ChatEventLogRow } from "../persistence/queries.ts";
@@ -1194,23 +1195,24 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
-/** `resolveAuthorRenderPolicy` — the card frame's policy read. A narrator row is stamped with the room host's synthetic
- *  group character, which holds no seat, so that id resolves to the room's narrator policy and every other id to its
- *  own seat. The narrator id is checked before the seats. */
+/** `resolveAuthorRenderPolicy` — the card frame's policy read: a present seat's own policy, else the room's narrator
+ *  policy for an id this room's canon proves is a narrator author (`isNarratorAuthorOf`), else nothing. A narrator row
+ *  from before a host handoff carries the earlier host's group character, so it takes the present room's rule as the
+ *  transcript row does. A group character never holds a seat (`seatableCharacterIds`), so the seat read cannot stand
+ *  in for it. */
 function createResolveAuthorRenderPolicy(ctx: ChatContext, deps: ReadDeps): ChatService["resolveAuthorRenderPolicy"] {
   return async ({ principal, chatId, characterId }: ResolveAuthorRenderPolicyParams): Promise<RenderPolicy | undefined> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
-    const narrator = resolveNarratorRenderPolicy(participants);
-    if (narrator !== undefined) {
-      // A narrator policy exists only when the roster read found a consenting host, so this is that host.
-      const hostUserId = hostUserIdOf(participants);
-      const author = hostUserId === null ? null : await ctx.findSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
-      if (author?.characterId === characterId) {
-        return narrator.renderPolicy;
-      }
+    const seat = participants.find((participant) => participant.characterId === characterId);
+    if (seat !== undefined) {
+      return seat.renderPolicy;
     }
-    return participants.find((participant) => participant.characterId === characterId)?.renderPolicy;
+    const narrator = resolveNarratorRenderPolicy(participants);
+    if (narrator !== undefined && (await isNarratorAuthorOf(ctx.db, chatId, characterId, membership.historyFloorSeq))) {
+      return narrator.renderPolicy;
+    }
+    return undefined;
   };
 }
 

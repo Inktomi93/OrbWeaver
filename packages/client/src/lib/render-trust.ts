@@ -101,7 +101,7 @@ export type PlainReason = (typeof PLAIN_REASONS)[number];
 const PLAIN_REMEDIES = [
   // The character's Trust tab: the viewer hosts the room, so the character is theirs.
   "character-trust",
-  // The System section's media and trust settings: the viewer is an admin.
+  // The install's Character trust defaults: the viewer is an admin.
   "system-trust",
   // Only the room's host can change it.
   "ask-host",
@@ -122,19 +122,26 @@ export interface PlainSubject {
   readonly author: "character" | "member" | "unattributed";
   /** Where the character's policy came from; set when `author` is `character`. */
   readonly source: RenderPolicySource | undefined;
-  /** The character whose setting it is; null when no character's setting applies. */
-  readonly characterId: CharacterId | null;
-  /** That character's name in this room, when the room names one. */
-  readonly characterName: string | undefined;
+  /** The characters whose settings hold the row, in roster order: one for a character's row, every binding seat for a
+   *  narrator row; empty when no character's setting applies. */
+  readonly characters: readonly PlainCharacter[];
+  /** Who holds the row's internet media when its policy refuses it; absent when it loads or no character's setting
+   *  applies. */
+  readonly media?: Omit<MediaHolder, "viewerIsHost"> | undefined;
   /** Whether the viewer hosts the room. Characters in a room are the host's (D64), so only the host can edit one. */
   readonly viewerIsHost: boolean;
+}
+
+/** One character a plain row names, with its name in this room when the room names one. */
+interface PlainCharacter {
+  readonly characterId: CharacterId;
+  readonly characterName: string | undefined;
 }
 
 export interface PlainVerdict {
   readonly reason: PlainReason;
   readonly remedy: PlainRemedy;
-  readonly characterId: CharacterId | null;
-  readonly characterName: string | undefined;
+  readonly characters: readonly PlainCharacter[];
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -214,8 +221,7 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
   return {
     reason,
     remedy: plainRemedy(reason, subject.viewerIsHost, viewerIsAdmin),
-    characterId: named ? subject.characterId : null,
-    characterName: named ? subject.characterName : undefined,
+    characters: named ? subject.characters : [],
   };
 }
 
@@ -231,13 +237,36 @@ export function buildParticipantsById(participants: readonly ParticipantView[]):
   return byId;
 }
 
+/** What character trust can hold back on a row, in the order the notice lists it: the row's styling (it draws as plain
+ *  text), its scripts, and its internet media. The stored axes stay two (what content may do, what it may fetch); the
+ *  notice reads them as one question. */
+const HELD_KINDS = ["styling", "scripts", "media"] as const;
+export type HeldKind = (typeof HELD_KINDS)[number];
+
 /** Which setting holds external media out of a framed card or styled reply: the install's, the character's own, or
  *  none, because no seated character's policy covers the row and the frame takes the floor. */
 const FRAMED_MEDIA_REASONS = ["install-media", "character-media", "unattributed-media"] as const;
 export type FramedMediaReason = (typeof FRAMED_MEDIA_REASONS)[number];
 
+/** Which consent holds a framed card's or styled reply's own scripts off, as the notice names it. */
+const FRAMED_SCRIPT_REASONS = ["install-scripts", "character-scripts", "viewer-scripts", "unattributed-scripts"] as const;
+export type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
+
+/** Why one kind is held back. A plain row's own scripts and media can share its styling's cause, because the step or
+ *  author that holds the styling holds them too. */
+export type TrustCause = PlainReason | FramedScriptReason | FramedMediaReason;
+
+/** One kind a row holds back, the setting that holds it, and where this viewer can change it. `characters` names every
+ *  character whose setting holds it, in roster order, so a remedy reaches each of them. */
+export interface TrustHold {
+  readonly kind: HeldKind;
+  readonly cause: TrustCause;
+  readonly remedy: PlainRemedy;
+  readonly characters: readonly PlainCharacter[];
+}
+
 /** A framed card's or styled reply's mint selector, beside the roster and install reads every member already has. */
-export interface FramedMediaSubject {
+interface FramedMediaSubject {
   /** The character the frame was minted for (`CardOrigin.characterId`). */
   readonly characterId: CharacterId | null;
   readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
@@ -248,61 +277,90 @@ export interface FramedMediaSubject {
   readonly viewerIsHost: boolean;
 }
 
-export interface FramedMediaVerdict {
-  readonly reason: FramedMediaReason;
-  readonly remedy: PlainRemedy;
-  readonly characterId: CharacterId | null;
-  readonly characterName: string | undefined;
+/** The characters named for a set of ids, with each one's name in this room when the room names one. */
+function namedCharacters(characterIds: readonly CharacterId[], participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): readonly PlainCharacter[] {
+  return characterIds.map((characterId) => ({ characterId, characterName: participants?.get(characterId)?.displayName }));
 }
 
-// The policy the frame was minted under and the character whose own media setting forbids it. A selector with no seat
-// is a narrator row's group character, which the card-frame route resolves to the narrator policy; that policy forbids
-// external media when any present character's does, so the first such seat in roster order is the one to name.
-function framedMediaAuthor(subject: FramedMediaSubject): { readonly policy: RenderPolicy | undefined; readonly seat: ParticipantView | undefined } {
-  const { characterId, participants, narrator } = subject;
+// The seats whose own media setting forbids it among those a policy reads: a narrator row's policy forbids external
+// media when any present seat's does, so every such seat holds it.
+function mediaForbidders(characterIds: readonly CharacterId[], participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): readonly CharacterId[] {
+  return characterIds.filter((characterId) => participants?.get(characterId)?.renderPolicy?.forbidExternalMedia === true);
+}
+
+// The policy a frame was minted under, and the characters it reads. A selector with no seat is a narrator row's group
+// character, which the card-frame route resolves to the narrator policy over every present seat.
+function framedAuthor(
+  characterId: CharacterId | null,
+  participants: ReadonlyMap<CharacterId, ParticipantView>,
+  narrator: NarratorRenderPolicy | undefined,
+): {
+  readonly policy: RenderPolicy | undefined;
+  readonly source: RenderPolicySource | undefined;
+  readonly bound: readonly CharacterId[];
+  readonly read: readonly CharacterId[];
+} {
   const seat = characterId === null ? undefined : participants.get(characterId);
   if (seat !== undefined || characterId === null || narrator === undefined) {
-    return { policy: seat?.renderPolicy, seat };
+    const own = seat === undefined || characterId === null ? [] : [characterId];
+    return { policy: seat?.renderPolicy, source: seat?.renderSource, bound: own, read: own };
   }
-  return { policy: narrator.renderPolicy, seat: [...participants.values()].find((candidate) => candidate.renderPolicy?.forbidExternalMedia === true) };
+  return { policy: narrator.renderPolicy, source: narrator.renderSource, bound: narrator.characterIds, read: [...participants.keys()] };
 }
 
-/** Which setting withholds a framed row's external media and where this viewer can change it, or `undefined` when the
- *  row's policy lets it load. The rule is the card-frame route's own (`resolveCardMediaVerdict`), over the same reads,
- *  so this names the holder the route applied. Every input is already on every member's roster and auth config, so the
- *  verdict tells a member nothing new. */
-export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsAdmin: boolean): FramedMediaVerdict | undefined {
-  const { policy, seat } = framedMediaAuthor(subject);
-  const unnamed = { characterId: null, characterName: undefined };
+// Which setting withholds a framed row's external media and where this viewer can change it, or `undefined` when the
+// row's policy lets it load. The rule is the card-frame route's own (`resolveCardMediaVerdict`), over the same reads,
+// so this names the holder the route applied. Every input is already on every member's roster and auth config, so the
+// verdict tells a member nothing new.
+function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsAdmin: boolean): TrustHold | undefined {
+  const { policy, read } = framedAuthor(subject.characterId, subject.participants, subject.narrator);
   // A row no seated policy covers mints at the floor, which no setting lifts.
   if (policy === undefined) {
-    return { reason: "unattributed-media", remedy: "none", ...unnamed };
+    return { kind: "media", cause: "unattributed-media", remedy: "none", characters: [] };
   }
   const { external } = resolveCardMediaVerdict({ installForbids: subject.installForbids, policy });
   if (external.loads) {
     return undefined;
   }
-  switch (external.heldBy) {
+  return mediaHold(
+    {
+      heldBy: external.heldBy,
+      forbidders: mediaForbidders(read, subject.participants),
+      participants: subject.participants,
+      viewerIsHost: subject.viewerIsHost,
+    },
+    viewerIsAdmin,
+  );
+}
+
+interface MediaHolder {
+  readonly heldBy: Extract<ReturnType<typeof resolveCardMediaVerdict>["external"], { readonly loads: false }>["heldBy"];
+  /** The characters whose own media setting forbids it, in roster order. */
+  readonly forbidders: readonly CharacterId[];
+  readonly participants: ReadonlyMap<CharacterId, ParticipantView> | undefined;
+  readonly viewerIsHost: boolean;
+}
+
+function mediaHold({ heldBy, forbidders, participants, viewerIsHost }: MediaHolder, viewerIsAdmin: boolean): TrustHold {
+  switch (heldBy) {
     case "install":
-      return { reason: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
-    case "character": {
-      const characterId = seat?.characterId ?? null;
-      if (characterId === null) {
-        return { reason: "unattributed-media", remedy: "none", ...unnamed };
-      }
-      return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
-    }
+      return { kind: "media", cause: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", characters: [] };
+    case "character":
+      return forbidders.length === 0
+        ? { kind: "media", cause: "unattributed-media", remedy: "none", characters: [] }
+        : {
+            kind: "media",
+            cause: "character-media",
+            remedy: viewerIsHost ? "character-trust" : "ask-host",
+            characters: namedCharacters(forbidders, participants),
+          };
     default:
-      return assertNeverHolder(external.heldBy);
+      return assertNeverHolder(heldBy);
   }
 }
 
-/** Which consent holds a framed card's or styled reply's own scripts off, as the notice names it. */
-const FRAMED_SCRIPT_REASONS = ["install-scripts", "character-scripts", "viewer-scripts", "unattributed-scripts"] as const;
-export type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
-
 /** A framed card's or styled reply's mint selector, beside the roster and settings reads every viewer has. */
-export interface FramedScriptSubject {
+interface FramedScriptSubject {
   /** The character the frame was minted for (`CardOrigin.characterId`). */
   readonly characterId: CharacterId | null;
   readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
@@ -313,32 +371,14 @@ export interface FramedScriptSubject {
   readonly viewerIsHost: boolean;
 }
 
-export interface FramedScriptVerdict {
-  readonly reason: FramedScriptReason;
-  readonly remedy: PlainRemedy;
-  readonly characterId: CharacterId | null;
-  readonly characterName: string | undefined;
-}
-
-// The policy the frame was minted under, and the seat whose setting binds it. A selector with no seat is a narrator
-// row's group character, which the card-frame route resolves to the narrator policy, bound by the narrator's seat.
-function framedScriptAuthor(subject: FramedScriptSubject): RowAuthor {
-  const { characterId, participants, narrator } = subject;
-  const seat = characterId === null ? undefined : participants.get(characterId);
-  if (seat !== undefined || characterId === null || narrator === undefined) {
-    return { characterId, seat, policy: seat?.renderPolicy, source: seat?.renderSource };
-  }
-  return { characterId: narrator.characterId, seat: participants.get(narrator.characterId), policy: narrator.renderPolicy, source: narrator.renderSource };
-}
-
-/** Which consent holds a framed row's own scripts off and where this viewer can change it, or `undefined` when they
- *  run. The rule is the card-frame route's own (`resolveCardScriptVerdict`), over the same reads, so this names the
- *  consent the route applied. A row no seated policy covers mints at the static floor, which no setting lifts. */
-export function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerIsAdmin: boolean): FramedScriptVerdict | undefined {
-  const { characterId, seat, policy, source } = framedScriptAuthor(subject);
-  const unnamed = { characterId: null, characterName: undefined };
+// Which consent holds a framed row's own scripts off and where this viewer can change it, or `undefined` when they
+// run. The rule is the card-frame route's own (`resolveCardScriptVerdict`), over the same reads, so this names the
+// consent the route applied. A row no seated policy covers mints at the static floor, which no setting lifts.
+function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerIsAdmin: boolean): TrustHold | undefined {
+  const { policy, source, bound } = framedAuthor(subject.characterId, subject.participants, subject.narrator);
+  const unattributed: TrustHold = { kind: "scripts", cause: "unattributed-scripts", remedy: "none", characters: [] };
   if (policy === undefined) {
-    return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
+    return unattributed;
   }
   const verdict = resolveCardScriptVerdict({ step: policy.htmlTrust, viewerRuns: subject.viewerRunsScripts });
   if (verdict.runs) {
@@ -348,54 +388,147 @@ export function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerI
     case "character": {
       // A seat with no card, or a room with no consenting host, never reaches the interactive step, and no setting
       // of a character's lifts it.
-      if (source === "no-card" || source === "no-host" || characterId === null) {
-        return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
+      if (source === "no-card" || source === "no-host" || bound.length === 0) {
+        return unattributed;
       }
       // An inheriting character's step is the install's default: the admin lifts it there, and the host by giving the
       // character its own Interactive step, the same remedies as a plain row's.
       const inherited = source === "inherited";
       return {
-        reason: inherited ? "install-scripts" : "character-scripts",
+        kind: "scripts",
+        cause: inherited ? "install-scripts" : "character-scripts",
         remedy: plainRemedy(inherited ? "install" : "character", subject.viewerIsHost, viewerIsAdmin),
-        characterId,
-        characterName: seat?.displayName,
+        characters: namedCharacters(bound, subject.participants),
       };
     }
     case "viewer":
-      return { reason: "viewer-scripts", remedy: "own-scripts", ...unnamed };
+      return { kind: "scripts", cause: "viewer-scripts", remedy: "own-scripts", characters: [] };
     default:
       return assertNeverHolder(verdict.heldBy);
   }
+}
+
+/** What one framed card or styled reply on a row was granted and what its markup asks for, as the frame reports it to
+ *  the row's one trust notice. `granted` is the server's answer for this document, never a guess from the roster. */
+export interface FrameTrustFacts {
+  /** The mint selector (`CardOrigin.characterId`). */
+  readonly characterId: CharacterId | null;
+  /** The other characters whose stylesheets the document carries; each one's media setting also holds its media. */
+  readonly carriedFrom: readonly CharacterId[];
+  readonly granted: { readonly externalMedia: boolean; readonly interactive: boolean };
+  /** Whether the markup needs scripts the posture decides: false on the srcdoc floor, which runs none under any setting. */
+  readonly needsScripts: boolean;
+  /** Whether the markup or its stylesheet names internet media. */
+  readonly needsMedia: boolean;
+}
+
+/** The reads a framed hold is named from, every one already on each member's roster, auth config and settings. */
+export interface FramedHoldReads {
+  readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
+  readonly narrator: NarratorRenderPolicy | undefined;
+  readonly installForbids: boolean;
+  readonly viewerRunsScripts: boolean;
+  readonly viewerIsHost: boolean;
+}
+
+/** What a plain row's own content asks for beside its styling. */
+export interface PlainContentNeeds {
+  readonly scripts: boolean;
+  readonly media: boolean;
+}
+
+/** Every kind a `tierA` row holds back. Its scripts share its styling's cause: a plain row's step is below Interactive,
+ *  and the setting that lifts its styling decides its scripts. Its media is held by the same verdict its frame would
+ *  take, or by its author when no character's setting covers it. */
+export function resolvePlainHolds(subject: PlainSubject, needs: PlainContentNeeds, viewerIsAdmin: boolean): readonly TrustHold[] {
+  const styling = resolvePlainVerdict(subject, viewerIsAdmin);
+  const shared = { cause: styling.reason, remedy: styling.remedy, characters: styling.characters };
+  const holds: TrustHold[] = [{ kind: "styling", ...shared }];
+  if (needs.scripts) {
+    holds.push({ kind: "scripts", ...shared });
+  }
+  if (needs.media) {
+    // Another person's row, or one no character's setting covers, holds its media for the cause that holds its styling.
+    if (subject.author !== "character") {
+      holds.push({ kind: "media", ...shared });
+    } else if (subject.media !== undefined) {
+      holds.push(mediaHold({ ...subject.media, viewerIsHost: subject.viewerIsHost }, viewerIsAdmin));
+    }
+  }
+  return holds;
+}
+
+/** Every kind a framed document holds back, read off its grant; the verdicts only name the holder. Nothing while the
+ *  roster says the kind loads, because then the grant is a mint the next one corrects, not a setting to name. */
+export function resolveFramedHolds(frame: FrameTrustFacts, reads: FramedHoldReads, viewerIsAdmin: boolean): readonly TrustHold[] {
+  const holds: TrustHold[] = [];
+  if (frame.needsScripts && !frame.granted.interactive) {
+    const scripts = resolveFramedScriptVerdict({ characterId: frame.characterId, ...reads }, viewerIsAdmin);
+    if (scripts !== undefined) {
+      holds.push(scripts);
+    }
+  }
+  if (frame.needsMedia && !frame.granted.externalMedia) {
+    // The frame's own author first, then each author whose stylesheet it carries: the first that withholds is named.
+    const media = [frame.characterId, ...frame.carriedFrom]
+      .map((author) => resolveFramedMediaVerdict({ characterId: author, ...reads }, viewerIsAdmin))
+      .find((found) => found !== undefined);
+    if (media !== undefined) {
+      holds.push(media);
+    }
+  }
+  return holds;
+}
+
+const holdKey = (hold: TrustHold): string => [hold.kind, hold.cause, ...hold.characters.map((character) => character.characterId)].join(" ");
+
+/** One row's holds, once each, in {@link HELD_KINDS} order: a row with several frames that hold the same kind for the
+ *  same cause says it once. */
+export function mergeTrustHolds(holds: readonly TrustHold[]): readonly TrustHold[] {
+  const unique = new Map<string, TrustHold>();
+  for (const hold of holds) {
+    unique.set(holdKey(hold), unique.get(holdKey(hold)) ?? hold);
+  }
+  return [...unique.values()].toSorted((left, right) => HELD_KINDS.indexOf(left.kind) - HELD_KINDS.indexOf(right.kind));
+}
+
+// The remedies that open a control. The rest tell the viewer who can change it, or that nothing does.
+const ACTION_REMEDIES: ReadonlySet<PlainRemedy> = new Set<PlainRemedy>(["character-trust", "system-trust", "own-scripts"]);
+
+/** The one hold whose control a row's notice opens: the first, in kind order, that this viewer can change. Another hold
+ *  the viewer can also change is named by its cause, and the control it opens is the same Character trust block or the
+ *  viewer's own switch the cause names. */
+export function actionHold(holds: readonly TrustHold[]): TrustHold | undefined {
+  return holds.find((hold) => ACTION_REMEDIES.has(hold.remedy) && (hold.remedy !== "character-trust" || hold.characters.length > 0));
 }
 
 function assertNeverHolder(holder: never): never {
   throw new Error(`render-trust: unhandled holder ${String(holder)}`);
 }
 
-/** The character a row's policy is read from, with that policy as the server resolved it. */
+/** The characters a row's policy is read from, with that policy as the server resolved it. */
 interface RowAuthor {
-  readonly characterId: CharacterId | null;
-  readonly seat: ParticipantView | undefined;
+  readonly characterIds: readonly CharacterId[];
   readonly policy: RenderPolicy | undefined;
   readonly source: RenderPolicySource | undefined;
 }
 
 // A narrator row voices the whole room, so it reads the policy the server bounded by the present characters, and its
-// subject is the character whose setting binds that policy.
+// subjects are the characters whose settings bind that policy. One with no character id floors, as its card frame does:
+// the frame route cannot bind that row to the request.
 function rowAuthor(input: ResolveRowRenderPolicyInput): RowAuthor {
-  const narrated = input.kind === "narrator";
-  const characterId = narrated ? (input.narrator?.characterId ?? null) : input.characterId;
-  const seat = characterId === null ? undefined : input.participants?.get(characterId);
-  if (narrated) {
-    return { characterId, seat, policy: input.narrator?.renderPolicy, source: input.narrator?.renderSource };
+  if (input.kind === "narrator") {
+    const narrator = input.characterId === null ? undefined : input.narrator;
+    return { characterIds: narrator?.characterIds ?? [], policy: narrator?.renderPolicy, source: narrator?.renderSource };
   }
-  return { characterId, seat, policy: seat?.renderPolicy, source: seat?.renderSource };
+  const seat = input.characterId === null ? undefined : input.participants?.get(input.characterId);
+  return { characterIds: input.characterId === null ? [] : [input.characterId], policy: seat?.renderPolicy, source: seat?.renderSource };
 }
 
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
   const { role, authorUserId, viewerUserId } = input;
 
-  const { characterId, seat, policy: resolved, source } = rowAuthor(input);
+  const { characterIds, policy: resolved, source } = rowAuthor(input);
   const policy: RenderPolicy = resolved ?? SAFE_FLOOR;
 
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
@@ -406,13 +539,12 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   // character's resolved step, or the room's immersive-HTML switch); neither is anything the MODEL can assert.
   const cardTier: CardTier = trust === "trusted" || lenientCards ? "tierB" : "tierA";
   const viewerIsHost = input.viewerIsHost === true;
+  const { external } = resolveCardMediaVerdict({ installForbids: input.installForbidsExternalMedia, policy });
   const base = {
     trust,
     // The viewer's own media reveals their address only to hosts they chose, so it follows the install alone. Another
     // member's media stays click-to-load: a pixel there would reveal every viewer.
-    allowExternal: isOwnUserMessage
-      ? !input.installForbidsExternalMedia
-      : resolveCardMediaVerdict({ installForbids: input.installForbidsExternalMedia, policy }).external.loads,
+    allowExternal: isOwnUserMessage ? !input.installForbidsExternalMedia : external.loads,
     lenientCards,
     colorQuotes: input.colorQuotedSpeech !== false,
     cardTier,
@@ -421,20 +553,40 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   if (cardTier === "tierB") {
     return base;
   }
+  return { ...base, plain: plainSubjectOf(input, { characterIds, resolved, source, external }) };
+}
+
+// Whose content a `tierA` row is, with what its own policy says about its styling and its media.
+function plainSubjectOf(
+  input: ResolveRowRenderPolicyInput,
+  row: Pick<RowAuthor, "characterIds" | "source"> & {
+    readonly resolved: RenderPolicy | undefined;
+    readonly external: ReturnType<typeof resolveCardMediaVerdict>["external"];
+  },
+): PlainSubject {
+  const { characterIds, resolved, source, external } = row;
   let author: PlainSubject["author"] = "unattributed";
-  if (role === "user") {
+  if (input.role === "user") {
     author = "member";
   } else if (resolved !== undefined) {
     author = "character";
   }
+  const viewerIsHost = input.viewerIsHost === true;
+  if (author !== "character") {
+    return { author, source: undefined, characters: [], viewerIsHost };
+  }
   return {
-    ...base,
-    plain: {
-      author,
-      source: author === "character" ? source : undefined,
-      characterId: author === "character" ? characterId : null,
-      characterName: seat?.displayName,
-      viewerIsHost,
-    },
+    author,
+    source,
+    characters: namedCharacters(characterIds, input.participants),
+    media: external.loads
+      ? undefined
+      : {
+          heldBy: external.heldBy,
+          // A narrator row's media is forbidden when any present seat's is, so every such seat holds it.
+          forbidders: mediaForbidders(input.kind === "narrator" ? [...(input.participants?.keys() ?? [])] : characterIds, input.participants),
+          participants: input.participants,
+        },
+    viewerIsHost,
   };
 }

@@ -58,9 +58,6 @@ export const CHARACTER_LOOK_TAB_LABEL = "Look";
 /** The context pane's card trust tab. */
 export const CHARACTER_TRUST_TAB_LABEL = "Trust";
 
-/** The Trust tab's external-media switch: on blocks this character's remote media, off follows the install. */
-export const CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL = "Block external media for this character";
-
 /** The Trust tab's HTML-trust ladder control. */
 export const CHARACTER_HTML_TRUST_LABEL = "HTML rendering";
 

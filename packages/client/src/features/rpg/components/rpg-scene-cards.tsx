@@ -8,11 +8,11 @@
 import type { ChatId } from "@orb/kit/ids";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
-import { useSandboxTheme } from "@orb/ui/sandbox-frame";
+import { holdsExternalMedia, holdsScript, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormingChip, FramedMediaNotice, FramedScriptNotice, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
+import { CharacterTrustNotice, FormingChip, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useRenderPolicyFloor, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
@@ -78,10 +78,22 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
         onFloor={frame.giveUp}
       />
       {links.confirm}
-      {/* The transcript card's notices, under the same conditions (`card-block.tsx`). The archive draws only in a game
-          whose cards are on, so the held-cards notice never applies here. */}
-      <FramedMediaNotice chatId={chatId} characterId={card.characterId} html={card.html} css={undefined} granted={granted} />
-      {frame.mint.state === "routed" ? <FramedScriptNotice chatId={chatId} characterId={card.characterId} html={card.html} granted={granted} /> : null}
+      {/* The transcript card's trust notice, from the same facts it reports (`card-block.tsx`). The archive draws only in a
+          game whose cards are on, so the held-cards notice never applies here. */}
+      {chatId === undefined ? null : (
+        <CharacterTrustNotice
+          frames={[
+            {
+              chatId,
+              characterId: card.characterId,
+              carriedFrom: [],
+              granted,
+              needsScripts: frame.mint.state === "routed" && holdsScript(card.html),
+              needsMedia: holdsExternalMedia(card.html, undefined),
+            },
+          ]}
+        />
+      )}
     </>
   );
 }

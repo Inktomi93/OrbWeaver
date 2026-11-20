@@ -15,6 +15,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { RowTrustScope } from "#components";
 import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
 import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
 import { bodyDisplayRow } from "../lib/display-row.ts";
@@ -81,8 +82,11 @@ export function MessageTrain({ message, displayDepth, facts, header, reasoning, 
     <Stack gap="field" data-slot="message-bubble-train" data-plain-reason={layout?.kind === "plain" ? layout.reason : undefined} ref={observeBody}>
       {header}
       {reasoning}
-      {bubbles}
-      <RowNotices drawn={drawn} layout={layout} render={props.render} />
+      {/* The bubbles' frames report to the row's one trust notice. */}
+      <RowTrustScope>
+        {bubbles}
+        <RowNotices drawn={drawn} layout={layout} render={props.render} />
+      </RowTrustScope>
     </Stack>
   );
 }

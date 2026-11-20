@@ -6,28 +6,20 @@
 // pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `config-anchor-system-*`
 // id survives anywhere.
 
-import { DEFAULT_HTML_STEP_SETTING_LABEL } from "#lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, DEFAULT_HTML_STEP_SETTING_LABEL, LOAD_INTERNET_MEDIA_LABEL } from "#lib";
 import type { ConfigSubcategory } from "#state";
 import { DEFAULT_HTML_STEP_CONFIG_SETTING, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB } from "#state";
 
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: MEDIA_TRUST_CONFIG_SUB,
-  label: "Media & trust",
-  keywords: ["security", "privacy", "safety"],
+  label: CHARACTER_TRUST_BLOCK_LABEL,
+  keywords: ["security", "privacy", "safety", "media", "trust", "images"],
   teach: {
-    summary: "Security and privacy controls for rendered content: block external media URLs and set the default HTML step for characters.",
+    summary:
+      "What characters' content may do and load by default: the HTML step for characters on Inherit default, and whether their content loads internet media.",
     affects: ["message rendering security, deployment-wide"],
   },
   settings: [
-    {
-      id: FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
-      label: "Block external media",
-      keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
-      teach: {
-        summary: "Blocks messages from loading media by external URL. No tracking pixels, no SSRF, no surprise fetches.",
-        affects: ["every account's message rendering, deployment-wide"],
-      },
-    },
     {
       id: DEFAULT_HTML_STEP_CONFIG_SETTING,
       label: DEFAULT_HTML_STEP_SETTING_LABEL,
@@ -36,6 +28,15 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
         summary:
           "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, their cards and styled replies run no scripts. A character's own step wins over it.",
         affects: ["every account's message rendering and card scripts, deployment-wide"],
+      },
+    },
+    {
+      id: FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+      label: LOAD_INTERNET_MEDIA_LABEL,
+      keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
+      teach: {
+        summary: "Lets characters' content load images and media by internet URL. Off: no tracking pixels, no SSRF, no surprise fetches.",
+        affects: ["every account's message rendering, deployment-wide"],
       },
     },
   ],

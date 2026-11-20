@@ -45,14 +45,14 @@ export function isConfigGroupId(v: unknown): v is ConfigGroupId {
  *  settings"), so its id lives beside the group vocabulary rather than in two features. */
 export const MULTI_USER_CONFIG_SUB = "multi-user";
 
-/** The Admin group's Media and trust section and its default-for-characters and external-media settings, which a chat
- *  row's plain-content, framed-media and framed-script notices open. */
+/** The Admin group's Character trust defaults section and its default-for-characters and internet-media settings, which a
+ *  chat row's trust notice opens. */
 export const MEDIA_TRUST_CONFIG_SUB = "media-trust";
 export const DEFAULT_HTML_STEP_CONFIG_SETTING = "default-html-step";
 export const FORBID_EXTERNAL_MEDIA_CONFIG_SETTING = "forbid-external-media";
 
 /** The Chat behavior group's message-handling section and the viewer's card-script consent in it, which a
- *  framed-script notice opens from the transcript and from the game's card archive. */
+ *  row's trust notice opens from the transcript and from the game's card archive. */
 export const MESSAGE_HANDLING_CONFIG_SUB = "message-handling";
 export const RUN_CARD_SCRIPTS_CONFIG_SETTING = "run-card-scripts";
 

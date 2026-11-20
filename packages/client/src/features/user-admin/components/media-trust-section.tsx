@@ -1,5 +1,5 @@
-// The Media & trust admin SECTION (SET-SEAMS stage 4) — the deployment-wide content-render gates
-// (forbidExternalMedia, defaultHtmlStep). The image size cap lives beside the databank upload cap in System tuning. Was the System pane's first
+// The install's Character trust defaults (SET-SEAMS stage 4) — the deployment-wide content-render gates
+// (defaultHtmlStep, forbidExternalMedia), read as the same one block a character's Trust tab shows. The image size cap lives beside the databank upload cap in System tuning. Was the System pane's first
 // group; it is a self-owned settings-SECTION CONTRIBUTION at the `admin` anchor now (§10 Q2 merged the
 // system pane into admin).
 //
@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
-import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, rethrowUnlessTrpcFailure } from "#lib";
+import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL, rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -78,17 +78,10 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss" prose={true} cap="prose">
-          A character's own HTML setting wins over the default. External media can only be tightened.
+          A character's own HTML setting wins over the default. Internet media can only be tightened: a character can block it, never load it here while it is
+          off.
         </Text>
         <SettingRowGroup>
-          <AdminOverrideSwitch
-            label="Block external media"
-            hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. Off, characters' content and your own messages load media; messages other people write stay click-to-load. It applies to everyone and takes effect when a tab reloads."
-            value={resolved.forbidExternalMedia}
-            overridden={forbidOverridden}
-            floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
-            onSet={(next): void => write({ forbidExternalMedia: next })}
-          />
           {/* The step every inheriting character takes (D294). Interactive by default (owner ruling), and the loudest hint
             in this section: a step below Interactive closes the WebRTC beacon the grant opens, which no
             Content-Security-Policy directive can close, for every inheriting character. A character set to Interactive on
@@ -107,6 +100,16 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
                 write({ defaultHtmlStep: step });
               }
             }}
+          />
+          {/* The install's media ceiling, read as the switch that lets characters' content load internet media. The same
+            stored key: on clears the block, off stores it. */}
+          <AdminOverrideSwitch
+            label={LOAD_INTERNET_MEDIA_LABEL}
+            hint="Lets characters' content and your own messages load images and media from the internet. Off blocks them, which also blocks tracking pixels. Messages other people write stay click-to-load. It applies to everyone and takes effect when a tab reloads."
+            value={!resolved.forbidExternalMedia}
+            overridden={forbidOverridden}
+            floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "off" : "on")}
+            onSet={(next): void => write({ forbidExternalMedia: !next })}
           />
         </SettingRowGroup>
         <AdminOverrideResetRow

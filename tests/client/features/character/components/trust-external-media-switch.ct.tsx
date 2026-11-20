@@ -1,7 +1,8 @@
-// The character Trust tab's external-media control is one switch: on stores a block, off clears the override rather
-// than storing an "allow" the tighten-only resolver ignores, and under an install-wide block it is locked on and says why.
+// The character Trust tab's Character trust block holds one internet-media switch: off stores a block, on clears the
+// override rather than storing an "allow" the tighten-only resolver ignores, and under an install-wide block the switch
+// cannot apply, so it is not shown and a line says why.
 // Production entry: the AppShell's Characters section, its context panel's Trust tab.
-import { contextToggleLabel } from "@orb/client/lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, contextToggleLabel, LOAD_INTERNET_MEDIA_LABEL } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -12,7 +13,6 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import {
-  CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL,
   CHARACTER_EDITOR_NAME,
   CHARACTER_HERO_NAME_FIELD_NAME,
   CHARACTER_LIBRARY_NAME,
@@ -28,6 +28,7 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 test.use({ viewport: { width: 1440, height: 900 } });
 
 interface TrustCase {
+  readonly block: Locator;
   readonly control: Locator;
   readonly stored: () => Promise<boolean | null>;
 }
@@ -70,41 +71,45 @@ async function openTrust(scene: {
   const context = page.locator(CONTEXT);
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await context.getByRole("tab", { name: CHARACTER_TRUST_TAB_LABEL, exact: true }).click();
+  const block = context.locator("section").filter({ has: page.getByRole("heading", { name: CHARACTER_TRUST_BLOCK_LABEL, exact: true }) });
   return {
-    control: context.getByRole("switch", { name: CHARACTER_BLOCK_EXTERNAL_MEDIA_LABEL, exact: true }),
+    block,
+    control: block.getByRole("switch", { name: LOAD_INTERNET_MEDIA_LABEL, exact: true }),
     stored: async (): Promise<boolean | null> => (await caller.character.get({ characterId: card.id })).forbidExternalMedia,
   };
 }
 
-test("turning the switch on stores a block", async ({ corpus, mount, page }) => {
+test("turning the switch off stores a block", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   await using cleanup = new AsyncDisposableStack();
   const mountShell = (): Promise<unknown> => mount<typeof ShellBusStory>(STORY, {});
   const { control, stored } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: false, stored: null });
-  await expect(control).toHaveAttribute("aria-checked", "false");
+  await expect(control).toHaveAttribute("aria-checked", "true");
   await control.click();
   await expect.poll(stored).toBe(true);
-  await expect(control).toHaveAttribute("aria-checked", "true");
+  await expect(control).toHaveAttribute("aria-checked", "false");
 });
 
-test("turning the switch off clears the override rather than storing an allow", async ({ corpus, mount, page }) => {
+test("turning the switch on clears the override rather than storing an allow", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   await using cleanup = new AsyncDisposableStack();
   const mountShell = (): Promise<unknown> => mount<typeof ShellBusStory>(STORY, {});
   const { control, stored } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: false, stored: true });
-  await expect(control).toHaveAttribute("aria-checked", "true");
+  await expect(control).toHaveAttribute("aria-checked", "false");
   await control.click();
   // A stored `false` would read the same as no override and leave a dead choice behind.
   await expect.poll(stored).toBeNull();
-  await expect(control).toHaveAttribute("aria-checked", "false");
+  await expect(control).toHaveAttribute("aria-checked", "true");
 });
 
-test("under an install-wide block the switch is locked on and writes nothing", async ({ corpus, mount, page }) => {
+test("under an install-wide block the switch is not shown, the block says why, and nothing is written", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   await using cleanup = new AsyncDisposableStack();
   const mountShell = (): Promise<unknown> => mount<typeof ShellBusStory>(STORY, {});
-  const { control, stored } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: true, stored: null });
-  await expect(control).toHaveAttribute("aria-checked", "true");
-  await expect(control).toBeDisabled();
+  const { block, control, stored } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: true, stored: null });
+  // Positive control: the block itself drew, with its ladder, so the switch's absence is not an unrendered tab.
+  await expect(block.locator('[data-slot="trust-resolved-step"]')).toBeVisible();
+  await expect(block.locator('[data-slot="trust-media-blocked"]')).toBeVisible();
+  await expect(control).toHaveCount(0);
   expect(await stored()).toBeNull();
 });

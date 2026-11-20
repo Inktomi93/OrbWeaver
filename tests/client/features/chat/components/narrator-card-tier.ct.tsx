@@ -1,7 +1,8 @@
 // A narrator row's card renders in its sandboxed frame when every present character consents, and inert with a notice
-// naming the character whose setting holds it plain when one does not: the real transcript (`MessageListSurface`) over a
+// whose controls reach each character holding it plain when any does not: the real transcript (`MessageListSurface`) over a
 // corpus room whose latest row is a narrator turn the real round engine committed from a scripted provider reply. The
 // room's reads, its card frames and `/api/auth/config` are answered by the corpus root under the viewing account.
+import type { PlainRemedy } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID } from "@orb/client/state";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG, renderPolicyOverrideForStep } from "@orb/contracts/chat";
@@ -50,7 +51,6 @@ interface NarratorRoom {
   readonly chatId: ChatId;
   readonly aria: CharacterId;
   readonly kai: CharacterId;
-  readonly kaiName: string;
 }
 
 /** A corpus root whose chat turns reach the loopback corpus endpoint, answering the one narrator reply `take` holds. */
@@ -87,13 +87,28 @@ async function narratorRoom(root: Root, owner: Caller): Promise<NarratorRoom> {
   const outcome = await root.services.chat.send({ principal, chatId, content: "Read the tide tables.", timeZone: UTC_TIME_ZONE });
   expect(outcome.messages.find(({ role }) => role === "assistant")?.kind).toBe("narrator");
   await root.settleBackground();
-  return { chatId, aria: aria.id, kai: kai.id, kaiName: kai.name };
+  return { chatId, aria: aria.id, kai: kai.id };
 }
 
-/** Aria at Render HTML, below the interactive default so the frame runs no card script, and Kai at `step`. */
-async function setKai(owner: Caller, room: NarratorRoom, step: "trusted" | "untrusted"): Promise<void> {
-  await owner.character.update({ characterId: room.aria, input: renderPolicyOverrideForStep("trusted") });
-  await owner.character.update({ characterId: room.kai, input: renderPolicyOverrideForStep(step) });
+type Step = "trusted" | "untrusted";
+
+/** Each character's step; Render HTML sits below the interactive default, so the frame runs no card script. */
+async function setSteps(owner: Caller, room: NarratorRoom, aria: Step, kai: Step): Promise<void> {
+  await owner.character.update({ characterId: room.aria, input: renderPolicyOverrideForStep(aria) });
+  await owner.character.update({ characterId: room.kai, input: renderPolicyOverrideForStep(kai) });
+}
+
+/** Each control in the notice, in order, opens the Trust tab of the character beside it. */
+async function expectControlsOpen(page: Page, characters: readonly CharacterId[]): Promise<void> {
+  const controls = page.locator(NOTICE_ACTION);
+  await expect(controls).toHaveCount(characters.length);
+  const readout = page.locator(READOUT);
+  for (const [index, characterId] of characters.entries()) {
+    await controls.nth(index).click();
+    await expect(readout).toHaveAttribute("data-section", "characters");
+    await expect(readout).toHaveAttribute("data-character", characterId);
+    await expect(readout).toHaveAttribute("data-context-tab", CHARACTER_TRUST_TAB_ID);
+  }
 }
 
 /** The room's reads, card frames and auth config under `viewer`'s own session. */
@@ -111,41 +126,53 @@ async function expectFramed(page: Page): Promise<void> {
   await expect(page.locator(INERT_CARD)).toHaveCount(0);
 }
 
-async function expectHeldPlainBy(page: Page, name: string, remedy: string): Promise<void> {
+async function expectHeldPlain(page: Page, remedy: PlainRemedy): Promise<void> {
   await expect(page.locator(INERT_CARD)).toHaveCount(1);
   const notice = page.locator(NOTICE);
   await expect(notice).toHaveCount(1);
   await expect(notice).toHaveAttribute("data-reason", "character");
   await expect(notice).toHaveAttribute("data-remedy", remedy);
-  await expect(notice).toContainText(name);
 }
 
-test("the host sees a narrator card in its frame while every character consents, and Kai's control when Kai holds it plain", async ({ mount, page }) => {
+test("the host sees a narrator card in its frame while every character consents, and a control for each character holding it plain", async ({
+  mount,
+  page,
+}) => {
   using plan = finiteReplies("narrator card host", [NARRATED_CARD]);
   await using root = await narratorRoot(plan.take);
   const owner = await root.internalCallerFor(root.ownerId);
   const room = await narratorRoom(root, owner);
 
-  await setKai(owner, room, "trusted");
+  await setSteps(owner, room, "trusted", "trusted");
   await serveRoom(page, root, owner, root.ownerId);
   const framed = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expectFramed(page);
   await framed.unmount();
   await page.unrouteAll({ behavior: "wait" });
 
-  await setKai(owner, room, "untrusted");
+  await setSteps(owner, room, "trusted", "untrusted");
+  await serveRoom(page, root, owner, root.ownerId);
+  const kaiHolds = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+  await expectHeldPlain(page, "character-trust");
+  await expectControlsOpen(page, [room.kai]);
+  await kaiHolds.unmount();
+  await page.unrouteAll({ behavior: "wait" });
+
+  // Both at plain text: raising either alone leaves the row plain, so the host reaches each, in roster order.
+  await setSteps(owner, room, "untrusted", "untrusted");
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
-  await expectHeldPlainBy(page, room.kaiName, "character-trust");
-  await page.locator(NOTICE_ACTION).click();
-  const readout = page.locator(READOUT);
-  await expect(readout).toHaveAttribute("data-section", "characters");
-  await expect(readout).toHaveAttribute("data-character", room.kai);
-  await expect(readout).toHaveAttribute("data-context-tab", CHARACTER_TRUST_TAB_ID);
+  await expectHeldPlain(page, "character-trust");
+  await expect(page.locator(NOTICE_ACTION)).toHaveCount(2);
+  await expectControlsOpen(page, [room.aria, room.kai]);
   await page.unrouteAll({ behavior: "wait" });
 });
 
-test("a member sees the same narrator card tier, and is told to ask the host, with no control, when Kai holds it plain", async ({ corpus, mount, page }) => {
+test("a member sees the same narrator card tier, and is told to ask the host, with no control, when both characters hold it plain", async ({
+  corpus,
+  mount,
+  page,
+}) => {
   using plan = finiteReplies("narrator card member", [NARRATED_CARD]);
   await using root = await narratorRoot(plan.take);
   const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
@@ -163,17 +190,17 @@ test("a member sees the same narrator card tier, and is told to ask the host, wi
   });
   await root.services.chat.acceptInvite({ principal: await root.principalFor(memberId), inviteId: invite.invite.id });
 
-  await setKai(owner, room, "trusted");
+  await setSteps(owner, room, "trusted", "trusted");
   await serveRoom(page, root, member, memberId);
   const framed = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expectFramed(page);
   await framed.unmount();
   await page.unrouteAll({ behavior: "wait" });
 
-  await setKai(owner, room, "untrusted");
+  await setSteps(owner, room, "untrusted", "untrusted");
   await serveRoom(page, root, member, memberId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
-  await expectHeldPlainBy(page, room.kaiName, "ask-host");
+  await expectHeldPlain(page, "ask-host");
   await expect(page.locator(NOTICE_ACTION)).toHaveCount(0);
   await page.unrouteAll({ behavior: "wait" });
 });

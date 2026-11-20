@@ -1,4 +1,5 @@
-// The plain-content, framed-media and framed-script verdicts, the held-cards flag, and whose row loads external media.
+// The plain-content, framed-media and framed-script verdicts, the one notice's holds over them, the held-cards flag, and
+// whose row loads external media.
 // The plain-content verdict over every row it can face: the reason a plain row names and the remedy each viewer gets,
 // for a character's own setting, an inherited install default, a seat with no readable card (deleted, or a former
 // host's after a handoff), a room with no consenting host, another person's row and an unattributed one. A seat no card
@@ -6,9 +7,9 @@
 // parsed by the wire schema, as the transcript builds it. The viewer's own message loads external media under the
 // install's switch alone; another member's never does (docs/law/UI-Theming-and-Content.md §12.2).
 
-import type { FramedScriptReason, PlainReason, PlainRemedy } from "@orb/client/lib";
-import { resolveFramedMediaVerdict, resolveFramedScriptVerdict, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
-import type { HtmlTrustStep, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
+import type { FramedHoldReads, FramedScriptReason, PlainReason, PlainRemedy, TrustHold } from "@orb/client/lib";
+import { actionHold, mergeTrustHolds, resolveFramedHolds, resolvePlainHolds, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
+import type { HtmlTrustStep, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { participantViewSchema, resolveNarratorRenderPolicy, resolveRenderPolicy, resolveSeatRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
@@ -52,7 +53,12 @@ const BY_SOURCE = {
   },
 } as const satisfies Record<RenderPolicySource, Expected>;
 
-function characterSeat(characterId: CharacterId, htmlTrust: "untrusted" | "trusted", source: RenderPolicySource): ParticipantView {
+function characterSeat(
+  characterId: CharacterId,
+  htmlTrust: "untrusted" | "trusted",
+  source: RenderPolicySource,
+  displayName = CHARACTER_NAME,
+): ParticipantView {
   return participantViewSchema.parse({
     id: mintTypeId(ID_PREFIX.chatParticipant, ids.next),
     chatId: mintTypeId(ID_PREFIX.chat, ids.next),
@@ -67,7 +73,7 @@ function characterSeat(characterId: CharacterId, htmlTrust: "untrusted" | "trust
     joinSeq: 1,
     leftSeq: null,
     joinHistoryVisibility: "full",
-    displayName: CHARACTER_NAME,
+    displayName,
     handle: null,
     avatarAssetId: null,
     avatarHash: null,
@@ -103,8 +109,7 @@ for (const source of participantViewSchema.shape.renderSource.unwrap().options) 
       expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({
         reason: expected.reason,
         remedy: expected.remedies[viewer],
-        characterId: expected.named ? characterId : null,
-        characterName: expected.named ? CHARACTER_NAME : undefined,
+        characters: expected.named ? [{ characterId, characterName: CHARACTER_NAME }] : [],
       });
     });
   }
@@ -136,7 +141,7 @@ test("a row another person wrote, and a row no seated character covers, offer no
       throw new Error("a tierA row carries its plain subject");
     }
     for (const isAdmin of [true, false]) {
-      expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({ reason, remedy: "none", characterId: null, characterName: undefined });
+      expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({ reason, remedy: "none", characters: [] });
     }
   }
 });
@@ -166,19 +171,38 @@ function mediaSeat(characterId: CharacterId, displayName: string, policy: Render
   return { ...characterSeat(characterId, "trusted", "own"), displayName, renderPolicy: policy };
 }
 
-function framedSubject(
-  characterId: CharacterId | null,
-  seats: readonly ParticipantView[],
-  install: boolean,
-  viewerIsHost: boolean,
-): Parameters<typeof resolveFramedMediaVerdict>[0] {
+function framedSubject(characterId: CharacterId | null, seats: readonly ParticipantView[], install: boolean, viewerIsHost: boolean): FramedSubject {
   return {
     characterId,
-    participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
-    narrator: resolveNarratorRenderPolicy(seats),
-    installForbids: install,
-    viewerIsHost,
+    reads: {
+      participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
+      narrator: resolveNarratorRenderPolicy(seats),
+      installForbids: install,
+      viewerRunsScripts: true,
+      viewerIsHost,
+    },
   };
+}
+
+/** A frame's selector and the reads its holds are named from. */
+interface FramedSubject {
+  readonly characterId: CharacterId | null;
+  readonly reads: FramedHoldReads;
+}
+
+// The server granted the frame neither kind, so each kind its markup asks for is held and the verdict names the holder.
+const UNGRANTED = { externalMedia: false, interactive: false } as const;
+
+/** The hold a frame whose markup names internet media owes, read through the row's production door. */
+function framedMediaHold({ characterId, reads }: FramedSubject, isAdmin: boolean): TrustHold | undefined {
+  const holds = resolveFramedHolds({ characterId, carriedFrom: [], granted: UNGRANTED, needsScripts: false, needsMedia: true }, reads, isAdmin);
+  return holds[0];
+}
+
+/** The hold a frame whose markup needs scripts owes, read through the row's production door. */
+function framedScriptHold({ characterId, reads }: FramedSubject, isAdmin: boolean): TrustHold | undefined {
+  const holds = resolveFramedHolds({ characterId, carriedFrom: [], granted: UNGRANTED, needsScripts: true, needsMedia: false }, reads, isAdmin);
+  return holds[0];
 }
 
 for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
@@ -190,15 +214,15 @@ for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
     );
     for (const viewer of VIEWERS) {
       const { viewerIsHost, isAdmin } = viewerStanding(viewer);
-      const verdict = resolveFramedMediaVerdict(framedSubject(characterId, [mediaSeat(characterId, CHARACTER_NAME, policy)], install, viewerIsHost), isAdmin);
+      const verdict = framedMediaHold(framedSubject(characterId, [mediaSeat(characterId, CHARACTER_NAME, policy)], install, viewerIsHost), isAdmin);
       const expected =
         binds === undefined
           ? undefined
           : {
-              reason: binds.reason,
+              kind: "media",
+              cause: binds.reason,
               remedy: binds.remedies[viewer],
-              characterId: binds.characterNamed ? characterId : null,
-              characterName: binds.characterNamed ? CHARACTER_NAME : undefined,
+              characters: binds.characterNamed ? [{ characterId, characterName: CHARACTER_NAME }] : [],
             };
       expect(verdict, viewer).toEqual(expected);
     }
@@ -211,15 +235,15 @@ test("a narrator row's frame names the present character whose own setting forbi
   const groupCharacter = mintTypeId(ID_PREFIX.character, ids.next);
   const allowingSeat = mediaSeat(allowing, "Arthur", { htmlTrust: "trusted", forbidExternalMedia: false });
   const seats = [allowingSeat, mediaSeat(forbidding, CHARACTER_NAME, { htmlTrust: "interactive", forbidExternalMedia: true })];
-  expect(resolveFramedMediaVerdict(framedSubject(groupCharacter, seats, false, true), false)).toEqual({
-    reason: "character-media",
+  expect(framedMediaHold(framedSubject(groupCharacter, seats, false, true), false)).toEqual({
+    kind: "media",
+    cause: "character-media",
     remedy: "character-trust",
-    characterId: forbidding,
-    characterName: CHARACTER_NAME,
+    characters: [{ characterId: forbidding, characterName: CHARACTER_NAME }],
   });
   // With every seat allowing, the narrator policy loads external media and nothing is withheld.
   const open = [allowingSeat, mediaSeat(forbidding, CHARACTER_NAME, { htmlTrust: "interactive", forbidExternalMedia: false })];
-  expect(resolveFramedMediaVerdict(framedSubject(groupCharacter, open, false, true), false)).toBeUndefined();
+  expect(framedMediaHold(framedSubject(groupCharacter, open, false, true), false)).toBeUndefined();
 });
 
 test("framed media no seated character covers stays blocked with no remedy, even on an install that allows it", () => {
@@ -228,14 +252,70 @@ test("framed media no seated character covers stays blocked with no remedy, even
   // A seatless selector in a room whose roster resolves no narrator policy, and a frame minted with no character.
   for (const subject of [framedSubject(mintTypeId(ID_PREFIX.character, ids.next), [], false, true), framedSubject(null, seats, false, true)]) {
     for (const isAdmin of [true, false]) {
-      expect(resolveFramedMediaVerdict(subject, isAdmin)).toEqual({
-        reason: "unattributed-media",
-        remedy: "none",
-        characterId: null,
-        characterName: undefined,
-      });
+      expect(framedMediaHold(subject, isAdmin)).toEqual({ kind: "media", cause: "unattributed-media", remedy: "none", characters: [] });
     }
   }
+});
+
+test("a narrator row held by two characters at one step names both, in roster order, and the host's remedy reaches each", () => {
+  const aria = mintTypeId(ID_PREFIX.character, ids.next);
+  const kai = mintTypeId(ID_PREFIX.character, ids.next);
+  const participants = new Map([
+    [aria, characterSeat(aria, "untrusted", "own", "Aria")],
+    [kai, characterSeat(kai, "untrusted", "own", "Kai")],
+  ]);
+  const narrator: NarratorRenderPolicy = {
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true },
+    renderSource: "own",
+    characterIds: [aria, kai],
+  };
+  const row = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: mintTypeId(ID_PREFIX.character, ids.next),
+    viewerUserId: mintUserId(ids.next),
+    participants,
+    kind: "narrator",
+    narrator,
+    installForbidsExternalMedia: false,
+    viewerIsHost: true,
+  });
+  if (row.plain === undefined) {
+    throw new Error("a tierA row carries its plain subject");
+  }
+  expect(resolvePlainVerdict(row.plain, false)).toEqual({
+    reason: "character",
+    remedy: "character-trust",
+    characters: [
+      { characterId: aria, characterName: "Aria" },
+      { characterId: kai, characterName: "Kai" },
+    ],
+  });
+});
+
+test("a narrator row with no character id renders at the floor, as its card frame does, while one with an id takes the room's policy", () => {
+  const aria = mintTypeId(ID_PREFIX.character, ids.next);
+  const narrator: NarratorRenderPolicy = { renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: true }, renderSource: "own", characterIds: [aria] };
+  const narratorRow = (characterId: CharacterId | null): ReturnType<typeof resolveRowRenderPolicy> =>
+    resolveRowRenderPolicy({
+      role: "assistant",
+      authorUserId: null,
+      characterId,
+      viewerUserId: mintUserId(ids.next),
+      participants: new Map([[aria, characterSeat(aria, "trusted", "own")]]),
+      kind: "narrator",
+      narrator,
+      installForbidsExternalMedia: false,
+      viewerIsHost: true,
+    });
+  expect(narratorRow(mintTypeId(ID_PREFIX.character, ids.next)).cardTier).toBe("tierB");
+  const unbound = narratorRow(null);
+  expect(unbound.cardTier).toBe("tierA");
+  expect(unbound.plain === undefined ? undefined : resolvePlainVerdict(unbound.plain, true)).toEqual({
+    reason: "unattributed",
+    remedy: "none",
+    characters: [],
+  });
 });
 
 test("a row from a character that renders trusted HTML is not plain and carries no verdict subject", () => {
@@ -331,18 +411,16 @@ const FRAMED_SCRIPT_CASES: readonly {
   },
 ];
 
-function scriptSubject(
-  characterId: CharacterId | null,
-  seats: readonly ParticipantView[],
-  viewerRuns: boolean,
-  viewerIsHost: boolean,
-): Parameters<typeof resolveFramedScriptVerdict>[0] {
+function scriptSubject(characterId: CharacterId | null, seats: readonly ParticipantView[], viewerRuns: boolean, viewerIsHost: boolean): FramedSubject {
   return {
     characterId,
-    participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
-    narrator: resolveNarratorRenderPolicy(seats),
-    viewerRunsScripts: viewerRuns,
-    viewerIsHost,
+    reads: {
+      participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
+      narrator: resolveNarratorRenderPolicy(seats),
+      installForbids: false,
+      viewerRunsScripts: viewerRuns,
+      viewerIsHost,
+    },
   };
 }
 
@@ -356,15 +434,15 @@ for (const { name, defaultStep, stored, viewerRuns, expected } of FRAMED_SCRIPT_
     const seat = { ...mediaSeat(characterId, CHARACTER_NAME, renderPolicy), renderSource } as const;
     for (const viewer of VIEWERS) {
       const { viewerIsHost, isAdmin } = viewerStanding(viewer);
-      const verdict = resolveFramedScriptVerdict(scriptSubject(characterId, [seat], viewerRuns, viewerIsHost), isAdmin);
+      const verdict = framedScriptHold(scriptSubject(characterId, [seat], viewerRuns, viewerIsHost), isAdmin);
       expect(verdict, viewer).toEqual(
         expected === undefined
           ? undefined
           : {
-              reason: expected.reason,
+              kind: "scripts",
+              cause: expected.reason,
               remedy: expected.remedies[viewer],
-              characterId: expected.named ? characterId : null,
-              characterName: expected.named ? CHARACTER_NAME : undefined,
+              characters: expected.named ? [{ characterId, characterName: CHARACTER_NAME }] : [],
             },
       );
     }
@@ -379,15 +457,15 @@ test("a narrator row's frame names the seat that binds the narrator step, and a 
     mediaSeat(interactive, "Arthur", { htmlTrust: "interactive", forbidExternalMedia: false }),
     mediaSeat(richHtml, CHARACTER_NAME, { htmlTrust: "trusted", forbidExternalMedia: false }),
   ];
-  expect(resolveFramedScriptVerdict(scriptSubject(groupCharacter, seats, true, true), false)).toEqual({
-    reason: "character-scripts",
+  expect(framedScriptHold(scriptSubject(groupCharacter, seats, true, true), false)).toEqual({
+    kind: "scripts",
+    cause: "character-scripts",
     remedy: "character-trust",
-    characterId: richHtml,
-    characterName: CHARACTER_NAME,
+    characters: [{ characterId: richHtml, characterName: CHARACTER_NAME }],
   });
   const noCard = { ...characterSeat(richHtml, "trusted", "no-card"), renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false } } as const;
   for (const subject of [scriptSubject(richHtml, [noCard], true, true), scriptSubject(mintTypeId(ID_PREFIX.character, ids.next), [], true, true)]) {
-    expect(resolveFramedScriptVerdict(subject, true)).toEqual({ reason: "unattributed-scripts", remedy: "none", characterId: null, characterName: undefined });
+    expect(framedScriptHold(subject, true)).toEqual({ kind: "scripts", cause: "unattributed-scripts", remedy: "none", characters: [] });
   }
 });
 
@@ -433,4 +511,109 @@ test.for(Object.entries(ROW_MEDIA))("%s loads external media only as its row's r
     });
     expect(row.allowExternal, String(installForbidsExternalMedia)).toBe(installForbidsExternalMedia ? expected.installForbids : expected.installAllows);
   }
+});
+
+// A plain row lists every kind its content holds back: its scripts share its styling's step, and its internet media is
+// held by the install or by the character that forbids it, each with its own remedy.
+test("a plain row's holds list its styling, the scripts and media its content asks for, and who holds each", () => {
+  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+  const plainRow = (installForbids: boolean, characterForbids: boolean): ReturnType<typeof resolveRowRenderPolicy> =>
+    resolveRowRenderPolicy({
+      role: "assistant",
+      authorUserId: null,
+      characterId,
+      viewerUserId: mintUserId(ids.next),
+      participants: new Map([
+        [
+          characterId,
+          {
+            ...characterSeat(characterId, "untrusted", "own"),
+            renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: characterForbids || installForbids },
+          },
+        ],
+      ]),
+      installForbidsExternalMedia: installForbids,
+      viewerIsHost: true,
+    });
+  const named = [{ characterId, characterName: CHARACTER_NAME }];
+  const styling = { cause: "character", remedy: "character-trust", characters: named } as const;
+  const subject = (row: ReturnType<typeof resolveRowRenderPolicy>): NonNullable<typeof row.plain> => {
+    if (row.plain === undefined) {
+      throw new Error("a tierA row carries its plain subject");
+    }
+    return row.plain;
+  };
+  // Styling alone: the content asks for nothing else.
+  expect(resolvePlainHolds(subject(plainRow(false, false)), { scripts: false, media: false }, false)).toEqual([{ kind: "styling", ...styling }]);
+  // Scripts and media that would load: scripts share the styling's cause, media is not held.
+  expect(resolvePlainHolds(subject(plainRow(false, false)), { scripts: true, media: true }, false)).toEqual([
+    { kind: "styling", ...styling },
+    { kind: "scripts", ...styling },
+  ]);
+  // The character forbids its media: the host is sent to the same character.
+  expect(resolvePlainHolds(subject(plainRow(false, true)), { scripts: false, media: true }, false)).toEqual([
+    { kind: "styling", ...styling },
+    { kind: "media", cause: "character-media", remedy: "character-trust", characters: named },
+  ]);
+  // The install forbids media: only an admin can change it.
+  for (const [isAdmin, remedy] of [
+    [true, "system-trust"],
+    [false, "ask-admin"],
+  ] as const) {
+    expect(resolvePlainHolds(subject(plainRow(true, false)), { scripts: true, media: true }, isAdmin)).toEqual([
+      { kind: "styling", ...styling },
+      { kind: "scripts", ...styling },
+      { kind: "media", cause: "install-media", remedy, characters: [] },
+    ]);
+  }
+});
+
+test("a framed document's holds come from its grant, and the roster only names the holder", () => {
+  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+  const seat = mediaSeat(characterId, CHARACTER_NAME, { htmlTrust: "trusted", forbidExternalMedia: true });
+  const reads = { participants: new Map([[characterId, seat]]), narrator: undefined, installForbids: false, viewerRunsScripts: true, viewerIsHost: true };
+  const frame = { characterId, carriedFrom: [], needsScripts: true, needsMedia: true } as const;
+  const named = [{ characterId, characterName: CHARACTER_NAME }];
+  expect(resolveFramedHolds({ ...frame, granted: { externalMedia: false, interactive: false } }, reads, false)).toEqual([
+    { kind: "scripts", cause: "character-scripts", remedy: "character-trust", characters: named },
+    { kind: "media", cause: "character-media", remedy: "character-trust", characters: named },
+  ]);
+  // A granted kind is not held, whatever the roster reads.
+  expect(resolveFramedHolds({ ...frame, granted: { externalMedia: true, interactive: true } }, reads, false)).toEqual([]);
+  // Markup that asks for neither holds nothing back.
+  expect(resolveFramedHolds({ ...frame, needsScripts: false, needsMedia: false, granted: { externalMedia: false, interactive: false } }, reads, false)).toEqual(
+    [],
+  );
+});
+
+test("a narrator frame held by two characters at one step names both for its scripts", () => {
+  const aria = mintTypeId(ID_PREFIX.character, ids.next);
+  const kai = mintTypeId(ID_PREFIX.character, ids.next);
+  const seats = [
+    mediaSeat(aria, "Aria", { htmlTrust: "trusted", forbidExternalMedia: false }),
+    mediaSeat(kai, "Kai", { htmlTrust: "trusted", forbidExternalMedia: false }),
+  ];
+  expect(framedScriptHold(scriptSubject(mintTypeId(ID_PREFIX.character, ids.next), seats, true, true), false)).toEqual({
+    kind: "scripts",
+    cause: "character-scripts",
+    remedy: "character-trust",
+    characters: [
+      { characterId: aria, characterName: "Aria" },
+      { characterId: kai, characterName: "Kai" },
+    ],
+  });
+});
+
+test("a row's holds merge once each in kind order, and the one action is the first the viewer can change", () => {
+  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+  const characters = [{ characterId, characterName: CHARACTER_NAME }];
+  const media = { kind: "media", cause: "install-media", remedy: "ask-admin", characters: [] } as const;
+  const scripts = { kind: "scripts", cause: "character-scripts", remedy: "character-trust", characters } as const;
+  const viewerScripts = { kind: "scripts", cause: "viewer-scripts", remedy: "own-scripts", characters: [] } as const;
+  const merged = mergeTrustHolds([media, scripts, media, scripts, viewerScripts]);
+  expect(merged).toEqual([scripts, viewerScripts, media]);
+  expect(actionHold(merged)).toBe(scripts);
+  // A viewer who can change nothing gets no action; a character remedy with no character to open is no action either.
+  expect(actionHold([media])).toBeUndefined();
+  expect(actionHold([{ ...scripts, characters: [] }, viewerScripts])).toBe(viewerScripts);
 });
