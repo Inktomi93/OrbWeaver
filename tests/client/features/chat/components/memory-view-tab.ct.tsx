@@ -38,6 +38,7 @@ const STORY = "tests/client/features/chat/components/_memory-view-stories/Memory
 const BLOCK_SIZE = 2;
 const SCENES = 4;
 const RETOLD = "It was told again.";
+const PHONE = { width: 390, height: 844 } as const;
 // The host-off door mounts the turn-on confirm, which reads the Utility model's connection.
 const PROCEDURES = [
   "sessions.me",
@@ -402,4 +403,21 @@ test("a view that fails to load offers a retry that lists the items", async ({ m
   failing = false;
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(rowsOf(page)).toHaveCount(view.items.length);
+});
+
+test("at phone width every row and its strike control stay inside the viewport with no sideways scroll", async ({ mount, page }) => {
+  await using h = await memoryRoom({ group: true });
+  const view = await h.caller.chat.memoryView({ chatId: h.chatId });
+  await page.setViewportSize(PHONE);
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
+  await expect(rowsOf(page)).toHaveCount(view.items.length);
+
+  const strikes = page.locator('[data-memory-status="ready"]').getByRole("button");
+  await expect(strikes).toHaveCount(view.items.length);
+  for (const locator of [...(await rowsOf(page).all()), ...(await strikes.all())]) {
+    const box = present(await locator.boundingBox());
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(PHONE.width);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

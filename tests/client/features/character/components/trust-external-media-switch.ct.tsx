@@ -2,8 +2,10 @@
 // override rather than storing an "allow" the tighten-only resolver ignores, and under an install-wide block the switch
 // cannot apply, so it is not shown and a line says why.
 // Production entry: the AppShell's Characters section, its context panel's Trust tab.
-import { CHARACTER_TRUST_BLOCK_LABEL, contextToggleLabel, LOAD_INTERNET_MEDIA_LABEL } from "@orb/client/lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, contextToggleLabel, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { HtmlTrustStep } from "@orb/contracts/chat";
+import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -15,6 +17,7 @@ import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.t
 import {
   CHARACTER_EDITOR_NAME,
   CHARACTER_HERO_NAME_FIELD_NAME,
+  CHARACTER_HTML_TRUST_LABEL,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_TRUST_TAB_LABEL,
 } from "#client/features/character/lib/character-names.ts";
@@ -30,6 +33,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 interface TrustCase {
   readonly block: Locator;
   readonly control: Locator;
+  readonly ladder: Locator;
   readonly stored: () => Promise<boolean | null>;
 }
 
@@ -46,13 +50,17 @@ async function openTrust(scene: {
   readonly mountShell: () => Promise<unknown>;
   readonly installBlocks: boolean;
   readonly stored: boolean | null;
+  readonly step?: HtmlTrustStep;
 }): Promise<TrustCase> {
-  const { corpus, page, root, cleanup, mountShell, installBlocks, stored } = scene;
+  const { corpus, page, root, cleanup, mountShell, installBlocks, stored, step } = scene;
   const caller = await root.internalCallerFor(root.ownerId);
   const card = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "trust-switch-courier", name: CARD_NAME, description: "A courier whose media trust is set per card." }),
   });
-  await caller.character.update({ characterId: card.id, input: { forbidExternalMedia: stored } });
+  await caller.character.update({
+    characterId: card.id,
+    input: { forbidExternalMedia: stored, ...(step === undefined ? {} : renderPolicyOverrideForStep(step)) },
+  });
   await routeAuthConfig(page, { ...corpus.auth.signedInConfig, forbidExternalMedia: installBlocks });
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await routeTrpc(page, {
@@ -75,6 +83,7 @@ async function openTrust(scene: {
   return {
     block,
     control: block.getByRole("switch", { name: LOAD_INTERNET_MEDIA_LABEL, exact: true }),
+    ladder: block.getByRole("combobox", { name: CHARACTER_HTML_TRUST_LABEL, exact: true }),
     stored: async (): Promise<boolean | null> => (await caller.character.get({ characterId: card.id })).forbidExternalMedia,
   };
 }
@@ -112,4 +121,15 @@ test("under an install-wide block the switch is not shown, the block says why, a
   await expect(block.locator('[data-slot="trust-media-blocked"]')).toBeVisible();
   await expect(control).toHaveCount(0);
   expect(await stored()).toBeNull();
+});
+
+test("the ladder's hint names the step the character resolves to and follows a pick", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  await using cleanup = new AsyncDisposableStack();
+  const mountShell = (): Promise<unknown> => mount<typeof ShellBusStory>(STORY, {});
+  const { ladder } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: false, stored: null, step: "trusted" });
+  await expect(ladder).toHaveAccessibleDescription(new RegExp(`render as ${HTML_TRUST_STEP_LABELS.trusted}`));
+  await ladder.click();
+  await page.getByRole("option", { name: HTML_TRUST_STEP_LABELS.untrusted, exact: true }).click();
+  await expect(ladder).toHaveAccessibleDescription(new RegExp(`render as ${HTML_TRUST_STEP_LABELS.untrusted}`));
 });

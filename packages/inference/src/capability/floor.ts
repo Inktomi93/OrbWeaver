@@ -39,8 +39,10 @@ export function clampToServedWindow(capability: Capability, served: ServedWindow
 }
 
 /** A route that sends the window with each request (Ollama's native `num_ctx`) runs the one the preset asks for, up to
- *  the trained maximum; `windowForPreset` applies it per turn. With no trained maximum stated there is no bound to
- *  hold a preset value to, so the window stands. The mark is the route's alone: a stated one elsewhere is dropped. */
+ *  the trained maximum; `windowForPreset` applies it per turn. With no trained maximum stated the route is not marked
+ *  settable, so `windowForPreset` treats its window like any other row's: a guessed window takes the preset's number as
+ *  given for budgeting and a stated or declared one stands. The native row sends the window that results as `num_ctx`,
+ *  held to the settable floor either way (`nativeWindow`). The mark is the route's alone: a stated one elsewhere is dropped. */
 export function markSettableWindow(capability: Capability, sendsWindow: boolean, trained: number | undefined): Capability {
   const settable = sendsWindow && trained !== undefined ? { settable: { max: trained } } : {};
   if (capability.kind !== "generation" || (!("settable" in settable) && capability.generation.context.settable === undefined)) {

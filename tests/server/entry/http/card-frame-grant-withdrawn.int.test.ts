@@ -297,3 +297,26 @@ test("a carried-author list that is empty or too long is refused, so the field c
   // Positive control: one named author mints.
   expect((await postMint(room, { carriedFrom: [room.characterId] })).status).toBe(200);
 });
+
+async function servedBody(room: GrantedRoom, url: string): Promise<string> {
+  const response = await room.root.http.request(url, { headers: room.member.headers });
+  expect(response.status).toBe(200);
+  return await response.text();
+}
+
+const EXTERNAL_IMAGE_SELECTOR = '[src^="https:" i]';
+
+test.for(Object.entries(WITHDRAWALS))(
+  "%s: the served document draws held external images as a placeholder exactly when the grant is gone",
+  async ([, withdrawal]) => {
+    await using root = await createAuthModeRoot("local");
+    const room = await grantedRoom(root);
+    const minted = await mint(room);
+    const granted = await servedBody(room, minted.url);
+    expect(granted).not.toContain(EXTERNAL_IMAGE_SELECTOR);
+    await withdrawal.withdraw(room);
+    const narrowed = await servedBody(room, minted.url);
+    expect(narrowed).toContain(CARD_HTML);
+    expect(narrowed.includes(EXTERNAL_IMAGE_SELECTOR)).toBe(!withdrawal.media.allowExternalMedia);
+  },
+);
