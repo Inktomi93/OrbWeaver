@@ -30,7 +30,7 @@
 //
 // A DISABLED RESET'S LEGIBILITY is answered by the SHAPE: in production a
 // disabled Reset does not exist — an unmodified row renders the empty cell. The dev menu
-// keeps `data-disabled:opacity-disabled`, which is the house-wide disabled convention shared by every menu,
+// keeps the menu item's own disabled state (`packages/ui/src/lib/disabled-state.ts`), shared by every menu,
 // select and command item in `@orb/ui`; retuning it here would be a cross-cutting change to a surface this
 // row does not own.
 

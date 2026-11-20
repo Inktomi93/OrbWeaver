@@ -32,7 +32,15 @@ export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL
 export { CONTROL_WRAP } from "./control-wrap.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
-export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
+export {
+  DISABLED_DIM,
+  DISABLED_FIELD,
+  DISABLED_FIELD_NATIVE,
+  DISABLED_FIELD_WITHIN,
+  DISABLED_SELECTION,
+  DISABLED_STATE,
+  DISABLED_STATE_NATIVE,
+} from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export { CONTROL_INSET, FLOOR, GROW, PASS_THROUGH, PUSH, RUN_INSET, SELF, WRAP } from "./flex-share.ts";
 export { FOCUS_LANDING_ATTRIBUTE } from "./focus-landing.ts";

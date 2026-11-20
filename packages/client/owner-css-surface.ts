@@ -632,6 +632,7 @@ export const OWNER_CSS_SLOTS = [
   "roster-member-editor",
   "roster-row",
   "roster-rules",
+  "row-handover-settled",
   "rpg-act-rail",
   "rpg-attribute-row",
   "rpg-band-satellites",

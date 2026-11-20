@@ -2152,7 +2152,7 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string>(
   return literals;
 }
 
-/** A fill an inactive control paints under its ink: a tone tint, or a text field's fill. */
+/** A fill an inactive control paints under its ink: a tone tint. */
 export interface InactiveFill {
   readonly color: Oklch;
   readonly alpha: number;
@@ -2165,16 +2165,16 @@ export interface InactiveInkPair {
   readonly fill?: InactiveFill;
 }
 
-/** What {@link inactiveInkPairs} reads: the page scheme, every tone the palette paints, the role colours each paints on a host, and the text-field fill. */
+/** What {@link inactiveInkPairs} reads: the page scheme, every tone the palette paints, and the role colours each paints on a host. */
 export interface InactiveInkInputs<Role extends string, Knob extends string> {
   readonly scheme: ToneScheme<Role, Knob, CarriedToneHost>;
   readonly tones: readonly ToneSource[];
   /** The colours one tone's roles paint under a host's scheme: the generated mixes for a seed, a carried scope's literals over them. */
   readonly rolesOn: (scheme: ToneScheme<Role, Knob, CarriedToneHost>, tone: ToneSource) => Readonly<Record<Role, Oklch>>;
-  readonly fieldFill: InactiveFill;
 }
 
-// A disabled solid control drops its fill for the muted pair at full opacity, so no ink is judged dimmed on a solid.
+// A disabled control that paints a solid (a solid Button, a checked selection control, a slider's range) drops it for the muted
+// pair at full opacity, so no ink is judged dimmed on a solid.
 function paintsSolid<Role extends string, Knob extends string, Host extends string>(recipe: ToneRoleRecipe<Role, Knob, Host>): boolean {
   return recipe.colored === "base" || mixStepToward(recipe.colored, "away") !== undefined;
 }
@@ -2190,28 +2190,24 @@ function rolePageInks<Role extends string, Knob extends string>(
   return tone === "neutral" ? recipe.neutral.pageInks : recipe.pageInks;
 }
 
-/** The page inks a control paints on one host: the host's own ink and the muted ink, bare or on a text field's fill. */
-function hostInactivePairs(palette: TonePalette<CarriedToneHost>, fieldFill: InactiveFill): readonly InactiveInkPair[] {
+// The page inks a fill-less control paints on one host: the host's own ink and the muted ink a disabled one swaps to. A form
+// control drawn by its D159 edge never dims (it swaps to the muted pair), so no ink is judged on a field fill.
+function hostInactivePairs(palette: TonePalette<CarriedToneHost>): readonly InactiveInkPair[] {
   if (palette.carriesPageInks === false) {
     return [];
   }
-  const inks = [palette.hosts[palette.hostInks?.foreground ?? "foreground"], palette.hosts["muted-foreground"]];
-  return inks.flatMap((ink) => [
-    { ink, host: palette.host },
-    { ink, host: palette.host, fill: fieldFill },
-  ]);
+  return [palette.hosts[palette.hostInks?.foreground ?? "foreground"], palette.hosts["muted-foreground"]].map((ink) => ({ ink, host: palette.host }));
 }
 
 /**
  * Every ink an inactive control paints on each surface it sits on (D355): each D336 role floor and page ink of every
- * tone, a role over a host bare and a page ink on the tint under it, and each host's page inks bare and in a text
- * field. Each pair clears its active floor at full opacity, so {@link inactiveOpacityPercent} always has an answer.
+ * tone, a role over a host bare and a page ink on the tint under it, and each host's page inks bare. A control that
+ * swaps to the muted pair instead of dimming paints none of these dimmed. Each pair clears its active floor at full opacity, so {@link inactiveOpacityPercent} always has an answer.
  */
 export function inactiveInkPairs<Role extends string, Knob extends string>({
   scheme,
   tones,
   rolesOn,
-  fieldFill,
 }: InactiveInkInputs<Role, Knob>): readonly InactiveInkPair[] {
   const roles = Object.keys(scheme.recipes) as Role[];
   return TONE_HOSTS.flatMap((host) => {
@@ -2235,7 +2231,7 @@ export function inactiveInkPairs<Role extends string, Knob extends string>({
         return [...floors, ...onTint];
       });
     });
-    return [...tonePairs, ...hostInactivePairs(palette, fieldFill)];
+    return [...tonePairs, ...hostInactivePairs(palette)];
   });
 }
 

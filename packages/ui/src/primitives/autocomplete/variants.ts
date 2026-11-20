@@ -3,6 +3,7 @@ import {
   COLOR_MOTION,
   CONTROL_BLOCK,
   CONTROL_INLINE,
+  DISABLED_FIELD_WITHIN,
   FIELD_STACK,
   FOCUS_RING_BARE,
   FOCUS_RING_WITHIN,
@@ -20,15 +21,15 @@ import {
 export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex items-stretch rounded-control border border-input-border bg-field-fill inline-full min-inline-0",
+      "relative flex items-stretch rounded-control border border-input-border bg-field-fill text-foreground inline-full min-inline-0",
       COLOR_MOTION,
       FOCUS_RING_WITHIN,
-      "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
+      DISABLED_FIELD_WITHIN,
     ],
     input: [
       // The transparent input spans the group's 1px edge itself (the NumberField input's own trick), so the box a finger lands on is the step's
       // whole height and not the box inside the border, two pixels short of the touch floor.
-      "-my-(--border-width-control) flex-1 bg-transparent px-block text-field leading-field text-foreground inline-full min-inline-0",
+      "-my-(--border-width-control) flex-1 bg-transparent px-block text-field leading-field inline-full min-inline-0",
       "placeholder:text-muted-foreground",
       "outline-none",
     ],

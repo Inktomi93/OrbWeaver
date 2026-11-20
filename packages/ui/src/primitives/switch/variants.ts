@@ -1,4 +1,4 @@
-import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_SELECTION, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // FOUR DIMENSIONS, THREE TOKENS AND ONE DERIVED KNOB, ALL POINTER-CONDITIONAL (#1109, owner ruling
 // 2026-09-02; the knob became derived at #1684, owner ruling 2026-09-06 — the paragraph below the #424
@@ -135,7 +135,7 @@ export const switchVariants = tv({
       COLOR_MOTION,
       "outline-none",
       FOCUS_RING,
-      DISABLED_STATE,
+      DISABLED_SELECTION,
       // Base UI sets data-invalid on the Root when wrapped in an invalid <Field> (FieldRootState).
       "data-invalid:border-destructive",
       FOCUS_RING_DESTRUCTIVE,
@@ -147,6 +147,8 @@ export const switchVariants = tv({
       "data-checked:translate-x-(--size-switch-travel)",
       // The resting step is element opacity, which a colour arm does not evict, so a checked thumb clears it back to opaque.
       "data-checked:opacity-100",
+      // A disabled thumb is the muted pair's ink at full strength on the muted track (`DISABLED_SELECTION`); its travel keeps the on and off meaning.
+      "data-disabled:bg-muted-foreground data-disabled:opacity-100 data-checked:data-disabled:bg-muted-foreground",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon: "hidden text-background group-data-readonly:block",

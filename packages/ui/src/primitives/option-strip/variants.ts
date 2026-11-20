@@ -8,10 +8,16 @@ import { ACCENT_HOVER, CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FIELD_S
 export const optionStripVariants = tv({
   slots: {
     listbox: FIELD_STACK,
-    item: [`${FIELD_ROW} rounded-control px-block py-field text-start outline-none inline-full`, COLOR_MOTION, ACCENT_HOVER, FOCUS_RING, DISABLED_STATE],
+    item: [
+      `group/option ${FIELD_ROW} rounded-control px-block py-field text-start outline-none inline-full`,
+      COLOR_MOTION,
+      ACCENT_HOVER,
+      FOCUS_RING,
+      DISABLED_STATE,
+    ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     body: "flex flex-1 items-center gap-field min-inline-0",
-    label: "truncate font-mono text-code leading-label-relaxed text-foreground",
+    label: "truncate font-mono text-code leading-label-relaxed text-foreground group-data-disabled/option:text-muted-foreground",
     description: `truncate ${CAPTION}`,
   },
   variants: {

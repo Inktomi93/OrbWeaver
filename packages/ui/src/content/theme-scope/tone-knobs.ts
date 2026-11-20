@@ -1,7 +1,7 @@
 // D336 tone knobs and literal roles for a carried background. The `[data-tone]` blocks read `--tone-mix-*` and each
 // colored tone's `--tone-<tone>-<role>` literal from the cascade, so a scope that paints its own palette emits both
 // beside its colours; the root leaves every literal invalid, and the knob defaults clear every seed floor, which the token build proves.
-import type { CarriedToneHost, InactiveFill, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   accentFillLightness,
   carriedLiteralRoles,
@@ -240,13 +240,12 @@ const INACTIVE_OPACITY = TOKENS["opacity.disabled"];
 // The token's value is the resting step every palette starts from, spelled as the generated percentage.
 const RESTING_INACTIVE_PERCENT = Number.parseFloat(INACTIVE_OPACITY.value);
 
-/** What a carried scope's inactive-control opacity is judged over: its scheme, its tones, the knobs and literals they paint with, and its text-field fill. */
+/** What a carried scope's inactive-control opacity is judged over: its scheme, its tones, and the knobs and literals they paint with. */
 interface CarriedInactiveInks {
   readonly scheme: CarriedToneScheme;
   readonly tones: readonly CarriedTone[];
   readonly mix: CarriedToneMix;
   readonly literals: CarriedToneLiterals;
-  readonly fieldFill: InactiveFill;
 }
 
 /**
@@ -254,13 +253,12 @@ interface CarriedInactiveInks {
  * scope paints on an inactive control clears 3:1 over its own ramp. Each tone paints its literals over the mix, and a
  * tone the scope cannot judge is left out, as the knob solve leaves it out.
  */
-export function inactiveOpacityVars({ scheme, tones, mix, literals, fieldFill }: CarriedInactiveInks): Readonly<Record<string, string>> {
+export function inactiveOpacityVars({ scheme, tones, mix, literals }: CarriedInactiveInks): Readonly<Record<string, string>> {
   const literalsOf = new Map(tones.map(({ tone, source }) => [source, literals.get(tone)] as const));
   const pairs = inactiveInkPairs({
     scheme,
     tones: tones.map(({ source }) => source),
     rolesOn: (onHost, source) => ({ ...toneRoleColors(onHost, source, mix.scope), ...literalsOf.get(source) }),
-    fieldFill,
   });
   return { [INACTIVE_OPACITY.cssVar]: `${inactiveOpacityPercent(pairs, RESTING_INACTIVE_PERCENT)}%` };
 }

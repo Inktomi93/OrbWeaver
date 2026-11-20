@@ -2,7 +2,7 @@
 // the clamp and tests read, the floor check that fails a shipped palette under a role floor, and the inactive-control
 // opacity each shipped palette derives from the same recipes (D355).
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
-import type { CarriedToneHost, InactiveFill, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   AA_NON_TEXT_RATIO,
   BUBBLE_HOSTS,
@@ -327,11 +327,10 @@ function toneFindings(scheme: ToneScheme<string, string, CarriedToneHost>, sourc
   return [...floors, ...separations, ...marks];
 }
 
-/** A shipped palette as the tone checks read it: its page palette, each tone's colours, and its text-field fill. */
+/** A shipped palette as the tone checks read it: its page palette and each tone's colours. */
 interface ShippedPalette {
   readonly page: TonePalette<CarriedToneHost>;
   readonly sources: ReadonlyMap<string, ToneSource>;
-  readonly fieldFill: InactiveFill;
 }
 
 function shippedPalette(contract: TokenContractResult, theme: TokenContractResult["themes"][number], model: ToneModel): ShippedPalette {
@@ -352,11 +351,8 @@ function shippedPalette(contract: TokenContractResult, theme: TokenContractResul
       hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
     },
     sources,
-    fieldFill: rawColor(seedValue(contract, theme, FIELD_FILL_PATH), FIELD_FILL_PATH),
   };
 }
-
-const FIELD_FILL_PATH = "color.field-fill";
 
 /** The element-opacity token an inactive control dims by: its value is the resting step a palette raises (D355). */
 export const INACTIVE_OPACITY_PATH = "opacity.disabled";
@@ -378,12 +374,11 @@ export function shippedInactiveOpacity(contract: TokenContractResult, model: Ton
   const resting = restingInactivePercent(contract);
   return new Map(
     contract.themes.map((theme) => {
-      const { page, sources, fieldFill } = shippedPalette(contract, theme, model);
+      const { page, sources } = shippedPalette(contract, theme, model);
       const pairs = inactiveInkPairs({
         scheme: { recipes, palette: page },
         tones: [...sources.values()],
         rolesOn: (scheme, tone) => toneRoleColors(scheme, tone, model.defaults),
-        fieldFill,
       });
       return [theme.id, inactiveOpacityPercent(pairs, resting)] as const;
     }),

@@ -40,7 +40,7 @@ import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette, InputBorderFallback } from "./derive-vars.ts";
-import { carriedFieldFill, carriedPaletteOf, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
+import { carriedPaletteOf, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import {
@@ -507,7 +507,7 @@ function accentAndTonesOn(
       ...toneMixVars(mix),
       ...toneLiteralVars(literals),
       ...toneHostReset(),
-      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals, fieldFill: carriedFieldFill(carried) }),
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
     },
     fallback,
   };
@@ -537,7 +537,7 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
     toneVars: {
       ...primaryToneVars(mix, literals),
       ...ring.vars,
-      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals, fieldFill: carriedFieldFill(ambient) }),
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
     },
     fallback,
     ...(ring.fallback === undefined ? {} : { inputBorderFallback: ring.fallback }),

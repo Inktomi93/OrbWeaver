@@ -66,6 +66,7 @@ export const listRowVariants = tv({
     title: `
       block flex-1 truncate text-start text-body leading-body font-medium text-foreground
       group-aria-expanded/body:text-tone-text-on-tint
+      group-data-disabled/body:text-muted-foreground
       group-data-selected:text-tone-text-on-tint
     `,
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum

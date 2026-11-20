@@ -4,7 +4,8 @@ import {
   CONTROL_BLOCK,
   CONTROL_MIN_BLOCK,
   CONTROL_WRAP,
-  DISABLED_STATE,
+  DISABLED_DIM,
+  DISABLED_FIELD,
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
   FIELD_LABEL,
@@ -28,13 +29,13 @@ const WRAPPING_TRIGGER = [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spaci
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
-    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
+    label: `${FIELD_LABEL} ${DISABLED_DIM}`,
     trigger: [
       "flex cursor-pointer items-center justify-between gap-row select-none",
       `${COLOR_MOTION} hover:bg-accent`,
       "outline-none",
       FOCUS_RING,
-      DISABLED_STATE,
+      DISABLED_FIELD,
     ],
     // The selected value is what the reader chose the control for, so it is never cut: a value past the trigger's room wraps between its
     // words and the trigger grows from its step. `min-inline-0` lets the flex child shrink to the trigger's width, so only a word wider
@@ -56,7 +57,7 @@ export const selectVariants = tv({
     // `flex-1` gives the body the row's full width: a description that does not size the popup must still be
     // laid out across it, or it wraps at its label's width.
     itemBody: "flex flex-1 flex-col min-inline-0",
-    itemLabel: "group-data-disabled/select-item:opacity-disabled",
+    itemLabel: "group-data-disabled/select-item:text-muted-foreground group-data-disabled/select-item:opacity-disabled",
     // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
     // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the
     // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the
@@ -97,6 +98,8 @@ export const selectVariants = tv({
         trigger: [
           FIELD_CONTROL_BOX,
           "relative border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0",
+          // No box to fill, so a disabled text trigger takes the fill-less dim beside the muted ink.
+          "data-disabled:bg-transparent data-disabled:opacity-disabled",
           TOUCH_TARGET_PSEUDO_STRETCH,
         ],
       },

@@ -16,7 +16,13 @@ export const radioGroupVariants = tv({
     `,
     item: [SELECTION_CONTROL, "rounded-full", "data-checked:border-primary data-checked:bg-primary"],
     indicator: "group flex items-center justify-center",
-    dot: "hidden rounded-full bg-primary-foreground block-field inline-field group-data-checked:block group-data-readonly:hidden",
+    // A disabled item paints the muted pair (`DISABLED_SELECTION`), so its dot takes the pair's ink.
+    dot: `
+      hidden rounded-full bg-primary-foreground block-field inline-field
+      group-data-checked:block
+      group-data-disabled:bg-muted-foreground
+      group-data-readonly:hidden
+    `,
     readOnlyIcon: "hidden text-primary-foreground group-data-readonly:block",
   },
 });
