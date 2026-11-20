@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: server
 ---
@@ -18,7 +18,7 @@ The first outside user asked for it, and asked that chat be blocked during the u
 
 ## Done when
 
-The owner updates a source install from Settings on Linux, macOS and Windows and the browser reconnects to the new version. No turn starts after the update begins and a running reply is kept. The action is refused for a non-owner, under Docker, on a changed checkout and when the app was not started by the start script, each with a plain reason. A failed pull or install starts the old version again and says why. The drain is requested without a signal, so it works on Windows. Tests cover the refusals, the drain and the exit code hand-off, and `.github/workflows/install.yml` exercises the hand-off on Windows and macOS.
+The owner updates a source install from Settings on Linux, macOS and Windows and the browser reconnects to the new version. No turn starts after the update begins and a running reply is kept. The action is refused for a non-owner, under Docker, on a changed checkout and when the app was not started by the start script, each with a plain reason. The database is backed up before any file changes. A failed pull or install starts the old version again and says why. The drain is requested without a signal, so it works on Windows. Tests cover the refusals, the drain and the exit code hand-off, and `.github/workflows/install.yml` exercises the hand-off on Windows and macOS.
 
 ## Evidence
 

@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-20
 priority: P3
 area: chat
-lane: wt/agent-ae2df25e70dc0ee58
 plan: chat-html-and-presets
 ---
 
@@ -20,7 +19,7 @@ The notice under-reports what is held back. It never widens what a frame may do,
 
 ## Done when
 
-A frame's narrower grant on a later serve updates the row notice, and a CT covers a grant that narrows after the first report.
+A design for how the client learns a later serve's narrower grant is chosen and reviewed by a security-builder: either the pinned frame height script posts a serve-set attribute, or an authenticated grant read. The row notice then follows the narrower grant, with a CT.
 
 ## Evidence
 

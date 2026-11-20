@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: chat
 ---
@@ -18,7 +18,7 @@ A user with a slow script is told it stopped but not where to switch it off or e
 
 ## Done when
 
-The notice says to switch the script off or fix its pattern under This chat, Regex, with an action that opens that row; the Stopped row shows its reason as visible text; the notice does not cover the roster.
+The regex stop notice carries an action that opens the stopped script's row, and its overlap with the roster is fixed or ruled; the next-step copy and the visible Stopped reason already exist.
 
 ## Evidence
 

@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: testing
 ---
@@ -18,7 +18,7 @@ A race is found one CI run at a time, and the retry lets one pass unseen unless 
 
 ## Done when
 
-One command runs the component suite, or a named shard or file, pinned to a small set of cores with a matching worker count and no load generator, and the testing README names it. The flaky list from CI is read after each push and each named test is rewritten to wait on its event.
+A package script runs the browser suites pinned to the cores a standard runner has, the README names it, and a run with it reproduces the hosted timing; the CI retry already exists.
 
 ## Evidence
 

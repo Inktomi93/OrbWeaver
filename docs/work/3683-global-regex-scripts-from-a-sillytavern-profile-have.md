@@ -19,7 +19,7 @@ A report can count scripts that were never written, so the claim that they impor
 
 ## Done when
 
-An integration test imports a profile with global regex scripts through the composed import door and asserts the stored scripts and their scope, red against a planted break.
+An integration test asserts each imported global regex script's stored scope through the composed import door, red against a planted break in the scope mapping; the stored names, targets and passes are already asserted.
 
 ## Evidence
 

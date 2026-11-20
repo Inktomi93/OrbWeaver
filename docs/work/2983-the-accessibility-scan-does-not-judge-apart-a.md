@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-14
+updated: 2026-11-20
 priority: P2
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ The list row header in packages/ui/src/primitives/list-row/list-row\.tsx accepts
 
 ## Done when
 
-A clickable ListRow with a subtitle mounted through the real primitive is judged apart by the scan (needs-review, vendor result unchanged) and tests/support/browser/accessibility-scan.ct.tsx holds the case; a control whose name drops a shown word still fails.
+A case through the real ListRow primitive with a subtitle shows the scan judging its name mismatch apart, red against the old judgement; the plain button case already exists.
 
 ## Evidence
 

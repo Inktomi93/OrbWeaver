@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-20
 priority: P2
 area: testing
 plan: restoration-register
@@ -19,7 +19,7 @@ Existing assertions can satisfy reference obligations despite moved files and ch
 
 ## Done when
 
-Each selected obligation has a covered, partial, qualification-only or explicit drop decision with assertion references. Update the restoration register and reusable decision evidence. Run affected qualification only where needed; no new tests for already-covered outcomes.
+The restoration register accounts for the results and views contracts test files, or records why they need no row.
 
 ## Evidence
 

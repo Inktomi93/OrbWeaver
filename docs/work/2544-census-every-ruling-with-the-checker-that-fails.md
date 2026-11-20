@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-11
+updated: 2026-11-20
 priority: P2
 area: tooling
 plan: checked-law
@@ -19,7 +19,7 @@ A ruling with no checker holds only while an author reads and obeys it, and the 
 
 ## Done when
 
-A report exists for AGENTS.md with the path rules and for each law doc, each row carrying its evidence path. One ranked list across all reports names the unchecked rulings whose violation costs most with the checker shape for each, and each of those has a work item in this plan.
+One ranked list across the law census reports names every ruling with its checker or its gap, and each top-ranked gap has a work item.
 
 ## Evidence
 
