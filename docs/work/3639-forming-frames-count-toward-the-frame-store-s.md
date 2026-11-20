@@ -11,7 +11,7 @@ plan: chat-html-and-presets
 
 ## What
 
-The frame handle store sizing in packages/client... does not count forming frame documents, and a forming document stays pinned for its full lifetime after its reply settles, released only by self-eviction.
+The frame handle store sizing in packages/server/src/entry/http/frame-handle-store.ts does not count forming frame documents, and a forming document stays pinned for its full lifetime after its reply settles, released only by self-eviction.
 
 ## Why
 
