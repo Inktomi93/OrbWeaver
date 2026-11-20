@@ -21,7 +21,7 @@
 // eviction (Map iteration is insertion-ordered, so the first matching key IS the oldest handle); a victim of
 // eviction re-mints. Each doorway passes its own ceilings and gets its own store.
 //
-// SIZED for framed replies (D354), measured on the public Sola V4 preset's display scripts: the longest reply (a
+// SIZED for framed replies (D354), measured on a heavy public preset's display scripts: the longest reply (a
 // six-tracker scene) mints a 279,294-byte body (204,544 chars of markup, 58,319 of matched app CSS, the token set),
 // so its stored document is about 0.27 MiB. A reply that splits on dice, choices or media stores one document per
 // run, and each run carries the other runs' stylesheets. Measured through the real transcript, app stylesheet match

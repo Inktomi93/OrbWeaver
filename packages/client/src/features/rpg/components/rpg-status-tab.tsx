@@ -31,7 +31,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { MutedLine, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { revealContextPanel } from "#state";
+import { GAME_SETTINGS_TAB_ID, revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
 import { useRpgStatusSheetRequest } from "../hooks/use-rpg-status-sheet-request.ts";
@@ -150,7 +150,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
           gets out of the way; an established game never carries it. */}
       {characters.length === 0 || characters.every((actor) => actor.volatile === null) ? (
         // The Game tab is the host's, so only a host is offered the door to it.
-        <MutedLine action={isHost ? { label: "Open the Game tab", onAction: (): void => revealContextPanel("rpg.game") } : undefined}>
+        <MutedLine action={isHost ? { label: "Open the Game tab", onAction: (): void => revealContextPanel(GAME_SETTINGS_TAB_ID) } : undefined}>
           The story fills this in as you play. Set up trackers in the Game tab.
         </MutedLine>
       ) : null}

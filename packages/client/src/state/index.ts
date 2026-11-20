@@ -120,6 +120,7 @@ export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 export {
+  ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
   CONFIG_GROUP_IDS,
   CONFIG_SHELVES,
   FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
@@ -237,8 +238,10 @@ export {
   GAME_MODE_OFF_LABEL,
   GAME_MODE_ON_LABEL,
   GAME_MODE_RESUME_LABEL,
+  GAME_SETTINGS_TAB_ID,
   onGameModeStarted,
   onGameModeStopped,
+  openGameSettings,
 } from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export type { HomeTileId } from "./home-tile-ids.ts";

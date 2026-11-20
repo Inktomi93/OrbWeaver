@@ -22,6 +22,9 @@ import { announceStatus } from "./status-announcement-store.ts";
  *  worst case was an empty host-console schema form (#863 P1). */
 const GAME_STATUS_TAB_ID = "rpg.status";
 
+/** The host console tab id, which rpg registers its Game tab under: it holds the game's feature switches. */
+export const GAME_SETTINGS_TAB_ID = "rpg.game";
+
 /** The ⋯ menu's toggle labels — ONE noun for the feature, everywhere (`game mode`). */
 export const GAME_MODE_ON_LABEL = "Turn on game mode";
 export const GAME_MODE_OFF_LABEL = "Turn off game mode";
@@ -46,6 +49,11 @@ const GAME_MODE_OFF_ANNOUNCEMENT = "Game mode off: your sheets, scene and quests
 export function onGameModeStarted(): void {
   revealContextPanel(GAME_STATUS_TAB_ID);
   announceStatus(GAME_MODE_ON_ANNOUNCEMENT);
+}
+
+/** Open the context panel on the game's host console, where a chat row's notice sends a host to a game switch. */
+export function openGameSettings(): void {
+  revealContextPanel(GAME_SETTINGS_TAB_ID);
 }
 
 /** A user-initiated STOP committed: announce it, with the kept-state reassurance. Nothing is revealed —

@@ -36,7 +36,7 @@ import { useCardFrame } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
-import { FramedMediaNotice } from "./plain-content-notice.tsx";
+import { FramedMediaNotice, FramedScriptNotice } from "./plain-content-notice.tsx";
 
 export interface ReplyFrameProps {
   readonly segments: readonly FrameReplySegment[];
@@ -58,7 +58,7 @@ const BUBBLE_SLOT = "message-bubble";
 function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boolean): ReactElement {
   if (segment.kind === "card") {
     // biome-ignore lint/security/noDangerouslySetInnerHtml: static markup for the sandboxed frame document only; this tree is rendered to a string, never mounted.
-    return <div key={index} dangerouslySetInnerHTML={{ __html: segment.html }} />;
+    return <div key={index} dangerouslySetInnerHTML={{ __html: segment.html }} />; // ast-grep-ignore: tsx-dangerously-set-html -- the same verified case as the Biome line above.
   }
   const markdown = <FrameMarkdown colorQuotes={colorQuotes}>{segment.markdown}</FrameMarkdown>;
   return segment.tokens === undefined ? (
@@ -77,7 +77,7 @@ function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boo
 function runStyles(sheets: readonly FrameStyleSheet[], side: string): readonly ReactElement[] {
   return sheets.map((sheet, index) => (
     // biome-ignore lint/security/noDangerouslySetInnerHtml: the same reply's own stylesheet text, for the sandboxed frame document only; this tree is rendered to a string, never mounted.
-    <style key={`${side}-${String(index)}`} media={sheet.media} dangerouslySetInnerHTML={{ __html: sheet.css }} />
+    <style key={`${side}-${String(index)}`} media={sheet.media} dangerouslySetInnerHTML={{ __html: sheet.css }} /> // ast-grep-ignore: tsx-dangerously-set-html -- the same verified case as the Biome line above.
   ));
 }
 
@@ -164,7 +164,10 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
       )}
       {links.confirm}
       {mint.state === "routed" && built !== undefined ? (
-        <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} css={built.look.css} />
+        <>
+          <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} css={built.look.css} />
+          <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} />
+        </>
       ) : null}
     </Stack>
   );

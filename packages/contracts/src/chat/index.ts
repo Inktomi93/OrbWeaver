@@ -389,6 +389,9 @@ export {
   regexTierKeySchema,
 } from "./regex-tiers.ts";
 export type {
+  CardScriptConsents,
+  CardScriptHolder,
+  CardScriptVerdict,
   CarriedAppearance,
   CharacterMemberSpec,
   CreateInviteInput,
@@ -446,6 +449,7 @@ export {
   redeemInviteSchema,
   renderPolicyOverrideForStep,
   rendersTrustedHtml,
+  resolveCardScriptVerdict,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,
   resolveCarriedTheme,

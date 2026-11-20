@@ -55,13 +55,13 @@
 // sliding 30-minute TTL, and the owner check as the last word.
 
 import {
-  allowsInteractiveCards,
   CARD_FRAME_MINT_BODY_MAX_BYTES,
   CARD_FRAME_MINTS_IN_FLIGHT,
   CARD_FRAME_ROUTE,
   cardFrameMintRequestSchema,
   cardFrameUrl,
   rendersTrustedHtml,
+  resolveCardScriptVerdict,
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
@@ -168,16 +168,21 @@ async function resolvePolicy(
       // ladder, so an interactive card is a trusted card by construction and cannot lose the door.
       allowInlineData: rendersTrustedHtml(policy.htmlTrust),
     },
-    // THE PER-DOCUMENT POSTURE SELECTION, now a real capability (leg 3): the interactive arm
-    // emits `script-src 'unsafe-inline'` and the card's own scripts RUN. Read through the ladder's one
-    // predicate rather than a second boolean, off the server's own membership-gated roster value — the mint
-    // body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled
-    // key outright). The deployment ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, the
-    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one. The viewer's
-    // own consent is the third input: the host and the box decide whether a card MAY run scripts, and each
-    // viewer decides whether it runs them in their browser. It is read last, so a static card costs no read.
-    posture:
-      deps.allowInteractiveCards() && allowsInteractiveCards(policy.htmlTrust) && (await deps.viewerRunsCardScripts(principal)) ? "interactive" : "static",
+    // THE PER-DOCUMENT POSTURE SELECTION: the interactive arm emits `script-src 'unsafe-inline'` and the card's own
+    // scripts RUN. `resolveCardScriptVerdict` is the one home of the rule, and the client's script notice names the
+    // holder it returns, so the two cannot disagree. Its step is the server's own membership-gated roster value — the
+    // mint body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled key
+    // outright). The deployment ceiling is passed HERE as well as folded inside `resolveRenderPolicy`, the
+    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one. The viewer's own
+    // consent is the third input: the host and the box decide whether a card MAY run scripts, and each viewer
+    // decides whether it runs them in their browser.
+    posture: resolveCardScriptVerdict({
+      installAllows: deps.allowInteractiveCards(),
+      step: policy.htmlTrust,
+      viewerRuns: await deps.viewerRunsCardScripts(principal),
+    }).runs
+      ? "interactive"
+      : "static",
   };
 }
 

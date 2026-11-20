@@ -12,7 +12,7 @@
 
 import type { ContentSpansToBlocksOptions, MessageContentBlock } from "@orb/contracts/chat";
 import { contentSpansToBlocks } from "@orb/contracts/chat";
-import { tokenizeContent } from "@orb/kit/content";
+import { contentSpanRaw, modelPanels, tokenizeContent } from "@orb/kit/content";
 
 /** `toContentBlocks` options — the contracts projection options plus the tokenizer's §4.8 lenient switch. */
 export interface ToContentBlocksOptions extends ContentSpansToBlocksOptions {
@@ -31,4 +31,22 @@ export function toContentBlocks(content: string, options?: ToContentBlocksOption
   // COMMITTED: this projection only ever sees a stored/authored body — the in-flight turn renders through
   // `scanGhostContent` (the §4.5 forming placeholder), which is untouched by the EOF-close arm.
   return contentSpansToBlocks(tokenizeContent(content, { lenientHtml: options?.lenientHtml, committed: true }), options);
+}
+
+/** Whether `content` holds HTML the §4.8 lenient wrap would draw as a card that the row does not draw already: a
+ *  lenient card span no model panel overlaps, because a panel frames whatever the wrap says. Cost: one tokenize with
+ *  the lenient arm on and one {@link modelPanels} read, both linear in the text; a game room with the wrap off is the
+ *  only caller. */
+export function holdsUnwrappedCard(content: string): boolean {
+  const panels = modelPanels(content);
+  let cursor = 0;
+  for (const span of tokenizeContent(content, { lenientHtml: true, committed: true })) {
+    const end = cursor + contentSpanRaw(span).length;
+    const start = cursor;
+    if (span.kind === "card" && span.origin === "lenient" && !panels.some((panel) => panel.start < end && start < panel.end)) {
+      return true;
+    }
+    cursor = end;
+  }
+  return false;
 }

@@ -1,17 +1,28 @@
 // The chat half of the plain-content notice: the copy and the control for the verdicts `render-trust.ts` resolves. Only
 // those verdicts decide which setting is named and whether the viewer gets a control; this file hands them the roster's
 // policy and never judges it. A row shows one plain-content notice, however many plain cards and styled runs it holds.
-// A framed card or styled reply whose external media the frame refuses shows its own framed-media notice under it.
+// A framed card or styled reply whose external media the frame refuses shows its own framed-media notice under it, and
+// one whose controls need scripts the frame's posture does not run shows its framed-script notice.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { PlainNoticeAction } from "@orb/ui/immersive-card";
 import { PlainNotice } from "@orb/ui/immersive-card";
-import { holdsExternalMedia } from "@orb/ui/sandbox-frame";
+import { holdsExternalMedia, holdsScript } from "@orb/ui/sandbox-frame";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { roomRosterOptions, useAuthConfig, useGatedQuery, useSettingsViewerView, useTRPC } from "#data";
-import type { FramedMediaReason, PlainReason, PlainRemedy, PlainReplyReason, PlainSubject } from "#lib";
-import { PLAIN_REPLY_REASON, resolveFramedMediaVerdict, resolvePlainVerdict } from "#lib";
-import { FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, openCharacterTrust, openConfigTo, TRUST_HTML_CONFIG_SETTING } from "#state";
+import type { FramedMediaReason, FramedScriptReason, PlainReason, PlainRemedy, PlainReplyReason, PlainSubject } from "#lib";
+import { HELD_CARDS_REASON, PLAIN_REPLY_REASON, resolveFramedMediaVerdict, resolveFramedScriptVerdict, resolvePlainVerdict } from "#lib";
+import {
+  ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
+  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+  MEDIA_TRUST_CONFIG_SUB,
+  openCharacterTrust,
+  openConfigTo,
+  openGameSettings,
+  TRUST_HTML_CONFIG_SETTING,
+} from "#state";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY, RUN_CARD_SCRIPTS_SETTING_ID } from "../lib/chat-behavior-message-handling-model.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
 const UNNAMED_CHARACTER = "this character";
@@ -19,6 +30,7 @@ const PLAIN_REPLY_CAUSE: Record<PlainReplyReason, string> = {
   [PLAIN_REPLY_REASON.carriedStylesOverBudget]: "This reply carries more styling than its frame may hold, so it shows as plain.",
 };
 const NO_REMEDY: PlainRemedy = "none";
+const OWN_SCRIPTS_ACTION_LABEL = "Open your story-card script setting";
 const ASK_HOST_LINE = "Only the room's host can turn it on.";
 const ASK_ADMIN_LINE = "Only the server's admin can turn it on.";
 const FRAMED_MEDIA_CAUSE: Record<FramedMediaReason, (name: string) => string> = {
@@ -32,7 +44,17 @@ const FRAMED_MEDIA_REMEDY_LINE: Record<PlainRemedy, string | undefined> = {
   "system-trust": undefined,
   "ask-host": ASK_HOST_LINE,
   "ask-admin": ASK_ADMIN_LINE,
+  "own-scripts": undefined,
+  "game-settings": undefined,
   none: undefined,
+};
+const HELD_CARDS_CAUSE = "This reply holds HTML the game would draw as a card, and immersive HTML cards are off in this game, so it is not drawn as one.";
+const GAME_SETTINGS_ACTION_LABEL = "Open the game's settings";
+const FRAMED_SCRIPT_CAUSE: Record<FramedScriptReason, (name: string) => string> = {
+  "install-scripts": () => "Interactive cards are off on this server, so the controls here do nothing.",
+  "character-scripts": (name) => `${name} isn't set to Interactive, so the controls here do nothing.`,
+  "viewer-scripts": () => "You turned story-card scripts off, so the controls here do nothing.",
+  "unattributed-scripts": () => "No character's settings cover this message, so its controls do nothing.",
 };
 
 function causeLine(reason: PlainReason, name: string): string {
@@ -59,6 +81,8 @@ function remedyLine(remedy: PlainRemedy, reason: PlainReason, name: string): str
     case "character-trust":
       return reason === "install" ? `You can turn it on for ${name}.` : undefined;
     case "system-trust":
+    case "own-scripts":
+    case "game-settings":
     case "none":
       return undefined;
     case "ask-host":
@@ -70,8 +94,9 @@ function remedyLine(remedy: PlainRemedy, reason: PlainReason, name: string): str
   }
 }
 
-// The install setting a "system-trust" control opens: the rich-HTML one for a plain row, the media one for framed media.
-type SystemSetting = typeof TRUST_HTML_CONFIG_SETTING | typeof FORBID_EXTERNAL_MEDIA_CONFIG_SETTING;
+// The install setting a "system-trust" control opens: the rich-HTML one for a plain row, the media one for framed media,
+// the interactive-card one for framed scripts.
+type SystemSetting = typeof TRUST_HTML_CONFIG_SETTING | typeof FORBID_EXTERNAL_MEDIA_CONFIG_SETTING | typeof ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING;
 
 function remedyAction(
   remedy: PlainRemedy,
@@ -94,6 +119,20 @@ function remedyAction(
         label: "Open media and trust settings",
         onAction: (): void => {
           openConfigTo("admin", MEDIA_TRUST_CONFIG_SUB, systemSetting);
+        },
+      };
+    case "own-scripts":
+      return {
+        label: OWN_SCRIPTS_ACTION_LABEL,
+        onAction: (): void => {
+          openConfigTo("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id, RUN_CARD_SCRIPTS_SETTING_ID);
+        },
+      };
+    case "game-settings":
+      return {
+        label: GAME_SETTINGS_ACTION_LABEL,
+        onAction: (): void => {
+          openGameSettings();
         },
       };
     case "ask-host":
@@ -168,4 +207,59 @@ export function FramedMediaNotice({ chatId, characterId, html, css }: FramedMedi
 /** Why a styled reply its row's tier would frame shows plain whole. No setting changes it, so it has no control. */
 export function PlainReplyNotice({ reason }: { readonly reason: PlainReplyReason }): ReactElement {
   return <PlainNotice reason={reason} remedy={NO_REMEDY} message={PLAIN_REPLY_CAUSE[reason]} />;
+}
+
+/** Why a framed card's or styled reply's controls do nothing when its markup needs scripts the frame's posture does not
+ *  run, and, when the viewer may change it, the control that opens the setting. Nothing when the scripts run or the
+ *  markup needs none. */
+export function FramedScriptNotice({ chatId, characterId, html }: Omit<FramedMediaNoticeProps, "css">): ReactElement | null {
+  const trpc = useTRPC();
+  const { isAdmin } = useSettingsViewerView();
+  const config = useAuthConfig().data;
+  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const { data: room } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
+  // Until every read lands the binding consent is unknown, and naming a guess would send the reader to the wrong one.
+  if (config === undefined || settings === undefined || room === undefined) {
+    return null;
+  }
+  const verdict = resolveFramedScriptVerdict(
+    {
+      characterId,
+      participants: buildParticipantsById(room.participants),
+      narrator: room.narratorRender,
+      installAllowsScripts: config.allowInteractiveCards,
+      viewerRunsScripts: settings.config.chat.runCardScripts,
+      viewerIsHost: room.viewerIsHost,
+    },
+    isAdmin,
+  );
+  if (verdict === undefined || !holdsScript(html)) {
+    return null;
+  }
+  const name = verdict.characterName === undefined || verdict.characterName === "" ? UNNAMED_CHARACTER : verdict.characterName;
+  const cause = FRAMED_SCRIPT_CAUSE[verdict.reason](name);
+  const remedy = FRAMED_MEDIA_REMEDY_LINE[verdict.remedy];
+  return (
+    <PlainNotice
+      reason={verdict.reason}
+      remedy={verdict.remedy}
+      message={remedy === undefined ? cause : `${cause} ${remedy}`}
+      action={remedyAction(verdict.remedy, verdict.characterId, name, ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING)}
+    />
+  );
+}
+
+/** Why a game room's reply shows card markup that the game's card wrap would draw: its immersive HTML switch is off.
+ *  The host gets the control that opens the game's settings; a member is told who can turn it on. */
+export function HeldCardsNotice({ viewerIsHost }: { readonly viewerIsHost: boolean }): ReactElement {
+  const remedy: PlainRemedy = viewerIsHost ? "game-settings" : "ask-host";
+  const line = FRAMED_MEDIA_REMEDY_LINE[remedy];
+  return (
+    <PlainNotice
+      reason={HELD_CARDS_REASON}
+      remedy={remedy}
+      message={line === undefined ? HELD_CARDS_CAUSE : `${HELD_CARDS_CAUSE} ${line}`}
+      action={remedyAction(remedy, null, UNNAMED_CHARACTER)}
+    />
+  );
 }

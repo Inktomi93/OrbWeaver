@@ -250,7 +250,7 @@ const CARD_FRAME_MAX_HEIGHT_PX = 720;
 /** The cap for a frame that holds a WHOLE styled reply rather than one card. A reply is prose the reader scrolls
  *  with the transcript, so it grows to its content and never scrolls inside itself; this bound exists only so a
  *  hostile document cannot report an unbounded height. Measured in a routed reply frame: a long scene drawn by
- *  the public Sola V4 preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
+ *  a heavy public preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
  *  phone width and 300% text, and 1,623px on a desktop at 100%; the cap sits an order of magnitude above it.
  *  The resize ration in {@link foldCardFrameHeight} bounds the measure loop. */
 const REPLY_FRAME_MAX_HEIGHT_PX = 200_000;
