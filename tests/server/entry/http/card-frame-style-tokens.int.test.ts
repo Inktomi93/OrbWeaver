@@ -75,8 +75,9 @@ test("an out-of-range root size is served at the nearest bound of the appearance
     ["10%", `${min}%`],
   ] as const) {
     const served = await mintAndServe(root, chatId, { styleTokens: { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.rootSize]: planted } });
-    expect(served.body).toContain(`${CARD_FRAME_STYLE_TOKEN.rootSize}: ${bounded};`);
-    expect(served.body).not.toContain(planted);
+    // The declaration the document's root reads, not the body's text: the planted value is gone from that declaration.
+    const declared = new RegExp(`${CARD_FRAME_STYLE_TOKEN.rootSize}: ([^;]*);`, "u").exec(served.body)?.[1];
+    expect(declared).toBe(bounded);
   }
 });
 

@@ -715,7 +715,7 @@ function baseBodyBlock(fontFamily: string | undefined): string {
 // to its padding so the icon is clipped; an `img` with alt text lays the icon out beside the text where clipping misses
 // it, so a pseudo-element paints over the box as well. Painting needs no request: a `url()` here would itself be held.
 const HELD_IMAGE = 'img:is([src^="http:" i], [src^="https:" i], [src^="//"])';
-const HELD_MEDIA_PATTERN = "repeating-linear-gradient(135deg, color-mix(in oklab, currentColor 12%, transparent) 0 0.5rem, transparent 0.5rem 1rem)";
+const HELD_MEDIA_PATTERN = "repeating-linear-gradient(135deg, color-mix(in oklab, currentColor 10%, transparent) 0 0.5rem, transparent 0.5rem 1rem)";
 const HELD_MEDIA_CSS = [
   `${HELD_IMAGE} { position: relative; box-sizing: content-box; width: 0; height: 0; overflow: hidden; font-size: 0; padding: 1.5rem 3rem; vertical-align: middle;`,
   `border: 1px dashed color-mix(in oklab, currentColor 45%, transparent); border-radius: 0.4rem; background: ${HELD_MEDIA_PATTERN}; }`,
