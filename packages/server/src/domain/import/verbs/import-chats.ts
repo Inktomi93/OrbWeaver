@@ -2,6 +2,7 @@
 // (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
+import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { ImportChatsInput } from "../contract/params.ts";
 import type { ImportChatsResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
@@ -16,14 +17,11 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
 
     // Titles disambiguate across the WHOLE run, not per file: this verb receives one character's entire chat
     // set, which is exactly the population that collides (N transcripts, one cast, one day).
-    const chats = disambiguateChatTitles(
-      input.chats.map((c) =>
-        buildBulkImportChatInput(c, {
-          now: profile.now,
-          personaByUserName: profile.personaByUserName,
-        }),
-      ),
-    );
+    const built: BulkImportChatInput[] = [];
+    for (const c of input.chats) {
+      built.push(await buildBulkImportChatInput(c, { now: profile.now, personaByUserName: profile.personaByUserName }));
+    }
+    const chats = disambiguateChatTitles(built);
     const counts = await profile.bulkImportChats({
       ownerId,
       characterId: input.characterId,

@@ -17,6 +17,11 @@
 // declared native batch that is not wholly native — the declaration routes, it never authorizes) → case-twin
 // refusal (400 naming two paths that differ only in letter case, which collide on a Windows or macOS volume; the
 // check runs on every host and before any byte is staged) → owner-scoped start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
+//
+// The case-twin fold is the union of what NTFS and APFS treat as one name: the path in NFC (APFS ignores the
+// normalization form), then each code point folded alone, upper then lower, kept as it is when that fold is not one
+// code point. Both volumes fold one code point to one, so a final and a medial sigma meet and the Kelvin sign meets
+// "k", while "ß" and "ss" stay two names.
 
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
@@ -238,13 +243,24 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
   }
 }
 
+/** The one name a Windows or macOS volume stores `name` under, by the fold the file header states. */
+function volumeFold(name: string): string {
+  let folded = "";
+  for (const codePoint of name.normalize("NFC")) {
+    const simple = codePoint.toUpperCase().toLowerCase();
+    const first = simple.codePointAt(0);
+    folded += first !== undefined && String.fromCodePoint(first) === simple ? simple : codePoint;
+  }
+  return folded;
+}
+
 /** Refuse two files whose paths differ only in letter case. A Windows or macOS volume holds them as one name, so
  *  the second write would collide there; refusing on every platform keeps the answer the same on a Linux host, and
  *  does it before any byte is staged. Two spellings of one directory are no collision unless a file path repeats. */
 function refuseCaseTwins(paths: readonly string[]): void {
   const firstByFold = new Map<string, string>();
   for (const path of paths) {
-    const fold = path.toLowerCase();
+    const fold = volumeFold(path);
     const first = firstByFold.get(fold);
     // An identical repeat is not a case twin; the staging write refuses it as a conflicting path.
     if (first !== undefined && first !== path) {
@@ -265,7 +281,7 @@ async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wra
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
     // A case-insensitive disk holds both spellings at one name, and the manifest is written there last.
-    if (relTarget.toLowerCase() === STAGED_MANIFEST_FILE.toLowerCase()) {
+    if (volumeFold(relTarget) === volumeFold(STAGED_MANIFEST_FILE)) {
       throw new TreeRejected(BAD_REQUEST, `reserved file name: ${relTarget}`);
     }
     await stagePart(stagedRoot, relTarget, part.bytes);
