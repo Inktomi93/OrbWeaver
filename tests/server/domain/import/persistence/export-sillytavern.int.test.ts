@@ -16,6 +16,7 @@ import {
   stExportReportSchema,
 } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { nonEmpty, present } from "@orb/testkit/iso";
@@ -25,22 +26,39 @@ import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { strFromU8, unzipSync } from "fflate";
 import { z } from "zod";
 import type { Files } from "./_st-tree-door.ts";
-import { admit, attachmentOf, cardPng, chatOf, finishRun, harness, presetOf, settings, tableContents, WORLD } from "./_st-tree-door.ts";
+import { admit, attachmentOf, cardPng, chatOf, finishRun, harness, presetOf, tableContents, WORLD } from "./_st-tree-door.ts";
 
 const OK = 200;
 const BAD_REQUEST = 400;
 const NOTES = attachmentOf("notes.txt", "Field notes");
 
-/** A SillyTavern profile with an item of each kind the export writes, and a preset it leaves behind. */
+// SillyTavern's global regex list entry, as its Regex extension saves one.
+const GLOBAL_SCRIPT = { id: "c0ffee00-0000-4000-8000-000000000002", scriptName: "Hush", findRegex: "/shouts/g", replaceString: "whispers", placement: [2] };
+
+/** A SillyTavern profile with an item of each kind the export writes, a persona with no image, and a group room. */
 function profile(root: ServerTestHarness): Files {
+  const image = (): Uint8Array => new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  // SillyTavern's settings.json keys are snake_case by its own spelling.
+  const settingsJson = JSON.stringify({
+    ["power_user"]: { personas: { "bob.png": "Bob", "nobody.png": "Nobody" }, ["chat_display"]: 1, ["font_scale"]: 1.1 },
+    tags: [{ id: "t1", name: "Hero" }],
+    ["tag_map"]: { "Aria.png": ["t1"] },
+    ["extension_settings"]: { attachments: [NOTES], ["character_attachments"]: { "Aria.png": [NOTES] }, regex: [GLOBAL_SCRIPT] },
+  });
   return {
-    [ST_SETTINGS_FILE]: settings({ "bob.png": "Bob" }, { attachments: [NOTES], ["character_attachments"]: { "Aria.png": [NOTES] } }),
+    [ST_SETTINGS_FILE]: settingsJson,
     "characters/Aria.png": cardPng(root, "Aria"),
+    "characters/Lisa.png": cardPng(root, "Lisa"),
     "chats/Aria/first.jsonl": chatOf("Aria lights the lamp."),
+    "groups/1700000000000.json": JSON.stringify({ name: "Duo", members: ["Aria.png", "Lisa.png"], chats: ["duo"], ["generation_mode"]: 1 }),
+    "group chats/duo.jsonl": chatOf("Aria and Lisa share the lamp."),
     "worlds/Eldoria.json": WORLD,
     "OpenAI Settings/Plain.json": presetOf("You narrate."),
+    "themes/Dusk.json": JSON.stringify({ name: "Dusk", ["blur_tint_color"]: "rgba(20, 20, 30, 1)", ["main_text_color"]: "rgba(230, 230, 230, 1)" }),
+    "backgrounds/sky.png": image(),
+    "User Avatars/bob.png": image(),
     "user/files/notes.txt": "The ford floods at dusk.",
-    "user/images/Aria/glade.png": new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
+    "user/images/Aria/glade.png": image(),
   };
 }
 
@@ -86,6 +104,19 @@ function stChatHeaderAccepted(jsonl: string): boolean {
   return typeof header === "object" && header !== null && ("user_name" in header || "name" in header || "chat_metadata" in header);
 }
 
+// SillyTavern's theme import refuses a theme with no `name` (`public/scripts/power-user.js:2465` `importTheme`).
+const stThemeSchema = z.object({ name: z.string().min(1) });
+
+// SillyTavern's group list reads each `groups/*.json` as an object whose `chats` name files in `group chats/`
+// (`src/endpoints/groups.js:135` `/all`), and seats `members` by card filename (`public/scripts/group-chats.js`).
+const stGroupSchema = z.object({ id: z.string().min(1), members: z.array(z.string()).min(2), chats: z.array(z.string()).min(1) });
+
+const stSettingsSchema = z.object({
+  ["power_user"]: z.object({ personas: z.record(z.string(), z.string()) }),
+  tags: z.array(z.object({ id: z.string(), name: z.string() })),
+  ["tag_map"]: z.record(z.string(), z.array(z.string())),
+});
+
 // SillyTavern's world import refuses a file with no `entries` (`src/endpoints/worldinfo.js:113`).
 function stWorldAccepted(text: string): boolean {
   const world: unknown = JSON.parse(text);
@@ -94,7 +125,8 @@ function stWorldAccepted(text: string): boolean {
 
 test("each exported file has the shape the SillyTavern door its report names takes", async () => {
   await using root = await harness();
-  await finishRun(root, await admit(root, profile(root)));
+  const files = profile(root);
+  await finishRun(root, await admit(root, files));
 
   const zip = await exported(root);
   const report = stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE]))));
@@ -116,8 +148,32 @@ test("each exported file has the shape the SillyTavern door its report names tak
   expect(worlds).toContain(`${ST_EXPORT_PROFILE_DIR}worlds/Eldoria.json`);
   expect(nonEmpty(worlds).every((path) => stWorldAccepted(strFromU8(present(zip[path]))))).toBe(true);
   expect(strFromU8(present(zip[`${ST_EXPORT_PROFILE_DIR}user/files/Field notes.txt`]))).toBe("The ford floods at dusk.");
-  // The preset has no SillyTavern writer yet, so the report names it instead of dropping it.
-  expect(report.left).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "preset", reason: "no-writer" })]));
+  // The chat-completion preset reads back through the preset import (`public/scripts/openai.js` `onPresetImportFileChange`
+  // takes any JSON object; this app's port of its reading is the contract importer).
+  expect(pathsOf("presets")).toContain(`${ST_EXPORT_PROFILE_DIR}OpenAI Settings/Plain.json`);
+  expect(nonEmpty(pathsOf("presets")).every((path) => tryImportStChatCompletionPreset(JSON.parse(strFromU8(present(zip[path])))).ok)).toBe(true);
+  expect(nonEmpty(pathsOf("themes")).map((path) => stThemeSchema.parse(JSON.parse(strFromU8(present(zip[path])))).name)).toContain("Dusk");
+  expect(pathsOf("backgrounds")).toContain(`${ST_EXPORT_PROFILE_DIR}backgrounds/sky.png`);
+  // A card is filed under its handle, the name the group roster, the tag map and the chat folders all key by.
+  // The group room is a SillyTavern group whose transcript sits in `group chats/`, never a solo chat of its first member.
+  const [groupPath] = nonEmpty(pathsOf("groups").filter((path) => path.includes("/groups/")));
+  const group = stGroupSchema.parse(JSON.parse(strFromU8(present(zip[present(groupPath)]))));
+  expect(group.members.toSorted((a, b) => a.localeCompare(b))).toEqual(["aria.png", "lisa.png"]);
+  expect(nonEmpty(group.members).every((member) => zip[`${ST_EXPORT_PROFILE_DIR}characters/${member}`] !== undefined)).toBe(true);
+  const groupChat = strFromU8(present(zip[`${ST_EXPORT_PROFILE_DIR}group chats/${present(group.chats[0])}.jsonl`]));
+  expect(stChatHeaderAccepted(groupChat)).toBe(true);
+  expect(groupChat).toContain("Aria and Lisa share the lamp.");
+  expect(nonEmpty(chats).some((path) => strFromU8(present(zip[path])).includes("Aria and Lisa share the lamp."))).toBe(false);
+  // The persona carries its own image; the one with none is named, never given stand-in art.
+  const stSettings = stSettingsSchema.parse(JSON.parse(strFromU8(present(zip[`${ST_EXPORT_PROFILE_DIR}${ST_SETTINGS_FILE}`]))));
+  expect(Object.values(stSettings["power_user"].personas)).toEqual(["Bob"]);
+  const [avatar] = Object.keys(stSettings["power_user"].personas);
+  expect(zip[`${ST_EXPORT_PROFILE_DIR}User Avatars/${present(avatar)}`]).toEqual(files["User Avatars/bob.png"]);
+  expect(report.left).toEqual(expect.arrayContaining([{ kind: "persona", item: "Nobody", reason: "persona-without-art" }]));
+  // The card's tag rides SillyTavern's tag map, keyed by the card file.
+  const hero = present(stSettings.tags.find(({ name }) => name === "Hero"));
+  expect(stSettings["tag_map"]["aria.png"]).toEqual([hero.id]);
+  expect(report.left.filter(({ reason }) => reason === "unreadable")).toEqual([]);
 });
 
 test("the dry run writes nothing and answers the report the zip carries", async () => {
@@ -148,15 +204,22 @@ test("the exported tree imports back as the same library, Data Bank scopes and g
   // The owner's default characters, books and galleries ride beside the imported ones.
   expect(result.found).toMatchObject({
     characters: exportedOf("characters", ".png"),
-    chats: exportedOf("chats", ".jsonl"),
+    // A group's transcript is a chat of its room.
+    chats: exportedOf("chats", ".jsonl") + exportedOf("groups", ".jsonl"),
     worlds: exportedOf("worlds", ".json"),
     documents: exportedOf("documents", ".txt"),
     gallery: exportedOf("gallery", ""),
+    presets: exportedOf("presets", ".json"),
+    themes: exportedOf("themes", ".json"),
+    backgrounds: exportedOf("backgrounds", ""),
+    groups: report.files.filter((file) => file.path.includes("/groups/")).length,
   });
   expect(exportedOf("documents", ".txt")).toBe(1);
-  // Export, import, export is a fixed point: the book and the Data Bank file come back byte for byte.
+  // Export, import, export is a fixed point: the book, the Data Bank file, the preset, the theme and the persona's
+  // avatar come back byte for byte.
   const again = await exported(target);
-  for (const path of [`${ST_EXPORT_PROFILE_DIR}worlds/Eldoria.json`, `${ST_EXPORT_PROFILE_DIR}user/files/Field notes.txt`]) {
+  for (const leaf of ["worlds/Eldoria.json", "user/files/Field notes.txt", "OpenAI Settings/Plain.json", "themes/Dusk.json", "User Avatars/Bob.png"]) {
+    const path = `${ST_EXPORT_PROFILE_DIR}${leaf}`;
     expect(strFromU8(present(again[path])), path).toBe(strFromU8(present(zip[path])));
   }
   const principal = await target.principalFor(target.ownerId);

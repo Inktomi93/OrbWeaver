@@ -22,6 +22,7 @@ import { readStAttachments, stAttachmentFile } from "#primitives/serde/databank"
 import { portableParseError } from "#primitives/serde/lib";
 import type { StScriptNote } from "#primitives/serde/regex";
 import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
+import { ST_POWER_USER_KEY, stAppearancePatch } from "#primitives/serde/st-appearance";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
@@ -38,7 +39,6 @@ import type {
   CollectResult,
 } from "../contract/collection.ts";
 import { ImportInfraFailureError, importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
-import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
 import { ST_BACKGROUND_DIR } from "../substrate/background.ts";
 import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 import { stGalleryFolders } from "../substrate/gallery.ts";

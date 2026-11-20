@@ -187,7 +187,7 @@ export interface CollectResult {
    *  `skippedBackgrounds` with a reason). */
   readonly backgrounds: CollectedBackground[];
   /** The orb `appearance` patch this profile's `power_user` section carries — the VIEWER half of what ST
-   *  bundles into a theme file (`substrate/appearance.ts`). `{}` when the profile carries none. */
+   *  bundles into a theme file (`packages/server/src/primitives/serde/st-appearance/index.ts`). `{}` when the profile carries none. */
   readonly appearance: Record<string, unknown>;
   /** ST groups from `<profileDir>/groups/*.json`, each carrying the transcripts its own `chats[]` claimed
    *  out of the flat `group chats/` dir (unparseable definitions in `unreadableGroups`). */

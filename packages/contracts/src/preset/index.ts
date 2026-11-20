@@ -3854,6 +3854,126 @@ export function tryImportStChatCompletionPreset(raw: unknown, options: StImportO
   return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, options) : unkeyedRefusal(sections.unkeyed);
 }
 
+// ── The SillyTavern chat-completion preset OUT ──────────────────────────────────────────────────────────
+// The inverse of {@link tryImportStChatCompletionPreset}: a config back to the preset file SillyTavern's preset import
+// takes (`public/scripts/openai.js` `onImportPresetClick`), shaped so the importer reads it back to the same config.
+// Orb-only slots are left out, since the importer seats them again (`withOrbSlots`). A config field with no seat in a
+// SillyTavern preset file is named, never dropped silently.
+
+// The prompt_order owner SillyTavern writes for the global arrangement (`public/scripts/PromptManager.js`).
+const ST_GLOBAL_ORDER_ID = 100_001;
+const ST_INJECTION_RELATIVE = 0;
+const ORB_ONLY_SLOT_SET: ReadonlySet<MarkerType> = new Set(ORB_ONLY_SLOTS);
+const NAMES_BEHAVIOR_TO_ST: Readonly<Record<NamesBehavior, number>> = {
+  none: ST_NAMES_NONE,
+  default: ST_NAMES_DEFAULT,
+  completion: ST_NAMES_COMPLETION,
+  content: ST_NAMES_CONTENT,
+};
+const CONTINUE_POSTFIX_TO_ST = Object.fromEntries(Object.entries(ST_CONTINUE_POSTFIX).map(([st, postfix]) => [postfix, st])) as Readonly<
+  Record<ContinuePostfix, string>
+>;
+// Each sampler or limit with the SillyTavern field the importer reads it from.
+const KNOB_TO_ST: Readonly<Partial<Record<string, string>>> = Object.fromEntries(
+  Object.entries({
+    temperature: "temperature",
+    topP: "top_p",
+    topK: "top_k",
+    frequencyPenalty: "frequency_penalty",
+    presencePenalty: "presence_penalty",
+    repetitionPenalty: "repetition_penalty",
+    minP: "min_p",
+    topA: "top_a",
+    maxOutputTokens: "openai_max_tokens",
+    maxContextTokens: "openai_max_context",
+    seed: "seed",
+  }),
+);
+const FORMAT_STRING_TO_ST: Readonly<Partial<Record<string, string>>> = {
+  continueNudge: "continue_nudge_prompt",
+  impersonateNudge: "impersonation_prompt",
+  newChatMarker: "new_chat_prompt",
+};
+const ST_GLOBAL_SETTING_REASON = "SillyTavern keeps this as a global setting, not in a preset file, so the preset does not carry it.";
+const NO_ST_SEAT_REASON = "SillyTavern presets have no setting for this, so the preset does not carry it.";
+
+function stPromptOf(section: PromptSection): Record<string, unknown> {
+  const prompt: Record<string, unknown> = { identifier: section.id, name: section.name, role: section.role, ["system_prompt"]: section.type === "marker" };
+  if (section.type === "marker") {
+    prompt["marker"] = PLAIN_MARKER_SET.has(section.marker);
+    if ("template" in section || "forbidCharacterOverride" in section) {
+      prompt["content"] = "template" in section ? (section.template ?? "") : "";
+      prompt["forbid_overrides"] = "forbidCharacterOverride" in section && section.forbidCharacterOverride === true;
+    }
+  } else {
+    prompt["content"] = section.content;
+  }
+  const inject = "inject" in section ? section.inject : undefined;
+  prompt["injection_position"] = inject === undefined ? ST_INJECTION_RELATIVE : ST_INJECTION_ABSOLUTE;
+  prompt["injection_depth"] = inject?.depth ?? ST_DEFAULT_DEPTH;
+  prompt["injection_order"] = inject?.order ?? ST_DEFAULT_ORDER;
+  if (section.trigger !== undefined) {
+    prompt["injection_trigger"] = [...section.trigger];
+  }
+  return prompt;
+}
+
+// The config's sampling intent on SillyTavern's fields, naming each one SillyTavern has no preset field for.
+function stParamsOf(params: Readonly<Record<string, unknown>>, out: Record<string, unknown>, left: StDroppedField[]): void {
+  for (const [key, value] of Object.entries(params)) {
+    const field = KNOB_TO_ST[key];
+    if (field !== undefined) {
+      out[field] = value;
+    } else if (key === "effort") {
+      out["reasoning_effort"] = value;
+    } else if (key === "thinkingDisplay") {
+      out["show_thoughts"] = value === "summarized";
+    } else if (key === "advanced" && typeof value === "object" && value !== null && "squashSystemMessages" in value && Object.keys(value).length === 1) {
+      out["squash_system_messages"] = value.squashSystemMessages === true;
+    } else {
+      left.push({ field: `params.${key}`, reason: key === "stop" ? ST_GLOBAL_SETTING_REASON : NO_ST_SEAT_REASON });
+    }
+  }
+}
+
+/** A config as the SillyTavern chat-completion preset file that reads back to it, with every config field the file
+ *  cannot carry. `regexScripts` are the preset's scripts on the card wire, carried under `extensions.regex_scripts`. */
+export function exportStChatCompletionPreset(
+  config: PromptConfig,
+  regexScripts: readonly unknown[] = [],
+): { readonly preset: Record<string, unknown>; readonly left: readonly StDroppedField[] } {
+  const left: StDroppedField[] = [];
+  const sections = config.sections.filter((section) => !(section.type === "marker" && ORB_ONLY_SLOT_SET.has(section.marker)));
+  const preset: Record<string, unknown> = {
+    prompts: sections.map(stPromptOf),
+    ["prompt_order"]: [{ ["character_id"]: ST_GLOBAL_ORDER_ID, order: sections.map((section) => ({ identifier: section.id, enabled: section.enabled })) }],
+  };
+  stParamsOf(config.params, preset, left);
+  if (config.namesBehavior !== undefined) {
+    preset["names_behavior"] = NAMES_BEHAVIOR_TO_ST[config.namesBehavior];
+  }
+  if (config.continuePostfix !== undefined) {
+    preset["continue_postfix"] = CONTINUE_POSTFIX_TO_ST[config.continuePostfix];
+  }
+  for (const [slot, text] of Object.entries(config.formatStrings ?? {})) {
+    const field = FORMAT_STRING_TO_ST[slot];
+    if (field === undefined) {
+      left.push({ field: `formatStrings.${slot}`, reason: NO_ST_SEAT_REASON });
+    } else {
+      preset[field] = text;
+    }
+  }
+  for (const field of ["postProcess", "reasoningParse"] as const) {
+    if (config[field] !== undefined) {
+      left.push({ field, reason: ST_GLOBAL_SETTING_REASON });
+    }
+  }
+  if (regexScripts.length > 0) {
+    preset["extensions"] = { ["regex_scripts"]: [...regexScripts] };
+  }
+  return { preset, left };
+}
+
 function unkeyedRefusal(identifier: string): StImportOutcome {
   return {
     ok: false,

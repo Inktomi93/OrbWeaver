@@ -21,6 +21,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { ST_EXPORT_DRY_RUN_QUERY, ST_EXPORT_FORMAT, ST_EXPORT_REPORT_FILE } from "@orb/contracts/import";
+import type { ListPersonasOp } from "@orb/contracts/persona";
 import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableFile, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -66,6 +67,8 @@ export interface ExportDeps {
   readonly traces: TraceRing;
   readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle" | "listHostChats">;
   readonly registry: PortabilityRegistry;
+  /** The owner's personas with their avatar hashes: the backup's persona file carries no avatar. */
+  readonly listPersonas: ListPersonasOp;
 }
 
 /** The result of parsing the `kinds` query: the set to export (null = all), or the first bad token. */
@@ -120,6 +123,7 @@ function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSourc
     },
     listHostChats: () => deps.export.listHostChats({ principal }),
     exportChat: (chatId) => deps.export.exportChat({ principal, chatId, format: "jsonl" }),
+    personaArt: async () => new Map((await deps.listPersonas({ principal })).map((persona) => [persona.name, persona.avatarHash])),
   };
 }
 

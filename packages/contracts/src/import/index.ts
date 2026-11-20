@@ -57,6 +57,21 @@ export {
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 
+/** The family a SillyTavern chat-completion preset is qualified with here: a preset saved as `<stem>.json` lands
+ *  named `<stem> (OpenAI)`, so a SillyTavern `Default` never merges onto an owner's own `Default`. */
+export const ST_CHAT_PRESET_FAMILY = "OpenAI";
+
+/** The name a SillyTavern chat-completion preset saved as `<stem>.json` lands under. */
+export function stChatPresetName(stem: string): string {
+  return `${stem} (${ST_CHAT_PRESET_FAMILY})`;
+}
+
+/** The file stem SillyTavern names a preset by, for a preset named here: the qualifier comes off again. */
+export function stChatPresetStem(name: string): string {
+  const qualifier = ` (${ST_CHAT_PRESET_FAMILY})`;
+  return name.endsWith(qualifier) ? name.slice(0, -qualifier.length) : name;
+}
+
 /** The ST per-profile credentials file. Never uploaded, never staged, never imported. */
 export const ST_SECRETS_FILE = "secrets.json";
 

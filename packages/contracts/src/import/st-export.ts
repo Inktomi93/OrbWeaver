@@ -50,10 +50,12 @@ export const ST_EXPORT_DOORS = {
 } as const satisfies Readonly<Record<ImportPreviewKind, StImportDoor>>;
 
 /** Why the export left something behind or carried it with a loss. A consumer that words each maps over this tuple.
- *  `no-sillytavern-home`: SillyTavern keeps nothing of the kind. `no-writer`: this build writes no SillyTavern file
- *  for the kind. `unreadable`: the stored row did not read. `group-room-as-solo-chat`: a group room carries as its
- *  first character's chat. `persona-without-art`: a persona carries with placeholder art. */
-export const ST_EXPORT_LEFT_REASONS = ["no-sillytavern-home", "no-writer", "unreadable", "group-room-as-solo-chat", "persona-without-art"] as const;
+ *  `no-sillytavern-home`: SillyTavern keeps nothing of the kind. `no-sillytavern-field`: the row carries, but the
+ *  named part of it has no field in SillyTavern's file (the item reads `<row>: <part>`). `rides-its-card-or-preset`:
+ *  a scoped regex script travels only inside the card or preset it runs on. `unreadable`: the stored row or its
+ *  blob did not read. `persona-without-art`: SillyTavern lists a persona only by its avatar image, and this one has
+ *  none. */
+export const ST_EXPORT_LEFT_REASONS = ["no-sillytavern-home", "no-sillytavern-field", "rides-its-card-or-preset", "unreadable", "persona-without-art"] as const;
 export type StExportLeftReason = (typeof ST_EXPORT_LEFT_REASONS)[number];
 
 const stExportFileSchema = z.strictObject({

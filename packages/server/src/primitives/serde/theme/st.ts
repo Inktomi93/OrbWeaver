@@ -26,6 +26,8 @@
 import type { ThemeLeftoverAppearanceSetting, ThemeLeftoverReason } from "@orb/contracts/portability";
 import type { StDroppedField } from "@orb/contracts/preset";
 import type { ThemeOverride } from "@orb/contracts/theme";
+import { isPlainObject } from "@orb/kit/guards";
+import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { SrgbColor } from "./color.ts";
@@ -114,7 +116,7 @@ const UNMAPPED_REASONS: readonly StThemeLeftover[] = [
     place: NO_EQUIVALENT,
   },
   // Ergonomics: real orb settings, on the VIEWER's `appearance` namespace rather than on a theme (D63/D71).
-  // The ACTIVE values of these import from `settings.json` → `power_user` (substrate/appearance.ts), which is
+  // The ACTIVE values of these import from `settings.json` → `power_user` (`#primitives/serde/st-appearance`), which is
   // what `ERGONOMICS_SUFFIX` points the operator at.
   { field: "font_scale", reason: `type scale is \`appearance.fontScale\`, a reader's own choice${ERGONOMICS_SUFFIX}`, place: appearanceSettings("fontScale") },
   { field: "chat_width", reason: `\`appearance.chatWidthPct\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("chatWidthPct") },
@@ -218,6 +220,60 @@ function safeText(text: Oklch | null, backdrop: Oklch, stKey: string, unmapped: 
 function themeLabel(raw: Record<string, unknown>, stem: string): string {
   const named = raw["name"];
   return typeof named === "string" && named.trim().length > 0 ? named.trim() : stem;
+}
+
+// The theme tokens a SillyTavern theme has a key for, each with that key. The chat panel takes the base surface, so
+// SillyTavern composites the message tints onto the surface they were flattened against.
+const ST_KEYS_BY_TOKEN = [
+  [ST_SURFACE, (o: ThemeOverride): string | undefined => o.background],
+  [ST_CHAT_SURFACE, (o: ThemeOverride): string | undefined => o.background],
+  [ST_BODY, (o: ThemeOverride): string | undefined => o.bodyColor],
+  [ST_NARRATION, (o: ThemeOverride): string | undefined => o.narrationColor],
+  [ST_DIALOGUE, (o: ThemeOverride): string | undefined => o.dialogueColor],
+  [ST_USER_BUBBLE, (o: ThemeOverride): string | undefined => o.userBubble?.bg],
+  [ST_AI_BUBBLE, (o: ThemeOverride): string | undefined => o.aiBubble?.bg],
+  [ST_BORDER, (o: ThemeOverride): string | undefined => o.borderColor],
+] as const;
+const CARRIED_TOKENS: ReadonlySet<string> = new Set(["background", "bodyColor", "narrationColor", "dialogueColor", "borderColor"]);
+const CARRIED_BUBBLE_TOKENS: ReadonlySet<string> = new Set(["bg"]);
+
+// A stored colour as the `rgba()` SillyTavern's colour pickers write.
+function stColor(color: string): string | null {
+  const srgb = parseCssColorToSrgb(color);
+  return srgb === null ? null : `rgba(${String(Math.round(srgb.r))}, ${String(Math.round(srgb.g))}, ${String(Math.round(srgb.b))}, ${String(srgb.alpha)})`;
+}
+
+// The theme tokens a SillyTavern theme has no key for, by name.
+function uncarriedTokens(override: ThemeOverride): string[] {
+  return Object.entries(override).flatMap(([token, value]) => {
+    if (CARRIED_TOKENS.has(token)) {
+      return [];
+    }
+    if ((token === "userBubble" || token === "aiBubble") && isPlainObject(value)) {
+      return Object.keys(value).flatMap((key) => (CARRIED_BUBBLE_TOKENS.has(key) ? [] : [`${token}.${key}`]));
+    }
+    return value === undefined ? [] : [token];
+  });
+}
+
+// The SillyTavern name a theme imported here carries again: the qualifier comes off.
+function stThemeLabel(name: string): string {
+  const qualifier = ` (${SOURCE_LABEL})`;
+  return name.endsWith(qualifier) ? name.slice(0, -qualifier.length) : name;
+}
+
+/** A theme as the SillyTavern theme file its theme import takes (`public/scripts/power-user.js` `importTheme`), which
+ *  {@link stThemeFromJson} reads back to the same colours, and the theme tokens it has no key for. */
+export function stThemeToJson(name: string, override: ThemeOverride): { readonly theme: Record<string, unknown>; readonly left: readonly string[] } {
+  const theme: Record<string, unknown> = { name: stThemeLabel(name) };
+  for (const [key, token] of ST_KEYS_BY_TOKEN) {
+    const value = token(override);
+    const color = value === undefined ? null : stColor(value);
+    if (color !== null) {
+      theme[key] = color;
+    }
+  }
+  return { theme, left: uncarriedTokens(override) };
 }
 
 /** Map an already-decoded ST theme object → the orb-native theme + its unmapped-key list, or a refusal with its
