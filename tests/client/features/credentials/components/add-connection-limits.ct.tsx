@@ -77,6 +77,8 @@ const ROUTER_KEY = "synthetic-limits-key-never-returned";
 const REAL = { window: 1_000_000, output: 32_000 } as const;
 const TYPED = { window: "1,000,000", output: "32k" } as const;
 const NONSENSE = "12 tokens";
+// The fact row each door-named fact lands on, as the Advanced tier stamps it.
+const FACT_PATH = { "context-window": "generation.context.window", "max-output": "generation.output.maxTokens.max" } as const;
 const ADVANCED_TYPED = { refused: "0", read: "128k", stored: 128_000 } as const;
 const PUBLIC_ADDRESS = "93.184.215.14";
 const HTTP_NOT_FOUND = 404;
@@ -373,6 +375,25 @@ test("a stated window beside a guessed max output adds with no limits step", asy
   expect(view.capability).toMatchObject({ generation: { output: { maxTokensEstimated: true }, modalitiesEstimated: true } });
   expect(view.capability.kind === "generation" ? view.capability.generation.context.windowEstimated : null).toBeUndefined();
 });
+
+for (const fact of ["context-window", "max-output"] as const) {
+  test(`a door that names the ${fact} fact lands on its row, in view and holding focus`, async ({ mount, page }) => {
+    await using root = await freshRoot();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const connection = await caller.connection.create({
+      providerId: PROXY_PROVIDER,
+      credentialId: null,
+      baseUrl: PROXY_URL,
+      model: PROXY_MODEL,
+      label: "Requested proxy",
+    });
+    await mountList({ page, mount }, caller, { ...WIDE_PROPS, requested: connection.id, fact });
+    const advanced = page.locator(`[data-slot="connection-editor-tier"][data-tier="${CONNECTION_EDITOR_TIER_TITLES.advanced}"]`);
+    const row = advanced.locator(`[data-fact="${FACT_PATH[fact]}"]`);
+    await expect(row).toBeFocused();
+    await expect(row).toBeInViewport({ ratio: 1 });
+  });
+}
 
 test("the Advanced override reads a window the way the step does and refuses zero", async ({ mount, page }) => {
   await using root = await freshRoot();

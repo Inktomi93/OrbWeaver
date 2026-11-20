@@ -40,6 +40,10 @@ import {
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
+// The editor's band carries a title row and a view strip, so enlarged text on a phone grows it to a larger share of the pane than the
+// shared default allows; past this it scrolls away with the content and leaves the Output rows the pane.
+const PRESET_BAND_MAX_SHARE = 0.3;
+
 export interface PresetEditorHeaderProps {
   readonly presetName: string;
   /** This preset is the ACTIVE-for-generation pick (the built-in ⇔ `defaultPresetId === null`). */
@@ -98,7 +102,7 @@ export function PresetEditorHeader({
           would fill the pane, while its content rides the same column every view body does. The Params deck carries a
           deeper column, its own instrument cap (`params-deck.tsx`), so an offset between this header and the deck shows on
           Params and on no other tab. */}
-      <ContentPaneBand gap="block">
+      <ContentPaneBand gap="block" maxShare={PRESET_BAND_MAX_SHARE}>
         <DetailHeader
           actions={
             <>

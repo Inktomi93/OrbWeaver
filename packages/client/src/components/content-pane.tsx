@@ -89,16 +89,18 @@ export function ContentPaneBody({ gap, inset = "section", measure, children }: C
 
 export interface ContentPaneBandProps extends Pick<ComponentProps<"div">, "ref"> {
   readonly gap?: StackProps["gap"];
+  /** The most of the pane the band may take while it stays pinned; past it the band scrolls away with the content. */
+  readonly maxShare?: number;
   readonly children: ReactNode;
 }
 
 /** The pinned band across the pane: the card ground and the hairline span the pane, the content rides the column. */
-export function ContentPaneBand({ gap, ref, children }: ContentPaneBandProps): ReactElement {
+export function ContentPaneBand({ gap, maxShare, ref, children }: ContentPaneBandProps): ReactElement {
   const measure = use(MeasureContext);
   const bandRef = useRef<HTMLDivElement>(null);
   // Enlarged text grows the band with its copy while the pane does not: a band that would fill the pane stops pinning, so the
   // content under it can scroll clear.
-  const pinned = usePinnedBarCap(bandRef) === null;
+  const pinned = usePinnedBarCap(bandRef, false, maxShare) === null;
   return (
     <Stack
       data-slot="content-pane-band"

@@ -28,10 +28,11 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CHARACTER_TRUST_BLOCK_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL } from "#lib";
+import { clearRequestedCharacterTrust, useRequestedCharacterTrust } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import { CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
@@ -87,6 +88,15 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
   const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
   const interactiveLockId = useId();
+  // A door that named this tab (the row notice's Trust settings control) lands on the control it means: the ladder.
+  const arrivedHere = useRequestedCharacterTrust() === characterId;
+  const ladderRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (arrivedHere) {
+      ladderRef.current?.focus();
+      clearRequestedCharacterTrust();
+    }
+  }, [arrivedHere]);
 
   const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null; interactiveHtml?: boolean | null }): void => {
     update.mutate({ characterId, input });
@@ -106,12 +116,13 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
             value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
             onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
             aria-describedby={interactiveLockId}
+            triggerRef={ladderRef}
           />
         </Row>
         <Stack gap="field" id={interactiveLockId}>
-          <Text voice="reading">Plain text: no styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts.</Text>
-          <Text voice="reading">Rich HTML: styled messages, no scripts.</Text>
-          <Text voice="reading">
+          <Text voice="gloss">Plain text: no styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts.</Text>
+          <Text voice="gloss">Rich HTML: styled messages, no scripts.</Text>
+          <Text voice="gloss">
             Interactive: cards can run scripts in a sealed frame. A script can still tell its author that you viewed it, and your IP address.
           </Text>
         </Stack>
@@ -124,7 +135,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
             `false`. */}
         {externalMediaBlocked ? (
           <Text voice="reading" data-slot="trust-media-blocked">
-            Internet media is blocked for everyone on this server, so this character's content loads none.
+            Internet media is blocked for everyone on this server, so this character's content loads none. This changes when this page reloads.
           </Text>
         ) : (
           <SettingSwitchRow
@@ -134,7 +145,6 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
             onChange={(next): void => commit({ forbidExternalMedia: next ? null : true })}
           />
         )}
-        <Text voice="reading">Changes apply right away.</Text>
       </Section>
     </Stack>
   );

@@ -23,7 +23,7 @@ import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@or
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
-import { useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ResolvedContextTab } from "#lib";
 import { contextTabsMenuName } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
@@ -212,7 +212,21 @@ export function ContextHeaderTabs({
   readonly onSelect: (id: string) => void;
 }): ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
   const overflow = useTrackOverflow(trackRef, tabs.length);
+  // The overflow control takes its room from the strip only once the overflow is measured, after the active tab was first
+  // scrolled to, so the reveal runs again then and a tab a door chose is not left under it.
+  const overflowing = overflow.start || overflow.end;
+  useEffect(() => {
+    if (activeTab !== null) {
+      revealSelectedTab(activeTabRef.current);
+    }
+  }, [activeTab]);
+  useEffect(() => {
+    if (overflowing) {
+      revealSelectedTab(activeTabRef.current);
+    }
+  }, [overflowing]);
   // One tab is not a strip: with nothing to choose between, the header names the PANE in the tabs' own type
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
@@ -244,7 +258,7 @@ export function ContextHeaderTabs({
         rule="none"
       >
         {tabs.map((tab) => (
-          <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} />
+          <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} activeRef={activeTabRef} />
         ))}
         <TabsIndicator />
       </TabsList>
@@ -283,17 +297,26 @@ export function ContextHeaderTabs({
 }
 
 // A tab chosen without focus (the overflow menu, a door from another menu) can sit under the fade and the overflow control;
-// the strip's scroll-padding clears the fade once the tab is scrolled to. A ref callback runs when a tab becomes the active one.
+// the strip's scroll-padding clears the fade once the tab is scrolled to. It runs when a tab becomes the active one and when the
+// overflow control takes its room from the strip.
 function revealSelectedTab(node: HTMLButtonElement | null): void {
   node?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: scrollBehavior() });
 }
 
-function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; readonly isActive: boolean }): ReactElement {
+function ContextTab({
+  tab,
+  isActive,
+  activeRef,
+}: {
+  readonly tab: ResolvedContextTab;
+  readonly isActive: boolean;
+  readonly activeRef: RefObject<HTMLButtonElement | null>;
+}): ReactElement {
   const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   return (
     <TabsTab
-      ref={isActive ? revealSelectedTab : undefined}
+      ref={isActive ? activeRef : undefined}
       value={tab.id}
       id={cellDomId(tab.id)}
       // The lock is in the name (Base UI emits `aria-disabled="false"` here, so a glyph-only lock was

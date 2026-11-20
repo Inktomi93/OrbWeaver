@@ -37,6 +37,7 @@ import {
   presetMaxContextHint,
   presetMaxOutputHint,
   presetPastGuessNote,
+  presetPastGuessValueText,
 } from "#client/features/preset/lib/preset-names.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 
@@ -91,6 +92,8 @@ const EDITED_TAIL = 7;
 // What the imported SillyTavern preset asks for: both above the guess.
 const IMPORTED = { context: 128_000, output: 29_828 } as const;
 // What another model's preset asks for: both above the reported ceilings.
+// A preset that sets its own window, far past the guess, with a reply that leaves history room inside it.
+const OWN_WINDOW = { context: 32_768, output: 10_000 } as const;
 const BEYOND_REPORTED = { context: 300_000, output: 40_000 } as const;
 // What a user types into Max output: above the guess and the reported ceiling.
 const TYPED_OUTPUT = 40_000;
@@ -98,6 +101,8 @@ const TYPED_OUTPUT = 40_000;
 const PAST_AUTOSAVE_MS = DEFAULT_DEBOUNCE_MS * 3;
 const PHONE = { width: 390, height: 844 } as const;
 const FONT_SCALES = [2, 3] as const;
+// The larger text a phone user sets that grows the header band past a third of the pane.
+const LARGER_TEXT = 1.25;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
 /** The list NanoGPT's models route answers; the other lists (embedding, rerank) answer empty. */
@@ -217,7 +222,7 @@ for (const source of LIMIT_SOURCES) {
     await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.editor })).toHaveText("");
     await outputDoor.click();
     await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.group })).toHaveText(CONNECTIONS_LIST_ADDRESS.group);
-    await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.editor })).toHaveText(`${id} true`);
+    await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.editor })).toHaveText(`${id} true max-output`);
     await expect(page.getByRole("button", { name: presetLimitDoorName(PRESET_CONTEXT_LIMIT_NAME, source), exact: true })).toBeVisible();
   });
 }
@@ -235,6 +240,60 @@ test("a guessed ceiling says it is a guess in both hints", async ({ mount, page 
   await expect(hintOf(page, PRESET_MAX_CONTEXT_LABEL)).toHaveAccessibleDescription(
     presetMaxContextHint(groupThousands(window), groupThousands(windowInputRoom(window, reply)), true),
   );
+});
+
+test("a Max context hint counts the room against the window the preset itself sets, not the guess", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, SCENARIOS.guessed);
+  const guess = capability.context.window;
+  expect(guess).toBeLessThan(OWN_WINDOW.context);
+  const presetId = await importedPreset(caller, OWN_WINDOW);
+  await mountDeck(page, mount, presetId, caller);
+
+  await expect(hintOf(page, PRESET_MAX_CONTEXT_LABEL)).toHaveAccessibleDescription(
+    presetMaxContextHint(groupThousands(guess), groupThousands(windowInputRoom(OWN_WINDOW.context, OWN_WINDOW.output)), true),
+  );
+});
+
+test("a slider parked at a guess announces the saved value past it", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, SCENARIOS.guessed);
+  const presetId = await importedPreset(caller, IMPORTED);
+  await mountDeck(page, mount, presetId, caller);
+
+  await expect(page.getByRole("slider", { name: PRESET_MAX_OUTPUT_LABEL, exact: true })).toHaveAttribute(
+    "aria-valuetext",
+    presetPastGuessValueText(groupThousands(IMPORTED.output), groupThousands(capability.output.maxTokens.max)),
+  );
+  await expect(page.getByRole("slider", { name: PRESET_MAX_CONTEXT_LABEL, exact: true })).toHaveAttribute(
+    "aria-valuetext",
+    presetPastGuessValueText(groupThousands(IMPORTED.context), groupThousands(capability.context.window)),
+  );
+});
+
+test("the past-guess note wears the warning tone and the reported-cap note does not", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const guessed = await chatConnection(caller, SCENARIOS.guessed);
+  const presetId = await importedPreset(caller, IMPORTED);
+  await mountDeck(page, mount, presetId, caller);
+  const note = presetPastGuessNote(groupThousands(IMPORTED.output), groupThousands(guessed.capability.output.maxTokens.max));
+
+  await expect(page.getByText(note, { exact: true })).toHaveAttribute("data-tone", "warning");
+});
+
+test("a reported cap's note stays in the neutral tone", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, SCENARIOS.reported);
+  const presetId = await importedPreset(caller, BEYOND_REPORTED);
+  await mountDeck(page, mount, presetId, caller);
+  const note = presetCappedOnConnectionNote(groupThousands(BEYOND_REPORTED.output), groupThousands(capability.output.maxTokens.max));
+
+  await expect(page.getByText(note, { exact: true })).toBeVisible();
+  await expect(page.getByText(note, { exact: true })).not.toHaveAttribute("data-tone", "warning");
 });
 
 test("a reported ceiling keeps the model's own hint and says nothing of a guess", async ({ mount, page }) => {
@@ -407,6 +466,8 @@ test("a reply ask over a guessed max output beside a reported window says the wi
   const held = presetHeldToWindowNote(groupThousands(IMPORTED.output), groupThousands(WINDOW_ONLY.heldTo), groupThousands(WINDOW_ONLY.window));
   await expect(page.getByText(held, { exact: true })).toBeVisible();
   await expect(page.getByText(outputLine(capability, "guessed"), { exact: true })).toBeVisible();
+  // The one note states the clamp, as the Max output row's own description rather than a line apart from it.
+  await expect(page.getByRole("slider", { name: PRESET_MAX_OUTPUT_LABEL, exact: true })).toHaveAccessibleDescription(held);
   // The row's own note stays quiet: it would say the guess passes, which the window does not allow.
   await expect(
     page.getByText(presetPastGuessNote(groupThousands(IMPORTED.output), groupThousands(capability.output.maxTokens.max)), { exact: true }),
@@ -470,6 +531,21 @@ test.describe("phone at enlarged text", () => {
       await door.click({ trial: true });
     });
   }
+});
+
+test.describe("phone at larger text", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: PHONE });
+  test("the editor's header band stops pinning once it takes more than its share, so the Output rows keep the pane", async ({ mount, page }) => {
+    await using root = await freshRoot();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await chatConnection(caller, SCENARIOS.guessed);
+    const presetId = await importedPreset(caller, IMPORTED);
+    await mountDeck(page, mount, presetId, caller);
+    const band = page.locator('[data-slot="content-pane-band"]');
+    await expect.poll(() => band.evaluate((node) => getComputedStyle(node).position)).toBe("sticky");
+    await setRootFontScale(page, channelName("fontScale"), LARGER_TEXT);
+    await expect.poll(() => band.evaluate((node) => getComputedStyle(node).position)).not.toBe("sticky");
+  });
 });
 
 /** The box sits inside the phone's width and its words are not cut: it wraps rather than running past its own edge. */

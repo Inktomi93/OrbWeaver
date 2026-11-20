@@ -4,6 +4,7 @@
 
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
+import type { ConnectionEditorFact } from "#state";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
 import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow, withDeclaredOverride } from "./connection-fact-model.ts";
 import { FACT_NAMES, VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
@@ -21,6 +22,16 @@ const RAISED_OVERRIDE_SOURCE = (asked: string, floor: string, prior: string): st
   `Your override of ${asked} is under the ${floor}-token minimum, so ${floor} is used. It was ${prior}.`;
 /** A route whose request sends the window runs the preset's Max context, so that is the window's one home. */
 const WINDOW_PATH = "generation.context.window";
+/** The one leaf whose schema sibling is REQUIRED: `output.maxTokens` is a `rangeSchema`, so a write naming
+ *  only `max` would not parse. The sibling rides from the RESOLVED value, which is what the user is
+ *  declaring around. */
+const MAX_TOKENS_PATH = "generation.output.maxTokens.max";
+
+/** The fact row each door-named fact lands on. */
+export const CONNECTION_EDITOR_FACT_PATHS: Readonly<Record<ConnectionEditorFact, string>> = {
+  "context-window": WINDOW_PATH,
+  "max-output": MAX_TOKENS_PATH,
+};
 const INPUT_PATH = "generation.input";
 const PRESET_WINDOW_SOURCE = (max: string): string => `Set per preset: Max context tokens (up to ${max})`;
 
@@ -46,7 +57,7 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
     estimatedBy: "generation.context.windowEstimated",
   },
   {
-    path: "generation.output.maxTokens.max",
+    path: MAX_TOKENS_PATH,
     name: FACT_NAMES.maxOutput,
     edit: { kind: "number", count: true },
     format: tokens,
@@ -147,10 +158,6 @@ function statedCapabilityRow(
   };
 }
 
-/** The one leaf whose schema sibling is REQUIRED: `output.maxTokens` is a `rangeSchema`, so a write naming
- *  only `max` would not parse. The sibling rides from the RESOLVED value, which is what the user is
- *  declaring around. */
-const MAX_TOKENS_PATH = "generation.output.maxTokens.max";
 const MAX_TOKENS_MIN_PATH = "generation.output.maxTokens.min";
 
 function siblingsFor(path: string, capability: Capability): Readonly<Record<string, unknown>> {

@@ -109,9 +109,10 @@ function scrollerOf(bar: PinnedBox, styleOf: ComputedStyleOf): PinnedBox | null 
  * already fits: {@link PINNED_BAR_MAX_SHARE} of the scroll box, never less than one of the bar's controls shown whole. Enlarged text grows a bar with its copy while the pane around it does not, and a bar that fills the pane
  * covers the controls it pins over with no scroll position that clears them.
  *
+ * @param maxShare - The most of the scroll box the bar may take while pinned. @defaultValue {@link PINNED_BAR_MAX_SHARE}
  * @param liftFocus - The bar pins to its scroller's foot: when its size settles, after a press and on keyboard focus, the focused control in the scroller is scrolled above it.
  */
-export function usePinnedBarCap(ref: RefObject<PinnedBox | null>, liftFocus = false): number | null {
+export function usePinnedBarCap(ref: RefObject<PinnedBox | null>, liftFocus = false, maxShare = PINNED_BAR_MAX_SHARE): number | null {
   const [cap, setCap] = useState<number | null>(null);
   useLayoutEffect(() => {
     const styleRead: unknown = Reflect.get(globalThis, "getComputedStyle");
@@ -124,7 +125,7 @@ export function usePinnedBarCap(ref: RefObject<PinnedBox | null>, liftFocus = fa
       return;
     }
     const measure = (): void => {
-      const limit = Math.max(Math.floor(scroller.clientHeight * PINNED_BAR_MAX_SHARE), oneControlFloor(bar, styleOf));
+      const limit = Math.max(Math.floor(scroller.clientHeight * maxShare), oneControlFloor(bar, styleOf));
       // A bar already held to the cap reads its natural height from its scrollHeight.
       setCap(Math.max(bar.offsetHeight, bar.scrollHeight) > limit ? limit : null);
       if (liftFocus) {
@@ -147,6 +148,6 @@ export function usePinnedBarCap(ref: RefObject<PinnedBox | null>, liftFocus = fa
       scroller.removeEventListener("click", liftAfterPress);
       scroller.removeEventListener("focusin", liftOnFocus);
     };
-  }, [ref, liftFocus]);
+  }, [ref, liftFocus, maxShare]);
   return cap;
 }

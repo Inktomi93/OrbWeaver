@@ -14,13 +14,20 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, useEmbedRefusalToastAfterUnmount, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
+import type { ConnectionEditorFact } from "#state";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
-import { capabilityFactRows, imageInputSwitch, VECTOR_WIDTH_FACT_PATH, withImageInput } from "../lib/connection-capability-fact-model.ts";
+import {
+  CONNECTION_EDITOR_FACT_PATHS,
+  capabilityFactRows,
+  imageInputSwitch,
+  VECTOR_WIDTH_FACT_PATH,
+  withImageInput,
+} from "../lib/connection-capability-fact-model.ts";
 import {
   credentialReadout,
   declaredOverrideCount,
@@ -55,6 +62,8 @@ export interface ConnectionEditorProps {
   readonly connectionId: UserConnectionId;
   /** Land with the Advanced tier expanded: a door that sends the user to a stated fact (the context window). */
   readonly advancedOpen?: boolean | undefined;
+  /** Scroll to this stated fact's row and move focus to it on arrival: a door named for one setting lands on it. */
+  readonly focusFact?: ConnectionEditorFact | undefined;
   /** Back out of the editor — the list section owns which view it shows. */
   readonly onDone: () => void;
   /** Return to the list after a successful removal, where the list restores focus to a live control. */
@@ -81,7 +90,16 @@ export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   );
 }
 
-function ConnectionEditorBody({ connectionId, advancedOpen, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
+function ConnectionEditorBody({
+  connectionId,
+  advancedOpen,
+  focusFact: arrivalFact,
+  onDone,
+  onRemoved,
+  removalFinalFocus,
+  trpc,
+  invalidation,
+}: ConnectionEditorProps): ReactElement {
   const { data: connection } = useSuspenseQuery(trpc.connection.get.queryOptions({ connectionId }));
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
   const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
@@ -102,6 +120,7 @@ function ConnectionEditorBody({ connectionId, advancedOpen, onDone, onRemoved, r
   return (
     <AvailableConnectionEditorBody
       advancedOpen={advancedOpen}
+      arrivalFact={arrivalFact}
       connection={connection}
       connectionId={connectionId}
       invalidation={invalidation}
@@ -115,6 +134,7 @@ function ConnectionEditorBody({ connectionId, advancedOpen, onDone, onRemoved, r
 
 function AvailableConnectionEditorBody({
   advancedOpen,
+  arrivalFact,
   connection,
   connectionId,
   onDone,
@@ -122,7 +142,8 @@ function AvailableConnectionEditorBody({
   providers,
   trpc,
   invalidation,
-}: Omit<ConnectionEditorProps, "onRemoved" | "removalFinalFocus"> & {
+}: Omit<ConnectionEditorProps, "onRemoved" | "removalFinalFocus" | "focusFact"> & {
+  readonly arrivalFact: ConnectionEditorFact | undefined;
   readonly connection: ConnectionView;
   readonly provider: ProviderDef;
   readonly providers: readonly ProviderDef[];
@@ -139,6 +160,11 @@ function AvailableConnectionEditorBody({
       factNodes.current.set(path, node);
     }
   };
+  useEffect(() => {
+    const row = arrivalFact === undefined ? undefined : factNodes.current.get(CONNECTION_EDITOR_FACT_PATHS[arrivalFact]);
+    row?.scrollIntoView({ block: "center" });
+    row?.focus({ preventScroll: true });
+  }, [arrivalFact]);
   const reindex = useReindexConfirm((): boolean => {
     const widthRow = factNodes.current.get(VECTOR_WIDTH_FACT_PATH) ?? null;
     widthRow?.focus();

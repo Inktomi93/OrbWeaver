@@ -31,6 +31,7 @@
 // Every KnobRow MUST be mounted inside a KnobGrid; the two are exported together from this module so the
 // pairing has one home.
 
+import { groupThousands } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, RotateCcw } from "@orb/ui/icons";
@@ -45,6 +46,7 @@ import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs.ts";
 import { clampGloss, knobGhost } from "../lib/effective-knobs.ts";
 import { PRESET_NUMBER_FORMAT } from "../lib/format-count.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { presetPastGuessValueText } from "../lib/preset-names.ts";
 import type { KnobBinding } from "../lib/sampling-knob-catalog.ts";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
@@ -63,6 +65,11 @@ function inheritedValueText(ghost: KnobGhost | null): string {
     return "default (model decides)";
   }
   return `${String(ghost.value)}: ${ghost.modelDecides ? "default (model decides)" : "default"}`;
+}
+
+/** A stored value past a guessed rail: the thumb parks at the rail's end, so it announces the saved number instead. */
+function pastRailValueText(value: number | undefined, max: number, storesPastRail: boolean): string | undefined {
+  return storesPastRail && value !== undefined && value > max ? presetPastGuessValueText(groupThousands(value), groupThousands(max)) : undefined;
 }
 
 export interface KnobRowProps {
@@ -85,6 +92,8 @@ export interface KnobRowProps {
   /** What the server does with this knob on this turn when it is not what the value suggests (a Mirostat branch that
    *  skips it). It outranks the provenance line: the value is moot until it changes. */
   readonly note?: string | undefined;
+  /** The note names a risk the user takes on (a value sent past a guess), so it wears the warning tone. */
+  readonly noteTone?: "warning" | undefined;
   /** `max` is a guessed ceiling, not a limit the model holds: the number box keeps a typed value past it and the rail
    *  pins at its end. A drag still sets a value on the rail. Without it, `max` bounds a typed value too. */
   readonly storesPastRail?: true | undefined;
@@ -103,7 +112,7 @@ export function KnobGrid({ children }: { readonly children: ReactNode }): ReactE
 }
 
 export function KnobRow(props: KnobRowProps): ReactElement {
-  const { form, name, label, hint, min, max, step, largeStep, effective, quality, note, storesPastRail } = props;
+  const { form, name, label, hint, min, max, step, largeStep, effective, quality, note, noteTone, storesPastRail } = props;
   // ONE id per row for the provenance line. Both modalities point at it (§4.1's gloss belongs to the
   // VALUE), which is what stops a column of loose glosses from fusing into one run of text for a screen
   // reader — a gloss reads as this row's, or it does not reach the row at all (side-eye F-21).
@@ -143,7 +152,7 @@ export function KnobRow(props: KnobRowProps): ReactElement {
               storesPastRail={storesPastRail === true}
               value={value}
             />
-            <KnobGloss glossId={glossId} text={gloss ?? null} />
+            <KnobGloss glossId={glossId} text={gloss ?? null} tone={note === undefined ? undefined : noteTone} />
           </>
         );
       }}
@@ -212,7 +221,7 @@ function KnobControls({
         // funnel reports nothing the thumb sits at `min`, so the native range announced a bare `0` for eight
         // knobs at once ("everything at minimum", the opposite of the truth). The visible arm already said it
         // (bare rail + muted thumb, `tone="ghost"`); this is the same sentence in the a11y tree.
-        {...(explicit ? {} : { thumbValueText: inheritedValueText(ghost) })}
+        thumbValueText={explicit ? pastRailValueText(value, max, storesPastRail) : inheritedValueText(ghost)}
         // EXPLICIT is the EMBER (owner ruling, 2026-08-02: "sliders WHITE, off-palette too" — one control
         // color grammar with the amber-ON switches beside them). This REVERSES side-eye F-09's `neutral`
         // arm: that call rationed the accent per CD3, but rendered it produced a deck whose set knobs were
@@ -283,12 +292,20 @@ function KnobControls({
  *  while the name beside it grew, and at a narrow pane it ate the gloss's own line. `col-start-2` puts the
  *  line under the rail wherever the rail is; folded it takes the whole width of the row BELOW the rail
  *  (side-eye 2026-08-30 P2-C — the folded arm is two tracks now, so the row it is "given" has to be said). */
-function KnobGloss({ text, glossId }: { readonly text: string | null; readonly glossId: string }): ReactElement | null {
+function KnobGloss({
+  text,
+  glossId,
+  tone,
+}: {
+  readonly text: string | null;
+  readonly glossId: string;
+  readonly tone: "warning" | undefined;
+}): ReactElement | null {
   if (text === null) {
     return null;
   }
   return (
-    <Text as="span" className="@max-cq-32:col-span-full @cq-32:col-span-2 @cq-32:col-start-2" id={glossId} voice="gloss">
+    <Text as="span" className="@max-cq-32:col-span-full @cq-32:col-span-2 @cq-32:col-start-2" id={glossId} tone={tone} voice="gloss">
       {text}
     </Text>
   );

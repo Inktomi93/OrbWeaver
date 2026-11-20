@@ -360,6 +360,11 @@ export function presetPastGuessNote(stored: string, ceiling: string): string {
   return `Saved as ${stored}, past the guess of ${ceiling}. It is sent as saved; if the server refuses it, set the real limit.`;
 }
 
+/** A slider thumb whose saved number sits past the guessed rail announces the saved number, not the rail's end. */
+export function presetPastGuessValueText(stored: string, guess: string): string {
+  return `${stored}, past the guess of ${guess}`;
+}
+
 /** A reply the stated window cannot hold beside a prompt: the value stays saved and the turn holds the reply to what the
  *  window leaves. */
 export function presetHeldToWindowNote(stored: string, heldTo: string, window: string): string {
