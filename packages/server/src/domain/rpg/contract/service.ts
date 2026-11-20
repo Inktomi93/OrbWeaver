@@ -177,7 +177,14 @@ export type TurnWriteFoldOutcome =
  *  already minted, which ride the row's batch. */
 export interface TurnWriteInput {
   readonly flush: StagedTurnFlush;
-  readonly turn: { readonly kind: TurnKind; readonly messageId: MessageId; readonly variantId: MessageVariantId };
+  readonly turn: {
+    readonly kind: TurnKind;
+    readonly messageId: MessageId;
+    readonly variantId: MessageVariantId;
+    /** The newest visible assistant slot's `seq` when the round read its base (`undefined` when there was none):
+     *  a later slot already there was the story before this turn began. */
+    readonly tailSeqAtBase: number | undefined;
+  };
   readonly target: TurnSnapshotTarget;
   readonly journal: readonly NewRpgJournal[];
 }

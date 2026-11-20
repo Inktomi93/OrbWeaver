@@ -53,12 +53,12 @@ import {
   rpgWeatherSchema,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { messages, messageVariants, rpgJournal, rpgSnapshots } from "@orb/db";
+import { messages, rpgJournal, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, count, desc, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors.ts";
 import type { HandSnapshotTarget, SnapshotGameRef, SnapshotWriteBase, TurnSnapshotTarget } from "../contract/params.ts";
@@ -672,28 +672,6 @@ export async function findLatestAssistantSlotSeq(db: Db, chatId: ChatId): Promis
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   return rows[0]?.seq;
-}
-
-/** Did a visible assistant slot AFTER `seq` already exist when `variantId` was created? True means the variant
- *  regenerated an older message: the later beats were the story before it began, so they supersede its row by
- *  design. False means every later beat arrived while this turn ran, so they are concurrent with it. A
- *  vanished variant answers false. */
-export async function laterSlotPredatesVariant(db: Db, chatId: ChatId, seq: number, variantId: MessageVariantId): Promise<boolean> {
-  const variantCreatedAt = db.select({ createdAt: messageVariants.createdAt }).from(messageVariants).where(eq(messageVariants.id, variantId));
-  const rows = await db
-    .select({ id: messages.id })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.chatId, chatId),
-        eq(messages.role, "assistant"),
-        eq(messages.excludedFromPrompt, false),
-        gt(messages.seq, seq),
-        lt(messages.createdAt, variantCreatedAt),
-      ),
-    )
-    .limit(LIMIT_ONE);
-  return rows.length > 0;
 }
 
 /** The `seq` of a message (the just-committed user message — `onUserCommit`), or `undefined` if it vanished

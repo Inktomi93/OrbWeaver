@@ -45,6 +45,7 @@ import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@or
 import type { RpgTurnContext } from "../contract/chat-turn.ts";
 import type { StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgJournalRow, RpgRunToolRound, TurnWriteFoldOutcome } from "../contract/service.ts";
+import { findLatestAssistantSlotSeq } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { commitTurnWrite, turnBaseState } from "../snapshot-edit.ts";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
@@ -82,9 +83,13 @@ interface StagedRound {
   readonly failure: string | null;
   /** The `upsert_quest` calls the fold refused, which the record marks `dropped`. */
   readonly refusedQuestCalls: readonly RpgRefusedQuestCall[];
+  /** The story's tail slot as the round read its base, which tells the write boundary a regen of an older
+   *  message from a turn a later beat overtook (`snapshot-edit.ts` header). */
+  readonly tailSeqAtBase: number | undefined;
 }
 
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunToolRound): Promise<StagedRound> {
+  const tailSeqAtBase = await findLatestAssistantSlotSeq(ctx.db, game.chatId);
   const baseState = await turnBaseState(ctx, game, { kind: turn.turnConnection.kind, messageId: turn.messageId });
   const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
@@ -104,7 +109,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   const refusedQuestCalls = delta.refusedQuestCalls ?? [];
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
-    return { calls: delta.recordedToolCalls, failure, refusedQuestCalls }; // no state write, but a dropped/no_changes call still belongs in the trail
+    return { calls: delta.recordedToolCalls, failure, refusedQuestCalls, tailSeqAtBase }; // no state write, but a dropped/no_changes call still belongs in the trail
   }
   ctx.staging.ensure(turn.turnId, baseState);
   if (hasStatePatch) {
@@ -113,7 +118,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
-  return { calls: delta.recordedToolCalls, failure, refusedQuestCalls };
+  return { calls: delta.recordedToolCalls, failure, refusedQuestCalls, tailSeqAtBase };
 }
 
 /** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
@@ -224,7 +229,12 @@ interface FlushWrite {
  *
  *  RETURNS what the caller records on the turn's tool calls and publishes on the settle event, the only place a
  *  reader learns this boundary is done. */
-async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<FlushWrite> {
+async function writeFlush(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  flush: StagedTurnFlush,
+  turn: CompletedTurn & Pick<StagedRound, "tailSeqAtBase">,
+): Promise<FlushWrite> {
   // Parse and mint every journal row before the batch starts. A corrupt type therefore writes neither plane;
   // once valid, the snapshot statement and every journal insert share one same-DB commit boundary.
   const journal = flush.journal.map(
@@ -246,7 +256,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     { game, admission: turn.admission },
     {
       flush,
-      turn: { kind: turn.turnConnection.kind, messageId: turn.messageId, variantId: turn.variantId },
+      turn: { kind: turn.turnConnection.kind, messageId: turn.messageId, variantId: turn.variantId, tailSeqAtBase: turn.tailSeqAtBase },
       target: { id: ctx.ids.snapshot(), gameId: game.id, messageId: turn.messageId, variantId: turn.variantId, now: ctx.now() },
       journal,
     },
@@ -373,7 +383,7 @@ async function flushWritableTurn(
       settle.outcome = produced.failure === null ? "no-writes" : "failed";
       settle.droppedReason = produced.failure;
     } else {
-      const written = await writeFlush(ctx, game, flush, turn);
+      const written = await writeFlush(ctx, game, flush, { ...turn, tailSeqAtBase: produced.tailSeqAtBase });
       losses = written.losses;
       // WRITTEN INTO THE LEDGER THE INSTANT IT IS KNOWN, before the disclosure write below can throw: a
       // committed snapshot reported as `failed` because the tool-call record blew up afterwards would be

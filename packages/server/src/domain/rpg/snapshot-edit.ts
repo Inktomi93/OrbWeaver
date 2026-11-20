@@ -31,8 +31,9 @@
 //     later beat arrived while they ran. Their state goes UNDER the later beat's change; what the later beat
 //     replaced is recorded on the turn's tool-call row, never dropped in silence.
 //   • `swipe` and `continue` target an EXISTING slot. They regenerate an older message, and stay silently
-//     superseded, exactly when a visible assistant slot after theirs existed before their variant was created
-//     (`laterSlotPredatesVariant`). A later slot created after the variant is concurrent, as above.
+//     superseded, exactly when a visible assistant slot after theirs already existed when their round read its
+//     base (`tailSeqAtBase`). The variant's age cannot answer this: a continue extends a variant older than
+//     every later slot. A later slot that arrived after the base read is concurrent, as above.
 // A turn whose base moved while its round ran (an earlier beat's row landed under it) is replayed onto the new
 // base before its row is written, so the earlier beat's writes stay under it.
 //
@@ -62,7 +63,6 @@ import { snapshotRowToState } from "./contract/service.ts";
 import {
   findLatestAssistantSlotSeq,
   findMessageSeq,
-  laterSlotPredatesVariant,
   resolveSnapshotBeforeSlot,
   resolveSnapshotHead,
   updateSnapshotState,
@@ -422,7 +422,7 @@ async function foldOwnedTurnWrite(
   }
   const currentBeat = await findLatestAssistantSlotSeq(ctx.db, game.chatId);
   if (currentBeat !== undefined && currentBeat > at.seq) {
-    const regen = !OPENS_TAIL_SLOT[at.turn.kind] && (await laterSlotPredatesVariant(ctx.db, game.chatId, at.seq, at.turn.variantId));
+    const regen = !OPENS_TAIL_SLOT[at.turn.kind] && at.turn.tailSeqAtBase !== undefined && at.turn.tailSeqAtBase > at.seq;
     return regen ? { kind: "head", headId: head.row.id } : composeUnderLaterBeat(ctx, room, written, head.row.id);
   }
   if (head.arm !== "hand") {

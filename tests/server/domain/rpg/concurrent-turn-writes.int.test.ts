@@ -1,12 +1,13 @@
 // Two turns of one game whose state rounds overlap keep both turns' writes, in either release order, and a
 // write the later beat replaced is recorded on the losing turn's tool-call row. A regen of an older message stays
-// silently superseded. Production entry: `chat.send`, `chat.generate` and `chat.swipe` on the composed root,
+// silently superseded. Production entry: `chat.send`, `chat.generate`, `chat.swipe` and `chat.continueTurn` on the composed root,
 // whose post-commit flush writes through `commitTurnWrite`; read back through `rpg.getTrackerView` and
 // `rpg.listTurnToolCalls`. Layer: server integration (ordering, persistence and the per-game section).
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 // @subject packages/server/src/domain/rpg/chat-ops/flush.ts
 // @subject packages/server/src/domain/rpg/persistence/snapshots.ts
 
+import type { TurnKind } from "@orb/contracts/chat";
 import type { RpgTurnToolCallsView } from "@orb/contracts/rpg";
 import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -102,7 +103,16 @@ test("an earlier beat's row that lands while a later round runs stays under the 
   expect((await recordOf(h, later.selectedVariantId)).calls.map((call) => call.verdict)).toEqual(["applied", "applied"]);
 });
 
-test("a regen of an older message is superseded by the beats after it, silently", async () => {
+// The turns that target an existing slot, each through its own production verb. Keyed by the turn kind it runs, so
+// a kind missing from the table fails `tsc`.
+const REGEN_OF: Readonly<
+  Record<Extract<TurnKind, "swipe" | "continue">, (h: ChatRoot, messageId: TurnMessage["id"]) => Promise<{ readonly messages: readonly TurnMessage[] }>>
+> = {
+  swipe: (h, messageId) => h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId }),
+  continue: (h, messageId) => h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId }),
+};
+
+test.each(Object.entries(REGEN_OF))("a %s of an older message is superseded by the beats after it, silently", async (_kind, regenerate) => {
   using plan = finiteReplies("regen of an older message", [
     narrative("Aria reaches the bridge."),
     EARLIER_ROUND,
@@ -119,14 +129,13 @@ test("a regen of an older message is superseded by the beats after it, silently"
   await h.root.settleBackground();
   await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Head north." });
   await h.root.settleBackground();
-  // The swipe's variant is minted after the later slot exists, as in real play.
-  h.root.clock.advance(1000);
-  const swiped = assistantOf(await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: first.id }));
+  const regenerated = assistantOf(await regenerate(h, first.id));
   await h.root.settleBackground();
 
-  expect(swiped.id).toBe(first.id);
+  expect(regenerated.id).toBe(first.id);
   expect(await viewOf(h)).toEqual({ location: "The north gate", quests: ["Find the smith", "Guard the bridge"] });
-  const regen = await recordOf(h, swiped.selectedVariantId);
+  const regen = await recordOf(h, regenerated.selectedVariantId);
+  expect(regen.calls.map((call) => call.name)).toEqual([SCENE_TOOL, QUEST_TOOL]);
   expect(regen.calls.map((call) => call.verdict)).toEqual(["applied", "applied"]);
   expect(regen.calls.flatMap((call) => call.issues)).toEqual([]);
 });
