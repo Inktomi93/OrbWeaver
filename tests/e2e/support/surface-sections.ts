@@ -2683,7 +2683,7 @@ async function platformGestures(journey: Journey): Promise<void> {
 }
 
 /** Remaining native cases derive their identity from the production section vocabulary. */
-export const SURFACE_SECTION_IDS = SECTION_IDS.filter((id): id is OwnedSection => id !== "chats" && id !== "characters" && id !== "config");
+const SURFACE_SECTION_IDS = SECTION_IDS.filter((id): id is OwnedSection => id !== "chats" && id !== "characters" && id !== "config");
 
 function sectionJourney(flow: SurfaceFlow, section: OwnedSection): Journey {
   const presetMenus: Journey["presetMenus"] = [];
