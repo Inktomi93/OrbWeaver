@@ -123,6 +123,45 @@ export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
   return step === "interactive";
 }
 
+const CARD_SCRIPT_HOLDERS = ["install", "character", "viewer"] as const;
+/** Which consent holds a frame's scripts off: the install's interactive ceiling, the author's ladder step, or the
+ *  viewer's own `chat.runCardScripts`. */
+export type CardScriptHolder = (typeof CARD_SCRIPT_HOLDERS)[number];
+
+/** Whether a routed frame's own scripts run, and when they do not, the first consent that holds them off. */
+export type CardScriptVerdict = { readonly runs: true } | { readonly runs: false; readonly heldBy: CardScriptHolder };
+
+/** The three consents a frame's script posture reads, all already resolved. */
+export interface CardScriptConsents {
+  /** The deployment `allowInteractiveCards` ceiling, read live. */
+  readonly installAllows: boolean;
+  /** The author's resolved ladder step ({@link RenderPolicy.htmlTrust}). */
+  readonly step: HtmlTrustStep;
+  /** The viewer's own `chat.runCardScripts`. */
+  readonly viewerRuns: boolean;
+}
+
+const SCRIPTS_RUN: CardScriptVerdict = { runs: true };
+
+/**
+ * THE script posture of a routed card frame: scripts run only when all three consents say yes. The ONE home of the
+ * rule and of its order. The card-frame route builds the frame's CSP from it, and the client's notice names the
+ * holder it returns, so the notice can never say scripts are off while the frame runs them, or the reverse.
+ *
+ * @remarks The order names the setting whose change matters first. The install ceiling binds every character, so it
+ * is named before a character's own step; the viewer's switch is named last, because the other two decide whether
+ * the frame may run scripts at all.
+ */
+export function resolveCardScriptVerdict(consents: CardScriptConsents): CardScriptVerdict {
+  if (!consents.installAllows) {
+    return { runs: false, heldBy: "install" };
+  }
+  if (!allowsInteractiveCards(consents.step)) {
+    return { runs: false, heldBy: "character" };
+  }
+  return consents.viewerRuns ? SCRIPTS_RUN : { runs: false, heldBy: "viewer" };
+}
+
 /** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The
  *  chat domain resolves each character's tri-state overrides against the deployment effective config at
  *  roster-build time (the ONE resolution home — {@link resolveRenderPolicy}, never re-resolved client-side);

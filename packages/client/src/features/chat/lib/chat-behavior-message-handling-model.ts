@@ -20,6 +20,9 @@
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ConfigSubcategory } from "#state";
 
+/** The viewer's card-script consent, as its row and a framed-script notice's control address it. */
+export const RUN_CARD_SCRIPTS_SETTING_ID = "run-card-scripts";
+
 export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
   id: "message-handling",
   label: "Chat & message handling",
@@ -151,7 +154,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "run-card-scripts",
+      id: RUN_CARD_SCRIPTS_SETTING_ID,
       key: "runCardScripts",
       label: "Run story-card scripts",
       keywords: ["interactive", "card", "script", "privacy", "ip"],
