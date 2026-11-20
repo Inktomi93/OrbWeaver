@@ -78,6 +78,7 @@ export default defineConfig<CtCorpusOptions>({
       testMatch: [
         "**/platform-*.suite.ct.tsx",
         "**/features/chat/components/appearance-message-style-section.ct.tsx",
+        "**/features/chat/components/framed-media-notice.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
         "**/features/chat/components/context-tab-strip-fade.ct.tsx",
         "**/features/app-shell/surfaces/context-rail-focus.ct.tsx",
