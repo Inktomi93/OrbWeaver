@@ -43,7 +43,7 @@ Homes: the resolvers and verdicts in `@orb/contracts/chat`, `viewerRunsCardScrip
 
 ## Consequences
 
-A theme is a token value set, never a structural mode. Per-character styling covers the ST token subset (accent, role bubbles, name color, prose semantics, font, radius, surface, chat style and density) with no injection surface. The live emit surface is `THEME_SCOPE_EMIT_VARS` in `packages/ui/src/content/theme-scope/clamp.ts`, and it grows only for chrome whose absence leaves an unthemed edge on a themed panel. Native `<audio controls>` and `<video controls>` play media in a card that runs no script.
+A theme is a token value set, never a structural mode. Per-character styling covers the ST token subset (accent, role bubbles, name color, prose semantics, font, radius and surface) with no injection surface. The live emit surface is `THEME_SCOPE_EMIT_VARS` in `packages/ui/src/content/theme-scope/clamp.ts`, and it grows only for chrome whose absence leaves an unthemed edge on a themed panel. Native `<audio controls>` and `<video controls>` play media in a card that runs no script.
 
 On a default deployment, an imported card renders trusted and runs its scripts on first load, and the WebRTC residual is open. An operator closes it for inheriting characters with Rich HTML as the default step, which keeps presets styled, and a viewer closes it with `runCardScripts`. A handoff copy keeps an inheriting character inheriting, but it stores an explicit Interactive step as Rich HTML, so the new owner decides.
 
@@ -53,7 +53,7 @@ On a default deployment, an imported card renders trusted and runs its scripts o
 - Shadow DOM for Tier B: it gives composability, not isolation. Script in a shadow tree has full page access and custom properties pierce it.
 - DOMPurify as a second pass: Streamdown's own `rehype-sanitize` and `rehype-harden` already sanitize inside the pipeline; a second pass outside it adds nothing.
 - `react-shadow` or a generic isolation library: a boundary we rely on is the small owned `sandbox-frame`.
-- Structural theme modes such as a work mode, free-form dragging (`movingUI`) and visual-novel fullscreen (`waifuMode`): a theme is a palette plus optional density, and the visual-novel layer is out (D49).
+- Structural theme modes such as a work mode, free-form dragging (`movingUI`) and visual-novel fullscreen (`waifuMode`): a theme is a palette, and the visual-novel layer is out (D49).
 - Interactive cards as a per-character opt-in under a deployment switch that is off by default: an imported card would not work until someone found both settings.
 - The default step as a script ceiling: a character's own Interactive step would not count.
 - A script grant decided only when the frame is minted: the client keeps a frame handle for the life of the tab, so a revocation would not reach it.

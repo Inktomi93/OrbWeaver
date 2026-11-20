@@ -183,7 +183,6 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
         // The host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
         chatBehavior: {
           attachmentQuality: us.chat.attachmentQuality,
-          autoContinue: us.chat.autoContinue,
           autoContinueRounds: us.chat.autoContinueRounds,
           autoSwipe: us.chat.autoSwipe,
           customStoppingStrings: us.chat.customStoppingStrings,

@@ -4,23 +4,22 @@
 // faithful mini-PREVIEW is impossible (a nested box has no seams to lose) — but the DIFFERENCE between
 // the options is depictable, and the diagram is ALLOWED TO EXAGGERATE it: at diagram size a truthful
 // 1px seam shows nothing, and an under-drawn honest diagram teaches nothing (the actual failure mode).
-// The KIND of difference stays honest — flat = seams, ramp = a seamless brightness ladder, glow = flat's
-// seams with a lifted card — while the AMOUNT is scaled for instant reading.
+// The KIND of difference stays honest — flat = seams, ramp = a seamless brightness ladder — while the AMOUNT is
+// scaled for instant reading.
 //
 // THE LADDER IS AN EXAGGERATION OF THE RAMP, NOT THE RAMP ITSELF (#1099 G4, and the ramp-neighbour
 // ceiling). `Layered` used to paint `bg-sidebar` / `bg-surface-raised` / `bg-card` — the shell's REAL
 // three tones — and the settled measurement found every descendant at `rgba(0,0,0,0)` with the three
-// steps 1.03–1.12:1 apart where they did paint: the middle option of a three-option picker was a picture
-// of nothing. Two adjacent members of the derived neutral ramp are ~0.05 apart in OKLCH L BY CONSTRUCTION
+// steps 1.03–1.12:1 apart where they did paint: the option was a picture of nothing. Two adjacent members of the derived neutral ramp are ~0.05 apart in OKLCH L BY CONSTRUCTION
 // (`ramp-neighbour-contrast-ceiling` — ~1.14:1 on either polarity), so the G4 receipt of ≥1.5:1 per step
 // is physically unreachable from ramp neighbours: no amount of token-swapping gets there, which is
 // precisely the case §7.8's exaggeration licence exists for. The ladder is now `foreground` alpha over
 // the base surface — DERIVED from the two tokens whose relationship IS "how far apart can two surfaces
-// read", polarity-correct in both themes for free, and steppable to a legible distance. Flat and Lifted
-// keep painting the shell's own tones; only the amount of the ramp step is scaled.
+// read", polarity-correct in both themes for free, and steppable to a legible distance. Flat keeps
+// painting the shell's own tones; only the amount of the ramp step is scaled.
 //
-// Every colour, hairline and shadow is still DERIVED from the SAME tokens the shell rules consume
-// (`bg-background` / `bg-sidebar` / `border-border` / `shadow-overlay`) — theme-correct for free, and a
+// Every colour and hairline is still DERIVED from the SAME tokens the shell rules consume
+// (`bg-background` / `bg-sidebar` / `border-border`) — theme-correct for free, and a
 // token change moves the diagram. The map is TOTAL over the option union: a new elevation member fails
 // tsc here until it says what it looks like (the teach-declaration posture). Labels ride
 // `ELEVATION_ITEMS`, the one option table; the write path is the same bound field the Select drove.
@@ -36,7 +35,7 @@ import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
 
 type Elevation = AppearanceSettings["elevation"];
 
-// THE FRAME IS SPELLED INLINE IN ALL THREE, deliberately: each diagram's classes stay readable at the
+// THE FRAME IS SPELLED INLINE IN BOTH, deliberately: each diagram's classes stay readable at the
 // element that paints them.
 
 /** FLAT — separation BY LINE: one base tone across the whole horizon with the `--color-sidebar-border`
@@ -67,26 +66,10 @@ function RampDiagram(): ReactElement {
   );
 }
 
-/** LIFTED (GLOW) — flat's chrome with its seams, plus a lift on the clickable card in the content: glow lifts
- *  only an interactive Card, never a pane (ui-surface-and-interaction-rules §2.4). EXAGGERATED: the card sits
- *  in visible air so its `shadow-overlay` reads at diagram size. */
-function GlowDiagram(): ReactElement {
-  return (
-    <ThemePreviewPane fill="sidebar" shape="row" padding="none" holdsLine={true} height="strip" width="full" className="overflow-hidden">
-      <Row grow={true} />
-      <Row grow={true} divider="start" dividerTone="sidebar" dividerWeight="rule" />
-      <Row grow="double" height="fill" align="center" padding="row" divider="start" dividerTone="sidebar" dividerWeight="rule">
-        <ThemePreviewPane grow={true} height="part" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
-      </Row>
-    </ThemePreviewPane>
-  );
-}
-
 /** TOTAL over the union — a new elevation member is a tsc error here until it is depicted. */
 const ELEVATION_DIAGRAMS: Record<Elevation, () => ReactElement> = {
   flat: FlatDiagram,
   ramp: RampDiagram,
-  glow: GlowDiagram,
 };
 
 export interface ElevationCardsProps {

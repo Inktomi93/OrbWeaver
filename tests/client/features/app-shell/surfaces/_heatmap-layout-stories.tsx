@@ -4,7 +4,7 @@ import { Button } from "@orb/ui/button";
 import type { OrbEChartsInstance } from "@orb/ui/chart";
 import { Heatmap } from "@orb/ui/heatmap";
 import { Text } from "@orb/ui/text";
-import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
+import type { ThemeScopeProps, ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -17,7 +17,7 @@ export function HeatmapLayoutStory({
 }: {
   readonly width: number;
   readonly height: number;
-  readonly density?: ThemeScopeTokens["density"];
+  readonly density?: ThemeScopeProps["density"];
   readonly font?: ThemeScopeTokens["font"];
 }): ReactElement {
   const [chart, setChart] = useState<OrbEChartsInstance | null>(null);
@@ -27,7 +27,7 @@ export function HeatmapLayoutStory({
       subject="Heatmap paint separation"
       isolates="The public heatmap uses the measured production Insights chart host, without application state or a replacement renderer."
     >
-      <ThemeScope tokens={{ density, font }}>
+      <ThemeScope tokens={{ font }} density={density}>
         <div data-live-token-root="" style={{ width }}>
           <Text voice="label" data-slot="heatmap-font-reference">
             Chart font

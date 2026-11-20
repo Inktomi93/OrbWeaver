@@ -15,6 +15,12 @@
 //
 // Round-trip drift guard: buildUserSettingsBackup(parseUserSettingsBackup(buildUserSettingsBackup(x)))
 // deep-equals buildUserSettingsBackup(x).
+//
+// The file's version IS the payload's settings version, so the import reads the payload through the same lifts a
+// stored row runs. A lift that changes what a present key means (auto-continue's switch folded into its count) would
+// otherwise misread an old file as today's shape. A file from a newer build is refused by name by the spine's version
+// gate. A file written before the stamp says version 1 and carries no settings version; its payload is read as the last
+// settings version before the stamp.
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { USER_SETTINGS_SCHEMA_KIND } from "@orb/contracts/portability";
@@ -24,11 +30,16 @@ import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-// The file-format version, distinct from the payload's USER_SETTINGS_SCHEMA_VERSION (which governs the
-// namespace shapes and is handled inside parseUserSettings).
 export { USER_SETTINGS_SCHEMA_KIND } from "@orb/contracts/portability";
 
-const USER_SETTINGS_BACKUP_SCHEMA_VERSION = 1;
+// The file version every backup written before the stamp carries, and the settings version its payload was read at.
+const PRE_STAMP_FILE_VERSION = 1;
+const PRE_STAMP_SETTINGS_VERSION = 10;
+
+// The settings version a file's payload was written at.
+function payloadSettingsVersion(fileVersion: number): number {
+  return fileVersion === PRE_STAMP_FILE_VERSION ? PRE_STAMP_SETTINGS_VERSION : fileVersion;
+}
 
 // The allowlist (the fence) — the only share-safe UserSettings namespaces. Fixed, not derived from
 // UserSettings, so a new namespace is excluded by default. Order = deterministic serialization order.
@@ -71,9 +82,9 @@ function takeNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<Pick<P
 
 /** The fence, applied at the wire boundary: only the allowlisted namespaces the file actually carried
  *  survive; any non-allowlisted key (a crafted `routing`/`credential`) is never read. */
-function takeShareSafe(raw: unknown): Partial<PortableUserSettings> {
+function takeShareSafe(raw: unknown, settingsVersion: number): Partial<PortableUserSettings> {
   const rawObj = isPlainObject(raw) ? raw : {};
-  const healed = parseUserSettings(rawObj, USER_SETTINGS_SCHEMA_VERSION);
+  const healed = parseUserSettings(rawObj, settingsVersion);
   const out: Partial<PortableUserSettings> = {};
   for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
     if (Object.hasOwn(rawObj, ns)) {
@@ -85,10 +96,12 @@ function takeShareSafe(raw: unknown): Partial<PortableUserSettings> {
 
 // The fence PROJECTION stays outside the spine (it is this family's security property, not a serde
 // mechanic); the spine owns only the envelope, decode, and version gate.
-const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly settings: unknown }>({
+// The envelope gate has already accepted `schemaVersion` (a positive integer no newer than this build's) before the body
+// parse reads it here.
+const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly schemaVersion: number; readonly settings: unknown }>({
   schemaKind: USER_SETTINGS_SCHEMA_KIND,
-  schemaVersion: USER_SETTINGS_BACKUP_SCHEMA_VERSION,
-  bodySchema: z.object({ settings: z.unknown() }).strip(),
+  schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+  bodySchema: z.object({ schemaVersion: z.int().positive(), settings: z.unknown() }).strip(),
   toWire: (safe) => {
     const settings: Record<string, unknown> = {};
     for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
@@ -97,9 +110,9 @@ const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, {
         settings[ns] = value;
       }
     }
-    return { settings };
+    return { schemaVersion: USER_SETTINGS_SCHEMA_VERSION, settings };
   },
-  fromWire: (body) => takeShareSafe(body.settings),
+  fromWire: (body) => takeShareSafe(body.settings, payloadSettingsVersion(body.schemaVersion)),
 });
 
 /** Serialize a share-safe settings projection to the orb-native user-settings-backup JSON bytes (the

@@ -1,13 +1,13 @@
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { LIBRARY_PAGE_SIZE_DEFAULT, LIBRARY_PAGE_SIZE_MIN } from "@orb/contracts/settings";
+import { DEFAULT_CHAT_SETTINGS, TEMP_CHAT_TTL_HOURS_MIN } from "@orb/contracts/settings";
 import { controlledPanel, diagnosticTarget } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { LIBRARY_SETTINGS_SUBCATEGORY } from "#client/features/character/lib/library-settings-nav.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import {
   CONFIG_ADVANCED_THEME_TOOLS_NAME,
   CONFIG_BACK_TO_LOOKS_NAME,
@@ -772,39 +772,39 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
   }
 }
 
-async function librarySetting(flow: SurfaceWalk): Promise<void> {
-  const original = (await flow.client.settings.getUserSettings.query()).config.library.pageSize;
-  const next = original === LIBRARY_PAGE_SIZE_MIN ? LIBRARY_PAGE_SIZE_DEFAULT : LIBRARY_PAGE_SIZE_MIN;
-  const setting = LIBRARY_SETTINGS_SUBCATEGORY.settings?.find((candidate) => candidate.id === "rows-per-page");
+async function tempChatTtlSetting(flow: SurfaceWalk): Promise<void> {
+  const original = (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours;
+  const next = original === TEMP_CHAT_TTL_HOURS_MIN ? DEFAULT_CHAT_SETTINGS.tempChatTtlHours : TEMP_CHAT_TTL_HOURS_MIN;
+  const setting = CHAT_MESSAGE_HANDLING_SUBCATEGORY.settings?.find((candidate) => candidate.key === "tempChatTtlHours");
   if (setting === undefined) {
-    throw new Error("The production Library setting no longer exists; update its native journey disposition");
+    throw new Error("The production temporary-chat setting no longer exists; update its native journey disposition");
   }
   try {
-    await category(flow, "appearance");
+    await category(flow, "chat-behavior");
     const list = await map(flow);
     await list
-      .locator('[data-slot="config-group"][data-config-group="appearance"]')
-      .getByRole("button", { name: LIBRARY_SETTINGS_SUBCATEGORY.label, exact: true })
+      .locator('[data-slot="config-group"][data-config-group="chat-behavior"]')
+      .getByRole("button", { name: CHAT_MESSAGE_HANDLING_SUBCATEGORY.navLabel ?? CHAT_MESSAGE_HANDLING_SUBCATEGORY.label, exact: true })
       .click();
     const content = flow.page.locator(CONTENT);
     const field = content.getByRole("textbox", { name: setting.label, exact: true });
     await field.fill(String(next));
     await field.press("Tab");
-    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.library.pageSize).toBe(next);
+    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours).toBe(next);
     await expect(field).toHaveValue(String(next));
-    await checkpoint(flow, "library-setting-changed", content, field);
+    await checkpoint(flow, "chat-setting-changed", content, field);
     await field.fill(String(original));
     await field.press("Tab");
-    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.library.pageSize).toBe(original);
+    await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.chat.tempChatTtlHours).toBe(original);
     await expect(field).toHaveValue(String(original));
     note(
       flow,
-      { id: "Rows per page native change/readback/native restore", kind: "action" },
+      { id: "Temporary chat lifetime native change/readback/native restore", kind: "action" },
       "visited",
       "The change and its restore both read back from the server",
     );
   } finally {
-    await flow.client.settings.updateUserSettingsSection.mutate({ section: "library", patch: { pageSize: original } });
+    await flow.client.settings.updateUserSettingsSection.mutate({ section: "chat", patch: { tempChatTtlHours: original } });
   }
 }
 
@@ -904,5 +904,5 @@ export async function walkConfigRecovery(flow: SurfaceFlow): Promise<void> {
 
 /** Change, read back and restore the named user setting in its own native case. */
 export async function walkConfigSettings(flow: SurfaceFlow): Promise<void> {
-  await configCase(flow, "reversible-setting", librarySetting);
+  await configCase(flow, "reversible-setting", tempChatTtlSetting);
 }

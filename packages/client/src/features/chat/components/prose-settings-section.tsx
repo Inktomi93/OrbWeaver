@@ -1,16 +1,17 @@
 // The Prose settings SECTION (PROSE-1 S2) — the edit surface for every model-facing prose slot whose
 // override lives in `UserSettings.prose`: the chat side-generation prompts (arbiter · compaction · memory
 // digest/consolidation · the anchor-identity lead-in), the group-round framing, the `/autobg` quiet
-// pick, discovery's three library-semantics prompts, and the imagery negative base. Registering `prose` in
+// pick, discovery's three library-semantics prompts, and the imagery instructions (the per-mode extraction and
+// caption prompts and the negative base). Registering `prose` in
 // `USER_SETTINGS_SECTIONS` and landing this surface is ONE commit by law (D107 arm B — the section tuple is
 // the editor's door, and a door with no writer is a dead switch).
 //
 // A settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by features/chat (D114 reader-owns:
-// chat is the reader of twelve of the eighteen slots and already owns the sibling Image-prompts section; the
+// chat is the reader of most of the slots and of the image-prompt instructions it composes; the
 // registry itself is cross-domain contracts data, so no other feature has a stronger claim, and D120 forbids
 // growing features/config — it owns the SHELL, never the knobs).
 //
-// The three affordances, identical to imagery + guided actions: the shipped default GHOSTS as
+// The three affordances, identical to guided actions: the shipped default GHOSTS as
 // the field placeholder (empty field = using the built-in, byte-identical), a Default/Customized footer
 // carries the warn-never-block required-macro lint, and reset = clear the field (the write sends the leaf
 // `null`, so removing an override actually removes it). Plus the stale affordance: an override authored

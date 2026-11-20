@@ -23,7 +23,7 @@ test("actual auto-continuation and bounded auto-mode retain the initiating sende
     ],
     clockOptions(),
   );
-  await continuation.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinue: true, autoContinueRounds: 1 } });
+  await continuation.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinueRounds: 1 } });
   expect((await continuation.caller.chat.send({ chatId: continuation.chatId, content: "Read this clock.", timeZone: KATHMANDU })).aborted).toBe(false);
   expect(await nativeClocks(continuation)).toEqual([KATHMANDU_CLOCK, KATHMANDU_CLOCK]);
   await using chain = await textRoom(["First complete beat.", "Second complete beat.", "Last complete beat."], {

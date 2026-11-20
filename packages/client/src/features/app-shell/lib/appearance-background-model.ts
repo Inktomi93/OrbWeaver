@@ -39,16 +39,6 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "background-dim",
-      key: "backgroundDim",
-      label: "Scrim opacity",
-      keywords: ["darken", "overlay"],
-      teach: {
-        summary: "Darkens the image so text stays legible, never fully off.",
-        affects: ["text contrast over the background image"],
-      },
-    },
-    {
       id: "background-blur",
       key: "backgroundBlur",
       label: "Image blur",

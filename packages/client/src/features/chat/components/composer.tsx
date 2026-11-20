@@ -170,8 +170,7 @@ export function Composer({
   // extends the tail assistant reply; `generate` (W-E) prompts a fresh reply on a committed non-assistant
   // tail. Both are the keyboard equivalents of the ▷ Response icon.
   const emptySend = resolveEmptySendAction({
-    continueOnSend: behaviorPrefs.continueOnSend,
-    generateOnEmptySend: behaviorPrefs.generateOnEmptySend,
+    emptyEnterReplies: behaviorPrefs.emptyEnterReplies,
     tailRole,
     hasText: canSubmitText,
     chatId,

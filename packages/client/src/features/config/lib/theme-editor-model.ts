@@ -2,7 +2,7 @@
 // from-scratch defaults, and the themeable-var reference the CSS editor surfaces. Foregrounds and the
 // neutral ramp are derived by <ThemeScope> (never picked), so this model carries no foreground fields.
 
-import type { CreateThemeInput, Theme, ThemeDensity, ThemeFont, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
+import type { CreateThemeInput, Theme, ThemeFont, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ThemeColorFields } from "#lib";
 import { assignThemeColorFields } from "#lib";
@@ -16,7 +16,6 @@ export interface ThemeFormValues extends ThemeColorFields {
   readonly systemBubbleBg: string;
   readonly font: ThemeFont;
   readonly radius: ThemeRadius;
-  readonly density: ThemeDensity;
   readonly css: string;
 }
 
@@ -35,7 +34,6 @@ export const DEFAULT_THEME_FORM: ThemeFormValues = {
   systemBubbleBg: TOKENS["color.system-bubble"].value,
   font: "Geist",
   radius: "card",
-  density: "comfortable",
   css: "",
 };
 
@@ -53,7 +51,6 @@ function paletteFormFieldsFromOverride(o: ThemeOverride): Omit<ThemeFormValues, 
     systemBubbleBg: o.systemBubble?.bg ?? DEFAULT_THEME_FORM.systemBubbleBg,
     font: o.font ?? DEFAULT_THEME_FORM.font,
     radius: o.radius ?? DEFAULT_THEME_FORM.radius,
-    density: o.density ?? DEFAULT_THEME_FORM.density,
   };
 }
 
@@ -77,7 +74,6 @@ export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
   const o: ThemeOverride = {
     font: v.font,
     radius: v.radius,
-    density: v.density,
   };
   assignThemeColorFields(o, v);
   const userBubble = bubbleFromBg(v.userBubbleBg);

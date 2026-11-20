@@ -1,8 +1,8 @@
 // The composer's empty-Enter classifier — what a bare Enter on an EMPTY composer does, resolved from the
-// tail role + the two prefs. Two arms, pref-gated:
-//   • CONTINUE (`continueOnSend`): the tail is an assistant turn → extend that reply (chat.continueTurn).
-//   • GENERATE (`generateOnEmptySend`, W-E): a committed chat whose tail is NOT an assistant turn (a fresh
-//     empty chat, or your own message last — the fork-at-user-tail gap) → prompt a reply (chat.generate).
+// tail role + the one pref (`emptyEnterReplies`). Two arms:
+//   • CONTINUE: the tail is an assistant turn → extend that reply (chat.continueTurn).
+//   • GENERATE: a committed chat whose tail is NOT an assistant turn (a fresh empty chat, or your own message
+//     last — the fork-at-user-tail gap) → prompt a reply (chat.generate).
 // A non-empty composer is a normal send (never either arm); a DRAFT's empty Enter is a no-op (its "generate
 // an opening" lives on the ▷ Response icon, which drives chat.startChat — the keyboard arm is committed-only).
 // Pure + DOM-free (Spine-Testing.md §7 — extract logic like this to a function over reaching for a browser),
@@ -13,7 +13,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-export type EmptySendInput = Pick<UserSettings["chat"], "continueOnSend" | "generateOnEmptySend"> & {
+export type EmptySendInput = Pick<UserSettings["chat"], "emptyEnterReplies"> & {
   readonly tailRole: MessageRole | null;
   /** True when the composer has sendable text — a non-empty send is a normal send, never continue/generate. */
   readonly hasText: boolean;
@@ -38,14 +38,11 @@ type EmptySendAction =
  *  or nothing. Continue wins on an assistant tail (the reply to extend is right there); generate is the
  *  fork-at-user-tail / empty-chat arm. A draft (`chatId === null`) or a non-empty composer is always null. */
 export function resolveEmptySendAction(input: EmptySendInput): EmptySendAction {
-  if (input.hasText || input.chatId === null) {
+  if (input.hasText || input.chatId === null || !input.emptyEnterReplies) {
     return null;
   }
-  if (input.continueOnSend && isContinueEligible(input.tailRole) && input.tailAssistantMessageId !== null) {
-    return { kind: "continue", chatId: input.chatId, messageId: input.tailAssistantMessageId };
+  if (isContinueEligible(input.tailRole)) {
+    return input.tailAssistantMessageId === null ? null : { kind: "continue", chatId: input.chatId, messageId: input.tailAssistantMessageId };
   }
-  if (input.generateOnEmptySend && !isContinueEligible(input.tailRole)) {
-    return { kind: "generate", chatId: input.chatId };
-  }
-  return null;
+  return { kind: "generate", chatId: input.chatId };
 }

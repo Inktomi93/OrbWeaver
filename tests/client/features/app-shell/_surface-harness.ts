@@ -54,6 +54,7 @@ const SERVED = [
   "plugin.listDistributed",
   "plugin.listSurfaces",
   "regex.listScripts",
+  "regex.listUnattached",
   "worldInfo.listBooksWithUsage",
   "refinery.listSessions",
   "workloads.list",

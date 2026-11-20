@@ -14,6 +14,8 @@ const SECTION_ID = "chat-databank";
 export const databankSettingsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "chat-behavior",
+  // Retrieval scoring and budgets are expert tuning: inside the Chat behavior group's Advanced fold.
+  advanced: true,
   nav: DATABANK_SETTINGS_SUBCATEGORY,
   // Claims at the TOP-level key: `retrieval`'s leaves (k/minScore/rerank) are this section's business.
   // `chunk` is deliberately NOT claimed — cited in UNCLAIMED_SETTINGS_KEYS (ingest-time params).

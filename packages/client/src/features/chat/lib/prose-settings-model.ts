@@ -1,5 +1,5 @@
 // The Prose settings-section form model (PROSE-1 S2) — the per-USER model-facing prose overrides stored in
-// `UserSettings.prose`. Pure projection + patch helpers (no I/O), the imagery-templates-model precedent.
+// `UserSettings.prose`. Pure projection + patch helpers (no I/O).
 //
 // The card list is DATA: `USER_PROSE_SLOT_IDS` (contracts) is every `home:"user"` slot whose override lives
 // in the `prose` blob, derived from the registry — so a new slot table row reaches this editor with no edit
@@ -19,10 +19,27 @@ export const PROSE_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "prose",
   label: "Model-facing prose",
   navLabel: "Prose",
-  keywords: ["prose", "prompt", "instruction", "wording", "summarizer", "digest", "memory", "arbiter", "injection", "background", "distill"],
+  keywords: [
+    "prose",
+    "prompt",
+    "instruction",
+    "wording",
+    "summarizer",
+    "digest",
+    "memory",
+    "arbiter",
+    "injection",
+    "background",
+    "distill",
+    "image",
+    "imagine",
+    "caption",
+    "portrait",
+    "picture",
+  ],
   teach: {
     summary:
-      "Your overrides for the model-facing instructions the system sends: summarizer wording, memory digest phrasing, arbiter prompts and injection background. An empty field uses the shipped default.",
+      "Your overrides for the model-facing instructions the system sends: summarizer wording, memory digest phrasing, arbiter prompts, injection background and the image-prompt instructions /imagine sends. An empty field uses the shipped default.",
     affects: ["what the model reads as system instructions, on this account"],
   },
 };
@@ -43,7 +60,7 @@ type ProseSlotsPatch = { [Id in ProseSlotId]?: ProseOverride | null };
 /** The patch value for ONE slot: a trimmed non-empty field is an override stamped with the CURRENT slot
  *  version (any save re-stamps, which is what "keep mine" means); a blank field is the leaf `null`
  *  sentinel, because the server's section merge treats `undefined` as "don't touch" and a cleared override
- *  must actually clear (`imagery-templates-model` carries the same contract). */
+ *  must actually clear. */
 function proseSlotPatch(id: ProseSlotId, value: string): ProseOverride | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? { text: trimmed, baseVersion: PROSE_SLOTS[id].version } : null;

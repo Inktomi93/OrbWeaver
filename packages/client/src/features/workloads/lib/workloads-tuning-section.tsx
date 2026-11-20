@@ -14,6 +14,8 @@ const SECTION_ID = "workloads-tuning";
 export const workloadsTuningSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "workloads",
+  // The analysis thresholds are expert tuning: inside the Jobs group's Advanced fold.
+  advanced: true,
   nav: WORKLOADS_TUNING_SUBCATEGORY,
   owns: { tier: "user", section: "workloads", keys: ["dupThreshold", "computeThemesK", "maxPairs", "hubFraction"] },
   body: (anchorId) => <WorkloadsTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,

@@ -17,15 +17,15 @@ const COMPLETE_OVERRIDE = {
   radius: "full",
   background: "#121212",
   borderColor: "#565656",
-  density: "compact",
 } satisfies Required<ThemeOverride>;
 
-test("every authored card appearance field survives while viewer density does not", () => {
-  const { density, ...cardFields } = COMPLETE_OVERRIDE;
+test("every authored card appearance field survives the card projection", () => {
   expect(themeOverrideSchema.parse(COMPLETE_OVERRIDE)).toEqual(COMPLETE_OVERRIDE);
-  expect(density).toBe("compact");
-  expect(cardEmbeddableSubset(COMPLETE_OVERRIDE)).toEqual(cardFields);
-  expect(cardEmbeddableSubset({ density })).toEqual({});
+  expect(cardEmbeddableSubset(COMPLETE_OVERRIDE)).toEqual(COMPLETE_OVERRIDE);
+});
+
+test("a stored or imported override that still names density parses with the key stripped", () => {
+  expect(themeOverrideSchema.parse({ ...COMPLETE_OVERRIDE, density: "compact" })).toStrictEqual(COMPLETE_OVERRIDE);
 });
 
 test("projection preserves absence and omits explicitly undefined fields", () => {
@@ -33,14 +33,14 @@ test("projection preserves absence and omits explicitly undefined fields", () =>
   expect(cardEmbeddableSubset({ accent: COMPLETE_OVERRIDE.accent, font: undefined, aiBubble: undefined })).toStrictEqual({
     accent: COMPLETE_OVERRIDE.accent,
   });
-  expect(cardEmbeddableSubset({ accent: undefined, density: "compact" })).toStrictEqual({});
+  expect(cardEmbeddableSubset({ accent: undefined })).toStrictEqual({});
   expect(cardEmbeddableSubset({})).toStrictEqual({});
 });
 
-test("density is the deliberate appearance overlap and chat style stays viewer-owned", () => {
+test("a theme shares no key with appearance, so density and chat style stay viewer-owned", () => {
   const appearance = appearanceSettingsSchema.parse({ density: "compact", chatStyle: "flat" });
   const overlap = Object.keys(themeOverrideSchema.shape).filter((key) => Object.hasOwn(appearance, key));
-  expect(overlap).toEqual(["density"]);
+  expect(overlap).toEqual([]);
   expect(appearance.density).toBe("compact");
   expect(appearance.chatStyle).toBe("flat");
   expect(themeOverrideSchema.parse({ chatStyle: "flat" })).toEqual({});
@@ -55,7 +55,7 @@ test("carried backgrounds keep their source but strip viewer treatment", ({ ids 
     mime: "image/png",
     provenanceUrl: "https://example.com/scene.png",
   } as const;
-  const treatment = { backgroundFit: "contain", backgroundDim: 0.6, backgroundBlur: 4 } as const;
+  const treatment = { backgroundFit: "contain", backgroundBlur: 4 } as const;
   const appearance = appearanceSettingsSchema.parse(treatment);
   expect(appearance).toMatchObject(treatment);
   expect(themeBackgroundSchema.parse({ ...source, ...treatment, fit: "contain", dim: 0.4, blur: 4 })).toStrictEqual(source);

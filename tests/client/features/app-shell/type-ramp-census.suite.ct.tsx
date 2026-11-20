@@ -20,7 +20,7 @@ const FONT_SCALE = 1.15;
 const UA_ROOT_PX = 16;
 const DEFAULTS = appearanceSettingsSchema.parse({});
 // The reading knobs multiply a step for transcript prose; at their defaults the prose is the step itself.
-const APPEARANCE = { fontScale: FONT_SCALE, readingBodyScale: DEFAULTS.readingBodyScale, readingNameScale: DEFAULTS.readingNameScale };
+const APPEARANCE = { fontScale: FONT_SCALE, readingBodyScale: DEFAULTS.readingBodyScale };
 // A step sized by its art container rather than the root (the avatar fallback's initials, UI-Density-Law.md §2.3).
 const CONTAINER_UNIT = /\dcq(?:min|max|[whib])\b/u;
 const TEXT_TOKENS = Object.entries(TOKENS).filter(([path]) => path.startsWith("text."));

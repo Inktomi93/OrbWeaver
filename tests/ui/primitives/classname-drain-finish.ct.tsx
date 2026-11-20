@@ -133,12 +133,6 @@ test("rail, focusable and ownSlot take their properties", async ({ mount }) => {
   await expect.poll(() => computedStyle(focusable, "outline-style")).toBe("none");
 });
 
-test("an interactive card takes the glow elevation, and a static card takes none", async ({ mount }) => {
-  const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
-  expect(await computedStyle(kase(root, "glow-follow"), "box-shadow")).not.toBe("none");
-  expect(await computedStyle(kase(root, "glow-none"), "box-shadow")).toBe("none");
-});
-
 test("divider between ends the list clean, and the rule weight, tone and dashed style reach the edge", async ({ mount }) => {
   const root = await mount<typeof LayoutFinishStory>(`${STORIES}/LayoutFinishStory`, {});
   expect(await computedStyle(kase(root, "between-first"), "border-block-end-width")).toBe("1px");

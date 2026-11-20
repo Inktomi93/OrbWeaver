@@ -386,7 +386,6 @@ export type { TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessControlName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
-export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";

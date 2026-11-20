@@ -79,7 +79,7 @@ function wallpaper(corpus: CorpusPlayback): Partial<AppearanceSettings> {
   };
 }
 
-/** Open the room in `chatStyle`, over a wallpaper or not, at the glow elevation, which lifts every card that follows it. */
+/** Open the room in `chatStyle`, over a wallpaper or not, at the layered elevation, the deepest the settings offer. */
 export async function openReadingRoom(
   page: Page,
   corpus: CorpusPlayback,
@@ -93,7 +93,7 @@ export async function openReadingRoom(
     patch: {
       ...appearanceSettingsSchema.parse({}),
       chatStyle,
-      elevation: "glow",
+      elevation: "ramp",
       blurSurfaces: [],
       showInChatAvatars: true,
       messageActions: "hover",

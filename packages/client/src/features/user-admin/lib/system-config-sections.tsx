@@ -31,7 +31,7 @@ export const mediaTrustSection: ConfigSectionContribution = {
   id: MEDIA_TRUST_ID,
   anchor: "admin",
   nav: MEDIA_TRUST_SUBCATEGORY,
-  owns: { tier: "app", keys: ["forbidExternalMedia", "defaultHtmlStep", "maxImageBytes"] },
+  owns: { tier: "app", keys: ["forbidExternalMedia", "defaultHtmlStep"] },
   body: (anchorId) => <MediaTrustSection anchorId={anchorId} sectionId={MEDIA_TRUST_ID} />,
 };
 

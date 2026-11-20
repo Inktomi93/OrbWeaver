@@ -57,9 +57,6 @@ import { BASE_PALETTE_STAMP } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { dataThemeOf, resolveThemeScopeTokens } from "#lib";
 
-/** The thumbnail's own comfortable tier — a card is a picture of a PALETTE, not of the viewer's density. */
-const PREVIEW_DENSITY = "comfortable";
-
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
@@ -97,7 +94,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
       </Stack>
     );
   }
-  const resolved = resolveThemeScopeTokens(theme, PREVIEW_DENSITY);
+  const resolved = resolveThemeScopeTokens(theme);
   return (
     <ThemeScope ambientAccent={resolved.ambientAccent} ambientBackground={resolved.ambientBackground} box="fill" tokens={resolved.tokens}>
       <Stack width="full" height="fill" data-slot="theme-mini-surface">

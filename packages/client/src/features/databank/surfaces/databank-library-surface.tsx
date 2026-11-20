@@ -28,7 +28,6 @@
 // spec's recommendation for S5 and is strictly additive on top of this.
 
 import type { DocumentView, IngestPhase } from "@orb/contracts/databank";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -38,13 +37,12 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
-import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { COLLECTION_FETCH_BATCH, createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearDatabankPhaseFilter,
@@ -83,15 +81,13 @@ const itemsOf = (page: DatabankListPage): readonly DocumentView[] => page.items;
 
 /** The pane's whole lens, as query INPUT — every field is part of the query key. */
 interface DatabankLibraryParams {
-  readonly pageSize: number;
   /** DEBOUNCED + trimmed; `""` is the unsearched bank. */
   readonly search: string;
   /** The home tile's health-chip scope; `null` = every phase. */
   readonly phase: IngestPhase | null;
 }
 
-// The paged read. `pageSize` is a PARAM the consumer supplies from `UserSettings.library.pageSize` (the
-// character-library precedent — never a factory-internal settings read; tier direction).
+// The paged read.
 //
 // NO `maxPages`. It used to be 5 with `getPreviousPageParam: () => undefined`, so past 150 rows TanStack
 // evicted the HEAD page and nothing could fetch it back — the same unrecoverable eviction the character
@@ -108,7 +104,7 @@ const useDatabankCollection = createCollectionSurface({
   query: (trpc: Trpc, params: DatabankLibraryParams) =>
     trpc.databank.list.infiniteQueryOptions(
       {
-        limit: params.pageSize,
+        limit: COLLECTION_FETCH_BATCH,
         ...(params.search === "" ? {} : { search: params.search }),
         ...(params.phase === null ? {} : { phase: params.phase }),
       },
@@ -172,14 +168,10 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const selectedId = useSelectedDocumentId();
-  // The user's library page size (cache-first; the settings read is already loaded app-wide). Until it
-  // resolves, the schema default — so the first page fetches at the same size either way.
-  const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
   // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
   // that the predicate is the server's (the character library's ruling).
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
-  const collection = useDatabankCollection({ trpc }, { pageSize, phase: phaseFilter, search: settledQuery });
+  const collection = useDatabankCollection({ trpc }, { phase: phaseFilter, search: settledQuery });
   const documents = collection.items;
   // THE CLOCK THE STALL THRESHOLD READS is the query's own `dataUpdatedAt` — "when these rows were true" —
   // not a mount-time snapshot and not an ambient read off render. It is pure (render-safe), and it ADVANCES:

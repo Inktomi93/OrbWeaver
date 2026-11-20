@@ -3,6 +3,7 @@
 // CONTEXT, never a specific feature — sections ride the registry (`useSectionRegistry`), assembled at
 // the main.tsx door.
 
+import { BACKGROUND_SCRIM_DIM } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, mergeRefs, PortalContainerContext } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -212,14 +213,10 @@ export function AppShell(): ReactElement {
   // carried card that picks inks and no base gets judged against what it actually lands on. `ambientAccent`
   // is its #692 sibling — the accent the active theme paints, so a carried palette that picks a background
   // and no accent gets its inherited fill judged against the card that palette derives.
-  const { tokens: scopeTokens, density, ambientBackground, ambientAccent } = resolveThemeScopeTokens(theme, appearance.density);
-  // Density is orthogonal to a theme's palette source, but it belongs on the same carrier: the shell grid
-  // and every portal root are siblings below ThemeScope. Compose the already-resolved value here so seed
-  // themes still withhold their stored palette override while both branches inherit one density contract.
-  const resolvedScopeTokens = { ...scopeTokens, density };
+  const { tokens: scopeTokens, ambientBackground, ambientAccent } = resolveThemeScopeTokens(theme);
   // BG-C: the active chat's carried background (per-chat > card-carried) wins over the viewer's own appearance
   // ONLY in a true-solo room; `undefined` (any other composition, landing, an unresolved read) ⇒ the viewer's
-  // appearance source. fit/dim/blur always stay the viewer's own treatment (source-only carry).
+  // appearance source. fit/blur always stay the viewer's own treatment (source-only carry).
   // A file dropped anywhere but a dropzone would navigate the tab to that file and take the session with it.
   useKeyboardInsetVar();
   useStrayFileDropGuard();
@@ -341,12 +338,14 @@ export function AppShell(): ReactElement {
     <TooltipProvider>
       {/* Mounted before .shell-grid in DOM order so it paints underneath; renders nothing when no image is set. */}
       {bgIsVideo ? (
-        <ThemeBackgroundVideoLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} />
+        <ThemeBackgroundVideoLayer url={bgUrl} fit={appearance.backgroundFit} dim={BACKGROUND_SCRIM_DIM} />
       ) : (
-        <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
+        <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={BACKGROUND_SCRIM_DIM} blur={appearance.backgroundBlur} />
       )}
       <ThemeFallbackReporters>
-        <ThemeScope tokens={resolvedScopeTokens} box="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
+        {/* Density is the viewer's own, never a theme's; it rides the scope because the shell grid and every portal root
+            are siblings below it, so both inherit one density contract. */}
+        <ThemeScope tokens={scopeTokens} density={appearance.density} box="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
           <PortalContainerContext value={portalRootRef}>
             {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,

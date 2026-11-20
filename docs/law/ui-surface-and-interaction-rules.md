@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-15
+updated: 2026-11-20
 ---
 
 # UI surface and interaction rules
@@ -21,16 +21,16 @@ Every later rule names a surface by its kind. A surface has one kind at a time. 
 
 ## 2. Shadow and depth
 
-The float shadow is `--shadow-overlay`, built from the theme-derived ingredients of D200. The `elevation` Appearance setting (`appearance.elevation`: `flat` "Flat", `ramp` "Layered", `glow` "Lifted (glow)") is stamped on `.shell-grid` as `data-elevation`.
+The float shadow is `--shadow-overlay`, built from the theme-derived ingredients of D200. The `elevation` Appearance setting (`appearance.elevation`: `flat` "Flat", `ramp` "Layered") is stamped on `.shell-grid` as `data-elevation`.
 
 1. A float casts the float shadow and no other drop shadow. The select, combobox and autocomplete popups take it through `POPUP_SURFACE` in `packages/ui/src/lib/popup-surface.ts`. A part inside a float, such as the command palette's `Command` root, casts nothing of its own; the float casts once. Reason: one recipe makes every float read as the same height above the page, and a second shadow inside it reads as a second layer. Checker: `tests/ui/primitives/float-shadow.suite.ct.tsx` holds the anchored floats and `tests/client/features/app-shell/surfaces/app-shell-command.ct.tsx` holds the palette; none holds the rest. Extends: ui-platform-rulings §8.1 (no independent elevation ramp).
 2. Docked chrome never casts a drop shadow, at any `elevation` value. It separates from its neighbour by a hairline (`--color-sidebar-border` or `--color-border`) or by a step of surface tone. A pane's pinned header band is docked chrome. Reason: a shadow says the chrome floats, and it paints onto its neighbour, such as the phone tab bar; the major design systems keep docked navigation level and separate it by tone or a line. Checker: the elevation cases in `tests/client/features/app-shell/surfaces/app-shell-appearance.ct.tsx` hold the docked panes and the surface roots; none holds the other chrome. Extends: the mobile one-shell rule in UI-Architecture-and-Layout §4.1 ("docked in flow, no sheet, no scrim") and the shell's elevation home in client-architecture-lockdown §4.4.
 3. An inset one-pixel line is a hairline, whatever CSS property draws it. A band rule drawn as an inset `box-shadow` obeys §2.2 as a hairline. Reason: the property is a layout choice; the reader sees a line. Checker: none. Extends: the band separator in `packages/client/src/features/app-shell/surfaces/shell/panels.css`.
-4. The `elevation` setting changes the depth of raised-in-flow surfaces and the tone of docked chrome. It never makes docked chrome cast. `glow` lifts an `interactive` Card and nothing else. A pane in `overlay` mode is a float and casts at every setting. Reason: the setting chooses how much depth the page shows, not whether the frame floats. Checker: the elevation cases in `tests/client/features/app-shell/surfaces/app-shell-appearance.ct.tsx` hold the panes, and `tests/ui/primitives/card/elevation-setting.ct.tsx` holds the cards. Extends: the Card row of UI-Density-Law §4.3. The table below states each kind and value.
+4. The `elevation` setting changes the depth of raised-in-flow surfaces and the tone of docked chrome. It never makes docked chrome cast, and it never makes an `interactive` Card cast. A pane in `overlay` mode is a float and casts at every setting. Reason: the setting chooses how much depth the page shows, not whether the frame floats. Checker: the elevation cases in `tests/client/features/app-shell/surfaces/app-shell-appearance.ct.tsx` hold the panes, and `tests/ui/primitives/card/elevation-setting.ct.tsx` holds the cards. Extends: the Card row of UI-Density-Law §4.3. The table below states each kind and value.
 5. A float that ends at docked chrome clips its shadow at that edge. A sheet that ends above the phone tab bar casts above the bar and slides in from the bar's top edge. Reason: the bar is level with the content, so nothing paints onto it. Checker: the swipe case in `tests/client/features/app-shell/surfaces/app-shell-responsive.ct.tsx` holds the sheet's clip; none holds the shadow. Extends: the MOBILE block of UI-Architecture-and-Layout §4.1.
 6. Every drop shadow falls from a light above the screen: zero horizontal offset and a downward vertical offset. Reason: a second direction reads as a second light. Checker: none. Extends: D200.
 7. A float also carries its depth in surface tone: it paints a step of the D201 ramp above what it covers (`--color-popover` or `--color-card` over `--color-sidebar` and `--color-background`). Reason: a shadow is hard to see on a dark theme, and the tone step stays visible there. Checker: none. Extends: D201.
-8. Text or a glyph over art takes a theme-derived shadow token for legibility (`--shadow-shell-over-art`, `--shadow-prose`, `--text-shadow-wordmark`), never a framework default. The Icon `shadow` axis draws `--shadow-shell-over-art` as a drop shadow. It ignores the `elevation` setting. Reason: its job is contrast against arbitrary art, and a default shadow does not follow the theme. Checker: `tests/ui/primitives/icons/icon-shadow.ct.tsx` holds the Icon; none holds the text halos. Extends: UI-Density-Law §2.3 (`halo`) and D200.
+8. Text or a glyph over art takes a theme-derived shadow token for legibility (`--shadow-shell-over-art`, `--text-shadow-wordmark`), never a framework default. The Icon `shadow` axis draws `--shadow-shell-over-art` as a drop shadow. It ignores the `elevation` setting. Reason: its job is contrast against arbitrary art, and a default shadow does not follow the theme. Checker: `tests/ui/primitives/icons/icon-shadow.ct.tsx` holds the Icon; none holds the text halos. Extends: UI-Density-Law §2.3 (`halo`) and D200.
 9. A focus or state ring ignores the `elevation` setting. Reason: a state reads the same at every depth. Checker: none. Extends: CD3 in UI-Density-Law §3.2.
 10. Scroll-edge separation on docked chrome uses a hairline or a tone step, never a shadow. A scroll cue inside a scroller (a fade or a cue gradient in the scroller's own fill) is a content cue and not elevation. Reason: §2.2 holds while content scrolls. Checker: none. Extends: the scroll-driven fades row of ui-platform-rulings §8.4. Whether the topbar changes at all on scroll: §7.
 11. A dialog, an alert dialog and a sheet take the scrim and make what they cover inert. A popover whose body holds input the reader can lose is modal: it absorbs a press outside it and shows no scrim. Any other popover, a menu, a list popup and a tooltip take no scrim, and what lies behind them stays live. A toast and a floating chip never scrim and never make anything inert. Every scrim paints `--color-backdrop` through `SCRIM` or `SCRIM_BASE` in `packages/ui/src/lib/scrim.ts`. Reason: the scrim tells the reader that the page behind will not answer until the float closes. Checker: none. Extends: the modal rule in `packages/ui/src/primitives/popover/popover.tsx` and UI-Architecture-and-Layout §4a (a house modal inerts the background).
@@ -38,14 +38,14 @@ The float shadow is `--shadow-overlay`, built from the theme-derived ingredients
 
 ### Which surfaces cast, and what each elevation value changes
 
-| Surface kind | Casts a drop shadow | `flat` (Flat) | `ramp` (Layered) | `glow` (Lifted) |
-| - | - | - | - | - |
-| Float | always, the float shadow, once | the float shadow | the float shadow | the float shadow |
-| Raised-in-flow | an `elevated` Card always; an `interactive` Card under `glow` only | an `elevated` Card casts; an `interactive` Card casts nothing | the same as `flat` | an `interactive` Card casts the float shadow too |
-| Docked chrome | never | one panel tone, hairline seams | panes take `--color-surface-raised`, content and topbar `--color-card`; the hairlines between them go | the same as `flat` |
-| A pane sliding over content | always: it is a float | the float shadow and the shell scrim | the same as `flat` | the same as `flat` |
-| Text or a glyph over art | never a depth shadow; a legibility halo (§2.8) | unchanged | unchanged | unchanged |
-| Focus or state ring | never; it paints its ring, rail or glow (§2.9) | unchanged | unchanged | unchanged |
+| Surface kind | Casts a drop shadow | `flat` (Flat) | `ramp` (Layered) |
+| - | - | - | - |
+| Float | always, the float shadow, once | the float shadow | the float shadow |
+| Raised-in-flow | an `elevated` Card always; an `interactive` Card never | an `elevated` Card casts; an `interactive` Card casts nothing | the same as `flat` |
+| Docked chrome | never | one panel tone, hairline seams | panes take `--color-surface-raised`, content and topbar `--color-card`; the hairlines between them go |
+| A pane sliding over content | always: it is a float | the float shadow and the shell scrim | the same as `flat` |
+| Text or a glyph over art | never a depth shadow; a legibility halo (§2.8) | unchanged | unchanged |
+| Focus or state ring | never; it paints its ring, rail or glow (§2.9) | unchanged | unchanged |
 
 ## 3. States for controls, chrome and rows
 
@@ -113,7 +113,7 @@ A swap replaces what a region shows. A swap is one of three classes.
 
 These are product choices the rules above do not settle. Each lists its options with the recommended default first.
 
-- Does the topbar change when content scrolls under it? Options: (a) no: it keeps its rest separation, a hairline under Flat and Lifted and a tone step under Layered; (b) a tone step appears while content is scrolled under it; (c) a hairline appears only then. Systems split between a tone lift on scroll, a blur edge and an overflow shadow; §2.10 already excludes a shadow.
+- Does the topbar change when content scrolls under it? Options: (a) no: it keeps its rest separation, a hairline under Flat and a tone step under Layered; (b) a tone step appears while content is scrolled under it; (c) a hairline appears only then. Systems split between a tone lift on scroll, a blur edge and an overflow shadow; §2.10 already excludes a shadow.
 - Does a phone push (LIST to CONTENT) and its Back slide, or crossfade like a peer switch? Options: (a) crossfade, as today and the §5.1 default; (b) a slide in from the inline end and back out, with the crossfade under reduced motion. Some systems slide a hierarchy push; reduced-motion guidance replaces the slide with a fade.
 - Does the image lightbox cast the float shadow? Options: (a) no: a picture over a dimmed screen needs no lift; record it as the one float that casts nothing; (b) yes, as every other dialog. Today its popup sets `shadow-none`.
 

@@ -42,21 +42,14 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "smooth-stream",
-      key: "smoothStream",
-      label: "Smooth streaming",
-      keywords: ["smooth", "reveal", "pace", "fade", "typing"],
-      teach: {
-        summary: "Reveals replies at a steady pace instead of raw network chunks. The reveal speeds up automatically when the model gets ahead.",
-        affects: ["how streaming text paints: never what arrives"],
-        related: [{ group: "chat-behavior", sub: "streaming", setting: "smooth-stream-cps" }],
-      },
-    },
-    {
-      id: "smooth-stream-cps",
       key: "smoothStreamCps",
-      label: "Reveal speed",
-      keywords: ["speed", "cps", "rate", "characters"],
-      teach: { summary: "The minimum reveal rate (characters per second) while the model is keeping pace.", affects: ["smooth streaming's floor speed"] },
+      label: "Smooth reveal speed",
+      keywords: ["smooth", "reveal", "pace", "fade", "typing", "speed", "cps", "rate", "characters"],
+      teach: {
+        summary:
+          "Reveals replies at a steady pace, at least this many characters per second, instead of raw network chunks. The reveal speeds up automatically when the model gets ahead. 0 turns smoothing off.",
+        affects: ["how streaming text paints: never what arrives"],
+      },
     },
     {
       id: "reasoning-auto-collapse",
@@ -75,7 +68,4 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
 /** The `chat` keys this section — and ONLY this section — WRITES (SET-SEAMS §2.3 S1/S2). ONE spelling,
  *  four consumers: the body's `pickKeys` projection + seeded defaults, its `Pick`-derived form type, and the
  *  contribution's `owns` claim. */
-export const CHAT_STREAMING_KEYS = ["streamScrollMode", "smoothStream", "smoothStreamCps", "reasoningAutoCollapse"] as const;
-
-export const SMOOTH_STREAM_CPS_MIN = 15;
-export const SMOOTH_STREAM_CPS_MAX = 300;
+export const CHAT_STREAMING_KEYS = ["streamScrollMode", "smoothStreamCps", "reasoningAutoCollapse"] as const;

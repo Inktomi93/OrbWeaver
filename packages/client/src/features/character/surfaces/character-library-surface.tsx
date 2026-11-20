@@ -35,7 +35,6 @@
 // matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
 import type { CharacterListSort } from "@orb/contracts/character";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -45,7 +44,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { CHARACTER_SEARCH_NAME, FaceStrip, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
-import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
+import { COLLECTION_FETCH_BATCH, createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { rethrowUnlessTrpcFailure, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearCharacterFilters,
@@ -97,13 +96,9 @@ type CharacterLibraryItem = CharacterListPage["items"][number];
  *  what stops the two regions from answering about different scopes (#518). */
 interface CharacterLibraryParams {
   readonly sort: CharacterListSort;
-  readonly pageSize: number;
   readonly scope: LibraryScopeArgs;
 }
 
-// ⑪ — `pageSize` is a PARAM the consumer supplies (from `UserSettings.library.pageSize`), never a
-// factory-internal settings read (tier direction: the collection-surface factory takes it as data).
-//
 // NO `maxPages`. It used to be 5, with `getPreviousPageParam: () => undefined` — so past 150 rows TanStack
 // evicted the HEAD page and nothing could ever fetch it back: rows disappeared off the top of the owner's
 // library as he scrolled (the 2026-08-13 dogfood P1). Windowing a virtualized list buys nothing here — the
@@ -112,7 +107,7 @@ const useCharacterLibraryCollection = createCollectionSurface({
   query: (trpc: Trpc, params: CharacterLibraryParams) =>
     trpc.character.list.infiniteQueryOptions(
       {
-        limit: params.pageSize,
+        limit: COLLECTION_FETCH_BATCH,
         sort: params.sort,
         ...params.scope,
       },
@@ -149,10 +144,6 @@ export function CharacterLibrarySurface(): ReactElement {
   const tagFilter = useTagFilter();
   const filtersOpen = useFiltersOpen();
   const bulkMode = useCharacterBulkMode();
-  // ⑪ — the user's library page size (cache-first; the settings read is already loaded app-wide). Until it
-  // resolves, fall back to the schema default so the first page fetches at the same size as pre-wire.
-  const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
   // WHAT THE LIBRARY IS A WINDOW INTO — the search, the scope pills, the three-state chips (referentially
   // checked), the chip vocabulary and the deferred lens, resolved ONCE at a seam the LIST band shares
   // (#518, `use-library-scope.ts`). It used to be resolved here, which is why the band could not answer the
@@ -161,7 +152,7 @@ export function CharacterLibrarySurface(): ReactElement {
   // The GROUP-BY-TAG census (#1696) — asked for ONLY in the mode that renders it, over the scope resolved
   // one line up, so the buckets and the rows can never be answers about different libraries.
   const tagGroups = useCharacterTagGroups(viewMode === "categorized");
-  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode, pageSize, scope: scope.args });
+  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode, scope: scope.args });
   const selectedId = useSelectedCharacterId();
   const update = useUpdateCharacter({ trpc, invalidation });
   const duplicate = useDuplicateCharacter({ trpc, invalidation });

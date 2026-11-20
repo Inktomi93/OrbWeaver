@@ -27,7 +27,7 @@
 import { AUTOMATION_PROSE_SLOTS } from "#automation";
 import { CHAT_PROSE_SLOTS } from "#chat";
 import { DISCOVERY_PROSE_SLOTS } from "#discovery";
-import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { IMAGERY_PROSE_SLOTS } from "#imagery";
 import { PRESET_GREETING_TRANSFORM_PROSE_SLOTS, PRESET_PROSE_SLOTS, PRESET_REWRITE_TOGGLE_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { hasProseToken, isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -58,21 +58,11 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...RPG_PROSE_SLOTS,
 };
 
-/** The legacy-adapted user slots: their override is the `UserSettings.imagery.*` string field, NOT a
- *  `UserSettings.prose` row, and their editor is the Image-prompts section. Adapted, never
- *  duplicated — so the prose editor must not offer them a second door into a storage they don't use. */
-const LEGACY_ADAPTED_USER_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>([
-  ...Object.values(IMAGERY_TEMPLATE_SLOT_IDS),
-  ...Object.values(IMAGERY_CAPTION_SLOT_IDS),
-]);
-
-/** The slots a host edits in the Prose settings section — every `home:"user"` slot whose override is stored
- *  in `UserSettings.prose`. DERIVED from the registry, never hand-listed: a new user-home slot table row
- *  reaches the editor the same commit it lands, so a slot can never be authored but unreachable from the
- *  client. */
-export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
-  (id) => PROSE_SLOTS[id].home === "user" && !LEGACY_ADAPTED_USER_SLOT_IDS.has(id),
-);
+/** The slots a host edits in the Prose settings section — every `home:"user"` slot, each stored in
+ *  `UserSettings.prose`, the image-prompt instructions included. DERIVED from the registry, never hand-listed: a
+ *  new user-home slot table row reaches the editor the same commit it lands, so a slot can never be authored but
+ *  unreachable from the client. */
+export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "user");
 
 /** The preset-home slots whose override is the `promptConfig.guidedActions.*.prompt` / `formatStrings.*`
  *  field (adapted, never re-homed). They are edited in the preset Templates tab through those fields, so

@@ -101,7 +101,7 @@ test("every mapped ST key lands in its own field of the stored theme", async ({ 
 // `vendor_extra` is no key SillyTavern emits and the zero-valued `blur_strength` and false `noShadows` carry nothing, so none is listed.
 const FULL_THEME_UNMAPPED = [
   { key: "chat_tint_color", reason: { kind: "no-equivalent" } },
-  { key: "shadow_width", reason: { kind: "appearance", settings: ["shadowEffects"] } },
+  { key: "shadow_width", reason: { kind: "no-equivalent" } },
   { key: "custom_css", reason: { kind: "no-equivalent" } },
   { key: "font_scale", reason: { kind: "appearance", settings: ["fontScale"] } },
   { key: "fast_ui_mode", reason: { kind: "no-equivalent" } },

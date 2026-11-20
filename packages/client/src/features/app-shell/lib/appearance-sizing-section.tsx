@@ -1,4 +1,4 @@
-// The "Sizing & motion" appearance settings-SECTION CONTRIBUTION (SET-SEAMS stage 1) — the co-located
+// The "Sizing" appearance settings-SECTION CONTRIBUTION (SET-SEAMS stage 1) — the co-located
 // definition app-shell exports on its front door; the composition root assembles it into the ONE
 // settings-section registry and the appearance skimmer pane renders it at its anchor.
 

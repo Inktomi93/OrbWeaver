@@ -1,6 +1,6 @@
 // The census's selected production states; witnesses are body content, never just shell or section chrome.
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
-import { configSettingLabel } from "@orb/client/state";
+import { CONFIG_ADVANCED_FOLD_NAME, configSettingLabel } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import { nameShape } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
@@ -36,7 +36,7 @@ import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE } from "#client/featu
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import { ROSTER_START_CHAT_LEAD } from "#client/features/roster-preset/lib/roster-names.ts";
-import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME, ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
+import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { EXPORT_INCLUDE_LEGEND, SCHEDULE_NEW_NAME, WORKLOAD_FILTER_TABS_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
@@ -115,7 +115,7 @@ const GROUP_WITNESSES = {
     page.getByText(OWNER_RULES_INTRO, { exact: true }),
   ],
   admin: (page): Witnesses => [
-    page.getByRole("textbox", { name: ADMIN_MAX_IMAGE_DOWNLOAD_NAME, exact: true }),
+    page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }),
     page.getByRole("button", { name: ADMIN_CREATE_USER_NAME, exact: true }),
     page.getByText(ADMIN_APPROVALS_NOTE, { exact: true }),
   ],

@@ -7,6 +7,7 @@
 
 import { Gauge } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";
+import { CONFIG_ADVANCED_FOLD_NAME } from "#state";
 
 /** The workloads pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx).
  *  USER-FACING VOCAB (owner 08-02): "workload" is the SYSTEM/code noun (the engine, the tables, the wire),
@@ -28,4 +29,5 @@ export const workloadsGroup: ConfigGroupDefinition = {
   icon: Gauge,
   description: "Run and monitor background jobs over your library.",
   body: { kind: "sections" },
+  advancedFold: { label: CONFIG_ADVANCED_FOLD_NAME },
 };

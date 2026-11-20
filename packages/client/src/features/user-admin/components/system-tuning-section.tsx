@@ -1,5 +1,5 @@
 // The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for prompt transforms,
-// model-catalog refresh, image variants, databank uploads and prompt-cache depth. Each shows its deployment
+// model-catalog refresh, image variants, the two upload size caps side by side, and prompt-cache depth. Each shows its deployment
 // floor + whether an override is active; Reset clears the section's overrides at once. Reads
 // getAppSettingsWithOverrides for the floor-vs-override story and saves only the moved fields through the
 // admin-gated updateAppSettings path.
@@ -7,7 +7,14 @@
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
-import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN, PROMPT_CACHE_MIN_DEPTH_CEIL, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
+import {
+  IMAGE_VARIANT_QUALITY_MAX,
+  IMAGE_VARIANT_QUALITY_MIN,
+  MAX_IMAGE_BYTES_CEIL,
+  MAX_IMAGE_BYTES_FLOOR,
+  PROMPT_CACHE_MIN_DEPTH_CEIL,
+  PROMPT_CACHE_MIN_DEPTH_FLOOR,
+} from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -19,7 +26,12 @@ import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
-import { ADMIN_DATABANK_UPLOAD_CAP_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME, ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME } from "../lib/user-admin-names.ts";
+import {
+  ADMIN_DATABANK_UPLOAD_CAP_NAME,
+  ADMIN_IMAGE_SIZE_CAP_NAME,
+  ADMIN_PROMPT_CACHE_DEPTH_NAME,
+  ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME,
+} from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // One editable scalar knob: how to READ its effective baseline off the resolved config, whether a stored
@@ -78,6 +90,17 @@ const KNOBS: readonly KnobDescriptor[] = [
     read: (r) => r.maxDatabankBytes,
     overridden: (o) => isOverridden(o.maxDatabankBytes),
     patch: (v) => ({ maxDatabankBytes: v }),
+  },
+  {
+    id: "maxImageBytes",
+    label: ADMIN_IMAGE_SIZE_CAP_NAME,
+    hint: "Max size of any image the server takes in: avatar, background and gallery uploads, and every generated or fetched image. Lowering it to shrink generated images also refuses larger uploads.",
+    step: 1_000_000,
+    min: MAX_IMAGE_BYTES_FLOOR,
+    max: MAX_IMAGE_BYTES_CEIL,
+    read: (r) => r.maxImageBytes,
+    overridden: (o) => isOverridden(o.maxImageBytes),
+    patch: (v) => ({ maxImageBytes: v }),
   },
   {
     id: "promptCacheMinDepth",
@@ -157,6 +180,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           catalogRefreshIntervalMs: null,
           imageVariantQuality: null,
           maxDatabankBytes: null,
+          maxImageBytes: null,
           promptCacheMinDepth: null,
         },
       })

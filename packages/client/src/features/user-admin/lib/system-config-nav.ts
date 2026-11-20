@@ -15,9 +15,8 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
   teach: {
-    summary:
-      "Security and privacy controls for rendered content: block external media URLs, set the default HTML step for characters, and cap generated-image download size.",
-    affects: ["message rendering security and image generation, deployment-wide"],
+    summary: "Security and privacy controls for rendered content: block external media URLs and set the default HTML step for characters.",
+    affects: ["message rendering security, deployment-wide"],
   },
   settings: [
     {
@@ -38,12 +37,6 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
           "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, their cards and styled replies run no scripts. A character's own step wins over it.",
         affects: ["every account's message rendering and card scripts, deployment-wide"],
       },
-    },
-    {
-      id: "max-image-bytes",
-      label: "Max generated-image size",
-      keywords: ["download", "megabytes", "bytes", "imagine", "cap"],
-      teach: { summary: "The size cap on a generated image the server will download and store.", affects: ["image generation, deployment-wide"] },
     },
   ],
 };

@@ -1,6 +1,6 @@
 // `useChatBehaviorPrefs` — the client-honored knobs from the synced `UserSettings.chat` blob:
-// the composer's `enterSends`/`continueOnSend` send semantics + the streaming ghost's `smoothStream`/
-// `smoothStreamCps` pacing. Read as a plain query with a fallback to the contract defaults (never
+// the composer's `enterSends`/`emptyEnterReplies` send semantics + the streaming ghost's `smoothStreamCps`
+// pacing. Read as a plain query with a fallback to the contract defaults (never
 // suspends/throws; chat reads `trpc.settings.*` directly, §11.0). Shares the `getUserSettings` cache with
 // `useMessageAppearance`/`useChatStyle`, so the composer + ghost re-render live when the pane autosaves.
 
@@ -12,10 +12,8 @@ import { useTRPC } from "#data";
 /** The client-honored subset of the chat prefs (the knobs the composer + ghost + list consume). */
 export interface ChatBehaviorPrefs {
   readonly enterSends: ChatSettings["enterSends"];
-  readonly continueOnSend: ChatSettings["continueOnSend"];
-  /** W-E — bare Enter on an empty composer with a non-assistant tail prompts a reply. */
-  readonly generateOnEmptySend: ChatSettings["generateOnEmptySend"];
-  readonly smoothStream: ChatSettings["smoothStream"];
+  /** Bare Enter on an empty composer asks for a reply: continue an assistant tail, else generate one. */
+  readonly emptyEnterReplies: ChatSettings["emptyEnterReplies"];
   readonly smoothStreamCps: ChatSettings["smoothStreamCps"];
   readonly streamScrollMode: ChatSettings["streamScrollMode"];
   /** Whether the live reasoning disclosure auto-collapses on the first answer token (the ghost's
@@ -42,9 +40,7 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
   const chat = data?.config.chat ?? DEFAULT_CHAT_SETTINGS;
   return {
     enterSends: chat.enterSends,
-    continueOnSend: chat.continueOnSend,
-    generateOnEmptySend: chat.generateOnEmptySend,
-    smoothStream: chat.smoothStream,
+    emptyEnterReplies: chat.emptyEnterReplies,
     smoothStreamCps: chat.smoothStreamCps,
     streamScrollMode: chat.streamScrollMode,
     reasoningAutoCollapse: chat.reasoningAutoCollapse,

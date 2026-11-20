@@ -14,6 +14,7 @@ import { prepareBackupFolder } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { OWNER_RULE_RATE_FIELD_NAME } from "#client/features/automation/lib/automation-names.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
@@ -30,7 +31,7 @@ import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability
 import { DUPLICATE_THRESHOLD_NAME, EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
-import { openConfigGroup as openGroup } from "./support/config-flow.ts";
+import { openConfigAdvanced, openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
@@ -181,7 +182,10 @@ test.describe("committed corpus settings", () => {
   });
 
   test("Chat behavior persists its native message-handling switch", { tag: "@smoke" }, async ({ page }) => {
-    const label = "Empty Enter generates a reply";
+    const label = CHAT_MESSAGE_HANDLING_SUBCATEGORY.settings?.find((setting) => setting.key === "emptyEnterReplies")?.label;
+    if (label === undefined) {
+      throw new Error("The production empty-Enter setting no longer exists; update this journey");
+    }
     const checked = await toggleAndReload(page, "chat-behavior", label);
     await expect(page.getByRole("switch", { name: label, exact: true })).toHaveAttribute("aria-checked", String(checked));
   });
@@ -191,12 +195,14 @@ test.describe("committed corpus settings", () => {
     const before = (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold;
     const next = before === 0.9 ? 0.8 : 0.9;
     await openGroup(page, "workloads");
+    await openConfigAdvanced(page);
     const input = page.getByRole("textbox", { name: DUPLICATE_THRESHOLD_NAME, exact: true });
     await input.fill(String(next));
     await input.press("Tab");
     await expect.poll(async () => (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold).toBe(next);
     await page.reload();
     await openGroup(page, "workloads");
+    await openConfigAdvanced(page);
     await expect(input).toHaveValue(String(next));
     await host.trpc.settings.updateUserSettingsSection.mutate({ section: "workloads", patch: { dupThreshold: before } });
   });
@@ -221,12 +227,14 @@ test.describe("committed corpus settings", () => {
     const before = await host.trpc.settings.getAppSettingsWithOverrides.query(undefined);
     const next = before.resolved.promptCacheMinDepth === 1 ? 2 : 1;
     await openGroup(page, "admin");
+    await openConfigAdvanced(page);
     const input = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME, exact: true });
     await input.fill(String(next));
     await page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true }).click();
     await expect.poll(async () => (await host.trpc.settings.getAppSettingsWithOverrides.query(undefined)).resolved.promptCacheMinDepth).toBe(next);
     await page.reload();
     await openGroup(page, "admin");
+    await openConfigAdvanced(page);
     await expect(input).toHaveValue(String(next));
     await host.trpc.settings.updateAppSettings.mutate({ partial: { promptCacheMinDepth: before.overrides.promptCacheMinDepth ?? null } });
   });

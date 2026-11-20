@@ -10,8 +10,8 @@
 // lowercased name); its stored `override` is ONLY the duplicate-to-customize template. Feeding that
 // override back through <ThemeScope> would let clampThemeTokens re-derive the 34 vars and shadow the
 // hand-tuned block (canary: system-bubble fg derives bright off the bg instead of the muted 0.74 intent),
-// and its density/chatStyle would stomp the user's appearance prefs. So for a seed we pass NOTHING and let
-// the user's appearance density win; a custom theme flows its own override + density through unchanged.
+// and its chatStyle would stomp the user's appearance prefs. So for a seed we pass NOTHING; a custom theme flows its
+// own override through unchanged. Density is never a theme's: it is the viewer's `appearance.density`.
 // Extracted + tested so a refactor can't silently re-pass a seed's override into the render path.
 
 //
@@ -23,7 +23,7 @@
 // ramp physically underneath that pick, so ThemeScope can composite alpha before deriving chrome.
 // Without this the ST-imported library's inks landed unjudged on the Light seed at 2.11:1.
 
-import type { Theme, ThemeDensity, ThemeOverride } from "@orb/contracts/theme";
+import type { Theme, ThemeOverride } from "@orb/contracts/theme";
 import { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 
 /** The generated seed palettes that own a `[data-theme]` block. Hearth is represented by `null` — it IS
@@ -50,8 +50,6 @@ export function dataThemeOf(theme: Theme | null): SeedThemeName | null {
 export interface ResolvedThemeScope {
   /** The custom-property overrides handed to <ThemeScope> — `{}` for a seed/absent theme. */
   readonly tokens: ThemeOverride;
-  /** The resolved shell density — a custom theme's own override wins; a seed/absent theme yields the appearance pref. */
-  readonly density: ThemeDensity;
   /** The base surface the ACTIVE theme paints — <ThemeScope>'s ambient root, a judging input only (#236). */
   readonly ambientBackground: string;
   /** The accent the ACTIVE theme paints — <ThemeScope>'s ambient-ACCENT root, a judging input only (#692).
@@ -75,17 +73,16 @@ function seedAmbient(name: string): { readonly background: string; readonly acce
   return SEED_AMBIENTS[name.toLowerCase()] ?? { background: BASE_THEME_BACKGROUND, accent: BASE_THEME_ACCENT };
 }
 
-export function resolveThemeScopeTokens(theme: Theme | null, appearanceDensity: ThemeDensity): ResolvedThemeScope {
+export function resolveThemeScopeTokens(theme: Theme | null): ResolvedThemeScope {
   if (theme === null) {
-    return { tokens: {}, density: appearanceDensity, ambientBackground: BASE_THEME_BACKGROUND, ambientAccent: BASE_THEME_ACCENT };
+    return { tokens: {}, ambientBackground: BASE_THEME_BACKGROUND, ambientAccent: BASE_THEME_ACCENT };
   }
   if (theme.isSeed) {
     const ambient = seedAmbient(theme.name);
-    return { tokens: {}, density: appearanceDensity, ambientBackground: ambient.background, ambientAccent: ambient.accent };
+    return { tokens: {}, ambientBackground: ambient.background, ambientAccent: ambient.accent };
   }
   return {
     tokens: theme.override,
-    density: theme.override.density ?? appearanceDensity,
     // The custom pick is carried IN `tokens`; ambient is the opaque surface physically underneath it.
     // ThemeScope composites alpha-bearing picks over this and passes the resolved pixel to nested scopes.
     ambientBackground: BASE_THEME_BACKGROUND,

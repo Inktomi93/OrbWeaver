@@ -17,7 +17,7 @@ User theming + rich message content: **two trust tiers, isolation by physics** â
 
 ## Consequences
 
-A theme is a token value set, never a structural mode. Per-character styling covers the ST token subset (accent, role bubbles, name color, prose semantics, font, radius, surface, chat style and density) with no injection surface. The live emit surface is `THEME_SCOPE_EMIT_VARS` in `packages/ui/src/content/theme-scope/clamp.ts`, and it grows only for chrome whose absence leaves an unthemed edge on a themed panel. Native `<audio controls>` and `<video controls>` are the one declaratively interactive HTML class, because a card can play media with no card JS.
+A theme is a token value set, never a structural mode. Per-character styling covers the ST token subset (accent, role bubbles, name color, prose semantics, font, radius and surface) with no injection surface. The live emit surface is `THEME_SCOPE_EMIT_VARS` in `packages/ui/src/content/theme-scope/clamp.ts`, and it grows only for chrome whose absence leaves an unthemed edge on a themed panel. Native `<audio controls>` and `<video controls>` are the one declaratively interactive HTML class, because a card can play media with no card JS.
 
 ## Alternatives rejected
 
@@ -25,4 +25,4 @@ A theme is a token value set, never a structural mode. Per-character styling cov
 - Shadow DOM for Tier B: it gives composability, not isolation. Script in a shadow tree has full page access and custom properties pierce it.
 - DOMPurify as a second pass: Streamdown's own `rehype-sanitize` and `rehype-harden` already sanitize inside the pipeline; a second pass outside it adds nothing.
 - `react-shadow` or a generic isolation library: built for design-system encapsulation, and a security boundary we depend on should be the small owned `sandbox-frame` whose `sandbox` and CSP attributes we control.
-- Structural theme modes such as a work mode, free-form dragging (`movingUI`) and visual-novel fullscreen (`waifuMode`): a theme is a palette plus optional density, and the visual-novel layer is out (D49).
+- Structural theme modes such as a work mode, free-form dragging (`movingUI`) and visual-novel fullscreen (`waifuMode`): a theme is a palette, and the visual-novel layer is out (D49).

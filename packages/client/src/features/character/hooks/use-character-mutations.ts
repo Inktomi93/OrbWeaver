@@ -1,6 +1,6 @@
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { SectionPatchVars, Trpc } from "#data";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { CHARACTER_SAVE_FAILURE } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
@@ -126,10 +126,4 @@ export const useGenerateGreetingMutation = createEntityMutation<
   options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't generate the greeting.",
-});
-
-export const useUpdateLibrary = createEntityMutation<SectionPatchVars<"library">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your library settings.",
 });

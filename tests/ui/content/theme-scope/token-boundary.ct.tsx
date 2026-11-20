@@ -11,7 +11,6 @@ const LEGAL = {
   bodyColor: TOKENS["color.prose-body"].value,
   font: "Georgia",
   radius: "full",
-  density: "compact",
 } satisfies ThemeScopeTokens;
 const COLOR_PROPERTIES = [
   TOKENS["color.primary"].cssVar,
@@ -23,12 +22,12 @@ const COLOR_PROPERTIES = [
   TOKENS["color.prose-body"].cssVar,
 ];
 
-test("accepted tokens reach the public scope while obsolete row anatomy stays absent", async ({ mount }) => {
-  const tokens = { ...LEGAL, chatStyle: "flat" };
+test("accepted tokens reach the public scope while obsolete row anatomy and a theme-carried density stay absent", async ({ mount }) => {
+  const tokens = { ...LEGAL, chatStyle: "flat", density: "compact" };
   const component = await mount<typeof ThemeBoundaryStory>(STORY, { tokens });
   const scope = component.locator('[data-slot="theme-scope"]').last();
   await expect(component.getByText("Theme boundary reached.", { exact: true })).toBeVisible();
-  await expect(scope).toHaveAttribute("data-density", LEGAL.density);
+  await expect(scope).not.toHaveAttribute("data-density");
   await expect(scope).not.toHaveAttribute("data-chat-style");
   await expect
     .poll(() =>

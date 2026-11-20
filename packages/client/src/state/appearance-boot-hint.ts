@@ -16,7 +16,7 @@ import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "./durab
 export const DATA_THEME_ATTR = "data-theme";
 
 /** The appearance axes a boot needs before the shell can render one — the hint's whole surface. */
-export const APPEARANCE_BOOT_AXES = ["reducedMotion", "reducedTransparency", "increasedContrast", "fontScale", "density"] as const;
+export const APPEARANCE_BOOT_AXES = ["reducedMotion", "increasedContrast", "fontScale", "density"] as const;
 export type AppearanceBootAxes = Pick<AppearanceSettings, (typeof APPEARANCE_BOOT_AXES)[number]>;
 
 /** This device's whole remembered answer: the appearance axes plus the resolved `[data-theme]` value. */

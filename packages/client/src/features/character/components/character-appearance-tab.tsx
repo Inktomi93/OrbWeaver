@@ -367,7 +367,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
  *  #920 asked for the reuse, this is the answer, do not re-open it). The reason is payload honesty, not
  *  the sideways-import fence that merely made it awkward. `startFromTheme` below delivers
  *  `cardEmbeddableSubset(theme.override)`, and `ThemeSwatchStrip` paints `theme.override` through the same
- *  `<ThemeScope>` clamp — the picture IS the payload, `density` aside, which the stripe does not show. The
+ *  `<ThemeScope>` clamp — the picture IS the payload. The
  *  Looks thumbnail answers a different question ("what would selecting this theme paint the app"), and for
  *  the three SEED rows that answer is deliberately NOT the override: `#lib`'s `resolveThemeScopeTokens`
  *  hands a seed NOTHING and lets its generated `[data-theme]` block paint, because replaying a seed's

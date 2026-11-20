@@ -10,9 +10,10 @@ export {} from "./components/you-sheet.tsx";
 
 export {} from "./hooks/use-shell-layout.ts";
 
-// The four app-shell-owned appearance SECTIONS (SET-SEAMS stage 1): app-shell reads these knobs (the shell
+// The five app-shell-owned appearance SECTIONS (SET-SEAMS stage 1): app-shell reads these knobs (the shell
 // scope tokens, the content-width clamp, `data-elevation`, the root appearance channel, the reading scope, the
 // glass/texture effects, the painted background), and §6's rule is that a section is owned by its reader.
+export { appearanceAccessibilitySection } from "./lib/appearance-accessibility-section.tsx";
 export { appearanceBackgroundSection } from "./lib/appearance-background-section.tsx";
 export { appearanceEffectsSection } from "./lib/appearance-effects-section.tsx";
 export { appearanceReadingSection } from "./lib/appearance-reading-section.tsx";

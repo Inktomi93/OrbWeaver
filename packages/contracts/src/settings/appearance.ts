@@ -35,34 +35,24 @@ const CHAT_WIDTH_PCT_MIN = 30;
 const CHAT_WIDTH_PCT_MAX = 100;
 const CHAT_WIDTH_PCT_DEFAULT = 60;
 const FONT_SCALE_DEFAULT = 1;
-// THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED. `theme-background-layer.tsx` calls the
-// scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 would make that sentence false — a legal
-// setting would render the guard at `opacity: 0` and hand the transcript's reading contrast to the user's
-// picture (measured on a bright landscape plate: its worst backdrop over the bright band read Y 0.0874 at
-// dim 0 vs Y 0.0476 at 0.45 — the measurement is the evidence for the floor).
+// THE WALLPAPER SCRIM IS DERIVED, NOT CHOSEN. `theme-background-layer.tsx` calls the scrim "mandatory …
+// non-negotiable for text legibility", so the dim is the smallest one that keeps the transcript's reading contrast,
+// and no control moves it (measured on a bright landscape plate: its worst backdrop over the bright band read
+// Y 0.0874 at dim 0 vs Y 0.0476 at 0.45 — the measurement is the evidence for the value).
 //
-// WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) and its rider rule the other arm OUT: "Inks are
-// guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
-// (owner-adjacent, refused)", and the dark plate's alpha is pinned at 0.65 because closing the same hole
-// there needs 0.86. That ruling holds here: `readingPlateAlpha` solves the plate against
-// the worst LEGAL art, and with a scrim floor the worst legal art is
-// scrimmed art, so the guarantee lands without a pixel of the plate moving.
+// WHY A DIM AND NOT A HEAVIER PLATE. D144(d) and its rider rule the other arm OUT: "Inks are guaranteed vs their
+// BASE, not worst-case art pixels — closing that would move the sacred dark rooms (owner-adjacent, refused)", and
+// the dark plate's alpha is pinned at 0.65 because closing the same hole there needs 0.86. That ruling holds here:
+// `readingPlateAlpha` solves the plate against the worst LEGAL art, and the worst legal art is scrimmed art, so the
+// guarantee lands without a pixel of the plate moving.
 //
-// THE NUMBER. Composite (worst legal art → `--color-backdrop` at `0.6 × dim` → `--color-reading-plate` at
-// its palette alpha) and solve for the smallest dim at which each shipped palette's prose inks clear AA
-// 4.5:1. Binding constraint: mocha `narration` over WHITE art at 0.442 (hearth narration 0.384, mocha
-// dialogue 0.107); the light palette passes at every dim on both extremes, so nothing there moves. Stated
-// at 0.45 because that is already `BACKGROUND_DIM_DEFAULT` — floor and default coincide, so an
-// out-of-bounds stored value `.catch`es straight onto the floor and no lift migration exists to get wrong.
-// `speaker` (the accent ink) is NOT in the guaranteed set: it needs dim 0.714, which is the same
-// sacred-room move D144(d) refuses.
-//
-// EXPORTED (unlike its sibling bounds) because it is the one bound that carries a proven guarantee: the
-// appearance panel's slider mirror (`client/features/app-shell/lib/appearance-bounds.ts`) takes THIS value
-// rather than re-spelling it, so the control can never offer a dim the schema would clamp away.
-export const BACKGROUND_DIM_MIN = 0.45;
-const BACKGROUND_DIM_MAX = 1;
-const BACKGROUND_DIM_DEFAULT = 0.45;
+// THE NUMBER. Composite (worst legal art → `--color-backdrop` at `0.6 × dim` → `--color-reading-plate` at its
+// palette alpha) and solve for the smallest dim at which each shipped palette's prose inks clear AA 4.5:1. Binding
+// constraint: mocha `narration` over WHITE art at 0.442 (hearth narration 0.384, mocha dialogue 0.107); the light
+// palette passes at every dim on both extremes. `speaker` (the accent ink) is NOT in the guaranteed set: it needs
+// dim 0.714, which is the same sacred-room move D144(d) refuses.
+/** The wallpaper scrim's opacity: the contrast floor above, the one value every background layer paints. */
+export const BACKGROUND_SCRIM_DIM = 0.45;
 const BACKGROUND_BLUR_MIN = 0;
 const BACKGROUND_BLUR_MAX = 24;
 const BACKGROUND_BLUR_DEFAULT = 0;
@@ -72,7 +62,9 @@ export type BlurSurface = (typeof BLUR_SURFACES)[number];
 // The SHIPPED default of `appearance.blurSurfaces` (owner ruling — glass is on by default on
 // the three chrome surfaces; it is also the `.catch` self-heal target, matching the sibling knobs).
 // `messages` deliberately excluded — the Reading-Surface rule forbids blur behind long reading text by
-// default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives.
+// default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives. This one
+// control is the whole transparency choice: an OS that asks for reduced transparency turns every surface solid in
+// CSS whatever is stored here, so there is no separate app-side override to disagree with it.
 const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
 
 // `asset` = an own-upload background: the picked file is stored as a `background` AssetKind and
@@ -83,6 +75,9 @@ const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "mo
 // `ThemeBackground`); consumers import it from `@orb/contracts/theme` directly.
 
 const SURFACE_TEXTURES = ["none", "grain"] as const;
+
+/** The shell depth looks: one panel tone (`flat`), or panes raised a surface step above the content (`ramp`). */
+export const ELEVATIONS = ["flat", "ramp"] as const;
 
 /** An OS preference the app can follow (`system`, the matching `prefers-*` query) or override either way. */
 export const OS_PREFERENCE_MODES = ["system", "on", "off"] as const;
@@ -141,18 +136,9 @@ const READING_LINE_HEIGHT_DEFAULT = 1.55;
 const READING_LETTER_SPACING_MIN = -0.02;
 const READING_LETTER_SPACING_MAX = 0.08;
 const READING_LETTER_SPACING_DEFAULT = 0;
-const READING_PARAGRAPH_SPACING_MIN = 0;
-const READING_PARAGRAPH_SPACING_MAX = 3;
-const READING_PARAGRAPH_SPACING_DEFAULT = 0.75;
-const READING_NAME_SCALE_MIN = 0.8;
-const READING_NAME_SCALE_MAX = 1.6;
 const READING_BODY_SCALE_MIN = 0.8;
 const READING_BODY_SCALE_MAX = 1.6;
 const READING_SCALE_DEFAULT = 1;
-
-const BLUR_STRENGTH_MIN = 4;
-const BLUR_STRENGTH_MAX = 28;
-const BLUR_STRENGTH_DEFAULT = 14;
 
 /**
  * EXPORTED for the client's device-local BOOT HINT: the hint replays a few appearance axes onto
@@ -171,7 +157,7 @@ export const appearanceSettingsSchema = z
     avatarAspect: z.enum(["square", "portrait"]).catch("square").default("square"),
     avatarRing: z.enum(["none", "accent"]).catch("none").default("none"),
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"),
-    elevation: z.enum(["flat", "ramp", "glow"]).catch("flat").default("flat"),
+    elevation: z.enum(ELEVATIONS).catch("flat").default("flat"),
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("flat").default("flat"),
     showTimestamps: z.boolean().catch(true).default(true),
     showGenerationTimer: z.boolean().catch(false).default(false),
@@ -195,11 +181,12 @@ export const appearanceSettingsSchema = z
       .array(z.enum(BLUR_SURFACES))
       .catch([...DEFAULT_BLUR_SURFACES])
       .default([...DEFAULT_BLUR_SURFACES]),
-    shadowEffects: z.boolean().catch(false).default(false),
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.preprocess(liftReducedMotion, osPreference()).default(OS_PREFERENCE_DEFAULT),
-    reducedTransparency: osPreference().default(OS_PREFERENCE_DEFAULT),
     increasedContrast: osPreference().default(OS_PREFERENCE_DEFAULT),
+    // Off keeps the chosen glass when the device asks for reduced transparency; turning glass off is the Frosted glass
+    // control's own empty choice, so this switch has only the two answers.
+    followSystemTransparency: z.boolean().catch(true).default(true),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
     // NOTE: no flat `backgroundSeededId` — the `kind:"seeded"` catalog slug is retired; the WHY is on
     // `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover
@@ -231,7 +218,6 @@ export const appearanceSettingsSchema = z
     // from the blob; the assets themselves survive in the CAS and can be re-added.)
     backgroundLibrary: tolerantArray(storedBackgroundLibraryEntrySchema, []).default([]),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
-    backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),
     backgroundBlur: z.number().min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).catch(BACKGROUND_BLUR_DEFAULT).default(BACKGROUND_BLUR_DEFAULT),
     readingLineHeight: z
       .number()
@@ -245,17 +231,9 @@ export const appearanceSettingsSchema = z
       .max(READING_LETTER_SPACING_MAX)
       .catch(READING_LETTER_SPACING_DEFAULT)
       .default(READING_LETTER_SPACING_DEFAULT),
-    readingParagraphSpacing: z
-      .number()
-      .min(READING_PARAGRAPH_SPACING_MIN)
-      .max(READING_PARAGRAPH_SPACING_MAX)
-      .catch(READING_PARAGRAPH_SPACING_DEFAULT)
-      .default(READING_PARAGRAPH_SPACING_DEFAULT),
-    readingNameScale: z.number().min(READING_NAME_SCALE_MIN).max(READING_NAME_SCALE_MAX).catch(READING_SCALE_DEFAULT).default(READING_SCALE_DEFAULT),
     readingBodyScale: z.number().min(READING_BODY_SCALE_MIN).max(READING_BODY_SCALE_MAX).catch(READING_SCALE_DEFAULT).default(READING_SCALE_DEFAULT),
     justifyBodyText: z.boolean().catch(false).default(false),
     enableThemeColorization: z.boolean().catch(false).default(false),
-    blurStrength: z.number().min(BLUR_STRENGTH_MIN).max(BLUR_STRENGTH_MAX).catch(BLUR_STRENGTH_DEFAULT).default(BLUR_STRENGTH_DEFAULT),
     showLLMReasoningIcon: z.boolean().catch(false).default(false),
   })
   .strip()

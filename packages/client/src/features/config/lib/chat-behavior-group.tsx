@@ -11,6 +11,7 @@
 
 import { MessagesSquare } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";
+import { CONFIG_ADVANCED_FOLD_NAME } from "#state";
 
 /** The chat-behavior pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx). */
 export const chatBehaviorGroup: ConfigGroupDefinition = {
@@ -20,4 +21,5 @@ export const chatBehaviorGroup: ConfigGroupDefinition = {
   icon: MessagesSquare,
   description: "How chats send, continue, and stream.",
   body: { kind: "sections" },
+  advancedFold: { label: CONFIG_ADVANCED_FOLD_NAME },
 };

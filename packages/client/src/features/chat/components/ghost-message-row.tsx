@@ -38,6 +38,7 @@
 // chips; once the turn stops streaming it admits no new panel.
 
 import type { CardTrust } from "@orb/contracts/chat";
+import { SMOOTH_STREAM_OFF } from "@orb/contracts/settings";
 import type { GhostContentSegment } from "@orb/kit/content";
 import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
@@ -80,10 +81,6 @@ import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { MessageContentColumn, MessageRowBody, MessageRowRoot } from "./message-row-layout.tsx";
 import { themedColumnContent } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
-
-// Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
-// default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.
-const DEFAULT_SMOOTH_STREAM_CPS = 80;
 
 interface GhostSegmentOptions {
   readonly isTail: boolean;
@@ -306,7 +303,6 @@ function GhostBubbleContent(props: {
   readonly reasoning: string;
   readonly thinking: boolean;
   readonly showLLMReasoningIcon: boolean;
-  readonly smoothStream: boolean;
   readonly smoothStreamCps: number;
   readonly reasoningAutoCollapse: boolean;
   readonly held: string;
@@ -327,7 +323,6 @@ function GhostBubbleContent(props: {
           reasoning={props.reasoning}
           thinking={props.thinking}
           showIcon={props.showLLMReasoningIcon}
-          smoothStream={props.smoothStream}
           smoothStreamCps={props.smoothStreamCps}
           autoCollapse={props.reasoningAutoCollapse}
         />
@@ -396,12 +391,9 @@ export interface GhostMessageRowProps {
    *  off, so the stream says what the settled row will. The script notice has no ghost arm: the stream's cards draw on
    *  the srcdoc floor by design, so a dead control there is the stream's, not a consent the viewer can change. */
   readonly heldCards?: HeldCards | undefined;
-  /** The `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
-   *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
-   *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
-   *  "the user wants pacing" — the contract keeps the ONE home of the default. */
-  readonly smoothStream?: boolean | undefined;
-  /** The `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
+  /** The `UserSettings.chat.smoothStreamCps` pref: the reveal rate, 0 for raw chunk cadence (the word fade rides
+   *  `mode="streaming"` either way, so this is pure pacing). The prop's own fallback is off, because an ABSENT prop
+   *  means "this mount never resolved the pref", not "the user wants pacing": the contract keeps the ONE default. */
   readonly smoothStreamCps?: number | undefined;
   /** The `UserSettings.chat.reasoningAutoCollapse` pref: fold the live reasoning trace on the first answer
    *  token (default ON). Absent ⇒ ON. */
@@ -439,8 +431,7 @@ export function GhostMessageRow({
   colorQuotedSpeech = true,
   cardTier = "tierA",
   heldCards,
-  smoothStream = false,
-  smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
+  smoothStreamCps = SMOOTH_STREAM_OFF,
   reasoningAutoCollapse = true,
   enterMotion = false,
   stickyAttribution = false,
@@ -463,7 +454,7 @@ export function GhostMessageRow({
   const providerWaiting = useGhostProviderWaiting(chatId);
   const displayed = useDisplayText(text, renderContext, { ...bodyDisplayRow(stamps, displayDepth), live: true }).text;
   const paced = useSmoothText(displayed, {
-    enabled: streaming && smoothStream,
+    enabled: streaming && smoothStreamCps !== SMOOTH_STREAM_OFF,
     cps: smoothStreamCps,
   });
   // The live speaker's own name (the same value the server's per-speaker clean strips against). In a
@@ -539,7 +530,6 @@ export function GhostMessageRow({
         reasoning={reasoning}
         thinking={thinking}
         showLLMReasoningIcon={showLLMReasoningIcon}
-        smoothStream={smoothStream}
         smoothStreamCps={smoothStreamCps}
         reasoningAutoCollapse={reasoningAutoCollapse}
         held={held}
