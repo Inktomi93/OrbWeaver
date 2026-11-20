@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
+status: open
 updated: 2026-11-20
 priority: P2
 area: chat
-blocked: on 3605
 plan: chat-html-and-presets
 ---
 
