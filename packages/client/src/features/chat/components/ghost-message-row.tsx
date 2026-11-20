@@ -22,10 +22,18 @@
 //     so the frame is the srcdoc floor (which additionally inherits the app document's `img-src`) and no
 //     routed mint fires. This is the SAME fail-closed lattice the markdown-trust pin already applies,
 //     extended to the one capability mounting-earlier would actually grant: a model-authored outbound
-//     media fetch inside the pre-commit window. Today the ghost makes ZERO model-controlled requests
-//     (the untrusted markdown allowlist drops `<img>` entirely) and this keeps it that way; the row's
+//     media fetch inside the pre-commit window. The ghost's own markdown makes no model-controlled
+//     request off the box (the untrusted markdown allowlist drops `<img>` entirely); the row's
 //     real media verdict + the routed door arrive with the settled row, one second later. Widening
 //     either axis here is a security decision, not a polish item.
+//
+// THE ONE ROUTED MINT the stream makes is a FORMING panel's (D354): on the sandboxed tier a reply's held HTML unit,
+// read after the live display pass, draws in its own routed frame once its bytes are final (`scanFormingPanels`), so a
+// reader sees a panel while the rest streams. A script whose match runs past a drawn unit can still rewrite it; the
+// settled row draws the final bytes. Its mint asks for the forming cap, which the server enforces: the static posture and external media
+// off whatever the speaker's step, so the window above still runs no model script and fetches nothing off the box.
+// `data:` images follow the step, as they fetch nothing. At most `FORMING_PANELS_MAX` panels draw per stream; the
+// rest hold their chips until the reply settles.
 
 import type { CardTrust } from "@orb/contracts/chat";
 import type { FrameStyleSheet, GhostContentSegment } from "@orb/kit/content";
@@ -56,9 +64,12 @@ import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
-import { carriedRoomSheets, PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
+import type { FormingPart } from "../lib/reply-parts.ts";
+import { carriedRoomSheets, FORMING_PANELS_MAX, formingParts, PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
+import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
+import { FormingPanel } from "./forming-panel.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
@@ -80,6 +91,16 @@ interface GhostSegmentOptions {
   readonly holdsMarkup: boolean;
   /** The stream has shown a panel its author wrote, so every text segment holds from here (D354). */
   readonly panelSeen: boolean;
+  /** Where a complete panel draws, on the sandboxed tier only; absent ⇒ every held unit stays a chip. */
+  readonly panels: StreamPanels | undefined;
+}
+
+// What a held unit needs to draw in a forming frame: the mint's selector, the frame's name, and the panels the stream's
+// budget admitted (`admitPanels`).
+interface StreamPanels {
+  readonly origin: CardOrigin;
+  readonly speakerName: string | undefined;
+  readonly admitted: readonly string[];
 }
 
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
@@ -87,7 +108,7 @@ interface GhostSegmentOptions {
  *  the prose that keeps streaming BELOW it — a remount would reload the srcdoc and re-run the card's paint
  *  on every token. `tests/client/features/chat/components/card-frame-parity.ct.tsx` holds it: prose streaming below a
  *  closed card never remounts or reloads the card's frame. */
-function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSegmentOptions): ReactElement {
+function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSegmentOptions, parts: readonly FormingPart[] | undefined): ReactElement {
   const key = `${index}-${segment.kind}`;
   if (segment.kind === "forming-card") {
     // Once a `:::card` OPEN line completes, the accumulating raw HTML is suppressed behind the chip for exactly as long
@@ -106,7 +127,32 @@ function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSe
       />
     );
   }
-  return opts.holdsMarkup || formsPanel(segment.text, opts) ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
+  if (parts !== undefined) {
+    return heldGhostText(parts, key, opts);
+  }
+  return holdsText(segment.text, opts) ? heldGhostText(scanStyledHold(segment.text), key, opts) : ghostMarkdown(segment.text, key, opts);
+}
+
+// Whether a text segment streams held: a display script in force, or a panel forming on the sandboxed tier.
+function holdsText(text: string, opts: Pick<GhostSegmentOptions, "holdsMarkup" | "cardTier" | "panelSeen">): boolean {
+  return opts.holdsMarkup || formsPanel(text, opts);
+}
+
+// A complete panel's identity in the stream's budget: its bytes and the sheets its frame carries.
+function panelIdentity(part: Extract<FormingPart, { readonly kind: "panel" }>): string {
+  return JSON.stringify([part.markup, part.styles]);
+}
+
+// The stream's panel budget: the panels it has drawn keep drawing, and new ones join in reading order up to
+// `FORMING_PANELS_MAX`. It only grows, so a panel whose bytes a display script later rewrote still counts against it.
+function admitPanels(admitted: readonly string[], identities: readonly string[]): readonly string[] {
+  const next = [...admitted];
+  for (const identity of identities) {
+    if (!next.includes(identity) && next.length < FORMING_PANELS_MAX) {
+      next.push(identity);
+    }
+  }
+  return next.length === admitted.length ? admitted : next;
 }
 
 // A tag line still arriving at the tail: it may yet carry the style attribute that makes its block a panel.
@@ -114,7 +160,7 @@ const ARRIVING_TAG_LINE = /(?:^|\n) {0,3}<[A-Za-z][^>\n]*$/u;
 
 // On the sandboxed tier a reply whose own panel will settle framed (`modelPanels`, D354) holds from the first moment the
 // stream shows one, and while a tag line is still arriving at the tail, so no CSS, script or half a tag ever prints.
-function formsPanel(text: string, opts: GhostSegmentOptions): boolean {
+function formsPanel(text: string, opts: Pick<GhostSegmentOptions, "cardTier" | "panelSeen">): boolean {
   return opts.cardTier === "tierB" && (opts.panelSeen || ARRIVING_TAG_LINE.test(text));
 }
 
@@ -139,21 +185,32 @@ function ghostMarkdown(text: string, key: string, opts: GhostSegmentOptions): Re
   );
 }
 
-// The viewer's display scripts draw markup, so this reply may settle styled (D354). The ghost runs no display script,
-// so what streams is the model's own text, and its own tags are what those scripts turn into panels: each HTML block
-// (a lone tag line, a block-level tag) streams as the forming chip with none of its bytes, and the prose streams with
-// its inline tags removed and their words kept, so no tag, attribute or CSS prints before the settled row draws.
-function heldGhostText(text: string, key: string, opts: GhostSegmentOptions): ReactElement {
-  const held = scanStyledHold(text);
+// A display script is in force or the reply holds a panel, so it may settle styled (D354). What streams is the text after
+// the live display pass: each HTML block (a lone tag line, a block-level tag) streams as the forming chip with none of
+// its bytes until it is complete, and the prose streams with its inline tags removed and their words kept, so no tag,
+// attribute or CSS prints before a frame draws it.
+function heldGhostText(held: readonly FormingPart[], key: string, opts: GhostSegmentOptions): ReactElement {
+  const { panels } = opts;
   return (
     <Stack key={key} gap="row">
       {held.map((part, index) => {
         const partKey = `${key}-${String(index)}-${part.kind}`;
-        return part.kind === "forming-markup" ? (
-          <FormingChip key={partKey} title={REPLY_PANEL_FORMING_TITLE} />
-        ) : (
-          ghostMarkdown(stripTags(part.text), partKey, { ...opts, isTail: opts.isTail && index === held.length - 1 })
-        );
+        if (part.kind === "text") {
+          return ghostMarkdown(stripTags(part.text), partKey, { ...opts, isTail: opts.isTail && index === held.length - 1 });
+        }
+        if (part.kind === "panel" && panels !== undefined && panels.admitted.includes(panelIdentity(part))) {
+          return (
+            <FormingPanel
+              key={partKey}
+              markup={part.markup}
+              styles={part.styles}
+              cardOrigin={panels.origin}
+              speakerName={panels.speakerName}
+              colorQuotes={opts.colorQuotes}
+            />
+          );
+        }
+        return <FormingChip key={partKey} title={REPLY_PANEL_FORMING_TITLE} />;
       })}
     </Stack>
   );
@@ -173,7 +230,11 @@ function GhostBubbleBody({
   holdsMarkup,
   roomSheets,
   providerWaiting,
+  origin,
+  speakerName,
 }: {
+  readonly origin: CardOrigin;
+  readonly speakerName: string | undefined;
   readonly held: string;
   readonly streaming: boolean;
   readonly colorQuotes: boolean;
@@ -185,6 +246,7 @@ function GhostBubbleBody({
   // A stream that has shown a panel holds to its end, so the whole-text read stops there: each delta would otherwise read
   // the whole reply again, which over a stream costs the square of its length.
   const [panelSeen, setPanelSeen] = useState(false);
+  const [admitted, setAdmitted] = useState<readonly string[]>([]);
   const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held, roomSheets));
   if (showsPanel && !panelSeen) {
     setPanelSeen(true);
@@ -197,12 +259,25 @@ function GhostBubbleBody({
   // body is still arriving shows the chip, and a card whose fence CLOSED renders for real. The common
   // no-card path is one text segment (byte-identical to the pre-P4 render).
   const segments = scanGhostContent(held);
+  const shared = { streaming, colorQuotes, cardTier, holdsMarkup, panelSeen: showsPanel };
+  // On the sandboxed tier a held segment is split once, so its complete panels can draw (`formingParts`). The text is
+  // already through the display scripts, so a unit a script deletes never reaches a frame.
+  const drawsPanels = cardTier === "tierB";
+  const heldParts = segments.map((segment) =>
+    drawsPanels && segment.kind === "text" && holdsText(segment.text, shared) ? formingParts(segment.text, roomSheets) : undefined,
+  );
+  const next = admitPanels(
+    admitted,
+    heldParts.flatMap((parts) => parts?.flatMap((part) => (part.kind === "panel" ? [panelIdentity(part)] : [])) ?? []),
+  );
+  if (next !== admitted) {
+    setAdmitted(next);
+  }
+  const panels: StreamPanels | undefined = drawsPanels ? { origin, speakerName, admitted: next } : undefined;
   return (
     <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
       <Stack gap="row">
-        {segments.map((segment, index) =>
-          ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier, holdsMarkup, panelSeen: showsPanel }),
-        )}
+        {segments.map((segment, index) => ghostSegment(segment, index, { ...shared, isTail: index === segments.length - 1, panels }, heldParts[index]))}
       </Stack>
     </div>
   );
@@ -235,6 +310,8 @@ function GhostBubbleContent(props: {
   readonly holdsMarkup: boolean;
   readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   readonly providerWaiting: boolean;
+  readonly origin: CardOrigin;
+  readonly speakerName: string | undefined;
 }): ReactElement {
   return (
     <>
@@ -256,6 +333,8 @@ function GhostBubbleContent(props: {
         holdsMarkup={props.holdsMarkup}
         roomSheets={props.roomSheets}
         providerWaiting={props.providerWaiting}
+        origin={props.origin}
+        speakerName={props.speakerName}
       />
       {props.heldCards === undefined ? null : <GhostHeldCardsNotice held={props.held} heldCards={props.heldCards} />}
     </>
@@ -464,6 +543,8 @@ export function GhostMessageRow({
         holdsMarkup={holdsMarkup}
         roomSheets={roomSheets}
         providerWaiting={providerWaiting}
+        origin={{ chatId, characterId: speakerCharacterId }}
+        speakerName={attribution?.name ?? undefined}
       />
     ),
     footer: null,

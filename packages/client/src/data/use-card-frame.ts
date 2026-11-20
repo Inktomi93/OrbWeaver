@@ -56,6 +56,7 @@ function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
     styleTokens: { ...request.styleTokens },
     ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
     ...(request.rootAttributes === undefined ? {} : { rootAttributes: { ...request.rootAttributes } }),
+    ...(request.forming === true ? { forming: true } : {}),
   };
 }
 
@@ -154,6 +155,10 @@ function useMintConsents(request: CardFrameRequest | undefined): string | undefi
   ]);
 }
 
+// A forming mint's grant reads no consent (the server caps it static with no external media), so its key carries this
+// in place of the consents, and it waits for none of their reads.
+const FORMING_CONSENTS = "forming";
+
 // The bodies that already spent their one re-mint in this tab. A card can claim its handle lost on every load, so the
 // re-mint a miss earns is spent once per body per tab, not once per mount: a later miss for that body goes to the floor.
 const remintSpent = new Map<string, true>();
@@ -197,7 +202,8 @@ export interface CardFrame {
 export function useCardFrame(request: CardFrameRequest | undefined): CardFrame {
   const [attempt, setAttempt] = useState(0);
   const [lost, setLost] = useState(false);
-  const consents = useMintConsents(request);
+  const read = useMintConsents(request);
+  const consents = request?.forming === true ? FORMING_CONSENTS : read;
   const mint = useCardFrameMint(request, attempt, consents);
   return {
     mint: lost ? GAVE_UP : mint,

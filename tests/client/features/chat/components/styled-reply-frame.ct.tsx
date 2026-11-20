@@ -20,7 +20,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
+import type { CardFrameMintRecord, CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
@@ -574,6 +574,88 @@ for (const [name, body, shown] of INLINE_MARKUP) {
     await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(0);
   });
 }
+
+// What a mint asked for and the two grants the forming cap withholds.
+function grantOf(record: CardFrameMintRecord): {
+  readonly forming: boolean;
+  readonly scripts: boolean | undefined;
+  readonly externalMedia: boolean | undefined;
+} {
+  return { forming: record.forming, scripts: record.granted?.interactive, externalMedia: record.granted?.externalMedia };
+}
+
+// Two panels the model writes itself, streamed so the first closes and has prose after it while the second is still
+// arriving, cut inside its own text.
+const TWO_PANEL_CHUNKS = [
+  'She looks up.\n\n<div class="w6p-one" style="padding:4px">\n<b id="w6p-one">Banner one</b>\n</div>\n',
+  "\nThe hall waits.\n",
+  '\n<div class="w6p-two" style="padding:4px">\n<b id="w6p-two">Ban',
+  "ner two</b>\n</div>\n",
+  "\nHe bows.\n",
+] as const;
+const GHOST_BODY = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+
+test("a streaming reply draws each panel once it is complete, never a half panel, and settles with one more mint", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
+  await using root = room.root;
+  // The speaker is Interactive and external media is allowed, so an ordinary mint here carries every grant: only the
+  // forming cap keeps the streamed panels static with no external media.
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { forbidExternalMedia: false } });
+  await (await root.internalCallerFor(root.ownerId)).character.update({
+    characterId: room.characterId,
+    input: { trustHtml: true, interactiveHtml: true },
+  });
+  await using traffic = await serveRoom(page, root, corpus);
+  // A panel's words live only inside its frame: the row's own text never shows them, whole or half.
+  await watchForSource(page, GHOST_BODY, [...SOURCE_MARKERS, "padding", "Banner", "Ban"]);
+  const props = { chatId: room.chatId, speakerCharacterId: room.characterId, chunks: TWO_PANEL_CHUNKS, chunkLabel: CHUNK_LABEL };
+  const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+  const body = page.locator(GHOST_BODY);
+  const ghostFrames = body.locator(`${REPLY_FRAME} ${SANDBOX}`);
+  const [first, second, third, fourth, fifth] = TWO_PANEL_CHUNKS;
+  await streamEachChunk(page, [first, second]);
+  // Panel one closed and prose followed it, so it draws while the reply still streams.
+  await expect(ghostFrames.first().contentFrame().locator("#w6p-one")).toHaveText("Banner one");
+  await streamEachChunk(page, [third]);
+  // Panel two is half written: it stays behind its chip, and no frame holds any of it.
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(1);
+  await expect(ghostFrames).toHaveCount(1);
+  await expect(body).toContainText("The hall waits.");
+  await streamEachChunk(page, [fourth, fifth]);
+  await expect(ghostFrames.nth(1).contentFrame().locator("#w6p-two")).toHaveText("Banner two");
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(0);
+  // One forming mint per complete panel, and none for the unchanged first panel as the stream went on. Each asked for
+  // the forming cap and got no scripts and no external media.
+  expect(traffic.mints).toBe(2);
+  const capped = { forming: true, scripts: false, externalMedia: false };
+  expect(traffic.minted.map(grantOf)).toEqual([capped, capped]);
+  // The turn commits: the stored reply holds the streamed text.
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
+  const stored = (await caller.chat.listMessages({ chatId: room.chatId })).messages.at(-1);
+  if (stored === undefined || stored.id === room.messageId) {
+    throw new Error("The reply did not land as the room's newest row");
+  }
+  await caller.chat.editMessage({ chatId: room.chatId, messageId: stored.id, content: TWO_PANEL_CHUNKS.join(""), timeZone: UTC_TIME_ZONE });
+  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.find((message) => message.id === stored.id);
+  if (view === undefined) {
+    throw new Error("The stored reply did not read back");
+  }
+  await component.update({ ...props, commit: { view, label: COMMIT_LABEL } });
+  await page.getByRole("button", { name: COMMIT_LABEL, exact: true }).click();
+  const settled = rowOf(page, stored.id).locator(REPLY_FRAME).last();
+  await expect(settled.locator(SANDBOX)).toHaveAttribute("data-drawn", "");
+  const reply = settled.locator(SANDBOX).contentFrame();
+  await expect(reply.locator("#w6p-one")).toHaveText("Banner one");
+  await expect(reply.locator("#w6p-two")).toHaveText("Banner two");
+  // The settled reply's one frame is its only new mint past the two forming ones. Positive control: that ordinary mint
+  // carries the scripts and external media the cap withheld.
+  expect(traffic.mints).toBe(3);
+  expect(traffic.minted.map(grantOf).at(-1)).toEqual({ forming: false, scripts: true, externalMedia: true });
+  const { hits, seen } = await sourceSeen(page);
+  expect(seen).toContain("He bows.");
+  expect(hits).toEqual([]);
+});
 
 test("a model panel streams behind the forming chip from its first tag, and no tag, CSS or script text ever shows", async ({ corpus, mount, page }) => {
   const room = await openUnscriptedRoom("Unchanged.");
@@ -1183,6 +1265,28 @@ test("a block a display script deletes and a details panel with a style block ne
   await expect(page.locator(ghost)).toContainText("She waits for an answer.");
   const { hits } = await sourceSeen(page);
   expect(hits).toEqual([]);
+});
+
+test("a closed block a display script deletes never reaches a frame while the reply streams on past it", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  await addDisplayScript(caller, "Director notes", DIRECTOR_FIND, "");
+  await using traffic = await serveRoom(page, root, corpus);
+  const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+  // The block closes and a whole prose line follows it, so if it reached the hold it would be a complete panel.
+  const chunks = [...DIRECTOR_CHUNKS.slice(0, 5), "\n\nShe waits for an answer.\n", "\nThe hall is still."] as const;
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, { chatId: room.chatId, speakerCharacterId: room.characterId, chunks, chunkLabel: CHUNK_LABEL });
+  await streamEachChunk(page, chunks);
+  // Positive control: the prose after the block streamed, so the row read the whole stream.
+  await expect(page.locator(ghost)).toContainText("The hall is still.");
+  // The live display pass deleted it: no chip, no frame and no mint carry any of its bytes.
+  await expect(page.locator(ghost).locator(FORMING_CHIP)).toHaveCount(0);
+  await expect(page.locator(ghost).locator(REPLY_FRAME)).toHaveCount(0);
+  expect(traffic.mints).toBe(0);
 });
 
 // A coding answer's HTML sample, streamed in a styled room: a code block and a code span the renderer shows as written.

@@ -2,7 +2,8 @@
 // case adds only its levers: handles the server has dropped, serves that answer an error status, and gates that hold
 // mints or serves until the case releases them.
 
-import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
+import type { CardFrameMintResponse } from "@orb/contracts/chat";
+import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Page } from "@playwright/test";
 import type { ServerTestHarness } from "./server.ts";
@@ -23,11 +24,18 @@ export interface CardFrameServing {
   readonly servesWait?: Promise<void>;
 }
 
-/** How many mints and serves the page has sent so far, and how many serves asked for a dropped handle. */
+/** One mint the page sent: whether it asked for the forming cap, and what the root granted (absent when it refused). */
+export interface CardFrameMintRecord {
+  readonly forming: boolean;
+  readonly granted: CardFrameMintResponse["granted"] | undefined;
+}
+
+/** How many mints and serves the page has sent so far, how many serves asked for a dropped handle, and each mint. */
 export interface CardFrameTraffic {
   readonly mints: number;
   readonly serves: number;
   readonly misses: number;
+  readonly minted: readonly CardFrameMintRecord[];
 }
 
 function forwardedHeaders(sent: Readonly<Record<string, string>>, cookie: string): Record<string, string> {
@@ -57,9 +65,20 @@ async function rootAnswer(
   return { status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) };
 }
 
+// What one mint asked for and what the root answered: its record, and the handle's address when the root minted one.
+function readMint(
+  sentBody: string | null,
+  answer: { readonly status?: number; readonly body: Buffer },
+): { readonly record: CardFrameMintRecord; readonly url: string | undefined } {
+  const sent = cardFrameMintRequestSchema.parse(JSON.parse(sentBody ?? ""));
+  const response = answer.status === 200 ? cardFrameMintResponseSchema.parse(JSON.parse(answer.body.toString("utf8"))) : undefined;
+  return { record: { forming: sent.forming === true, granted: response?.granted }, url: response?.url };
+}
+
 /** Answer every card-frame request the page sends from `root`, as the viewer whose session `cookie` carries. */
 export async function routeCardFrames(page: Page, root: ServerTestHarness, cookie: string, serving: CardFrameServing = {}): Promise<CardFrameTraffic> {
   const counts = { mints: 0, serves: 0, misses: 0 };
+  const minted: CardFrameMintRecord[] = [];
   const dropped = new Set<string>();
   await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
     const request = route.request();
@@ -68,9 +87,11 @@ export async function routeCardFrames(page: Page, root: ServerTestHarness, cooki
       await serving.mintsWait;
       counts.mints += 1;
       const answer = await rootAnswer(route, root, cookie, pathname);
+      const { record, url } = readMint(request.postData(), answer);
+      minted.push(record);
       // Dropped before the page holds the handle, so its first serve already misses.
-      if (counts.mints <= (serving.droppedMints ?? 0)) {
-        dropped.add(new URL(cardFrameMintResponseSchema.parse(JSON.parse(answer.body.toString("utf8"))).url, request.url()).pathname);
+      if (url !== undefined && counts.mints <= (serving.droppedMints ?? 0)) {
+        dropped.add(new URL(url, request.url()).pathname);
       }
       await route.fulfill(answer);
       return;
@@ -94,6 +115,9 @@ export async function routeCardFrames(page: Page, root: ServerTestHarness, cooki
     },
     get misses(): number {
       return counts.misses;
+    },
+    get minted(): readonly CardFrameMintRecord[] {
+      return minted;
     },
   };
 }

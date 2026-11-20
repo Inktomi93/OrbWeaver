@@ -22,6 +22,10 @@
 // A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
 // The frame then mints again once (`useCardFrame`); a second miss renders the inert fallback, never the notice in
 // place of the reply.
+//
+// A FORMING frame draws one complete panel of a reply still streaming (`forming-panel.tsx`). Its mint asks for the
+// forming cap, so the server builds it static with no external media whatever the speaker's step (D354): its scripts
+// start only in the settled reply's frame, so it raises no script or media notice of its own.
 
 import { CARD_FRAME_OPEN_PANELS_ATTRIBUTE, cardFrameOpenPanelsValue, readCardFramePanels } from "@orb/kit/card-frame";
 import type { FrameStyleSheet } from "@orb/kit/content";
@@ -51,6 +55,8 @@ export interface ReplyFrameProps {
   readonly held: ReactNode;
   /** The inert rendering of the same run, shown whenever the frame cannot draw it. */
   readonly fallback: ReactNode;
+  /** A panel of a reply still streaming, minted under the forming cap. Absent ⇒ a settled run's frame. */
+  readonly forming?: boolean | undefined;
 }
 
 const BUBBLE_SLOT = "message-bubble";
@@ -122,7 +128,41 @@ function useRestoredPanels(origin: CardOrigin | undefined, bytes: string): reado
   return restored.panels;
 }
 
-export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
+// A run's built document: its markup and the look read off the page for it.
+interface BuiltReply {
+  readonly html: string;
+  readonly look: ReturnType<typeof resolveFrameReplyLook>;
+}
+
+// The mint for a built run: its bytes, the viewer's sandbox slice, the panels a reader left open, and the forming cap.
+function frameRequest(input: {
+  readonly cardOrigin: CardOrigin | undefined;
+  readonly built: BuiltReply | undefined;
+  readonly sandbox: ReturnType<typeof useSandboxTheme>;
+  readonly restoredPanels: readonly number[] | undefined;
+  readonly forming: boolean;
+}): Parameters<typeof useCardFrame>[0] {
+  const { cardOrigin, built, sandbox, restoredPanels, forming } = input;
+  if (cardOrigin === undefined || built === undefined) {
+    return undefined;
+  }
+  return {
+    ...cardOrigin,
+    html: built.html,
+    css: built.look.css,
+    // The frame's base rule paints from the sandbox slice, which the page's own token set does not name.
+    themeTokens: { ...built.look.themeTokens, ...sandbox.themeTokens },
+    styleTokens: sandbox.styleTokens,
+    fontFamily: sandbox.fontFamily,
+    rootAttributes:
+      restoredPanels === undefined
+        ? built.look.rootAttributes
+        : { ...built.look.rootAttributes, [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: cardFrameOpenPanelsValue(restoredPanels) },
+    ...(forming ? { forming: true } : {}),
+  };
+}
+
+export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback, forming = false }: ReplyFrameProps): ReactElement {
   const host = useRef<HTMLDivElement>(null);
   const sandbox = useSandboxTheme();
   const panelsBytes = JSON.stringify([segments, styles]);
@@ -134,23 +174,7 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
     (html) => (host.current === null ? undefined : { html, look: resolveFrameReplyLook(host.current, html) }),
   );
   const built = framed.state === "ready" ? framed.value : undefined;
-  const frame = useCardFrame(
-    cardOrigin === undefined || built === undefined
-      ? undefined
-      : {
-          ...cardOrigin,
-          html: built.html,
-          css: built.look.css,
-          // The frame's base rule paints from the sandbox slice, which the page's own token set does not name.
-          themeTokens: { ...built.look.themeTokens, ...sandbox.themeTokens },
-          styleTokens: sandbox.styleTokens,
-          fontFamily: sandbox.fontFamily,
-          rootAttributes:
-            restoredPanels === undefined
-              ? built.look.rootAttributes
-              : { ...built.look.rootAttributes, [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: cardFrameOpenPanelsValue(restoredPanels) },
-        },
-  );
+  const frame = useCardFrame(frameRequest({ cardOrigin, built, sandbox, restoredPanels, forming }));
   const { mint } = frame;
   const delivery = deliveryOf({
     routed: mint.state === "routed",
@@ -188,7 +212,7 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
         unframed
       )}
       {links.confirm}
-      {mint.state === "routed" && built !== undefined ? (
+      {mint.state === "routed" && built !== undefined && !forming ? (
         <>
           <FramedMediaNotice
             chatId={cardOrigin?.chatId}

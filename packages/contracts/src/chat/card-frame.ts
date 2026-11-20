@@ -73,7 +73,8 @@ const MAX_STRING_CODE_UNITS =
   MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS) +
   STYLE_TOKEN_NAMES.reduce((sum, name) => sum + name.length + MAX_FONT_FAMILY_CHARS, 0) +
   MAX_ROOT_ATTRIBUTES * (MAX_ROOT_ATTRIBUTE_NAME_CHARS + MAX_ROOT_ATTRIBUTE_VALUE_CHARS);
-const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":"","rootAttributes":{}}'.length;
+const JSON_ENVELOPE_BYTES =
+  '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":"","rootAttributes":{},"forming":true}'.length;
 const entryPunctuationBytes = (entries: number): number => entries * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (entries - 1);
 /** Byte cap for the raw mint POST. Derived from the accepted schema so transport cannot reject a valid mint. */
 export const CARD_FRAME_MINT_BODY_MAX_BYTES =
@@ -131,6 +132,11 @@ export const cardFrameMintRequestSchema = z.strictObject({
     .record(z.string().max(MAX_ROOT_ATTRIBUTE_NAME_CHARS), z.string().max(MAX_ROOT_ATTRIBUTE_VALUE_CHARS))
     .refine((r) => Object.keys(r).length <= MAX_ROOT_ATTRIBUTES, { error: `at most ${MAX_ROOT_ATTRIBUTES} root attributes` })
     .optional(),
+  /** The bytes are a panel of a reply still streaming: the room has not kept them yet, and a save-pass script, a stop
+   *  string or an abort can still remove them. It only NARROWS: the server builds the document under the static posture
+   *  with external media off whatever the selector resolves to, and keeps that cap on every serve. `data:` images still
+   *  follow the step, because they fetch nothing. Only `true` parses; absent is an ordinary mint. */
+  forming: z.literal(true).optional(),
 });
 /** Type twin of `cardFrameMintRequestSchema`. */
 export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;

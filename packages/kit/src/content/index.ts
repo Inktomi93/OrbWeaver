@@ -3016,17 +3016,21 @@ function pastRawText(lines: readonly Line[], end: number, covering: (offset: num
   return next;
 }
 
-/** Split a styled reply's text into prose and held HTML blocks (see the section note). Code fence regions stay text.
- *  Each prose segment has its `<style>` and `<script>` elements removed, and a prose segment that is only whitespace is
- *  dropped, so two held blocks read as one. A `<style>` or `<script>` element is one unit wherever it opens: the lines
- *  inside one that opened in prose stay that prose, and a block that one opens in ends past its close. */
-export function scanStyledHold(content: string): StyledHoldSegment[] {
+// One held unit of a styled reply: neighbouring HTML blocks with only whitespace between them, from the start of the
+// line that opens the first to the start of the line after the last, and whether every block in it has closed.
+type HeldUnitSegment =
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "unit"; readonly start: number; readonly end: number; readonly closed: boolean };
+
+// The scan both holds share (see the section note): prose with its `<style>` and `<script>` elements removed, and each
+// held unit. A prose segment that is only whitespace is dropped, so two held blocks read as one unit.
+function scanHeldUnits(content: string): HeldUnitSegment[] {
   const lines = splitLines(content);
   const { closes, rawText } = readMarkup(content, HOLD_READING);
   const covering = rawTextCursor(rawText);
   // Indented lines stay unread: the hold takes an indented tag line as markup (`TAG_NAME_START_RE`).
   const codeLine = codeLineReader(false);
-  const segments: StyledHoldSegment[] = [];
+  const segments: HeldUnitSegment[] = [];
   let pendingStart = 0;
   const flushText = (endExclusive: number): void => {
     const text = stripStyleElements(content.slice(pendingStart, endExclusive));
@@ -3052,15 +3056,61 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
       continue;
     }
     flushText(line.start);
-    if (segments.at(-1)?.kind !== "forming-markup") {
-      segments.push({ kind: "forming-markup" });
+    const blockEnd = pastRawText(lines, markupBlockEnd(lines, i, closes), covering);
+    // A block whose end is the last line has not closed for good: its close or its line may still be arriving.
+    const closed = blockEnd < lines.length;
+    const end = lines[blockEnd]?.start ?? content.length;
+    const previous = segments.at(-1);
+    if (previous?.kind === "unit") {
+      segments[segments.length - 1] = { kind: "unit", start: previous.start, end, closed: previous.closed && closed };
+    } else {
+      segments.push({ kind: "unit", start: line.start, end, closed });
     }
-    i = pastRawText(lines, markupBlockEnd(lines, i, closes), covering);
-    pendingStart = lines[i]?.start ?? content.length;
+    i = blockEnd;
+    pendingStart = end;
     inParagraph = false;
   }
   flushText(content.length);
   return segments;
+}
+
+/** Split a styled reply's text into prose and held HTML blocks (see the section note). Code fence regions stay text.
+ *  Each prose segment has its `<style>` and `<script>` elements removed, and a prose segment that is only whitespace is
+ *  dropped, so two held blocks read as one. A `<style>` or `<script>` element is one unit wherever it opens: the lines
+ *  inside one that opened in prose stay that prose, and a block that one opens in ends past its close. */
+export function scanStyledHold(content: string): StyledHoldSegment[] {
+  return scanHeldUnits(content).map((segment) => (segment.kind === "unit" ? { kind: "forming-markup" } : segment));
+}
+
+/** One segment of a reply still streaming: prose, a held unit still forming, or a held unit complete in its bytes. */
+export type FormingPanelSegment = StyledHoldSegment | { readonly kind: "panel"; readonly markup: string };
+
+// Whether a line with something on it has ended at or after `from`: once one follows a unit, no later byte can join
+// that unit. The first non-space decides it, since a newline after any later one is also after the first; one scan, so
+// a long unended tail costs its length once on each streamed render.
+function endsNonblankLineAfter(content: string, from: number): boolean {
+  const nonblank = /\S/gu;
+  nonblank.lastIndex = from;
+  const found = nonblank.exec(content);
+  return found !== null && content.includes("\n", found.index);
+}
+
+/**
+ * {@link scanStyledHold} for a reply still streaming, with each held unit that is complete given its bytes. A unit is
+ * complete when every block in it has closed and a non-blank line after it has ended: under append its bytes can no
+ * longer change, since that line is prose (a block there would already have joined the unit) and an ended prose line
+ * never becomes markup. A line still arriving can (`<d` becomes `<div>`), so it completes nothing. Every other unit is
+ * still forming and carries no bytes, so half-written markup never leaves the hold.
+ */
+export function scanFormingPanels(content: string): FormingPanelSegment[] {
+  return scanHeldUnits(content).map((segment) => {
+    if (segment.kind === "text") {
+      return segment;
+    }
+    return segment.closed && endsNonblankLineAfter(content, segment.end)
+      ? { kind: "panel", markup: content.slice(segment.start, segment.end) }
+      : { kind: "forming-markup" };
+  });
 }
 
 /** A stretch of a text: offsets of its first character and just past its last. */

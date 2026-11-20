@@ -1,9 +1,11 @@
 // @subject packages/server/src/entry/http/card-frame.ts
 // A routed card's grants are read again on every serve: a member mints a trusted, interactive card that may load
 // external media, then one grant is withdrawn between the mint and the serve, and the served policy loses exactly
-// that grant. A grant added after the mint never reaches the handle. A viewer's script consent is read off their stored
+// that grant. A grant added after the mint never reaches the handle, and a forming mint (a panel of a reply still
+// streaming) is capped at the static posture with no external media for its whole life. A viewer's script consent is read off their stored
 // settings, and a blob this build cannot read faithfully is no consent at all (D294). Everything runs over the real HTTP
 // entry.
+import type { CardFrameMintRequest } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
@@ -48,12 +50,16 @@ async function grantedRoom(root: AuthModeRoot): Promise<GrantedRoom> {
   return { root, host, member, memberCaller, chatId: chat.id, characterId: card.id };
 }
 
-async function mint(room: GrantedRoom): Promise<{ readonly url: string; readonly granted: Granted }> {
-  const response = await room.root.http.request(CARD_FRAME_ROUTE, {
+async function postMint(room: GrantedRoom, extra: Readonly<Record<string, unknown>> = {}): Promise<Response> {
+  return await room.root.http.request(CARD_FRAME_ROUTE, {
     method: "POST",
     headers: { ...room.member.headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
-    body: JSON.stringify({ chatId: room.chatId, characterId: room.characterId, html: CARD_HTML }),
+    body: JSON.stringify({ chatId: room.chatId, characterId: room.characterId, html: CARD_HTML, ...extra }),
   });
+}
+
+async function mint(room: GrantedRoom, request: Pick<CardFrameMintRequest, "forming"> = {}): Promise<{ readonly url: string; readonly granted: Granted }> {
+  const response = await postMint(room, request);
   expect(response.status).toBe(200);
   return cardFrameMintResponseSchema.parse(await response.json());
 }
@@ -177,4 +183,28 @@ test("a viewer whose stored settings are not JSON still gets the card, static", 
   const minted = await mint(room);
   expect(minted.granted).toEqual({ externalMedia: true, inlineData: true, interactive: false });
   expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "static"));
+});
+
+test("a forming mint of a card with every grant serves static with no external media, and no serve lifts the cap", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  // Positive control: the same bytes minted as settled carry every grant.
+  await mintWithEveryGrant(room);
+  const forming = await mint(room, { forming: true });
+  expect(forming.granted).toEqual({ externalMedia: false, inlineData: true, interactive: false });
+  const capped = buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "static");
+  expect(await servedPolicy(room, forming.url)).toBe(capped);
+  // Every grant is still current on the box, so a serve re-resolving the selector alone would widen; the stored cap holds.
+  expect((await mint(room)).granted).toEqual({ externalMedia: true, inlineData: true, interactive: true });
+  expect(await servedPolicy(room, forming.url)).toBe(capped);
+});
+
+test("a forming flag other than true is refused, so the field can only narrow a mint", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  for (const forming of [false, "true", 1, null]) {
+    expect((await postMint(room, { forming })).status, JSON.stringify(forming)).toBe(400);
+  }
+  // Positive control: the same request without the flag mints.
+  expect((await postMint(room)).status).toBe(200);
 });
