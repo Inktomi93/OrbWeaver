@@ -19,7 +19,7 @@ A user who leaves must not be stuck: their data has to go back to the tool they 
 
 ## Done when
 
-Each kind exports to the SillyTavern format, and a round trip (SillyTavern sample, import, export, then load in the SillyTavern checkout or validate against its parser) keeps the content, proven by a test per kind; the whole-profile export loads in SillyTavern; and the export names what it could not carry.
+Each kind exports in the shape and layout that one of SillyTavern's own import doors accepts (a per-item import button, a drop target, or a data folder laid out for a user directory), and the export says which door takes each file. A round trip per kind (SillyTavern sample, import here, export, then import through that door in the SillyTavern checkout, or through the server route or parser the door calls) keeps the content, proven by a test. The whole-profile export loads when placed as a SillyTavern user data folder. The export names what it could not carry.
 
 ## Evidence
 
