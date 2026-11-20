@@ -116,7 +116,7 @@ To get green, never add a lint suppression for a real finding, a dep-cruiser exe
 | Which files keep getting fixed or churned | `pnpm hotspots` |
 | Literal text, config | `rg`; the Bash `grep` differs by harness: a ugrep wrapper that honors ignore files in Claude Code, GNU grep elsewhere. Read law docs in full: a ruling lives in the context around a line |
 
-- In a worktree, pass your worktree's absolute path as `projectPath` to every CodeGraph MCP tool, or the answer reads main. The server's watcher re-indexes your edits; `codegraph sync` fails on its lock while the server runs.
+- In a worktree, `.claude/hooks/codegraph-project.mjs` routes every CodeGraph MCP call to that worktree's index. The server's watcher re-indexes your edits; `codegraph sync` fails on its lock while the server runs.
 - A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.
 - A zero result counts only with a non-zero `scanned=` count and a second method. The evidence rules are in the `code-recon` skill.
 
