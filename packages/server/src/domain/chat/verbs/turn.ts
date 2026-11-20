@@ -30,7 +30,8 @@
 // A member's release while the host is dark defers exactly as that member's send would, so it never spends the dark
 // host's connection; the queued row then makes every later press a no-op until the drain answers the line once.
 // A Stop on that queued reply settles the debt, with or without kept text (D332): nothing is queued again, billed or
-// failed at a host handoff. A fault, a stale abort or a shutdown is not a Stop and leaves the row queued.
+// failed at a host handoff. A fault, a stale abort or a shutdown before any text is not a Stop and leaves the row
+// queued; a shutdown after text keeps the text as the reply, which settles the debt (D332).
 // `generate` stays lock-free and unclaimed: the wand and the empty send ask for an extra reply on purpose.
 // - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
 //   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.

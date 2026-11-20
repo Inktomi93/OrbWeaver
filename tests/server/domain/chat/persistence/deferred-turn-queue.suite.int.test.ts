@@ -6,7 +6,7 @@
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
 import type { NotificationType } from "@orb/contracts/notifications";
-import { messages, notifications, pendingTurns } from "@orb/db";
+import { messages, messageVariants, notifications, pendingTurns } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
@@ -19,6 +19,7 @@ import { textRoom } from "../scenario-physical.ts";
 const DRAIN_TIMEOUT_MS = 10_000;
 const KEPT = "The lantern gutters as the door";
 const USER_STOP = "user" satisfies TurnAbortReason;
+const SHUTDOWN = "shutdown" satisfies TurnAbortReason;
 const DROPPED_NOTICE = "deferred-turn-dropped" satisfies NotificationType;
 
 test("a member's host-offline send queues the frozen identity and the host reconnecting consumes it once", async () => {
@@ -164,6 +165,34 @@ test("a shutdown that cuts an owed reply before any text is not a Stop: the debt
     reply.release();
     await settled;
   }
+});
+
+test("a shutdown that cuts an owed reply after text keeps the text, which settles the debt: no re-queue, no second reply", async () => {
+  using held = await freshHeldDb();
+  const partial = corePartialReply([coreFrame({ choices: [{ delta: { content: KEPT } }] })]);
+  await using ownership = new AsyncDisposableStack();
+  const room = ownership.use(await owedRoom([partial.respond], { server: { db: held.db } }));
+  const draining = room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId });
+  const settled = Promise.allSettled([draining]);
+  try {
+    await Promise.race([
+      partial.streamed,
+      draining.then(() => {
+        throw new Error("the drain settled before the shutdown point");
+      }),
+    ]);
+    await ownership.disposeAsync();
+    expect(await draining).toEqual({ ran: 1, dropped: 0 });
+  } finally {
+    await settled;
+  }
+  expect(await held.db.select().from(pendingTurns).where(eq(pendingTurns.chatId, room.h.chatId))).toEqual([]);
+  expect(await held.db.select().from(notifications).where(eq(notifications.type, DROPPED_NOTICE))).toEqual([]);
+  expect((await held.db.select().from(messages).where(eq(messages.chatId, room.h.chatId)).orderBy(messages.seq)).map(({ role }) => role)).toEqual([
+    "user",
+    "assistant",
+  ]);
+  expect(await held.db.select().from(messageVariants).where(eq(messageVariants.content, KEPT))).toMatchObject([{ content: KEPT, terminalReason: SHUTDOWN }]);
 });
 
 /** A stream that delivers one text frame and then loses its connection. Text has streamed, so the provider layer

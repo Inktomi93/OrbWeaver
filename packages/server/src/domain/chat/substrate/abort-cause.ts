@@ -28,3 +28,12 @@ const SETTLES_OWED_REPLY: Readonly<Record<TurnAbortReason, boolean>> = { user: t
 export function abortSettlesOwedReply(reason: TurnAbortReason): boolean {
   return SETTLES_OWED_REPLY[reason];
 }
+
+// A mapped Record, so a new abort reason fails `tsc` until it says whether text already streamed is kept.
+const KEEPS_STREAMED_TEXT: Readonly<Record<TurnAbortReason, boolean>> = { user: true, error: false, stale: false, shutdown: true };
+
+/** Whether an abort commits the text that had already streamed as the reply. A Stop and a shutdown do: once the
+ *  text is there it stays. A fault or a lost lock never does, since the canon write is not safe or not wanted. */
+export function abortKeepsStreamedText(reason: TurnAbortReason): boolean {
+  return KEEPS_STREAMED_TEXT[reason];
+}
