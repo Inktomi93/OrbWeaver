@@ -41,7 +41,7 @@ The folder layout is SillyTavern's `USER_DIRECTORY_TEMPLATE` (`src/constants.js:
 | Character galleries | `user/images/<folder>/`, `extension_settings.gallery.folders` | imported into the gallery of each card the folder belongs to; a folder no card owns and a loose file are skipped and named | `packages/server/src/domain/import/loader/collect.ts:862` | `tests/server/domain/import/persistence/import-databank-gallery.int.test.ts` | `POST /api/images/upload` (`src/endpoints/images.js:39`) |
 | Backgrounds | `backgrounds/` | imported into the background library | `packages/server/src/domain/import/loader/collect.ts:476` | `tests/server/domain/import/persistence/import-preview-profiles.int.test.ts`, `tests/server/domain/import/persistence/st-background-types.int.test.ts` | `uploadBackground` (`public/scripts/backgrounds.js:1547`), `POST /api/backgrounds/upload` (`src/endpoints/backgrounds.js:135`) |
 | Themes | `themes/*.json` | imported; a key with no seat here is named | `packages/server/src/domain/import/loader/collect.ts:451` | `tests/server/domain/import/persistence/import-preview-profiles.int.test.ts`, `tests/server/domain/import/persistence/st-theme-report.int.test.ts` | `importTheme` (`public/scripts/power-user.js:2457`), `POST /api/themes/save` (`src/endpoints/themes.js:10`) |
-| User settings, appearance | `settings.json` `power_user` | imported where an appearance setting has a seat; the rest is named | `packages/server/src/domain/import/loader/collect.ts:646` | unit only, `tests/server/domain/import/substrate/appearance.test.ts`; the folder run: gap | `POST /api/settings/save` (`src/endpoints/settings.js:206`), the data folder only |
+| User settings, appearance | `settings.json` `power_user` | imported where an appearance setting has a seat; the rest is named | `packages/server/src/domain/import/loader/collect.ts:646` | `tests/server/domain/import/persistence/st-power-user-appearance.int.test.ts` | `POST /api/settings/save` (`src/endpoints/settings.js:206`), the data folder only |
 | User settings, other sections | `settings.json` | no home; the report names each section with its reason | `packages/contracts/src/import/index.ts` | `tests/server/domain/import/persistence/import-preview.int.test.ts` | the data folder only |
 | Saved window layout | `movingUI/` | no home | `packages/server/src/domain/import/loader/collect.ts:622` | `tests/server/domain/import/persistence/import-preview.int.test.ts` | `POST /api/moving-ui/save` (`src/endpoints/moving-ui.js:8`) |
 | Extensions, extension assets | `extensions/`, `assets/` | no home: code and its media, not user data | `packages/server/src/domain/import/loader/collect.ts:622` | `tests/server/domain/import/persistence/import-preview.int.test.ts` | `POST /api/extensions/install` (`src/endpoints/extensions.js:92`) |
@@ -50,6 +50,16 @@ The folder layout is SillyTavern's `USER_DIRECTORY_TEMPLATE` (`src/constants.js:
 | API keys | `secrets.json` | never uploaded, staged or imported | `packages/contracts/src/import/index.ts` | `tests/server/domain/import/persistence/import-profile-zip.int.test.ts` | none |
 
 The reasons the report shows for each no-home kind live in `ST_PROFILE_UNHANDLED_REASONS` and `ST_SETTINGS_UNHANDLED_REASONS` in `packages/contracts/src/import/index.ts`.
+
+## Profile export
+
+The library export door's `sillytavern` format writes the library as `data/default-user/` in the layout above. The plan is `packages/server/src/domain/export/verbs/export-st-profile.ts`. It returns the files and the report together, so the dry run, the zip's `orbweaver-export-report.json` and the client preview read one value.
+
+- `ST_EXPORT_DOORS` in `packages/contracts/src/import/st-export.ts` names the SillyTavern door for each import preview kind, so a new kind fails `tsc` until the export names its door.
+- `ST_EXPORT_LEFT_REASONS` in the same file names why a row stays here. The report lists every such row.
+- A group room exports as `groups/<id>.json` with its transcript in `group chats/`. A persona carries its own avatar; a persona with no image stays here.
+- `tests/server/domain/import/persistence/export-sillytavern.int.test.ts` checks each file against a port of its SillyTavern door's validation and imports the tree back. `tests/server/domain/import/persistence/st-power-user-appearance.int.test.ts` checks the appearance round trip.
+- `scripts/st-export-boot.ts` boots a scratch copy of a SillyTavern checkout on an export. It is a local tool, outside CI.
 
 ## Rejected
 

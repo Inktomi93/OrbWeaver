@@ -27,15 +27,7 @@ export const ST_EXPORT_REPORT_FILE = "orbweaver-export-report.json";
 
 /** The SillyTavern import doors an exported file is shaped for. `data-folder` is the user directory itself, which
  *  SillyTavern reads when the profile is placed under its data root. */
-export const ST_IMPORT_DOORS = [
-  "character-import",
-  "chat-import",
-  "world-info-import",
-  "preset-import",
-  "theme-import",
-  "background-upload",
-  "data-folder",
-] as const;
+const ST_IMPORT_DOORS = ["character-import", "chat-import", "world-info-import", "preset-import", "theme-import", "background-upload", "data-folder"] as const;
 export type StImportDoor = (typeof ST_IMPORT_DOORS)[number];
 
 /** The door that takes each kind back: the SillyTavern route or client function the import inventory names for it
@@ -60,7 +52,7 @@ export const ST_EXPORT_DOORS = {
  *  a scoped regex script travels only inside the card or preset it runs on. `unreadable`: the stored row or its
  *  blob did not read. `persona-without-art`: SillyTavern lists a persona only by its avatar image, and this one has
  *  none. */
-export const ST_EXPORT_LEFT_REASONS = ["no-sillytavern-home", "no-sillytavern-field", "rides-its-card-or-preset", "unreadable", "persona-without-art"] as const;
+const ST_EXPORT_LEFT_REASONS = ["no-sillytavern-home", "no-sillytavern-field", "rides-its-card-or-preset", "unreadable", "persona-without-art"] as const;
 export type StExportLeftReason = (typeof ST_EXPORT_LEFT_REASONS)[number];
 
 const stExportFileSchema = z.strictObject({

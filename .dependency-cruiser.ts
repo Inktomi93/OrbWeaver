@@ -582,6 +582,8 @@ const TEST_CONSTANT_HOMES = {
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
   "packages/client/src/features/workloads/lib/import-library-names.ts":
     "IMPORT_FOLDER_NAME and its siblings: the import section's doors, its preflight report and the persona review's answers",
+  "packages/client/src/features/workloads/lib/st-export-names.ts":
+    "ST_EXPORT_OPEN_NAME and its siblings: the SillyTavern export's preflight, its door names and its left-behind reasons",
   "packages/client/src/features/workloads/lib/workloads-names.ts":
     "WORKLOAD_JOB_FIELD_NAME and its siblings: the Jobs, Schedules, export and tuning sections' names",
   "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",

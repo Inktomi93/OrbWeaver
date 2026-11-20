@@ -48,10 +48,8 @@ export {
   ST_EXPORT_DOORS,
   ST_EXPORT_DRY_RUN_QUERY,
   ST_EXPORT_FORMAT,
-  ST_EXPORT_LEFT_REASONS,
   ST_EXPORT_PROFILE_DIR,
   ST_EXPORT_REPORT_FILE,
-  ST_IMPORT_DOORS,
   stExportReportSchema,
   stProfileExportPath,
 } from "./st-export.ts";
