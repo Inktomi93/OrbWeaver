@@ -5,7 +5,6 @@
 // controls need scripts the frame's posture does not run shows its framed-script notice. The chat transcript and the
 // game's card archive both draw authored markup, so both mount these from this one home.
 
-import { installAllowsCardScripts } from "@orb/contracts/chat";
 import { viewerRunsCardScripts } from "@orb/contracts/settings";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { PlainNoticeAction } from "@orb/ui/immersive-card";
@@ -63,7 +62,7 @@ const FRAMED_MEDIA_REMEDY_LINE: Record<PlainRemedy, string | undefined> = {
 const HELD_CARDS_CAUSE = "This reply holds HTML the game would draw as a card, and immersive HTML cards are off in this game, so it is not drawn as one.";
 const GAME_SETTINGS_ACTION_LABEL = "Open the game's settings";
 const FRAMED_SCRIPT_CAUSE: Record<FramedScriptReason, (name: string) => string> = {
-  "install-scripts": () => `This server's ${DEFAULT_HTML_STEP_SETTING_LABEL} is below Interactive, so the controls here do nothing.`,
+  "install-scripts": (name) => `${name} uses this server's ${DEFAULT_HTML_STEP_SETTING_LABEL}, which is below Interactive, so the controls here do nothing.`,
   "character-scripts": (name) => `${name} isn't set to Interactive, so the controls here do nothing.`,
   "viewer-scripts": () => "Your setting for scripts in cards and styled replies is off, so the controls here do nothing.",
   "unattributed-scripts": () => "No character's settings cover this message, so its controls do nothing.",
@@ -233,11 +232,10 @@ export function PlainReplyNotice({ reason }: { readonly reason: PlainReplyReason
 export function FramedScriptNotice({ chatId, characterId, html, granted }: Omit<FramedMediaNoticeProps, "css">): ReactElement | null {
   const trpc = useTRPC();
   const { isAdmin } = useSettingsViewerView();
-  const config = useAuthConfig().data;
   const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
   const { data: room } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   // Until every read lands the binding consent is unknown, and naming a guess would send the reader to the wrong one.
-  if (config === undefined || settings === undefined || room === undefined) {
+  if (settings === undefined || room === undefined) {
     return null;
   }
   const verdict = resolveFramedScriptVerdict(
@@ -245,7 +243,6 @@ export function FramedScriptNotice({ chatId, characterId, html, granted }: Omit<
       characterId,
       participants: buildParticipantsById(room.participants),
       narrator: room.narratorRender,
-      installAllowsScripts: installAllowsCardScripts(config),
       viewerRunsScripts: viewerRunsCardScripts(settings),
       viewerIsHost: room.viewerIsHost,
     },

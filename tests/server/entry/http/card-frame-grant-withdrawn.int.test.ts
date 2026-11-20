@@ -5,9 +5,10 @@
 // streaming) is capped at the static posture with no external media for its whole life. A viewer's script consent is read off their stored
 // settings, and a blob this build cannot read faithfully is no consent at all (D294). A mint that carries another
 // character's stylesheets loads external media only while that character allows it too, at mint and on every serve
-// (UI-Theming-and-Content §12.2). Everything runs over the real HTTP entry.
+// (UI-Theming-and-Content §12.2). A character's own Interactive step runs scripts under any "Default for characters",
+// while an inheriting character takes the default (D294). Everything runs over the real HTTP entry.
 import type { CardFrameMintRequest } from "@orb/contracts/chat";
-import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
+import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_ROUTE, cardFrameMintResponseSchema, renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
@@ -147,6 +148,43 @@ test.for(Object.entries(WITHDRAWALS))("%s between mint and serve narrows the ser
   const url = await mintWithEveryGrant(room);
   await withdrawal.withdraw(room);
   expect(await servedPolicy(room, url)).toBe(buildCardFrameCsp(withdrawal.media, "document", withdrawal.posture));
+});
+
+test("a character set to Interactive runs scripts under a lower default, and only the viewer's switch holds them", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await room.host.character.update({ characterId: room.characterId, input: renderPolicyOverrideForStep("interactive") });
+  await room.host.settings.updateAppSettings({ partial: { defaultHtmlStep: "trusted" } });
+  const minted = await mint(room);
+  expect(minted.granted).toEqual({ externalMedia: true, inlineData: true, interactive: true });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "interactive"));
+  // The default dropping further after the mint does not reach a character with its own step.
+  await room.host.settings.updateAppSettings({ partial: { defaultHtmlStep: "untrusted" } });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "interactive"));
+  await room.memberCaller.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: false } });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "static"));
+});
+
+test("an inheriting character under a Rich HTML default runs no scripts until its own step is Interactive", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await room.host.settings.updateAppSettings({ partial: { defaultHtmlStep: "trusted" } });
+  const inherited = await mint(room);
+  expect(inherited.granted).toEqual({ externalMedia: true, inlineData: true, interactive: false });
+  expect(await servedPolicy(room, inherited.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "static"));
+  // Positive control: the same room and default, with the character's own step at Interactive, mints scripts.
+  await room.host.character.update({ characterId: room.characterId, input: renderPolicyOverrideForStep("interactive") });
+  expect((await mint(room)).granted).toEqual({ externalMedia: true, inlineData: true, interactive: true });
+});
+
+test("a member cannot set the host's character to Interactive, so a Rich HTML default still holds its scripts", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await room.host.settings.updateAppSettings({ partial: { defaultHtmlStep: "trusted" } });
+  await expect(room.memberCaller.character.update({ characterId: room.characterId, input: renderPolicyOverrideForStep("interactive") })).toThrowTRPCError(
+    "NOT_FOUND",
+  );
+  expect((await mint(room)).granted).toEqual({ externalMedia: true, inlineData: true, interactive: false });
 });
 
 test("a grant given after the mint never reaches the handle minted without it", async () => {

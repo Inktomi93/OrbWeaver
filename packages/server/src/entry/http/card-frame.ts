@@ -14,17 +14,19 @@
 // among the present character seats (`resolveNarratorRenderPolicy`, the value `ChatDetail.narratorRender` carries).
 // Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
 // absent from the room, `characterId: null`, `renderPolicy` absent on the row. The viewer's own settings (the
-// script-consent input below) are read only when the install and the author's step already allow scripts; a failed
-// read there gives that document the static posture, so one bad read never blanks a room.
+// script-consent input below) are read only when the author's step already allows scripts; a failed read there gives
+// that document the static posture, so one bad read never blanks a room.
 //
 //   • the MEDIA GRANT ⇐ `resolveCardMediaVerdict` (`@orb/contracts/chat`), the one rule the client's media notice
 //     also reads: `https:` media only while the app-tier ceiling allows it AND the participant does not forbid it
 //     (the ceiling read HERE, per mint, off the same live `getEffectiveConfig()` thunk the app-document CSP reads),
 //     and `data:` images from Rich HTML up. Both are re-resolved on every SERVE and only ever narrowed (see the GET).
-//   • the SCRIPT POSTURE ⇐ `resolveCardScriptVerdict`: the TOP step of that same ladder AND the install's step being
-//     `interactive` AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
-//     ALL THREE say yes, `static` otherwise and on every selector failure. It selects which `CardFramePosture`
-//     the response policy is built through and is echoed as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
+//   • the SCRIPT POSTURE ⇐ `resolveCardScriptVerdict`: the TOP step of that same ladder AND the viewer's own
+//     `chat.runCardScripts` consent — `interactive` only when BOTH say yes, `static` otherwise and on every selector
+//     failure. The install's "Default for characters" is no separate input: it reaches the posture only as the step an
+//     INHERITING character resolves to, and a character its owner set to Interactive runs scripts under any default
+//     (D294). The step is the server's own roster value, never the mint body's. It selects which `CardFramePosture`
+//     the response policy is built through and is echoed as `granted.interactive`. The interactive arm emits
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
 //     and recorded in `@orb/kit/card-frame`.
@@ -113,16 +115,9 @@ export interface CardFrameDeps {
   readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
   readonly allowExternalMedia: () => boolean;
-  /** The live app-tier INTERACTIVE-CARD ceiling (`installAllowsCardScripts` over `effectiveConfig`, floor TRUE).
-   *  Read here per mint for the same reason `allowExternalMedia` is: `resolveRenderPolicy` already folded
-   *  it into the ladder, and this is the boundary that must still hold if that resolver is ever weakened.
-   *  It is the ONLY box-wide control over residual R1 (`@orb/kit/card-frame`), so it is read again on every
-   *  SERVE of an interactive document: switching it off withdraws card scripts from the next frame load,
-   *  even for a handle minted before the switch. */
-  readonly installAllowsCardScripts: () => boolean;
   /** The VIEWER's own consent (`viewerRunsCardScripts`): may card scripts run in this caller's browser? Read per mint
-   *  and per serve when the install and the author's step allow scripts, so turning it off reaches a handle minted
-   *  before the switch, exactly as the deployment ceiling does. A rejection reads as no. */
+   *  and per serve when the author's step allows scripts, so turning it off reaches a handle minted before the
+   *  switch, exactly as lowering the author's step does. A rejection reads as no. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
   /** Hears each turn that ends in a room, completed or aborted; returns the unsubscribe. */
   readonly onTurnEnded: (listener: (chatId: ChatId) => void) => () => void;
@@ -214,14 +209,13 @@ async function resolvePolicy(deps: CardFrameDeps, principal: Principal, selector
   if (policy === null) {
     return FRAME_POLICY_FLOOR;
   }
-  // The deployment ceilings are passed HERE as well as folded inside `resolveRenderPolicy`: this is the boundary that
+  // The external-media ceiling is passed HERE as well as folded inside `resolveRenderPolicy`: this is the boundary that
   // must hold if that resolver is ever weakened. The step is the server's own membership-gated roster value — the
   // mint body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled key).
   const media = resolveCardMediaVerdict({ installForbids: !deps.allowExternalMedia(), policy });
-  const installAllows = deps.installAllowsCardScripts();
-  // The viewer's consent is asked only when the other two allow scripts; a failed read is a no, so the document
+  // The viewer's consent is asked only when the author's step allows scripts; a failed read is a no, so the document
   // still serves, static, rather than erroring (D294).
-  const viewerRuns = cardScriptsNeedViewerConsent({ installAllows, step: policy.htmlTrust }) && (await readViewerConsent(deps, principal));
+  const viewerRuns = cardScriptsNeedViewerConsent({ step: policy.htmlTrust }) && (await readViewerConsent(deps, principal));
   // Carried stylesheets are CSS only, so they narrow the media grant and never the posture or `data:` images, which
   // fetch nothing.
   const externalMedia = media.external.loads && (await carriedAuthorsAllowMedia(deps, principal, selector));
@@ -229,7 +223,7 @@ async function resolvePolicy(deps: CardFrameDeps, principal: Principal, selector
     media: { allowExternalMedia: externalMedia, allowInlineData: media.inlineData },
     // THE PER-DOCUMENT POSTURE SELECTION: the interactive posture emits `script-src 'unsafe-inline'` and the card's own
     // scripts RUN. `resolveCardScriptVerdict` is the one home of the rule.
-    posture: resolveCardScriptVerdict({ installAllows, step: policy.htmlTrust, viewerRuns }).runs ? "interactive" : "static",
+    posture: resolveCardScriptVerdict({ step: policy.htmlTrust, viewerRuns }).runs ? "interactive" : "static",
   };
 }
 
@@ -349,9 +343,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return served(NOT_FOUND, MISS_DOC, CARD_FRAME_FLOOR_CSP);
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
-    // only at mint would outlive an admin switching interactive cards or external media off, a host moving
-    // the character to a lower rung or forbidding its media, the viewer leaving the room, or the viewer
-    // turning card scripts off. A named-character document is therefore re-resolved on every serve, through
+    // only at mint would outlive an admin lowering the default an inheriting character takes or blocking external
+    // media, a host moving the character to a lower rung or forbidding its media, the viewer leaving the room, or
+    // the viewer turning card scripts off. A named-character document is therefore re-resolved on every serve, through
     // the same membership-gated read as the mint, and served under the narrower of what it was minted with
     // and what it would mint now. A serve can only withdraw a grant, never add one.
     if (entry.grant !== undefined) {

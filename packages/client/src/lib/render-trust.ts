@@ -301,15 +301,13 @@ export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsA
 const FRAMED_SCRIPT_REASONS = ["install-scripts", "character-scripts", "viewer-scripts", "unattributed-scripts"] as const;
 export type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
 
-/** A framed card's or styled reply's mint selector, beside the roster, install and settings reads every viewer has. */
+/** A framed card's or styled reply's mint selector, beside the roster and settings reads every viewer has. */
 export interface FramedScriptSubject {
   /** The character the frame was minted for (`CardOrigin.characterId`). */
   readonly characterId: CharacterId | null;
   readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
   /** The room's narrator policy (`ChatDetail.narratorRender`). */
   readonly narrator: NarratorRenderPolicy | undefined;
-  /** Whether the install's "Default for characters" is Interactive, as `/api/auth/config` serves it to every viewer. */
-  readonly installAllowsScripts: boolean;
   /** The viewer's own consent, read through `viewerRunsCardScripts`. */
   readonly viewerRunsScripts: boolean;
   readonly viewerIsHost: boolean;
@@ -334,28 +332,35 @@ function framedScriptAuthor(subject: FramedScriptSubject): RowAuthor {
 }
 
 /** Which consent holds a framed row's own scripts off and where this viewer can change it, or `undefined` when they
- *  run. The rule is the card-frame route's own (`resolveCardScriptVerdict`), over the same three reads, so this names
- *  the consent the route applied. A row no seated policy covers mints at the static floor, which no setting lifts. */
+ *  run. The rule is the card-frame route's own (`resolveCardScriptVerdict`), over the same reads, so this names the
+ *  consent the route applied. A row no seated policy covers mints at the static floor, which no setting lifts. */
 export function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerIsAdmin: boolean): FramedScriptVerdict | undefined {
   const { characterId, seat, policy, source } = framedScriptAuthor(subject);
   const unnamed = { characterId: null, characterName: undefined };
   if (policy === undefined) {
     return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
   }
-  const verdict = resolveCardScriptVerdict({ installAllows: subject.installAllowsScripts, step: policy.htmlTrust, viewerRuns: subject.viewerRunsScripts });
+  const verdict = resolveCardScriptVerdict({ step: policy.htmlTrust, viewerRuns: subject.viewerRunsScripts });
   if (verdict.runs) {
     return undefined;
   }
   switch (verdict.heldBy) {
-    case "install":
-      return { reason: "install-scripts", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
-    case "character":
+    case "character": {
       // A seat with no card, or a room with no consenting host, never reaches the interactive step, and no setting
       // of a character's lifts it.
       if (source === "no-card" || source === "no-host" || characterId === null) {
         return { reason: "unattributed-scripts", remedy: "none", ...unnamed };
       }
-      return { reason: "character-scripts", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
+      // An inheriting character's step is the install's default: the admin lifts it there, and the host by giving the
+      // character its own Interactive step, the same remedies as a plain row's.
+      const inherited = source === "inherited";
+      return {
+        reason: inherited ? "install-scripts" : "character-scripts",
+        remedy: plainRemedy(inherited ? "install" : "character", subject.viewerIsHost, viewerIsAdmin),
+        characterId,
+        characterName: seat?.displayName,
+      };
+    }
     case "viewer":
       return { reason: "viewer-scripts", remedy: "own-scripts", ...unnamed };
     default:

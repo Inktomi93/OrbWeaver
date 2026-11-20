@@ -76,13 +76,13 @@ The vocabulary drifts too. The Trust tab says Plain text, Rich HTML and Interact
 
 ### The model
 
-One install control replaces the two install switches. It is a ladder select named "Default for characters": Plain text, Rich HTML, Interactive. An inheriting character takes it. It is also the script ceiling: below Interactive, no card or styled reply runs scripts, whatever a character says. A character's own Plain text or Rich HTML still wins over it, as today.
+One install control replaces the two install switches. It is a ladder select named "Default for characters": Plain text, Rich HTML, Interactive. An inheriting character takes it. A character's own step wins over it, Interactive included: below Interactive, an inheriting character's cards and styled replies run no scripts, and a character set to Interactive still does.
 
 The room switch and the character step stay two consents, and the difference is stated on both surfaces. The character step decides what that character's content may do: scripts, and `data:` images. The room switch decides whether card markup in a game draws as a card at all. Every card it draws sits in the sandbox, static unless the speaker's step allows scripts.
 
 | Author | Default for characters | Character step | Room immersive switch | Viewer script switch | External media |
 | - | - | - | - | - | - |
-| Character with its own step | Interactive is the only value it needs: below it, an Interactive character draws as Rich HTML | Decides the tier and, at Interactive, scripts | On: its cards draw in the frame even at Plain text, static unless its step is Interactive | Off or unreadable: static for this viewer | Install forbid OR character forbid, through one verdict function |
+| Character with its own step | Not consulted: its own step wins | Decides the tier and, at Interactive, scripts | On: its cards draw in the frame even at Plain text, static unless its step is Interactive | Off or unreadable: static for this viewer | Install forbid OR character forbid, through one verdict function |
 | Inheriting character | Its step | Inherit default | As above | As above | As above |
 | Narrator row | Through its seats | The lowest present seat, unchanged | As above | As above | As its seats |
 | Seat with no readable card, or no consenting host | Not consulted | Always Plain text | As above | No scripts ever | The install setting, unchanged |
@@ -93,8 +93,8 @@ The room switch and the character step stay two consents, and the difference is 
 
 Settings and their new text:
 
-- "Default for characters" (Plain text, Rich HTML, Interactive). Hint: characters on Inherit default use this, and below Interactive no card or styled reply runs scripts. Stored as one key, `AppSettings.defaultHtmlStep`, floor `interactive`. The v11 to v12 lift in `APP_SETTINGS_LIFTS` maps a stored row: `allowInteractiveCards: true` is Interactive, `allowInteractiveCards: false` is Rich HTML with `trustHtml: true` and Plain text otherwise, and an unset ceiling stays unset.
-- Media and trust intro: "A character's own HTML setting wins over the default, except Interactive, which needs the default at Interactive. External media can only be tightened."
+- "Default for characters" (Plain text, Rich HTML, Interactive). Hint: characters on Inherit default use this, and below Interactive their cards and styled replies run no scripts; a character set to Interactive on its own Trust tab still runs them. Stored as one key, `AppSettings.defaultHtmlStep`, floor `interactive`. The v11 to v12 lift in `APP_SETTINGS_LIFTS` maps a stored row: `allowInteractiveCards: true` is Interactive, `allowInteractiveCards: false` is Rich HTML with `trustHtml: true` and Plain text otherwise, and an unset ceiling stays unset.
+- Media and trust intro: "A character's own HTML setting wins over the default. External media can only be tightened."
 - Viewer switch: "Run scripts in cards and styled replies". A blob that cannot be read reads as off.
 - Trust tab, Plain text: "No styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts."
 - Room switch: "Draws card markup in this game as cards in the sandbox, for every speaker. Scripts still follow each character's setting. Off: card markup from a speaker below Rich HTML shows as text."
@@ -102,11 +102,11 @@ Settings and their new text:
 
 One function per verdict, in `@orb/contracts/chat`, called by the card-frame route and by the client notice:
 
-- Scripts: `resolveCardScriptVerdict`, unchanged.
+- Scripts: `resolveCardScriptVerdict`, over the author's resolved step and the viewer's switch.
 - Media (item 3604): a new verdict over the install's external-media ceiling and the author's `RenderPolicy`. It returns whether external media loads, the holder when it does not (install or character), and whether `data:` images open. `resolvePolicy` builds `CardFrameMediaPolicy` from it, and `resolveFramedMediaVerdict` in `render-trust.ts` names its holder. The inline copies go.
 - Viewer consent (item 3606): a contracts reader over `UserSettingsView` returns `runCardScripts` only when `configUnreadable` is null, and false otherwise. Both the card-frame wiring (`packages/server/src/entry/app.ts:443`, today `loadUserSettings`, which drops the flag at `packages/server/src/domain/settings/verbs/load-user-settings.ts:11`) and the notice (`packages/client/src/components/plain-content-notice.tsx:231`) call it.
 
-Read scope (item 3607): the route reads the viewer's settings only when the install and the step allow scripts. A failed read gives the static posture for that document, never an error. The notice reads the mint's `granted.interactive` (`card-frame.ts:271`) for whether scripts run, and calls the verdict only to name the holder. The client mint key carries the three script consents, so a change to any of them mints again.
+Read scope (item 3607): the route reads the viewer's settings only when the step allows scripts. A failed read gives the static posture for that document, never an error. The notice reads the mint's `granted.interactive` (`card-frame.ts:271`) for whether scripts run, and calls the verdict only to name the holder. The client mint key carries the author's resolved step and the viewer's switch, so a change to either mints again.
 
 ### Item 3349: a display script's own script blocks in a reply frame
 
@@ -149,7 +149,7 @@ What changes: `CARD_FRAME_HEIGHT_SCRIPT` and its pinned hash change (`packages/k
 | A frame script reads the session, storage or the app page | `sandbox allow-scripts` and never `allow-same-origin`, on the attribute and as a CSP directive (`packages/kit/src/card-frame/index.ts:136`, `index.ts:621`, `sandbox-frame.tsx:413`). The `SameSite=Lax` session cookie is withheld from the opaque origin |
 | A frame script sends data over HTTP | `default-src 'none'` with no `connect-src`; `script-src` admits no host and no eval (`index.ts:231-234`, `index.ts:603-623`) |
 | A tracking pixel or media load | `img-src` and `media-src` stay `'self'`, add `data:` from Rich HTML up, and add `https:` only while the install allows and the character does not forbid (`index.ts:575-588`, `card-frame.ts:166`). The app CSP carries the same install ceiling (`packages/server/src/entry/http/security-headers.ts:201-208`) |
-| A WebRTC beacon (R1) | No CSP directive closes it. The install default, the character step and the viewer's switch are the controls (`index.ts:82-94`) |
+| A WebRTC beacon (R1) | No CSP directive closes it. The character's own step, the install default for an inheriting character, and the viewer's switch are the controls (`index.ts:82-94`) |
 | A frame navigates the app or opens a page | No `allow-top-navigation`, popups or forms; `form-action 'none'`; the app's `frame-src 'self'`. A link opens only after a live activation in an admitted frame and a confirm (`sandbox-frame.tsx:257-273`) |
 | A client mint names a policy | The body is a selector only, parsed strict; the server resolves the step from the membership-gated roster (`card-frame.ts:141-187`). Naming a sibling character attacks only the viewer's own session (`card-frame.ts:35-45`) |
 | A revoked grant survives in a memoized handle | Every serve re-resolves the selector and narrows to the smaller grant (`card-frame.ts:291-305`) |
@@ -183,7 +183,7 @@ The staged community preset files, Freaky Frankenstein 5.6 and 6.0, are read her
 
 ### Rulings
 
-1. The two install switches merge into one "Default for characters" select, which is also the script ceiling.
+1. The two install switches merge into one "Default for characters" select. An inheriting character takes it, and a character's own step wins over it, Interactive included.
 2. A seat with no readable card, or a room with no consenting host, always draws as Plain text.
 3. The room immersive switch stays its own consent. It frames every speaker's cards statically, and the surfaces state that.
 4. The viewer's own messages load external media under the install switch. Other people's messages stay click-to-load.
