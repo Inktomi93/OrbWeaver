@@ -99,6 +99,7 @@ export const cardFrameStyleTokensSchema = z.strictObject({
   [CARD_FRAME_STYLE_TOKEN.radius]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.radius),
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.monoFamily),
   [CARD_FRAME_STYLE_TOKEN.rootSize]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.rootSize),
+  [CARD_FRAME_STYLE_TOKEN.inset]: styleTokenValue(CARD_FRAME_STYLE_TOKEN.inset),
 } satisfies Record<CardFrameStyleTokenName, z.ZodExactOptional<z.ZodString>>);
 
 /** The mint request. `strictObject` — an unknown key is a REJECT, not a silent strip: this body decides

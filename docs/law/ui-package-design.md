@@ -254,7 +254,7 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 
 - **Tier-A markdown/HTML** = Streamdown configured to OUR explicit allowlist (D294, UI-Theming-and-Content §12.2:
   structural + text + tables + `details/summary` + lucide-mapped icons + gated links/images;
-  forbidden: `script`, `on*`, `style`, inline `style=`, `iframe/object/embed/form/input`).
+  forbidden: `script`, `on*`, `style`, inline `style=` other than one validated colour, `iframe/object/embed/form/input`).
 - **Tier-B HTML** = `<SandboxFrame>` — the iframe IS the boundary (never sanitize-into-main-DOM;
   `eslint.config.ts` and Biome enforce this). Card scripts require the `interactive` frame posture
   (D294, UI-Theming-and-Content.md §12.2).

@@ -5,9 +5,8 @@
 //
 // `form` TIER (density §3.1 "entity editor"): identity header → Details group → Maintenance → Source text.
 //
-// THIS PANE OWNS ITS SCROLL, and that is not decoration: the shell's CONTENT region (`.shell-content` /
-// `.shell-region-fill`) is a bounded flex box carrying NO overflow, so a surface that does not declare
-// `h-full min-h-0 overflow-y-auto overscroll-contain` simply has its tail unreachable. A document's Details block plus a revealed source text is exactly that shape.
+// THIS PANE OWNS ITS SCROLL through `ContentPane`: the shell's CONTENT region is a bounded flex box carrying NO overflow,
+// so a surface without a scroller has its tail unreachable. A document's Details block plus a revealed source text is exactly that shape.
 //
 // SOURCE TEXT is a read-only SCROLL REGION, not a `Textarea` (§2.2's rejected primitive): legacy dumped the
 // canon into a form control, which announces as an editable textbox, invites an edit that cannot be saved,
@@ -29,7 +28,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
+import { ContentPane, DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
 import { QueryErrorState, QueryUnavailableState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
@@ -62,7 +61,7 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Stack scroll="y" height="fill" focusTarget={true} data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
+    <ContentPane data-slot="databank-content" inset="none" ref={surfaceRef} tabIndex={-1}>
       {documentId === null ? (
         <DatabankWelcome />
       ) : (
@@ -80,7 +79,7 @@ export function DatabankDetailSurface(): ReactElement {
           <DetailBody documentId={documentId} />
         </QueryBoundary>
       )}
-    </Stack>
+    </ContentPane>
   );
 }
 
@@ -188,7 +187,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
   };
 
   return (
-    // The document's editor column: the cap every sibling member editor keeps, centered and breathing.
+    // The document's editor body on the pane's column, the column every sibling member editor keeps.
     <EditorPage data-slot="databank-detail-editor" gap="section" inset="section">
       <DetailHeader
         actions={

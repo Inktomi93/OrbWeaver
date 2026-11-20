@@ -2129,6 +2129,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/required-dialog-home": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
+    {
+      files: ["packages/client/src/features/**/surfaces/**/*.tsx"],
+      // The room lays its transcript and composer track itself, pending the track decision in docs/work/3610-decide-whether-the-chat-composer-shares-the-transcript.md.
+      ignores: homes("packages/client/src/features/chat/surfaces/chat-room-surface.tsx"),
+      rules: { "orb/content-pane-scroller": "error" },
+    },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
     // The surfaces a section mounts in its `list` slot: the same set the composition census reads.
     { files: [...listSlotSurfacePaths(ROOT)], rules: { "orb/library-surface-row": "error" } },

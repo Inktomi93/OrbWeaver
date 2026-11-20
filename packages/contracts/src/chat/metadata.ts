@@ -5,6 +5,8 @@
 // parser derive, never re-spell.
 
 import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
+import type { UserId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { ChatDocumentVisibility } from "#databank";
 import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema, REWRITE_TOGGLE_IDS } from "#preset";
@@ -113,6 +115,13 @@ const autoModeFields = {
   allowSelfResponses: z.boolean().catch(false).default(false),
 } as const;
 
+// Wait for everyone: in this mode a send posts without starting a reply until every present human has written
+// since the last reply. It decides WHEN a round starts, never who speaks in it, so it rides both arms beside the
+// policy. A room with one present human never waits, so the default is off and an existing room is unchanged.
+const waitForEveryoneField = {
+  waitForEveryone: z.boolean().catch(false).default(false),
+} as const;
+
 // RETIRED KEY — `groupCharacterId`: the synthetic group character is resolved by HANDLE
 // (`__group__<chatId>`, a find-or-mint), so this key never had a writer or a reader. Both arms REFUSE it
 // (strictObject) at every write boundary, and the STORED read STRIPS it rather than healing the sub-blob to
@@ -142,6 +151,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
     groupNudge: z.boolean().catch(true).default(true),
     ...autoModeFields,
     ...memberCardVisibilityField,
+    ...waitForEveryoneField,
   }),
   // `z.strictObject` on THIS arm too: both arms are enforcers, so a typo'd knob on a `setGroupConfig`
   // write is refused loudly instead of stripped-and-healed into a silently-wrong room.
@@ -154,6 +164,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
     groupNudge: z.boolean().catch(true).default(true),
     ...autoModeFields,
     ...memberCardVisibilityField,
+    ...waitForEveryoneField,
   }),
 ]);
 export type GroupConfig = z.infer<typeof groupConfigSchema>;
@@ -204,6 +215,7 @@ const groupInputFields = {
   autoModeDelayMs: autoModeFields.autoModeDelayMs.unwrap().unwrap().optional(),
   allowSelfResponses: autoModeFields.allowSelfResponses.unwrap().unwrap().optional(),
   memberCardVisibility: memberCardVisibilityField.memberCardVisibility.unwrap().unwrap().optional(),
+  waitForEveryone: waitForEveryoneField.waitForEveryone.unwrap().unwrap().optional(),
 };
 
 /** Validates the raw input plane without applying the parsed room defaults or corruption heals. The one
@@ -227,7 +239,7 @@ export const groupConfigInputSchema = z.discriminatedUnion("output", [
 export type NormalizedGroupConfigInput = z.output<typeof groupConfigInputSchema>;
 
 /** The default room behavior: per-speaker × merged, natural arbitration, no speaker tags,
- *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22). */
+ *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22), every send starts a reply. */
 export const DEFAULT_GROUP_CONFIG: GroupConfig = {
   output: "per-speaker",
   policy: "natural",
@@ -240,7 +252,28 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
   autoModeDelayMs: AUTO_MODE_DELAY_MS_DEFAULT,
   allowSelfResponses: false,
   memberCardVisibility: "sheet",
+  waitForEveryone: false,
 };
+
+/** One canon row as the wait count reads it. */
+interface WaitCountRow {
+  readonly role: MessageRole;
+  readonly authorUserId: UserId | null;
+}
+
+/**
+ * The present humans a {@link GroupConfig.waitForEveryone} room still waits on: each one with no user line after
+ * the room's last reply. The server's send and the composer's waiting line both read this, so the two agree on
+ * who the room waits on. Pass the room's present human ids in roster order and its canon oldest first.
+ *
+ * @remarks A system row is neither a reply nor a write. A user row with no author, such as an imported line,
+ * counts for nobody.
+ */
+export function humansYetToWrite(presentHumanUserIds: readonly UserId[], canon: readonly WaitCountRow[]): readonly UserId[] {
+  const since = canon.slice(canon.findLastIndex((row) => row.role === "assistant") + 1);
+  const written = new Set(since.flatMap((row) => (row.role === "user" && row.authorUserId !== null ? [row.authorUserId] : [])));
+  return presentHumanUserIds.filter((userId) => !written.has(userId));
+}
 
 // ── Opening policy (HOW a new room opens — the start-chat union) ──
 /** Opening policy for a chat's founding characters. `greet-all` = each founding AI greets (the group default);

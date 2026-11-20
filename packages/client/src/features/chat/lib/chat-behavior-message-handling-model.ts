@@ -19,12 +19,10 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ConfigSubcategory } from "#state";
-
-/** The viewer's card-script consent, as its row and a framed-script notice's control address it. */
-export const RUN_CARD_SCRIPTS_SETTING_ID = "run-card-scripts";
+import { MESSAGE_HANDLING_CONFIG_SUB, RUN_CARD_SCRIPTS_CONFIG_SETTING } from "#state";
 
 export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
-  id: "message-handling",
+  id: MESSAGE_HANDLING_CONFIG_SUB,
   label: "Chat & message handling",
   // The full name overflows the 220px nav column; the heading keeps it. Inside the Chat behavior pane the
   // "Chat &" half is the pane's own context anyway, so the nav row is unambiguous without it.
@@ -154,7 +152,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: RUN_CARD_SCRIPTS_SETTING_ID,
+      id: RUN_CARD_SCRIPTS_CONFIG_SETTING,
       key: "runCardScripts",
       label: "Run scripts in cards and styled replies",
       keywords: ["interactive", "card", "script", "reply", "privacy", "ip"],

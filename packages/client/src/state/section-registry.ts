@@ -131,7 +131,6 @@ interface SectionDefinitionBase {
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;
-  readonly contentInset: "section" | { readonly planned: string };
   /** The shell calls every section useSelectionTitle hook unconditionally inside a component keyed on the
    *  active section. It may read that section cache. Null falls back to the section label rather than
    *  blanking the bar. An open member is named; with none open a section may name its roster and census

@@ -53,6 +53,7 @@ export function createAdmittedChatOperations(ctx: ChatContext, deps: ChatAdmissi
     swipe: admitted(ctx, barrier, requireParticipant, operations.swipe),
     continueTurn: admitted(ctx, barrier, requireParticipant, operations.continueTurn),
     generate: admitted(ctx, barrier, requireParticipant, operations.generate),
+    replyToTail: admitted(ctx, barrier, requireParticipant, operations.replyToTail),
     compact: admitted(ctx, barrier, requireHost, operations.compact),
     generateImage: admitted(ctx, barrier, requireParticipant, operations.generateImage),
     async *impersonateStream(params): ReturnType<AdmittedChatOperations["impersonateStream"]> {

@@ -34,6 +34,7 @@ export type AdmittedChatOperations = Pick<
   | "swipe"
   | "continueTurn"
   | "generate"
+  | "replyToTail"
   | "impersonateStream"
   | "compact"
   | "generateImage"

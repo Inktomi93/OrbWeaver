@@ -1,5 +1,5 @@
 // THE ROW'S ACCESSIBLE-NAME CONTRACT (#512, owner ruling 2026-08-23 — accept + document): the clickable
-// row's NAME is `title` (+ ` · titleQualifier` when present), and the SUBTITLE reaches AT as the row's
+// row's NAME is `title` (+ ` · titleQualifier`, or ` · meta` under `metaQualifiesTitle`, when present), and the SUBTITLE reaches AT as the row's
 // DESCRIPTION (aria-describedby), never the name. Consequence, accepted deliberately: axe's
 // `label-content-name-mismatch` (weight 0, hidden group) fires on every subtitled row, because axe
 // concatenates ALL text inside the button as "visible label" while the name carries only the title line.
@@ -83,6 +83,14 @@ interface ListRowPropsBase {
    * of the row's `aria-describedby`, never its name (the name stays the `title` alone).
    */
   meta?: string;
+  /**
+   * The `meta` datum is what tells this row from a same-titled sibling (two rooms with one name, told apart by
+   * their stamps), so it joins the row's accessible NAME as `"<title> · <meta>"` and leaves its description.
+   * It stays painted in the trailing meta slot, so every row of a list keeps its datum in ONE place with ONE
+   * separator rule: no dot before the trailing datum, on a qualified row or a plain one. A `titleQualifier` is
+   * for a disambiguator that is not the row's trailing datum (a handle), painted beside the name.
+   */
+  metaQualifiesTitle?: boolean;
   /**
    * Rest-VISIBLE state markers (a game glyph, a pressed star, an "Archived" badge) — rendered on the TITLE
    * LINE beside `meta`, inside the content column. That is what lets a row whose CONTROLS are all
@@ -362,6 +370,11 @@ function ListRowRoot({
   );
 }
 
+// What tells this row from a same-titled sibling: a caller's qualifier, or the trailing datum under `metaQualifiesTitle`.
+function nameQualifierOf(titleQualifier: string | undefined, meta: string | undefined, metaQualifiesTitle: boolean): string | undefined {
+  return metaQualifiesTitle ? meta : titleQualifier;
+}
+
 export function ListRow({
   align,
   leading,
@@ -377,6 +390,7 @@ export function ListRow({
   subtitleDecorative = false,
   subtitleStep = "default",
   meta,
+  metaQualifiesTitle = false,
   markers,
   detail,
   actions,
@@ -400,12 +414,14 @@ export function ListRow({
   const disabled = dataDisabled !== undefined;
   // A disclosure row's body is a button too: it wears the clickable row's press skin and hides the title it is named by.
   const pressable = clickable || expand !== undefined;
+  const nameQualifier = nameQualifierOf(titleQualifier, meta, metaQualifiesTitle);
   const slots = listRowVariants({
     align,
     clickable: pressable,
     disclosure: expand !== undefined,
     float: actionsFloat,
-    qualified: titleQualifier !== undefined,
+    // A datum that tells rows apart is the half a squeeze must never eat, so the name keeps its floor beside it either way.
+    qualified: nameQualifier !== undefined,
     rail,
     receded,
     stackActions,
@@ -419,7 +435,7 @@ export function ListRow({
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
-  const metaId = meta === undefined ? undefined : `${baseId}-meta`;
+  const metaId = meta === undefined || metaQualifiesTitle ? undefined : `${baseId}-meta`;
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
   const detailId = detail === undefined ? undefined : `${baseId}-detail`;
   const fullTitleId = fullTitle === undefined ? undefined : `${baseId}-full-title`;
@@ -428,7 +444,7 @@ export function ListRow({
     <ListRowRoot className={slots.root({ className })} expand={expand} selected={selected}>
       <ListRowBody
         ariaDescribedBy={describedBy}
-        ariaLabel={titleQualifier === undefined ? title : `${title}${TITLE_QUALIFIER_SEPARATOR}${titleQualifier}`}
+        ariaLabel={nameQualifier === undefined ? title : `${title}${TITLE_QUALIFIER_SEPARATOR}${nameQualifier}`}
         clickable={clickable}
         disclosure={expand !== undefined}
         disabled={disabled}

@@ -730,6 +730,13 @@ export const detachResultSchema = z.strictObject({ detached: z.boolean() }) sati
 export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
 
+/** How many scripts one request may name: far above any real selection or preset, low enough to bound the statement a
+ *  single request can build. */
+const REGEX_SCRIPT_IDS_MAX = 500;
+
+/** The script ids one request names: a bulk gesture, or the scripts a preset delete takes with it. */
+export const regexScriptIdsInputSchema = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(REGEX_SCRIPT_IDS_MAX);
+
 /** Both axes a bulk gesture sets on every listed script, paired as a write pairs them. */
 export const regexAxesWriteSchema = z.strictObject({ targets: regexTargetListSchema, passes: regexPassListSchema }).superRefine(behaviorCoheres);
 

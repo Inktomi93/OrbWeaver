@@ -65,7 +65,6 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     id: "corpus",
     // D271: the phone bar is Home · Chats · Characters · You, and Corpus enters through the You sheet.
     rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
-    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Corpus",

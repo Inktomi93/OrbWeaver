@@ -484,6 +484,8 @@ export const CARD_FRAME_STYLE_TOKEN = {
   radius: "--sandbox-radius",
   monoFamily: "--sandbox-font-mono",
   rootSize: "--sandbox-root-size",
+  /** The card body's inset from the card's edge. A card sends it; a styled reply does not, so its body sits flush. */
+  inset: "--sandbox-inset",
 } as const;
 export type CardFrameStyleTokenName = (typeof CARD_FRAME_STYLE_TOKEN)[keyof typeof CARD_FRAME_STYLE_TOKEN];
 /** The clamped style slice: any subset of {@link CARD_FRAME_STYLE_TOKEN}, each value already past its grammar. */
@@ -520,6 +522,7 @@ const STYLE_TOKEN_GRAMMAR: Record<CardFrameStyleTokenName, (value: string) => st
   [CARD_FRAME_STYLE_TOKEN.radius]: (value) => (CSS_LENGTH.test(value) ? value : undefined),
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: (value) => (FONT_FAMILY_LIST.test(value) ? value : undefined),
   [CARD_FRAME_STYLE_TOKEN.rootSize]: clampRootSize,
+  [CARD_FRAME_STYLE_TOKEN.inset]: (value) => (CSS_LENGTH.test(value) ? value : undefined),
 };
 
 function isStyleTokenName(name: string): name is CardFrameStyleTokenName {
@@ -702,7 +705,8 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   const rootSize = `html { font-size: var(${CARD_FRAME_STYLE_TOKEN.rootSize}, 100%); }`;
   // A flow root, so the first and last children's margins stay inside the body: the pinned script measures
   // `body.scrollHeight`, and a margin that collapsed through the body would be cut from the frame.
-  return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  // The inset is the body's padding, so an authored background still fills the card to its edge.
+  return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: var(${CARD_FRAME_STYLE_TOKEN.inset}, 0); background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**

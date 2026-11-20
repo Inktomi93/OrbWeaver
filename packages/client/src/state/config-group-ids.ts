@@ -51,6 +51,11 @@ export const MEDIA_TRUST_CONFIG_SUB = "media-trust";
 export const DEFAULT_HTML_STEP_CONFIG_SETTING = "default-html-step";
 export const FORBID_EXTERNAL_MEDIA_CONFIG_SETTING = "forbid-external-media";
 
+/** The Chat behavior group's message-handling section and the viewer's card-script consent in it, which a
+ *  framed-script notice opens from the transcript and from the game's card archive. */
+export const MESSAGE_HANDLING_CONFIG_SUB = "message-handling";
+export const RUN_CARD_SCRIPTS_CONFIG_SETTING = "run-card-scripts";
+
 /** The LIST's four named shelves, in paint order — the settings nav's `SETTINGS_GROUPS` (User/App) with the
  *  two shelves the unification added. `user`, NOT "you" (owner correction 2026-08-30): the mobile "You"
  *  sheet is a different thing that only exists on a phone, and a desktop shelf wearing its name would be

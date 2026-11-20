@@ -13,7 +13,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CHAT_MESSAGE_HANDLING_SUBCATEGORY, RUN_CARD_SCRIPTS_SETTING_ID } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import type { PlainContentNoticeStory } from "./_plain-content-notice-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -161,7 +161,8 @@ test("a styled reply whose panel carries script, viewed with the viewer's own sc
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
   await expect(readout).toHaveAttribute("data-section", "config");
-  await expect(readout).toHaveAttribute("data-config-target", `chat-behavior/${CHAT_MESSAGE_HANDLING_SUBCATEGORY.id}/${RUN_CARD_SCRIPTS_SETTING_ID}`);
+  const runScripts = CHAT_MESSAGE_HANDLING_SUBCATEGORY.settings?.find((setting) => setting.key === "runCardScripts")?.id;
+  await expect(readout).toHaveAttribute("data-config-target", `chat-behavior/${CHAT_MESSAGE_HANDLING_SUBCATEGORY.id}/${runScripts ?? ""}`);
   await page.unrouteAll({ behavior: "wait" });
 });
 

@@ -19,3 +19,4 @@ export {
 export { createResolveRegexSources } from "./persistence/resolve-sources.ts";
 export { createRegexRoomReach } from "./persistence/room-reach.ts";
 export { createRegexService } from "./service.ts";
+export { createRemoveUnattachedScripts } from "./verbs/scripts/remove-unattached.ts";

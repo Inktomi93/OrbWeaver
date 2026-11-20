@@ -35,7 +35,8 @@
 // warn at both call sites), so the log cannot disagree with what applied.
 
 import type { RegexDepth, RegexPass, RegexRowStamps, RegexScriptInput } from "@orb/kit/regex";
-import { messageTargetOf } from "@orb/kit/regex";
+import { messageTargetOf, regexScriptRendersMacros } from "@orb/kit/regex";
+import { sha256Hex } from "#primitives/content-hash";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 
 /** The minimum a row must expose for the leg to rewrite it — deliberately structural, so `CanonRow` (which
@@ -77,6 +78,44 @@ export function applyPromptHistoryRegex<T extends TextRow>(
     return rows;
   }
 
+  const memoKey = env.memo === null || candidates.some(regexScriptRendersMacros) ? null : promptHistoryKey(rows, stamps, candidates, env);
+  const remembered = memoKey === null ? undefined : env.memo?.read(memoKey);
+  const out = remembered === undefined ? runPromptPass(rows, stamps, candidates, env) : rows.map((row, index) => withContent(row, remembered[index]));
+  if (memoKey !== null && remembered === undefined) {
+    env.memo?.write(
+      memoKey,
+      out.map(({ content }) => content),
+    );
+  }
+  const window = Math.max(NO_WINDOW, ...candidates.map((script) => unsettledThrough(script.depth)));
+  return window === NO_WINDOW ? out : out.map((row, index) => (depthOf(env, rows.length, index) <= window ? { ...row, depthVolatile: true as const } : row));
+}
+
+// THE MEMO (a repeated read of an unchanged room). With no macro in any script, the leg's output is a function of the
+// rows' text, their stamps, the scripts, the room's seats and whether the build continues; the key digests all of
+// them, so an edit, a new row or a script change misses. A macro can read the clock or the room's variables, which
+// the key cannot see, so a set that renders one always runs.
+function promptHistoryKey(
+  rows: readonly TextRow[],
+  stamps: readonly RegexRowStamps[],
+  candidates: readonly RegexScriptInput[],
+  env: PromptHistoryRegexEnv,
+): string {
+  return sha256Hex(JSON.stringify([candidates, env.room, env.continuing, stamps, rows.map(({ content }) => content)]));
+}
+
+function withContent<T extends TextRow>(row: T, content: string | undefined): T {
+  return content === undefined || content === row.content ? row : { ...row, content };
+}
+
+const depthOf = (env: PromptHistoryRegexEnv, rowCount: number, index: number): number => rowCount - 1 - index - (env.continuing ? 1 : 0);
+
+function runPromptPass<T extends TextRow>(
+  rows: readonly T[],
+  stamps: readonly RegexRowStamps[],
+  candidates: readonly RegexScriptInput[],
+  env: PromptHistoryRegexEnv,
+): T[] {
   // Eviction set (see the header's ReDoS posture): a script that fails once is dropped for the rest of the
   // pass, so history length can never multiply a watchdog trip.
   const evicted = new Set<RegexScriptInput>();
@@ -88,7 +127,6 @@ export function applyPromptHistoryRegex<T extends TextRow>(
   // One pass for the whole history, its budget sized by the row count (D53).
   const pass = env.openRegexPass(rows.length);
   const out = [...rows];
-  const depthOf = (index: number): number => rows.length - 1 - index - (env.continuing ? 1 : 0);
   // NEWEST FIRST — the same direction depth counts, so the rows a reader cares about most are transformed
   // before any eviction can shrink the working set.
   for (let index = rows.length - 1; index >= 0; index--) {
@@ -104,7 +142,7 @@ export function applyPromptHistoryRegex<T extends TextRow>(
     const content = pass.execute({
       text: row.content,
       scripts: live,
-      call: { pass: PROMPT_PASS, target: messageTargetOf(stamp), row: stamp, room: env.room, depth: depthOf(index) },
+      call: { pass: PROMPT_PASS, target: messageTargetOf(stamp), row: stamp, room: env.room, depth: depthOf(env, rows.length, index) },
       ctx: env.macroCtx,
       onScriptFailure,
     });
@@ -112,6 +150,5 @@ export function applyPromptHistoryRegex<T extends TextRow>(
       out[index] = { ...row, content };
     }
   }
-  const window = Math.max(NO_WINDOW, ...candidates.map((script) => unsettledThrough(script.depth)));
-  return window === NO_WINDOW ? out : out.map((row, index) => (depthOf(index) <= window ? { ...row, depthVolatile: true as const } : row));
+  return out;
 }

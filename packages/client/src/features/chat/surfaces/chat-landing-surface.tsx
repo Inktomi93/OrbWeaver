@@ -16,8 +16,14 @@ import { Stack } from "@orb/ui/layout";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import type { ContentPaneMeasure } from "#components";
+import { ContentPane } from "#components";
 import { NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
+
+// A capped column re-centres its content whenever the list door changes the pane width, which scores as a layout shift; the
+// landing holds only a centred empty state, so it spans the pane and the state stays where the pane carries it.
+const LANDING_MEASURE: ContentPaneMeasure = { full: "The landing holds one centred empty state, which needs no column." };
 
 /** The instruction, side-agnostic since the N-10 sweep: it names the COLLECTION, not a side. */
 const PICK_A_THREAD = "Pick a thread from your chats, or start a new one.";
@@ -38,8 +44,8 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   useFocusOnMount(surfaceRef, true, false);
 
   return (
-    <Stack align="center" scroll="y" height="fill" justify="center" focusTarget={true} padding="section" ref={surfaceRef} tabIndex={-1}>
-      <Stack width="full" cap="shell" gap="section">
+    <ContentPane measure={LANDING_MEASURE} ref={surfaceRef} tabIndex={-1}>
+      <Stack align="center" height="fill" justify="center">
         <EmptyState
           action={
             <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>
@@ -55,6 +61,6 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
           title={NO_CHAT_SELECTED_TITLE}
         />
       </Stack>
-    </Stack>
+    </ContentPane>
   );
 }

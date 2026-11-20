@@ -1771,12 +1771,16 @@ export interface FrameStyleSheet {
 const TAG_ATTRIBUTE_RE = /[\s/]*([^\s/>][^\s/>=]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/y;
 const STYLE_OPENER_NAME_LENGTH = "<style".length;
 const CSS_TYPE = "text/css";
+// An opener's `<` and name, the part before its attributes.
+const OPENER_NAME_RE = /<[A-Za-z][^\s/>]*/y;
+const CLASS_ATTRIBUTE = "class";
+const CLASS_LIST_SEPARATOR_RE = /[\t\n\f\r ]+/u;
 
-// The attributes of a `<style ...>` opener the reader already bounded, each name lower case, the first of a repeated
-// name kept as HTML keeps it. One pass over the opener.
-function styleOpenerAttributes(opener: string): ReadonlyMap<string, string> {
+// The attributes of an opener the reader already bounded, from `nameLength` past its `<`, each name lower case, the
+// first of a repeated name kept as HTML keeps it. One pass over the opener.
+function openerAttributes(opener: string, nameLength: number): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
-  TAG_ATTRIBUTE_RE.lastIndex = STYLE_OPENER_NAME_LENGTH;
+  TAG_ATTRIBUTE_RE.lastIndex = nameLength;
   for (let found = TAG_ATTRIBUTE_RE.exec(opener); found !== null; found = TAG_ATTRIBUTE_RE.exec(opener)) {
     const name = found[1]?.toLowerCase() ?? "";
     if (!attributes.has(name)) {
@@ -1795,13 +1799,38 @@ export function frameStyleElements(content: string): readonly FrameStyleSheet[] 
     if (element.name !== "style" || !element.closed) {
       return [];
     }
-    const attributes = styleOpenerAttributes(content.slice(element.start, element.bodyStart - 1));
+    const attributes = openerAttributes(content.slice(element.start, element.bodyStart - 1), STYLE_OPENER_NAME_LENGTH);
     const type = attributes.get("type")?.trim().toLowerCase() ?? "";
     if (type !== "" && type !== CSS_TYPE) {
       return [];
     }
     return [{ media: attributes.get("media"), title: attributes.get("title"), css: content.slice(element.bodyStart, element.bodyEnd) }];
   });
+}
+
+/** The class names on the openers of the elements `content`'s prose holds, read as Markdown shows it: none in code or
+ *  behind an escape, none in a text element's text, and none in a card, a choice set or a hidden span, which are never
+ *  prose (see {@link modelPanels}). A void element (`<img>`, `<hr>`) is no element the reader pairs, so its class is not
+ *  read. */
+export function markupClassNames(content: string, options: { readonly lenientHtml?: boolean | undefined } = {}): ReadonlySet<string> {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const prose = rangeCursor(proseRanges(content, options.lenientHtml === true));
+  const names = new Set<string>();
+  for (const lt of [...markup.closes.keys(), ...markup.unclosed].toSorted((a, b) => a - b)) {
+    const end = tagEndFrom(content, lt, false);
+    OPENER_NAME_RE.lastIndex = lt;
+    const name = OPENER_NAME_RE.exec(content);
+    if (end === -1 || name === null || prose(lt) === undefined) {
+      continue;
+    }
+    const classes = openerAttributes(content.slice(lt, end), name[0].length).get(CLASS_ATTRIBUTE) ?? "";
+    for (const className of classes.split(CLASS_LIST_SEPARATOR_RE)) {
+      if (className !== "") {
+        names.add(className);
+      }
+    }
+  }
+  return names;
 }
 
 /** `content` with the text of each closed `<style>` and `<script>` element a Markdown renderer reads as one replaced by
@@ -2219,6 +2248,8 @@ interface MarkupRead {
   readonly samples: readonly TextRange[];
   /** With a probe, each place the probe starts inside Markdown code, to that code's end, ascending. */
   readonly probed: readonly TextRange[];
+  /** The `<` of each element opener whose close never arrived. */
+  readonly unclosed: readonly number[];
 }
 
 // The elements whose contents the renderer draws folded until opened.
@@ -2277,7 +2308,7 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
     const open = (openers.get(name) ?? []).map((start) => [start, content.length] as const);
     return [...closed, ...open].map(([start, end]) => ({ start, end }));
   });
-  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples, probed };
+  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples, probed, unclosed: [...openers.values()].flat() };
 }
 
 // Records the code a probe at `at` opens in, if any, and returns where the read resumes. A probe is no markup: it asks
@@ -3490,7 +3521,8 @@ const PREVIEW_WHITESPACE_RE = /\s+/g;
  * preview is a durable, member-reachable artifact, exactly the class `projectBodyForSummary` fail-closes on,
  * so the strip here is UNCONDITIONAL rather than viewer-dependent), and `image` / `card` / `choices` /
  * `unknown-directive` spans carry no glanceable prose (a `[card: …]` stub or a raw fence would spend the whole
- * line on chrome). What remains is markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
+ * line on chrome). What remains loses its HTML: every tag goes with its attributes and its words stay, and an element
+ * whose text never shows (a stylesheet, a script) goes with that text. It is then markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
  * to their label, leading block markers and code-fence lines removed, every whitespace run collapsed to one
  * space — then trimmed and truncated with a single-char ellipsis, on a WORD BOUNDARY (`truncatePreview`).
  * Empty (a body that was all structure) ⇒
@@ -3508,7 +3540,9 @@ export function projectBodyForPreview(content: string, maxChars: number = PREVIE
   // raw `<speaker>` would leak into the one-line scent. Flatten through the ONE kit speaker engine
   // (`speakerTagsToPlain` — the prompt-history home) to `NAME: ` plain attribution rather than re-spelling the
   // tag grammar here (the content-class-wire duplication ban). A tagless per-speaker/solo row is a cheap no-op.
-  const flat = collapseMarkdownLinks(speakerTagsToPlain(prose))
+  // A reply's own markup (a panel, a coloured line) shows on screen as its words alone, so the line keeps those and
+  // drops every tag, attribute and stylesheet: elements whose text HTML never shows go first, with that text.
+  const flat = collapseMarkdownLinks(stripTags(stripUnreadElements(speakerTagsToPlain(prose))))
     .replace(PREVIEW_BLOCK_PREFIX_RE, "")
     .replace(PREVIEW_INLINE_MARKERS_RE, "")
     .replace(PREVIEW_WHITESPACE_RE, " ")

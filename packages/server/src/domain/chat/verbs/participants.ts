@@ -10,6 +10,9 @@
 // between nominateHostHandoff (host-only) and acceptHostHandoff (the nominee's un-spoofable self-action —
 // principal.userId === chats.pendingHostUserId). A non-eligible nominee is a leak-free NOT_FOUND; a
 // non-nominee accept is refused with not_turn_owner.
+//
+// A leave or a kick hands the room to the wait-for-everyone recount (`releaseWaiting`) after its write, so a room
+// left holding only humans who have all written gets its reply (`verbs/turn.ts` header).
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
@@ -122,6 +125,9 @@ interface ParticipantDeps {
    *  refusals (a stranger or a refused request must not flip a room's visibility) and BEFORE the write
    *  (`verbs/claim-chat.ts`). */
   readonly claimChat: ClaimChatOp;
+  /** The wait-for-everyone recount after a seat empties (`createReleaseWaitingRound`). It returns at once and runs
+   *  any owed round in the background. `actorUserId` is who left or kicked. */
+  readonly releaseWaiting: (args: { readonly chatId: ChatId; readonly actorUserId: UserId }) => void;
 }
 
 /** The roster slice of `ChatService` this grouped file owns. */
@@ -204,9 +210,9 @@ export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): Par
     addCharacterToChat: createAddCharacterToChat(ctx, emit, claimChat, deps.saveGreetingTexts),
     removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit, claimChat),
     setSeatKnobs: createSetSeatKnobs(ctx, emit, claimChat),
-    kick: createKick(ctx, emit),
+    kick: createKick(ctx, emit, deps.releaseWaiting),
     setMemberHistoryVisibility: createSetMemberHistoryVisibility(ctx, emit),
-    selfLeave: createSelfLeave(ctx, emit),
+    selfLeave: createSelfLeave(ctx, emit, deps.releaseWaiting),
     nominateHostHandoff: createNominateHostHandoff(ctx, emit),
     acceptHostHandoff: createAcceptHostHandoff(ctx, emit),
   };
@@ -972,7 +978,7 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
  *  containment path (doc 03 §5): userId-keyed, its agent-seat handling is UNBUILT (the D60 seat/unseat
  *  verbs don't exist yet — kick today only exercises the human leftSeq-stamp path above). A non-present
  *  target (or a characterId-only seat, which carries no userId) is an idempotent no-op. */
-function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] {
+function createKick(ctx: ChatContext, emit: EmitChatEvent, releaseWaiting: ParticipantDeps["releaseWaiting"]): ChatService["kick"] {
   return async ({ principal, chatId, userId }: KickParticipantParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const target = (await loadParticipants(ctx.db, chatId)).find((p) => p.userId === userId);
@@ -995,6 +1001,7 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
       },
       ctx.now(),
     );
+    releaseWaiting({ chatId, actorUserId: principal.userId });
   };
 }
 
@@ -1041,7 +1048,7 @@ function createSetMemberHistoryVisibility(ctx: ChatContext, emit: EmitChatEvent)
 
 /** `selfLeave` — a member leaves their own membership. A host self-leave has no successor, so it archives
  *  the room instead of being refused. Emits chatUpdated. */
-function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["selfLeave"] {
+function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent, releaseWaiting: ParticipantDeps["releaseWaiting"]): ChatService["selfLeave"] {
   return async ({ principal, chatId }: SelfLeaveParams): Promise<void> => {
     const { role } = await requireParticipant(ctx, principal, chatId);
     const at = ctx.now();
@@ -1051,6 +1058,7 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
       await commitStatsFencedChatUpdate(ctx, principal.userId, ctx.db.update(chats).set({ archived: true, updatedAt: at }).where(eq(chats.id, chatId)));
     }
     await emit({ type: "chatUpdated", chatId });
+    releaseWaiting({ chatId, actorUserId: principal.userId });
   };
 }
 

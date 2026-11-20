@@ -1,8 +1,9 @@
-// The chat half of the plain-content notice: the copy and the control for the verdicts `render-trust.ts` resolves. Only
-// those verdicts decide which setting is named and whether the viewer gets a control; this file hands them the roster's
-// policy and never judges it. A row shows one plain-content notice, however many plain cards and styled runs it holds.
-// A framed card or styled reply whose external media the frame refuses shows its own framed-media notice under it, and
-// one whose controls need scripts the frame's posture does not run shows its framed-script notice.
+// The plain-content notices: the copy and the control for the verdicts `render-trust.ts` resolves. Only those verdicts
+// decide which setting is named and whether the viewer gets a control; this file hands them the roster's policy and
+// never judges it. A row shows one plain-content notice, however many plain cards and styled runs it holds. A framed
+// card or styled reply whose external media the frame refuses shows its own framed-media notice under it, and one whose
+// controls need scripts the frame's posture does not run shows its framed-script notice. The chat transcript and the
+// game's card archive both draw authored markup, so both mount these from this one home.
 
 import { installAllowsCardScripts } from "@orb/contracts/chat";
 import { viewerRunsCardScripts } from "@orb/contracts/settings";
@@ -15,6 +16,7 @@ import type { ReactElement } from "react";
 import { roomRosterOptions, useAuthConfig, useGatedQuery, useSettingsViewerView, useTRPC } from "#data";
 import type { FramedMediaReason, FramedScriptReason, PlainReason, PlainRemedy, PlainReplyReason, PlainSubject } from "#lib";
 import {
+  buildParticipantsById,
   DEFAULT_HTML_STEP_SETTING_LABEL,
   HELD_CARDS_REASON,
   PLAIN_REPLY_REASON,
@@ -26,12 +28,12 @@ import {
   DEFAULT_HTML_STEP_CONFIG_SETTING,
   FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
   MEDIA_TRUST_CONFIG_SUB,
+  MESSAGE_HANDLING_CONFIG_SUB,
   openCharacterTrust,
   openConfigTo,
   openGameSettings,
+  RUN_CARD_SCRIPTS_CONFIG_SETTING,
 } from "#state";
-import { CHAT_MESSAGE_HANDLING_SUBCATEGORY, RUN_CARD_SCRIPTS_SETTING_ID } from "../lib/chat-behavior-message-handling-model.ts";
-import { buildParticipantsById } from "../lib/roster.ts";
 
 const UNNAMED_CHARACTER = "this character";
 const PLAIN_REPLY_CAUSE: Record<PlainReplyReason, string> = {
@@ -133,7 +135,7 @@ function remedyAction(
       return {
         label: OWN_SCRIPTS_ACTION_LABEL,
         onAction: (): void => {
-          openConfigTo("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id, RUN_CARD_SCRIPTS_SETTING_ID);
+          openConfigTo("chat-behavior", MESSAGE_HANDLING_CONFIG_SUB, RUN_CARD_SCRIPTS_CONFIG_SETTING);
         },
       };
     case "game-settings":

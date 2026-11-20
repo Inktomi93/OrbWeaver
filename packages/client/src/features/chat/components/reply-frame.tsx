@@ -32,12 +32,11 @@ import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sa
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { useFramedLinkConfirm } from "#components";
+import { FramedMediaNotice, FramedScriptNotice, useFramedLinkConfirm } from "#components";
 import { readFramePanels, rememberFramePanels, useCardFrame } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
-import { FramedMediaNotice, FramedScriptNotice } from "./plain-content-notice.tsx";
 
 export interface ReplyFrameProps {
   readonly segments: readonly FrameReplySegment[];

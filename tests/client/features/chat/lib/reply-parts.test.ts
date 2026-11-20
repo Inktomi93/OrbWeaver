@@ -10,7 +10,7 @@ import type { CardTrust } from "@orb/contracts/chat";
 import type { FrameStyleSheet } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 import type { ReplyPart } from "#client/features/chat/lib/reply-parts.ts";
-import { REPLY_CARRY_BUDGET_CHARS, REPLY_CARRY_BUDGET_SHEETS, replyLayout } from "#client/features/chat/lib/reply-parts.ts";
+import { carriedRoomSheets, REPLY_CARRY_BUDGET_CHARS, REPLY_CARRY_BUDGET_SHEETS, replyLayout } from "#client/features/chat/lib/reply-parts.ts";
 
 const PANEL_CSS = [".hud{display:block}", "", ".hud b{font-weight:600}", "", "/* Order check */ .hud summary{color:red}", ""].join("\n");
 const PANEL_STYLE = `<style>${PANEL_CSS}</style>`;
@@ -203,4 +203,51 @@ test.each([
   // Positive control: the sheet is carried, as far as its close.
   expect(sheets.map((sheet) => sheet.css.slice(0, ".a{}".length))).toEqual([".a{}"]);
   expect(sheets.filter((sheet) => HTML_STYLE_CLOSE_RE.test(sheet.css) || sheet.css.includes("<script"))).toEqual([]);
+});
+
+const roomSheet = (css: string): FrameStyleSheet => ({ media: undefined, title: undefined, css });
+
+test("a reply carries only the room's sheets naming a class its prose markup uses, the last copy of a repeat", () => {
+  const room = [roomSheet(".mark{color:red}"), roomSheet(".other{}"), roomSheet("@media (width > 1px){.mark b{}}"), roomSheet(".mark{color:red}")];
+  const text = 'Prose with a <span class="mark">marked</span> word and `<b class="other">code</b>`.';
+  expect(carriedRoomSheets(room, text, { lenientHtml: false }).map((sheet) => sheet.css)).toEqual(["@media (width > 1px){.mark b{}}", ".mark{color:red}"]);
+  // Positive control: the class in code names the other sheet once it is prose.
+  expect(carriedRoomSheets(room, '<b class="other">x</b>', { lenientHtml: false }).map((sheet) => sheet.css)).toEqual([".other{}"]);
+  expect(carriedRoomSheets(room, "No markup at all.", { lenientHtml: false })).toEqual([]);
+});
+
+test("the room's sheets ride every run ahead of the reply's own", () => {
+  const room = [roomSheet(".mark{}")];
+  const layout = replyLayout([{ text: `<style>.own{}</style>A.\n\n${DICE}\n\nB.`, tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room });
+  if (layout.kind !== "framed") {
+    throw new Error(`expected a framed reply, got the plain path: ${layout.reason}`);
+  }
+  expect(carried(layout.parts)).toEqual([
+    { before: [".mark{}"], after: [] },
+    { before: [".mark{}", ".own{}"], after: [] },
+  ]);
+});
+
+test("a room sheet the reply repeats rides once, as the reply's own, and a layered one at both copies", () => {
+  const room = [roomSheet(".mark{}"), roomSheet("@layer base{.mark{}}"), roomSheet(".other{}")];
+  const layout = replyLayout([{ text: `<style>.mark{}</style><style>@layer base{.mark{}}</style>A.\n\n${DICE}\n\nB.`, tokens: undefined }], {
+    lenientHtml: false,
+    cardTrust: "tierB",
+    room,
+  });
+  if (layout.kind !== "framed") {
+    throw new Error(`expected a framed reply, got the plain path: ${layout.reason}`);
+  }
+  expect(carried(layout.parts).at(-1)?.before).toEqual(["@layer base{.mark{}}", ".other{}", ".mark{}", "@layer base{.mark{}}"]);
+});
+
+test("a room sheet past the carry budget across the reply's runs renders the reply plain whole", () => {
+  const room = [roomSheet(`.mark{content:"${"x".repeat(Math.ceil(REPLY_CARRY_BUDGET_CHARS / 3))}"}`)];
+  const splits = (count: number): string => ["A.", ...Array.from({ length: count }, () => `${DICE}\n\nProse.`)].join("\n\n");
+  expect(replyLayout([{ text: splits(3), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room })).toEqual({
+    kind: "plain",
+    reason: PLAIN_REPLY_REASON.carriedStylesOverBudget,
+  });
+  // Positive control: two runs carry the room's sheet twice, under the budget.
+  expect(replyLayout([{ text: splits(1), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room }).kind).toBe("framed");
 });

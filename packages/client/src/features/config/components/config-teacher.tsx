@@ -14,7 +14,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, RotateCcw } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { BulletList, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -152,18 +152,15 @@ export function TeacherAbout({ state }: TeacherProps): ReactElement {
       {teach.value === null ? null : <TeacherValueBlock value={teach.value} />}
       {teach.affects.length === 0 ? null : (
         <KickerBlock kicker="Affects">
-          <Stack gap="tight">
+          <BulletList>
             {teach.affects.map((line) => (
-              <Row key={line} align="start" gap="field">
-                <Text as="span" voice="gloss" aria-hidden={true}>
-                  ·
-                </Text>
+              <li key={line}>
                 <Text as="span" voice="label">
                   {line}
                 </Text>
-              </Row>
+              </li>
             ))}
-          </Stack>
+          </BulletList>
         </KickerBlock>
       )}
       {teach.related.length === 0 ? null : (

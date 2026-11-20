@@ -7,7 +7,7 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
 import type { EffectivePreset, PresetDetail, PresetFilePreview, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { ExportPresetScripts, ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts } from "@orb/contracts/regex";
+import type { ExportPresetScripts, ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts, RemoveUnattachedScripts } from "@orb/contracts/regex";
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -70,6 +70,8 @@ export interface PresetContext {
   readonly listPresetScriptKeys: ListPresetScriptKeys;
   /** Each owned preset's attached scripts, which a preset export carries. */
   readonly exportPresetScripts: ExportPresetScripts;
+  /** The regex domain's delete of named scripts that sit on no attachment, for the scripts a deleted preset leaves. */
+  readonly removeUnattachedScripts: RemoveUnattachedScripts;
 }
 
 export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;
@@ -86,7 +88,8 @@ export interface PresetService {
   /** Patch an owned preset; targeting the system default COWs into a new owned fork (NEW id
    *  returned). Throws `PresetNotFoundError` when no owned row matches. Audits the write. */
   readonly update: (params: UpdatePresetParams) => Promise<PresetDetail>;
-  /** Delete an owned preset (audits `preset.remove`). Throws `PresetOperationError`
+  /** Delete an owned preset (audits `preset.remove`), then delete those of `scriptIds` its delete left attached to
+   *  nothing. Throws `PresetOperationError`
    *  (`cannot_remove_system_default`) for the system default, `PresetNotFoundError` when unowned/missing. */
   readonly remove: (params: RemovePresetParams) => Promise<void>;
   /** Replace an owned preset's config with `DEFAULT_PROMPT_CONFIG` (audits `preset.resetToDefault`); a

@@ -39,6 +39,7 @@ export interface GroupConfigFormValues {
   readonly autoModeDelayMs: number;
   readonly allowSelfResponses: boolean;
   readonly memberCardVisibility: MemberCardVisibility;
+  readonly waitForEveryone: boolean;
 }
 
 export function defaultSpeakerTags(output: GroupOutput): boolean {
@@ -58,6 +59,7 @@ export function toGroupConfigForm(config: GroupConfig): GroupConfigFormValues {
     autoModeDelayMs: config.autoModeDelayMs,
     allowSelfResponses: config.allowSelfResponses,
     memberCardVisibility: config.memberCardVisibility,
+    waitForEveryone: config.waitForEveryone,
   };
 }
 
@@ -71,6 +73,7 @@ export function fromGroupConfigForm(values: GroupConfigFormValues): GroupConfig 
     autoModeDelayMs: values.autoModeDelayMs,
     allowSelfResponses: values.allowSelfResponses,
     memberCardVisibility: values.memberCardVisibility,
+    waitForEveryone: values.waitForEveryone,
   } as const;
   return values.output === "narrator"
     ? { output: "narrator", policy: narratorPolicyOf(values.policy), ...shared }

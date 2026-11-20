@@ -10,7 +10,7 @@
 // client-side from the roster array was residue from before that field shipped.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
+import { buildParticipantsById } from "#lib";
 
 // Omit, not a same-key intersection — a known TS assignability footgun that gets harder to prove as
 // ParticipantView grows optional fields, silently losing the .filter narrow.
@@ -32,16 +32,6 @@ export function presentMemberCount(participants: readonly ParticipantView[]): nu
   return participants.filter((p) => p.kind === "human" && p.leftSeq === null).length;
 }
 
-export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
-  const byId = new Map<CharacterId, ParticipantView>();
-  for (const participant of participants) {
-    if (participant.kind === "character" && participant.characterId !== null) {
-      byId.set(participant.characterId, participant);
-    }
-  }
-  return byId;
-}
-
 // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical
 // row but must not render as a room member.
 export function resolveHumanParticipants(participants: readonly ParticipantView[]): readonly ParticipantView[] {
@@ -50,6 +40,23 @@ export function resolveHumanParticipants(participants: readonly ParticipantView[
 
 export function resolveIsGroupChat(participants: readonly ParticipantView[]): boolean {
   return buildParticipantsById(participants).size > 1;
+}
+
+/** A room is shared from this many present people. */
+export const SHARED_ROOM_FLOOR = 2;
+
+/** Which halves of the Group behavior form a room earns: the arbitration knobs need two characters, and the wait
+ *  switch needs two present people with a present character to answer them. */
+export interface GroupBehaviorScope {
+  readonly characters: boolean;
+  readonly people: boolean;
+}
+
+/** The room's {@link GroupBehaviorScope}, or `null` when it earns neither half and the section is omitted. */
+export function resolveGroupBehaviorScope(participants: readonly ParticipantView[]): GroupBehaviorScope | null {
+  const characters = resolveIsGroupChat(participants);
+  const people = presentMemberCount(participants) >= SHARED_ROOM_FLOOR && filterCharacters(participants).some((p) => p.leftSeq === null);
+  return characters || people ? { characters, people } : null;
 }
 
 const CHARACTER_SECTION_FLOOR = 1;

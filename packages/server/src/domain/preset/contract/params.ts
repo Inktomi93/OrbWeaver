@@ -5,7 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
-import type { PresetId, UserId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 export interface CreatePresetParams {
   readonly userId: UserId;
@@ -58,6 +58,8 @@ export interface UpdatePresetParams {
 export interface RemovePresetParams {
   readonly userId: UserId;
   readonly id: PresetId;
+  /** Scripts the owner chose to delete with the preset. Only those the delete leaves attached to nothing go. */
+  readonly scriptIds: readonly RegexScriptId[];
 }
 
 export interface ResetToDefaultParams {

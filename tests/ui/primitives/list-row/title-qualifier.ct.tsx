@@ -6,11 +6,12 @@ import { channelName } from "@orb/testkit/ct";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { NameFitStory, QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
+import type { MetaSlotStory, NameFitStory, QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/TitleQualifierStory";
 const PAIR_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/QualifierPairStory";
 const NAME_FIT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/NameFitStory";
+const META_SLOT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/MetaSlotStory";
 const WIDTH = 373;
 const PHONE_WIDTH = 390;
 const TEXT_200 = 2;
@@ -189,4 +190,20 @@ test("two rows told apart only by their qualifier stay apart at 200% text on a p
   expect(shown.filter((qualifier) => !qualifier.whole)).toEqual([]);
   expect(shown.some((qualifier) => qualifier.lines > 1)).toBe(true);
   expect(new Set(shown.map((qualifier) => qualifier.text)).size).toBe(2);
+});
+
+test("every row's trailing datum ends at one edge with no dot before it, and a datum that tells rows apart joins their name", async ({ mount }) => {
+  const component = await mount<typeof MetaSlotStory>(META_SLOT_STORY, { width: WIDTH });
+  await expect(component.getByRole("button")).toHaveCount(5);
+  const ends = await component.locator('[data-slot="list-row-meta"]').evaluateAll((data) => data.map((datum) => datum.getBoundingClientRect().right));
+  expect(ends).toHaveLength(5);
+  const first = ends[0] ?? Number.NaN;
+  for (const [index, end] of ends.entries()) {
+    expect(Math.abs(end - first), `row ${String(index + 1)}'s datum ends at the shared edge`).toBeLessThanOrEqual(SUBPIXEL);
+  }
+  await expect(component.locator('[data-slot="list-row-title-separator"]')).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Chat with Eleni · 2h", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Chat with Eleni · 3w", exact: true })).toHaveCount(1);
+  // The positive control: a datum that tells no rows apart stays out of the name.
+  await expect(component.getByRole("button", { name: "Aveline", exact: true })).toHaveCount(1);
 });

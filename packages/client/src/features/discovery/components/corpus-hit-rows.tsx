@@ -128,7 +128,8 @@ export function DigestHitRow({
       onClick={(): void => selectCorpusArtifact({ kind: "digest", hit, rank })}
       leading={<Icon icon={MessagesSquare} size="sm" />}
       title={chatSubtitle(hit.chatTitle, hit.scopedCharacterName)}
-      {...(titleQualifier === undefined ? { meta: rank.toString() } : { titleQualifier })}
+      meta={titleQualifier ?? rank.toString()}
+      metaQualifiesTitle={titleQualifier !== undefined}
       subtitle={grouped ? (hit.scopedCharacterName ?? "Generated memory summary") : snippetForDisplay(hit.text)}
       subtitleWrap={true}
     />

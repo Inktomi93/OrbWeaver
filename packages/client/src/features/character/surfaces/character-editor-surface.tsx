@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { EditorPage, QueryBoundary } from "#components";
+import { ContentPane, ContentPaneBand, ContentPaneBody, EditorPage, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
@@ -130,14 +130,11 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // THE SCROLL CONTAINER IS THE SURFACE'S, NOT THE BODY'S, AND THAT IS REQUIRED. `reserveKey`
     // makes the boundary wrap its settled child in a measuring element, so a scroll box UNDER the boundary
     // inherits `h-full` from an auto-height wrapper — which computes to `auto`, the pane stops scrolling, and
-    // everything past the fold becomes unreachable (the editor CT's facet drill-in covers it). Hoisting it here puts the measured wrapper INSIDE the
-    // scroller, where an auto-height child is exactly what a scroller wants. `relative` rides along: a scroll
-    // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
-    // area (character-library-welcome.tsx carries the same note).
-    <Stack
+    // everything past the fold becomes unreachable (the editor CT's facet drill-in covers it). Hoisting it here puts the measured
+    // wrapper INSIDE the scroller, where an auto-height child is exactly what a scroller wants. The save bar is the pane's band and
+    // lives under the autosave session, so the editor lays the pane's parts.
+    <ContentPane
       ref={scrollRef}
-      scroll="y"
-      height="fill"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.
@@ -145,16 +142,25 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
           scrollPosition.current = node.scrollTop;
         }
       }}
-    >
-      <QueryBoundary
-        resetKeys={[characterId]}
-        fallback={<SkeletonRows count={EDITOR_SKELETON_ROWS} />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
-        reserveKey="character.editor"
-      >
-        <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
-      </QueryBoundary>
-    </Stack>
+      parts={
+        <QueryBoundary
+          resetKeys={[characterId]}
+          fallback={
+            <ContentPaneBody>
+              <SkeletonRows count={EDITOR_SKELETON_ROWS} />
+            </ContentPaneBody>
+          }
+          renderError={(_error, retry): ReactElement => (
+            <ContentPaneBody>
+              <QueryErrorState label="this character" onRetry={retry} />
+            </ContentPaneBody>
+          )}
+          reserveKey="character.editor"
+        >
+          <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
+        </QueryBoundary>
+      }
+    />
   );
 }
 
@@ -267,7 +273,9 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           form.handleSubmit().catch(() => notify.error(CHARACTER_SAVE_FAILURE));
         }}
       >
-        <EditorPage gap="section" inset="section">
+        {/* The bar is the pane's band: it spans the pane and pins, and its content rides the editor's column. It stays inside
+            the form, which names the editor region the bar belongs to. */}
+        <ContentPaneBand>
           {/* THE CENSUS IS `meta`, NOT AN ACTION. In the bar's `children`, beside `shrink-0` siblings, the
               token line would clip the character's NAME — the one thing a phone's save bar is telling you.
               The `meta` slot keeps the census inline where there is room and drops it to its own full-width
@@ -275,7 +283,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           <SaveBar
             title={data.name}
             kind="Character"
-            sticky="header"
+            sticky="band"
             meta={
               /* IT CARRIES ITS OWN GLOSS. The visible line says what both numbers count ("N tokens · M
                  always sent"), and the `aria-label` speaks the same pair ungrouped. */
@@ -307,53 +315,58 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
             {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
             <AutosaveStatus state={session.status} onRetry={session.retrySave} />
           </SaveBar>
-
-          <CharacterHeroBand
-            detail={data}
-            form={form}
-            trpc={trpc}
-            onNewChat={onNewChat}
-            onViewChats={onViewChats}
-            chatCount={chatCount}
-            activeGreetingIndex={activeGreetingIndex}
-            onActiveGreetingIndexChange={setActiveGreetingIndex}
-          />
-
-          {/* A master facet list; click a row and the list is replaced by the full-width facet body
-              editor (← Back to return). */}
-          {selectedFacetId === null ? (
-            <CharacterFacetList form={form} characterId={data.id} selectedFacetId={null} focusFacetId={backFocusFacetId} onSelect={onSelectFacet} />
-          ) : (
-            <CharacterFacetEditor
+        </ContentPaneBand>
+        <ContentPaneBody>
+          <EditorPage gap="section">
+            <CharacterHeroBand
+              detail={data}
               form={form}
-              characterId={data.id}
-              facetId={selectedFacetId as CharacterCardFacet["id"]}
-              trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
-              allowExternalMedia={!previewPolicy.forbidExternalMedia}
-              readOnly={{
-                importedFrom: data.importedFrom,
-                importHash: data.importHash,
-                extensions: data.extensions,
-                residualData: data.residualData,
-                refinery: data.refinery,
-              }}
-              onBack={(): void => {
-                setBackFocusFacetId(selectedFacetId as CharacterCardFacet["id"]);
-                clearCharacterFacet();
-              }}
+              trpc={trpc}
+              onNewChat={onNewChat}
+              onViewChats={onViewChats}
+              chatCount={chatCount}
+              activeGreetingIndex={activeGreetingIndex}
+              onActiveGreetingIndexChange={setActiveGreetingIndex}
             />
-          )}
-        </EditorPage>
+
+            {/* A master facet list; click a row and the list is replaced by the full-width facet body
+              editor (← Back to return). */}
+            {selectedFacetId === null ? (
+              <CharacterFacetList form={form} characterId={data.id} selectedFacetId={null} focusFacetId={backFocusFacetId} onSelect={onSelectFacet} />
+            ) : (
+              <CharacterFacetEditor
+                form={form}
+                characterId={data.id}
+                facetId={selectedFacetId as CharacterCardFacet["id"]}
+                trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
+                allowExternalMedia={!previewPolicy.forbidExternalMedia}
+                readOnly={{
+                  importedFrom: data.importedFrom,
+                  importHash: data.importHash,
+                  extensions: data.extensions,
+                  residualData: data.residualData,
+                  refinery: data.refinery,
+                }}
+                onBack={(): void => {
+                  setBackFocusFacetId(selectedFacetId as CharacterCardFacet["id"]);
+                  clearCharacterFacet();
+                }}
+              />
+            )}
+          </EditorPage>
+        </ContentPaneBody>
       </form>
 
       {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
           mutations), in the SAME centered column so a live section can't crush the editor width. */}
       {detailSections.length === 0 ? null : (
-        <EditorPage gap="section" inset="section" data-slot="character-editor-sections">
-          {detailSections.map((section) => (
-            <Fragment key={section.id}>{section.node}</Fragment>
-          ))}
-        </EditorPage>
+        <ContentPaneBody>
+          <EditorPage gap="section" data-slot="character-editor-sections">
+            {detailSections.map((section) => (
+              <Fragment key={section.id}>{section.node}</Fragment>
+            ))}
+          </EditorPage>
+        </ContentPaneBody>
       )}
     </Stack>
   );

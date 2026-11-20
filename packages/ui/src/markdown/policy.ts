@@ -6,9 +6,12 @@
 // input or a character resolved at or above `trusted` — every inheriting character by default (D294).
 // External media is a separate axis: a trusted row that forbids it still drops off-origin media
 // (`ownOriginMediaOnly`), because the app CSP follows only the box-wide setting.
+// Both tiers run Streamdown's rehype pipeline with the seal's own sanitize schema (`sealSanitize`), the one place an
+// inline colour is admitted.
 import remarkGfm from "remark-gfm";
-import type { AllowElement, AllowedTags, StreamdownProps, UrlTransform } from "streamdown";
-import { defaultRemarkPlugins } from "streamdown";
+import type { AllowElement, StreamdownProps, UrlTransform } from "streamdown";
+import { defaultRehypePlugins, defaultRemarkPlugins } from "streamdown";
+import { REFERENCE_BUDGET_REMARK_PLUGINS } from "./reference-budget.ts";
 
 const IMAGE_TAG = "img";
 const SOURCE_TAG = "source";
@@ -45,13 +48,15 @@ const KATEX_MATHML_ELEMENTS: readonly string[] = [
 ];
 
 // The Tier-A element allowlist: structural + text-formatting + tables + details/summary + links +
-// images + inert MathML. Forbidden by omission: script, style, iframe, object, embed, form, input, and any `on*`
-// handler. The untrusted surface drops `img` (see below).
+// images + inert MathML, and `font`, which carries only a validated colour (see `sealSanitize`). Forbidden by
+// omission: script, style, iframe, object, embed, form, input, and any `on*` handler. The untrusted surface drops
+// `img` (see below).
 const TIER_A_ELEMENTS: readonly string[] = [
   "p",
   "br",
   "hr",
   "span",
+  "font",
   "div",
   "blockquote",
   "pre",
@@ -158,24 +163,88 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
 /**
  * The remark-plugin list for both trust tiers — Streamdown's own `defaultRemarkPlugins` with only
  * the `gfm` entry re-pinned to `{ singleTilde: false }` (its default strikes through prose like
- * `10~20°C`). Overrides only `remarkPlugins`, never `rehypePlugins` — Streamdown's `allowedTags`
- * schema-merge is gated on `rehypePlugins` staying its default reference.
+ * `10~20°C`), then the reference-link copy budget (`reference-budget.ts`).
  */
-export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Object.values({
+const VENDOR_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Object.values({
   ...defaultRemarkPlugins,
   gfm: [remarkGfm, { singleTilde: false }],
 });
+export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = [...VENDOR_REMARK_PLUGINS, ...REFERENCE_BUDGET_REMARK_PLUGINS];
+
+/** The tag a dialogue colour may ride on as an attribute (`<font color>`), which the seal draws as a `span`. */
+export const COLOUR_FONT_TAG = "font";
+
+// ONE colour value, strict: a hex colour, a bare keyword, or an rgb/hsl function of plain numbers. Nothing here can
+// open a url, a variable, an expression, a comment, an escape or a second declaration: no `\`, `/*`, `;` or `(`
+// outside the two named functions. A value the browser does not take as a colour paints nothing.
+const NUMBER = String.raw`[+-]?(?:\d{1,4}(?:\.\d{1,4})?|\.\d{1,4})(?:%|deg)?`;
+// Arguments part at a comma, a slash or whitespace; a separator is never empty, so two numbers never split one run of digits.
+const ARGUMENT_SEPARATOR = String.raw`(?:[ \t]*[,/][ \t]*|[ \t]+)`;
+const COLOUR_VALUE = String.raw`(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|[a-z]{3,24}|(?:rgba?|hsla?)\([ \t]*${NUMBER}(?:${ARGUMENT_SEPARATOR}${NUMBER}){2,3}[ \t]*\))`;
+/** A `<font color>` value the seal draws as a colour. */
+export const FONT_COLOUR_RE = new RegExp(String.raw`^[ \t]*${COLOUR_VALUE}[ \t]*$`, "iu");
+/** A `style` attribute the sanitizer keeps: one `color` declaration and nothing else. */
+const COLOUR_ONLY_STYLE_RE = new RegExp(String.raw`^[ \t]*color[ \t]*:[ \t]*${COLOUR_VALUE}[ \t]*(?:;[ \t]*)?$`, "iu");
+
+// Streamdown types its rehype entries as plain `Pluggable`s, which erases the sanitize schema. These are the two
+// schema fields the seal extends; every other field passes through as Streamdown set it.
+type PropertyDefinition = string | readonly [string, ...(string | number | boolean | RegExp)[]];
+interface SanitizeSchema {
+  readonly tagNames?: readonly string[] | null | undefined;
+  readonly attributes?: Readonly<Record<string, readonly PropertyDefinition[]>> | null | undefined;
+}
+type RehypeEntry = NonNullable<StreamdownProps["rehypePlugins"]>[number];
+type RehypePlugin = Extract<RehypeEntry, (...parameters: never) => unknown>;
+
+function isSchema(value: unknown): value is SanitizeSchema {
+  return typeof value === "object" && value !== null;
+}
+
+// Streamdown's own sanitize step, with its schema: its protocol and clobber choices stay the vendor's.
+function vendorSanitize(): readonly [RehypePlugin, SanitizeSchema] {
+  const entry = defaultRehypePlugins["sanitize"];
+  if (!(Array.isArray(entry) && typeof entry[0] === "function" && isSchema(entry[1]))) {
+    throw new Error("streamdown's sanitize entry is not a [plugin, schema] pair");
+  }
+  return [entry[0], entry[1]];
+}
 
 /**
- * Trusted-only custom-tag passthrough for the `<speaker>` wire format. Adds `<speaker>` to
- * Streamdown's sanitize schema (no attributes permitted) so a raw `<speaker>NAME</speaker>` that
- * reaches the renderer renders its NAME as literal text instead of being mangled by markdown
- * parsing. Not applied to `untrusted` — imported/foreign content has no business carrying it.
+ * The seal's sanitize schema: Streamdown's, plus a dialogue colour on two carriers (D294, UI-Theming-and-Content
+ * §12.2). A `span` keeps a `style` that is exactly one colour declaration; any other style is dropped by the sanitizer
+ * itself. `font` is kept as a tag. Streamdown's `*` attributes already keep `color` on every element at any value, so
+ * the seal's `font` component is the step that admits a {@link FONT_COLOUR_RE} value as a colour and drops every other
+ * attribute. `extraTags` adds tags with no attributes, for the trusted tier's `<speaker>`.
  */
-export const TRUSTED_ALLOWED_TAGS: AllowedTags = { speaker: [] };
+function sealSanitize(extraTags: readonly string[]): RehypeEntry {
+  const [plugin, schema] = vendorSanitize();
+  const attributes = schema.attributes ?? {};
+  const extended: SanitizeSchema = {
+    ...schema,
+    tagNames: [...(schema.tagNames ?? []), COLOUR_FONT_TAG, ...extraTags],
+    attributes: {
+      ...attributes,
+      span: [...(attributes["span"] ?? []), ["style", COLOUR_ONLY_STYLE_RE]],
+      ...Object.fromEntries(extraTags.map((tag) => [tag, []])),
+    },
+  };
+  return [plugin, extended];
+}
 
-/**
- * The tags whose children Streamdown treats as plain text. Pairs with {@link TRUSTED_ALLOWED_TAGS}
- * so a `<speaker>` name containing markdown-significant characters renders verbatim.
- */
-export const TRUSTED_LITERAL_TAG_CONTENT: readonly string[] = ["speaker"];
+function sealRehypePlugins(extraTags: readonly string[]): NonNullable<StreamdownProps["rehypePlugins"]> {
+  return Object.entries(defaultRehypePlugins).map(([name, entry]) => (name === "sanitize" ? sealSanitize(extraTags) : entry));
+}
+
+/** The custom tag the trusted tier keeps for the `<speaker>` wire format, with no attribute, so a raw
+ *  `<speaker>NAME</speaker>` that reaches the renderer shows its NAME as literal text. The untrusted tier's element
+ *  filter drops the tag and keeps the name. */
+const SPEAKER_TAG = "speaker";
+
+/** The rehype pipeline of the untrusted tier: Streamdown's, with the seal's sanitize schema. */
+export const UNTRUSTED_REHYPE_PLUGINS = sealRehypePlugins([]);
+/** The rehype pipeline of the trusted tier: the untrusted tier's, with `<speaker>` kept. */
+export const TRUSTED_REHYPE_PLUGINS = sealRehypePlugins([SPEAKER_TAG]);
+
+/** The tags whose children Streamdown treats as plain text, so a `<speaker>` name containing markdown-significant
+ *  characters renders verbatim. */
+export const TRUSTED_LITERAL_TAG_CONTENT: readonly string[] = [SPEAKER_TAG];

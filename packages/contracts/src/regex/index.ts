@@ -14,6 +14,7 @@ export type {
   ImportRegexScript,
   ListPresetScriptKeys,
   PlanPresetScripts,
+  RemoveUnattachedScripts,
   ResolveRegexScriptRoomsOp,
   ScriptPlan,
 } from "./owner-ops.ts";

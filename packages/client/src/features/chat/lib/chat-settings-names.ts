@@ -45,6 +45,9 @@ export const CHAT_GROUP_BEHAVIOR_NAME = "Group behavior";
 /** The group form's output choice. */
 export const GROUP_OUTPUT_FIELD_NAME = "How the characters reply";
 
+/** The group form's switch that holds the reply until every person in the room has written. */
+export const GROUP_WAIT_FOR_EVERYONE_NAME = "Wait for everyone before replying";
+
 /** The group form's speaker-tag switch. */
 export const GROUP_SPEAKER_TAGS_NAME = "Label each speaker";
 

@@ -12,7 +12,7 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormingChip, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
+import { FormingChip, FramedMediaNotice, FramedScriptNotice, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useRenderPolicyFloor, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
@@ -56,11 +56,13 @@ export function RpgCardLightbox({
  *  to its floor gives the card up, a link opens only through the shared confirm, and a forming chip holds the body
  *  until the routed frame draws. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
-  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const { themeTokens, cardStyleTokens: styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
   const links = useFramedLinkConfirm();
+  // The routed document's own grant; the srcdoc floor runs no script and loads external media only as the card allows.
+  const granted = frame.mint.state === "routed" ? frame.mint.granted : { externalMedia: card.allowExternalMedia, interactive: false };
   const forming = frame.mint.state === "floor" ? undefined : <FormingChip title={cardLabel(card.title)} />;
   return (
     <>
@@ -76,6 +78,10 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
         onFloor={frame.giveUp}
       />
       {links.confirm}
+      {/* The transcript card's notices, under the same conditions (`card-block.tsx`). The archive draws only in a game
+          whose cards are on, so the held-cards notice never applies here. */}
+      <FramedMediaNotice chatId={chatId} characterId={card.characterId} html={card.html} css={undefined} granted={granted} />
+      {frame.mint.state === "routed" ? <FramedScriptNotice chatId={chatId} characterId={card.characterId} html={card.html} granted={granted} /> : null}
     </>
   );
 }

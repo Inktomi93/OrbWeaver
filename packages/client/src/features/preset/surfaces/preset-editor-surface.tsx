@@ -47,7 +47,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { EditorPage, QueryBoundary, StoredConfigUnreadableNotice } from "#components";
+import { ContentPane, ContentPaneBody, EditorPage, QueryBoundary, StoredConfigUnreadableNotice } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { SaveUnwritableContext } from "#forms";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
@@ -105,31 +105,36 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
 
   return (
     // NAMED, for the reason the list surface's twin is (side-eye 2026-08-19 ARIA): `useFocusOnMount` lands
-    // focus here on entry, and an unnamed role-less div announces nothing about where you just arrived.
-    <Stack
+    // focus here on entry, and an unnamed role-less div announces nothing about where you just arrived. The pane's
+    // band (the header) lives under the editor's `Tabs` and autosave session, so the editor lays the pane's parts.
+    <ContentPane
       aria-label={PRESET_EDITOR_NAME}
       ref={surfaceRef}
       role="region"
       tabIndex={-1}
-      scroll="y"
-      className="overflow-x-hidden"
-      height="fill"
-      focusTarget={true}
-    >
-      {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
-          a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll
-          position with it. The remembered box holds the pane across a preset switch; the authored count is
-          only the first-boot guess (the reserved box re-fills it). The scroll box is the Stack ABOVE this
-          boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133). */}
-      <QueryBoundary
-        resetKeys={[presetId]}
-        fallback={<SkeletonRows count={6} />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
-        reserveKey="preset.editor"
-      >
-        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
-      </QueryBoundary>
-    </Stack>
+      parts={
+        // RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to a one-line
+        // sentence and pop it back to a full form, taking the scrollbar and the reader's scroll position with it. The
+        // remembered box holds the pane across a preset switch; the authored count is only the first-boot guess. The scroll
+        // box is the pane ABOVE this boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133).
+        <QueryBoundary
+          resetKeys={[presetId]}
+          fallback={
+            <ContentPaneBody>
+              <SkeletonRows count={6} />
+            </ContentPaneBody>
+          }
+          renderError={(_error, retry): ReactElement => (
+            <ContentPaneBody>
+              <QueryErrorState label="the preset" onRetry={retry} />
+            </ContentPaneBody>
+          )}
+          reserveKey="preset.editor"
+        >
+          <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
+        </QueryBoundary>
+      }
+    />
   );
 }
 
@@ -360,31 +365,38 @@ function PresetEditorBody({
             library's Import, which the copy names; for a from-a-newer-version blob the copy deliberately
             does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
         {configUnreadable === null ? null : (
-          <EditorPage inset="block">
-            <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
-          </EditorPage>
+          <ContentPaneBody inset="block">
+            <EditorPage>
+              <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
+            </EditorPage>
+          </ContentPaneBody>
         )}
 
         {isSystemDefault ? (
-          <EditorPage inset="block">
-            <BuiltInCopyOnWriteNotice active={active} />
-          </EditorPage>
+          <ContentPaneBody inset="block">
+            <EditorPage>
+              <BuiltInCopyOnWriteNotice active={active} />
+            </EditorPage>
+          </ContentPaneBody>
         ) : null}
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
           <TabsPanel key={entry.id} value={entry.id}>
             {/* One column for all five views, here and not per view, so no body can opt out. */}
-            <EditorPage inset="block" gap="block">
-              {entry.id === "params" ? (
-                <Stack gap="field" data-slot="preset-editor-connection">
-                  <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
-                  <Text voice="gloss">
-                    Controls and effective values use your Chat connection. Connection in view changes only the readout, not this editor or your role bindings.
-                  </Text>
-                </Stack>
-              ) : null}
-              {viewContent(entry.id, viewProps)}
-            </EditorPage>
+            <ContentPaneBody inset="block">
+              <EditorPage gap="block">
+                {entry.id === "params" ? (
+                  <Stack gap="field" data-slot="preset-editor-connection">
+                    <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
+                    <Text voice="gloss">
+                      Controls and effective values use your Chat connection. Connection in view changes only the readout, not this editor or your role
+                      bindings.
+                    </Text>
+                  </Stack>
+                ) : null}
+                {viewContent(entry.id, viewProps)}
+              </EditorPage>
+            </ContentPaneBody>
           </TabsPanel>
         ))}
       </Tabs>

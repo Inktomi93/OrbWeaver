@@ -51,7 +51,7 @@ test("a re-run after the owner removed rows stores what the waves reused, counti
     throw new Error(`the first run landed no held book or preset: ${JSON.stringify([books.map((b) => b.name), presets.map((p) => p.name)])}`);
   }
   await root.services.worldInfo.removeBook({ principal, bookId: eldoria.id });
-  await root.services.preset.remove({ userId: root.ownerId, id: preset.id });
+  await root.services.preset.remove({ userId: root.ownerId, id: preset.id, scriptIds: [] });
 
   const again = await finishRun(root, await admit(root, folder));
 
