@@ -52,7 +52,7 @@ The fields scan's two engines disagree on some rows. Every row is decidable insi
 
 Engine one counts two uses no name shows:
 
-- A parameter or variable typed `Owner["m"]`, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`.
+- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. The write must sit in a file the same world homes as the call, so a member wired across worlds this way stays reported; judge it by hand.
 - A value handed to a slot a library declares, as `mutate(input, settle)`: the library reads each member its slot names, so the hand-off reads the value's same-named members.
 
 ## Limits of the fields scan

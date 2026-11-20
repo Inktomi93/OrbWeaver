@@ -133,8 +133,8 @@ test.for([
 );
 
 // A composition root hands one verb into its sibling through a parameter typed `Verbs["bundle"]`, and a hook hands its
-// settle callbacks to a library's `mutate`. Neither use names the member; a type mention alone and a member no slot
-// takes stay reported.
+// settle callbacks to a library's `mutate`. Neither use names the member; a type mention alone, a binding typed by a
+// member but given another value, and a member no slot takes stay reported.
 const SEAMS = {
   "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
   "packages/a/src/verbs.ts": [
@@ -142,6 +142,7 @@ const SEAMS = {
     "  readonly bundle: (name: string) => number;",
     "  readonly file: (name: string) => number;",
     "  readonly spareVerb: (name: string) => number;",
+    "  readonly ghost: (name: string) => number;",
     "}",
     'export function createFile(bundle: Verbs["bundle"], _spare: Verbs["spareVerb"]): Verbs["file"] {',
     "  return (name) => bundle(name);",
@@ -149,9 +150,16 @@ const SEAMS = {
     "export function createVerbs(): Verbs {",
     "  const bundle = (name: string): number => name.length;",
     "  const spareVerb = (): number => 0;",
-    "  return { bundle, file: createFile(bundle, spareVerb), spareVerb };",
+    "  return { bundle, file: createFile(bundle, spareVerb), spareVerb, ghost: () => 9 };",
     "}",
     'export const filed = createVerbs().file("x");',
+    // Typed by a member but handed an unrelated value: the binding's reads are not the member's.
+    'export function runWith(fn: Verbs["ghost"]): number {',
+    '  return fn("y");',
+    "}",
+    "export const ran = runWith(() => 7);",
+    'const local: Verbs["ghost"] = () => 8;',
+    'export const localRan = local("z");',
   ].join("\n"),
   "packages/a/src/query.d.ts": [
     'declare module "fx-query" {',
@@ -176,6 +184,7 @@ test("a verb called through a binding typed by it and callbacks handed to a libr
   const report = scanUnwired({ root, worlds: [WORLDS[0] as string], testWorlds: [], deliberate: [], log: () => undefined });
   expect(report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted()).toEqual([
     "Settle.onNever builder-only",
+    "Verbs.ghost builder-only",
     "Verbs.spareVerb builder-only",
   ]);
 });
