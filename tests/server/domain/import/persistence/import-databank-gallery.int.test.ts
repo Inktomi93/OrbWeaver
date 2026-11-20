@@ -127,12 +127,14 @@ test("a file the Data Bank does not list, an entry with no file, a file that is 
           attachmentOf("gone.txt", "Gone"),
           attachmentOf("scan.pdf", "Scan"),
           { url: "/user/files/../settings.json", name: "Escape" },
+          { url: "/user/files/sub/nested.txt", name: "Nested" },
         ],
       },
     ),
     [NOTES_PATH]: "The ford floods at dusk.",
     "user/files/stray.txt": "Another extension's upload.",
     "user/files/scan.pdf": "%PDF-1.4",
+    "user/files/sub/nested.txt": "A file below the plane.",
   };
 
   const preview = await dryRun(root, files);
@@ -141,8 +143,8 @@ test("a file the Data Bank does not list, an entry with no file, a file that is 
   expect([...(await documentsByName(root)).keys()]).toEqual(["Field notes"]);
   expect(preview.kinds.documents.items.map((item) => item.name)).toEqual(["Field notes"]);
   const skipped = preview.skipped.items.map((item) => item.source.path);
-  expect(skipped).toEqual(expect.arrayContaining(["user/files/stray.txt", "user/files/gone.txt", "user/files/scan.pdf"]));
-  expect(skipped).not.toContain(NOTES_PATH);
+  // An entry whose URL leaves the plane or descends below it names no Data Bank file, so it is neither read nor named.
+  expect(skipped.filter((path) => path.startsWith("user/files/")).toSorted()).toEqual(["user/files/gone.txt", "user/files/scan.pdf", "user/files/stray.txt"]);
   for (const path of ["user/files/stray.txt", "user/files/gone.txt", "user/files/scan.pdf"]) {
     expect(report).toContain(path);
   }

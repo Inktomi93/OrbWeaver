@@ -1,6 +1,8 @@
 // primitives/st-filename — SillyTavern's own filename rule (`sanitize-filename` with an empty replacement), which
-// SillyTavern applies to every name it writes to disk. The import reads gallery folders through it, and the export
-// writes every path segment it builds from a stored name through it, so a name can never leave its directory.
+// SillyTavern applies to every name it writes to disk. The import reads gallery folders through it as SillyTavern
+// writes them, so it stays SillyTavern's rule exactly. The export writes every path segment it builds from a stored
+// name through `stExportFilename`, that rule plus a strip of the marks a reader cannot see, so a written name can never
+// leave its directory or read as another name.
 
 // sanitize-filename's rules, in its order. Its trailing dot and space strip is a loop, not a regex, to stay linear.
 const ILLEGAL = /[/?<>\\:*|"]/gu;
@@ -12,6 +14,9 @@ const RESERVED = /^\.+$/u;
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9\xb9\xb2\xb3]|lpt[0-9\xb9\xb2\xb3])(\..*)?$/iu;
 const MAX_NAME_BYTES = 255;
 const ENCODER = new TextEncoder();
+// DEL and the bidirectional embedding, override and isolate controls. SillyTavern keeps them, but an override can make
+// a written name show another name or extension than the one on disk.
+const HIDDEN_MARKS = /[\x7f\u{202a}-\u{202e}\u{2066}-\u{2069}]/gu;
 
 function stripControls(text: string): string {
   let out = "";
@@ -51,4 +56,15 @@ function truncateUtf8(text: string, maxBytes: number): string {
 export function stSanitizeFilename(name: string): string {
   const stripped = stripTrailingDotsAndSpaces(stripControls(name.replace(ILLEGAL, "")).replace(RESERVED, "").replace(WINDOWS_RESERVED, ""));
   return stripTrailingDotsAndSpaces(truncateUtf8(stripped, MAX_NAME_BYTES)).replace(WINDOWS_RESERVED, "");
+}
+
+/** `name` as the export writes it: {@link stSanitizeFilename} after DEL and the bidirectional controls are stripped. */
+export function stExportFilename(name: string): string {
+  return stSanitizeFilename(name.replace(HIDDEN_MARKS, ""));
+}
+
+/** The longest prefix of `stem` that keeps `stem` plus `tail` (a collision suffix and the extension) within a file
+ *  name's byte limit, with no trailing dot or space. */
+export function stClipStem(stem: string, tail: string): string {
+  return stripTrailingDotsAndSpaces(truncateUtf8(stem, MAX_NAME_BYTES - ENCODER.encode(tail).length));
 }

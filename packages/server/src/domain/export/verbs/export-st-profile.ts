@@ -8,8 +8,8 @@
 // zip's report can name more than the dry run's.
 //
 // SECURITY: every path segment built from a stored name goes through SillyTavern's own filename rule
-// (`stSanitizeFilename`) and then a case-folded collision suffix, so no name leaves its directory and no two files
-// share a path on a case-insensitive disk. Card files use the card's portable handle; chat and group files use the
+// (`stExportFilename`), is clipped to the name byte limit with its collision suffix, and is compared after the volume
+// fold (`volumeFold`), so no name leaves its directory and no two files share a path on a Windows or macOS disk. Card files use the card's portable handle; chat and group files use the
 // chat id, whose alphabet holds no separator; gallery files use the content hash.
 //
 // A ROOM WITH MORE THAN ONE SEAT, OR WITH A GROUP CONFIG, IS A SILLYTAVERN GROUP: `groups/<id>.json` naming its
@@ -40,7 +40,8 @@ import { parseTagLibrary } from "#primitives/serde/tag";
 import { parseThemeFile, stThemeToJson } from "#primitives/serde/theme";
 import { parseUserSettingsBackup } from "#primitives/serde/user-settings";
 import { buildStWorldFile, parseWorldBookFile } from "#primitives/serde/world-info";
-import { stSanitizeFilename } from "#primitives/st-filename";
+import { stClipStem, stExportFilename } from "#primitives/st-filename";
+import { volumeFold } from "#primitives/volume-fold";
 import type { HostChatRef } from "../contract/results.ts";
 import type { StEntrySource, StProfileEntry, StProfileSource, StProfileZipFile, StStreamedKind } from "../contract/st-profile.ts";
 
@@ -85,16 +86,18 @@ function portableHandle(text: string | null): CharacterHandle | null {
   return text === null ? null : portableCharacterHandle(text);
 }
 
-// One directory's names, folded the way a case-insensitive disk folds them.
+// One directory's names, compared as a Windows or macOS volume compares them, each within the byte limit with its
+// collision suffix and extension.
 function namer(): (base: string, fallback: string, ext: string) => string {
   const taken = new Set<string>();
   return (base, fallback, ext) => {
-    const stem = stSanitizeFilename(base) || fallback;
-    let name = `${stem}${ext}`;
-    for (let n = 2; taken.has(name.toLowerCase()); n += 1) {
-      name = `${stem} (${String(n)})${ext}`;
+    const stem = stExportFilename(base) || fallback;
+    let name = `${stClipStem(stem, ext)}${ext}`;
+    for (let n = 2; taken.has(volumeFold(name)); n += 1) {
+      const tail = ` (${String(n)})${ext}`;
+      name = `${stClipStem(stem, tail)}${tail}`;
     }
-    taken.add(name.toLowerCase());
+    taken.add(volumeFold(name));
     return name;
   };
 }
@@ -296,7 +299,7 @@ async function* planChats(source: StProfileSource, plan: PlanBuilder, chatHashes
       continue;
     }
     const handle = portableCharacterHandle(room.handle);
-    const dir = stemOf(plan.cards.get(handle) ?? `${stSanitizeFilename(handle) || `${CARD_FALLBACK_PREFIX}${handle}`}${PNG_EXT}`);
+    const dir = stemOf(plan.cards.get(handle) ?? `${stExportFilename(handle) || `${CARD_FALLBACK_PREFIX}${handle}`}${PNG_EXT}`);
     const name = namers.get(dir) ?? namer();
     namers.set(dir, name);
     yield plan.entry("chats", `chats/${dir}/${name(room.chatId, FALLBACK_NAMES.chat, JSONL_EXT)}`, item, transcript);
