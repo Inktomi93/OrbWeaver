@@ -8,7 +8,6 @@
 
 import { readFile } from "node:fs/promises";
 import { ST_EXPORT_PROFILE_DIR, ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { StWorldInfoPosition } from "@orb/kit/world-info";
 import { ST_SEATLESS_POSITIONS, ST_WORLD_INFO_POSITION } from "@orb/kit/world-info";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -43,24 +42,24 @@ const ST_DEFAULTS = { position: 0, depth: 4, role: 0, outletName: "" };
  *  `getWorldInfoPrompt`'s placement loop (public/scripts/world-info.js), whose `default` places nothing. */
 function stPlacement(raw: Readonly<Record<string, unknown>>): string {
   const entry = { ...ST_DEFAULTS, ...raw };
-  const slot = (Object.keys(ST_WORLD_INFO_POSITION) as StWorldInfoPosition[]).find((name) => ST_WORLD_INFO_POSITION[name] === entry.position);
-  switch (slot) {
-    case "atDepth":
-      return `depth ${String(entry.depth)} role ${String(entry.role)}`;
-    case "outlet":
-      return typeof entry.outletName === "string" && entry.outletName.length > 0 ? `outlet ${entry.outletName}` : "nowhere";
-    case undefined:
-      return "nowhere";
-    default:
-      return slot;
+  const [slot] = Object.entries(ST_WORLD_INFO_POSITION).find(([, position]) => position === entry.position) ?? ["nowhere"];
+  if (entry.position === ST_WORLD_INFO_POSITION.atDepth) {
+    return `depth ${String(entry.depth)} role ${String(entry.role)}`;
   }
+  if (entry.position === ST_WORLD_INFO_POSITION.outlet) {
+    return typeof entry.outletName === "string" && entry.outletName.length > 0 ? `outlet ${entry.outletName}` : "nowhere";
+  }
+  return slot;
 }
 
 test("every entry of a SillyTavern world lands in the same SillyTavern slot after an import and the export", async () => {
   await using root = await harness();
   const result = await finishRun(
     root,
-    await admit(root, { [ST_SETTINGS_FILE]: settings({}), [`worlds/${BOOK}.json`]: JSON.stringify({ entries: { ...STORED_ENTRIES } }) }),
+    await admit(root, {
+      [ST_SETTINGS_FILE]: settings({}),
+      [`worlds/${BOOK}.json`]: JSON.stringify({ entries: Object.fromEntries(STORED_ENTRIES.map((entry) => [String(entry.uid), entry])) }),
+    }),
   );
 
   const zip = await exportedZip(root);

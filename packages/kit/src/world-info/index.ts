@@ -80,7 +80,7 @@ export type StSeatlessPosition = (typeof ST_SEATLESS_POSITIONS)[number];
 /** The metadata key that keeps a seatless slot, with the bucket the entry was placed in when it was kept. */
 export const ST_SLOT_METADATA_KEY = "stSlot";
 
-export const stSlotSchema = z.object({ slot: z.enum(ST_SEATLESS_POSITIONS), placed: z.enum(ENTRY_POSITIONS).nullable() }).strict();
+export const stSlotSchema = z.strictObject({ slot: z.enum(ST_SEATLESS_POSITIONS), placed: z.enum(ENTRY_POSITIONS).nullable() });
 export type StSlot = z.infer<typeof stSlotSchema>;
 
 /** The seatless slot an entry's metadata keeps, read in isolation; null when it keeps none or a malformed one. */
