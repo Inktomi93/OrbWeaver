@@ -119,6 +119,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly planPresetScripts: PresetAssemblyContext["planPresetScripts"];
   readonly listPresetScriptKeys: PresetAssemblyContext["listPresetScriptKeys"];
   readonly exportPresetScripts: PresetAssemblyContext["exportPresetScripts"];
+  readonly removeUnattachedScripts: PresetAssemblyContext["removeUnattachedScripts"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
@@ -278,6 +279,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     planPresetScripts: deps.planPresetScripts,
     listPresetScriptKeys: deps.listPresetScriptKeys,
     exportPresetScripts: deps.exportPresetScripts,
+    removeUnattachedScripts: deps.removeUnattachedScripts,
     // The CONTEXT panel's backward-bindings read: preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
       loadUserSettings: deps.settings.loadUserSettings,

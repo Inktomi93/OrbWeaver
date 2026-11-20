@@ -49,6 +49,13 @@ export type ListPresetScriptKeys = (args: { readonly ownerId: UserId }) => Promi
  *  preset export. Only the owner's own rows are read. */
 export type ExportPresetScripts = (args: { readonly ownerId: UserId }) => Promise<ReadonlyMap<PresetId, readonly (RegexScriptCard & StRegexScriptFields)[]>>;
 
+/** Delete those of the named owned scripts that sit on no attachment (global, character, preset or room) and answer how
+ *  many went. A script another scope uses is kept, whatever the caller named. */
+export type RemoveUnattachedScripts = (args: {
+  readonly ownerId: UserId;
+  readonly scriptIds: readonly RegexScriptId[];
+}) => Promise<{ readonly affected: number }>;
+
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 
 /** The card re-embed: the character's attached scripts back out to the card-wire shape. */

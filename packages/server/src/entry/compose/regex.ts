@@ -20,6 +20,7 @@ import type {
   ImportRegexScript,
   ListPresetScriptKeys,
   PlanPresetScripts,
+  RemoveUnattachedScripts,
 } from "@orb/contracts/regex";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
@@ -40,10 +41,11 @@ import {
   createListPresetScriptKeys,
   createPlanPresetScripts,
   createRegexService,
+  createRemoveUnattachedScripts,
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditWiring, Logger } from "#foundation/observability";
-import { probeFindCompiles } from "#primitives/regex";
+import { createFindCompileProbe } from "#primitives/regex";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
@@ -79,6 +81,8 @@ export interface RegexComposeResult {
   readonly listPresetScriptKeys: ListPresetScriptKeys;
   /** A preset export's read of each preset's attached scripts. */
   readonly exportPresetScripts: ExportPresetScripts;
+  /** A preset delete's clean-up of the scripts the owner chose that it left attached to nothing. */
+  readonly removeUnattachedScripts: RemoveUnattachedScripts;
   /** The ST profile import's GLOBAL lift (`extension_settings.regex` → `global_regex_scripts`). */
   readonly importGlobalScripts: ImportGlobalScripts;
   /** Injected into `ExportContext` — the card RE-EMBED. */
@@ -92,6 +96,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
   const { db, now, audit } = deps;
   const chatGuards = createWiredChatGuards({ db, can });
   const newScriptId = minter(ID_PREFIX.regexScript, deps.idSource);
+  const probeFindCompiles = createFindCompileProbe();
 
   const fanRegexScriptRooms = createFanRegexScriptRooms(db, deps.emitChatEventLive, deps.logger);
   const regex = createRegexService({
@@ -126,6 +131,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     planPresetScripts: createPlanPresetScripts({ db, probeFindCompiles }),
     listPresetScriptKeys: createListPresetScriptKeys({ db }),
     exportPresetScripts: createExportPresetScripts({ db }),
+    removeUnattachedScripts: createRemoveUnattachedScripts({ db, now, audit, emitUserEvent: deps.emitUserEvent }),
     importGlobalScripts: createImportGlobalScripts(portabilityCtx),
     exportCardScripts: createExportCardScripts({ db }),
     exportRegexScripts: createExportRegexScripts({ db }),

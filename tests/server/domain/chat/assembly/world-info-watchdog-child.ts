@@ -10,6 +10,8 @@ import { z } from "zod";
 const mode = z.enum(["normal", "full", "latest"]).parse(process.argv[2]);
 const catastrophic = "(a+)+$";
 const latestOnly = `dragon|${catastrophic}`;
+// Several lazy groups in one key: it finishes in microseconds, so only a shape filter could refuse it.
+const lazyGroups = String.raw`(dr\w+?)\s+(g\w*?)\s+(t\w*?)\s+(l\w*?)`;
 const warningSchema = z.object({ key: z.string(), reason: z.string() });
 await test("actual composed world-info matcher", async () => {
   {
@@ -55,6 +57,7 @@ await test("actual composed world-info matcher", async () => {
     const literal = await entry("Literal metacharacters", ["a+b"], "literal");
     const absent = await entry("Absent regex", ["kraken"], "regex");
     const invalid = await entry("Invalid literal fallback", ["["], "regex");
+    const lazy = await entry("Lazy groups", [lazyGroups], "regex");
     const unsafe = mode === "normal" ? undefined : await entry("Pathological key", [mode === "full" ? catastrophic : latestOnly], "regex", mode === "latest");
     await caller.worldInfo.attachToChat({ chatId: started.chat.id, bookId: book.id });
 
@@ -64,7 +67,7 @@ await test("actual composed world-info matcher", async () => {
       const preview = await caller.chat.previewAssembly({ chatId: started.chat.id, timeZone: UTC_TIME_ZONE });
       const activated = new Set(preview.trace.worldInfoActivated.map((item) => item.id));
       const delivered = [preview.prompt.static, preview.prompt.dynamic, ...preview.prompt.afterHistory.map((injection) => injection.content)].join("\n");
-      for (const expected of [benign, literal, invalid]) {
+      for (const expected of [benign, literal, invalid, lazy]) {
         assert.ok(activated.has(expected.id), `missing admitted world-info entry: ${expected.title}`);
         assert.ok(delivered.includes(`${expected.title} payload`));
       }
@@ -90,6 +93,10 @@ await test("actual composed world-info matcher", async () => {
       return parsed.success ? [parsed.data] : [];
     });
     assert.ok(warnings.filter((warning) => warning.key === "[" && warning.reason.length > 0).length >= 2, JSON.stringify(warnings));
+    assert.deepEqual(
+      warnings.filter((warning) => warning.key === lazyGroups),
+      [],
+    );
     const key = mode === "full" ? catastrophic : latestOnly;
     assert.equal(warnings.filter((warning) => warning.key === key && /timed out/iu.test(warning.reason)).length >= 2, mode !== "normal");
   }

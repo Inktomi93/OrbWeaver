@@ -119,6 +119,10 @@ export interface RegexService {
    *  depth and author scope, which apply only on display or in the prompt, and is named in `cleared`. */
   readonly bulkSetScriptsAxes: (params: BulkSetScriptsAxesParams) => Promise<BulkAxesResult>;
   readonly bulkRemoveScripts: (params: BulkRemoveScriptsParams) => Promise<BulkResult>;
+  /** The owner's scripts attached nowhere: no global, character, preset or room attachment. */
+  readonly listUnattachedScripts: (params: ListScriptsParams) => Promise<RegexScriptRow[]>;
+  /** Delete the named scripts that are attached nowhere; a named script some scope uses is kept and not counted. */
+  readonly removeUnattachedScripts: (params: BulkRemoveScriptsParams) => Promise<BulkResult>;
 
   /** The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`). Both are THIN ARMS over the
    *  backup bundle's own verbs — `exportScript` shares the descriptor's file projection, `importScriptFile`
@@ -141,6 +145,8 @@ export interface RegexService {
   readonly attachToPreset: (params: AttachToPresetParams) => Promise<void>;
   readonly detachFromPreset: (params: DetachFromPresetParams) => Promise<DetachResult>;
   readonly listForPreset: (params: ListForPresetParams) => Promise<RegexScriptRow[]>;
+  /** The scripts an owned preset alone uses: attached to it and to no other scope, the global tier included. */
+  readonly listPresetOnlyScripts: (params: ListForPresetParams) => Promise<RegexScriptRow[]>;
 
   /** Host authority — a room-wide text transform is a one-shot jailbreak surface (the `chat_books` rule). */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;

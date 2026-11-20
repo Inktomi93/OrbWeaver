@@ -121,7 +121,7 @@ import type {
   ReplayLiveTurnParams,
   ResolveAuthorRenderPolicyParams,
 } from "../contract/params.ts";
-import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
+import type { PromptHistoryMemo, PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "../contract/views.ts";
@@ -186,7 +186,9 @@ import {
   presentAndEnabledHumanUserIdsOf,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
+import { createPromptHistoryMemos } from "../substrate/prompt-history-memo.ts";
 import { drawsOnDisplay, regexAllowOf, resolveHostTierRegexEntries, resolveRegexTiers } from "../substrate/regex-tier.ts";
+import { createSingleFlight } from "../substrate/single-flight.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -1310,7 +1312,12 @@ async function roomDisplayEntries(ctx: ChatContext, deps: ReadDeps, chatId: Chat
  *  `previewContextFit` is what the wire would carry. A preview that skipped the leg would show the host a
  *  history the model will never see, which is precisely the lie these reads exist to prevent. `null` when
  *  the host tier resolved no scripts (byte-identical, zero cost). */
-function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleContext, inputs: PreviewInputs): PromptHistoryRegexEnv | null {
+function previewPromptHistoryEnv(
+  ctx: ChatContext,
+  assembleContext: AssembleContext,
+  inputs: PreviewInputs,
+  memo: PromptHistoryMemo | null,
+): PromptHistoryRegexEnv | null {
   const scripts = assembleContext.hostTierRegexScripts ?? [];
   if (scripts.length === 0) {
     return null;
@@ -1327,6 +1334,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
     room: assembleContext.hostTierRegexRoom ?? NO_SEATS,
     // A preview shows the next fresh turn, never a continue.
     continuing: false,
+    memo,
   };
 }
 
@@ -1343,6 +1351,8 @@ async function shapeNextTurn(
     readonly inputs: PreviewInputs;
     readonly assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>;
     readonly assembled: AssembledPrompt;
+    /** The room's memo of the prompt-history leg, for a read every member repeats; `null` runs the leg fresh. */
+    readonly historyMemo: PromptHistoryMemo | null;
   },
 ): Promise<{
   canon: readonly MessageView[];
@@ -1350,7 +1360,7 @@ async function shapeNextTurn(
   shape: Parameters<typeof shapeConvertFit>[0]["shape"];
   passageCounter: PreviewInputs["passageCounter"];
 }> {
-  const { chatId, inputs, assembleContext, assembled } = args;
+  const { chatId, inputs, assembleContext, assembled, historyMemo } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
   // the fit preview returns NUMBERS + one boundary id, never canon bytes: the canon is token-counted and discarded. The fit budget is deliberately room-wide (one shared window), and the boundary id is the ratified id plane.
@@ -1367,7 +1377,9 @@ async function shapeNextTurn(
     inputs.capability === undefined
       ? undefined
       : await cueReplayFor(inputs.capability, resolveCarryReasoning(params, inputs.capability, []), () => loadCanonCues(ctx.db, chatId));
-  const rows = assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [];
+  const rows = assembled.sendHistory
+    ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs, historyMemo))
+    : [];
   const shape = (shapeRows: ReturnType<typeof toShapeCanon>): ReturnType<typeof shapeTurn> =>
     shapeTurn({
       canon: shapeRows,
@@ -1537,7 +1549,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     const registry = macros?.registry ?? null;
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone, signal });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt, historyMemo: null });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
       assembled: prompt,
@@ -1586,7 +1598,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled, historyMemo: null });
     const { shaped } = await fitShapedHistory({
       assembleContext,
       assembled,
@@ -1680,9 +1692,25 @@ function resolveContextFitPreview(env: {
 const NO_CONNECTION = "no-connection" satisfies UnavailableCause;
 const CONTEXT_FIT_UNBOUND: ContextFitUnbound = { unbound: true };
 
+// The room-wide half of a fit: everything but the checkpoint clamp, which is the caller's own.
+type RoomFit =
+  | ContextFitUnbound
+  | { readonly preview: Omit<Parameters<typeof resolveContextFitPreview>[0], "compactSummary" | "coveragePoint">; readonly chatRow: ChatRowView | undefined };
+
+// THE FIT IS SHARED (one run per room and speaker). Every member's client asks for the fit after each turn, and each run
+// passes the whole history through the host's prompt regex: concurrent reads of one room join one run, and a repeated
+// read of an unchanged room reuses the room's last prompt-history output. Each caller still passes its own participant
+// gate before it joins, and applies its own checkpoint clamp to the shared numbers.
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
-  return async ({ principal, chatId, speakerCharacterId, signal }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
+  const flights = createSingleFlight<RoomFit>();
+  const historyMemos = createPromptHistoryMemos();
+
+  const fitRoom = async (
+    chatId: ChatId,
+    anchorPersonaId: PersonaId | null,
+    speakerCharacterId: CharacterId | null | undefined,
+    signal: AbortSignal,
+  ): Promise<RoomFit> => {
     // Consent first: a disabled host's connection is neither probed nor reflected back as "unbound".
     const hostUserId = await requireConsentingHost(ctx, chatId);
     // The same verdict the composer's send gate reads, so the fit and the send button agree on "unbound".
@@ -1690,16 +1718,12 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     if (!availability.available && availability.cause === NO_CONNECTION) {
       return CONTEXT_FIT_UNBOUND;
     }
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      signal,
-      speakerCharacterId,
-    });
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId, signal, speakerCharacterId });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
-    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled, historyMemo: historyMemos.forRoom(chatId) });
     // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
     // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
     const { fitted, budget } = await fitShapedHistory({
@@ -1711,18 +1735,28 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       ctx,
       signal,
     });
-    const chatRow = await loadChatRow(ctx.db, chatId);
+    return {
+      preview: { fitted, budget, canon, ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens) },
+      chatRow: await loadChatRow(ctx.db, chatId),
+    };
+  };
+
+  return async ({ principal, chatId, speakerCharacterId, signal }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const room = await flights.run(`${chatId}\u0000${speakerCharacterId ?? ""}`, signal, (shared) =>
+      fitRoom(chatId, membership.chat.anchorPersonaId, speakerCharacterId, shared),
+    );
+    if ("unbound" in room) {
+      return room;
+    }
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
     // same verdict `toChatDetail` applies to the `ChatDetailData` copy of these two fields. The fit NUMBERS stay
     // room-wide (they describe the next turn's budget, which is the host's prompt, not transcript content).
     const checkpointVisible = membership.historyFloorSeq <= NO_HISTORY_FLOOR;
     return resolveContextFitPreview({
-      fitted,
-      budget,
-      canon,
-      compactSummary: checkpointVisible ? (chatRow?.compactSummary ?? null) : null,
-      coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? null) : null,
-      ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
+      ...room.preview,
+      compactSummary: checkpointVisible ? (room.chatRow?.compactSummary ?? null) : null,
+      coveragePoint: checkpointVisible ? (room.chatRow?.compactedAtSeq ?? null) : null,
     });
   };
 }

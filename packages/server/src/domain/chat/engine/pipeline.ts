@@ -573,6 +573,8 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
     },
     room: ctx.hostTierRegexRoom ?? NO_SEATS,
     continuing: args.kind === "continue",
+    // A turn reads the history once, so there is nothing to reuse; the memo serves repeated previews.
+    memo: null,
   };
 }
 
