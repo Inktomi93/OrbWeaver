@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: inference
 ---
@@ -10,7 +10,7 @@ area: inference
 
 ## What
 
-A reply's reasoning is stored for display. Decide whether an unsigned reasoning block may be replayed as plain text to a provider that cannot take signed reasoning, and on which step.
+The prompt pass already carries reasoning parts: packages/server/src/domain/chat/substrate/wire-history.ts carries them on the conversation step and packages/inference/src/funnel/resolve-chat.ts resolves the text, off and unsupported-replay steps. No ADR or law clause records this behaviour as the ruling.
 
 ## Why
 
@@ -18,7 +18,7 @@ The prompt pass reads no reasoning; a replay step would be the only path reasoni
 
 ## Done when
 
-A recorded ruling, and either a work item for the step or a closed item.
+The shipped reasoning carry is recorded as a ruling in an ADR or the inference law with each step's behaviour, and the existing tests that hold each step are cited from it.
 
 ## Evidence
 

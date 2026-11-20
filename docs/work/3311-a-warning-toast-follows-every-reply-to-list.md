@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: chat
 ---
@@ -18,7 +18,7 @@ A warning on every reply is noise that trains people to ignore warnings, and her
 
 ## Done when
 
-The notice shows once per preset and connection pair, with a door to Params, and stays quiet until the pair changes. Its reasoning wording matches what actually happened on the turn.
+The dropped-settings notice is keyed by the preset and connection pair, carries a Params door to the knob it names, and states the reasoning clamp in correct words; a repeat with an unchanged drop set stays quiet as it does now.
 
 ## Evidence
 

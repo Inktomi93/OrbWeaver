@@ -21,7 +21,7 @@ A lane owns a related batch of work in its own worktree. These rules bind every 
 
 Survey before you edit. code-reviewer checks it. For every item, separately, before your first Edit or Write on it:
 
-1. Run `codegraph_explore` on the symbols and files that item names, and read the callers and blast radius it returns. One call for a whole batch does not count.
+1. Run `codegraph_explore` on the symbols and files that item names, and read the callers and blast radius it returns. One call for a whole batch does not count. Inside a `REPL` script, call it as `tools.mcp__codegraph__codegraph_explore`, or run the CLI (`codegraph callers <symbol>`, `codegraph impact <symbol>`); both work from a worktree.
 2. Run `ast-grep` for each pattern you will change, with both `-l ts` and `-l tsx`. State the scanned-file count behind any "nothing else uses it" or "only caller" claim; an `rg` count alone is not a survey.
 3. Read the whole file you edit, not an excerpt.
 

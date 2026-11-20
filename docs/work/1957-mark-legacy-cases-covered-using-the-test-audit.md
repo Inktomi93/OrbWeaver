@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
-priority: P2
+updated: 2026-11-20
+priority: P3
 area: testing
 plan: restoration-register
 ---

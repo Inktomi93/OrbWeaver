@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: ci
 ---
@@ -18,7 +18,7 @@ A refusal after a green run costs a further commit, push and full CI run before 
 
 ## Done when
 
-Every check `pnpm release` can refuse on, other than a dirty tree and the CI status itself, runs in pre-push or CI. A tooling test compares the release command's check list with the hook and workflow and fails on a check that only the release runs.
+A tooling test fails when a release refusal exists only in the release command and not in the pre-push hook, or the reverse; the version check already runs in both.
 
 ## Evidence
 

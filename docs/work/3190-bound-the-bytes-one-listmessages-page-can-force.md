@@ -1,7 +1,7 @@
 ---
-kind: work
+kind: decision
 status: open
-updated: 2026-11-15
+updated: 2026-11-20
 priority: P2
 area: server
 ---

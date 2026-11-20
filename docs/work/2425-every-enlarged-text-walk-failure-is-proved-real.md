@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-10
+updated: 2026-11-20
 priority: P2
 area: tooling
 plan: surface-walk
@@ -19,7 +19,7 @@ An unproved finding is a question nobody answered. A false positive left standin
 
 ## Done when
 
-Every group in reports/cb-walk-text has a verdict with its evidence: a real defect boarded as one item per rule per surface, or an instrument fix with a red-first fixture and a control that still fires. A rerun of the same four projects lists only boarded findings.
+Every REAL and UNPROVED row in the enlarged-text walk verdicts is boarded or proved an instrument fault and fixed, and a rerun of the four projects lists only boarded findings.
 
 ## Evidence
 
