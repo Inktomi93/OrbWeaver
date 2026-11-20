@@ -146,12 +146,16 @@ function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput
   return metadata.success ? { ...loreEntryColumns(adapted), metadata: metadata.data } : null;
 }
 
-// The inverse of toCharacterBookEntry: the three ST spellings back, keyed by a uid as SillyTavern keys its entries.
+// The inverse of toCharacterBookEntry: the three ST spellings back, keyed by a uid as SillyTavern keys its entries. A
+// native world entry carries its slot, depth and role at the top level, where SillyTavern's placement reads them; the
+// card wire carries them under `extensions` (lifted as `convertCharacterBook` lifts them, public/scripts/world-info.js
+// in SillyTavern).
 function toStWorldEntry(entry: BulkImportLoreEntryInput, uid: number): Record<string, unknown> {
   const {
     keys,
     insertion_order: order,
     enabled,
+    position: _cardPosition,
     ...rest
   } = exportBookEntry({
     title: entry.title,
@@ -162,7 +166,11 @@ function toStWorldEntry(entry: BulkImportLoreEntryInput, uid: number): Record<st
     ignoreBudget: entry.ignoreBudget,
     metadata: entry.metadata,
   });
-  return { ...rest, uid, key: keys, order, disable: enabled !== true };
+  const extensions = isPlainObject(rest["extensions"]) ? rest["extensions"] : {};
+  const placement = Object.fromEntries(
+    (["position", "depth", "role"] as const).flatMap((field) => (extensions[field] === undefined ? [] : [[field, extensions[field]]])),
+  );
+  return { ...rest, ...placement, uid, key: keys, order, disable: enabled !== true };
 }
 
 /** The book as a SillyTavern `worlds/*.json` file: a bare `{ entries: { <uid>: {...} } }`, which SillyTavern's world

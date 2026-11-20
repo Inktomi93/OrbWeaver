@@ -3,13 +3,15 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices, StExportReport } from "@orb/contracts/import";
 import {
   cardImportResultSchema,
   encodePersonaCollisionChoices,
   importStartedSchema,
   PERSONA_COLLISION_FIELD,
   ST_SETTINGS_FILE,
+  stExportReportSchema,
+  stProfileExportPath,
   TREE_DRY_RUN_FIELD,
   TREE_DRY_RUN_VALUE,
   TREE_FILE_FIELD,
@@ -24,6 +26,7 @@ import { expect } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
+import { unzipSync } from "fflate";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
 
 const WRAPPER = "default-user";
@@ -317,4 +320,18 @@ export function namesakeFolder(root: ServerTestHarness): Files {
     "themes/Dusk.json": themeOf("Dusk", "rgba(90, 90, 20, 1)"),
     "backgrounds/Dawn.png": new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   };
+}
+
+/** The library's SillyTavern export through the export door, unpacked. */
+export async function exportedZip(root: ServerTestHarness): Promise<Readonly<Record<string, Uint8Array>>> {
+  const response = await root.http.request(stProfileExportPath(false));
+  expect(response.status).toBe(200);
+  return unzipSync(new Uint8Array(await response.arrayBuffer()));
+}
+
+/** The SillyTavern export's dry-run report through the export door. */
+export async function exportDryRun(root: ServerTestHarness): Promise<StExportReport> {
+  const response = await root.http.request(stProfileExportPath(true));
+  expect(response.status).toBe(200);
+  return stExportReportSchema.parse(await response.json());
 }

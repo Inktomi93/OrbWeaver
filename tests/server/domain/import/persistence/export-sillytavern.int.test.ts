@@ -5,7 +5,6 @@
 // @subject packages/server/src/domain/export/verbs/export-st-profile.ts
 // @subject packages/server/src/entry/http/export.ts
 
-import type { StExportReport } from "@orb/contracts/import";
 import {
   ST_EXPORT_DOORS,
   ST_EXPORT_PROFILE_DIR,
@@ -21,12 +20,11 @@ import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
-import { strFromU8, unzipSync } from "fflate";
+import { strFromU8 } from "fflate";
 import { z } from "zod";
 import type { Files } from "./_st-tree-door.ts";
-import { admit, attachmentOf, cardPng, chatOf, finishRun, harness, presetOf, tableContents, WORLD } from "./_st-tree-door.ts";
+import { admit, attachmentOf, cardPng, chatOf, exportDryRun, exportedZip, finishRun, harness, presetOf, tableContents, WORLD } from "./_st-tree-door.ts";
 
-const OK = 200;
 const BAD_REQUEST = 400;
 const NOTES = attachmentOf("notes.txt", "Field notes");
 
@@ -58,18 +56,6 @@ function profile(root: ServerTestHarness): Files {
     "user/files/notes.txt": "The ford floods at dusk.",
     "user/images/Aria/glade.png": image(),
   };
-}
-
-async function exported(root: ServerTestHarness): Promise<Readonly<Record<string, Uint8Array>>> {
-  const response = await root.http.request(stProfileExportPath(false));
-  expect(response.status).toBe(OK);
-  return unzipSync(new Uint8Array(await response.arrayBuffer()));
-}
-
-async function dryRunReport(root: ServerTestHarness): Promise<StExportReport> {
-  const response = await root.http.request(stProfileExportPath(true));
-  expect(response.status).toBe(OK);
-  return stExportReportSchema.parse(await response.json());
 }
 
 /** The profile tree of a zip, keyed as the tree door takes a profile. */
@@ -122,7 +108,7 @@ test("each exported file has the shape the SillyTavern door its report names tak
   const files = profile(root);
   await finishRun(root, await admit(root, files));
 
-  const zip = await exported(root);
+  const zip = await exportedZip(root);
   const report = stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE]))));
 
   const pathsOf = (kind: keyof typeof ST_EXPORT_DOORS): string[] => report.files.filter((file) => file.kind === kind).map(({ path }) => path);
@@ -175,10 +161,10 @@ test("the dry run writes nothing and answers the report the zip carries", async 
   await finishRun(root, await admit(root, profile(root)));
   const before = await tableContents(root);
 
-  const report = await dryRunReport(root);
+  const report = await exportDryRun(root);
 
   expect(await tableContents(root)).toEqual(before);
-  const zip = await exported(root);
+  const zip = await exportedZip(root);
   expect(report).toEqual(stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE])))));
   expect(report.files.length).toBeGreaterThan(0);
 });
@@ -186,7 +172,7 @@ test("the dry run writes nothing and answers the report the zip carries", async 
 test("the exported tree imports back as the same library, Data Bank scopes and gallery included", async () => {
   await using source = await harness();
   await finishRun(source, await admit(source, profile(source)));
-  const zip = await exported(source);
+  const zip = await exportedZip(source);
   const report = stExportReportSchema.parse(JSON.parse(strFromU8(present(zip[ST_EXPORT_REPORT_FILE]))));
   const exportedOf = (kind: keyof typeof ST_EXPORT_DOORS, ext: string): number =>
     report.files.filter((file) => file.kind === kind && file.path.endsWith(ext)).length;
@@ -211,7 +197,7 @@ test("the exported tree imports back as the same library, Data Bank scopes and g
   expect(exportedOf("documents", ".txt")).toBe(1);
   // Export, import, export is a fixed point: the book, the Data Bank file, the preset, the theme and the persona's
   // avatar come back byte for byte.
-  const again = await exported(target);
+  const again = await exportedZip(target);
   for (const leaf of ["worlds/Eldoria.json", "user/files/Field notes.txt", "OpenAI Settings/Plain.json", "themes/Dusk.json", "User Avatars/Bob.png"]) {
     const path = `${ST_EXPORT_PROFILE_DIR}${leaf}`;
     expect(strFromU8(present(again[path])), path).toBe(strFromU8(present(zip[path])));

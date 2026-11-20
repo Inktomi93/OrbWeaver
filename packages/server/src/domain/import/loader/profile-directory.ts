@@ -10,7 +10,7 @@ import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
-import { inertFieldCounts } from "@orb/kit/world-info";
+import { inertFieldCounts, seatlessSlotCounts } from "@orb/kit/world-info";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -397,6 +397,7 @@ async function importCollectedWorlds(
       created: bookResult.created,
       entries: world.book.entries.length,
       inertFields: inertFieldCounts(world.book.entries),
+      seatlessSlots: seatlessSlotCounts(world.book.entries),
     });
   }
   return { created, reused, notes, landed };

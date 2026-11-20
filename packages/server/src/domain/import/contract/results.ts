@@ -2,6 +2,7 @@
 
 import type { CardLorebookRestoreResult, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { StSeatlessPosition } from "@orb/kit/world-info";
 import type { CollectedChat } from "./collection.ts";
 
 export interface ImportedCharacterRef {
@@ -52,6 +53,8 @@ export interface ImportBookNote {
   readonly entries: number;
   /** Each inert activation field present with a non-default value, with how many entries carry it. */
   readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
+  /** Each SillyTavern slot with no seat here that entries came from, with how many entries it placed. */
+  readonly seatlessSlots: readonly { readonly slot: StSeatlessPosition; readonly entries: number }[];
 }
 
 /** The embedded world book one imported card landed, named by its card file. */

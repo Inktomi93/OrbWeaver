@@ -78,9 +78,13 @@ const entriesWord = (count: number): string => `${count} ${count === 1 ? "entry"
 /** The SillyTavern activation fields a book's entries keep stored but inert (owner ruling: kept untouched, shown
  *  as not active yet), as a line suffix; empty when they keep none. */
 function inertSuffix(note: ImportBookNote): string {
-  return note.inertFields.length === 0
-    ? ""
-    : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+  const inert =
+    note.inertFields.length === 0 ? "" : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+  const seatless =
+    note.seatlessSlots.length === 0
+      ? ""
+      : `; placed before or after the character, since that SillyTavern slot has no seat here (kept for a SillyTavern export): ${note.seatlessSlots.map((s) => `\`${s.slot}\` (${entriesWord(s.entries)})`).join(", ")}`;
+  return `${inert}${seatless}`;
 }
 
 /** One line per standalone world book the run landed: where it landed, and the fields its entries keep inert. */
