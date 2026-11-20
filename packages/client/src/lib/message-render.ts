@@ -102,11 +102,12 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   return characterNames?.[0] ?? ctx.speakerCharName ?? "";
 }
 
-// A name as Markdown code text: as written, unless a tick, a tilde or a line break in it could end the code.
+// A name as Markdown code or math text: as written, unless a tick, a tilde, a dollar sign or a line break in it could
+// end the code.
 function asCodeText(value: string): string {
   return CODE_BREAK_RE.test(value) ? escapeHtmlData(value) : value;
 }
-const CODE_BREAK_RE = /[`~\r\n]/u;
+const CODE_BREAK_RE = /[`~$\r\n]/u;
 
 /** Step 1, and the plain-data input of step 2. The row's own stamps are the macro subjects too. */
 export function prepareDisplayPass(text: string, ctx: MessageRenderContext, display: DisplayRowCall): DisplayPass {

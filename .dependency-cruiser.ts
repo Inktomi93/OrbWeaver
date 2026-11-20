@@ -1156,6 +1156,12 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/styled-reply-frame.ct.tsx": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "REPLY_CARRY_BUDGET_CHARS: the carry budget the over-budget reply is sized past",
   },
+  "tests/ui/markdown/kit-reading-differential.dom.test.ts": {
+    "packages/ui/src/markdown/math.ts": "MARKDOWN_MATH_PLUGIN: the math parse the renderer appends, which the differential's own parse must run",
+    "packages/ui/src/markdown/policy.ts":
+      "MARKDOWN_REMARK_PLUGINS: the renderer's remark plugins, which no door forwards, so the differential parses as the renderer does",
+    "packages/ui/src/markdown/tail-hold.ts": "holdAmbiguousTail: the streamed transcript's tail hold, which the streamed axis runs before the repair",
+  },
   "tests/ui/markdown/frame-lift.dom.test.ts": {
     "packages/ui/src/markdown/frame/frame-document-context.ts":
       "FrameDocumentContext: the frame-document flag FrameMarkdown requires, which only useFrameDocument sets inside a mounted effect, so a node render of the frame lift supplies it directly",

@@ -244,6 +244,12 @@ catalog:
   "@tanstack/react-virtual": ^3.14.21
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
   streamdown: ^2.7.1
+  # The parse Streamdown runs, at the ranges Streamdown declares: the root's kit-reading differential
+  #   (tests/ui/markdown/kit-reading-differential.dom.test.ts) holds the kit's Markdown reading to it.
+  unified: ^11.0.5
+  "remark-parse": ^11.0.0
+  "remark-rehype": ^11.1.2
+  remend: 1.4.0
   # KaTeX math stack for @orb/ui/markdown's plugins.math (Streamdown ships mermaid bundled but NOT
   #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
   #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
