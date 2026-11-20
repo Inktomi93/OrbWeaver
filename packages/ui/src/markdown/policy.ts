@@ -172,7 +172,7 @@ const VENDOR_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Obj
 export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = [...VENDOR_REMARK_PLUGINS, ...REFERENCE_BUDGET_REMARK_PLUGINS];
 
 /** The tag a dialogue colour may ride on as an attribute (`<font color>`), which the seal draws as a `span`. */
-export const COLOUR_FONT_TAG = "font";
+const COLOUR_FONT_TAG = "font";
 
 // ONE colour value, strict: a hex colour, a bare keyword, or an rgb/hsl function of plain numbers. Nothing here can
 // open a url, a variable, an expression, a comment, an escape or a second declaration: no `\`, `/*`, `;` or `(`

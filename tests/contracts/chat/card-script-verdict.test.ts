@@ -2,7 +2,7 @@
 // install ceiling, the author's ladder step and the viewer's own switch all say yes, and the holder named is the first in
 // that order. Every combination of the three is a stated row, so a reordered or dropped consent fails here.
 // @subject packages/contracts/src/chat/roster.ts
-import type { CardScriptVerdict, HtmlTrustStep } from "@orb/contracts/chat";
+import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { HTML_TRUST_STEPS, resolveCardScriptVerdict } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 
@@ -10,6 +10,7 @@ const CEILINGS = ["up", "down"] as const;
 const VIEWER_SWITCHES = ["on", "off"] as const;
 type Consents = `${(typeof CEILINGS)[number]}/${(typeof VIEWER_SWITCHES)[number]}`;
 
+type CardScriptVerdict = ReturnType<typeof resolveCardScriptVerdict>;
 const RUNS: CardScriptVerdict = { runs: true };
 const INSTALL: CardScriptVerdict = { runs: false, heldBy: "install" };
 const CHARACTER: CardScriptVerdict = { runs: false, heldBy: "character" };

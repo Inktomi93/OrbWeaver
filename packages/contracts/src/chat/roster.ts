@@ -119,14 +119,14 @@ export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
  *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm
  *  selection. A step only REACHES `interactive` when the deployment ceiling allowed it ({@link
  *  resolveRenderPolicy}), so a reader of the resolved ladder never has to re-check the AppSetting. */
-export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
+function allowsInteractiveCards(step: HtmlTrustStep): boolean {
   return step === "interactive";
 }
 
 const CARD_SCRIPT_HOLDERS = ["install", "character", "viewer"] as const;
 /** Which consent holds a frame's scripts off: the install's interactive ceiling, the author's ladder step, or the
  *  viewer's own `chat.runCardScripts`. */
-export type CardScriptHolder = (typeof CARD_SCRIPT_HOLDERS)[number];
+type CardScriptHolder = (typeof CARD_SCRIPT_HOLDERS)[number];
 
 /** Whether a routed frame's own scripts run, and when they do not, the first consent that holds them off. */
 export type CardScriptVerdict = { readonly runs: true } | { readonly runs: false; readonly heldBy: CardScriptHolder };
@@ -172,7 +172,7 @@ export function cardScriptsNeedViewerConsent(consents: Omit<CardScriptConsents, 
 
 const CARD_MEDIA_HOLDERS = ["install", "character"] as const;
 /** Which setting holds a frame's external media out: the install's "Block external media" or the author's own forbid. */
-export type CardMediaHolder = (typeof CARD_MEDIA_HOLDERS)[number];
+type CardMediaHolder = (typeof CARD_MEDIA_HOLDERS)[number];
 
 /** A framed card's or styled reply's media grant: whether `https:` media loads (and who holds it when not), and
  *  whether `data:` images open. */
