@@ -165,8 +165,14 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
       {links.confirm}
       {mint.state === "routed" && built !== undefined ? (
         <>
-          <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} css={built.look.css} />
-          <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} />
+          <FramedMediaNotice
+            chatId={cardOrigin?.chatId}
+            characterId={cardOrigin?.characterId ?? null}
+            html={built.html}
+            css={built.look.css}
+            granted={mint.granted}
+          />
+          <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} granted={mint.granted} />
         </>
       ) : null}
     </Stack>

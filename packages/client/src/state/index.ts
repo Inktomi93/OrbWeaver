@@ -120,13 +120,12 @@ export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 export {
-  ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
   CONFIG_GROUP_IDS,
   CONFIG_SHELVES,
+  DEFAULT_HTML_STEP_CONFIG_SETTING,
   FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
   MEDIA_TRUST_CONFIG_SUB,
   MULTI_USER_CONFIG_SUB,
-  TRUST_HTML_CONFIG_SETTING,
 } from "./config-group-ids.ts";
 export { setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {

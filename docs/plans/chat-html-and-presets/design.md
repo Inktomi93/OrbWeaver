@@ -27,9 +27,9 @@ packages/kit/src/content/, packages/kit/src/card-frame/, packages/ui/src/markdow
 
 Component tests mount the real row through the test data providers; kit readers have seeded differential rows; the preset probe in tests/server/domain/import/persistence/ runs any preset file by path; a rendered review covers every chat style in light and dark on desktop and phone.
 
-## Trust settings model (proposed, not yet ruled)
+## Trust settings model (ruled)
 
-This section is the phase 1 proposal for item 3532. It also answers items 3604, 3606, 3607, 3537, 3349, 3527 and 3345. Nothing in it is built. The owner rules it before any code changes.
+This section is the trust model for item 3532, ruled by the owner as written. It also answers items 3604, 3606, 3607, 3537, 3349, 3527 and 3345. The ruled table lives in `docs/law/UI-Theming-and-Content.md` §12.2, and D294 holds the decision. The sections on today's chain describe the code before the model.
 
 The owner's bar: community presets and cards draw as their authors meant. Hardening goes only where content can leak or leave the sandbox, sized to a roleplay app.
 
@@ -74,7 +74,7 @@ A seat whose card cannot be read, or a room with no consenting host, resolves th
 
 The vocabulary drifts too. The Trust tab says Plain text, Rich HTML and Interactive. The admin switch says "rich HTML as trusted". D294 says "Render HTML" and "Untrusted". The proposal uses the Trust tab's words everywhere.
 
-### The proposed model
+### The model
 
 One install control replaces the two install switches. It is a ladder select named "Default for characters": Plain text, Rich HTML, Interactive. An inheriting character takes it. It is also the script ceiling: below Interactive, no card or styled reply runs scripts, whatever a character says. A character's own Plain text or Rich HTML still wins over it, as today.
 
@@ -93,7 +93,7 @@ The room switch and the character step stay two consents, and the difference is 
 
 Settings and their new text:
 
-- "Default for characters" (Plain text, Rich HTML, Interactive). Hint: characters on Inherit default use this, and below Interactive no card or styled reply runs scripts. Stored as the two existing keys: Plain text is `trustHtml: false, allowInteractiveCards: false`, Rich HTML is `trustHtml: true, allowInteractiveCards: false`, Interactive is `allowInteractiveCards: true` with `trustHtml` cleared.
+- "Default for characters" (Plain text, Rich HTML, Interactive). Hint: characters on Inherit default use this, and below Interactive no card or styled reply runs scripts. Stored as one key, `AppSettings.defaultHtmlStep`, floor `interactive`. The v11 to v12 lift in `APP_SETTINGS_LIFTS` maps a stored row: `allowInteractiveCards: true` is Interactive, `allowInteractiveCards: false` is Rich HTML with `trustHtml: true` and Plain text otherwise, and an unset ceiling stays unset.
 - Media and trust intro: "A character's own HTML setting wins over the default, except Interactive, which needs the default at Interactive. External media can only be tightened."
 - Viewer switch: "Run scripts in cards and styled replies". A blob that cannot be read reads as off.
 - Trust tab, Plain text: "No styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts."
@@ -168,8 +168,8 @@ A P3 note, not an escape: the card's `css` sits in `<style>` ahead of the pinned
 
 | Change | What a user sees | Stored settings | Real presets |
 | - | - | - | - |
-| One "Default for characters" select | An admin sees one select in place of two switches. The default install reads Interactive, as today | Same keys and meanings; no migration. Picking a value writes the pair above | None by default. An admin who wants no scripts picks Rich HTML, and presets keep their styling. Today the same admin gets plain text |
-| Seats with no readable card, and hostless rooms, always Plain text | Such rows draw plain where `trustHtml` is on; the notice offers no remedy | `trustHtml` loses that second job; no migration | None: the default install already draws them plain |
+| One "Default for characters" select | An admin sees one select in place of two switches. The default install reads Interactive, as today | The v11 to v12 lift folds the two keys into `defaultHtmlStep`; every character draws at the step it drew at before | None by default. An admin who wants no scripts picks Rich HTML, and presets keep their styling. Today the same admin gets plain text |
+| Seats with no readable card, and hostless rooms, always Plain text | Such rows draw plain where `trustHtml` is on; the notice offers no remedy | The deployment `trustHtml` key goes; the lift drops it | None: the default install already draws them plain |
 | Unreadable blob reads scripts off | A viewer with a damaged blob sees card scripts held, with the notice naming their switch | No migration | Only for such a viewer |
 | Settings read only when scripts could run; a failed read draws static | Cards no longer blank across a room when one read fails | None | None |
 | Notice reads the mint grant; consents in the mint key | Turning scripts on reloads framed cards with scripts | None | None |
@@ -179,15 +179,15 @@ A P3 note, not an escape: the card's `css` sits in `<style>` ahead of the pinned
 | Forming mint (3527) | Panels draw while a reply streams; a script panel starts its scripts at settle | Mint schema gains one narrowing field | Reference panels draw whole during the stream |
 | Panel state report (3345) | An opened panel stays open across scroll-out and swipe | None; state is in memory | A preset's panels keep the state the reader gave them |
 
-The staged community preset files, Freaky Frankenstein 5.6 and 6.0, are read here as data. Every enabled display script targets AI output only. Their templates hold inline styles and `details` panels, with no script, no event handler, no external source and no `data:` URI. Their prompts ask the model for raw HTML with inline styles. They therefore need only a step at or above Rich HTML. Every row of the proposed table gives an inheriting character Interactive on a default install, and Rich HTML whenever an admin picks it. `tests/client/features/chat/components/heavy-preset-render.ct.tsx` passes against both files on the current code. Sola Flame V4 is not in the staged set, so this section does not cover it.
+The staged community preset files, Freaky Frankenstein 5.6 and 6.0, are read here as data. Every enabled display script targets AI output only. Their templates hold inline styles and `details` panels, with no script, no event handler, no external source and no `data:` URI. Their prompts ask the model for raw HTML with inline styles. They therefore need only a step at or above Rich HTML. The model gives an inheriting character Interactive on a default install, and Rich HTML whenever an admin picks it. `tests/client/features/chat/components/heavy-preset-render.ct.tsx` passes under the model against both files and against Sola Flame V4.
 
-### Open questions for the owner
+### Rulings
 
-1. Merge the two install switches into one "Default for characters" select that is also the script ceiling? Recommended: yes. It is the ladder the Trust tab already shows, and it stops "scripts off" from turning every preset plain.
-2. Draw seats with no readable card, and rooms with no consenting host, as Plain text always? Recommended: yes. No one consents for those rows, and it gives `trustHtml` one job.
-3. Keep the room switch as its own consent that frames every speaker's cards statically, and state it? Recommended: yes. The frame is the boundary, scripts still follow the character, and making it follow the step would hide a game's GM cards whenever one seat is Plain text.
-4. Let the viewer's own messages load external media under the install switch, and keep other people's messages click-to-load? Recommended: yes. A viewer's own link reveals their IP only to a host they chose. Another member's pixel would reveal everyone's.
-5. Draw a card static when the viewer's settings read fails, instead of failing the request? Recommended: yes. Static is the narrower posture, and a failed read should not blank a room.
-6. For a streaming panel, mint static with no external media, and start its scripts at settle? Recommended: yes. Script-free panels lose nothing, and pre-save bytes never run.
-7. For panel state, change the pinned script to report open panels, and restore them when the document is built? Recommended: yes. It adds no channel into the frame.
-8. Keep a viewer's own messages on the static frame, so a display script that adds scripts to user rows never runs them? Recommended: yes. No reference preset styles user rows, and a user row has no character to consent.
+1. The two install switches merge into one "Default for characters" select, which is also the script ceiling.
+2. A seat with no readable card, or a room with no consenting host, always draws as Plain text.
+3. The room immersive switch stays its own consent. It frames every speaker's cards statically, and the surfaces state that.
+4. The viewer's own messages load external media under the install switch. Other people's messages stay click-to-load.
+5. A failed viewer-settings read draws the card static, never an error.
+6. A streaming panel mints static with no external media, and its scripts start at settle.
+7. The pinned script reports open panels, and the host restores them when it builds the document. No host-to-frame channel.
+8. The viewer's own messages keep the static frame (a null selector), so a display script that adds scripts to user rows never runs them.

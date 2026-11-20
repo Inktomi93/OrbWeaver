@@ -190,8 +190,8 @@ function frameDelivery(input: {
  * deliberate belt-and-suspenders: a mis-wired route that lost its header must not become a same-origin
  * frame — and since #111 leg 3 that belt is load-bearing rather than theoretical, because a routed card on
  * the `interactive` posture RUNS ITS OWN SCRIPTS (`script-src 'unsafe-inline'`, granted when the character
- * resolves to the ladder's top rung, its default under the deployment's `allowInteractiveCards` ceiling,
- * and only while that ceiling is up). Nothing about which
+ * resolves to the ladder's top step, the install's "Default for characters" is Interactive, and the viewer runs
+ * card scripts). Nothing about which
  * posture a document got is decided or even visible here: the server built the policy, this side just
  * frames the URL.
  *

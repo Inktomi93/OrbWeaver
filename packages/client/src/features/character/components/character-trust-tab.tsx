@@ -13,13 +13,12 @@
 // HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
 // Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
 // `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
-// is unwritable here and unrepresentable in the resolved policy. The top rung runs card-authored scripts,
-// and it is also where "Inherit default" lands while the deployment's `allowInteractiveCards` ceiling is up
-// (owner ruling: interactive cards on by default), so this surface reads that ceiling, says which rung the
-// character resolves to, and names the lower rungs as the per-character disable. It does NOT lock the control
-// the way the external-media row does: there EVERY value is inert under the ceiling, here only one of four.
+// is unwritable here and unrepresentable in the resolved policy. The top step runs card-authored scripts, and
+// "Inherit default" lands on the install's "Default for characters" step, which is Interactive by default (owner
+// ruling) and is also the script ceiling (D294). So this surface reads that step, says which step the character
+// resolves to, and names the lower steps as the per-character disable. It does NOT lock the control the way the
+// external-media row does: there EVERY value is inert under the ceiling, here only one of four.
 
-import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -29,6 +28,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import { CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
@@ -53,14 +53,9 @@ function tristateFlag(value: string): boolean | null {
  *  spelled with the same sentinel the sibling tri-state uses, and it clears BOTH stored columns. The rungs
  *  are ordered weakest-first, matching `HTML_TRUST_STEPS`, so the menu reads as the ladder it is. */
 const INHERIT_STEP = "inherit";
-const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
-  untrusted: "Plain text",
-  trusted: "Rich HTML",
-  interactive: "Interactive",
-};
 const HTML_TRUST_ITEMS: SelectItems = [
   { value: INHERIT_STEP, label: "Inherit default" },
-  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_LABELS[step] })),
+  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_STEP_LABELS[step] })),
 ];
 
 /** One picked rung → the column pair to persist. `inherit` clears both; every other value goes through the
@@ -101,9 +96,9 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // from. While it is on, EVERY value of this control resolves to blocked, so the control is inert: render
   // it disabled + explained rather than as a dead switch (D107).
   const externalMediaBlocked = useExternalMediaBlocked();
-  // The deployment half of the ladder's TOP rung (#111 leg 3). Unlike external media this does NOT lock the
-  // control — only ONE of the four values is inert while it is off, and disabling the whole select would
-  // take away three working choices. The rung stays pickable and the note below says what it will do.
+  // The install's script ceiling. Unlike external media this does NOT lock the control — only ONE of the four values
+  // is inert below it, and disabling the whole select would take away three working choices. The step stays
+  // pickable and the note below says what it will do.
   const interactiveCardsAllowed = useInteractiveCardsAllowed();
   // What the stored pair actually RESOLVES to on this deployment — the same resolver compose runs. The
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
@@ -156,16 +151,18 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
           </Text>
         ) : null}
         <Stack gap="field" id={interactiveLockId}>
-          <Text voice="reading">Plain text: safest, no styling.</Text>
+          <Text voice="reading">Plain text: no styling. In a game with immersive cards on, its cards still draw in the sandbox, without scripts.</Text>
           <Text voice="reading">Rich HTML: styled messages, no scripts.</Text>
           <Text voice="reading">
             Interactive: cards can run scripts in a sealed frame. A script can still tell its author that you viewed it, and your IP address.
           </Text>
         </Stack>
         <Text voice="reading" data-slot="trust-resolved-step">
-          This character's messages render as {HTML_TRUST_LABELS[resolvedStep]} right now.
+          This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
         </Text>
-        {interactiveCardsAllowed ? null : <Text voice="reading">Interactive is turned off by your admin, so it works like Rich HTML here.</Text>}
+        {interactiveCardsAllowed ? null : (
+          <Text voice="reading">Interactive needs the server's {DEFAULT_HTML_STEP_SETTING_LABEL} at Interactive, so it works like Rich HTML here.</Text>
+        )}
         <Text voice="reading">Changes apply right away.</Text>
       </Section>
     </Stack>

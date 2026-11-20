@@ -6,26 +6,17 @@
 // pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `config-anchor-system-*`
 // id survives anywhere.
 
+import { DEFAULT_HTML_STEP_SETTING_LABEL } from "#lib";
 import type { ConfigSubcategory } from "#state";
-import {
-  ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
-  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
-  MEDIA_TRUST_CONFIG_SUB,
-  MULTI_USER_CONFIG_SUB,
-  TRUST_HTML_CONFIG_SETTING,
-} from "#state";
-
-/** The install's trust-HTML setting, as its nav entry and its switch both name it. */
-export const TRUST_HTML_SETTING_LABEL = "Render rich HTML as trusted";
-/** The install's interactive-card ceiling, as its nav entry and its switch both name it. */
-export const INTERACTIVE_CARDS_SETTING_LABEL = "Let interactive cards run their own scripts";
+import { DEFAULT_HTML_STEP_CONFIG_SETTING, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB } from "#state";
 
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: MEDIA_TRUST_CONFIG_SUB,
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
   teach: {
-    summary: "Security and privacy controls for rendered content: block external media URLs, trust rich HTML, and cap generated-image download size.",
+    summary:
+      "Security and privacy controls for rendered content: block external media URLs, set the default HTML step for characters, and cap generated-image download size.",
     affects: ["message rendering security and image generation, deployment-wide"],
   },
   settings: [
@@ -39,21 +30,13 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: TRUST_HTML_CONFIG_SETTING,
-      label: TRUST_HTML_SETTING_LABEL,
-      keywords: ["html", "sanitize", "xss", "cards"],
+      id: DEFAULT_HTML_STEP_CONFIG_SETTING,
+      label: DEFAULT_HTML_STEP_SETTING_LABEL,
+      keywords: ["html", "trust", "interactive", "cards", "scripts", "javascript", "sanitize"],
       teach: {
-        summary: "Renders rich HTML cards as trusted instead of sanitized. Only for deployments where every author is trusted.",
-        affects: ["every account's message rendering, deployment-wide"],
-      },
-    },
-    {
-      id: ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING,
-      label: INTERACTIVE_CARDS_SETTING_LABEL,
-      keywords: ["interactive", "cards", "scripts", "javascript"],
-      teach: {
-        summary: "Lets cards from characters set to Interactive or Inherit default run their own scripts in a sealed frame. Off stops every card's scripts.",
-        affects: ["every account's interactive cards, deployment-wide"],
+        summary:
+          "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, no card or styled reply runs scripts.",
+        affects: ["every account's message rendering and card scripts, deployment-wide"],
       },
     },
     {

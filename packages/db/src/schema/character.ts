@@ -62,8 +62,8 @@ export const characters = sqliteTable(
     // resolver contract, and nothing but `resolveRenderPolicy` reads this pair. `true` builds this
     // character's card documents under the `interactive` frame posture (`@orb/kit/card-frame`), where card
     // scripts run, and IMPLIES the render step below it. `false` is the per-character disable. `null` beside
-    // a `null` `trust_html` is "Inherit default", which resolves to the top rung while the deployment
-    // `allowInteractiveCards` ceiling is up (owner ruling: interactive cards on by default).
+    // a `null` `trust_html` is "Inherit default", which resolves to the install's `defaultHtmlStep` (Interactive by
+    // default, owner ruling).
     interactiveHtml: integer("interactive_html", { mode: "boolean" }),
     // D294, UI-Theming-and-Content §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a

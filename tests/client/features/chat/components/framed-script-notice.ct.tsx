@@ -1,11 +1,11 @@
 // A framed card or styled reply whose controls need scripts the frame's posture does not run says why, naming the
-// install's interactive-card switch, the character's step or the viewer's own script setting, with a control only for a
+// install's "Default for characters" step, the character's step or the viewer's own script setting, with a control only for a
 // viewer who may change it: the real transcript (`MessageListSurface`) over a corpus room, its reads, `/api/auth/config`
 // and the card-frame mint and serve answered by the corpus root, so the frame's posture is the server's own. A static
 // card shows none, and a card whose scripts run shows none while its script visibly runs.
 
 import type { FramedScriptReason, PlainRemedy } from "@orb/client/lib";
-import { ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING, CHARACTER_TRUST_TAB_ID, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
+import { CHARACTER_TRUST_TAB_ID, DEFAULT_HTML_STEP_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -77,7 +77,7 @@ async function setConsents(
   room: ScriptRoom,
   consents: { readonly install: boolean; readonly interactive: boolean; readonly viewerRuns: boolean },
 ): Promise<void> {
-  await owner.settings.updateAppSettings({ partial: { allowInteractiveCards: consents.install } });
+  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: consents.install ? "interactive" : "trusted" } });
   // The character renders trusted HTML either way, so the card keeps its sandboxed frame on every posture.
   await owner.character.update({ characterId: room.characterId, input: { trustHtml: true, interactiveHtml: consents.interactive } });
   await viewer.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: consents.viewerRuns } });
@@ -110,7 +110,7 @@ async function sharedRoomPeople(root: Root, corpus: CorpusPlayback): Promise<{ r
   return { owner: await root.internalCallerFor(root.ownerId), member: await root.internalCallerFor(memberId), memberId };
 }
 
-test("a scripted card held by the install's interactive switch names it, and the admin's control opens that switch", async ({ mount, page }) => {
+test("a scripted card held by the install's default step names it, and the admin's control opens that setting", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   const room = await scriptRoom(owner, owner, SCRIPTED_CARD);
@@ -123,7 +123,7 @@ test("a scripted card held by the install's interactive switch names it, and the
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
   await expect(readout).toHaveAttribute("data-section", "config");
-  await expect(readout).toHaveAttribute("data-config-target", `admin/${MEDIA_TRUST_CONFIG_SUB}/${ALLOW_INTERACTIVE_CARDS_CONFIG_SETTING}`);
+  await expect(readout).toHaveAttribute("data-config-target", `admin/${MEDIA_TRUST_CONFIG_SUB}/${DEFAULT_HTML_STEP_CONFIG_SETTING}`);
   await page.unrouteAll({ behavior: "wait" });
 });
 

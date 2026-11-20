@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormingChip, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
-import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useSuspenseQueries, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useRenderPolicyFloor, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
@@ -122,10 +122,12 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
     queries: [roomTailOptions(trpc, { chatId }), roomRosterOptions(trpc, { chatId })],
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const cards = collectArchivedCards(messages.messages, {
     participants: chat.participants,
     narrator: chat.narratorRender,
     viewerUserId: chat.viewerUserId,
+    installForbidsExternalMedia,
   }).toReversed();
   if (cards.length === 0) {
     return <MutedLine>{RPG_SCENE_NO_CARDS_LINE}</MutedLine>;

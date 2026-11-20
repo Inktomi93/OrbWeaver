@@ -54,6 +54,8 @@ function TierBCard({
   const frame = useCardFrame(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily });
   const links = useFramedLinkConfirm();
   const { mint } = frame;
+  // The routed document's own grant; the srcdoc floor runs no script and loads external media only as the row allows.
+  const granted = mint.state === "routed" ? mint.granted : { externalMedia: allowExternal, interactive: false };
   // Pending and routed wait behind the chip; only the floor draws at once.
   const forming =
     mint.state === "floor" ? undefined : <FormingChip title={block.title !== undefined && block.title !== "" ? block.title : FORMING_CARD_UNTITLED} />;
@@ -72,9 +74,11 @@ function TierBCard({
         {...(block.origin === undefined ? {} : { origin: block.origin })}
       />
       {links.confirm}
-      <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} css={block.css} />
+      <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} css={block.css} granted={granted} />
       {/* Only the routed document runs under the mint's script posture; the floor runs no script under any setting. */}
-      {mint.state === "routed" ? <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} /> : null}
+      {mint.state === "routed" ? (
+        <FramedScriptNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} granted={granted} />
+      ) : null}
     </>
   );
 }

@@ -29,7 +29,17 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
-import { roomRosterOptions, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
+import {
+  roomRosterOptions,
+  SkeletonRows,
+  useChatBus,
+  useDisplayScripts,
+  useGatedQuery,
+  usePrefetchDisplayScripts,
+  useRenderPolicyFloor,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useGhostSpeakerCharacterId, useTurnPhase } from "#state";
@@ -231,6 +241,7 @@ function ChatThread({
   const isGame = isRpgEngaged(chatDetail.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const { lenientHtmlCards, gameCardsOff } = gameCardWrap(isGame, gameQuery.data?.publicConfig.immersiveHtml);
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);
   const roomStanding = roomStandingOf(chatDetail.participants);
@@ -277,6 +288,7 @@ function ChatThread({
     participants,
     kind: ghostKind,
     narrator: chatDetail.narratorRender,
+    installForbidsExternalMedia,
     lenientHtmlCards,
   }).cardTier;
   // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
@@ -298,6 +310,7 @@ function ChatThread({
       participants,
       kind: view.kind,
       narrator: chatDetail.narratorRender,
+      installForbidsExternalMedia,
       lenientHtmlCards,
     }),
   );

@@ -42,7 +42,17 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
-import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import {
+  QueryErrorState,
+  roomRosterOptions,
+  roomTailOptions,
+  SkeletonRows,
+  useInvalidation,
+  useRenderPolicyFloor,
+  useSuspenseQueries,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
@@ -225,8 +235,14 @@ function ArchivedCards({
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
     queries: [roomTailOptions(trpc, { chatId: state.chatId }), roomRosterOptions(trpc, { chatId: state.chatId })],
   });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   return children(
-    collectArchivedCards(messages.messages, { participants: chat.participants, narrator: chat.narratorRender, viewerUserId: state.viewerUserId }),
+    collectArchivedCards(messages.messages, {
+      participants: chat.participants,
+      narrator: chat.narratorRender,
+      viewerUserId: state.viewerUserId,
+      installForbidsExternalMedia,
+    }),
   );
 }
 
@@ -325,6 +341,7 @@ function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: Rp
   const trpc = useTRPC();
   const messages = useQuery({ ...roomTailOptions(trpc, { chatId: state.chatId }), enabled: cardsEnabled });
   const chat = useQuery({ ...roomRosterOptions(trpc, { chatId: state.chatId }), enabled: cardsEnabled });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const cards =
     messages.data === undefined || chat.data === undefined
       ? NO_CARDS
@@ -332,6 +349,7 @@ function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: Rp
           participants: chat.data.participants,
           narrator: chat.data.narratorRender,
           viewerUserId: state.viewerUserId,
+          installForbidsExternalMedia,
         });
   return <JournalEntries state={state} cards={cards} />;
 }

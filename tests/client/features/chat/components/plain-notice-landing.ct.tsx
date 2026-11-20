@@ -1,8 +1,9 @@
 // The plain-content notice's control lands in the production shell on the very control it names, at desktop and phone
-// widths: the character's Trust tab selected with her HTML rendering control showing, or the install's trust-HTML switch
-// showing off. The shell, the transcript and every read are the real ones over a corpus root.
+// widths: the character's Trust tab selected with her HTML rendering control showing, or the install's "Default for
+// characters" select showing Plain text. The shell, the transcript and every read are the real ones over a corpus root.
 // @subject packages/client/src/features/chat/components/plain-content-notice.tsx
 
+import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "@orb/client/lib";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -11,7 +12,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHARACTER_HTML_TRUST_LABEL, CHARACTER_TRUST_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
-import { TRUST_HTML_SETTING_LABEL } from "#client/features/user-admin/lib/system-config-nav.ts";
+
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -79,18 +80,18 @@ for (const { name, use } of VIEWPORTS) {
       await expect(page.getByRole("combobox", { name: CHARACTER_HTML_TRUST_LABEL, exact: true })).toBeVisible();
     });
 
-    test("an admin's notice control opens the install's trust-HTML switch, showing off", async ({ mount, page }) => {
+    test("an admin's notice control opens the install's default for characters, showing Plain text", async ({ mount, page }) => {
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
       const room = await cardRoom(root);
       await caller.character.update({ characterId: room.characterId, input: { trustHtml: null, interactiveHtml: null } });
-      await caller.settings.updateAppSettings({ partial: { trustHtml: false, allowInteractiveCards: false } });
+      await caller.settings.updateAppSettings({ partial: { defaultHtmlStep: "untrusted" } });
       await serveShell(page, root);
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.chatId });
       await page.locator(NOTICE_ACTION).click();
-      const control = page.getByRole("switch", { name: TRUST_HTML_SETTING_LABEL, exact: true });
+      const control = page.getByRole("combobox", { name: DEFAULT_HTML_STEP_SETTING_LABEL, exact: true });
       await expect(control).toBeInViewport();
-      await expect(control).not.toBeChecked();
+      await expect(control).toHaveText(HTML_TRUST_STEP_LABELS.untrusted);
     });
   });
 }

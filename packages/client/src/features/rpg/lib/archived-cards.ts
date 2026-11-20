@@ -41,6 +41,8 @@ interface ArchivedCardViewer {
   /** `ChatDetail.narratorRender`, the policy a narrator row's cards render at. */
   readonly narrator: NarratorRenderPolicy | undefined;
   readonly viewerUserId: UserId | null;
+  /** The install's "Block external media", strict until the config lands (`useRenderPolicyFloor`). */
+  readonly installForbidsExternalMedia: boolean;
 }
 
 const CARD_LABEL = "Immersive card";
@@ -66,6 +68,7 @@ export function collectArchivedCards(messages: readonly ArchivedCardSource[], vi
       participants: byCharacter,
       kind: message.kind,
       narrator: viewer.narrator,
+      installForbidsExternalMedia: viewer.installForbidsExternalMedia,
     });
     tokenizeContent(message.content, { lenientHtml: true, committed: true }).forEach((span, index) => {
       if (span.kind === "card") {

@@ -144,13 +144,13 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  *     every failure arm of the mint.
  *   • `interactive` — the card's character resolves to the TOP RUNG of the one ordered html-trust ladder
  *     (`RenderPolicy.htmlTrust`, contracts/chat: `untrusted` then `trusted` then `interactive`), resolved
- *     off the `characters` ladder columns against the `allowInteractiveCards` AppSetting. A character on
- *     "Inherit default" (an imported card included) resolves there whenever the ceiling is up. Interactive
+ *     off the `characters` ladder columns against the install's `defaultHtmlStep` AppSetting. A character on
+ *     "Inherit default" (an imported card included) resolves there whenever that step is Interactive. Interactive
  *     IMPLIES trusted by construction, so a frame in this posture always has the `data:` door too.
  *
- * THE CEILING IS AN AND (never `override ??`). The `allowInteractiveCards` AppSetting is the DEPLOYMENT
- * OPERATOR's, its floor is ON by owner ruling, and it is both the default rung of an inheriting card and
- * the veto no per-character answer rises above. It is the revocation because of residual R1 in the header
+ * THE CEILING IS AN AND (never `override ??`). The `defaultHtmlStep` AppSetting ("Default for characters") is the
+ * DEPLOYMENT OPERATOR's, its floor is Interactive by owner ruling, and it is both the step of an inheriting card and,
+ * below Interactive, the veto no per-character answer rises above. It is the revocation because of residual R1 in the header
  * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so switching
  * the posture off is the one control that exists. The per-character disable is a lower rung picked on the
  * character's Trust tab.

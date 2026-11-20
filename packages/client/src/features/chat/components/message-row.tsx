@@ -16,6 +16,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { useCoarsePointer } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useRenderPolicyFloor } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -256,6 +257,7 @@ export function MessageRow({
     // The row's DECLARED purpose (D129) — never the room's current output dial.
     kind: message.kind,
   });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const render = resolveRowRenderPolicy({
     role,
     authorUserId: message.authorUserId,
@@ -264,6 +266,7 @@ export function MessageRow({
     participants,
     kind: message.kind,
     narrator: narratorRender,
+    installForbidsExternalMedia,
     lenientHtmlCards,
     gameCardsOff,
     colorQuotedSpeech,
