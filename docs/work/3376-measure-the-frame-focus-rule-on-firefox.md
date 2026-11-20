@@ -2,7 +2,7 @@
 kind: work
 status: open
 updated: 2026-11-20
-priority: P3
+priority: P2
 area: ui
 ---
 
