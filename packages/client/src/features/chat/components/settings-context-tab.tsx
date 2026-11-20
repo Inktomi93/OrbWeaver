@@ -60,6 +60,7 @@ import {
   CHAT_INJECTIONS_SECTION_LABEL,
   CHAT_WORLD_BOOKS_SECTION_LABEL,
 } from "../lib/chat-settings-names.ts";
+import type { GroupBehaviorScope } from "../lib/roster.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
@@ -221,8 +222,8 @@ export interface CommittedSettingsTabProps {
   readonly roomOverrides: RoomOverrides;
   readonly isHost: boolean;
   readonly background: ThemeBackground | null;
-  /** The group-level gate — host of a group chat (was the whole Group tab's `when`). */
-  readonly showGroup: boolean;
+  /** The Group behavior section's knobs for a host, or `null` when the section is omitted. */
+  readonly groupScope: GroupBehaviorScope | null;
   /** §6c — the SECTION contributors a foreign feature grafts into this tab (automation's Rules is the
    *  first; #616). Omitted ⇒ the tab is byte-identical to a build with no contributors, which is what
    *  lets a CT mount the tab body alone. The door always wires it (`makeChatsSection`). */
@@ -230,9 +231,9 @@ export interface CommittedSettingsTabProps {
 }
 
 /** The committed-chat "This chat" tab: Field overrides + Injections always present; Background is host-only;
- *  Group behavior only for a host of a group chat; Tool use only for a host (the §8.1 permission-omit,
+ *  Group behavior only for a host whose room earns a {@link GroupBehaviorScope}; Tool use only for a host (the §8.1 permission-omit,
  *  moved from tab-level to section-level). */
-export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup, sections }: CommittedSettingsTabProps): ReactElement {
+export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, groupScope, sections }: CommittedSettingsTabProps): ReactElement {
   return (
     <ContextTabBody>
       <DisclosureSection
@@ -334,8 +335,8 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       </DisclosureSection>
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
-          also needs a group chat). A member's tab simply ends after Forks. */}
-      {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} sections={sections} /> : null}
+          also needs two characters or two people). A member's tab simply ends after Forks. */}
+      {isHost ? <HostControls chatId={chatId} background={background} groupScope={groupScope} sections={sections} /> : null}
     </ContextTabBody>
   );
 }
@@ -347,12 +348,12 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
 function HostControls({
   chatId,
   background,
-  showGroup,
+  groupScope,
   sections,
 }: {
   readonly chatId: ChatId;
   readonly background: ThemeBackground | null;
-  readonly showGroup: boolean;
+  readonly groupScope: GroupBehaviorScope | null;
   readonly sections: ContributorRegistry<ChatSettingsSectionContribution> | undefined;
 }): ReactElement {
   // The §6c SECTION seam's projection — the committed room, resolved once for every contributor.
@@ -367,7 +368,7 @@ function HostControls({
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
             <ChatBackgroundSection chatId={chatId} background={background} />
           </DisclosureSection>
-          {showGroup ? (
+          {groupScope === null ? null : (
             <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker={CHAT_GROUP_BEHAVIOR_NAME} sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
               <QueryBoundary
                 resetKeys={[chatId]}
@@ -378,10 +379,10 @@ function HostControls({
                 renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
                 reserveKey="chat.context.groupBehavior"
               >
-                <CommittedGroupConfigTab chatId={chatId} />
+                <CommittedGroupConfigTab chatId={chatId} scope={groupScope} />
               </QueryBoundary>
             </DisclosureSection>
-          ) : null}
+          )}
           {/* `Appearance` IS GONE (#1742). It held one control — the display-tier broadcast switch (D121-E) —
             which is a REGEX control, and it now sits at the foot of the Regex section's `On screen` group
             beside the display scripts it governs. Its posture key and `reserveKey` retired with it: an

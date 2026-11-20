@@ -10,6 +10,20 @@
 // The CLOCK RULING: time macros read the zone the viewer's browser reported with the request, and a send's
 // follow-ups inherit it. A turn with no viewer reads its caller's ruled zone (an automation rule's own clock)
 // or UTC; a deferred drain reads the zone its sender reported at defer time. The server's zone is no user's.
+//
+// WAIT FOR EVERYONE (`GroupConfig.waitForEveryone`). In that mode a send commits its line and starts the round only
+// when `humansYetToWrite` is empty, so the reply comes once every present human has written since the last reply.
+// - Present is the consent set `loadRoom` reads: seated (leftSeq null) and enabled. Online and idle do not count:
+//   presence drops on a tab switch or a sleeping phone, and skipping a person for that fires the reply without the
+//   very person the mode waits for. A member who stepped away is waited on until someone releases early.
+// - When two last lines land together, only the send whose line is still the canon tail runs the round, so the
+//   room gets one reply.
+// - Any present member releases early through `generate`, the same verb the composer's Generate reply fires.
+// - A leave or a kick recounts: when the remaining humans have all written, `createReleaseWaitingRound` runs the
+//   round as the last writer's, through the deferred-round path, and a dark host defers it as a send would.
+// - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
+//   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.
+// - The policy and output still decide who speaks once a round starts. The mode decides only when it starts.
 
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type {
@@ -40,6 +54,7 @@ import {
   composeSendBody,
   DEFAULT_GROUP_CONFIG,
   fillSendPictures,
+  humansYetToWrite,
   isAiDriven,
   picturesPlaceExactlyOnce,
   placeSendPictures,
@@ -1165,6 +1180,7 @@ function asPerSpeaker(group: GroupConfig): GroupConfig {
     autoModeDelayMs: group.autoModeDelayMs,
     allowSelfResponses: group.allowSelfResponses,
     memberCardVisibility: group.memberCardVisibility,
+    waitForEveryone: group.waitForEveryone,
   };
 }
 
@@ -1890,9 +1906,16 @@ async function commitUserTurn(
   return { membership, room, identity, connection, group, userView, built };
 }
 
+/** Whether a wait-for-everyone room holds the reply to `userView`: a present human has not written since the last
+ *  reply, or a later line already landed, whose send owns the round (see the file header). */
+async function holdsForOthers(ctx: ChatContext, chatId: ChatId, presentHumanUserIds: readonly UserId[], userView: MessageView): Promise<boolean> {
+  const canon = await loadCanonHistory(ctx.db, chatId);
+  return canon.at(-1)?.id !== userView.id || humansYetToWrite(presentHumanUserIds, canon).length > 0;
+}
+
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
  *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
- *  Member-gated; AI turns run as the host. */
+ *  Member-gated; AI turns run as the host. A wait-for-everyone room may hold the round (see the file header). */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({
     principal,
@@ -1919,6 +1942,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     });
     // Only what this body still reads on its own — the shared prep block comes off `built` itself now.
     const { chatBehavior, respondsToLatestUserTurn, macroRegistry, userMacroDraws } = built;
+
+    if (group.waitForEveryone && (await holdsForOthers(ctx, chatId, room.presentHumanUserIds, userView))) {
+      return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
+    }
 
     // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
     // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
@@ -3144,6 +3171,44 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
     if (completed.aborted && completed.messages.length === 0) {
       throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
     }
+  };
+}
+
+/** Run the round a wait-for-everyone room owes once a seat empties: the remaining humans have all written since the
+ *  last reply, so nobody's send will start it. It runs as the last writer's round, as their send would have.
+ *  `actorUserId` is who left or kicked: the host's own act never defers, a member's defers while the host is dark. */
+async function releaseWaitingRound(ctx: ChatContext, deps: TurnDeps, chatId: ChatId, actorUserId: UserId): Promise<void> {
+  using custody = deps.admission.tryEnter(chatId);
+  const chat = custody === null ? undefined : await loadChatRow(ctx.db, chatId);
+  if (chat === undefined || chat.metadata.group?.waitForEveryone !== true) {
+    return;
+  }
+  const room = await loadRoom(ctx, chatId, chat.anchorPersonaId);
+  const canon = await loadCanonHistory(ctx.db, chatId);
+  const tail = canon.at(-1);
+  if (tail?.role !== "user" || humansYetToWrite(room.presentHumanUserIds, canon).length > 0) {
+    return;
+  }
+  const lastWriter = tail.authorUserId;
+  const triggeredBy = lastWriter !== null && room.presentHumanUserIds.includes(lastWriter) ? lastWriter : room.hostUserId;
+  const owed = { chatId, triggeredBy, runAsUserId: room.hostUserId, messageId: tail.id };
+  if (await deferIfHostOffline(ctx, { ...owed, principalUserId: actorUserId, timeZone: undefined })) {
+    return;
+  }
+  // No viewer reported a zone for this round, so it reads the no-viewer clock (the file header's clock ruling).
+  await runDeferredRound(ctx, deps, { ...owed, timeZone: null });
+}
+
+/** The leave-side recount of a wait-for-everyone room, run in the background so the leave returns at once. A room
+ *  the leave left without a consenting host has nobody to fund a reply, so its refusal is the expected end. */
+export function createReleaseWaitingRound(ctx: ChatContext, deps: TurnDeps): (args: { readonly chatId: ChatId; readonly actorUserId: UserId }) => void {
+  return ({ chatId, actorUserId }): void => {
+    const settled = releaseWaitingRound(ctx, deps, chatId, actorUserId).catch((err: unknown) => {
+      if (!(err instanceof ChatNotFoundError || err instanceof ChatHostWithoutConsentError)) {
+        getLog(ctx.logger).warn({ err, chatId }, "chat: the wait-for-everyone reply after a leave failed");
+      }
+    });
+    ctx.trackBackground(settled, chatId);
   };
 }
 

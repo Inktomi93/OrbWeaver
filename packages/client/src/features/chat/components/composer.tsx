@@ -43,6 +43,7 @@ import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerReplyFailureLine } from "./composer-reply-failure-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
+import { ComposerTailLine } from "./composer-tail-line.tsx";
 
 // Keep the transcript readable while a long draft scrolls inside the field.
 const COMPOSER_MAX_ROWS = 4;
@@ -425,6 +426,11 @@ export function Composer({
       </ComposerDropTarget>
       <ComposerReplyFailureLine chatId={chatId} failure={replyFailure.failure} onRetry={replyFailure.retry} id={replyFailureId} />
       <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
+      <ComposerTailLine
+        chatId={chatId}
+        idle={!(showStop || sendMessage.isPending || continueOnEmpty.isPending || sendAvailability.unavailable || replyFailure.failure !== undefined)}
+        onReply={(): void => continueOnEmpty.generateReply(chatId)}
+      />
     </Stack>
   );
 }

@@ -52,6 +52,23 @@ export function resolveIsGroupChat(participants: readonly ParticipantView[]): bo
   return buildParticipantsById(participants).size > 1;
 }
 
+/** A room is shared from this many present people. */
+export const SHARED_ROOM_FLOOR = 2;
+
+/** Which halves of the Group behavior form a room earns: the arbitration knobs need two characters, and the wait
+ *  switch needs two present people with a present character to answer them. */
+export interface GroupBehaviorScope {
+  readonly characters: boolean;
+  readonly people: boolean;
+}
+
+/** The room's {@link GroupBehaviorScope}, or `null` when it earns neither half and the section is omitted. */
+export function resolveGroupBehaviorScope(participants: readonly ParticipantView[]): GroupBehaviorScope | null {
+  const characters = resolveIsGroupChat(participants);
+  const people = presentMemberCount(participants) >= SHARED_ROOM_FLOOR && filterCharacters(participants).some((p) => p.leftSeq === null);
+  return characters || people ? { characters, people } : null;
+}
+
 const CHARACTER_SECTION_FLOOR = 1;
 const PEOPLE_TAB_FLOOR = 2;
 

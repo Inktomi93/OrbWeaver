@@ -35,7 +35,7 @@ import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
-import { createDeferredSettlement, createRequestTurn, createTurn } from "./verbs/turn.ts";
+import { createDeferredSettlement, createReleaseWaitingRound, createRequestTurn, createTurn } from "./verbs/turn.ts";
 import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
 
 export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQuietDeps>): VisibleExtractQuiet {
@@ -178,7 +178,12 @@ export function createChatService(
   });
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews, saveGreetingTexts });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat, admission });
-  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat, saveGreetingTexts });
+  const participants = createParticipants(ctx, {
+    emit: deps.emitChecked,
+    claimChat,
+    saveGreetingTexts,
+    releaseWaiting: createReleaseWaitingRound(ctx, turnDeps),
+  });
   const admitted = createAdmittedChatOperations(ctx, {
     barrier: admission,
     operations: { ...turn, ...imageGen, compact, acceptHostHandoff: participants.acceptHostHandoff },
