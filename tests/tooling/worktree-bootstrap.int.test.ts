@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, readlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/tooling";
 
 const INVENTORY_ROWS = 200_000;
@@ -64,41 +64,27 @@ for (const step of ["install", "build"]) {
   });
 }
 
-test("bootstrap links local settings and syncs a SQLite backup in an external checkout", async ({ fakeBin, repoRoot, scratch }) => {
+test("bootstrap links local settings and never builds or syncs a CodeGraph index", async ({ fakeBin, repoRoot, scratch }) => {
   const mainRoot = join(scratch, "main checkout");
   const laneRoot = join(scratch, "lane O'Brien checkout");
   await mkdir(join(mainRoot, ".claude"), { recursive: true });
   await mkdir(join(mainRoot, ".codegraph"), { recursive: true });
   await mkdir(laneRoot, { recursive: true });
   await writeFile(join(mainRoot, ".claude/settings.local.json"), "{}\n");
+  await writeFile(join(mainRoot, ".codegraph/codegraph.db"), "main index");
   await writeFile(join(laneRoot, ".env"), "LOCAL=preserved\n");
-  const database = join(mainRoot, ".codegraph/codegraph.db");
-  const seed = new DatabaseSync(database);
-  seed.exec("CREATE TABLE witness (value TEXT); INSERT INTO witness VALUES ('main-index');");
-  seed.close();
   await fakeBin(
     "git",
     `process.stdout.write(process.argv.includes("--show-toplevel") ? ${JSON.stringify(`${laneRoot}\n`)} : ${JSON.stringify(`worktree ${mainRoot}\n\nworktree ${laneRoot}\n`)});`,
   );
   await fakeBin("pnpm", "process.exitCode = 0;");
-  await fakeBin(
-    "codegraph",
-    `import { writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-const db = new DatabaseSync(join(process.argv[3], ".codegraph/codegraph.db"), { readOnly: true });
-const row = db.prepare("SELECT value FROM witness").get();
-writeFileSync(join(process.argv[3], "synced.txt"), row.value + "\\n");
-db.close();
-`,
-  );
+  // Either tool, once called, fails the bootstrap: main holds an index the old bootstrap copied and synced.
+  await fakeBin("codegraph", "process.exitCode = 9;");
+  await fakeBin("sqlite3", "process.exitCode = 9;");
   const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: laneRoot, encoding: "utf8" });
   expect(result.status, result.stderr).toBe(0);
   expect(await readlink(join(laneRoot, ".claude/settings.local.json"))).toBe(join(mainRoot, ".claude/settings.local.json"));
   expect(await readFile(join(laneRoot, ".env"), "utf8")).toBe("LOCAL=preserved\n");
-  expect(await readFile(join(laneRoot, "synced.txt"), "utf8")).toBe("main-index\n");
-  await fakeBin("codegraph", "process.exitCode = 9;");
-  const failedSync = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: laneRoot, encoding: "utf8" });
-  expect(failedSync.status).toBe(9);
-  expect(failedSync.stdout).not.toContain("done");
+  expect(existsSync(join(laneRoot, ".codegraph"))).toBe(false);
+  expect(result.stdout).toContain("worktree-bootstrap: done");
 });
