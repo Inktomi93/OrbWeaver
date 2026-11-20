@@ -223,6 +223,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
             chatConnectionId={target?.connectionId}
+            chatWire={target?.wire}
             editorConnection={
               target === undefined
                 ? undefined
@@ -265,6 +266,7 @@ interface PresetEditorBodyProps {
   readonly onRename: (name: string) => void;
   readonly capability: GenerationCapability | undefined;
   readonly chatConnectionId: ViewContentProps["chatConnectionId"];
+  readonly chatWire: ViewContentProps["chatWire"];
   readonly editorConnection: string | undefined;
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
@@ -285,6 +287,7 @@ function PresetEditorBody({
   onRename,
   capability,
   chatConnectionId,
+  chatWire,
   editorConnection,
   effective,
   reset,
@@ -314,6 +317,7 @@ function PresetEditorBody({
     form: boundForm,
     capability,
     chatConnectionId,
+    chatWire,
     effective,
     presetId,
     attachable: !isSystemDefault,

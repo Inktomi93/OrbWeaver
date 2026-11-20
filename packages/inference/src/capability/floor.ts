@@ -21,7 +21,8 @@ export function clampToTrainedWindow(capability: Capability, trained: number | u
   if (capability.kind !== "generation" || trained === undefined || capability.generation.context.window <= trained) {
     return capability;
   }
-  return { kind: "generation", generation: { ...capability.generation, context: { ...capability.generation.context, window: trained } } };
+  const { windowDeclared: _replaced, ...context } = capability.generation.context;
+  return { kind: "generation", generation: { ...capability.generation, context: { ...context, window: trained } } };
 }
 
 /** A route that sends no window runs the server's own, so a larger declared window would budget the history fit past
@@ -30,7 +31,7 @@ export function clampToServedWindow(capability: Capability, served: ServedWindow
   if (capability.kind !== "generation" || served === undefined || capability.generation.context.window <= served.window) {
     return capability;
   }
-  const { windowEstimated: _replaced, ...context } = capability.generation.context;
+  const { windowEstimated: _replaced, windowDeclared: _declared, ...context } = capability.generation.context;
   return {
     kind: "generation",
     generation: { ...capability.generation, context: { ...context, window: served.window, ...(served.estimated ? { windowEstimated: true } : {}) } },

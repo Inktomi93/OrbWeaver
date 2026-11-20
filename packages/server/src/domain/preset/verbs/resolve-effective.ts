@@ -12,7 +12,7 @@
 // Read-only: no write, no audit, no event.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { requireGenerationCapability, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
+import { requireGenerationCapability, SAMPLING_RANGE_KNOBS, windowForPreset } from "@orb/contracts/inference";
 import type {
   EffectiveKnob,
   EffectiveKnobReading,
@@ -196,9 +196,11 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
       ...(params.target !== undefined ? { target: params.target } : {}),
     });
     const { model } = resolved;
-    const capability = requireGenerationCapability(resolved.capability);
+    const storedParams = parsePromptConfig(row.config).params;
+    // The turn runs the window its preset asks for, so the readout resolves against that one.
+    const capability = windowForPreset(requireGenerationCapability(resolved.capability), storedParams.maxContextTokens);
     // The readout previews the turn, so it reads the same stated params the turn runs with (D68).
-    const intent = statedIntent(parsePromptConfig(row.config).params, capability);
+    const intent = statedIntent(storedParams, capability);
     // The wire and the role's posture both change how a budget and the output cap combine, so the readout
     // resolves with the same two the turn hands `resolveChat`. A connection target resolves as a chat turn.
     const posture = postureOfTask(params.target?.kind === "role" ? params.target.task : "chat");

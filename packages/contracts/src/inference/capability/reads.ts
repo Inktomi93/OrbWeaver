@@ -2,9 +2,11 @@
 // `capability.<axis>?.` re-spelled outside this file is a second home: every such copy migrates here so the
 // SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 
+import { windowReplyCeiling } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
+import type { Wire } from "../wires.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
 import type {
@@ -46,16 +48,71 @@ function accepts(capability: GenerationCapability, modality: Modality): boolean 
 //  runs, so a typo cannot shrink the server's window to nothing.
 const SETTABLE_WINDOW_FLOOR = 2048;
 
-/** The window a turn sends and budgets: on a route whose window the request sets, the preset's Max context tokens,
- *  at least {@link SETTABLE_WINDOW_FLOOR} and at most the model's trained maximum, and stated rather than estimated.
- *  It beats a declared window, because it is the per-chat choice of what that route sends. Anywhere else, or with no
- *  preset window, the resolved one stands. */
+/** Where a token limit on a connection comes from: the server or catalog stated it, the user declared it, or no tier
+ *  stated it and the kind floor's guess stands. */
+export const LIMIT_SOURCES = ["reported", "override", "guessed"] as const;
+export type LimitSource = (typeof LIMIT_SOURCES)[number];
+
+/** The source of the model's max output. Only a stated source is a limit the model holds; a guess stops nothing. */
+export function outputLimitSource(capability: GenerationCapability): LimitSource {
+  const { maxTokensEstimated, maxTokensDeclared } = capability.output;
+  if (maxTokensEstimated === true) {
+    return "guessed";
+  }
+  return maxTokensDeclared === true ? "override" : "reported";
+}
+
+/** The source of the model's context window. A route that sends the window runs the trained maximum the server stated,
+ *  so its ceiling is reported whatever the window itself was folded from. */
+export function contextLimitSource(capability: GenerationCapability): LimitSource {
+  const { windowEstimated, windowDeclared, settable } = capability.context;
+  if (settable !== undefined) {
+    return "reported";
+  }
+  if (windowEstimated === true) {
+    return "guessed";
+  }
+  return windowDeclared === true ? "override" : "reported";
+}
+
+// Wires whose SDK grows the output cap by the thinking budget itself: @ai-sdk/anthropic sends
+// `max_tokens = maxOutputTokens + budget_tokens` on `thinking.type: "enabled"`, so the funnel must not add it too.
+export const WIRES_ADDING_THINKING_BUDGET: ReadonlySet<Wire> = new Set<Wire>(["anthropic-messages"]);
+
+/** Does a request's max output cover the model's thinking as well as its reply on this wire? False on a model that
+ *  cannot reason, and where the SDK adds a thinking budget beside the reply's cap, which only a budget-mode model on
+ *  such a wire sends (an adaptive or effort-mode model's cap covers both). */
+export function maxOutputCoversThinking(capability: GenerationCapability, wire: Wire): boolean {
+  const { enabled, mode } = capability.reasoning;
+  return enabled && !(mode === "budget" && WIRES_ADDING_THINKING_BUDGET.has(wire));
+}
+
+/** The max output a request is held under, or `undefined` when nothing the model stated holds it. A guessed cap never
+ *  stops a preset's own number: a server that really stops sooner says so itself. A window the model or the user
+ *  stated is a limit, though, so beside a guessed cap it still holds the reply to what leaves the prompt room
+ *  ({@link windowReplyCeiling}). A guessed window holds nothing either. The funnel and the history fit both read this,
+ *  so the reply sent and the reply reserved stay one value. */
+export function outputCeilingOf(capability: GenerationCapability): number | undefined {
+  if (outputLimitSource(capability) !== "guessed") {
+    return capability.output.maxTokens.max;
+  }
+  return contextLimitSource(capability) === "guessed" ? undefined : windowReplyCeiling(capability.context.window);
+}
+
+/** The window a turn sends and budgets. On a route whose window the request sets, the preset's Max context tokens, at
+ *  least {@link SETTABLE_WINDOW_FLOOR} and at most the model's trained maximum, and stated rather than estimated; it
+ *  beats a declared window, because it is the per-chat choice of what that route sends. On a route whose window is a
+ *  guess, the preset's Max context tokens is the window, because the user's number outranks a guess. Anywhere else, or
+ *  with no preset window, the resolved one stands. */
 export function windowForPreset(capability: GenerationCapability, maxContextTokens: number | undefined): GenerationCapability {
-  const settable = capability.context.settable;
-  if (settable === undefined || maxContextTokens === undefined) {
+  if (maxContextTokens === undefined) {
     return capability;
   }
-  return { ...capability, context: { window: Math.min(Math.max(maxContextTokens, SETTABLE_WINDOW_FLOOR), settable.max), settable } };
+  const { settable, windowEstimated: guessed, windowDeclared: _declared, ...context } = capability.context;
+  if (settable !== undefined) {
+    return { ...capability, context: { window: Math.min(Math.max(maxContextTokens, SETTABLE_WINDOW_FLOOR), settable.max), settable } };
+  }
+  return guessed === true ? { ...capability, context: { ...context, window: maxContextTokens } } : capability;
 }
 
 export function acceptsImageInput(capability: GenerationCapability): boolean {

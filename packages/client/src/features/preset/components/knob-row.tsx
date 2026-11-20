@@ -85,8 +85,8 @@ export interface KnobRowProps {
   /** What the server does with this knob on this turn when it is not what the value suggests (a Mirostat branch that
    *  skips it). It outranks the provenance line: the value is moot until it changes. */
   readonly note?: string | undefined;
-  /** `max` is this connection's ceiling, not the knob's bound: the number box keeps a typed value past it, which the
-   *  send path caps, and the rail pins at its end. A drag still sets a value on the rail. */
+  /** `max` is a guessed ceiling, not a limit the model holds: the number box keeps a typed value past it and the rail
+   *  pins at its end. A drag still sets a value on the rail. Without it, `max` bounds a typed value too. */
   readonly storesPastRail?: true | undefined;
 }
 

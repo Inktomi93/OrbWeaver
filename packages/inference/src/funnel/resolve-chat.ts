@@ -17,17 +17,18 @@ import type {
   SamplerStage,
   SamplingRangeKnob,
   Verbosity,
-  Wire,
 } from "@orb/contracts/inference";
 import {
   bindsThinkingToPrefix,
   completeSamplerOrder,
   EFFORT_LEVELS,
+  outputCeilingOf,
   reasoningOffModeOf,
   reasoningReplayOf,
   SAMPLER_KNOB_STAGES,
   SAMPLING_RANGE_KNOBS,
   survivesPrefixEdit,
+  WIRES_ADDING_THINKING_BUDGET,
 } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
@@ -344,10 +345,6 @@ const REASONING_ALLOWANCE_RANGE: Range = { min: 1024, max: 32_000 };
 // An effort-mode model that names no default effort reasons at a level the wire does not say: size for high.
 const UNSTATED_ALLOWANCE_EFFORT: EffortLevel = "high";
 
-// Wires whose SDK grows the output cap by the thinking budget itself: @ai-sdk/anthropic sends
-// `max_tokens = maxOutputTokens + budget_tokens` on `thinking.type: "enabled"`, so the funnel must not add it too.
-const WIRES_ADDING_THINKING_BUDGET: ReadonlySet<Wire> = new Set<Wire>(["anthropic-messages"]);
-
 // The lowest effort level whose share of `range` covers `budget`, so the room an effort wire leaves is never
 // smaller than the budget the user asked for; the model's top level when none does.
 function effortForBudget(budget: number, levels: readonly EffortLevel[] | undefined, range: Range): EffortLevel {
@@ -615,10 +612,13 @@ export function resolveChat(params: UserIntent, capability: GenerationCapability
   const posture = options.posture ?? "chat";
   const intent = postureIntent(params, capability, posture, warnings);
   // Resolve the output cap FIRST: the budget-mode reasoning clamp fits the reasoning budget against it.
-  const visible = intent.maxOutputTokens !== undefined ? clampRange(intent.maxOutputTokens, capability.output.maxTokens) : undefined;
+  // A guessed cap is no limit the model stated, so it never shortens the preset's own number.
+  const modelMax = outputCeilingOf(capability) ?? Number.POSITIVE_INFINITY;
+  const visible =
+    intent.maxOutputTokens !== undefined ? clampRange(intent.maxOutputTokens, { min: capability.output.maxTokens.min, max: modelMax }) : undefined;
   const sizing: OutputSizing = {
     visible,
-    modelMax: capability.output.maxTokens.max,
+    modelMax,
     grows: posture === "side-gen",
     adds: options.wire !== undefined && WIRES_ADDING_THINKING_BUDGET.has(options.wire),
   };

@@ -86,6 +86,15 @@ export function windowInputRoom(windowTokens: number, reserveOutputTokens: numbe
   return safeTokenWindow(windowTokens - reserveOutputTokens);
 }
 
+// The share of a hard window one reply may take: a reply above it leaves the prompt less room than the reply itself.
+const MAX_REPLY_SHARE_OF_WINDOW = 0.5;
+
+/** The most a reply may take of a hard window, so the prompt keeps room beside it. A request whose reply cap states no
+ *  limit of its own is held to this, because a reply that fills the window leaves no room for any history. */
+export function windowReplyCeiling(windowTokens: number): number {
+  return Math.floor(windowTokens * MAX_REPLY_SHARE_OF_WINDOW);
+}
+
 /** The effective integer budget for a cut. A FRACTIONAL `maxTokens` breaks the "every piece fits" bound
  *  outright — `estimateTokens` is integer-valued and its floor for any non-empty piece is 1, so a 0.5
  *  budget admits no piece at all while the pre-guard loop happily emitted single-character ones.

@@ -41,6 +41,10 @@ export async function sdkEngineRoom(
   options: Omit<ChatRootOptions, "providerFetch"> & {
     readonly history?: number;
     readonly window?: number;
+    /** The connection's window is a guess, as one no tier stated: declared as estimated, so the fold marks it. */
+    readonly windowGuessed?: true;
+    /** A model id the connection names; the default is the curated one every engine case runs. */
+    readonly model?: string;
     readonly policy?: Partial<z.infer<typeof policySchema>>;
   } = {},
 ): Promise<
@@ -59,7 +63,7 @@ export async function sdkEngineRoom(
   }
 > {
   await using construction = new AsyncDisposableStack();
-  const { history = 0, window = 32_000, policy: initialPolicy, ...rootOptions } = options;
+  const { history = 0, window = 32_000, windowGuessed, model = ENGINE_SDK_MODEL, policy: initialPolicy, ...rootOptions } = options;
   let policy = policySchema.parse({ marker: "reply", foreground: "reply", inputTokens: 4, ...initialPolicy });
   const spawn = createSdkProcessSpawner(new URL("./engine-sdk-physical.mjs", import.meta.url));
   const receipts: z.infer<typeof receiptSchema>[] = [];
@@ -113,9 +117,9 @@ export async function sdkEngineRoom(
     providerId: "claude-sub",
     credentialId: credential.id,
     baseUrl: null,
-    model: ENGINE_SDK_MODEL,
+    model,
     allowBackground: true,
-    declared: { kind: "generation", generation: { context: { window } } },
+    declared: { kind: "generation", generation: { context: { window, ...(windowGuessed === true ? { windowEstimated: true } : {}) } } },
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   const release = (): void => {

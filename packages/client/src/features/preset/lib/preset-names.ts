@@ -1,6 +1,8 @@
 // The accessible names the preset section drill-in prints. A zero-import leaf, so a spec's node side reads them without
 // loading the component graph.
 
+import type { LimitSource } from "@orb/contracts/inference";
+
 /** The prompt delete confirmation's title. */
 export const PRESET_DELETE_SECTION_TITLE = "Delete this prompt?";
 export const PRESET_BACK_TO_RACK_NAME = "Back to prompts";
@@ -289,17 +291,30 @@ export const PRESET_NO_CHAT_MODEL_TITLE = "No model is set for chat yet.";
 export const PRESET_NO_CHAT_MODEL_DETAIL = "The sampling, reasoning and output controls show once you choose a chat model, at that model's own limits.";
 export const PRESET_OPEN_CONNECTIONS_NAME = "Open Connections";
 
-/** The Output cluster's door to the chat connection's own limit settings, shown when its limits are a guess. */
-export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
+/** The two limits the Output cluster names a source for. */
+export const PRESET_OUTPUT_LIMIT_NAME = "Max output";
+export const PRESET_CONTEXT_LIMIT_NAME = "Context window";
 
-/** The Output cluster's line when the chat connection's limits are a guess; each argument is the guessed number as the
- *  row prints it, or `null` when that limit is reported. */
-export function presetGuessedLimitsNotice(context: string | null, output: string | null): string {
-  const guesses = [context === null ? null : `a context window of ${context} tokens`, output === null ? null : `a max output of ${output} tokens`].filter(
-    (guess): guess is string => guess !== null,
-  );
-  return `This model's connection doesn't say how much it can take, so these limits are a guess: ${guesses.join(" and ")}. If the model takes more, set its real limits.`;
+/** Where a limit comes from, said after its number. */
+const LIMIT_SOURCE_PHRASES: Readonly<Record<LimitSource, string>> = {
+  reported: "reported by this model's connection",
+  override: "your override on this connection",
+  guessed: "a guess, because this model's connection doesn't report it",
+};
+
+/** One limit's source line: its ceiling and where that ceiling comes from. */
+export function presetLimitSourceLine(name: string, ceiling: string, source: LimitSource): string {
+  return `${name}: up to ${ceiling} tokens, ${LIMIT_SOURCE_PHRASES[source]}.`;
 }
+
+/** The door from a limit's source line to the chat connection's own limit settings. */
+const LIMIT_DOOR_VERBS: Readonly<Record<LimitSource, string>> = { reported: "Override", override: "Edit override of", guessed: "Set real" };
+export function presetLimitDoorName(name: string, source: LimitSource): string {
+  return `${LIMIT_DOOR_VERBS[source]} ${name.toLowerCase()}`;
+}
+
+/** The Output cluster's line on a model that thinks before it replies: one number caps both. */
+export const PRESET_OUTPUT_COVERS_THINKING_NOTE = "This model thinks before it replies, so Max output tokens caps the thinking and the reply together.";
 
 /** Max output tokens' hint: what the knob does, then the ceiling, said as a guess when the connection reports none. */
 export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
@@ -340,9 +355,30 @@ export function presetCappedOnConnectionNote(stored: string, ceiling: string): s
   return `Saved as ${stored}, but capped at ${ceiling}, this model's limit on this connection.`;
 }
 
-/** A stored limit above a guessed ceiling: the value stays, and the turn is capped at the guess. */
-export function presetCappedByGuessNote(stored: string, ceiling: string): string {
-  return `Saved as ${stored}, but capped at ${ceiling} because this model's limit is a guess. Set the real limits to use more.`;
+/** A stored limit above a guessed ceiling: the value stays and is sent as saved; only the guess is passed. */
+export function presetPastGuessNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, past the guess of ${ceiling}. It is sent as saved; if the server refuses it, set the real limit.`;
+}
+
+/** A reply the stated window cannot hold beside a prompt: the value stays saved and the turn holds the reply to what the
+ *  window leaves. */
+export function presetHeldToWindowNote(stored: string, heldTo: string, window: string): string {
+  return `Saved as ${stored}, but this model's window of ${window} tokens leaves room for a reply of at most ${heldTo}, so replies stop there.`;
+}
+
+/** A reply as large as the guessed window: nothing is left for history until the real window is set. */
+export function presetFillsGuessedWindowNote(stored: string, window: string): string {
+  return `A reply of ${stored} tokens fills the ${window}-token window this connection is guessed to have, so only the newest message is sent. Set the real window or Max context tokens.`;
+}
+
+/** A blank Max context tokens row: what the history is trimmed to when the preset sets nothing. */
+export function presetBlankContextNote(window: string, source: LimitSource, sentByServer: boolean): string {
+  if (sentByServer) {
+    return `Blank: this server runs ${window} tokens.`;
+  }
+  return source === "guessed"
+    ? `Blank: history is trimmed to ${window} tokens, a guess at this model's window.`
+    : `Blank: history is trimmed to this model's window of ${window} tokens.`;
 }
 
 /** The delete confirm's list of the scripts only this preset uses. */
