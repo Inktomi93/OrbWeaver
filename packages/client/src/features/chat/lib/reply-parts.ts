@@ -6,7 +6,16 @@
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
 import type { FrameStyleSheet, TextRange } from "@orb/kit/content";
-import { frameStyleElements, heldBlockRanges, holdBlocksWhole, markupUnitRanges, modelPanels, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
+import {
+  frameStyleElements,
+  heldBlockRanges,
+  holdBlocksWhole,
+  markupClassNames,
+  markupUnitRanges,
+  modelPanels,
+  paragraphBreaks,
+  tokenizeContent,
+} from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import type { PlainReplyReason, RowRenderPolicy } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
@@ -17,8 +26,9 @@ export type FrameReplySegment =
   | { readonly kind: "markdown"; readonly markdown: string; readonly tokens: ThemeScopeTokens | undefined }
   | { readonly kind: "card"; readonly html: string };
 
-/** The stylesheets a frame run carries: every carried sheet of the reply, one array all its runs share, less this run's
- *  own, which sit at `own`. The run carries those before `own.start` above its body and those from `own.end` below. */
+/** The stylesheets a frame run carries: the room's sheets the reply carries, then every carried sheet of the reply, one
+ *  array all its runs share, less this run's own, which sit at `own`. The run carries those before `own.start` above its
+ *  body and those from `own.end` below. */
 export interface ReplyRunStyles {
   readonly sheets: readonly FrameStyleSheet[];
   readonly own: { readonly start: number; readonly end: number };
@@ -194,20 +204,29 @@ function carriedSheets(parts: readonly UnstyledPart[]): readonly (readonly Frame
 }
 
 /** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. Its runs
- *  together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of one another's stylesheet text and
- *  {@link REPLY_CARRY_BUDGET_SHEETS} copies of them; past either the reply takes the plain path whole, never half its
- *  runs styled. `cardTrust` is the row's resolved card tier, which a native card renders at. */
-export function replyLayout(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): ReplyLayout {
+ *  together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of stylesheet text and {@link REPLY_CARRY_BUDGET_SHEETS}
+ *  copies, counting one another's sheets and the room's `room` sheets ({@link carriedRoomSheets}), which every run
+ *  carries first, ahead of the reply's own; past either the reply takes the plain path whole, never half its runs
+ *  styled. `cardTrust` is the row's resolved card tier, which a native card renders at. */
+export function replyLayout(
+  spans: readonly ReplySpan[],
+  options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust; readonly room?: readonly FrameStyleSheet[] | undefined },
+): ReplyLayout {
   const parts = unstyledParts(spans, options);
   const carried = carriedSheets(parts);
-  const sheets = carried.flat();
-  // Each run carries every carried sheet but its own, so the reply carries each sheet once per run less one.
-  const others = Math.max(0, parts.filter((part) => part.kind === "frame").length - 1);
-  const chars = sheets.reduce((sum, sheet) => sum + sheetChars(sheet), 0);
-  if (others * chars > REPLY_CARRY_BUDGET_CHARS || others * sheets.length > REPLY_CARRY_BUDGET_SHEETS) {
+  const reply = carried.flat();
+  // A room sheet the reply repeats is dropped, as a repeat within the reply is: the reply's later copy wins its ties.
+  const repeated = new Set(reply.map(sheetIdentity));
+  const room = (options.room ?? []).filter((sheet) => LAYER_RULE_RE.test(sheet.css) || !repeated.has(sheetIdentity(sheet)));
+  const runs = parts.filter((part) => part.kind === "frame").length;
+  // Each run carries every reply sheet but its own, so once per run less one, and every room sheet once per run.
+  const others = Math.max(0, runs - 1);
+  const chars = (list: readonly FrameStyleSheet[]): number => list.reduce((sum, sheet) => sum + sheetChars(sheet), 0);
+  if (others * chars(reply) + runs * chars(room) > REPLY_CARRY_BUDGET_CHARS || others * reply.length + runs * room.length > REPLY_CARRY_BUDGET_SHEETS) {
     return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
   }
-  let start = 0;
+  const sheets = [...room, ...reply];
+  let start = room.length;
   return {
     kind: "framed",
     parts: parts.map((part, index) => {
@@ -216,6 +235,30 @@ export function replyLayout(spans: readonly ReplySpan[], options: { readonly len
       return part.kind === "frame" ? { ...part, styles: { sheets, own } } : part;
     }),
   };
+}
+
+// The classes a sheet's selectors name: each `.name` outside a declaration block. A block nested in an at-rule keeps
+// its selectors, and a value such as `.5em` is inside a block, so it names none. A name read from an attribute
+// selector or a comment only carries a sheet the reply did not need, never drops one it did.
+const DECLARATION_BLOCK_RE = /\{[^{}]*\}/gu;
+const SELECTOR_CLASS_RE = /\.(-?[_a-zA-Z][\w-]*)/gu;
+
+function namesAny(sheet: FrameStyleSheet, used: ReadonlySet<string>): boolean {
+  return [...sheet.css.replace(DECLARATION_BLOCK_RE, "{}").matchAll(SELECTOR_CLASS_RE)].some((match) => used.has(match[1] ?? ""));
+}
+
+/** The room's sheets a drawn reply carries: each of `room` (canon order, `roomSheetsBefore`) whose selectors name a class
+ *  the reply's prose markup uses (`markupClassNames`), only the last copy of a repeated sheet, as {@link replyLayout}
+ *  keeps one. A sheet naming no class the reply uses is not carried: the reply needs none of it, and every carried byte
+ *  is paid once per frame run. Empty when the reply uses none, so it does not frame for the room's sake. */
+export function carriedRoomSheets(room: readonly FrameStyleSheet[], text: string, options: { readonly lenientHtml: boolean }): readonly FrameStyleSheet[] {
+  const used = markupClassNames(text, options);
+  if (used.size === 0) {
+    return [];
+  }
+  const needed = room.filter((sheet) => namesAny(sheet, used));
+  const lastCopy = new Map(needed.map((sheet) => [sheetIdentity(sheet), sheet]));
+  return needed.filter((sheet) => lastCopy.get(sheetIdentity(sheet)) === sheet);
 }
 
 function unstyledParts(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): readonly UnstyledPart[] {

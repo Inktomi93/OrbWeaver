@@ -133,7 +133,7 @@ export type CardScriptVerdict = { readonly runs: true } | { readonly runs: false
 
 /** The three consents a frame's script posture reads, all already resolved. */
 export interface CardScriptConsents {
-  /** The deployment `allowInteractiveCards` ceiling, read live. */
+  /** Whether the install's "Default for characters" is `interactive`, read live ({@link installAllowsCardScripts}). */
   readonly installAllows: boolean;
   /** The author's resolved ladder step ({@link RenderPolicy.htmlTrust}). */
   readonly step: HtmlTrustStep;
@@ -146,11 +146,13 @@ const SCRIPTS_RUN: CardScriptVerdict = { runs: true };
 /**
  * THE script posture of a routed card frame: scripts run only when all three consents say yes. The ONE home of the
  * rule and of its order. The card-frame route builds the frame's CSP from it, and the client's notice names the
- * holder it returns, so the notice can never say scripts are off while the frame runs them, or the reverse.
+ * holder it returns.
  *
  * @remarks The order names the setting whose change matters first. The install ceiling binds every character, so it
  * is named before a character's own step; the viewer's switch is named last, because the other two decide whether
- * the frame may run scripts at all.
+ * the frame may run scripts at all. A served document keeps the narrower of its minted and its current posture, so
+ * a frame minted static stays static until it mints again: whether a frame runs scripts is its mint's
+ * `granted.interactive`, and this verdict names the holder when it does not.
  */
 export function resolveCardScriptVerdict(consents: CardScriptConsents): CardScriptVerdict {
   if (!consents.installAllows) {
@@ -160,6 +162,37 @@ export function resolveCardScriptVerdict(consents: CardScriptConsents): CardScri
     return { runs: false, heldBy: "character" };
   }
   return consents.viewerRuns ? SCRIPTS_RUN : { runs: false, heldBy: "viewer" };
+}
+
+/** Whether the viewer's consent is even asked: the install and the author's step must both allow scripts first. The
+ *  card-frame route reads the viewer's settings only when this holds. */
+export function cardScriptsNeedViewerConsent(consents: Omit<CardScriptConsents, "viewerRuns">): boolean {
+  return consents.installAllows && allowsInteractiveCards(consents.step);
+}
+
+const CARD_MEDIA_HOLDERS = ["install", "character"] as const;
+/** Which setting holds a frame's external media out: the install's "Block external media" or the author's own forbid. */
+export type CardMediaHolder = (typeof CARD_MEDIA_HOLDERS)[number];
+
+/** A framed card's or styled reply's media grant: whether `https:` media loads (and who holds it when not), and
+ *  whether `data:` images open. */
+export interface CardMediaVerdict {
+  readonly external: { readonly loads: true } | { readonly loads: false; readonly heldBy: CardMediaHolder };
+  readonly inlineData: boolean;
+}
+
+/**
+ * THE media grant of a routed card frame, over the install's external-media ceiling (read live) and the author's
+ * resolved policy. The ONE home of the rule: the card-frame route builds `CardFrameMediaPolicy` from it, and the client
+ * notice names the holder it returns. External media is tighten-only, so the install binds whenever it forbids;
+ * `data:` images open from Rich HTML up, the same step that grants the frame.
+ */
+export function resolveCardMediaVerdict(consents: { readonly installForbids: boolean; readonly policy: RenderPolicy }): CardMediaVerdict {
+  const inlineData = rendersTrustedHtml(consents.policy.htmlTrust);
+  if (consents.installForbids) {
+    return { external: { loads: false, heldBy: "install" }, inlineData };
+  }
+  return { external: consents.policy.forbidExternalMedia ? { loads: false, heldBy: "character" } : { loads: true }, inlineData };
 }
 
 /** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The
@@ -181,20 +214,20 @@ const renderPolicySchema = z.strictObject({
   forbidExternalMedia: z.boolean(),
 }) satisfies z.ZodType<RenderPolicy>;
 
-/** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the two rungs
- *  have two DIFFERENT app-tier semantics (a default vs a ceiling — see {@link resolveRenderPolicy}), and
- *  one enum value could not say both. */
+/** The DEPLOYMENT tier as the resolver takes it. */
 export interface DeploymentRenderPolicy {
-  readonly trustHtml: boolean;
+  /** The install's "Default for characters" (D294). FLOOR IS `interactive` (owner ruling: interactive cards are on by
+   *  default for every character). It plays two parts in {@link resolveRenderPolicy}: the step a card that inherits
+   *  takes, and, below `interactive`, the script CEILING no per-character answer rises above. Setting it below
+   *  `interactive` is the revocation: the only box-wide control over the WebRTC/STUN beacon no CSP directive in
+   *  Chromium can close. A viewer's own `UserSettings.chat.runCardScripts` closes it for that viewer. */
+  readonly defaultHtmlStep: HtmlTrustStep;
   readonly forbidExternalMedia: boolean;
-  /** The `allowInteractiveCards` AppSetting — the deployment operator's consent to run model-authored card
-   *  scripts in a viewer's browser at all. FLOOR IS TRUE (owner ruling: interactive cards are on by default
-   *  for every character). It plays two parts in {@link resolveRenderPolicy}: the DEFAULT rung of a card
-   *  that inherits, and an absolute CEILING (an AND, never `override ??`) that no per-character answer can
-   *  rise above. Switching it off is the revocation: it is the only box-wide control over the WebRTC/STUN
-   *  beacon no CSP directive in Chromium can close. A viewer's own
-   *  `UserSettings.chat.runCardScripts` closes it for that viewer, at the card-frame mint. */
-  readonly allowInteractiveCards: boolean;
+}
+
+/** Whether the install lets any card run scripts: its default step is the top one. */
+export function installAllowsCardScripts(deployment: Pick<DeploymentRenderPolicy, "defaultHtmlStep">): boolean {
+  return allowsInteractiveCards(deployment.defaultHtmlStep);
 }
 
 /** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
@@ -214,50 +247,45 @@ export interface RenderPolicyOverride {
 /**
  * THE render-policy resolver — the ONE place the deployment tier and a lower tier (per-character today)
  * combine. Every producer of a {@link RenderPolicy} calls this; nobody re-spells the `??`/`||` inline.
+ * docs/law/UI-Theming-and-Content.md §12.2 holds the table this implements, one row per author kind.
  *
  * The two axes combine DIFFERENTLY, on purpose (owner ruling):
  *  • `forbidExternalMedia` is TIGHTEN-ONLY. The deployment "Block external media" AppSetting is an
  *    ABSOLUTE ceiling — a lower tier may only restrict FURTHER, never widen. So it is an OR (deployment
  *    forbids ∨ this tier forbids), never `override ?? deployment`: a card carrying `false` (allow) on a
  *    blocking deployment must NOT re-open external media. The app-document CSP enforces the same ceiling
- *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only), so an
- *    `override ?? deployment` here produced a control that rendered the element and then ate a CSP block:
- *    a dead opt-in that looked live. Belt and suspenders now agree.
- *  • the HTML-TRUST LADDER folds the two stored columns into ONE ordered step, and the fold is where
- *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling):
- *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
- *        a block: the floor is the strict end (`untrusted`), and an explicit per-character step IS the
- *        designed escalation path (docs/law/UI-Theming-and-Content.md §12.2); an admin-global `true` likewise stays overridable DOWN by a
- *        card. An inheriting card lands on this step only while the interactive ceiling below is down.
- *      – the INTERACTIVE step is an AND under the deployment `allowInteractiveCards` CEILING, the
- *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches the
- *        rung while the ceiling is down. Under the ceiling, a card reaches it two ways (owner ruling:
- *        interactive cards are on by default for all characters):
- *          · it INHERITS — both ladder columns are `null` ("Inherit default"), so the ceiling is also its
- *            default rung. This is every card nobody set, imported ones included.
- *          · it OPTED IN — `interactiveHtml === true`.
- *        Any other stored pair is an explicit lower answer and stays below the rung: "Render HTML" and
- *        "Untrusted" store `interactiveHtml: false`, and that `false` is the per-character disable even
- *        beside an inherited `trustHtml: null`. A pair with `trustHtml` set and `interactiveHtml: null`
- *        (a handoff copy, or a row written before the ladder) is an explicit render answer too.
- *        Inside the ceiling the rung WINS over a lower render answer rather than combining with it: a card
- *        carrying the contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by
- *        a direct API write, never by the single ladder control — resolves to `interactive`, and no
- *        consumer ever sees "runs scripts but renders untrusted". When the CEILING vetoes, that same card
- *        falls back to its own stored render answer (`untrusted` here), never to a rung it did not store.
- *  • `override === null` is NO CARD (a human seat, an unreadable row), not an inheriting card: it takes the
- *    deployment's render default (`trustHtml`, whose floor is `untrusted`), so it resolves `trusted` while the
- *    deployment trusts HTML, and it never reaches the interactive rung.
+ *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only).
+ *  • the HTML-TRUST LADDER folds the two stored columns and the install's one "Default for characters" step into
+ *    ONE ordered step, and the fold is where "interactive implies trusted" becomes unrepresentable-otherwise:
+ *      – a card that INHERITS (both columns `null`, "Inherit default", every imported card included) takes the
+ *        install's step as it stands, Interactive included.
+ *      – a card's own render answer (`trustHtml`) wins over the install's step in either direction: an explicit
+ *        per-character step IS the designed escalation path, and a card may also step below the default. A
+ *        `null` render answer beside a set `interactiveHtml` takes the install step's render half.
+ *      – the INTERACTIVE step is an AND under the install's step being `interactive`, the
+ *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches it while
+ *        the install sits lower. Under that ceiling a card reaches it by inheriting or by
+ *        `interactiveHtml: true`. "Rich HTML" and "Plain text" store `interactiveHtml: false`, the per-character
+ *        disable. Inside the ceiling the top step WINS over a lower render answer: the contradictory pair of
+ *        `trustHtml: false` with `interactiveHtml: true`, reachable only by a direct API write, resolves to
+ *        `interactive`, so no consumer ever sees "runs scripts but renders untrusted". When the ceiling vetoes, that card falls back to
+ *        its own stored render answer, never to a step it did not store.
+ *  • `override === null` is NO CARD (a seat with no readable card, or a room with no consenting host): no one
+ *    consents for it, so it is Plain text whatever the install says, and it never reaches Interactive.
  */
 export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
-  const trusted = override?.trustHtml ?? deployment.trustHtml;
-  const renderStep: HtmlTrustStep = trusted ? "trusted" : "untrusted";
-  const inherits = override !== null && override.trustHtml === null && override.interactiveHtml === null;
-  const interactive = deployment.allowInteractiveCards && (inherits || override?.interactiveHtml === true);
-  return {
-    htmlTrust: interactive ? "interactive" : renderStep,
-    forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
-  };
+  const forbidExternalMedia = deployment.forbidExternalMedia || override?.forbidExternalMedia === true;
+  if (override === null) {
+    return { htmlTrust: "untrusted", forbidExternalMedia };
+  }
+  if (override.trustHtml === null && override.interactiveHtml === null) {
+    return { htmlTrust: deployment.defaultHtmlStep, forbidExternalMedia };
+  }
+  if (installAllowsCardScripts(deployment) && override.interactiveHtml === true) {
+    return { htmlTrust: "interactive", forbidExternalMedia };
+  }
+  const trusted = override.trustHtml ?? rendersTrustedHtml(deployment.defaultHtmlStep);
+  return { htmlTrust: trusted ? "trusted" : "untrusted", forbidExternalMedia };
 }
 
 /** The stored column pair one ladder step means — the ONE home for the write direction, so a surface that
@@ -284,8 +312,8 @@ const RENDER_POLICY_SOURCES = ["own", "inherited", "no-card", "no-host"] as cons
 /** Where a seat's resolved render policy came from, so a surface that names the setting holding a row plain names the
  *  one that does. `own`: the character's ladder step is set ({@link stepFromRenderPolicyOverride} is not null).
  *  `inherited`: the character follows the install default. `no-card`: no card is read for the seat (a human seat, or a
- *  card gone between the roster read and its card read; deleting a card removes its seats), so the install floor
- *  applies. `no-host`: the room seats no consenting host, so no card applies and the install floor does.
+ *  card gone between the roster read and its card read; deleting a card removes its seats), so no one consents for it
+ *  and it is Plain text. `no-host`: the room seats no consenting host, so no card applies and it is Plain text.
  *
  *  @remarks Every present member reads it (D210: the visibility tier is default-visible, limited only by the host's
  *  options), and no D22 level carries the trust columns. `no-card` and `no-host` repeat what the seat's name and the
@@ -301,7 +329,7 @@ export interface SeatRenderPolicy {
   readonly renderSource: RenderPolicySource;
 }
 
-/** Resolve one seat: from its readable card's override, or from the install floor for the reason no card applies. The
+/** Resolve one seat: from its readable card's override, or as Plain text for the reason no card applies. The
  *  one producer of {@link SeatRenderPolicy}; it resolves through {@link resolveRenderPolicy}, never beside it. */
 export function resolveSeatRenderPolicy(deployment: DeploymentRenderPolicy, basis: RenderPolicyOverride | "no-card" | "no-host"): SeatRenderPolicy {
   if (typeof basis === "string") {

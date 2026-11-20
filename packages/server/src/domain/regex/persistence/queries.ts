@@ -18,7 +18,8 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, notExists } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
@@ -122,6 +123,59 @@ export async function removeScriptsBulk(db: Db, ownerId: UserId, scriptIds: read
   const deleted = await db
     .delete(regexScripts)
     .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds])))
+    .returning({ id: regexScripts.id });
+  return deleted.map((r) => r.id);
+}
+
+// A script on none of the four junctions runs nowhere. The GLOBAL tier counts: a script attached there runs in
+// every room its owner hosts, so it is never unattached. `exceptPresetId` leaves one preset's own attachment out
+// of the test, for the scripts that preset alone uses.
+function onNoJunction(db: Db, exceptPresetId?: PresetId): SQL | undefined {
+  const presetRows = eq(presetRegexScripts.regexScriptId, regexScripts.id);
+  return and(
+    notExists(db.select({ id: globalRegexScripts.regexScriptId }).from(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, regexScripts.id))),
+    notExists(
+      db.select({ id: characterRegexScripts.regexScriptId }).from(characterRegexScripts).where(eq(characterRegexScripts.regexScriptId, regexScripts.id)),
+    ),
+    notExists(
+      db
+        .select({ id: presetRegexScripts.regexScriptId })
+        .from(presetRegexScripts)
+        .where(exceptPresetId === undefined ? presetRows : and(presetRows, ne(presetRegexScripts.presetId, exceptPresetId))),
+    ),
+    notExists(db.select({ id: chatRegexScripts.regexScriptId }).from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, regexScripts.id))),
+  );
+}
+
+/** The owner's scripts that sit on no junction, newest first. */
+export async function listUnattachedScripts(db: Db, ownerId: UserId): Promise<ScriptRecord[]> {
+  return await db
+    .select()
+    .from(regexScripts)
+    .where(and(eq(regexScripts.ownerId, ownerId), onNoJunction(db)))
+    .orderBy(desc(regexScripts.createdAt));
+}
+
+/** The scripts attached to one owned preset and to nothing else, in the preset's run order. */
+export async function listPresetOnlyScripts(db: Db, ownerId: UserId, presetId: PresetId): Promise<ScriptRecord[]> {
+  const rows = await db
+    .select({ script: regexScripts })
+    .from(presetRegexScripts)
+    .innerJoin(regexScripts, eq(presetRegexScripts.regexScriptId, regexScripts.id))
+    .where(and(eq(presetRegexScripts.presetId, presetId), eq(regexScripts.ownerId, ownerId), onNoJunction(db, presetId)))
+    .orderBy(asc(presetRegexScripts.position), asc(regexScripts.createdAt));
+  return rows.map((r) => r.script);
+}
+
+/** Delete those of the named owned scripts that sit on no junction, in one statement, so a script another scope
+ *  took up after the caller listed it is kept. */
+export async function removeUnattachedScripts(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[]): Promise<RegexScriptId[]> {
+  if (scriptIds.length === 0) {
+    return [];
+  }
+  const deleted = await db
+    .delete(regexScripts)
+    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds]), onNoJunction(db)))
     .returning({ id: regexScripts.id });
   return deleted.map((r) => r.id);
 }

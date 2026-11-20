@@ -187,6 +187,18 @@ export const UI_FEATURE_RESTRICTIONS = [
     ],
   },
   {
+    // A CONTENT surface's own scroller puts the scroll edge, the inset and the column back in the feature (UI-Architecture-and-Layout.md §4.1).
+    id: "content-pane-scroller",
+    selectors: [
+      {
+        selector:
+          "JSXOpeningElement:matches([name.name='Stack'], [name.name='Container'], [name.name='Text']):has(> JSXAttribute[name.name='scroll'][value.value='y'])",
+        message:
+          "A CONTENT surface scrolls its own box: its body is a `#components` `ContentPane`, which owns the scroller, the inset, the column and the band.",
+      },
+    ],
+  },
+  {
     id: "dialog-via-composite",
     selectors: [
       {

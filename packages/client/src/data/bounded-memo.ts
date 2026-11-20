@@ -7,8 +7,8 @@
 //      failure included — so one offline blip becomes a permanent empty answer for those exact bytes.
 //      `forgetIfCurrent` is how the failure path takes itself back out.
 //
-// Its two callers today are the frame-mint memos (`use-card-frame.ts`, `use-plugin-frame.ts`), which are the
-// same idiom written twice; this module is why they are not the same CODE written twice. It is pure and
+// Its callers are the frame memos (`use-card-frame.ts`, `use-plugin-frame.ts`, `frame-panels.ts`), the same idiom
+// in each; this module is why they are not the same CODE written more than once. It is pure and
 // React-free so a non-hook module can reach it without importing a hook module.
 //
 // NOT EVERY module-level map wants this. `bus/room-registry.ts`'s `liveEdgesByRoom` is deliberately unbounded

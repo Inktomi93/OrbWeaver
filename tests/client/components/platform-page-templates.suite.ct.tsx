@@ -1,3 +1,4 @@
+// @subject packages/client/src/components/content-pane.tsx
 // @subject packages/client/src/components/list-page.tsx
 // @subject packages/client/src/components/detail-header.tsx
 // @subject packages/client/src/components/editor-page.tsx
@@ -5,11 +6,12 @@
 // @subject packages/client/src/components/settings-pane.tsx
 // Each page template holds its tier, its one scroll box and its control floors in every seed, density and pointer class.
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { REFINERY_EDIT_SCOPE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type {
   CollectionGridMatrixStory,
+  ContentPaneMatrixStory,
   DetailHeaderMatrixStory,
   EditorPageMatrixStory,
   ListPageMatrixStory,
@@ -38,6 +40,16 @@ const box = async (locator: Locator): Promise<{ x: number; y: number; width: num
   }
   return found;
 };
+
+/** A wheel over the point; mobile WebKit has no mouse wheel, so there the scroller scrolls itself, which the caller's hit-target check ties to that point. */
+async function scrollPaneBy200(page: Page, pane: Locator, [x, y]: readonly [number, number], wheelless: boolean): Promise<void> {
+  if (wheelless) {
+    await pane.evaluate((node) => node.scrollBy(0, 200));
+    return;
+  }
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, 200);
+}
 
 const px = (locator: Locator, property: string): Promise<number> =>
   locator.evaluate((element, name) => Number.parseFloat(getComputedStyle(element).getPropertyValue(name)), property);
@@ -154,6 +166,67 @@ for (const coarse of [false, true]) {
       expect(Math.round((await box(wideInstrument.locator('[data-probe="instrument"]'))).width)).toBe(
         Math.round(await resolved(wideInstrument, TOKENS["width.content-col"].cssVar)),
       );
+    });
+
+    test("ContentPane: the scroll edge is the pane edge, the inset sits inside it, the band spans it and every part rides one column", async ({
+      mount,
+      page,
+      browserName,
+    }) => {
+      const root = await mount<typeof ContentPaneMatrixStory>(`${STORIES}/ContentPaneMatrixStory`, {});
+      // Each measure's column width in a pane below the breathe step and above it; `full` is the pane less its inset.
+      const columns = {
+        column: [TOKENS["width.content-col"].cssVar, TOKENS["width.content-col-wide"].cssVar],
+        instrument: [TOKENS["width.content-col"].cssVar, TOKENS["width.content-col"].cssVar],
+        full: [null, null],
+      } as const;
+      for (const [measure, widths] of Object.entries(columns)) {
+        for (const [step, width] of ["60rem", "90rem"].entries()) {
+          const id = `${measure}-${width}`;
+          const cell = root.locator(`[data-case="${id}"]`);
+          const pane = cell.locator('[data-slot="content-pane"]');
+          const body = pane.locator('[data-slot="content-pane-body"]');
+          const band = pane.locator('[data-slot="content-pane-band"]');
+          await cell.scrollIntoViewIfNeeded();
+          const [cellBox, paneBox, bandBox] = await Promise.all([box(cell), box(pane), box(band)]);
+          expect([paneBox.x, paneBox.width, paneBox.y, paneBox.height], `${id}: the scroller is the pane box`).toEqual([
+            cellBox.x,
+            cellBox.width,
+            cellBox.y,
+            cellBox.height,
+          ]);
+          expect(await px(pane, "padding-left"), `${id}: no inset outside the scroller`).toBe(0);
+          const inset = await resolved(pane, TOKENS["spacing.inset-section"].cssVar);
+          expect(inset, `${id}: the inset resolves`).toBeGreaterThan(0);
+          expect([await px(body, "padding-inline-start"), await px(body, "padding-inline-end")], `${id}: the body carries the inset`).toEqual([inset, inset]);
+          expect([bandBox.x, bandBox.width], `${id}: the band spans the pane`).toEqual([paneBox.x, paneBox.width]);
+          const bodyColumn = await box(body.locator(":scope > *"));
+          const bandColumn = await box(band.locator(":scope > *"));
+          const cap = widths[step] ?? null;
+          const expected = cap === null ? paneBox.width - 2 * inset : await resolved(pane, cap);
+          expect(Math.round(bodyColumn.width), `${id}: the column holds its measure`).toBe(Math.round(expected));
+          expect(
+            Math.abs(bodyColumn.x - paneBox.x - (paneBox.x + paneBox.width - (bodyColumn.x + bodyColumn.width))),
+            `${id}: the column is centred`,
+          ).toBeLessThanOrEqual(1);
+          expect([bandColumn.x, bandColumn.width], `${id}: the band's content rides the body's column`).toEqual([bodyColumn.x, bodyColumn.width]);
+          // The wheel over the pane's inset, outside the column, scrolls the pane, and the band stays pinned at its top.
+          const insetX = paneBox.x + inset / 2;
+          const insetY = paneBox.y + paneBox.height / 2;
+          // The inset is the body's padding, so a point in it hits the body or the scroller, never the column.
+          const hit = await pane.evaluate(
+            (node, [x, y]) => {
+              const target = document.elementFromPoint(x ?? 0, y ?? 0);
+              return target === node || target?.matches('[data-slot="content-pane-body"]') === true;
+            },
+            [insetX, insetY],
+          );
+          expect(hit, `${id}: the inset hits the pane's own surface`).toBe(true);
+          await scrollPaneBy200(page, pane, [insetX, insetY], browserName === "webkit" && coarse);
+          await expect.poll(() => pane.evaluate((node) => node.scrollTop), `${id}: the wheel scrolls from the inset`).toBeGreaterThan(0);
+          expect((await box(band)).y, `${id}: the band stays pinned`).toBe(paneBox.y);
+        }
+      }
     });
 
     test("CollectionGrid: every cell is a listitem of one named list, and a wider pane shows more tiles, never wider ones", async ({ mount }) => {

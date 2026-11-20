@@ -33,6 +33,8 @@ export interface RowDestructiveAction {
   readonly title: ReactNode;
   /** The confirm dialog body — plain text/fragment only (see ConfirmDialog). */
   readonly description: ReactNode;
+  /** The confirm's small form under the description, for a delete that asks what else goes with it (see ConfirmDialog). */
+  readonly body?: ReactNode;
   /** The confirm button's label. @defaultValue the item `label` (or `ROW_DELETE_NAME`). */
   readonly confirmLabel?: string;
   /** Fires on confirm — and may return a PROMISE (#1563b). This value is forwarded to
@@ -219,6 +221,7 @@ export function RowActionsMenu({
         <ConfirmDialog
           confirmLabel={destructive.confirmLabel ?? destructiveLabel}
           description={destructive.description}
+          {...(destructive.body === undefined ? {} : { body: destructive.body })}
           {...(destructive.finalFocus === undefined ? {} : { finalFocus: destructive.finalFocus })}
           onConfirm={destructive.onConfirm}
           onOpenChange={setConfirmOpen}

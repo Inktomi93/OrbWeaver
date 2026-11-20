@@ -27,8 +27,6 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
    * still works whether or not this is supplied.
    */
   onEscape?: () => void;
-  /** The palette floats on its own and casts the overlay shadow. */
-  elevated?: boolean;
   /** The palette fills its parent's block extent. */
   fill?: boolean;
   /** The palette is a picker window's frame: on a landscape phone its box shrinks with the dialog, down to its search strip and one touch row. */
@@ -40,23 +38,17 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
  * caller supplies — the actual command registry is app-level. Filtering, sorting, vim bindings,
  * and the combobox/listbox ARIA wiring are cmdk's own — do not reimplement them. cmdk's own
  * `Command.Dialog` is skipped (a second modal implementation alongside our Base UI Dialog); a
- * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead.
+ * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead. The root casts no shadow: the float that
+ * hosts it casts the one float shadow (ui-surface-and-interaction-rules §2.1).
  */
-export function Command({ className, onEscape, onKeyDown, elevated, fill, windowed, ...rest }: CommandProps): ReactElement {
+export function Command({ className, onEscape, onKeyDown, fill, windowed, ...rest }: CommandProps): ReactElement {
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     onKeyDown?.(event);
     if (event.key === "Escape") {
       onEscape?.();
     }
   };
-  return (
-    <BaseCommandRoot
-      className={cn(commandVariants({ elevated, fill, windowed }).root(), className)}
-      data-slot="command-root"
-      onKeyDown={handleKeyDown}
-      {...rest}
-    />
-  );
+  return <BaseCommandRoot className={cn(commandVariants({ fill, windowed }).root(), className)} data-slot="command-root" onKeyDown={handleKeyDown} {...rest} />;
 }
 
 export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {

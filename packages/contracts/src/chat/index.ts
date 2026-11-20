@@ -134,7 +134,7 @@ export {
   TURN_ROOM_CLOSING_OP_CODE,
   USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "./bus.ts";
-export type { CardFrameMintRequest } from "./card-frame.ts";
+export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export {
   CARD_FRAME_MINT_BODY_MAX_BYTES,
   CARD_FRAME_MINTS_IN_FLIGHT,
@@ -390,6 +390,8 @@ export {
   regexTierKeySchema,
 } from "./regex-tiers.ts";
 export type {
+  CardMediaHolder,
+  CardMediaVerdict,
   CardScriptConsents,
   CardScriptHolder,
   CardScriptVerdict,
@@ -424,6 +426,7 @@ export type {
 export {
   acceptInviteSchema,
   allowsInteractiveCards,
+  cardScriptsNeedViewerConsent,
   carriedAppearanceFromParticipants,
   characterMemberSpecSchema,
   createInviteResultSchema,
@@ -433,6 +436,7 @@ export {
   historyFloor,
   INVITE_STATUSES,
   INVITE_TARGET_UNKNOWN_CODE,
+  installAllowsCardScripts,
   invitePreviewSchema,
   inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,
@@ -450,6 +454,7 @@ export {
   redeemInviteSchema,
   renderPolicyOverrideForStep,
   rendersTrustedHtml,
+  resolveCardMediaVerdict,
   resolveCardScriptVerdict,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,

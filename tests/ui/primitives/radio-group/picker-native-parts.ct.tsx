@@ -1,5 +1,6 @@
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { PickerNativePartsStory } from "./picker-native-parts-stories.tsx";
 
@@ -130,5 +131,44 @@ for (const scale of [1, 2] as const) {
     expect(reading.whole).toBe(true);
     expect(reading.overflow).not.toBe("ellipsis");
     expect(reading.lines).toBeGreaterThan(1);
+  });
+}
+
+// The clearance a mark kind keeps above the art: a control laid over the other corner needs more than the check alone.
+const CORNER_CLEARANCE = {
+  check: TOKENS["size.picker-check-clearance"].cssVar,
+  control: TOKENS["size.control-clearance"].cssVar,
+} as const;
+
+for (const corners of ["check", "control"] as const) {
+  test(`a cell with ${corners} corner marks draws its art below them, picked or not`, async ({ mount }) => {
+    const component = await mount<typeof PickerNativePartsStory>("tests/ui/primitives/radio-group/picker-native-parts-stories/PickerNativePartsStory", {
+      corners,
+    });
+    const picked = component.getByRole("radio", { name: "One", exact: true });
+    await expect(picked).toBeChecked();
+    const check = await picked.locator('[data-slot="radio-group-picker-item-check"]').boundingBox();
+    const geometry = (cell: typeof picked): Promise<{ readonly artTop: number; readonly band: number }> =>
+      cell.evaluate((frame, variable) => {
+        const art = frame.querySelector('[data-slot="picker-cell-art"]');
+        if (art === null) {
+          throw new Error("The cell has no art aperture");
+        }
+        const probe = document.createElement("div");
+        probe.style.blockSize = `var(${variable})`;
+        frame.append(probe);
+        const band = probe.getBoundingClientRect().height;
+        probe.remove();
+        return { artTop: art.getBoundingClientRect().top - frame.getBoundingClientRect().top, band };
+      }, CORNER_CLEARANCE[corners]);
+    expect(check).not.toBeNull();
+    const pickedGeometry = await geometry(picked);
+    // The positive control: the band resolves to a real length, so an art top of zero cannot pass.
+    expect(pickedGeometry.band).toBeGreaterThan(0);
+    expect(pickedGeometry.artTop).toBeGreaterThanOrEqual(pickedGeometry.band);
+    const frameTop = (await picked.boundingBox())?.y ?? Number.NaN;
+    expect(frameTop + pickedGeometry.artTop, "the art starts below the check").toBeGreaterThanOrEqual((check?.y ?? Number.NaN) + (check?.height ?? Number.NaN));
+    // An unpicked cell holds the same band, so a pick never moves the art.
+    expect((await geometry(component.getByRole("radio", { name: "Two", exact: true }))).artTop).toBe(pickedGeometry.artTop);
   });
 }

@@ -28,15 +28,14 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
     },
     // ONE character read → the whole per-seat decoration (render policy layered over the deployment floor,
     // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
-    // or a gone card resolves to the bare global floor + a null card (fail-closed, never a throw into
-    // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
+    // or a gone card resolves to Plain text + a null card (fail-closed, never a throw into roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
     // The tier combine is the ONE contracts resolver (`resolveSeatRenderPolicy`, over `resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
-    // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
-    // `allowInteractiveCards` ceiling, which is also the default rung of a card that inherits.
+    // deployment (which the app-document CSP enforces independently), and the ladder's top step needs the install's
+    // `defaultHtmlStep` at Interactive, which is also the step of a card that inherits.
     resolveSeatDeco: async ({ ownerId, characterId }): ReturnType<CharacterRoomProjections["resolveSeatDeco"]> => {
       const floor = deps.readRenderPolicy();
-      // A seat with no readable card gets the deployment floor from the SAME resolver, never a hand-built policy.
+      // A seat with no readable card gets Plain text from the SAME resolver, never a hand-built policy.
       const bare = (basis: "no-card" | "no-host"): Awaited<ReturnType<CharacterRoomProjections["resolveSeatDeco"]>> => ({
         ...resolveSeatRenderPolicy(floor, basis),
         themeOverride: null,

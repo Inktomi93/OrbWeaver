@@ -43,7 +43,7 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContentPane, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -126,21 +126,21 @@ export function CharacterLibraryWelcome(): ReactElement {
   return (
     // THE SCROLL BOX IS THE PANE'S, NOT THE FRAME'S (#1748, the #1133 hoist). Under the reservation's
     // auto-height measuring Stack a scroller's `h-full` resolves to `auto` and the landing stops scrolling,
-    // so the box moved up here and `LandingFrame` keeps only the chrome it can author from the read. The
-    // `Container` rides up with it — the shelf grid is CONTAINER-queried (`cols="cellShelf"`) and an
-    // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
-    // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
-    // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container scroll="y" height="fill">
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="avatar-row" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
-        reserveKey="character.libraryWelcome"
-      >
-        <CharacterLandingBody />
-      </QueryBoundary>
-    </Container>
+    // so the box is the content pane above the boundary and `LandingFrame` keeps only the chrome it can author
+    // from the read, its block inset included. The `Container` sits on the pane's column, so the CONTAINER-queried
+    // shelf grid (`cols="cellShelf"`) measures the column it lays out in.
+    <ContentPane inset="none">
+      <Container>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="avatar-row" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
+          reserveKey="character.libraryWelcome"
+        >
+          <CharacterLandingBody />
+        </QueryBoundary>
+      </Container>
+    </ContentPane>
   );
 }
 

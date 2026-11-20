@@ -28,7 +28,6 @@ export const presetsSection: SectionDefinition = {
   // BOTH docked at boot (crunch-list O-19★, owner ruling): the library IS how you pick what you are
   // editing, and the readout IS the product — a Presets section that opens with neither pane looks
   // unbuilt. The persisted per-panel override still wins thereafter.
-  contentInset: "section",
   panelDefaults: { list: "docked", context: "docked" },
   placeholder: {
     title: "Presets",

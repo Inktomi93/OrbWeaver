@@ -80,12 +80,21 @@ export const pickerCellVariants = tv({
     // chat-style cards' glosses (#1099 F31): copy inside an interactive cell is read at the control's
     // register, so it takes the label step and carries its quiet only in tone.
     description: "min-inline-0",
-    // The check rides the frame's top-trailing corner, over the art, out of the footer's flow.
+    // The check rides the frame's top-trailing corner, in the band `corners` keeps above the art, out of the footer's flow.
     check: `${CORNER.badge} flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground`,
   },
   variants: {
     /** Detailed pictures need two readable columns rather than three miniature ones. */
     detail: { true: { grid: "@cq-32:grid-cols-2" } },
+    /** The marks a cell carries in its block-start corners, and the band the frame keeps for them above the art, so no
+     *  art draws under a mark: `check` is the selected check a picker radio shows, `control` a control-sized mark (a row
+     *  menu) laid over the cell's other corner, `none` a cell with no marks (a preview in a menu row). The band is held
+     *  whether or not the check is showing, so a pick never moves the art. */
+    corners: {
+      none: {},
+      check: { frame: "pbs-(--size-picker-check-clearance)" },
+      control: { frame: "pbs-(--size-control-clearance)" },
+    },
     /** The art aperture's aspect, independent of how many detailed choices share a row. */
     shape: {
       /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette. */
@@ -94,5 +103,5 @@ export const pickerCellVariants = tv({
       standard: { art: "block-(--height-picker-art-standard)" },
     },
   },
-  defaultVariants: { shape: "landscape", detail: false },
+  defaultVariants: { shape: "landscape", detail: false, corners: "none" },
 });

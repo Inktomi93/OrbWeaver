@@ -1,5 +1,5 @@
 // The Media & trust admin SECTION (SET-SEAMS stage 4) — the deployment-wide content-render gates
-// (forbidExternalMedia, trustHtml, allowInteractiveCards) plus the generated-image download cap. Was the System pane's first
+// (forbidExternalMedia, defaultHtmlStep) plus the generated-image download cap. Was the System pane's first
 // group; it is a self-owned settings-SECTION CONTRIBUTION at the `admin` anchor now (§10 Q2 merged the
 // system pane into admin).
 //
@@ -12,6 +12,8 @@
 // (the memory-tuning / rate-limits precedent — memoryDefaults is READ by chat/memory yet edited here),
 // never with the feature that happens to consume it at runtime.
 
+import type { HtmlTrustStep } from "@orb/contracts/chat";
+import { HTML_TRUST_STEPS } from "@orb/contracts/chat";
 import type { AppSettings } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -20,12 +22,12 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
-import { rethrowUnlessTrpcFailure } from "#lib";
+import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
-import { INTERACTIVE_CARDS_SETTING_LABEL, MEDIA_TRUST_SUBCATEGORY, TRUST_HTML_SETTING_LABEL } from "../lib/system-config-nav.ts";
+import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "../lib/user-admin-names.ts";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
+import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** Decimal MB (1 MB = 1e6 B, matching safeFetch's own byte accounting) — the cap is edited in MB and
  *  written in BYTES. */
@@ -36,6 +38,13 @@ const BYTES_PER_MB = 1_000_000;
 const MAX_IMAGE_MB_MIN = 0.1;
 const MAX_IMAGE_MB_MAX = 100;
 const MAX_IMAGE_MB_STEP = 1;
+
+const DEFAULT_HTML_STEP_ITEMS = HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_STEP_LABELS[step] }));
+
+// Narrowed by membership, never cast: the select hands back a string.
+function htmlTrustStepOf(value: string): HtmlTrustStep | undefined {
+  return HTML_TRUST_STEPS.find((step): boolean => step === value);
+}
 
 /** The MB draft for a byte value. */
 function toMbDraft(bytes: number): string {
@@ -83,14 +92,13 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const dirty = bytes !== null && bytes !== resolved.maxImageBytes;
   useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid: bytes === null }));
   const forbidOverridden = isOverridden(overrides.forbidExternalMedia);
-  const trustOverridden = isOverridden(overrides.trustHtml);
-  const interactiveOverridden = isOverridden(overrides.allowInteractiveCards);
+  const stepOverridden = isOverridden(overrides.defaultHtmlStep);
   const capOverridden = isOverridden(overrides.maxImageBytes);
-  const anyOverridden = forbidOverridden || trustOverridden || interactiveOverridden || capOverridden;
+  const anyOverridden = forbidOverridden || stepOverridden || capOverridden;
 
   // Every write names ONLY this section's keys (S1) — the switches write immediately (a toggle IS the
   // override), the cap batches through Save.
-  const write = (partial: Pick<AppSettings, "forbidExternalMedia" | "trustHtml" | "allowInteractiveCards" | "maxImageBytes">): void => {
+  const write = (partial: Pick<AppSettings, "forbidExternalMedia" | "defaultHtmlStep" | "maxImageBytes">): void => {
     save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure); // the sticky save.error slot surfaces the failure
   };
   // Reset clears this section's three keys to the floor. All three are TOP-LEVEL scalars, so a plain `null`
@@ -98,7 +106,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   // reset returned so the input VALUE flips alongside the "Using the deployment default" copy.
   const onReset = (): void => {
     save
-      .mutateAsync({ partial: { forbidExternalMedia: null, trustHtml: null, allowInteractiveCards: null, maxImageBytes: null } })
+      .mutateAsync({ partial: { forbidExternalMedia: null, defaultHtmlStep: null, maxImageBytes: null } })
       .then((resolvedAfter) => setMaxImageDraft(toMbDraft(resolvedAfter.maxImageBytes)))
       .catch(rethrowUnlessTrpcFailure);
   };
@@ -107,36 +115,35 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss" prose={true} cap="prose">
-          Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.
+          A character's own HTML setting wins over the default, except Interactive, which needs the default at Interactive. External media can only be
+          tightened.
         </Text>
         <SettingRowGroup>
           <AdminOverrideSwitch
             label="Block external media"
-            hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. It applies to everyone and takes effect when a tab reloads."
+            hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. Off, characters' content and your own messages load media; messages other people write stay click-to-load. It applies to everyone and takes effect when a tab reloads."
             value={resolved.forbidExternalMedia}
             overridden={forbidOverridden}
             floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
             onSet={(next): void => write({ forbidExternalMedia: next })}
           />
-          <AdminOverrideSwitch
-            label={TRUST_HTML_SETTING_LABEL}
-            hint="How messages look for characters set to “Inherit default” while interactive cards are off: on shows styled messages, off shows plain text. A character's own Trust tab choice still wins."
-            value={resolved.trustHtml}
-            overridden={trustOverridden}
-            floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
-            onSet={(next): void => write({ trustHtml: next })}
-          />
-          {/* The html-trust ladder's TOP rung, deployment half. ON by default (owner ruling) and deliberately
-            the loudest hint in this section: switching it off is the only box-wide control over the WebRTC
-            beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can
-            also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
-          <AdminOverrideSwitch
-            label={INTERACTIVE_CARDS_SETTING_LABEL}
-            hint="On by default. Cards from characters set to “Interactive” or “Inherit default” can run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Turn this off to stop all cards from running scripts. A card already on screen stops the next time it loads. Any character can be switched to Rich HTML on its Trust tab."
-            value={resolved.allowInteractiveCards}
-            overridden={interactiveOverridden}
-            floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}
-            onSet={(next): void => write({ allowInteractiveCards: next })}
+          {/* The install's step and the script ceiling in one control (D294). Interactive by default (owner ruling), and
+            the loudest hint in this section: a step below Interactive is the only box-wide control over the WebRTC
+            beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can also turn card
+            scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
+          <AdminOverrideSelect
+            label={DEFAULT_HTML_STEP_SETTING_LABEL}
+            hint="Characters on “Inherit default” use this. Interactive cards run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Below Interactive, no card or styled reply runs scripts, whatever a character says; a card already on screen stops the next time it loads. Rich HTML keeps presets styled without scripts."
+            value={resolved.defaultHtmlStep}
+            items={DEFAULT_HTML_STEP_ITEMS}
+            overridden={stepOverridden}
+            floorLabel={envFloor(stepOverridden, HTML_TRUST_STEP_LABELS[resolved.defaultHtmlStep])}
+            onSet={(next): void => {
+              const step = htmlTrustStepOf(next);
+              if (step !== undefined) {
+                write({ defaultHtmlStep: step });
+              }
+            }}
           />
           <AdminOverrideField
             label={ADMIN_MAX_IMAGE_DOWNLOAD_NAME}

@@ -8,5 +8,7 @@ export { createCount } from "./count.ts";
 export { createCreate } from "./create.ts";
 export { createDuplicate } from "./duplicate.ts";
 export { createList } from "./list.ts";
+export { createListUnattached } from "./list-unattached.ts";
 export { createRemove } from "./remove.ts";
+export { createRemoveUnattachedScripts } from "./remove-unattached.ts";
 export { createUpdate } from "./update.ts";

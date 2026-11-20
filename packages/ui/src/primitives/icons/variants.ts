@@ -17,9 +17,10 @@ export const iconVariants = tv({
     },
     tone: TONE_TEXT,
     ink: INKS,
-    // A glyph that sits over art or a bubble fill (the message action cluster) lifts off it with the smallest shadow step.
+    // A glyph over art or a bubble fill (the message action cluster) takes the over-art legibility halo, so it follows the
+    // theme's polarity (ui-surface-and-interaction-rules §2.8).
     shadow: {
-      true: "drop-shadow-sm",
+      true: "drop-shadow-(--shadow-shell-over-art)",
       false: "",
     },
     receded: { true: RECEDED, false: "" },

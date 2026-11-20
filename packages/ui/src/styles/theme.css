@@ -393,6 +393,7 @@
   --size-switch-thumb: calc(var(--size-switch-track-height) - 2 * var(--border-width-control) - 2 * var(--size-switch-inset));
   --size-combobox-chip-chip: calc(var(--size-touch-target) - 2 * var(--border-width-control) - 2 * var(--spacing-tight));
   --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
+  --size-picker-check-clearance: calc(2 * var(--spacing-field) + var(--size-icon-xs) + 2 * var(--spacing-tight));
   --size-dialog-footer-clear: calc(var(--size-control-lg) + var(--spacing-field));
   --size-typing-line: calc(var(--size-dot-sm) + 2 * var(--spacing-field));
   --size-room-island-inset-narrow: round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px);
@@ -965,6 +966,7 @@
     --spacing-inset-block: round(down, min(var(--spacing-block), max(4dvw, 12px)), 1px);
     --spacing-inset-section: round(down, min(var(--spacing-section), max(8dvw, 24px)), 1px);
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
+    --size-picker-check-clearance: calc(2 * var(--spacing-field) + var(--size-icon-xs) + 2 * var(--spacing-tight));
     --size-dialog-footer-clear: calc(var(--size-control-lg) + var(--spacing-field));
     --size-typing-line: calc(var(--size-dot-sm) + 2 * var(--spacing-field));
     --size-room-island-inset-narrow: round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px);

@@ -28,7 +28,7 @@
 //     either axis here is a security decision, not a polish item.
 
 import type { CardTrust } from "@orb/contracts/chat";
-import type { GhostContentSegment } from "@orb/kit/content";
+import type { FrameStyleSheet, GhostContentSegment } from "@orb/kit/content";
 import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -40,8 +40,8 @@ import { Markdown } from "@orb/ui/markdown";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormingChip } from "#components";
-import type { MessageRenderContext } from "#lib";
+import { FormingChip, HeldCardsNotice } from "#components";
+import type { HeldCards, MessageRenderContext } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useDisplayText } from "../hooks/use-display-text.ts";
@@ -50,12 +50,13 @@ import { useGhostProviderWaiting, useGhostReasoning, useGhostText, useGhostThink
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import { CHAT_PROVIDER_WAITING_NOTE } from "../lib/chat-surface-names.ts";
+import { holdsUnwrappedCard } from "../lib/content-blocks.ts";
 import { bodyDisplayRow, ghostStamps, reasoningDisplayRow } from "../lib/display-row.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
-import { PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
+import { carriedRoomSheets, PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
@@ -117,9 +118,14 @@ function formsPanel(text: string, opts: GhostSegmentOptions): boolean {
   return opts.cardTier === "tierB" && (opts.panelSeen || ARRIVING_TAG_LINE.test(text));
 }
 
-// Whether the stream shows a panel yet. Past the read bound it holds unread, as a settled body that long never frames.
-function streamShowsPanel(held: string): boolean {
-  return held.length > PANEL_READ_MAX_CHARS || modelPanels(held).length > 0;
+// Whether the stream shows a panel yet, or markup using a class the room's sheets name, which settles framed the same
+// way. Past the read bound it holds unread, as a settled body that long never frames.
+function streamShowsPanel(held: string, roomSheets: readonly FrameStyleSheet[] | undefined): boolean {
+  return (
+    held.length > PANEL_READ_MAX_CHARS ||
+    modelPanels(held).length > 0 ||
+    (roomSheets !== undefined && carriedRoomSheets(roomSheets, held, { lenientHtml: false }).length > 0)
+  );
 }
 
 // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text. A
@@ -165,6 +171,7 @@ function GhostBubbleBody({
   colorQuotes,
   cardTier,
   holdsMarkup,
+  roomSheets,
   providerWaiting,
 }: {
   readonly held: string;
@@ -172,12 +179,13 @@ function GhostBubbleBody({
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
   readonly holdsMarkup: boolean;
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   readonly providerWaiting: boolean;
 }): ReactElement {
   // A stream that has shown a panel holds to its end, so the whole-text read stops there: each delta would otherwise read
   // the whole reply again, which over a stream costs the square of its length.
   const [panelSeen, setPanelSeen] = useState(false);
-  const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held));
+  const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held, roomSheets));
   if (showsPanel && !panelSeen) {
     setPanelSeen(true);
   }
@@ -200,6 +208,17 @@ function GhostBubbleBody({
   );
 }
 
+// The held-cards notice the settled row will say, shown from the moment the stream holds card markup the game's wrap
+// would draw. It latches as the panel read does, so the whole text is read per delta only until the first card.
+function GhostHeldCardsNotice({ held, heldCards }: { readonly held: string; readonly heldCards: HeldCards }): ReactElement | null {
+  const [seen, setSeen] = useState(false);
+  const holds = seen || holdsUnwrappedCard(held);
+  if (holds && !seen) {
+    setSeen(true);
+  }
+  return holds ? <HeldCardsNotice viewerIsHost={heldCards.viewerIsHost} /> : null;
+}
+
 /** The ghost bubble's body: the live reasoning trace, when there is one, over the streamed text. */
 function GhostBubbleContent(props: {
   readonly reasoning: string;
@@ -212,7 +231,9 @@ function GhostBubbleContent(props: {
   readonly streaming: boolean;
   readonly colorQuotedSpeech: boolean;
   readonly cardTier: CardTrust;
+  readonly heldCards: HeldCards | undefined;
   readonly holdsMarkup: boolean;
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   readonly providerWaiting: boolean;
 }): ReactElement {
   return (
@@ -233,8 +254,10 @@ function GhostBubbleContent(props: {
         colorQuotes={props.colorQuotedSpeech}
         cardTier={props.cardTier}
         holdsMarkup={props.holdsMarkup}
+        roomSheets={props.roomSheets}
         providerWaiting={props.providerWaiting}
       />
+      {props.heldCards === undefined ? null : <GhostHeldCardsNotice held={props.held} heldCards={props.heldCards} />}
     </>
   );
 }
@@ -279,10 +302,14 @@ export interface GhostMessageRowProps {
   readonly colorQuotedSpeech?: boolean | undefined;
   /** The CARD TIER this turn's row will settle at, resolved by the surface through the ONE trust authority
    *  (`resolveRowRenderPolicy`) with the same inputs `MessageRow` uses — so a card closed mid-stream does not
-   *  change tier at commit. ONLY the tier is threaded: see the file header for why the ghost's markdown
+   *  change tier at commit. Of the trust axes ONLY the tier is threaded: see the file header for why the ghost's markdown
    *  trust, external-media verdict and frame delivery stay pinned at the stream floor. Absent ⇒ `tierA`, the
    *  same fail-closed value the resolver returns for a mount with no roster. */
   readonly cardTier?: CardTrust | undefined;
+  /** The settled row's held-cards fact (`RowRenderPolicy.heldCards`): set in a game room whose immersive HTML cards are
+   *  off, so the stream says what the settled row will. The script notice has no ghost arm: the stream's cards draw on
+   *  the srcdoc floor by design, so a dead control there is the stream's, not a consent the viewer can change. */
+  readonly heldCards?: HeldCards | undefined;
   /** The `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
    *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
    *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
@@ -303,6 +330,9 @@ export interface GhostMessageRowProps {
   /** The viewer's display scripts draw markup, so the reply may settle styled (D354): the stream holds its own HTML
    *  blocks as forming chips and drops its inline tags. Absent ⇒ the stream renders as any reply does. */
   readonly holdsMarkup?: boolean | undefined;
+  /** The room's sheets (`roomSheetsBefore`): markup using a class they name settles framed, so the stream holds it as
+   *  it holds a panel. Absent ⇒ none. */
+  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
 }
 
 export function GhostMessageRow({
@@ -322,6 +352,7 @@ export function GhostMessageRow({
   showLLMReasoningIcon = false,
   colorQuotedSpeech = true,
   cardTier = "tierA",
+  heldCards,
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   reasoningAutoCollapse = true,
@@ -329,6 +360,7 @@ export function GhostMessageRow({
   stickyAttribution = false,
   generationCredit = false,
   holdsMarkup = false,
+  roomSheets,
 }: GhostMessageRowProps): ReactElement {
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
@@ -428,7 +460,9 @@ export function GhostMessageRow({
         streaming={streaming}
         colorQuotedSpeech={colorQuotedSpeech}
         cardTier={cardTier}
+        heldCards={heldCards}
         holdsMarkup={holdsMarkup}
+        roomSheets={roomSheets}
         providerWaiting={providerWaiting}
       />
     ),

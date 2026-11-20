@@ -224,6 +224,17 @@ MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Charact
          CONTEXT → sheet; single column.
 ```
 
+**The CONTENT body.** `ContentPane` (`packages/client/src/components/content-pane.tsx`) owns every CONTENT body's layout. A section's content root sits on it.
+
+- The pane box is the body's one scroller, so the scroll edge is the pane edge and the wheel works across the whole pane.
+- The section inset is padding inside the scroller, on the body and the band. The shell region carries no inset.
+- The body centres one column: `column` (the editor column, wider past `@cq-64`), `instrument` (the narrow cap for a control track), or `full` with a stated reason.
+- An optional pinned band spans the pane with its ground and hairline. Its content rides the column.
+- A band under a provider the pane cannot hold uses `parts` with `ContentPaneBand` and `ContentPaneBody` below it.
+- The chat room's transcript track and the page-scale plugin shell lay their own frame.
+
+`tests/client/components/platform-page-templates.suite.ct.tsx` pins the scroll edge, the inset, the column measures and the band against resolved tokens.
+
 **The mobile one-shell rule** (`packages/client/src/state/panel-resolve.ts`). A list-bearing section with nothing selected shows its LIST as the screen: docked in flow, no sheet, no scrim. A selection pushes CONTENT over it, and the topbar Back returns. The user's own close of the LIST (the topbar toggle) wins over this default. A section whose selection seam declares a `"content"` phone landing lands on its CONTENT instead; only Corpus Insights declares one (`packages/client/src/state/corpus-selection-store.ts`). `packages/client/src/state/section-list-projection.ts` is the one home of the "is the LIST the screen" question. The full-screen phone Context sheet covers the shell, so it inerts the tab bar and the LIST behind it, keeps focus in the sheet and gives both back on close (`tests/client/features/app-shell/surfaces/platform-sheet-inert.suite.ct.tsx`).
 
 D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench: an `Explore | Insights | Labels` switch over one LIST / CONTENT / CONTEXT anatomy. The switch heads the LIST, and heads CONTENT while the LIST is off screen. Its phone landing policy follows the active mode:

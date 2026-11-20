@@ -4,10 +4,13 @@ import {
   buildCardFrameCsp,
   buildCardFrameDocument,
   CARD_FRAME_MISSING_ATTRIBUTE,
+  CARD_FRAME_OPEN_PANELS_ATTRIBUTE,
+  CARD_FRAME_PANEL_LIMITS,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
   CARD_FRAME_STYLE_TOKEN,
   CARD_FRAME_THEME_TOKEN_LIMITS,
+  cardFrameOpenPanelsValue,
   cardFrameSettleDelayMs,
   clampCardFrameFontFamily,
   clampCardFrameRootAttributes,
@@ -19,6 +22,7 @@ import {
   REPLY_FRAME_SETTLE_MS,
   readCardFrameLink,
   readCardFrameMissing,
+  readCardFramePanels,
   settleCardFrameHeight,
 } from "@orb/kit/card-frame";
 import { expect, test } from "@orb/testkit/node";
@@ -323,4 +327,29 @@ test("a framed reply mirrors only plain data channels on its root, and its style
     expect(directives(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, delivery, "static")).get("style-src"), delivery).toBe("'unsafe-inline'");
   }
   expect(clampCardFrameRootAttributes(null)).toEqual({});
+});
+
+test("a panels report is read sorted, deduplicated and bounded, and anything else is no report", () => {
+  const { count, maxIndex } = CARD_FRAME_PANEL_LIMITS;
+  expect(readCardFramePanels({ orbCardFramePanels: [4, 0, 4, 2] })).toEqual([0, 2, 4]);
+  expect(readCardFramePanels({ orbCardFramePanels: [] })).toEqual([]);
+  // Entries no index can be are dropped, and a report keeps only its lowest indexes past the count.
+  expect(readCardFramePanels({ orbCardFramePanels: [-1, 1.5, maxIndex + 1, "3", null, 7] })).toEqual([7]);
+  const many = Array.from({ length: count + 5 }, (_, index) => index);
+  expect(readCardFramePanels({ orbCardFramePanels: many.toReversed() })).toEqual(many.slice(0, count));
+  // A list longer than the indexes it can name is refused unread.
+  expect(readCardFramePanels({ orbCardFramePanels: Array.from({ length: maxIndex + 2 }, () => 0) })).toBeUndefined();
+  for (const garbage of [null, [1], { orbCardFramePanels: "1 2" }, { orbCardFrameHeight: 40 }]) {
+    expect(readCardFramePanels(garbage), JSON.stringify(garbage)).toBeUndefined();
+  }
+});
+
+test("the longest panels value passes the root-attribute clamp, and the pinned script reads it by the same name", () => {
+  const { count, maxIndex } = CARD_FRAME_PANEL_LIMITS;
+  const longest = readCardFramePanels({ orbCardFramePanels: Array.from({ length: count }, (_, index) => maxIndex - index) }) ?? [];
+  const value = cardFrameOpenPanelsValue(longest);
+  expect(clampCardFrameRootAttributes({ [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: value })).toEqual({ [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: value });
+  const document = buildCardFrameDocument({ ...CONTENT, rootAttributes: { [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: "0 2" } });
+  expect(document).toContain(`<html ${CARD_FRAME_OPEN_PANELS_ATTRIBUTE}="0 2">`);
+  expect(document).toContain(`getAttribute("${CARD_FRAME_OPEN_PANELS_ATTRIBUTE}")`);
 });

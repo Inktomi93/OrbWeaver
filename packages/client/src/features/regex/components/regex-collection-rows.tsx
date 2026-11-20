@@ -73,6 +73,7 @@ import {
 import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
 import { REGEX_GROUP_LABEL } from "../lib/regex-names.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
+import { RegexUnattachedSweep } from "./regex-unattached-sweep.tsx";
 
 /** How many §12.2 cluster slots THIS list reserves per row: ONE — the kebab at rest, the bulk checkbox
  *  while bulk mode runs. It declared two while the global switch lived here (see the header). */
@@ -188,6 +189,13 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   return (
     <>
       {/* THE LIST ROOT: the fallback focus, and the landing's free space handed to the window. */}
+      <RegexUnattachedSweep
+        onDeleted={(ids): void => {
+          if (view.selectedId !== null && ids.includes(view.selectedId)) {
+            clearCollectionSelection();
+          }
+        }}
+      />
       <Stack focusTarget={true} grow={true} ref={listRootRef} tabIndex={-1}>
         {rows}
       </Stack>

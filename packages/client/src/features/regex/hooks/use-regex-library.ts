@@ -85,6 +85,14 @@ export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["r
   errorToast: "Couldn't delete those scripts.",
 });
 
+/** The library's sweep of the scripts attached nowhere. The server deletes only the named scripts that are still
+ *  attached nowhere, so its `affected` count is the honest answer. */
+export const useRemoveUnattachedRegexScripts = createEntityMutation<inferInput<Trpc["regex"]["removeUnattached"]>, RegexBulkOutcome>({
+  options: (trpc) => trpc.regex.removeUnattached.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't delete the unattached scripts.",
+});
+
 /** The single-entity IMPORT door's mutation (REGX2 · D121-D `band=Import`) — the file's TEXT, through the
  *  same thin-arm verb the backup bundle calls. `created:false` ⇒ it deduped onto a script already in the
  *  library, which is a success, not a failure. */

@@ -57,6 +57,8 @@ export interface LibraryRowActions {
   readonly onDelete?: RowDestructiveAction["onConfirm"];
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). Meaningless without `onDelete`. */
   readonly deleteDescription?: ReactNode;
+  /** The delete confirm's small form, under its description (see `RowDestructiveAction.body`). Meaningless without `onDelete`. */
+  readonly deleteBody?: ReactNode;
   /** Where focus goes when the delete confirm closes: the kebab that opened it leaves with the row. */
   readonly deleteFinalFocus?: ConfirmDialogProps["finalFocus"];
   /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a
@@ -262,6 +264,7 @@ function LibraryRowActionsMenu({
   onDuplicate,
   onDelete,
   deleteDescription,
+  deleteBody,
   deleteFinalFocus,
   inlineVerb,
   menuItemsBefore,
@@ -279,6 +282,7 @@ function LibraryRowActionsMenu({
       <LibraryRowMenu
         name={name}
         {...(deleteDescription === undefined ? {} : { deleteDescription })}
+        {...(deleteBody === undefined ? {} : { deleteBody })}
         {...(deleteFinalFocus === undefined ? {} : { deleteFinalFocus })}
         {...(onDelete === undefined ? {} : { onDelete })}
         {...(onRename === undefined ? {} : { onRename })}
@@ -302,6 +306,7 @@ function LibraryRowMenu({
   onDuplicate,
   onDelete,
   deleteDescription,
+  deleteBody,
   deleteFinalFocus,
   menuItemsBefore,
   menuItemsAfter,
@@ -324,6 +329,7 @@ function LibraryRowMenu({
               separator: false,
               title: deleteConfirmTitle(name),
               description: deleteDescription,
+              ...(deleteBody === undefined ? {} : { body: deleteBody }),
               onConfirm: remove,
               ...(deleteFinalFocus === undefined ? {} : { finalFocus: deleteFinalFocus }),
             },

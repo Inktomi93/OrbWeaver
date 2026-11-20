@@ -8,6 +8,7 @@
 import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { FrameStyleSheet } from "@orb/kit/content";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
@@ -16,6 +17,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { useCoarsePointer } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useRenderPolicyFloor } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -98,6 +100,8 @@ export interface MessageRowProps {
   readonly lenientHtmlCards?: boolean | undefined;
   /** The room is a game whose immersive HTML cards are off, folded into this row's render policy. Absent ⇒ not. */
   readonly gameCardsOff?: boolean | undefined;
+  /** The room's sheets written before this row (`roomSheetsBefore`), resolved once by the surface. Absent ⇒ none. */
+  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
    *  (D166). Absent ⇒ the ordinary variant strip. */
@@ -182,6 +186,7 @@ export function MessageRow({
   viewerUserId,
   lenientHtmlCards,
   gameCardsOff,
+  roomSheets,
   greeting,
   autoFixMarkdown,
   displayScripts,
@@ -256,6 +261,7 @@ export function MessageRow({
     // The row's DECLARED purpose (D129) — never the room's current output dial.
     kind: message.kind,
   });
+  const installForbidsExternalMedia = useRenderPolicyFloor().forbidExternalMedia;
   const render = resolveRowRenderPolicy({
     role,
     authorUserId: message.authorUserId,
@@ -264,6 +270,7 @@ export function MessageRow({
     participants,
     kind: message.kind,
     narrator: narratorRender,
+    installForbidsExternalMedia,
     lenientHtmlCards,
     gameCardsOff,
     colorQuotedSpeech,
@@ -301,6 +308,7 @@ export function MessageRow({
     renderContext,
     speakerThemes,
     narratorVoiced: isNarratorVoiced(message.kind),
+    roomSheets,
     displayDepth,
     viewerIsHost,
     neighbours,
@@ -454,6 +462,7 @@ export function MessageRow({
                   renderContext,
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
+                  roomSheets,
                   displayDepth,
                   editing,
                   // The art pane lies over the editor at enlarged text; while editing it is plain paint, so the chip stays the one opener and the editor's controls take the press.

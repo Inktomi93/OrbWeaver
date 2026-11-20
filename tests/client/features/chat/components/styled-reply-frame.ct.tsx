@@ -293,6 +293,37 @@ test("a display script's banner draws in one routed frame with its own style, wh
   await expect(frame).toHaveAttribute("title", /\S/u);
 });
 
+test("a panel the reader opened opens again when the reply's frame is drawn anew, and opening it minted nothing", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await using traffic = await serveRoom(page, root, corpus);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const elsewhere = (await caller.chat.listChats({ limit: 100 })).items.find((chat) => chat.id !== room.chatId);
+  if (elsewhere === undefined) {
+    throw new Error("The corpus holds no second room to leave to");
+  }
+  const story = await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const frame = page.frameLocator(`${REPLY_FRAME}[data-delivery="routed"] ${SANDBOX}`);
+  const notes = frame.locator("#w6p-notes");
+  // Positive control: the template writes the panel closed, and the first document draws it so.
+  await expect(frame.locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  await expect(notes).toBeHidden();
+  await frame.locator("details.w6p-bar summary").click();
+  await expect(notes).toBeVisible();
+  // The panels report was posted before this barrier, so the host has handled it.
+  await postFromFrame(page, {});
+  expect(traffic.mints).toBe(1);
+  // Leaving the room unmounts the reply's frame in the same page; coming back mounts it again.
+  await story.update({ chatId: elsewhere.id, fontScale: 1 });
+  await expect(page.locator("#w6p-location")).toHaveCount(0);
+  await expect(frame.locator("#w6p-location")).toHaveCount(0);
+  await story.update({ chatId: room.chatId, fontScale: 1 });
+  await expect(frame.locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  await expect(notes).toBeVisible();
+  // The fresh document is a new mint whose bytes name the open panel; the toggle itself never minted.
+  expect(traffic.mints).toBe(2);
+});
+
 // A tracker panel whose stylesheet opens after the panel's own tag and holds two blank lines and a comment: the
 // Markdown parse ends that HTML block at the first blank line. Its last rule, after the second blank line, colors the
 // summary.

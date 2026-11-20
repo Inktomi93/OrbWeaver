@@ -16,7 +16,7 @@ import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
-import { FormingChip } from "#components";
+import { FormingChip, HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "#components";
 import type { RowRenderPolicy } from "#lib";
 import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
 import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
@@ -28,7 +28,6 @@ import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
-import { HeldCardsNotice, PlainContentNotice, PlainReplyNotice } from "./plain-content-notice.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
 
 function assertNever(value: never): never {
@@ -288,8 +287,10 @@ export function MessageBody({
     const { characterId, personaId } = display.row;
     const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
     const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
-    return (
-      <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />
+    // A framed row says the same row notices an unframed one does: the held-cards notice is the one a sandboxed row can owe.
+    return withNotice(
+      <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />,
+      notices ? rowNotices(drawn, layout, render) : null,
     );
   }
   const { spans, styled, pending, observeBody } = drawn;

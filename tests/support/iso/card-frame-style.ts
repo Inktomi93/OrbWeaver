@@ -6,4 +6,5 @@ export const IN_RANGE_CARD_FRAME_STYLE: Readonly<Record<CardFrameStyleTokenName,
   [CARD_FRAME_STYLE_TOKEN.radius]: "0.5rem",
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: "'Geist Mono', ui-monospace, monospace",
   [CARD_FRAME_STYLE_TOKEN.rootSize]: "125%",
+  [CARD_FRAME_STYLE_TOKEN.inset]: "12px",
 };

@@ -183,6 +183,7 @@ export { filteredCensus } from "./filtered-census.ts";
 export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
+export { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "./html-trust-labels.ts";
 export {
   IMAGE_MODE_LABELS,
   IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
@@ -316,8 +317,18 @@ export type {
 } from "./registry-contracts.ts";
 export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
-export type { FramedMediaReason, FramedScriptReason, PlainReason, PlainRemedy, PlainReplyReason, PlainSubject, RowRenderPolicy } from "./render-trust.ts";
+export type {
+  FramedMediaReason,
+  FramedScriptReason,
+  HeldCards,
+  PlainReason,
+  PlainRemedy,
+  PlainReplyReason,
+  PlainSubject,
+  RowRenderPolicy,
+} from "./render-trust.ts";
 export {
+  buildParticipantsById,
   DEPLOYMENT_FLOOR,
   HELD_CARDS_REASON,
   PLAIN_REPLY_REASON,

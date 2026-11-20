@@ -18,7 +18,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configSettingLabel } from "#state";
+import { configSettingLabel, RUN_CARD_SCRIPTS_CONFIG_SETTING } from "#state";
 import { useUpdateMessageHandling } from "../hooks/use-chat-settings-mutations.ts";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
@@ -27,7 +27,6 @@ import {
   AUTO_SWIPE_MIN_LENGTH_MIN,
   CHAT_MESSAGE_HANDLING_SUBCATEGORY,
   projectMessageHandlingForm,
-  RUN_CARD_SCRIPTS_SETTING_ID,
   TEMP_CHAT_TTL_HOURS_MAX,
   TEMP_CHAT_TTL_HOURS_MIN,
   toMessageHandlingPatch,
@@ -173,7 +172,7 @@ function MessageHandlingBody({
               {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "charactersCanReact")} />}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId={RUN_CARD_SCRIPTS_SETTING_ID}>
+          <SettingRow settingId={RUN_CARD_SCRIPTS_CONFIG_SETTING}>
             <form.AppField name="runCardScripts">
               {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "runCardScripts")} />}
             </form.AppField>
