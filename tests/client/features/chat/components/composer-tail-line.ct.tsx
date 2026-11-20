@@ -1,13 +1,14 @@
 // The line under the composer in a wait-for-everyone room names who the room still waits on, to each viewer in their
-// own words, and moves when that person writes: the corpus root holds the room, its reads answer each viewer, and the
-// written line reaches the page on the room's live socket. Simple send says why it is off with an empty composer and
-// what it does once there is text.
+// own words, and moves when that person writes or is removed: the corpus root holds the room, its reads answer each
+// viewer, and the written line or the roster change reaches the page on the room's live socket. Simple send says why it
+// is off with an empty composer and what it does once there is text.
 // @subject packages/client/src/features/chat/components/composer-tail-line.tsx
 // @subject packages/client/src/features/chat/components/composer-utility-menu.tsx
 
 import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -73,13 +74,13 @@ async function ownedRoom(root: Root, owner: Caller, wait: boolean): Promise<Chat
   return chatId;
 }
 
-/** The room's reads under `viewer`. With `writtenBy`, the room's socket carries that person's next committed line. */
+/** The room's reads under `viewer`. With `carries`, the room's socket carries the room's next event it accepts. */
 async function serveRoom(
   page: Page,
   root: Root,
-  room: { readonly viewer: Caller; readonly chatId: ChatId; readonly writtenBy?: UserId },
+  room: { readonly viewer: Caller; readonly chatId: ChatId; readonly carries?: (event: ChatBusEvent) => boolean },
 ): Promise<Awaited<ReturnType<typeof routeOrbSocket>> | undefined> {
-  const { viewer, chatId, writtenBy } = room;
+  const { viewer, chatId, carries } = room;
   await page.setViewportSize({ width: 1440, height: 900 });
   await seedShellState(page, { activeSection: "chats" });
   await routeTrpc(page, {
@@ -87,7 +88,7 @@ async function serveRoom(
     "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId !== chatId ? trpcError({ code: "NOT_FOUND" }) : null),
     "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId !== chatId ? trpcError({ code: "NOT_FOUND" }) : null),
   });
-  if (writtenBy === undefined) {
+  if (carries === undefined) {
     return;
   }
   return await routeOrbSocket(page, {
@@ -95,7 +96,7 @@ async function serveRoom(
     frames: (signal) =>
       new Promise((resolve) => {
         const stop = root.app.liveBuses.chat.subscribeAllChatEvents(({ event, seq }) => {
-          if (event.chatId === chatId && event.type === "messageCommitted" && event.view?.authorUserId === writtenBy) {
+          if (event.chatId === chatId && carries(event)) {
             stop();
             resolve([{ channel: "chat", chatId, seq, event }]);
           }
@@ -140,7 +141,11 @@ test("a waiting room names who it waits on, says 'you' to that person, and moves
   await asMember.unmount();
   await page.unrouteAll({ behavior: "wait" });
 
-  const socket = await serveRoom(page, root, { viewer: owner, chatId, writtenBy: memberId });
+  const socket = await serveRoom(page, root, {
+    viewer: owner,
+    chatId,
+    carries: (event) => event.type === "messageCommitted" && event.view?.authorUserId === memberId,
+  });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
   const line = page.locator(LINE);
   await expect(line).toContainText(waitingForLabel([memberName]));
@@ -153,6 +158,41 @@ test("a waiting room names who it waits on, says 'you' to that person, and moves
   await expect(line).toContainText(NO_REPLY_YET_LEAD);
   await expect(line).not.toContainText(waitingForLabel([memberName]));
   await expect(line.getByRole("button", { name: COMPOSER_GENERATE_REPLY_NAME, exact: true })).toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+});
+
+test("the waiting line stops naming a member the host removes, and stands down once one person is left", async ({ corpus, mount, page }) => {
+  using plan = finiteReplies<string>("kicked member", []);
+  await using root = await waitRoot(plan.take);
+  const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
+  if (memberId === undefined) {
+    throw new Error("The corpus has no shared member");
+  }
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  const owner = await root.internalCallerFor(root.ownerId);
+  const chatId = await ownedRoom(root, owner, true);
+  const invite = await root.services.chat.createInvite({
+    principal: await root.principalFor(root.ownerId),
+    chatId,
+    input: { invitedHandle: (await root.principalFor(memberId)).handle },
+  });
+  await root.services.chat.acceptInvite({ principal: await root.principalFor(memberId), inviteId: invite.invite.id });
+  await root.settleBackground();
+  const memberName = (await owner.chat.getChat({ chatId })).participants.find(({ userId }) => userId === memberId)?.displayName;
+  if (memberName === undefined) {
+    throw new Error("The member's seat is not on the owner's roster");
+  }
+
+  const socket = await serveRoom(page, root, { viewer: owner, chatId, carries: (event) => event.type === "chatUpdated" });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  const line = page.locator(LINE);
+  await expect(line).toContainText(waitingForLabel([WAITING_VIEWER_WORD, memberName]));
+
+  // Nobody has written, so the kick starts no reply: the line moves only because the roster it reads changed.
+  await owner.invites.kick({ chatId, userId: memberId });
+  await socket?.served();
+  await expect(line).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
   await page.unrouteAll({ behavior: "wait" });
 });
 

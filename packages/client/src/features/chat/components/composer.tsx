@@ -429,7 +429,6 @@ export function Composer({
       <ComposerTailLine
         chatId={chatId}
         idle={!(showStop || sendMessage.isPending || continueOnEmpty.isPending || sendAvailability.unavailable || replyFailure.failure !== undefined)}
-        onReply={(): void => continueOnEmpty.generateReply(chatId)}
       />
     </Stack>
   );

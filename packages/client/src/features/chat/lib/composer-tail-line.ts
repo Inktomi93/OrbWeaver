@@ -2,6 +2,9 @@
 // on, counted by the same `humansYetToWrite` the server's send reads, so the line and the reply agree. Any room whose
 // last message is a person's with nothing answering it says so, with the reply action beside it: that is the state
 // a Simple send leaves, and the one where a hand-started reply is the next step.
+// The server waits on the seated humans whose accounts are enabled; this line counts the seated humans, because
+// `ParticipantView.disabled` is the seat mute and the roster read carries no account state. The only gap is a
+// disabled account the line still names, so it can over-name a member but never says ready while the server holds.
 
 import type { GroupConfig, ParticipantView } from "@orb/contracts/chat";
 import { humansYetToWrite } from "@orb/contracts/chat";

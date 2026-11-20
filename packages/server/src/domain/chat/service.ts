@@ -4,6 +4,7 @@
 
 import type { ClaimChatOp, RequestTurnOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
+import type { ChatId } from "@orb/kit/ids";
 import { createChatContext } from "./context.ts";
 import type { ChatServiceDeps } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
@@ -148,6 +149,8 @@ export function createChatService(
       deps.resolveConnection({ ...args, signal: ctx.backgroundSignal }),
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
+    // ASSUMES(single-replica): one claim set per composed service, the turn verbs' only home for it.
+    replyClaims: new Set<ChatId>(),
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);

@@ -18,9 +18,18 @@
 //   very person the mode waits for. A member who stepped away is waited on until someone releases early.
 // - When two last lines land together, only the send whose line is still the canon tail runs the round, so the
 //   room gets one reply.
-// - Any present member releases early through `generate`, the same verb the composer's Generate reply fires.
+// - Any present member releases early through `replyToTail`, the action of the line under the composer.
 // - A leave or a kick recounts: when the remaining humans have all written, `createReleaseWaitingRound` runs the
 //   round as the last writer's, through the deferred-round path, and a dark host defers it as a send would.
+//
+// ONE OWED ROUND PER TAIL. Every member is offered the release at once, so two presses, or a press racing the last
+// writer's send, must not answer one line twice. The release and the leave recount take the room's reply claim
+// (`TurnDeps.replyClaims`) before they read the tail, a wait-mode send takes it once its tail check says it fires, and
+// whoever finds it taken stands down: the holder's round answers the room. Under the claim a release re-reads canon and runs only on a user tail with no
+// reply queued (`pending_turns`) and no turn in flight (`activeTurns`), so a press after the reply landed is a no-op.
+// A member's release while the host is dark defers exactly as that member's send would, so it never spends the dark
+// host's connection; the queued row then makes every later press a no-op until the drain answers the line once.
+// `generate` stays lock-free and unclaimed: the wand and the empty send ask for an extra reply on purpose.
 // - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
 //   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.
 // - The policy and output still decide who speaks once a round starts. The mode decides only when it starts.
@@ -97,6 +106,7 @@ import type {
   ForceCharacterTurnParams,
   GenerateParams,
   ImpersonateStreamParams,
+  ReplyToTailParams,
   RevertContinueParams,
   SendParams,
   SwipeParams,
@@ -193,6 +203,23 @@ interface TurnDeps {
    *  rounds that pass neither: `forceCharacterTurn` (after its host and seat gates) and `resolveRequestTurn`
    *  (after its origin, presence and forced-speaker refusals). */
   readonly claimChat: ClaimChatOp;
+  /** The rooms whose owed reply is being started (the file header's one-round-per-tail ruling).
+   *  ASSUMES(single-replica): the claim is this process's, as the handoff barrier and the active-turns registry are. */
+  readonly replyClaims: Set<ChatId>;
+}
+
+/** Take the room's reply claim, or null when a release or a wait-mode send already holds it. Disposal frees it on
+ *  every exit of the holder's scope, a throw included. */
+function claimReply(claims: Set<ChatId>, chatId: ChatId): Disposable | null {
+  if (claims.has(chatId)) {
+    return null;
+  }
+  claims.add(chatId);
+  return {
+    [Symbol.dispose]: (): void => {
+      claims.delete(chatId);
+    },
+  };
 }
 
 /** The turn-running slice of `ChatService` this grouped file owns. */
@@ -206,6 +233,7 @@ type TurnVerbs = Pick<
   | "continueTurn"
   | "impersonateStream"
   | "generate"
+  | "replyToTail"
   | "undoContinue"
   | "revertContinue"
   | "drainDeferredTurns"
@@ -1943,7 +1971,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // Only what this body still reads on its own — the shared prep block comes off `built` itself now.
     const { chatBehavior, respondsToLatestUserTurn, macroRegistry, userMacroDraws } = built;
 
-    if (group.waitForEveryone && (await holdsForOthers(ctx, chatId, room.presentHumanUserIds, userView))) {
+    // A release that holds the claim is already answering this room, this line included.
+    using replyClaim =
+      group.waitForEveryone && !(await holdsForOthers(ctx, chatId, room.presentHumanUserIds, userView)) ? claimReply(deps.replyClaims, chatId) : null;
+    if (group.waitForEveryone && replyClaim === null) {
       return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
     }
 
@@ -2993,6 +3024,8 @@ async function runDeferredRound(
     readonly messageId: MessageId | null;
   },
 ): Promise<TurnOutcome> {
+  // Registered first: from here a release sees this round in flight (the file header's one-round-per-tail ruling).
+  using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const chat = await loadChatRow(ctx.db, row.chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
@@ -3031,7 +3064,6 @@ async function runDeferredRound(
     // The zone the sender reported when the turn deferred; a row without one reads the no-viewer clock.
     timeZone: row.timeZone ?? UTC_TIME_ZONE,
   });
-  using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   // Persistence carries the initiator plus the frozen host. Reconstitute the triple once and pass it whole.
   const base: RoundBase = {
     chatId: row.chatId,
@@ -3174,29 +3206,67 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
   };
 }
 
-/** Run the round a wait-for-everyone room owes once a seat empties: the remaining humans have all written since the
- *  last reply, so nobody's send will start it. It runs as the last writer's round, as their send would have.
- *  `actorUserId` is who left or kicked: the host's own act never defers, a member's defers while the host is dark. */
-async function releaseWaitingRound(ctx: ChatContext, deps: TurnDeps, chatId: ChatId, actorUserId: UserId): Promise<void> {
-  using custody = deps.admission.tryEnter(chatId);
-  const chat = custody === null ? undefined : await loadChatRow(ctx.db, chatId);
-  if (chat === undefined || chat.metadata.group?.waitForEveryone !== true) {
-    return;
+/** What a release answers: `tail` is any unanswered user line (`replyToTail`); `everyone-wrote` is a
+ *  wait-for-everyone room's leave recount, which runs only once every remaining present human has written. */
+type OwedRoundRelease = "tail" | "everyone-wrote";
+
+/** Start the round the room's user tail is owed, at most once per tail (the file header's one-round-per-tail ruling).
+ *  `actorUserId` is who released it: the host's own act never defers, a member's defers while the host is dark.
+ *  Null when nothing ran: the tail is answered or already owed, another release holds the claim, or the round deferred. */
+async function releaseOwedRound(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  release: { readonly chatId: ChatId; readonly actorUserId: UserId; readonly timeZone: IanaTimeZone | undefined; readonly owes: OwedRoundRelease },
+): Promise<TurnOutcome | null> {
+  const { chatId, actorUserId, owes } = release;
+  using claim = claimReply(deps.replyClaims, chatId);
+  const chat = claim === null ? undefined : await loadChatRow(ctx.db, chatId);
+  if (chat === undefined || (owes === "everyone-wrote" && chat.metadata.group?.waitForEveryone !== true)) {
+    return null;
   }
   const room = await loadRoom(ctx, chatId, chat.anchorPersonaId);
   const canon = await loadCanonHistory(ctx.db, chatId);
   const tail = canon.at(-1);
-  if (tail?.role !== "user" || humansYetToWrite(room.presentHumanUserIds, canon).length > 0) {
-    return;
+  if (tail?.role !== "user" || (owes === "everyone-wrote" && humansYetToWrite(room.presentHumanUserIds, canon).length > 0)) {
+    return null;
   }
-  const lastWriter = tail.authorUserId;
-  const triggeredBy = lastWriter !== null && room.presentHumanUserIds.includes(lastWriter) ? lastWriter : room.hostUserId;
-  const owed = { chatId, triggeredBy, runAsUserId: room.hostUserId, messageId: tail.id };
-  if (await deferIfHostOffline(ctx, { ...owed, principalUserId: actorUserId, timeZone: undefined })) {
-    return;
+  // A queued reply or a turn already running answers this tail, so a second round would answer it again.
+  if ((await loadPendingTurns(ctx.db, chatId)).length > 0 || deps.activeTurns.countActive(chatId) > 0) {
+    return null;
   }
-  // No viewer reported a zone for this round, so it reads the no-viewer clock (the file header's clock ruling).
-  await runDeferredRound(ctx, deps, { ...owed, timeZone: null });
+  const owed = { chatId, triggeredBy: owedTrigger(room, tail.authorUserId, release), runAsUserId: room.hostUserId, messageId: tail.id };
+  if (await deferIfHostOffline(ctx, { ...owed, principalUserId: actorUserId, timeZone: release.timeZone })) {
+    return null;
+  }
+  // A recount has no viewer, so it reads the no-viewer clock (the file header's clock ruling); a press reads its presser's.
+  return await runDeferredRound(ctx, deps, { ...owed, timeZone: release.timeZone ?? null });
+}
+
+// A press is its presser's request; a recount runs as the last writer's send would have, or as the host's once they left.
+function owedTrigger(room: Room, lastWriter: UserId | null, release: { readonly actorUserId: UserId; readonly owes: OwedRoundRelease }): UserId {
+  if (release.owes === "tail") {
+    return release.actorUserId;
+  }
+  return lastWriter !== null && room.presentHumanUserIds.includes(lastWriter) ? lastWriter : room.hostUserId;
+}
+
+async function releaseWaitingRound(ctx: ChatContext, deps: TurnDeps, chatId: ChatId, actorUserId: UserId): Promise<void> {
+  using custody = deps.admission.tryEnter(chatId);
+  if (custody !== null) {
+    await releaseOwedRound(ctx, deps, { chatId, actorUserId, timeZone: undefined, owes: "everyone-wrote" });
+  }
+}
+
+/** `replyToTail` — member-gated as `generate` is; the outcome is the started round's, empty when nothing ran. */
+function createReplyToTail(ctx: ChatContext, deps: TurnDeps): ChatService["replyToTail"] {
+  return async ({ principal, chatId, timeZone }: ReplyToTailParams): Promise<TurnOutcome> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const outcome = await releaseOwedRound(ctx, deps, { chatId, actorUserId: principal.userId, timeZone, owes: "tail" });
+    if (outcome === null) {
+      return { messages: [], aborted: false, abortReason: undefined };
+    }
+    return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
+  };
 }
 
 /** The leave-side recount of a wait-for-everyone room, run in the background so the leave returns at once. A room
@@ -3377,6 +3447,7 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     continueTurn,
     impersonateStream: createImpersonateStream(ctx, deps),
     generate: createGenerate(ctx, deps),
+    replyToTail: createReplyToTail(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),
     revertContinue: createRevertContinue(ctx, deps),
     drainDeferredTurns: createDrainDeferredTurns(ctx, deps),

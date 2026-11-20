@@ -189,6 +189,11 @@ const generateSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
+const replyToTailSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  timeZone: reportedTimeZoneSchema,
+});
+
 // The step-BACK verb (swipe-strip's left chevron): `ChatService.selectVariant`
 // (domain/chat/verbs/edit.ts createSelectVariant) was already fully implemented — author-or-host gate,
 // sibling-ownership belt, the runtime-variables re-fold for the newly-selected pointer, `variantSelected`
@@ -708,6 +713,10 @@ export const chatRouter = t.router({
     .output(turnOutcomeSchema)
     .input(strictTwin(generateSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
+  replyToTail: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(replyToTailSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.replyToTail({ principal: ctx.auth, ...input })),
   abort: authedProcedure
     .output(z.void())
     .input(abortSchema)
