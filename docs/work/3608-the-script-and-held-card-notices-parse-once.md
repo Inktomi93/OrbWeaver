@@ -11,7 +11,7 @@ plan: chat-html-and-presets
 
 ## What
 
-The plain-content notice calls holdsScript on every render with no memo, so a long transcript re-parses every framed row each time it renders (packages/client/src/features/chat/components/plain-content-notice.tsx). The two ast-grep-ignore comments in the chat reply frame point at the Biome line above instead of stating their reason on the line, as the comment rules ask. The held-cards notice says reply in its copy but also shows on a user message that carries card markup.
+The plain-content notice calls holdsScript on every render with no memo, so a long transcript re-parses every framed row each time it renders (packages/client/src/components/plain-content-notice.tsx). The two ast-grep-ignore comments in the chat reply frame point at the Biome line above instead of stating their reason on the line, as the comment rules ask. The held-cards notice says reply in its copy but also shows on a user message that carries card markup.
 
 ## Why
 
