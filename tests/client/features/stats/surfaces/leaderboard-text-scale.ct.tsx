@@ -4,7 +4,7 @@
 
 import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
-import { PLATFORM_TEXT_SCALES, resolvedLength, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, seedShellState, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -36,5 +36,23 @@ for (const scale of PLATFORM_TEXT_SCALES) {
     await expect(list.getByRole("listitem").first()).toBeVisible();
     const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-short"].cssVar})`, surface);
     expect((await list.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
+  });
+
+  test(`the leaderboard's sort strip keeps every label whole and inside the strip at ${String(scale * 100)}% text on a phone`, async ({ mount, page }) => {
+    await using _textSize = await setPlatformTextSize(page, scale);
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, ...FINDER_PROCEDURES]));
+    await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "docked", context: "collapsed" } } });
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    await page.getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true }).click();
+    await page.getByRole("button", { name: CORPUS_INSIGHTS_LIST_DOOR_NAME, exact: true }).click();
+    const sort = page.getByTestId(testId("analyticsLeaderboardSort"));
+    await expect(sort).toBeVisible();
+    const layout = await toggleStripLayout(sort);
+    // The control: the strip has several cells to judge, so a strip that lost its cells fails here instead of passing on none.
+    expect(layout.cutWords.length).toBeGreaterThan(1);
+    expect(layout.cutWords.filter((cut) => cut > 0)).toEqual([]);
+    expect(layout.pastStrip).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
   });
 }

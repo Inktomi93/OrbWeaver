@@ -1,8 +1,8 @@
 import { IMAGE_NEGATIVE_PROMPT_FIELD_NAME, IMAGE_SIZE_FIELD_NAME, IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
-import { MAX_NEGATIVE_CHARS } from "@orb/contracts/imagery";
+import { MAX_IMAGE_COUNT, MAX_NEGATIVE_CHARS, MIN_IMAGE_COUNT } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { resolvedLength, settledBox } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, settledBox, toggleStripLayout } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -68,6 +68,27 @@ test("count, size and negative chosen in the options travel on the mutation inpu
   await page.getByRole("button", { name: imagineGenerateCountLabel(3), exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);
   expect(calls.lastInput("chat.generateImage")).toMatchObject({ chatId, n: 3, size: "portrait", negative: "extra fingers" });
+});
+
+test.describe("on a phone at the browser's enlarged text", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  for (const scale of PLATFORM_TEXT_SCALES) {
+    // The count digits cannot be cut, so this is a control: the filled count strip holds one cell per count, inside the strip, at every size.
+    test(`at ${String(scale * 100)}% text the picture count strip holds a cell for each count inside the strip`, async ({ corpus, mount, page }) => {
+      await using _textSize = await setPlatformTextSize(page, scale);
+      const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
+      await routeImagine(page);
+      await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
+      await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
+      const counts = page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true });
+      await expect(counts).toBeVisible();
+      const layout = await toggleStripLayout(counts);
+      expect(layout.cutWords).toHaveLength(MAX_IMAGE_COUNT - MIN_IMAGE_COUNT + 1);
+      expect(layout.cutWords.filter((cut) => cut > 0)).toEqual([]);
+      expect(layout.pastStrip).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    });
+  }
 });
 
 // A room both people sit in. The host is whoever the room read says it is for each of them, never assumed from the corpus.
