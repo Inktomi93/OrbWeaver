@@ -113,7 +113,7 @@ function importedThemeMessage({
 const LOOKS_SKELETON_ROWS = 7;
 
 export function AppearanceLooksSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: LOOKS_SKELETON_ROWS, narrow: 14 });
+  const firstBootRows = useFirstBootRows({ wide: LOOKS_SKELETON_ROWS, narrow: 16 });
   return (
     <Section divider={true} heading={APPEARANCE_LOOKS_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
@@ -270,6 +270,7 @@ function LooksBody(): ReactElement {
                     <Row className="relative" minWidth="shrinks" key={theme.id}>
                       <RadioGroupPickerItem
                         art={<ThemeMiniSurface theme={theme} />}
+                        corners="control"
                         width="full"
                         idPrefix={`${ids}-${theme.id}`}
                         label={theme.name}

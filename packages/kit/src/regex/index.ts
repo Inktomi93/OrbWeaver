@@ -537,6 +537,17 @@ function macroRenderedTexts(script: RegexScriptInput): readonly string[] {
   return [script.replaceString, ...(script.trimStrings ?? []), ...find];
 }
 
+// `{{match}}` is spliced after the macro pass, so it is no macro.
+const MATCH_SPLICE = /\{\{match\}\}/gi;
+const MACRO_OPENER = "{{";
+
+/** Whether a script's output can depend on anything but its text and its own fields: some text the executor renders
+ *  macros in holds a macro opener. Over-approximates (an escaped or unclosed opener counts), so a caller that reuses
+ *  an earlier output on a false answer never reuses one a macro could have changed. */
+export function regexScriptRendersMacros(script: RegexScriptInput): boolean {
+  return macroRenderedTexts(script).some((text) => text.replaceAll(MATCH_SPLICE, "").includes(MACRO_OPENER));
+}
+
 /** Whether running `scripts` on `call` can read the turn's memory recall or databank retrieval: a script the call
  *  runs renders a macro that reads one, or text the analysis cannot see. Judged against the registry the executor
  *  renders with, so a caller that skips retrieval on a false answer renders the same bytes. */

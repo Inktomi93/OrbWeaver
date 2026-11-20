@@ -14,7 +14,8 @@ import type { Cancellation } from "@orb/kit/guards";
 import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema, storedGroupConfigSchema } from "#chat";
+import type { HtmlTrustStep } from "#chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema, HTML_TRUST_STEPS, storedGroupConfigSchema } from "#chat";
 import type { DatabankSettings } from "#databank";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { IpCertificateSetting, Principal } from "#identity";
@@ -67,7 +68,7 @@ const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 11;
+export const APP_SETTINGS_SCHEMA_VERSION = 12;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -244,11 +245,10 @@ const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
-  trustHtml: z.boolean().nullable().optional().catch(undefined),
-  // The deployment CEILING on the html-trust ladder's top rung — "may a card run its own scripts in a
-  // viewer's browser". Floor TRUE, and also the default rung of every "Inherit default" character; `false`
-  // revokes it everywhere. See `@orb/contracts/chat::DeploymentRenderPolicy`.
-  allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
+  // "Default for characters": the step an "Inherit default" character takes, and the script ceiling, because
+  // below `interactive` no character's frame runs scripts. Floor `interactive`. See
+  // `@orb/contracts/chat::DeploymentRenderPolicy`.
+  defaultHtmlStep: z.enum(HTML_TRUST_STEPS).nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
   // The per-image byte cap the asset store and the remote-image fetch both bound by (floor/ceiling above).
@@ -343,7 +343,29 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     const { importSkipCharacters: _importSkipCharacters, ...rest } = config;
     return { ...rest, schemaVersion: 11 };
   },
+  // v11→v12: `trustHtml` and `allowInteractiveCards` fold into `defaultHtmlStep` (D294).
+  11: (config) => {
+    const { trustHtml, allowInteractiveCards, ...rest } = config;
+    const step = defaultHtmlStepFromLegacy(allowInteractiveCards, trustHtml);
+    return { ...rest, ...(step === undefined ? {} : { defaultHtmlStep: step }), schemaVersion: 12 };
+  },
 };
+
+/**
+ * The `defaultHtmlStep` a v11 blob's two install keys meant for an inheriting character: the ceiling's own value when
+ * it was set on, else the render default it fell back to. An unset or unreadable ceiling stays unset, so the floor
+ * (`interactive`) keeps governing. While the ceiling was up, `trustHtml` decided only seats with no readable card,
+ * which now always draw as Plain text (D294), so it carries nothing forward.
+ */
+function defaultHtmlStepFromLegacy(allowInteractiveCards: unknown, trustHtml: unknown): HtmlTrustStep | undefined {
+  if (allowInteractiveCards === true) {
+    return "interactive";
+  }
+  if (allowInteractiveCards !== false) {
+    return;
+  }
+  return trustHtml === true ? "trusted" : "untrusted";
+}
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
   schema: appSettingsSchema,
@@ -919,8 +941,7 @@ export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   logLevel: LogLevel;
   forbidExternalMedia: boolean;
-  trustHtml: boolean;
-  allowInteractiveCards: boolean;
+  defaultHtmlStep: HtmlTrustStep;
   memoryDefaults: MemoryDefaults;
   rateLimits: ResolvedRateLimits;
   privateEndpointAllowlist: string[];
@@ -964,6 +985,13 @@ export interface UserSettingsView {
   configUnreadable: VersionedParseFailure | null;
 }
 
+/** Whether this viewer consents to card and styled-reply scripts. `chat.runCardScripts` is a consent, so a stand-in for
+ *  a blob that could not be read faithfully is not this viewer's answer and reads as no (D294). The card-frame route and
+ *  the client's script notice both read the consent here. */
+export function viewerRunsCardScripts(view: Pick<UserSettingsView, "config" | "configUnreadable">): boolean {
+  return view.configUnreadable === null && view.config.chat.runCardScripts;
+}
+
 export interface GlobalSettingView {
   key: string;
   value: JsonValue;
@@ -980,8 +1008,7 @@ export const effectiveAppConfigSchema = z.strictObject({
   corpusAutoindex: z.boolean(),
   logLevel: logLevelSchema,
   forbidExternalMedia: z.boolean(),
-  trustHtml: z.boolean(),
-  allowInteractiveCards: z.boolean(),
+  defaultHtmlStep: z.enum(HTML_TRUST_STEPS),
   memoryDefaults: memoryDefaultsSchema.strict(),
   rateLimits: resolvedRateLimitsSchema,
   privateEndpointAllowlist: z.array(z.string()),

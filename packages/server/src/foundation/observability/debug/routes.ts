@@ -476,7 +476,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
         return null;
       }
       const cfg = effectiveConfig();
-      return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
+      return { defaultHtmlStep: cfg.defaultHtmlStep, forbidExternalMedia: cfg.forbidExternalMedia };
     };
 
     app.get("/api/_debug/config/user", async (c) => {

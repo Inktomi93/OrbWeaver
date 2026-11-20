@@ -4,10 +4,12 @@
 // Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
 // Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
+import { installAllowsCardScripts } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
+import { viewerRunsCardScripts } from "@orb/contracts/settings";
 import { TRPC_BODY_LIMIT_HEADER, TRPC_BODY_MAX_BYTES } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -437,11 +439,13 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   registerCardFrame(app, {
     participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params) },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-    // The deployment half of the html-trust ladder's TOP rung. Same live read the participant
-    // resolver uses, applied a second time at the boundary that actually mints the policy.
-    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
-    viewerRunsCardScripts: async (viewer) => (await deps.services.settings.loadUserSettings(viewer.userId)).chat.runCardScripts,
+    // The install's script ceiling. Same live read the participant resolver uses, applied a second time at the
+    // boundary that actually mints the policy.
+    installAllowsCardScripts: () => installAllowsCardScripts(deps.services.settings.getEffectiveConfig()),
+    // The viewer's consent reads an unreadable settings blob as no (`viewerRunsCardScripts`).
+    viewerRunsCardScripts: async (viewer) => viewerRunsCardScripts(await deps.services.settings.getUserSettings({ principal: viewer })),
     now: deps.now,
+    logger: deps.logger,
     registerOwnPolicyRoute: security.registerOwnPolicyRoute,
   });
 
@@ -517,10 +521,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // The other floor axis, from the SAME effective config the compose-time roster resolver reads
     // (`entry/compose/chat.ts` resolveSeatDeco) — so a client-side preview and the server's own render
     // policy are derived from one value, never two guesses.
-    trustHtml: () => deps.services.settings.getEffectiveConfig().trustHtml,
-    // The ladder's top-rung CEILING — served so the per-character "Interactive" control can say it is inert
-    // deployment-wide instead of offering a capability the mint will refuse.
-    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
+    defaultHtmlStep: () => deps.services.settings.getEffectiveConfig().defaultHtmlStep,
     share: deps.shareState,
     trustedProxies,
   });
@@ -539,7 +540,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // foundation sits BELOW transport in the tier list and may not import it.
     sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : userId) },
     // The SAME live read every other consumer above uses — so the /config probes report the deployment tier
-    // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
+    // the server is actually running on, and a character on "Inherit default" resolves to a real
     // verdict instead of leaving the reader to infer what it inherits.
     effectiveConfig: () => deps.services.settings.getEffectiveConfig(),
     // Registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the

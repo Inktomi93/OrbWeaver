@@ -2,7 +2,7 @@ import { stripUnreadElements } from "@orb/kit/content";
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
 import type { StreamdownProps } from "streamdown";
-import { defaultRehypePlugins, Streamdown } from "streamdown";
+import { Streamdown } from "streamdown";
 import { cn, SCROLLER, usePrefersReducedMotion } from "#lib";
 import { MARKDOWN_RENDER_FAILED_TEXT } from "./markdown-names.ts";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
@@ -10,8 +10,9 @@ import {
   MARKDOWN_REMARK_PLUGINS,
   ownOriginMediaOnly,
   TIER_A_UNTRUSTED_ELEMENTS,
-  TRUSTED_ALLOWED_TAGS,
   TRUSTED_LITERAL_TAG_CONTENT,
+  TRUSTED_REHYPE_PLUGINS,
+  UNTRUSTED_REHYPE_PLUGINS,
   untrustedUrlTransform,
 } from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
@@ -140,9 +141,7 @@ export function Markdown({
   // #42 word-reveal fade (D168): our reveal plugin replaces Streamdown's
   // `animated` arm (that knob was DEAD — its `streamdown/styles.css` was never imported — and its
   // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
-  // only: passing a custom `rehypePlugins` array would defeat the identity-gated `allowedTags` schema
-  // merge the TRUSTED tier depends on (policy.ts documents the gate), and no trusted surface streams
-  // today. Resolved reduced motion (the app's setting over the OS query, `usePrefersReducedMotion`) injects nothing
+  // only: no trusted surface streams today. Resolved reduced motion (the app's setting over the OS query, `usePrefersReducedMotion`) injects nothing
   // at all — REMOVE, guide §3.9; the CSS floor also collapses the fade to instant.
   // One plugin instance per mount (its reveal-time log is the fade's memory), minted in a lazy
   // useState initializer: identity-stable for the component's whole life — Streamdown's Block memo
@@ -151,11 +150,8 @@ export function Markdown({
   // closure + one array (no work happens until a streaming render passes it), so a static mount
   // paying it is cheaper than the ref-branch the react-hooks/refs render ban forbids.
   const reveal = mode === "streaming" && untrusted && !reducedMotion;
-  const [revealPlugins] = useState<NonNullable<StreamdownProps["rehypePlugins"]>>(() => [
-    ...Object.values(defaultRehypePlugins),
-    createRevealPlugin().rehypePlugin,
-  ]);
-  const revealProp = reveal ? { rehypePlugins: revealPlugins } : {};
+  const [revealPlugins] = useState<NonNullable<StreamdownProps["rehypePlugins"]>>(() => [...UNTRUSTED_REHYPE_PLUGINS, createRevealPlugin().rehypePlugin]);
+  const tierPlugins = untrusted ? UNTRUSTED_REHYPE_PLUGINS : TRUSTED_REHYPE_PLUGINS;
 
   // M1 tail-hold (tail-hold.ts, arm 1): streaming only, and a
   // pure PREFIX of the input — the still-undecidable trailing construct (a lone pipe row, a bare list
@@ -249,11 +245,12 @@ export function Markdown({
         // Streamdown's useTransition arm), and the `caret` prop is dropped because its `::after` attaches
         // to the per-block `dir` wrapper and renders on a fresh line below the text; the client ghost's
         // `ghost-stream-body` scope paints the caret on the true leaf block instead.
-        {...revealProp}
+        // Each pipeline holds the seal's sanitize schema and keeps one identity (module-level, or one per mount for the
+        // reveal): Streamdown's Block memo reference-compares it, so a fresh array would re-parse every settled block.
+        rehypePlugins={reveal ? revealPlugins : tierPlugins}
         {...(untrusted
           ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, unwrapDisallowed: true, urlTransform: untrustedUrlTransform }
           : {
-              allowedTags: TRUSTED_ALLOWED_TAGS,
               literalTagContent: [...TRUSTED_LITERAL_TAG_CONTENT],
               ...(ownOriginMedia ? { allowElement: ownOriginMediaOnly } : {}),
             })}

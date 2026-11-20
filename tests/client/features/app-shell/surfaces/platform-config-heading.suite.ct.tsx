@@ -63,7 +63,9 @@ async function expectAppearanceTasks(content: Locator, phone: boolean): Promise<
     if (first === null) {
       throw new Error("The appearance group has no first task section");
     }
-    return first.getBoundingClientRect().top - node.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(node).paddingBlockStart);
+    // The pane's block inset rides its body, inside the scroller.
+    const body = node.querySelector('[data-slot="content-pane-body"]') ?? node;
+    return first.getBoundingClientRect().top - body.getBoundingClientRect().top - Number.parseFloat(getComputedStyle(body).paddingBlockStart);
   });
   await test.info().attach("first-task-leading-space", { body: JSON.stringify({ lead }), contentType: "application/json" });
   expect(Math.abs(lead) <= 1).toBe(phone);

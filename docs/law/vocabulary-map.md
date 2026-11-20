@@ -194,6 +194,18 @@ transport behind it; `local-light` never serves a chat turn. `anthropic-messages
 the subscription's subprocess, which is a different wire. `max-pro-sub` and `custom_openai` are not
 provider ids; use the ids in the table above instead.
 
+## The surface-kind register
+
+These words name how a surface shows depth. They are house terms for law, code comments and reviews, never user-facing copy. ui-surface-and-interaction-rules §1 defines each kind, and its §2 table says which kinds cast a shadow.
+
+| Concept | The house word | Code spelling | Status |
+| - | - | - | - |
+| A surface painted over other content by its mount position or a fixed position | **float** | the `shadow-overlay` utility over `--shadow-overlay`; `POPUP_SURFACE` and `MODAL_SURFACE` (`packages/ui/src/lib/popup-surface.ts`) | landed |
+| A card or control in the layout that lifts off its own ground | **raised-in-flow** | Card `elevated` and `interactive` (`packages/ui/src/primitives/card/variants.ts`) | landed |
+| The app frame and what is level with it | **docked chrome** | `data-panel-mode="docked"`, the rail, the topbar, the phone tab bar, the pane header band | landed |
+| A run of text or an icon painted over a wallpaper, a portrait or an image | **text or a glyph over art** | `--shadow-shell-over-art`, `--shadow-prose`, `--text-shadow-wordmark`; Icon `shadow` | landed |
+| A ring, glow, rail or inset line that marks a state on its host | **focus or state ring** | the focus ring helpers in `packages/ui/src/lib/focus-ring.ts`, `--shadow-glow` | landed |
+
 ## Use this map
 
 This is a vocabulary reference for product copy, code names and comments. D333 ends custom static vocabulary certification; review affected surfaces when a term changes.

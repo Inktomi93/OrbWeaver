@@ -5,7 +5,7 @@
 // that its tier draws through the inert path.
 
 import type { PlainReason, PlainRemedy } from "@orb/client/lib";
-import { CHARACTER_TRUST_TAB_ID, MEDIA_TRUST_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "@orb/client/state";
+import { CHARACTER_TRUST_TAB_ID, DEFAULT_HTML_STEP_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -141,13 +141,13 @@ for (const [name, body] of [
   });
 }
 
-test("with the install's trust off as well, a character set to plain text still names only her: her setting alone lifts it", async ({ mount, page }) => {
+test("with the install's default at Plain text too, a character set to plain text names only her: her setting alone lifts it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   await addBannerScript(owner);
   const room = await plainRoom(root, owner, owner);
   await owner.character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
-  await owner.settings.updateAppSettings({ partial: { trustHtml: false, allowInteractiveCards: false } });
+  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: "untrusted" } });
   await serveRoom(page, root, owner, root.ownerId);
   const plain = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expectVerdict(await rowNotice(page), "character", "character-trust");
@@ -171,7 +171,7 @@ test("an install that renders HTML plain, for a character who inherits it, sends
   await addBannerScript(owner);
   const room = await plainRoom(root, owner, owner);
   await owner.character.update({ characterId: room.characterId, input: { trustHtml: null, interactiveHtml: null } });
-  await owner.settings.updateAppSettings({ partial: { trustHtml: false, allowInteractiveCards: false } });
+  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: "untrusted" } });
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   const notice = await rowNotice(page);
@@ -179,7 +179,7 @@ test("an install that renders HTML plain, for a character who inherits it, sends
   await notice.locator(NOTICE_ACTION).click();
   const readout = page.locator(READOUT);
   await expect(readout).toHaveAttribute("data-section", "config");
-  await expect(readout).toHaveAttribute("data-config-target", `admin/${MEDIA_TRUST_CONFIG_SUB}/${TRUST_HTML_CONFIG_SETTING}`);
+  await expect(readout).toHaveAttribute("data-config-target", `admin/${MEDIA_TRUST_CONFIG_SUB}/${DEFAULT_HTML_STEP_CONFIG_SETTING}`);
 });
 
 test("a member who cannot change the setting is told to ask the host, with no control, for either cause", async ({ corpus, mount, page }) => {
@@ -200,7 +200,7 @@ test("a member who cannot change the setting is told to ask the host, with no co
   await page.unrouteAll({ behavior: "wait" });
 
   await owner.character.update({ characterId: room.characterId, input: { trustHtml: null, interactiveHtml: null } });
-  await owner.settings.updateAppSettings({ partial: { trustHtml: false, allowInteractiveCards: false } });
+  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: "untrusted" } });
   await serveRoom(page, root, member, memberId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expectVerdict(await rowNotice(page), "install", "ask-host");

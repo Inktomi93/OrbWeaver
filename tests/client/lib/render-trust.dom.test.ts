@@ -1,7 +1,10 @@
-// The plain-content, framed-media and framed-script verdicts, and the held-cards flag. The plain-content verdict over every row it can face: the reason a plain row names and the remedy each viewer gets,
+// The plain-content, framed-media and framed-script verdicts, the held-cards flag, and whose row loads external media.
+// The plain-content verdict over every row it can face: the reason a plain row names and the remedy each viewer gets,
 // for a character's own setting, an inherited install default, a seat with no readable card (deleted, or a former
-// host's after a handoff), a room with no consenting host, another person's row and an unattributed one. Each subject
-// comes from `resolveRowRenderPolicy` over a roster seat parsed by the wire schema, as the transcript builds it.
+// host's after a handoff), a room with no consenting host, another person's row and an unattributed one. A seat no card
+// covers is Plain text, which no setting changes. Each subject comes from `resolveRowRenderPolicy` over a roster seat
+// parsed by the wire schema, as the transcript builds it. The viewer's own message loads external media under the
+// install's switch alone; another member's never does (docs/law/UI-Theming-and-Content.md §12.2).
 
 import type { FramedScriptReason, PlainReason, PlainRemedy } from "@orb/client/lib";
 import { resolveFramedMediaVerdict, resolveFramedScriptVerdict, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
@@ -39,12 +42,12 @@ const BY_SOURCE = {
   },
   "no-card": {
     reason: "no-card",
-    remedies: { "admin host": "system-trust", "admin member": "system-trust", host: "ask-admin", member: "ask-admin" },
+    remedies: { "admin host": "none", "admin member": "none", host: "none", member: "none" },
     named: false,
   },
   "no-host": {
     reason: "no-host",
-    remedies: { "admin host": "system-trust", "admin member": "system-trust", host: "ask-admin", member: "ask-admin" },
+    remedies: { "admin host": "none", "admin member": "none", host: "none", member: "none" },
     named: false,
   },
 } as const satisfies Record<RenderPolicySource, Expected>;
@@ -90,6 +93,7 @@ for (const source of participantViewSchema.shape.renderSource.unwrap().options) 
         characterId,
         viewerUserId: mintUserId(ids.next),
         participants: new Map([[characterId, characterSeat(characterId, "untrusted", source)]]),
+        installForbidsExternalMedia: false,
         viewerIsHost,
       });
       expect(row.cardTier).toBe("tierA");
@@ -108,12 +112,20 @@ for (const source of participantViewSchema.shape.renderSource.unwrap().options) 
 
 test("a row another person wrote, and a row no seated character covers, offer no remedy to anyone", () => {
   const viewerUserId = mintUserId(ids.next);
-  const member = resolveRowRenderPolicy({ role: "user", authorUserId: mintUserId(ids.next), characterId: null, viewerUserId, viewerIsHost: true });
+  const member = resolveRowRenderPolicy({
+    role: "user",
+    authorUserId: mintUserId(ids.next),
+    characterId: null,
+    viewerUserId,
+    installForbidsExternalMedia: false,
+    viewerIsHost: true,
+  });
   const unseated = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
     characterId: mintTypeId(ID_PREFIX.character, ids.next),
     viewerUserId,
+    installForbidsExternalMedia: false,
     viewerIsHost: true,
   });
   for (const [row, reason] of [
@@ -173,7 +185,7 @@ for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
   test(`framed media with the install forbidding ${String(install)} and the character forbidding ${String(character)}`, () => {
     const characterId = mintTypeId(ID_PREFIX.character, ids.next);
     const policy = resolveRenderPolicy(
-      { trustHtml: true, forbidExternalMedia: install, allowInteractiveCards: true },
+      { defaultHtmlStep: "interactive", forbidExternalMedia: install },
       { trustHtml: true, interactiveHtml: false, forbidExternalMedia: character },
     );
     for (const viewer of VIEWERS) {
@@ -234,6 +246,7 @@ test("a row from a character that renders trusted HTML is not plain and carries 
     characterId,
     viewerUserId: mintUserId(ids.next),
     participants: new Map([[characterId, characterSeat(characterId, "trusted", "own")]]),
+    installForbidsExternalMedia: false,
     viewerIsHost: true,
   });
   expect(row.cardTier).toBe("tierB");
@@ -281,6 +294,13 @@ const FRAMED_SCRIPT_CASES: readonly {
     expected: INSTALL_HOLDS_SCRIPTS,
   },
   {
+    name: "an inheriting character under a lowered ceiling",
+    install: false,
+    stored: { trustHtml: null, interactiveHtml: null },
+    viewerRuns: true,
+    expected: INSTALL_HOLDS_SCRIPTS,
+  },
+  {
     name: "a Rich HTML character under a raised ceiling",
     install: true,
     stored: { trustHtml: true, interactiveHtml: false },
@@ -323,7 +343,7 @@ for (const { name, install, stored, viewerRuns, expected } of FRAMED_SCRIPT_CASE
   test(`framed scripts for ${name}`, () => {
     const characterId = mintTypeId(ID_PREFIX.character, ids.next);
     const policy = resolveRenderPolicy(
-      { trustHtml: true, forbidExternalMedia: false, allowInteractiveCards: install },
+      { defaultHtmlStep: install ? "interactive" : "trusted", forbidExternalMedia: false },
       { ...stored, forbidExternalMedia: false },
     );
     const seat = { ...mediaSeat(characterId, CHARACTER_NAME, policy), renderSource: stored.trustHtml === null ? "inherited" : "own" } as const;
@@ -372,9 +392,41 @@ test("a game room with its card wrap off flags every row, carrying whether the v
   const viewerUserId = mintUserId(ids.next);
   for (const htmlTrust of ["untrusted", "trusted"] as const) {
     const participants = new Map([[characterId, characterSeat(characterId, htmlTrust, "own")]]);
-    const row = { role: "assistant", authorUserId: null, characterId, viewerUserId, participants } as const;
+    const row = { role: "assistant", authorUserId: null, characterId, viewerUserId, participants, installForbidsExternalMedia: false } as const;
     expect(resolveRowRenderPolicy({ ...row, gameCardsOff: true, viewerIsHost: true }).heldCards, htmlTrust).toEqual({ viewerIsHost: true });
     expect(resolveRowRenderPolicy({ ...row, gameCardsOff: true }).heldCards, htmlTrust).toEqual({ viewerIsHost: false });
     expect(resolveRowRenderPolicy({ ...row, lenientHtmlCards: true, viewerIsHost: true }).heldCards, htmlTrust).toBeUndefined();
+  }
+});
+
+// Whose row loads external media, by the install's switch: the viewer's own message follows it alone, another member's
+// never loads, and a character's follows its resolved policy under the same install switch.
+const ROW_MEDIA = {
+  "the viewer's own message": { writer: "viewer", forbids: false, installAllows: true, installForbids: false },
+  "another member's message": { writer: "member", forbids: false, installAllows: false, installForbids: false },
+  "a character that allows media": { writer: "character", forbids: false, installAllows: true, installForbids: false },
+  "a character that forbids media": { writer: "character", forbids: true, installAllows: false, installForbids: false },
+} as const satisfies Record<
+  string,
+  { readonly writer: "viewer" | "member" | "character"; readonly forbids: boolean; readonly installAllows: boolean; readonly installForbids: boolean }
+>;
+
+test.for(Object.entries(ROW_MEDIA))("%s loads external media only as its row's rule says", ([, expected]) => {
+  const { writer, forbids } = expected;
+  const viewerUserId = mintUserId(ids.next);
+  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+  const human = writer !== "character";
+  for (const installForbidsExternalMedia of [false, true]) {
+    // The roster's policy already folds the install's switch in, as the server resolves it.
+    const policy = { htmlTrust: "trusted", forbidExternalMedia: forbids || installForbidsExternalMedia } as const;
+    const row = resolveRowRenderPolicy({
+      role: human ? "user" : "assistant",
+      authorUserId: { viewer: viewerUserId, member: mintUserId(ids.next), character: null }[writer],
+      characterId: human ? null : characterId,
+      viewerUserId,
+      participants: new Map([[characterId, { ...characterSeat(characterId, "trusted", "own"), renderPolicy: policy }]]),
+      installForbidsExternalMedia,
+    });
+    expect(row.allowExternal, String(installForbidsExternalMedia)).toBe(installForbidsExternalMedia ? expected.installForbids : expected.installAllows);
   }
 });

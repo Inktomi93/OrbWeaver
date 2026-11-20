@@ -5,6 +5,7 @@
 import type { StreamdownProps } from "streamdown";
 import { cn } from "#lib";
 import { MARKDOWN_BLOCKQUOTE_COMPONENTS } from "./blockquote-component.tsx";
+import { MARKDOWN_COLOUR_FONT_COMPONENTS } from "./colour-font-component.tsx";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
 import { MARKDOWN_INLINE_CODE_COMPONENTS } from "./inline-code-component.tsx";
@@ -14,11 +15,13 @@ import { MARKDOWN_RULE_COMPONENTS } from "./rule-component.tsx";
 
 // The two stable `components` maps. Both are module-level constants because Streamdown's Block memo
 // reference-compares the map key by key — a per-render object would re-render every settled block.
+// The colour `font` is drawn as a span (`colour-font-component.tsx`); a frame document keeps it as written.
 // The seal OWNS six elements: the three list elements (#1085), the thematic break (H19, `rule-component.tsx`),
 // the blockquote (`blockquote-component.tsx`) and inline code (`inline-code-component.tsx`) — each a vendor `jsx`
 // call with an uncompiled class string, which is the test #1085 set for taking an element over rather than
 // out-painting it.
 const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = {
+  ...MARKDOWN_COLOUR_FONT_COMPONENTS,
   ...MARKDOWN_LIST_COMPONENTS,
   ...MARKDOWN_RULE_COMPONENTS,
   ...MARKDOWN_BLOCKQUOTE_COMPONENTS,

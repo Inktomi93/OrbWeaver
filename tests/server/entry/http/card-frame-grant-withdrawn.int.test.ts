@@ -1,15 +1,19 @@
 // @subject packages/server/src/entry/http/card-frame.ts
 // A routed card's grants are read again on every serve: a member mints a trusted, interactive card that may load
 // external media, then one grant is withdrawn between the mint and the serve, and the served policy loses exactly
-// that grant. A grant added after the mint never reaches the handle. Everything runs over the real HTTP entry.
+// that grant. A grant added after the mint never reaches the handle. A viewer's script consent is read off their stored
+// settings, and a blob this build cannot read faithfully is no consent at all (D294). Everything runs over the real HTTP
+// entry.
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { AuthModeRoot, SignedIn } from "@orb/testkit/node/auth";
 import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
+import { plantForeignSettingsBytes, plantForeignSettingsValue } from "@orb/testkit/node/composed";
 import type { z } from "zod";
 
 type Caller = Awaited<ReturnType<AuthModeRoot["internalCallerFor"]>>;
@@ -104,9 +108,9 @@ const WITHDRAWALS: Readonly<Record<string, Withdrawal>> = {
     media: { allowExternalMedia: false, allowInlineData: true },
     posture: "interactive",
   },
-  "the admin switches interactive cards off": {
+  "the admin sets the default for characters below Interactive": {
     withdraw: async ({ host }) => {
-      await host.settings.updateAppSettings({ partial: { allowInteractiveCards: false, trustHtml: true } });
+      await host.settings.updateAppSettings({ partial: { defaultHtmlStep: "trusted" } });
     },
     media: ALL_MEDIA,
     posture: "static",
@@ -145,4 +149,32 @@ test("a grant given after the mint never reaches the handle minted without it", 
   // A fresh mint now carries the grant, so the setting really is back on.
   expect((await mint(room)).granted.externalMedia).toBe(true);
   expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "interactive"));
+});
+
+test("a viewer who turned card scripts off keeps them off when another field of their settings is unreadable", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await mintWithEveryGrant(room);
+  await room.memberCaller.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: false } });
+  // A blob another build wrote: one blacklist entry this build's schema refuses, so the whole blob reads as defaults.
+  await plantForeignSettingsValue(root, room.member.userId, "$.chat.autoSwipe.blacklist", ["ok", 7]);
+  const view = await room.memberCaller.settings.getUserSettings();
+  expect(view.configUnreadable).toBe(VERSIONED_PARSE_FAILURES.schemaRejected);
+  // The stand-in default is ON, and it is not this viewer's answer.
+  expect(view.config.chat.runCardScripts).toBe(true);
+  const minted = await mint(room);
+  expect(minted.granted).toEqual({ externalMedia: true, inlineData: true, interactive: false });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "static"));
+});
+
+test("a viewer whose stored settings are not JSON still gets the card, static", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await mintWithEveryGrant(room);
+  await room.memberCaller.settings.updateUserSettingsSection({ section: "profile", patch: { flankCollapsed: true } });
+  await plantForeignSettingsBytes(root, room.member.userId, '{"chat": {"runCardScripts": tr');
+  expect((await room.memberCaller.settings.getUserSettings()).configUnreadable).toBe(VERSIONED_PARSE_FAILURES.notJson);
+  const minted = await mint(room);
+  expect(minted.granted).toEqual({ externalMedia: true, inlineData: true, interactive: false });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "static"));
 });

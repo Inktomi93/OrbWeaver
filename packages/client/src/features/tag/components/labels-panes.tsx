@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ContextTabBody, DetailHeader, QueryBoundary, returnFocusToRow, TAG_READ_LABEL } from "#components";
+import { ContentPane, ContextTabBody, DetailHeader, QueryBoundary, returnFocusToRow, TAG_READ_LABEL } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import type { DrillBack } from "#lib";
 import { CORPUS_MODE_LABELS, DIALOG_VERBS, sectionBackName, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
@@ -30,7 +30,7 @@ function landingReturn(editorWasOpen: boolean, backToRow: boolean): LabelsLandin
   return backToRow ? "row" : "library";
 }
 
-/** CONTENT: the region owns the scroll and the inset once, for both surfaces (the `corpus-content.tsx`
+/** CONTENT: the content pane owns the scroll and the inset once, for both surfaces (the `corpus-content.tsx`
  *  precedent). The editor suspends on the library read, so its Back is the boundary's fallback too: the exit
  *  is never missing for the beat the reader most wants it. Keyed per tag, so the editor's local
  *  name draft never carries over to the next tag. */
@@ -60,7 +60,7 @@ export function LabelsContent(): ReactElement {
   const exit = <DetailHeader back={back} />;
   return (
     <Container className="min-block-0" height="fill">
-      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="labels-content">
+      <ContentPane data-slot="labels-content">
         {tagId === null ? (
           <LabelsLandingSurface returning={landingReturn(editorWasOpen, backToRow)} />
         ) : (
@@ -85,7 +85,7 @@ export function LabelsContent(): ReactElement {
             <TagMemberSurface back={back} key={tagId} tagId={tagId} />
           </QueryBoundary>
         )}
-      </Stack>
+      </ContentPane>
     </Container>
   );
 }

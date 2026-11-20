@@ -26,7 +26,6 @@ export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>
     rail: { label: HOME_SECTION_LABEL, icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
     // No member to name — the mobile topbar prints the section label (NO_SELECTION_TITLE).
     useSelectionTitle: NO_SELECTION_TITLE,
-    contentInset: { planned: "The full-width Home scroller contains touch shelves that extend through its section inset." },
     panelDefaults: { list: "collapsed", context: "collapsed" },
     placeholder: {
       title: "Home",

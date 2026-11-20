@@ -4,6 +4,7 @@
  * variants), never raw scale classes; `<Container>` is the one writer of `container-type`.
  */
 
+export { BulletList } from "./bullet-list.tsx";
 export { Container } from "./container.tsx";
 export { Contents } from "./contents.tsx";
 export { Corner } from "./corner.tsx";

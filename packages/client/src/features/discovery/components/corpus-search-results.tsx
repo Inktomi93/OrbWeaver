@@ -346,7 +346,8 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
                     clickable={true}
                     onClick={(): void => openChatMoment(segment.chatId, { kind: "source", source: segment.source })}
                     title={segment.chatTitle ?? "Untitled chat"}
-                    {...(segmentQualifiers[index] === undefined ? { meta: String(index + 1) } : { titleQualifier: segmentQualifiers[index] })}
+                    meta={segmentQualifiers[index] ?? String(index + 1)}
+                    metaQualifiesTitle={segmentQualifiers[index] !== undefined}
                     subtitle={snippetForDisplay(segment.snippet)}
                     subtitleWrap={true}
                   />

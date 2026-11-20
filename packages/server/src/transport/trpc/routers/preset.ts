@@ -19,6 +19,7 @@ import {
   promptConfigWriteSchema,
   resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
+import { regexScriptIdsInputSchema } from "@orb/contracts/regex";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
@@ -98,8 +99,8 @@ export const presetRouter = t.router({
 
   remove: authedProcedure
     .output(z.void())
-    .input(presetIdInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
+    .input(presetIdInputSchema.extend({ scriptIds: regexScriptIdsInputSchema.default([]) }))
+    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id, scriptIds: input.scriptIds })),
 
   resetToDefault: authedProcedure
     .output(presetDetailSchema)

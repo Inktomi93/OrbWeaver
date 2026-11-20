@@ -320,6 +320,9 @@ export const stackVariants = tv({
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
+    // The inline inset a box gives back under a 20rem pane, the width an enlarged root leaves a phone, so a control row of its own
+    // width still fits.
+    paddingInlineCramped: { block: "@max-cq-20:px-inset-block" },
     // The block-start inset a box gives up at a phone-width pane.
     paddingBlockStartNarrow: { none: "@max-cq-32:pbs-0" },
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
@@ -431,6 +434,13 @@ const DIALOG_SCROLL_CLASS =
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
   variants: { grow: { true: GROW.true, false: GROW.false } },
+});
+
+// A vertical list of short lines under a marker. The text of every item starts one `indent` in, the nested level of what hangs under
+// a heading (UI-Density-Law.md §2.2), and the marker hangs in that indent outside the text, so a wrapped line runs back to the text's
+// edge and never under the marker. The marker takes the muted ink; the items keep the `tight` step between them.
+export const bulletListVariants = tv({
+  base: "m-0 list-outside list-disc ps-indent *:not-first:mbs-tight marker:text-muted-foreground",
 });
 
 export const rowVariants = tv({

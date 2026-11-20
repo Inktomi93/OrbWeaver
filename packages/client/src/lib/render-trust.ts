@@ -14,7 +14,7 @@
 // here would mean a second spelling of a SECURITY verdict.
 
 import type { DeploymentRenderPolicy, MessageKind, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
-import { rendersTrustedHtml, resolveCardScriptVerdict } from "@orb/contracts/chat";
+import { rendersTrustedHtml, resolveCardMediaVerdict, resolveCardScriptVerdict } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
@@ -32,7 +32,7 @@ const SAFE_FLOOR: RenderPolicy = { htmlTrust: "untrusted", forbidExternalMedia: 
  *  while `/api/auth/config` has not landed (`data/auth-config.ts`'s `useRenderPolicyFloor`). Kept beside
  *  {@link SAFE_FLOOR} because they are the same decision said at two tiers, and a second spelling of a
  *  fail-closed default is how one of them drifts permissive. */
-export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: false };
+export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { defaultHtmlStep: "untrusted", forbidExternalMedia: true };
 
 /** Why a styled reply the row's tier would frame renders on the inert plain path instead, by role: the reason the
  *  plain-content notice names. */
@@ -84,11 +84,11 @@ export interface HeldCards {
 const PLAIN_REASONS = [
   // The character's own HTML setting is Plain text.
   "character",
-  // The character inherits the install default, and the install renders HTML as plain.
+  // The character inherits the install's "Default for characters", which is Plain text.
   "install",
-  // No card is read for the seat, so the install's plain default applies.
+  // No card is read for the seat, so no one consents for it and it draws as Plain text.
   "no-card",
-  // The room has no consenting host, so no card applies and the install's plain default does.
+  // The room has no consenting host, so no card applies and it draws as Plain text.
   "no-host",
   // Another person wrote the row: no setting renders someone else's HTML.
   "member",
@@ -107,7 +107,7 @@ const PLAIN_REMEDIES = [
   "ask-host",
   // Only the server's admin can change it.
   "ask-admin",
-  // The viewer's own Run story-card scripts setting.
+  // The viewer's own "Run scripts in cards and styled replies" setting.
   "own-scripts",
   // The game's host console: the viewer hosts the room.
   "game-settings",
@@ -152,6 +152,9 @@ export interface ResolveRowRenderPolicyInput {
   readonly lenientHtmlCards?: boolean | undefined;
   /** The room is a game whose `immersiveHtml` read landed as off. Absent ⇒ not. */
   readonly gameCardsOff?: boolean | undefined;
+  /** The install's "Block external media" (`useRenderPolicyFloor`, strict until the config lands). The viewer's own
+   *  message loads external media under it alone; every other row also takes its author's policy. */
+  readonly installForbidsExternalMedia: boolean;
   /** The user's quoted-speech tint pref; absent ⇒ ON (the contract default). */
   readonly colorQuotedSpeech?: boolean | undefined;
   /** Whether the viewer hosts the room (`ChatDetail.viewerIsHost`); absent ⇒ not. */
@@ -160,7 +163,8 @@ export interface ResolveRowRenderPolicyInput {
 
 // Why an untrusted character policy is untrusted, read off where the server says it came from. Under
 // `resolveRenderPolicy` (`@orb/contracts/chat`) one setting always suffices: a character's own step wins over the
-// install default, and an inheriting character or a seat on the floor follows the install default alone.
+// install default, an inheriting character follows the install default alone, and a seat with no card or no consenting
+// host is Plain text, which no setting changes.
 function plainReason(subject: PlainSubject): PlainReason {
   if (subject.author !== "character" || subject.source === undefined) {
     return subject.author === "character" ? "unattributed" : subject.author;
@@ -190,8 +194,6 @@ function plainRemedy(reason: PlainReason, isHost: boolean, isAdmin: boolean): Pl
       return isHost ? "character-trust" : "ask-host";
     case "no-card":
     case "no-host":
-      // No card's setting applies, so only the install default can change it.
-      return isAdmin ? "system-trust" : "ask-admin";
     case "member":
     case "unattributed":
       return "none";
@@ -215,6 +217,18 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
     characterId: named ? subject.characterId : null,
     characterName: named ? subject.characterName : undefined,
   };
+}
+
+/** The room's character seats by character id: the map every row's policy and every framed notice's verdict reads,
+ *  in the transcript and in the game's card archive. */
+export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
+  const byId = new Map<CharacterId, ParticipantView>();
+  for (const participant of participants) {
+    if (participant.kind === "character" && participant.characterId !== null) {
+      byId.set(participant.characterId, participant);
+    }
+  }
+  return byId;
 }
 
 /** Which setting holds external media out of a framed card or styled reply: the install's, the character's own, or
@@ -254,23 +268,33 @@ function framedMediaAuthor(subject: FramedMediaSubject): { readonly policy: Rend
 }
 
 /** Which setting withholds a framed row's external media and where this viewer can change it, or `undefined` when the
- *  row's policy lets it load. The resolved policy is tighten-only (`resolveRenderPolicy`), so the install's setting
- *  binds whenever it forbids, and a character's own setting binds only when the install allows. Every input is already
- *  on every member's roster and auth config, so the verdict tells a member nothing new. */
+ *  row's policy lets it load. The rule is the card-frame route's own (`resolveCardMediaVerdict`), over the same reads,
+ *  so this names the holder the route applied. Every input is already on every member's roster and auth config, so the
+ *  verdict tells a member nothing new. */
 export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsAdmin: boolean): FramedMediaVerdict | undefined {
   const { policy, seat } = framedMediaAuthor(subject);
-  if (!(policy ?? SAFE_FLOOR).forbidExternalMedia) {
-    return undefined;
-  }
   const unnamed = { characterId: null, characterName: undefined };
-  if (policy !== undefined && subject.installForbids) {
-    return { reason: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
-  }
-  const characterId = policy === undefined ? null : (seat?.characterId ?? null);
-  if (characterId === null) {
+  // A row no seated policy covers mints at the floor, which no setting lifts.
+  if (policy === undefined) {
     return { reason: "unattributed-media", remedy: "none", ...unnamed };
   }
-  return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
+  const { external } = resolveCardMediaVerdict({ installForbids: subject.installForbids, policy });
+  if (external.loads) {
+    return undefined;
+  }
+  switch (external.heldBy) {
+    case "install":
+      return { reason: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
+    case "character": {
+      const characterId = seat?.characterId ?? null;
+      if (characterId === null) {
+        return { reason: "unattributed-media", remedy: "none", ...unnamed };
+      }
+      return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
+    }
+    default:
+      return assertNeverHolder(external.heldBy);
+  }
 }
 
 /** Which consent holds a framed card's or styled reply's own scripts off, as the notice names it. */
@@ -284,9 +308,9 @@ export interface FramedScriptSubject {
   readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
   /** The room's narrator policy (`ChatDetail.narratorRender`). */
   readonly narrator: NarratorRenderPolicy | undefined;
-  /** The install's `allowInteractiveCards`, as `/api/auth/config` serves it to every viewer. */
+  /** Whether the install's "Default for characters" is Interactive, as `/api/auth/config` serves it to every viewer. */
   readonly installAllowsScripts: boolean;
-  /** The viewer's own `chat.runCardScripts`. */
+  /** The viewer's own consent, read through `viewerRunsCardScripts`. */
   readonly viewerRunsScripts: boolean;
   readonly viewerIsHost: boolean;
 }
@@ -340,7 +364,7 @@ export function resolveFramedScriptVerdict(subject: FramedScriptSubject, viewerI
 }
 
 function assertNeverHolder(holder: never): never {
-  throw new Error(`render-trust: unhandled script holder ${String(holder)}`);
+  throw new Error(`render-trust: unhandled holder ${String(holder)}`);
 }
 
 /** The character a row's policy is read from, with that policy as the server resolved it. */
@@ -379,7 +403,11 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   const viewerIsHost = input.viewerIsHost === true;
   const base = {
     trust,
-    allowExternal: !policy.forbidExternalMedia,
+    // The viewer's own media reveals their address only to hosts they chose, so it follows the install alone. Another
+    // member's media stays click-to-load: a pixel there would reveal every viewer.
+    allowExternal: isOwnUserMessage
+      ? !input.installForbidsExternalMedia
+      : resolveCardMediaVerdict({ installForbids: input.installForbidsExternalMedia, policy }).external.loads,
     lenientCards,
     colorQuotes: input.colorQuotedSpeech !== false,
     cardTier,

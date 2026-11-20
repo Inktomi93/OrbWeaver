@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DetailHeader, QueryBoundary } from "#components";
+import { ContentPane, DetailHeader, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, sectionBackName, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
@@ -52,23 +52,21 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} minHeight="shrinks" height="fill" focusTarget={true} data-testid={testId("analyticsCharacterSurface")}>
+    <ContentPane data-testid={testId("analyticsCharacterSurface")} data-slot="analytics-content" ref={surfaceRef} tabIndex={-1}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
-          slot ride the scroller. */}
-      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="analytics-content">
-        <QueryBoundary
-          resetKeys={[characterId]}
-          fallback={<SkeletonRows count={3} shape="datum" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
-          reserveKey="analytics.character"
-        >
-          <CharacterBody characterId={characterId} onBack={onBack} />
-        </QueryBoundary>
-      </Stack>
-    </Stack>
+          slot ride the pane. */}
+      <QueryBoundary
+        resetKeys={[characterId]}
+        fallback={<SkeletonRows count={3} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
+        reserveKey="analytics.character"
+      >
+        <CharacterBody characterId={characterId} onBack={onBack} />
+      </QueryBoundary>
+    </ContentPane>
   );
 }
 

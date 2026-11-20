@@ -1,4 +1,4 @@
-// SettingRowGroup — the MEASURE-CAPPED, TRACK-SHARING container a section wraps its `SettingRow`s in
+// SettingRowGroup — the TRACK-SHARING container a section wraps its `SettingRow`s in
 // (#932). It is the top link of the subgrid chain: GROUP declares the three tracks → `SettingRow` spans
 // all three and re-exposes them → the `<Field>` inside spans the first two.
 //
@@ -38,16 +38,12 @@ export function SettingRowGroup({ children, kind = "settings" }: { readonly chil
   return (
     <Container>
       <FieldLayout align="track" orientation={layout.orientation}>
-        {/* `max-w-(--reading-measure)` caps the BLOCK (the E1 ask). It stays on the WIDE measure after the
-            #1145 split, deliberately: this cap bounds a track pair of label and CONTROL, and a control row
-            squeezed to a prose measure is a worse row. The prose half of the E1 ask moved to where it
-            belongs — the one-line gloss under each label now carries `--reading-measure-prose` at its own
-            element (`setting-teach-row`, and `Field`'s `description` slot in track mode), so the paragraph
-            is measured in its own font instead of inheriting a block cap computed at another step.
-            `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
-            Section's own `gap-block` used to give
-            these rows when they were its direct children. */}
-        <Grid cap="reading" gapInline="block" cols={layout.cols} gap={layout.gap} data-slot="setting-row-group">
+        {/* No cap of its own: the content pane's column bounds the block, so the controls never stretch past the
+            column a settings pane and an editor share, and a choice grid fills that column. The prose measure
+            rides the one-line gloss under each label (`setting-teach-row`, and `Field`'s `description` slot in
+            track mode), measured in its own font. `gap-x-block` is the label→control gutter; `gap-y-block`
+            keeps the between-row rhythm of a Section's own `gap-block`. */}
+        <Grid gapInline="block" cols={layout.cols} gap={layout.gap} data-slot="setting-row-group">
           {children}
         </Grid>
       </FieldLayout>

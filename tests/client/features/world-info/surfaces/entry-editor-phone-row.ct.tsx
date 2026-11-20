@@ -1,4 +1,5 @@
 // The entry editor's Priority and Fire mode controls on a phone: both stay inside the editor's own width. The Depth and Role row wraps at enlarged text.
+
 import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -15,6 +16,8 @@ import {
 import { NUMBER_FIELD_DECREMENT_VERB, NUMBER_FIELD_INCREMENT_VERB, numberStepperName } from "#ui/primitives/number-field/number-field-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
+// The scans read the content pane's column, where the editor lays out; the pane's own inset boxes span the pane by design.
+const COLUMN = '[data-slot="content-pane-body"] > *';
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
 const PROCEDURES = [
   "worldInfo.listBooksWithUsage",
@@ -59,10 +62,14 @@ for (const width of PHONE_WIDTHS) {
       throw new Error("The editor and its two controls must have visible geometry");
     }
     // The rest of the editor holds too: nothing in it runs past its right edge.
-    const overflow = await component.evaluate((host, right) => {
-      const widest = Math.max(...Array.from(host.querySelectorAll("*"), (element) => element.getBoundingClientRect().right));
-      return widest - right;
-    }, editor.x + editor.width);
+    const overflow = await component.evaluate(
+      (host, { right, column: columnSelector }) => {
+        const column = host.querySelector(columnSelector) ?? host;
+        const widest = Math.max(...Array.from(column.querySelectorAll("*"), (element) => element.getBoundingClientRect().right));
+        return widest - right;
+      },
+      { right: editor.x + editor.width, column: COLUMN },
+    );
     expect(overflow).toBeLessThanOrEqual(EDGE_SLACK);
     for (const control of [priority, fireMode]) {
       expect(control.x).toBeGreaterThanOrEqual(editor.x - EDGE_SLACK);
@@ -115,11 +122,11 @@ for (const width of PHONE_WIDTHS) {
       // Nothing in the editor, the stepped Depth field included, runs past its edge: the row wraps its fields and the field stacks its steppers
       // under the input instead of scrolling sideways.
       const past = await component.evaluate(
-        (host, { right, slack }) =>
-          Array.from(host.querySelectorAll("*"))
+        (host, { right, slack, column }) =>
+          Array.from((host.querySelector(column) ?? host).querySelectorAll("*"))
             .filter((element) => element.getBoundingClientRect().right > right + slack)
             .map((element) => `${element.tagName.toLowerCase()}[${element.getAttribute("data-slot") ?? ""}] ${element.textContent.slice(0, 24)}`),
-        { right: editor.x + editor.width, slack: EDGE_SLACK },
+        { right: editor.x + editor.width, slack: EDGE_SLACK, column: COLUMN },
       );
       expect(past).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

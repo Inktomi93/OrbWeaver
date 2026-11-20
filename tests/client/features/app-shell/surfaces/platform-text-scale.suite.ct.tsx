@@ -1299,7 +1299,7 @@ test.describe("a library page on the phone", () => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
     await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toBeVisible();
-    const region = page.locator(".shell-region-fill[data-inset]");
+    const region = page.locator('[data-slot="content-pane-body"]').first();
     const atDefault = Math.max(...(await inlineInset(region)));
     // The positive control: the page is inset at the default size, so a bound of zero cannot pass.
     expect(atDefault).toBeGreaterThan(0);

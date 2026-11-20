@@ -8,6 +8,7 @@ import { FileInput, Icon, Plus, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ContentPane } from "#components";
 import { useTRPC } from "#data";
 import { LIST_OFF_SCREEN_HINT, selectPresetFromList, usePresetSearchQuery, useSectionListMode } from "#state";
 import { useNewPreset } from "../hooks/use-new-preset.ts";
@@ -97,31 +98,33 @@ export function PresetLibraryWelcome(): ReactElement {
     // `data-ready`: this pane has no skeleton, so it declares when its first read has settled or cannot proceed (data,
     // empty, error, or paused offline: `isLoading` is a read that is actually in flight). A section swap holds the
     // outgoing view for it, and shell/motion.css fades the pane in if it settles later.
-    <Stack align="center" height="fill" scroll="y" data-ready={isLoading ? "false" : "true"}>
-      {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
-      <EmptyState
-        action={
-          // Both doors have their words: someone who arrives with a preset file is told only how to start over by "New
-          // preset" alone. Import recedes (ghost), New stays the one primary.
-          <Row align="center" wrap={true} cap="fit" gap="field" justify="center">
-            <Button disabled={creating.pending} onClick={creating.create}>
-              <Icon icon={Plus} size="sm" />
-              {NEW_PRESET_NAME}
-            </Button>
-            <Button variant="ghost" ink="muted" onClick={importer.open}>
-              <Icon icon={FileInput} size="sm" />
-              {PRESET_IMPORT_TITLE}
-            </Button>
-            {importer.dialog}
-          </Row>
-        }
-        push="blockCentre"
-        description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
-        icon={<Icon icon={SlidersHorizontal} size="lg" />}
-        measure="wide"
-        title="Tune how the model generates"
-        titleAs="h2"
-      />
-    </Stack>
+    <ContentPane data-ready={isLoading ? "false" : "true"}>
+      <Stack align="center" height="fill">
+        {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
+        <EmptyState
+          action={
+            // Both doors have their words: someone who arrives with a preset file is told only how to start over by "New
+            // preset" alone. Import recedes (ghost), New stays the one primary.
+            <Row align="center" wrap={true} cap="fit" gap="field" justify="center">
+              <Button disabled={creating.pending} onClick={creating.create}>
+                <Icon icon={Plus} size="sm" />
+                {NEW_PRESET_NAME}
+              </Button>
+              <Button variant="ghost" ink="muted" onClick={importer.open}>
+                <Icon icon={FileInput} size="sm" />
+                {PRESET_IMPORT_TITLE}
+              </Button>
+              {importer.dialog}
+            </Row>
+          }
+          push="blockCentre"
+          description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
+          icon={<Icon icon={SlidersHorizontal} size="lg" />}
+          measure="wide"
+          title="Tune how the model generates"
+          titleAs="h2"
+        />
+      </Stack>
+    </ContentPane>
   );
 }

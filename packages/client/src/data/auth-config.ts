@@ -7,6 +7,7 @@
 import type { AuthConfig } from "@orb/contracts/auth-config";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
+import { installAllowsCardScripts } from "@orb/contracts/chat";
 import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
@@ -126,13 +127,13 @@ export function useExternalMediaBlocked(): boolean {
   return useAuthConfig().data?.forbidExternalMedia === true;
 }
 
-/** Does this deployment allow interactive cards at all (#111 leg 3)? FALSE ⇒ the per-character "Interactive"
- *  rung stores fine but resolves to the static posture everywhere, so a surface offering it must say so.
- *  `=== true`, so a not-yet-landed config reads as BLOCKED — the strict direction, even though the server's
- *  floor is on. (The external-media twin defaults the other way for the same reason: there the strict
- *  reading is "blocked", and here the strict reading is "not allowed".) */
+/** Does this install let any card run scripts, its "Default for characters" being Interactive? FALSE ⇒ the
+ *  per-character Interactive step stores fine but resolves to the static posture everywhere, so a surface offering it
+ *  must say so. A not-yet-landed config reads as not allowed, the strict direction, even though the server's floor is
+ *  on. (The external-media twin defaults the other way for the same reason: there the strict reading is "blocked".) */
 export function useInteractiveCardsAllowed(): boolean {
-  return useAuthConfig().data?.allowInteractiveCards === true;
+  const config = useAuthConfig().data;
+  return config !== undefined && installAllowsCardScripts(config);
 }
 
 /** The deployment RENDER-POLICY FLOOR — the pair `resolveRenderPolicy` (`@orb/contracts/chat`) combines a
@@ -144,12 +145,12 @@ export function useInteractiveCardsAllowed(): boolean {
  *  fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes one tier up. Guessing
  *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop.
  *
- *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the three axes an
- *  AppSetting carries, and the resolver folds a per-character override over them. */
+ *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the two axes its
+ *  AppSettings carry, and the resolver folds a per-character override over them. */
 export function useRenderPolicyFloor(): DeploymentRenderPolicy {
   const config = useAuthConfig().data;
   if (config === undefined) {
     return DEPLOYMENT_FLOOR;
   }
-  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia, allowInteractiveCards: config.allowInteractiveCards };
+  return { defaultHtmlStep: config.defaultHtmlStep, forbidExternalMedia: config.forbidExternalMedia };
 }

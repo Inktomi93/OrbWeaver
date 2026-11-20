@@ -19,12 +19,10 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ConfigSubcategory } from "#state";
-
-/** The viewer's card-script consent, as its row and a framed-script notice's control address it. */
-export const RUN_CARD_SCRIPTS_SETTING_ID = "run-card-scripts";
+import { MESSAGE_HANDLING_CONFIG_SUB, RUN_CARD_SCRIPTS_CONFIG_SETTING } from "#state";
 
 export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
-  id: "message-handling",
+  id: MESSAGE_HANDLING_CONFIG_SUB,
   label: "Chat & message handling",
   // The full name overflows the 220px nav column; the heading keeps it. Inside the Chat behavior pane the
   // "Chat &" half is the pane's own context anyway, so the nav row is unambiguous without it.
@@ -154,14 +152,14 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: RUN_CARD_SCRIPTS_SETTING_ID,
+      id: RUN_CARD_SCRIPTS_CONFIG_SETTING,
       key: "runCardScripts",
-      label: "Run story-card scripts",
-      keywords: ["interactive", "card", "script", "privacy", "ip"],
+      label: "Run scripts in cards and styled replies",
+      keywords: ["interactive", "card", "script", "reply", "privacy", "ip"],
       teach: {
         summary:
-          "Interactive story cards can run their own scripts in your browser, sandboxed away from your account. A card script can still reveal your IP address to whoever wrote the card. Off shows every card without its scripts, in every chat, including rooms other people host.",
-        affects: ["every interactive story card you view, on this account"],
+          "Interactive cards and styled replies can run their own scripts in your browser, sandboxed away from your account. A script can still reveal your IP address to whoever wrote it. Off shows every card and styled reply without its scripts, in every chat, including rooms other people host. If your settings cannot be read, scripts stay off.",
+        affects: ["every interactive card and styled reply you view, on this account"],
       },
     },
   ],

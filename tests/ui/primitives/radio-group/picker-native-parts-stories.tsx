@@ -17,12 +17,14 @@ export function PickerNativePartsStory({
   shape,
   withMeta = false,
   longLabel,
+  corners,
 }: {
   readonly width?: number;
   readonly detail?: boolean;
   readonly shape?: RadioGroupPickerItemProps["shape"];
   readonly withMeta?: boolean;
   readonly longLabel?: string;
+  readonly corners?: RadioGroupPickerItemProps["corners"];
 }): ReactElement {
   const id = useId();
   const [value, setValue] = useState("one");
@@ -37,6 +39,7 @@ export function PickerNativePartsStory({
               label={option.value === "two" && longLabel !== undefined ? longLabel : option.label}
               idPrefix={`${id}-${option.value}`}
               shape={shape}
+              {...(corners === undefined ? {} : { corners })}
               {...(withMeta && option.value === "one" ? { meta: "current" } : {})}
               {...("description" in option ? { description: option.description } : {})}
             />

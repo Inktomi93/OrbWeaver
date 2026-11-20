@@ -68,8 +68,6 @@ export const commandVariants = tv({
     status: "sr-only",
   },
   variants: {
-    // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
-    elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
     fill: { true: { root: "block-full dialog-short:glass-short:block-auto" } },
     // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row. A roomy dialog's list gives the room a footer

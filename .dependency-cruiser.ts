@@ -150,6 +150,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/preset/components/_guessed-limits-probe\\.ts$":
     "the navigation probe names the guessed-limits preset story authors and its spec reads the door's request by",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
+  "^tests/ui/primitives/float-shadow-cases\\.ts$": "the anchored floats and options the float-shadow story mounts and its spec opens and reads",
   "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
   "^tests/ui/primitives/toast/one-alert-names\\.ts$": "the control name and notice title the one-alert story authors and its spec locates them by",
   "^tests/ui/primitives/tooltip/keyboard-focus-names\\.ts$": "the control names and hints the tooltip rail story authors and its focus spec locates them by",
@@ -1134,7 +1135,12 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
   },
   "tests/client/features/chat/lib/reply-parts.test.ts": {
-    "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
+    "packages/client/src/features/chat/lib/reply-parts.ts":
+      "replyLayout and carriedRoomSheets: the feature-private split of a styled reply into frame runs and the room sheets it carries",
+  },
+  "tests/client/features/chat/lib/room-sheets.test.ts": {
+    "packages/client/src/features/chat/lib/room-sheets.ts":
+      "roomSheetSources and roomSheetsBefore: the feature-private choice of which rows' stylesheets a room carries",
   },
   "tests/client/features/chat/lib/panel-reads.test.ts": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "readPanels and PANEL_READ_MAX_CHARS: the bounded panel read every drawn body takes",
