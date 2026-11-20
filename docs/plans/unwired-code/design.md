@@ -46,6 +46,15 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 
 The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. 1715 owns that change and holds the classification, the program sets, the time and memory profile, and the TypeScript 6 retirement order. 1697 owns the write and read forms neither engine follows.
 
+## One pass for the member scan
+
+`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields, params and unions scans keep both engines while the fields disagreement stands.
+
+Engine one counts two uses no name shows:
+
+- A parameter or variable typed `Owner["m"]`, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`.
+- A value handed to a slot a library declares, as `mutate(input, settle)`: the library reads each member its slot names, so the hand-off reads the value's same-named members.
+
 ## Limits of the fields scan
 
 Engine one links a hand-off through a generic constraint, a spread into a typed literal down its nested members, an `in` check and a key typed by a type parameter. These forms stay reported as findings, so judge them by hand:

@@ -25,6 +25,7 @@ import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
+import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
@@ -349,10 +350,10 @@ interface FirstPass {
   readonly literals: readonly LiteralSite[];
 }
 
-function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sources): FirstPass {
+function engineOne(options: ScanOptions, worlds: readonly string[], lists: ReadonlyMap<string, WorldFiles>, sources: Sources): FirstPass {
   const found = new Map<string, { readonly tuple: Tuple; readonly references: Map<string, Site>; readonly satisfied: ReadonlySet<string> }>();
   const literals = new Map<string, LiteralSite>();
-  const homes = homeFiles(worlds, NativeWorld.fileLists(options.root, worlds));
+  const homes = homeFiles(worlds, lists);
   for (const config of worlds) {
     using world = NativeWorld.open(options.root, config);
     const local = tuples(world);
@@ -393,7 +394,8 @@ function subsetLineages(first: FirstPass): ReadonlyMap<string, readonly string[]
 export function scanUnions(options: ScanOptions): UnionsReport {
   const { worlds } = scanWorlds(options);
   const sources = new Sources(options.root);
-  const first = engineOne(options, worlds, sources);
+  const lists = NativeWorld.fileLists(options.root, worlds);
+  const first = engineOne(options, worlds, lists, sources);
   const entries = [...first.tuples.values()];
   const subsets = subsetLineages(first);
   const lineage = (tuple: Tuple): readonly string[] => [tuple.key, ...(subsets.get(tuple.key) ?? [])];
@@ -409,7 +411,7 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const texts = new Set(candidates.map(({ member }) => member.text));
   const builtTwo = builtInto(worlds.flatMap((config) => builtByService(ServiceWorld.open(options.root, config), sources, texts, own)));
   const tupleSites = [...new Set(candidates.map(({ tuple }) => tuple))].map((tuple) => tuple.site);
-  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log, crossCheck: options.crossCheck });
+  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log, crossCheck: options.crossCheck, lists });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredUnionMember[] = [];
   const disagreements: string[] = [];

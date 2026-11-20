@@ -41,6 +41,8 @@ import {
   isNumericLiteral,
   isObjectBindingPattern,
   isObjectLiteralExpression,
+  isParameterDeclaration,
+  isParenthesizedTypeNode,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isPropertyDeclaration,
@@ -52,6 +54,7 @@ import {
   isStringLiteral,
   isTypeQueryNode,
   isTypeReferenceNode,
+  isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
@@ -345,6 +348,68 @@ function indexedMember(node: Node): { readonly member: Node; readonly owner: Nod
   return literal !== undefined && isStringLiteral(literal) ? { member: node.name, owner: objectType, name: literal.text } : null;
 }
 
+// `(load: Owner["m"]) => load()`: a parameter or variable typed by a member holds that member's value, as a composition
+// root hands a verb into its sibling. No name joins the binding to the member, so its value reads are credited there.
+interface DerivedBinding {
+  readonly binding: Identifier;
+  readonly owner: Node;
+  readonly name: string;
+  /** Where the binding's reads can sit: its function for a parameter, its file for a variable. */
+  readonly scope: Node;
+}
+
+function derivedBinding(node: Node): DerivedBinding | null {
+  if (!((isParameterDeclaration(node) || isVariableDeclaration(node)) && isIdentifier(node.name) && node.type !== undefined)) {
+    return null;
+  }
+  let type: TypeNode = node.type;
+  while (isParenthesizedTypeNode(type)) {
+    type = type.type;
+  }
+  if (!isIndexedAccessTypeNode(type)) {
+    return null;
+  }
+  const literal = isLiteralTypeNode(type.indexType) ? type.indexType.literal : undefined;
+  if (literal === undefined || !isStringLiteral(literal)) {
+    return null;
+  }
+  return { binding: node.name, owner: type.objectType, name: literal.text, scope: isParameterDeclaration(node) ? node.parent : node.getSourceFile() };
+}
+
+function bindingReaders({ binding, scope }: DerivedBinding): readonly Identifier[] {
+  const found: Identifier[] = [];
+  const visit = (node: Node): void => {
+    if (isIdentifier(node) && node !== binding && node.text === binding.text && isValueName(node)) {
+      found.push(node);
+    }
+    node.forEachChild(visit);
+  };
+  scope.forEachChild(visit);
+  return found;
+}
+
+// Each value read of a derived binding, credited to the member its type names. A same-named identifier that resolves
+// elsewhere, a shadowing binding, is no read of it.
+function derivedBindingReads(world: NativeWorld, bindings: readonly DerivedBinding[]): PropertyFacts["credits"] {
+  const { checker } = world;
+  const readers = bindings.map(bindingReaders);
+  const answers = world.batch(
+    bindings.map(function* ({ binding, owner, name }, at) {
+      const own = yield* checker.getSymbolAtLocation.gen(binding);
+      const members = yield* propertiesNamed(checker, yield* checker.getTypeAtLocation.gen(owner), name);
+      const read = yield* all(...(readers[at] ?? []).map((reader) => checker.getSymbolAtLocation.gen(reader)));
+      return { own: keysOf([own]), members: keysOf(members), read: read.map((symbol) => keysOf([symbol])) };
+    }),
+  );
+  return answers.flatMap(({ own, members, read }, at) =>
+    own.length === 0 || members.length === 0
+      ? []
+      : (readers[at] ?? []).flatMap((reader, index) =>
+          (read[index] ?? []).some((key) => own.includes(key)) ? [{ site: world.siteOf(reader), keys: members }] : [],
+        ),
+  );
+}
+
 type Signature = FunctionDeclaration & { readonly name: Identifier };
 
 // Each overload's type node beside the implementation's, by parameter position and through a returned function type.
@@ -577,6 +642,7 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const reflections: (Reflection & { readonly site: Site })[] = [];
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
+  const bindings: DerivedBinding[] = [];
   const written = new Set<string>();
   const stores: StoreWrite[] = [];
   const definitions: { readonly file: string; readonly start: number; readonly end: number }[] = [];
@@ -603,6 +669,10 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     const member = indexedMember(node);
     if (member !== null) {
       indexed.push(member);
+    }
+    const binding = derivedBinding(node);
+    if (binding !== null) {
+      bindings.push(binding);
     }
     if (isFunctionDeclaration(node) && node.body !== undefined && node.name !== undefined) {
       implementations.push(node as Signature);
@@ -642,9 +712,10 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   );
   const overloaded = world.batch(implementations.flatMap(overloadPairs).map((pair) => overloadLinks(checker, pair)));
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
-  const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [...stored.credits];
+  const handoffs = handoffFlows(world, home);
+  const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [...stored.credits, ...derivedBindingReads(world, bindings), ...handoffs.reads];
   const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
-  const flows: Flow[] = [...handoffFlows(world, home), ...stored.flows];
+  const flows: Flow[] = [...handoffs.flows, ...stored.flows];
   const sends: PropertyFacts["sends"][number][] = [...stored.sends];
   const rows = rowColumnReads(
     world,

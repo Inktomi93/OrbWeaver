@@ -4,39 +4,11 @@
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
-import type { PortMember } from "../eslint/index.ts";
-import { effectiveMember, flowMembers, flowsAt } from "../eslint/index.ts";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { WorldFiles } from "./native.ts";
 import { NativeWorld } from "./native.ts";
-import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
-
-// The scan key of a member declared directly in an interface or an object type alias; null for any other member.
-function memberKey(root: string, member: PortMember): string | null {
-  const holder = member.parent;
-  const alias = ts.isTypeLiteralNode(holder) && ts.isTypeAliasDeclaration(holder.parent) ? holder.parent : null;
-  const home = ts.isInterfaceDeclaration(holder) ? holder : alias;
-  return home === null ? null : `${relative(root, member.getSourceFile().fileName)}:${home.name.text}.${member.name.getText()}`;
-}
-
-function addFlow(flows: Map<string, Set<string>>, value: string | null, slot: string | null): void {
-  if (value !== null && slot !== null && value !== slot) {
-    flows.set(value, (flows.get(value) ?? new Set()).add(slot));
-  }
-}
-
-// A value handed into a slot, and a member derived from another (`readonly m: Owner["m"]`): a use of the slot or of
-// the derived member is a use of the member it comes from.
-function recordFlows(root: string, checker: ts.TypeChecker, node: ts.Node, flows: Map<string, Set<string>>): void {
-  for (const flow of flowsAt(checker, node).members) {
-    const joined = flowMembers(checker, flow);
-    addFlow(flows, joined === null ? null : memberKey(root, joined.owner), joined === null ? null : memberKey(root, joined.port));
-  }
-  if (ts.isPropertySignature(node)) {
-    addFlow(flows, memberKey(root, effectiveMember(checker, node)), memberKey(root, node));
-  }
-}
+import { loadScanWorld, realpath } from "./worlds.ts";
 
 /** One world's program behind a TypeScript 6 language service. */
 export class ServiceWorld {
@@ -99,21 +71,6 @@ export class ServiceWorld {
       }
     }
     return found;
-  }
-
-  /** The member flows of the world's production files. */
-  flows(): Map<string, Set<string>> {
-    const flows = new Map<string, Set<string>>();
-    const visit = (node: ts.Node): void => {
-      recordFlows(this.#root, this.checker, node, flows);
-      ts.forEachChild(node, visit);
-    };
-    for (const source of this.program.getSourceFiles()) {
-      if (!source.isDeclarationFile && isProduction(this.siteOf(source).file)) {
-        visit(source);
-      }
-    }
-    return flows;
   }
 
   /** The repository-relative site of a node in this program. */
@@ -180,8 +137,12 @@ function widest(holders: readonly string[], lists: ReadonlyMap<string, WorldFile
 }
 
 // Each world's sites: every site once, in the fewest worlds that still reach all its references.
-function nativeAssignment(root: string, worlds: readonly string[], sites: readonly Site[]): ReadonlyMap<string, readonly Site[]> {
-  const lists = NativeWorld.fileLists(root, worlds);
+function nativeAssignment(
+  root: string,
+  worlds: readonly string[],
+  lists: ReadonlyMap<string, WorldFiles>,
+  sites: readonly Site[],
+): ReadonlyMap<string, readonly Site[]> {
   const spelled = filesSpelling(root, new Set([...lists.values()].flatMap(({ held }) => [...held])));
   const assigned = new Map<string, Site[]>(worlds.map((world) => [world, []]));
   const bySize = worlds.toSorted((a, b) => (lists.get(b)?.held.size ?? 0) - (lists.get(a)?.held.size ?? 0));
@@ -206,39 +167,35 @@ function keepReferences(into: Map<string, Site> | undefined, site: Site, referen
 
 /** Ask the worlds for the references of each site and merge them, so a site counts once however many worlds hold it.
  *  Worlds load one at a time. TypeScript 7.1 answers in batches, and each site goes only to the holders that together
- *  reach every file spelling its name; `crossCheck` asks the TypeScript 6 language service in every world that holds
- *  the site, one site at a time, an audit of the 7.1 answers. `visit` reads a TypeScript 6 program of each world
- *  before the next replaces it. */
+ *  reach every file spelling its name; `lists` are the worlds' file lists the caller already read for its homes.
+ *  `crossCheck` asks the TypeScript 6 language service in every world that holds the site, one site at a time, an
+ *  audit of the 7.1 answers; a world that holds none of the sites builds no program. */
 export function serviceReferences(
   root: string,
   worlds: readonly string[],
   sites: readonly Site[],
   hooks: {
     readonly log: (line: string) => void;
-    readonly visit?: (world: ServiceWorld) => void;
     readonly crossCheck?: boolean | undefined;
+    readonly lists: ReadonlyMap<string, WorldFiles>;
   },
 ): ReadonlyMap<string, readonly Site[]> {
   const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
   const merge = (site: Site, references: readonly Site[]): void => keepReferences(merged.get(siteKey(site)), site, references);
-  const assigned = hooks.crossCheck === true ? new Map<string, readonly Site[]>() : nativeAssignment(root, worlds, sites);
+  const assigned = hooks.crossCheck === true ? new Map<string, readonly Site[]>() : nativeAssignment(root, worlds, hooks.lists, sites);
   for (const config of worlds) {
     const native = assigned.get(config) ?? [];
     if (native.length > 0) {
       nativeReferences(root, config, native, merge);
     }
-    const asked = native.length;
-    if (hooks.crossCheck === true || hooks.visit !== undefined) {
+    const held = hooks.crossCheck === true ? sites.filter((site) => hooks.lists.get(config)?.held.has(site.file) === true) : [];
+    if (held.length > 0) {
       const world = ServiceWorld.open(root, config);
-      const held = hooks.crossCheck === true ? sites.filter((site) => world.source(site.file) !== undefined) : [];
       for (const site of held) {
         merge(site, world.references(site));
       }
-      hooks.visit?.(world);
-      hooks.log(`${config}: engine two asked about ${asked + held.length} sites`);
-    } else {
-      hooks.log(`${config}: engine two asked about ${asked} sites`);
     }
+    hooks.log(`${config}: engine two asked about ${native.length + held.length} sites`);
   }
   return new Map([...merged].map(([key, found]) => [key, [...found.values()]]));
 }
