@@ -122,3 +122,12 @@ test("the served policy, sandbox and script hash are the production floor bytes,
   expect(styled.body.split("<script")).toHaveLength(2);
   expect(styled.body.split("</style>")).toHaveLength(2);
 });
+
+test("a document minted with no character holds every external image, so its served sheet draws the placeholder", async () => {
+  await using root = await openRoot();
+  const chatId = await openChat(root);
+  const served = await mintAndServe(root, chatId, { html: '<img src="https://media.example.test/a.png" alt="a">' });
+  expect(served.status).toBe(200);
+  expect(served.headers[POLICY]).toBe(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"));
+  expect(served.body).toContain('img:is([src^="http:" i], [src^="https:" i], [src^="//"])');
+});
