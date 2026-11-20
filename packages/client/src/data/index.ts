@@ -41,6 +41,7 @@ export type { EntityMutateAsync } from "./create-entity-mutation.ts";
 export { createEntityMutation, withProcedureInput } from "./create-entity-mutation.ts";
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
+export type { FramePanelsOrigin } from "./frame-panels.ts";
 export { readFramePanels, rememberFramePanels } from "./frame-panels.ts";
 export { readFresh } from "./fresh-read.ts";
 export { HttpError, isHttpFailure, readJsonBody } from "./http-error.ts";

@@ -132,12 +132,20 @@ function mintKey(attempt: number, consents: string, body: string): string {
 }
 
 // The script consents this viewer can read for a mint's selector, as one key part: the install's step, the selected
-// author's resolved policy on the roster, and the viewer's own switch. A read still in flight is its own value.
-function useMintConsents(request: CardFrameRequest | undefined): string {
+// author's resolved policy on the roster, and the viewer's own switch. `undefined` while any of those reads is still
+// loading: minting then would spend a mint whose key the landing read changes, so the frame waits instead. A read that
+// failed is settled and counts as unknown.
+function useMintConsents(request: CardFrameRequest | undefined): string | undefined {
   const trpc = useTRPC();
-  const config = useAuthConfig().data;
-  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const { data: room } = useGatedQuery(request?.chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
+  const configRead = useAuthConfig();
+  const settingsRead = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const roomRead = useGatedQuery(request?.chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
+  if (configRead.isLoading || settingsRead.isLoading || roomRead.isLoading) {
+    return undefined;
+  }
+  const config = configRead.data;
+  const settings = settingsRead.data;
+  const room = roomRead.data;
   const seat = request?.characterId === null ? undefined : room?.participants.find((participant) => participant.characterId === request?.characterId);
   return JSON.stringify([
     config === undefined ? null : installAllowsCardScripts(config),
@@ -152,8 +160,8 @@ const remintSpent = new Map<string, true>();
 
 // A miss means the server dropped the handle, so every handle the tab remembers for these bytes goes: a remount mints
 // afresh instead of serving a handle that is gone. Answers whether these bytes may still mint once more.
-function forgetMints(request: CardFrameRequest | undefined, consents: string): boolean {
-  if (request === undefined) {
+function forgetMints(request: CardFrameRequest | undefined, consents: string | undefined): boolean {
+  if (request === undefined || consents === undefined) {
     return false;
   }
   const body = JSON.stringify(cardFrameMintBody(request));
@@ -207,7 +215,7 @@ export function useCardFrame(request: CardFrameRequest | undefined): CardFrame {
 }
 
 // A higher `attempt` mints the same bytes again instead of reusing the tab's handle.
-function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number, consents: string): CardFrameMint {
+function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number, consents: string | undefined): CardFrameMint {
   // The state carries the KEY it resolved for, not a bare URL. That is what lets the stale case be answered
   // during RENDER (`resolved.key !== key ⇒ pending`) instead of by a synchronous `setState` inside the
   // effect — which is a cascading render, and which React's own lint bans. So the only `setState` here is
@@ -216,7 +224,7 @@ function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number
   // The serialized body and its attempt key are the effect's dependencies — strings, so they compare by value
   // where `request` (a fresh object every render) would re-mint on every paint.
   const body = request === undefined ? undefined : JSON.stringify(cardFrameMintBody(request));
-  const key = body === undefined ? undefined : mintKey(attempt, consents, body);
+  const key = body === undefined || consents === undefined ? undefined : mintKey(attempt, consents, body);
 
   useEffect(() => {
     if (body === undefined || key === undefined) {
@@ -246,11 +254,12 @@ function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number
   }, [body, key]);
 
   // A handle NEVER outlives the bytes it was minted for: a theme flip, a different character, or dropping
-  // the room context all change `body`, and until the new mint answers the card renders the srcdoc floor.
-  if (key === undefined) {
+  // the room context all change `body`. No request draws the floor; a request stays pending until its consents load
+  // and its own mint answers.
+  if (body === undefined) {
     return { state: "floor" };
   }
-  if (resolved?.key !== key) {
+  if (key === undefined || resolved?.key !== key) {
     return { state: "pending" };
   }
   return resolved.answer === undefined ? { state: "floor" } : { state: "routed", url: resolved.answer.url, granted: resolved.answer.granted };
