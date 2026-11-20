@@ -4,7 +4,6 @@
 // Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
 // Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
-import { installAllowsCardScripts } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
@@ -70,6 +69,7 @@ import {
   registerImportBundle,
   registerImportChat,
   registerImportTree,
+  registerImportTreeZip,
   registerJoin,
   registerPluginFrame,
   registerPluginUi,
@@ -444,9 +444,6 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   registerCardFrame(app, {
     participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params), getMembership: deps.chatMembership },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-    // The install's script ceiling. Same live read the participant resolver uses, applied a second time at the
-    // boundary that actually mints the policy.
-    installAllowsCardScripts: () => installAllowsCardScripts(deps.services.settings.getEffectiveConfig()),
     // The viewer's consent reads an unreadable settings blob as no (`viewerRunsCardScripts`).
     viewerRunsCardScripts: async (viewer) => viewerRunsCardScripts(await deps.services.settings.getUserSettings({ principal: viewer })),
     onTurnEnded: deps.onChatTurnEnded,
@@ -487,14 +484,16 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     newOpaqueId: deps.newOpaqueId,
   });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
-  registerImportTree(app, {
+  const importTreeDeps = {
     logger: deps.logger,
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
     stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
-  });
+  };
+  registerImportTree(app, importTreeDeps);
+  registerImportTreeZip(app, importTreeDeps);
   registerAuthRoutes(app, {
     logger: deps.logger,
     emitUserEvent: deps.liveBuses.user.publishUserEvent,

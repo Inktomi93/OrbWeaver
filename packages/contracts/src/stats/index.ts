@@ -3,6 +3,7 @@
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
 // chat→stats sideways import; the apply IMPL lives in `packages/server/src/domain/stats/persistence/apply-delta.ts`.
 
+import { DomainUnavailableError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatParticipantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
@@ -448,6 +449,14 @@ export const CANON_RETIREMENT_ATTEMPTS = 3;
 /** How many times a rebuild folds an owner again after a live write moved the canon it folded, before it refuses
  *  with retry later and leaves the live rollups as they are. */
 export const STATS_REBUILD_ATTEMPTS = 5;
+
+/** A rebuild that a live writer outran on every attempt: the live rollups stand, and a later rebuild settles them. A
+ *  caller that rebuilds after its own durable write tells this refusal apart to defer the rebuild, never to fail the write. */
+export class StatsRebuildStarvedError extends DomainUnavailableError {
+  constructor() {
+    super("the library kept changing while its stats were rebuilt; the live totals are unchanged, try again shortly");
+  }
+}
 
 /** Read the canon a delete will take out of scope, through the delete's own connection, and plan its retirement. The
  *  caller has already authorized the delete; a refused plan is prepared again against the canon that moved. */

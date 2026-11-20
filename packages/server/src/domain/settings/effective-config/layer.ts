@@ -13,10 +13,10 @@ import type { SettingsEnvFloor } from "../contract/service.ts";
 // Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
 // "Default for characters" (D294). Interactive by owner ruling: interactive cards are the default for every
-// character, so this is both the step an "Inherit default" card resolves to and, below `interactive`, the script
-// ceiling (`resolveRenderPolicy`). An admin override below `interactive` is the revocation, and the only box-wide
-// control over the WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1). Each viewer can
-// also turn card scripts off for their own browser (`UserSettings.chat.runCardScripts`).
+// character, so this is the step an "Inherit default" card resolves to (`resolveRenderPolicy`); a character's own step
+// wins over it. An admin override below `interactive` closes the WebRTC/STUN beacon no CSP directive can close
+// (`@orb/kit/card-frame` residual R1) for every inheriting character. Each viewer can also turn card scripts off for
+// their own browser (`UserSettings.chat.runCardScripts`).
 const DEFAULT_HTML_STEP_FLOOR: HtmlTrustStep = "interactive";
 // The per-transform prompt-transform deadline (item 2) — was the PROMPT_TRANSFORM_DEADLINE_MS const.
 const PROMPT_TRANSFORM_DEADLINE_MS_FLOOR = 250;

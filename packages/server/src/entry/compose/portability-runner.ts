@@ -35,6 +35,7 @@ import {
   createImportWorkloadDrivers,
   createRefreshImportPlannerStats,
   createSettleImportMemory,
+  createSettleImportStats,
   DEFAULT_IMPORT_STAGING_DIR,
   importStagedArchive,
   runBundleImport,
@@ -130,10 +131,14 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const settleImportMemory = createSettleImportMemory(workloads, now);
 
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
-  const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
+  const settleImportStats = createSettleImportStats({
     // Runs after the import's rows landed; the owner's rollups must cover all of them, so no cancel may stop it.
-    await reconcileStats(db, { ownerId, now, idSource: deps.idSource, signal: new AbortController().signal });
-  };
+    rebuild: async ({ ownerId }) => {
+      await reconcileStats(db, { ownerId, now, idSource: deps.idSource, signal: new AbortController().signal });
+    },
+    workloads,
+    logger: deps.logger,
+  });
   const findPersonaByName = createFindOwnedPersonaByName(db);
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */
   const profileImport = {
@@ -222,10 +227,10 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       staged: async ({ stagedPath, digest, ...args }) =>
         importStagedArchive({ ...args, registry: portability, staged: stageDirectory(stagedPath, await readStagedManifest(stagedPath, digest)) }),
       writeReport: (markdown, generatedAt) => writeImportReportFile(markdown, generatedAt, deps.importReportsDir),
-      reconcileStats: reconcileImportStats,
+      settleStats: settleImportStats,
       settleMemory: settleImportMemory,
     }),
-    reconcileImportStats,
+    settleImportStats,
     refreshPlannerStats: createRefreshImportPlannerStats(db),
     emitLibraryChanged: createImportLibraryEmitter({
       charactersChanged: ({ ownerId }) => deps.emitUserEvent(ownerId, { type: "charactersChanged" }),

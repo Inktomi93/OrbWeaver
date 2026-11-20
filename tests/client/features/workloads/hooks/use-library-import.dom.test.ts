@@ -6,13 +6,21 @@
 
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { ImportPreview, PersonaCollisionChoice } from "@orb/contracts/import";
-import { encodePersonaCollisionChoices, importPreviewListOf, importStartedSchema, PERSONA_COLLISION_FIELD, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import {
+  encodePersonaCollisionChoices,
+  importPreviewListOf,
+  importStartedSchema,
+  PERSONA_COLLISION_FIELD,
+  profileZipStartedSchema,
+  ST_SETTINGS_FILE,
+} from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { WorkloadId } from "@orb/kit/ids";
 import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
+import { strToU8, zipSync } from "fflate";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { vi } from "vitest";
@@ -21,6 +29,9 @@ import { useLibraryImport } from "#client/features/workloads/hooks/use-library-i
 import { asBundleCounts, asImportPreview } from "#client/features/workloads/lib/portability-model.ts";
 
 const COLLISION_KEY = "mara";
+const ACCEPTED = 202;
+// fflate derives the DOS date from local time; a fixed mid-year UTC stamp keeps the archive deterministic.
+const ZIP_MTIME = new Date("2025-07-01T12:00:00Z");
 const KEEP_BOTH = "keep-both" satisfies PersonaCollisionChoice;
 const PRESET = JSON.stringify({
   prompts: [{ identifier: "main", name: "Main", content: "You are plain.", role: "system" }],
@@ -77,21 +88,34 @@ const SERVER_OPTIONS = {
 
 /** Sends the page's requests to the composed server, and notes each dry-run upload the hook sends and the workload
  *  the server admits for it. */
-function routeThroughServer(root: ServerTestHarness): { readonly uploads: FormData[]; readonly admitted: WorkloadId[] } {
+function routeThroughServer(root: ServerTestHarness): {
+  readonly uploads: FormData[];
+  readonly zipQueries: URLSearchParams[];
+  readonly admitted: WorkloadId[];
+} {
   const uploads: FormData[] = [];
+  const zipQueries: URLSearchParams[] = [];
   const admitted: WorkloadId[] = [];
   vi.stubGlobal("fetch", async (input: string, init: RequestInit = {}): Promise<Response> => {
-    const isUpload = input === PORTABILITY_ROUTES.importTree && init.method === "POST";
+    const [path, query = ""] = input.split("?");
+    const isUpload = path === PORTABILITY_ROUTES.importTree && init.method === "POST";
+    const isZipUpload = path === PORTABILITY_ROUTES.importTreeZip && init.method === "POST";
     if (isUpload && init.body instanceof FormData) {
       uploads.push(init.body);
+    }
+    if (isZipUpload) {
+      zipQueries.push(new URLSearchParams(query));
     }
     const response = await root.http.request(input, init);
     if (isUpload && response.ok) {
       admitted.push(importStartedSchema.parse(await response.clone().json()).workloadId);
     }
+    if (isZipUpload && response.status === ACCEPTED) {
+      admitted.push(profileZipStartedSchema.parse(await response.clone().json()).workloadId);
+    }
     return response;
   });
-  return { uploads, admitted };
+  return { uploads, zipQueries, admitted };
 }
 
 test("an event of a run the owner superseded cannot finish the run that replaced it", async () => {
@@ -152,4 +176,45 @@ test("an answer changed while the folder is still being read is judged when that
   // The read ended under other answers than the owner's now: the personas go up again as a dry run under them.
   expect(uploads).toHaveLength(2);
   expect(uploads[1]?.getAll(PERSONA_COLLISION_FIELD)).toEqual(encodePersonaCollisionChoices({ [COLLISION_KEY]: KEEP_BOTH }));
+});
+
+test("a zipped profile is dry-run whole through the zip door, and a changed answer sends the zip again under it", async () => {
+  await using root = await createServerHarness(SERVER_OPTIONS);
+  const { uploads, zipQueries, admitted } = routeThroughServer(root);
+  using _fetch = { [Symbol.dispose]: () => vi.unstubAllGlobals() };
+  const hook = renderedHook();
+  // A run still waiting out a refused upload would retry into the next case's server.
+  using _stopped = { [Symbol.dispose]: () => hook.cancel() };
+  const profile = "SillyTavern/data/default-user/";
+  const zip = zipSync(
+    {
+      [`${profile}${ST_SETTINGS_FILE}`]: strToU8(JSON.stringify({ ["power_user"]: { personas: {} } })),
+      [`${profile}OpenAI Settings/Plain.json`]: strToU8(PRESET),
+    },
+    { mtime: ZIP_MTIME },
+  );
+
+  hook.stageFiles([new File([zip], "default-user.zip")]);
+  await vi.waitFor(() => expect(admitted).toHaveLength(1), { timeout: WORKLOAD_DEADLINE_MS });
+  const [reading] = admitted;
+  if (reading === undefined || root.runAdmittedWorkload === undefined) {
+    throw new Error("The zip's dry run was admitted and the harness runs workloads");
+  }
+  expect(zipQueries[0]?.getAll(PERSONA_COLLISION_FIELD)).toEqual([]);
+  await root.runAdmittedWorkload(reading, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+  const row = await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id: reading });
+  const result = row.kind === "import-st" && !row.poison ? row.result : null;
+  const preview = asImportPreview(result);
+  if (preview === null) {
+    throw new Error("The dry run has no preview");
+  }
+  hook.previewTrack(reading).onSucceeded(asBundleCounts(result), preview);
+  // Judged under the answers on screen, the preview is done: nothing more goes up.
+  expect(zipQueries).toHaveLength(1);
+
+  hook.chooseCollision(COLLISION_KEY, KEEP_BOTH);
+  await vi.waitFor(() => expect(admitted).toHaveLength(2), { timeout: WORKLOAD_DEADLINE_MS });
+  expect(zipQueries[1]?.getAll(PERSONA_COLLISION_FIELD)).toEqual(encodePersonaCollisionChoices({ [COLLISION_KEY]: KEEP_BOTH }));
+  // A zip never goes through the folder door.
+  expect(uploads).toEqual([]);
 });

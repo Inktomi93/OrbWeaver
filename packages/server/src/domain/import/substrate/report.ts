@@ -2,7 +2,7 @@ import type { BulkImportRefusedRow } from "@orb/contracts/chat";
 import { MESSAGE_TEXT_MAX_CHARS } from "@orb/contracts/chat";
 import type { ImportPreviewKind } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
-import type { ImportReport, ImportSkippedCard } from "../contract/results.ts";
+import type { ImportBookNote, ImportReport, ImportSkippedCard } from "../contract/results.ts";
 
 function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
@@ -73,17 +73,27 @@ function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes
   });
 }
 
-/** One line per standalone world book the run landed: where it landed, and the SillyTavern activation
- *  fields its entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
+const entriesWord = (count: number): string => `${count} ${count === 1 ? "entry" : "entries"}`;
+
+/** The SillyTavern activation fields a book's entries keep stored but inert (owner ruling: kept untouched, shown
+ *  as not active yet), as a line suffix; empty when they keep none. */
+function inertSuffix(note: ImportBookNote): string {
+  return note.inertFields.length === 0
+    ? ""
+    : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+}
+
+/** One line per standalone world book the run landed: where it landed, and the fields its entries keep inert. */
 function worldLines(report: ImportReport): string[] {
   return report.worldNotes.map((note) => {
     const landed = note.created ? "new" : "already in your library";
-    const inert =
-      note.inertFields.length === 0
-        ? ""
-        : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${f.entries} ${f.entries === 1 ? "entry" : "entries"})`).join(", ")}`;
-    return `\`${note.name}\` — ${note.entries} ${note.entries === 1 ? "entry" : "entries"}, ${landed}${renamedSuffix(note.renamedFrom)}${inert}`;
+    return `\`${note.name}\` — ${entriesWord(note.entries)}, ${landed}${renamedSuffix(note.renamedFrom)}${inertSuffix(note)}`;
   });
+}
+
+/** One line per card world book the run landed into its character, with the fields its entries keep inert. */
+function cardBookLines(report: ImportReport): string[] {
+  return report.cardBookNotes.map((note) => `\`${note.name}\` (from \`${note.file}\`) — ${entriesWord(note.entries)}${inertSuffix(note)}`);
 }
 
 /** The regex-plane accounting (the silent-gap sweep): every plane renders its count EVEN AT
@@ -193,6 +203,7 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       report.unreadableCards.map((f) => `\`${f}\``),
     ),
     section("World books imported (SillyTavern activation settings are kept on each entry but not active yet)", worldLines(report)),
+    section("Card world books landed with their character (SillyTavern activation settings are kept on each entry but not active yet)", cardBookLines(report)),
     section(
       "World books that failed to parse",
       report.unreadableWorlds.map((f) => `\`${f}\``),

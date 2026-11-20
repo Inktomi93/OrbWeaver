@@ -1,6 +1,7 @@
 // domain/import/substrate/chat-input — pure ST→canonical mapping: translate a parsed ST chat into the
 // canonical BulkImportChatInput that chat's injected bulkImportChats op writes. Zero I/O; owning chat
-// domain never sees SillyTavern. updatedAt = max(send_dates), not last and not import `now`; the selected
+// domain never sees SillyTavern. The translation estimates every variant's tokens, which costs time per character,
+// so it runs in slices of the chat serde's budget and hands the event loop back between them. updatedAt = max(send_dates), not last and not import `now`; the selected
 // variant's content is always the rendered `mes`, even when the active swipe was empty-dropped.
 //
 // TWO ARMS over ONE body: the solo arm (`buildBulkImportChatInput`) and the GROUP arm
@@ -15,8 +16,9 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { Clock } from "@orb/kit/time";
 import { msToWallClock } from "@orb/kit/time";
+import { sliceMeter } from "#primitives/abort";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
-import { ST_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
+import { CHAT_SLICE_BUDGET, ST_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
 import type { CollectedChat } from "../contract/collection.ts";
 import type { GroupChatInputDeps } from "../contract/params.ts";
 import type { ImportUnresolvedPinnedPersona } from "../contract/results.ts";
@@ -339,11 +341,11 @@ export function unresolvedPinnedPersonas(chats: readonly CollectedChat[], person
 /** The chat-level facts every arm shares: the resolved instants, the anchor persona, the prose plane and the
  *  display title. `displayName` is the room's own name for the title — the header character for a solo
  *  transcript, the ST group's name for a room. */
-function chatShell(
+async function chatShell(
   ci: CollectedChat,
   displayName: string,
   deps: { readonly now: Clock; readonly personaByUserName: Map<string, PersonaId> },
-): BulkImportChatInput {
+): Promise<BulkImportChatInput> {
   const pc: ParsedChat = ci.parsed;
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
   // A fold, not `Math.max(...dates)`: a spread passes one argument per message and overflows the stack on a
@@ -359,6 +361,16 @@ function chatShell(
   const note = importedNoteInjection(pc.notePrompt, pc.notePlacement, created);
   // The note first, then the `/inject` rows in ST's own key order — ONE prose door for both ST channels.
   const injections = [...(note === null ? [] : [note]), ...importedScriptInjections(pc.scriptInjects, created)];
+  const spend = sliceMeter(CHAT_SLICE_BUDGET);
+  const messages: BulkImportMessageInput[] = [];
+  for (const m of pc.messages) {
+    const message = toMessageInput(m, m.sendDate ?? created, chatPersonaId, deps.personaByUserName);
+    messages.push(message);
+    await spend(
+      message.variants.reduce((chars, variant) => chars + variant.content.length, 0),
+      message.variants.length,
+    );
+  }
 
   return {
     title: importedChatTitle(displayName, created, ST_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
@@ -378,19 +390,19 @@ function chatShell(
     // runtime column is derived (re-folded from per-variant deltas) and is deliberately NOT seeded.
     variableValues: pc.variables,
     isRealConversation: pc.bucket === "real_conversation",
-    messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId, deps.personaByUserName)),
+    messages,
   };
 }
 
 /** createDate is the filename date first, then the first message send date, then `now`. */
-export function buildBulkImportChatInput(
+export async function buildBulkImportChatInput(
   ci: CollectedChat,
   deps: {
     readonly now: Clock;
     readonly personaByUserName: Map<string, PersonaId>;
   },
-): BulkImportChatInput {
-  return chatShell(ci, ci.parsed.characterName, deps);
+): Promise<BulkImportChatInput> {
+  return await chatShell(ci, ci.parsed.characterName, deps);
 }
 
 /** WHICH seat voices this assistant slot. `original_avatar` (the card filename ST stamps on every group line)
@@ -415,10 +427,10 @@ function groupSpeakerFor(m: ParsedChatMessage, deps: GroupChatInputDeps): Charac
  * off the ST group definition. The write op ownership-gates every seat and refuses an unseated speaker, so this
  * mapper only ever proposes ids the caller already resolved out of the room's own cast.
  */
-export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps): BulkImportChatInput {
+export async function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps): Promise<BulkImportChatInput> {
   // The room's TITLE is the group's own name, not the header `character_name` a group transcript carries
   // (ST writes the first member there, which would title a five-hander after one seat).
-  const base = chatShell(ci, deps.roomName, {
+  const base = await chatShell(ci, deps.roomName, {
     now: deps.now,
     personaByUserName: deps.personaByUserName,
   });

@@ -11,7 +11,7 @@
 // document's policy on top of its own). A card is never blank because the door was shut.
 
 import type { CardFrameMintRequest, CardFrameMintResponse, cardFrameMintRequestSchema, RenderPolicy } from "@orb/contracts/chat";
-import { CARD_FRAME_MINTS_IN_FLIGHT, CARD_FRAME_ROUTE, cardFrameMintResponseSchema, installAllowsCardScripts } from "@orb/contracts/chat";
+import { CARD_FRAME_MINTS_IN_FLIGHT, CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { viewerRunsCardScripts } from "@orb/contracts/settings";
 import { isFetchFailure } from "@orb/kit/fetch-failure";
@@ -20,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
 import { surfaceDeferredFailure } from "#lib";
-import { useAuthConfig } from "./auth-config.ts";
 import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 import { readJsonBody } from "./http-error.ts";
 import { roomRosterOptions, useTRPC } from "./trpc.ts";
@@ -31,7 +30,7 @@ export type CardFrameRequest = Readonly<z.input<typeof cardFrameMintRequestSchem
 /** Per-tab memo so a re-render, a collapse/expand, or a lightbox open re-uses one handle instead of minting
  *  a fresh document per paint. Keyed on the attempt, the script consents the viewer can read, and the SERIALIZED
  *  REQUEST BODY, which together are the effect's trigger — a theme flip, a different character, or a change to the
- *  install's step, the character's step or the viewer's own switch changes the key, hence mints anew rather than
+ *  character's resolved step or the viewer's own switch changes the key, hence mints anew rather than
  *  serving a frame built under a stale palette or a stale grant. A serve only ever narrows a grant, so a consent
  *  that rose reaches the frame only through a new mint.
  *
@@ -134,26 +133,23 @@ function mintKey(attempt: number, consents: string, body: string): string {
   return `${String(attempt)}:${consents}:${body}`;
 }
 
-// The script consents this viewer can read for a mint's selector, as one key part: the install's step, the selected
-// author's resolved policy on the roster, and the viewer's own switch. `undefined` while any of those reads is still
-// loading: minting then would spend a mint whose key the landing read changes, so the frame waits instead. A read that
-// failed is settled and counts as unknown.
+// The script consents this viewer can read for a mint's selector, as one key part: the selected author's resolved
+// policy on the roster, which carries the install's default for an inheriting author, and the viewer's own switch.
+// `undefined` while either read is still loading: minting then would spend a mint whose key the landing read changes,
+// so the frame waits instead. A read that failed is settled and counts as unknown.
 function useMintConsents(request: CardFrameRequest | undefined): string | undefined {
   const trpc = useTRPC();
-  const configRead = useAuthConfig();
   const settingsRead = useQuery(trpc.settings.getUserSettings.queryOptions());
   const roomRead = useGatedQuery(request?.chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
-  if (configRead.isLoading || settingsRead.isLoading || roomRead.isLoading) {
+  if (settingsRead.isLoading || roomRead.isLoading) {
     return undefined;
   }
-  const config = configRead.data;
   const settings = settingsRead.data;
   const room = roomRead.data;
   const policyOf = (characterId: CharacterId): RenderPolicy | null =>
     room?.participants.find((participant) => participant.characterId === characterId)?.renderPolicy ?? null;
   const seatPolicy = request?.characterId === null || request?.characterId === undefined ? null : policyOf(request.characterId);
   return JSON.stringify([
-    config === undefined ? null : installAllowsCardScripts(config),
     settings === undefined ? null : viewerRunsCardScripts(settings),
     seatPolicy ?? room?.narratorRender?.renderPolicy ?? null,
     // A carried author's media setting narrows the grant, so one that rises mints anew too.

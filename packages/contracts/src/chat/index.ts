@@ -432,7 +432,6 @@ export {
   historyFloor,
   INVITE_STATUSES,
   INVITE_TARGET_UNKNOWN_CODE,
-  installAllowsCardScripts,
   invitePreviewSchema,
   inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,

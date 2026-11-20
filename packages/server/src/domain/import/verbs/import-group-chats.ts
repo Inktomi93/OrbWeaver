@@ -169,9 +169,10 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const speakerByFile = new Map(seated.map((s) => [s.file, s.characterId]));
     // Every transcript of ONE group shares the room's name, so same-day leaves collide by construction — the
     // suffix pass runs over the group's whole set, exactly as the solo wave runs it over a character's.
-    const chats: BulkImportChatInput[] = disambiguateChatTitles(
-      group.chats.map((c) =>
-        buildGroupChatInput(c, {
+    const built: BulkImportChatInput[] = [];
+    for (const c of group.chats) {
+      built.push(
+        await buildGroupChatInput(c, {
           now: profile.now,
           roomName: group.parsed.name,
           personaByUserName: profile.personaByUserName,
@@ -181,8 +182,9 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
           speakerByName,
           metadata,
         }),
-      ),
-    );
+      );
+    }
+    const chats = disambiguateChatTitles(built);
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
     return {
       chatsImported: counts.chatsImported,

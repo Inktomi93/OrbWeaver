@@ -479,6 +479,17 @@ describe("cardImportHash is the import identity", () => {
     expect(cardImportHash(identity({ book: bookOf(defaults) }))).toBe(base);
   });
 
+  // A card book keeps the same fields in its own spelling: secondary keys at the entry, the rest under `extensions`.
+  test("a kept ST activation field in the card spelling is identity when set, and its default card spelling is not", () => {
+    const base = cardImportHash(identity({ book: bookOf(null) }));
+    const cardSpelled = [{ ["secondary_keys"]: ["moon"] }, { extensions: { probability: 50, useProbability: true } }, { extensions: { ["scan_depth"]: 4 } }];
+    for (const changed of cardSpelled) {
+      expect(cardImportHash(identity({ book: bookOf(changed) }))).not.toBe(base);
+    }
+    const defaults = { ["secondary_keys"]: [], extensions: { probability: 100, useProbability: true, sticky: null, ["exclude_recursion"]: false } };
+    expect(cardImportHash(identity({ book: bookOf(defaults) }))).toBe(base);
+  });
+
   test("art is identity, but the wire spec and key order are not", () => {
     const base = cardImportHash(identity());
     const painted = cardImportHash(identity({ artHash: "a".repeat(64) }));

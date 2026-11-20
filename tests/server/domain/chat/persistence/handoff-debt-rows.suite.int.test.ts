@@ -134,16 +134,12 @@ test("the real native engine lease refuses settlement without silently consuming
   }
 });
 
-test("only the frozen initiator can stop a claimed drain and that aborted reply remains owed", async () => {
-  await using room = await speakerRoom(
-    { chat: ["The cancelled physical response is never canon.", providerRefusal()], holdChat: true },
-    { characters: [ARIA], group: LIST },
-  );
+test("only the frozen initiator can stop a claimed drain, and the stopped reply is no longer owed so the handoff completes", async () => {
+  await using room = await speakerRoom({ chat: ["The cancelled physical response is never canon."], holdChat: true }, { characters: [ARIA], group: LIST });
   const { h } = room;
   const member = await invitePerson(h);
   const recipient = await nominee(room);
   await queued(room, member);
-  const before = await debt(room);
   const draining = h.root.services.chat.drainDeferredTurns({ all: true });
   const settled = Promise.allSettled([draining]);
   try {
@@ -151,13 +147,15 @@ test("only the frozen initiator can stop a claimed drain and that aborted reply 
     expect(await debt(room)).toEqual([]);
     await expect(h.root.services.chat.abort({ principal: recipient, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.notTurnOwner });
     await h.root.services.chat.abort({ principal: member, chatId: h.chatId });
-    await expect(draining).resolves.toEqual({ ran: 0, dropped: 0 });
-    expect(await debt(room)).toEqual(before);
+    await expect(draining).resolves.toEqual({ ran: 1, dropped: 0 });
+    expect(await debt(room)).toEqual([]);
     expect((await canon(room)).map((m) => m.role)).toEqual(["user"]);
     room.peer.release();
-    await expect(h.root.services.chat.acceptHostHandoff({ principal: recipient, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.aborted });
-    expect(await debt(room)).toEqual(before);
-    await stillOutgoing(room, recipient);
+    await h.root.services.chat.acceptHostHandoff({ principal: recipient, chatId: h.chatId });
+    expect(await debt(room)).toEqual([]);
+    await transferred(room, recipient);
+    expect((await canon(room)).map((m) => m.role)).toEqual(["user"]);
+    expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toHaveLength(1);
   } finally {
     room.peer.release();
     await settled;

@@ -108,6 +108,7 @@ import {
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
+import { abortKeepsStreamedText, registryAbortReason } from "../substrate/abort-cause.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
@@ -249,12 +250,10 @@ function observedResult(
   return { ...result, economics: { ...economics, ...projectGenerationUsage(legs).total, usageLegs: [...legs] } };
 }
 
-/** The stored reason a kept stopped reply carries: the caller's Stop, in the abort vocabulary the outcome ring
- *  already writes as a terminal reason. No provider finish arrived, so the normalized finish stays null. */
-const STOPPED_TERMINAL_REASON = "user" satisfies TurnAbortReason;
-
 /**
- * A kept stopped reply's economics. The cut call's own finish never arrived, so the last completed call's finish
+ * A kept stopped reply's economics. `reason` is what cut it, stored as the reply's terminal reason in the abort
+ * vocabulary the outcome ring already writes: `user` for the caller's Stop, `shutdown` for the server closing.
+ * No provider finish arrived, so the normalized finish stays null. The cut call's own finish never arrived, so the last completed call's finish
  * words are dropped rather than left describing a call that is not the reply's end. Without its measured usage
  * the cut call is added as an estimate: the counts read `estimated`, and the total cost reads unrecorded, never
  * the completed calls' cost alone, because a part of the spend has no price. The connection stamps the reply as
@@ -264,6 +263,7 @@ function stoppedResult(
   result: Awaited<ReturnType<typeof runTurnPipeline>>,
   prep: TurnPrep,
   estimate: StoppedCallEstimate | null,
+  reason: TurnAbortReason,
 ): Awaited<ReturnType<typeof runTurnPipeline>> {
   const e = result.economics;
   const stamped: TurnEconomics = {
@@ -274,7 +274,7 @@ function stoppedResult(
     connectionId: e?.connectionId ?? prep.connection.connectionId,
     finishReason: null,
     stopReason: null,
-    terminalReason: STOPPED_TERMINAL_REASON,
+    terminalReason: reason,
     toolCalls: undefined,
   };
   if (estimate === null) {
@@ -673,18 +673,18 @@ async function commitGeneration(args: {
    *  grant reads. It is also what the wire-history fence reads to let the model see its own picture next
    *  turn — one row, two jobs, both load-bearing. */
   readonly inlineReplyAssetIds: readonly AssetId[];
-  /** Set when the caller's Stop ended this turn and the reply is kept. */
+  /** Set when the caller's Stop or a shutdown ended this turn after text streamed, and the reply is kept. */
   readonly kept?: KeptReply | undefined;
 }): Promise<MessageView> {
   const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt, kept } = args;
-  const stopped = kept?.kind === "cut" ? kept.stopped : undefined;
   const facts = await args.observations.load();
   const observed = observedResult(
     args.result,
     facts.map((fact) => fact.leg),
   );
   // An observation past the completed calls is the cut call's own measured usage; only without one is it estimated.
-  const result = stopped === undefined ? observed : stoppedResult(observed, prep, facts.length > stopped.completedCalls ? null : stopped.estimate);
+  const result =
+    kept?.kind === "cut" ? stoppedResult(observed, prep, facts.length > kept.stopped.completedCalls ? null : kept.stopped.estimate, kept.reason) : observed;
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
   const globals = prep.assembleContext.globalVariables;
@@ -1340,8 +1340,8 @@ class StaleLockAbort extends Error {
 
 /** Classify a post-turnStarted throw into its {@link TurnAbortReason}, consulting the turn's abort signal so a
  *  lock-fault abort is distinguishable from a caller cancel. A settled (aborted) signal means the throw is an
- *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); any other aborted-signal
- *  cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
+ *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); `ShutdownAbort` → "shutdown"
+ *  (the registry's dispose); any other aborted-signal cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
  *  fault (provider/DB) → "error".
  *
  *  …EXCEPT the commit fence's own refusal. {@link assertTurnMayCommit} can find the lock gone up to a
@@ -1369,7 +1369,7 @@ function abortReasonFor(err: unknown, signal: AbortSignal): TurnAbortReason {
     return "stale";
   }
   if (signal.aborted) {
-    return signal.reason instanceof StaleLockAbort ? "stale" : "user";
+    return signal.reason instanceof StaleLockAbort ? "stale" : registryAbortReason(signal);
   }
   return "error";
 }
@@ -1804,18 +1804,24 @@ interface FinishedGeneration {
 }
 
 /**
- * What the caller's Stop keeps. `cut` is the text a Stop cut mid-stream: no finish arrived, so it stores as
- * stopped with the cut call estimated. `finished` is a reply the provider had already finished when the Stop
- * landed: it stores the provider's own finish and measured spend, because that is what happened to the text.
+ * What a cut turn keeps, with the abort `reason` that cut it. `cut` is the text a Stop or a shutdown cut
+ * mid-stream: no finish arrived, so it stores as stopped with the cut call estimated. `finished` is a reply the
+ * provider had already finished when the cut landed: it stores the provider's own finish and measured spend,
+ * because that is what happened to the text.
  */
-type KeptReply = { readonly kind: "cut"; readonly stopped: StoppedTurn } | ({ readonly kind: "finished" } & FinishedGeneration);
+type KeptReply = { readonly reason: TurnAbortReason } & (
+  | { readonly kind: "cut"; readonly stopped: StoppedTurn }
+  | ({ readonly kind: "finished" } & FinishedGeneration)
+);
 
 /**
- * THE CALLER'S STOP KEEPS WHAT STREAMED (owner ruling). The text so far commits as the reply through the same
+ * A CUT KEEPS WHAT STREAMED (owner ruling): the caller's Stop, and a server shutdown, which stores `shutdown`
+ * on the reply's terminal reason and on the `turnAborted` it closes with, so it never reads as the member's Stop.
+ * The text so far commits as the reply through the same
  * write a finished reply takes (the message cap, the lock-holder fence, stats, the paid observations): a cut
  * reply marked stopped on its terminal reason, a reply that finished before the Stop under its own finish.
  * Then the turn closes as the abort it is: `messageCommitted` first, so every member's live stream and durable
- * replay carry the row before `turnAborted{reason:"user"}` closes the slot.
+ * replay carry the row before `turnAborted` with the cutting reason closes the slot.
  *
  * WHAT A STOPPED REPLY DOES NOT START, each a ruling:
  *  • no rpg state round and no game write: its staged writes clear as on any abort; a continue that completes
@@ -1874,24 +1880,24 @@ async function keepStoppedReply(args: {
     }
     return abortedOutcome(reason);
   }
-  await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason: STOPPED_TERMINAL_REASON, automationDepth });
-  fireRpgTurnAborted(ctx, prep.chatId, turnId, STOPPED_TERMINAL_REASON);
+  await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason: kept.reason, automationDepth });
+  fireRpgTurnAborted(ctx, prep.chatId, turnId, kept.reason);
   await ctx.emitChatChanged(prep.chatId);
-  return { messages: [view], aborted: true, abortReason: STOPPED_TERMINAL_REASON };
+  return { messages: [view], aborted: true, abortReason: kept.reason };
 }
 
-/** The reply a caller's Stop keeps, or null when no prose had streamed. A stop raised mid-stream carries its cut
- *  text; any other failure under the Stop (the commit fence, picture storage, the recovery pass) landed after the
+/** The reply a cut keeps, or null when no prose had streamed. A stop raised mid-stream carries its cut
+ *  text; any other failure under the cut (the commit fence, picture storage, the recovery pass) landed after the
  *  stream finished, so the finished reply is the one kept. */
-function keptReplyOf(failure: unknown, finished: FinishedGeneration | null): KeptReply | null {
+function keptReplyOf(failure: unknown, finished: FinishedGeneration | null, reason: TurnAbortReason): KeptReply | null {
   if (failure instanceof StoppedTurn) {
-    return holdsReplyProse(failure.result.content) ? { kind: "cut", stopped: failure } : null;
+    return holdsReplyProse(failure.result.content) ? { reason, kind: "cut", stopped: failure } : null;
   }
-  return finished !== null && holdsReplyProse(finished.result.content) ? { kind: "finished", ...finished } : null;
+  return finished !== null && holdsReplyProse(finished.result.content) ? { reason, kind: "finished", ...finished } : null;
 }
 
-/** The post-start abort, classified once: a fault row first, then the caller's Stop keeps what streamed, and every
- *  other abort (and a Stop before any prose) closes the turn with nothing kept. Lifted out of {@link executeTurn},
+/** The post-start abort, classified once: a fault row first, then a Stop or a shutdown keeps what streamed, and every
+ *  other abort (and a cut before any prose) closes the turn with nothing kept. Lifted out of {@link executeTurn},
  *  which sits at its complexity ceiling. */
 async function settleAbortedTurn(args: {
   readonly ctx: EngineContext;
@@ -1917,7 +1923,7 @@ async function settleAbortedTurn(args: {
   captureTurnFault(ctx, prep, failure, reason);
   // The passes that ran before the abort still skipped what they skipped, and the user row may already be canon.
   await emitRegexNotices(deps, prep);
-  const kept = reason === "user" ? keptReplyOf(failure, args.finished) : null;
+  const kept = abortKeepsStreamedText(reason) ? keptReplyOf(failure, args.finished, reason) : null;
   if (kept !== null && args.window !== null) {
     return await keepStoppedReply({ ...args, kept, window: args.window });
   }

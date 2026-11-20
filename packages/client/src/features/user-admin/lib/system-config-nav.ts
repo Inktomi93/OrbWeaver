@@ -35,7 +35,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["html", "trust", "interactive", "cards", "scripts", "javascript", "sanitize"],
       teach: {
         summary:
-          "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, no card or styled reply runs scripts.",
+          "The HTML step characters on Inherit default take: Plain text, Rich HTML or Interactive. Below Interactive, their cards and styled replies run no scripts. A character's own step wins over it.",
         affects: ["every account's message rendering and card scripts, deployment-wide"],
       },
     },

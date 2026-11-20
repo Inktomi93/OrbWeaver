@@ -16,7 +16,7 @@ const authConfigFields = z.strictObject({
   multiHumanCapable: z.boolean(),
   /** Tighten-only deployment ceiling on external media. */
   forbidExternalMedia: z.boolean(),
-  /** "Default for characters": an inheriting character's step, and the script ceiling below `interactive`. */
+  /** "Default for characters": an inheriting character's step. A character's own step wins over it. */
   defaultHtmlStep: z.enum(HTML_TRUST_STEPS),
   uploads: uploadCapsSchema,
   transport: z.enum(REQUEST_TRANSPORTS),

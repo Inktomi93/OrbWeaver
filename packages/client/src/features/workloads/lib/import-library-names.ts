@@ -1,6 +1,8 @@
 // The names the library import section prints. A zero-import leaf, so a spec's node side reads them without loading the
 // component graph.
 
+import type { ProfileZipRefusal } from "@orb/contracts/import";
+
 /** The folder picker's visible trigger. */
 export const IMPORT_FOLDER_NAME = "Import a folder…";
 
@@ -95,6 +97,22 @@ export const IMPORT_PREVIEW_FAILURE = {
   serverFailed: "The server could not read this folder.",
   refused: "The server did not accept this folder for a preview.",
 } as const;
+
+/** Why a zip was refused, by the reason the server named: what the file is and what to do with it. */
+export const IMPORT_ZIP_REFUSAL: Record<ProfileZipRefusal, string> = {
+  empty: "This file is empty. Zip your SillyTavern folder again and pick the new zip.",
+  truncated: "This zip is cut short, likely an unfinished download or copy. Copy or download it again, then pick it.",
+  "other-archive": "This is another kind of archive, not a zip. Unpack it and pick the folder, or zip the folder and pick the zip.",
+  json: "This is a JSON file named as a zip. Pick the zip of your SillyTavern folder, or the folder itself.",
+  html: "This is a web page saved as a zip, often a sign-in or error page from a download. Download the zip again.",
+  "not-zip": "This file is not a zip. Pick the zip of your SillyTavern folder, or the folder itself.",
+  damaged: "This zip is damaged and cannot be read. Zip your SillyTavern folder again.",
+  unsupported: "This zip uses a format the import cannot read (encryption, ZIP64 or an unusual compression). Zip the folder again with standard settings.",
+  unsafe: "An entry in this zip is unsafe to unpack: it points outside the folder or unpacks larger than it says. Zip your SillyTavern folder again.",
+  "too-large": "This zip, or a file in it, is over the import's size limit. Import the folder itself, which is sent in parts.",
+  layout: "This zip holds no SillyTavern profile. Zip the SillyTavern user folder, usually data/default-user.",
+  "case-twins": "Two files in this zip differ only in letter case, and a Windows or macOS folder holds them as one. Rename one and zip the folder again.",
+};
 
 /** The words of a plan note that counts the files a folder import leaves behind. */
 export const IMPORT_LEFT_ON_DISK_PHRASE = "will stay on your disk";
