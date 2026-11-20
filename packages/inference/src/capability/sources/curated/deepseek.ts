@@ -50,7 +50,7 @@ export const deepseekRows = [
   //   • `reasoning.replay` stays none: a replayed prior-turn block is concatenated on a tools-carrying turn and
   //     dropped on a toolless one, so neither rung earns a cell.
   //   • `output.structured` stays false: `response_format: json_schema` 400s on this route in both thinking
-  //     modes, and the Responses route that serves it is a different wire with no backend.
+  //     modes; the Responses route that serves it is a different api, governed by its own api-scoped cell.
   //   • the same key serves `POST /anthropic/v1/messages` (native thinking+tool interleave; `tool_choice: any`
   //     answers 400 under thinking); no cell reads that route.
   //   • temperature is inert in thinking mode and top_p's effective value is mode- and model-dependent; the

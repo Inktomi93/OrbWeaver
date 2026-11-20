@@ -1,10 +1,10 @@
 // Native Google uses the shared funnel, prompt, stream reducer and pre-commit retry boundary.
 
 import type { JSONObject } from "@ai-sdk/provider";
-import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill } from "@orb/contracts/inference";
-import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot, Resolved } from "#contract";
-import { ProviderError, prefillSeedDrop } from "#contract";
+import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot } from "#contract";
+import { generationOf, ProviderError, prefillSeedDrop } from "#contract";
 import { resolveChat } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
@@ -28,17 +28,10 @@ function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function requireGoogleGeneration(connection: Resolved): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({ kind: "invalid", retryable: false, message: "Google generation requires a generation model" });
-  }
-  return connection.capability.generation;
-}
-
 export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  const generation = requireGoogleGeneration(connection);
+  const generation = generationOf(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [
     ...knobs.warnings,

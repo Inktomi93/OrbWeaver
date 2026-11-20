@@ -15,7 +15,7 @@ import type { JsonValue } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
-import { ProviderError, requireGeneration } from "#contract";
+import { generationOf, ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
@@ -579,7 +579,7 @@ function prefixOptions(
 export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps: OpenAiCompatChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  const generation = requireGeneration(connection, label);
+  const generation = generationOf(connection, label);
   const dialect = effectiveDialectOf(connection);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];

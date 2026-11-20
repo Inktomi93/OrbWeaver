@@ -15,9 +15,9 @@
 
 import type { LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { ResolvedWarning } from "@orb/contracts/inference";
-import { WARNING_CODE } from "@orb/contracts/inference";
-import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResponsesChatRequest } from "#contract";
-import { ProviderError, requireGeneration } from "#contract";
+import { BODY_SAMPLER_KNOBS } from "@orb/contracts/inference";
+import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResolvedSampling, ResponsesChatRequest } from "#contract";
+import { generationOf, ProviderError, prefillSeedDrop } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
 import type { StructuredPlan } from "#src/contract/structured.ts";
@@ -40,19 +40,19 @@ import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { responsesModelFor } from "./model.ts";
 import { compatibleReasoning } from "./reasoning.ts";
-import { wireSampling } from "./sampling.ts";
+import { v4Sampling } from "./sampling.ts";
 import { resolveWordBias } from "./tokens.ts";
 
 /** The SDK names this provider `openai` with no overridable `name` (`openai.responses`), so both the
  *  `providerOptions` bag and the vendor metadata it returns are filed under this key. */
 const OPENAI_KEY = "openai";
 
-/** What the Responses option builder reads: the resolved knobs, their wire spelling, the structured plan,
+/** What the Responses option builder reads: the resolved knobs, the word-biased sampling, the structured plan,
  *  and rule 5b's template-thinking state (a folded turn's mount is off on a row whose switch IS the effort
  *  word — a model that thinks answers the mount call-only and the beat loses its prose). */
 interface ResponsesTurn {
   readonly knobs: ResolvedChatKnobs;
-  readonly sampling: ReturnType<typeof wireSampling>;
+  readonly sampling: ResolvedSampling;
   readonly structured: StructuredPlan;
   readonly templateThinking: boolean | undefined;
 }
@@ -73,19 +73,26 @@ function responsesOptions(
   const { connection } = req;
   const { knobs, sampling, structured } = turn;
   const { word: effort, body: budget } = compatibleReasoning(connection.features, knobs.reasoning, turn.templateThinking, warnings);
-  // The row-spelled unmodelled knobs (the thinking budget included) have no Responses body arm; each drops loudly.
-  for (const knob of Object.keys(budget)) {
-    warnings.push({ code: "sampling_knob_dropped", message: `${knob} ignored: the /responses route has no field for it` });
+  // The row's thinking-budget field has no Responses body arm.
+  for (const field of Object.keys(budget)) {
+    warnings.push({
+      code: "sampling_knob_dropped",
+      knob: "thinkingBudgetTokens",
+      message: `thinkingBudgetTokens ignored: the /responses route has no ${field} field`,
+    });
   }
   // The Responses body the SDK builds carries exactly two samplers (in `@ai-sdk/openai` 4.0.99's
   // responses `prepareRequest`: `temperature`, `top_p`, plus `max_output_tokens`); `stopSequences`,
-  // `seed`, `topK` and the penalties ride the V4 options and the SDK itself warns each off the body, which
-  // lands on the sampling receipt through `sdkWarnings`. So only the chat wire's extra body spellings
-  // (top_k on this dialect, and whatever `extras`/aliases the row spells) have no home at all here.
-  for (const knob of Object.keys(sampling.body)) {
-    if (knob !== "temperature" && knob !== "top_p") {
-      warnings.push({ code: "sampling_knob_dropped", message: `${knob} ignored: the /responses route carries no such sampler field` });
+  // `seed` and the penalties ride the V4 options and the SDK itself warns each off the body, which lands on
+  // the sampling receipt through `sdkWarnings`. Every knob the chat wire spells in its body (`topK` among
+  // them) and the stage order have no home at all here, so each drops under its own name.
+  for (const knob of BODY_SAMPLER_KNOBS) {
+    if (sampling[knob] !== undefined) {
+      warnings.push({ code: "sampling_knob_dropped", knob, message: `${knob} ignored: the /responses route carries no such sampler field` });
     }
+  }
+  if (sampling.samplerOrder !== undefined) {
+    warnings.push({ code: "sampling_knob_dropped", knob: "samplerOrder", message: "samplerOrder ignored: the /responses route carries no sampler order" });
   }
   const strict = structured.responseFormat?.vehicle === "response-format" ? structured.responseFormat.strict : undefined;
   const providerOptions: SharedV4ProviderOptions = {
@@ -103,7 +110,7 @@ function responsesOptions(
     },
   };
   return {
-    ...standardSampling(sampling.v4, knobs.maxOutputTokens),
+    ...standardSampling(v4Sampling(sampling), knobs.maxOutputTokens),
     ...(effort !== undefined ? { reasoning: effort } : {}),
     ...plannedOptions(structured),
     providerOptions,
@@ -114,7 +121,7 @@ function responsesOptions(
 export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, deps: OpenAiCompatChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} responses (${connection.model})`;
-  const generation = requireGeneration(connection, label);
+  const generation = generationOf(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
   // The same policy resolve the chat runner performs (`chat.ts`), so implicit caching is gated identically on
@@ -132,7 +139,7 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   if (req.prefillReasoning !== undefined) {
     // This route models no forced continuation (a trailing assistant input item reads continue-LIKE but may
     // restart — `docs/law/deepseek-api-surface.md`), so an authored chain of thought has no row to ride.
-    warnings.push({ code: WARNING_CODE.prefillReasoningDropped, message: "prefill reasoning dropped: the /responses protocol has no continue row to seed" });
+    warnings.push(prefillSeedDrop("the /responses protocol", connection.model));
   }
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
@@ -173,7 +180,7 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   const sampling = await resolveWordBias({ sampling: knobs.sampling, connection, lexicon: deps.tokens, warnings, signal: req.signal });
   const turnKnobs: ResponsesTurn = {
     knobs,
-    sampling: wireSampling(sampling, connection.features, "openai-compatible", warnings),
+    sampling,
     structured,
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
   };

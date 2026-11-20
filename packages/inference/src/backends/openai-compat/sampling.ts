@@ -83,10 +83,16 @@ export function samplerBodyKeys(features: EndpointFeatures): ReadonlySet<string>
   return new Set([...SAMPLER_KNOBS.flatMap((knob) => [keys[knob], ...(features.samplerAliases?.[knob] ?? [])]), ...order]);
 }
 
+/** The knobs the V4 call options carry on an OpenAI SDK transport other than OpenRouter's: both
+ *  `@ai-sdk/openai-compatible` and the `/responses` model drop a V4 `topK`, so it never rides the options. */
+export function v4Sampling(sampling: ResolvedSampling): ResolvedSampling {
+  const { topK: _bodySpelled, ...v4 } = sampling;
+  return v4;
+}
+
 export function wireSampling(sampling: ResolvedSampling, features: EndpointFeatures, dialect: Dialect, warnings: ResolvedWarning[]): WireSampling {
   if (dialect === OPENROUTER_DIALECT) {
     return { v4: sampling, body: spellSamplers(sampling, features, OPENROUTER_BODY_KNOBS, warnings) };
   }
-  const { topK: _bodySpelled, ...v4 } = sampling;
-  return { v4, body: spellSamplers(sampling, features, BODY_SAMPLER_KNOBS, warnings) };
+  return { v4: v4Sampling(sampling), body: spellSamplers(sampling, features, BODY_SAMPLER_KNOBS, warnings) };
 }

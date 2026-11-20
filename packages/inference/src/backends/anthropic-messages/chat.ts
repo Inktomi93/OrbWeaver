@@ -19,7 +19,7 @@ import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { AnthropicChatRequest, ChatEvent, ChatHistoryMessage, ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
-import { ProviderError, prefillSeedDrop, requireGeneration } from "#contract";
+import { generationOf, ProviderError, prefillSeedDrop } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
 import type { AnthropicCall, AnthropicChatDeps } from "#src/contract/anthropic-backend.ts";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -311,7 +311,7 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
 export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: AnthropicChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  const generation = requireGeneration(connection, label);
+  const generation = generationOf(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [
     ...knobs.warnings,

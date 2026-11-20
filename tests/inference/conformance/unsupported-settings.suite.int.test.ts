@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/node";
 import { PROVIDER_CAPABILITY_EVENT, PROVIDER_SAMPLING_EVENT } from "#inference/backends/http/provider-log.ts";
 import { wireConnection } from "../roles/runtime.fixtures.ts";
 import type { ChatScript } from "./runtime.fixtures.ts";
-import { CONFORMANCE_WIRES, cellTest, chatCapability, conformanceRoot, driveChat, warningCodesOf } from "./runtime.fixtures.ts";
+import { CONFORMANCE_CHAT_ROUTES, cellTest, chatCapability, conformanceRoot, driveChat, warningCodesOf } from "./runtime.fixtures.ts";
 
 const KNOB = "temperature";
 
@@ -16,9 +16,10 @@ function scriptFor(wire: Wire): ChatScript {
   return { deltas: ["ok"], stop: wire === "anthropic-messages" ? "end_turn" : "stop", tokensIn: 3, tokensOut: 2 };
 }
 
-for (const wire of CONFORMANCE_WIRES) {
-  cellTest(wire, "chat", "a knob the capability does not expose is dropped with a warning AND never sent (D41)", async () => {
-    const { events, captured, turn } = await driveChat(wire, {
+for (const route of CONFORMANCE_CHAT_ROUTES) {
+  const { wire } = route;
+  cellTest(route, "chat", "a knob the capability does not expose is dropped with a warning AND never sent (D41)", async () => {
+    const { events, captured, turn } = await driveChat(route, {
       script: scriptFor(wire),
       // An empty `sampling` axis is "this model exposes no sampler ranges at all" — the funnel's
       // `resolveNumeric` has nothing to clamp against and must drop, loudly.
@@ -44,13 +45,13 @@ for (const wire of CONFORMANCE_WIRES) {
     }
   });
 
-  cellTest(wire, "chat", "a knob the capability DOES expose is either SENT or announced as dropped — never neither", async () => {
+  cellTest(route, "chat", "a knob the capability DOES expose is either SENT or announced as dropped — never neither", async () => {
     // THE D41 DISJUNCTION, and the positive control for the arm above in one: without it, a wire that
     // dropped EVERY knob unconditionally would pass the degrade pin while being broken in the opposite
     // direction. Stated as `sent || announced` rather than "sent", because which of the two a wire owes
     // depends on whether that wire can spell the knob at all — and THAT is a per-wire fact the suite must
     // not hand-roster. What no wire may do is neither: resolve the knob, report it applied, and send nothing.
-    const { events, captured } = await driveChat(wire, {
+    const { events, captured } = await driveChat(route, {
       script: scriptFor(wire),
       capability: chatCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
       params: { temperature: 0.9 },
@@ -68,11 +69,11 @@ for (const wire of CONFORMANCE_WIRES) {
     expect([sent, announced], `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toContain(true);
   });
 
-  cellTest(wire, "chat", "an authored chain of thought that no continue row can carry is announced as dropped and never sent", async () => {
+  cellTest(route, "chat", "an authored chain of thought that no continue row can carry is announced as dropped and never sent", async () => {
     // The seed's D41: it rides ONLY a stamped continue row, and this fixture's history is one user turn — so
     // every wire owes the same loud drop here. The honoring route (a stamped row) is pinned by
     // tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts, which reads the seed on the wire bytes.
-    const { events, captured, turn } = await driveChat(wire, {
+    const { events, captured, turn } = await driveChat(route, {
       script: scriptFor(wire),
       prefillReasoning: "SEED the user wants one line; keep it short.",
     });
