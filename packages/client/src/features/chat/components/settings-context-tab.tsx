@@ -291,7 +291,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           display-script broadcast switch — i.e. a regex control under an appearance name, three doors deep in
           the host band. It now closes the section's `On screen` group, where the display leg's own roster is,
           and the section count of this tab is unchanged. */}
-      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<RegexHeading chatId={chatId} isHost={isHost} />} sectionId="regex">
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<RegexHeading chatId={chatId} isHost={isHost} />} sectionId={CHAT_CONTEXT_SECTION_IDS.regex}>
         <QueryBoundary
           resetKeys={[chatId]}
           fallback={<SkeletonRows count={3} shape="line" />}

@@ -53,6 +53,9 @@ export function warningNotice(warning: ChatWarning): NotifyNotice {
     : plainNotice(warning.code);
 }
 
+/** The label of the door a dropped-setting notice offers: the preset editor's Params view. */
+export const OPEN_PARAMS_NAME = "Open Params";
+
 /** The id the room's one notice for skipped regex scripts carries, so each new report updates it in place. */
 const REGEX_NOT_APPLIED_NOTICE_ID = "regex-scripts-not-applied";
 
@@ -239,11 +242,12 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       };
     case "reasoning_mandatory_clamp":
       return {
+        // The model reasons whether or not it shows its thinking, so the notice never claims that reasoning appeared.
         description:
           warning.appliedEffort === undefined
-            ? "This model always reasons, so reasoning was turned on for this reply."
-            : `This model always reasons, so the effort was raised to ${warning.appliedEffort} for this reply.`,
-        title: "Reasoning was turned on for this reply",
+            ? "Reasoning can't be switched off on this model, so your setting to turn it off wasn't used. Whether you see its thinking is up to the model."
+            : `Reasoning can't be switched off on this model, so the effort was raised to ${warning.appliedEffort} for this reply.`,
+        title: "This model always reasons",
       };
     case "reasoning_budget_clamped":
       return {

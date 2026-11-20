@@ -415,6 +415,9 @@ export const generationCapabilitySchema = z
          *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through
          *  `windowForPreset`. */
         settable: z.object({ max: z.number() }).strip().optional(),
+        /** The route sends the window with each request, whether or not the server states a trained maximum. A route that
+         *  sends one never runs below {@link SETTABLE_WINDOW_FLOOR}; read through `windowFloorRaises`. */
+        sendsWindow: z.boolean().optional(),
       })
       .strip(),
     /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */

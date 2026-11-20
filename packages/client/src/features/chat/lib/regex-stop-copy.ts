@@ -61,7 +61,10 @@ export function regexNotAppliedReason(cause: RegexNotAppliedCause, pass: RegexSe
   return `The server did not apply it: it ${regexNotAppliedCauseWords(cause)} ${regexServerPassWords(pass)}. ${REGEX_STOP_NEXT_STEP}`;
 }
 
-/** The step a skipped-script notice offers: the room's This chat tab, where the Regex section lists the script. */
+/** The step a skipped-script notice offers when it names one script: that script's row in the room's This chat tab. */
+export const REGEX_STOP_OPEN_SCRIPT_NAME = "Show this script";
+
+/** The step the notice offers when it holds only a count of scripts with no ids: the room's This chat tab, where the Regex section lists them. */
 export const REGEX_STOP_OPEN_ROOM_NAME = "Open This chat";
 
 /** The room's one notice for every script a server pass did not apply this session. `latest` names the newest. */

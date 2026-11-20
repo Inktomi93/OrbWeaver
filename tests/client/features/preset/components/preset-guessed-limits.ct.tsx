@@ -6,7 +6,7 @@
 
 import { CONNECTIONS_LIST_ADDRESS } from "@orb/client/lib";
 import type { DeclaredCapability, GenerationCapability, LimitSource } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, LIMIT_SOURCES, outputLimitSource } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, LIMIT_SOURCES, outputLimitSource, SETTABLE_WINDOW_FLOOR } from "@orb/contracts/inference";
 import { DEFAULT_MAX_OUTPUT_TOKENS, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { PresetId, UserConnectionId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
@@ -38,6 +38,7 @@ import {
   presetMaxOutputHint,
   presetPastGuessNote,
   presetPastGuessValueText,
+  presetWindowFloorNote,
 } from "#client/features/preset/lib/preset-names.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 
@@ -110,15 +111,21 @@ const OLLAMA_ORIGIN = "http://127.0.0.1:11434";
 const OLLAMA_MODEL = "witness:7b";
 const OLLAMA_TRAINED = 131_072;
 const OLLAMA_SHOW = { ["model_info"]: { ["general.architecture"]: "llama", ["llama.context_length"]: OLLAMA_TRAINED }, capabilities: ["completion"] };
+// A second local Ollama whose `/api/show` states no trained maximum: its native route still sends the window, but nothing marks it settable.
+const UNTRAINED_ORIGIN = "http://127.0.0.1:11435";
+const UNTRAINED_SHOW = { ["model_info"]: { ["general.architecture"]: "llama" }, capabilities: ["completion"] };
+// A Max context typed below the least window a route that sends one runs, and one above it.
+const BELOW_FLOOR = 1000;
+const ABOVE_FLOOR = 5000;
 
 /** The list NanoGPT's models route answers, and the native routes a local Ollama answers; the other lists (embedding,
  *  rerank) answer empty. */
 const nanoGptHost: typeof fetch = (input, init) => {
   const request = new Request(input, init);
   const url = new URL(request.url);
-  if (url.origin === OLLAMA_ORIGIN) {
+  if (url.origin === OLLAMA_ORIGIN || url.origin === UNTRAINED_ORIGIN) {
     if (url.pathname === "/api/show") {
-      return Promise.resolve(Response.json(OLLAMA_SHOW));
+      return Promise.resolve(Response.json(url.origin === OLLAMA_ORIGIN ? OLLAMA_SHOW : UNTRAINED_SHOW));
     }
     if (url.pathname === "/api/ps") {
       return Promise.resolve(Response.json({ models: [] }));
@@ -604,4 +611,79 @@ test("a route that sends the window hides the context limit door and says the se
   await expect(page.getByRole("button", { name: presetLimitDoorName(PRESET_CONTEXT_LIMIT_NAME, "reported"), exact: true })).toHaveCount(0);
   // Positive control: the output row still offers its door, so the context row's missing door is the route, not the deck.
   await expect(page.getByRole("button", { name: presetLimitDoorName(PRESET_OUTPUT_LIMIT_NAME, outputLimitSource(capability)), exact: true })).toBeVisible();
+});
+
+/** A local Ollama connection made the chat role's, resolved the way the deck reads it. */
+async function ollamaConnection(caller: Caller, origin: string): Promise<GenerationCapability> {
+  const connection = await caller.connection.create({
+    providerId: "ollama",
+    credentialId: null,
+    baseUrl: `${origin}/v1`,
+    model: OLLAMA_MODEL,
+    label: "Witness Ollama",
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  const resolved = await caller.connection.resolveChatCapability();
+  if (resolved.capability.kind !== "generation") {
+    throw new Error("The chat role resolved a connection that is not a generation model");
+  }
+  return resolved.capability.generation;
+}
+
+const FLOOR_NOTE = presetWindowFloorNote(groupThousands(BELOW_FLOOR), groupThousands(SETTABLE_WINDOW_FLOOR));
+
+/** Types a Max context and waits for the row to hold it, so the note beside it has had its chance to appear. */
+async function typeMaxContext(page: Page, value: number): Promise<void> {
+  const box = valueBox(page, PRESET_MAX_CONTEXT_LABEL);
+  await box.fill(String(value));
+  await box.blur();
+  await expect(box).toHaveValue(String(value));
+}
+
+test("a Max context below the floor says the floor goes out, on a route with a stated trained maximum", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capability = await ollamaConnection(caller, OLLAMA_ORIGIN);
+  // Control: the settable branch, so this case is not the route that sends a window with no maximum.
+  expect(capability.context.settable).toEqual({ max: OLLAMA_TRAINED });
+  const preset = await caller.preset.create({ name: "Below the floor", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  await typeMaxContext(page, BELOW_FLOOR);
+  await expect(page.getByText(FLOOR_NOTE, { exact: true })).toBeVisible();
+  await typeMaxContext(page, ABOVE_FLOOR);
+  await expect(page.getByText(FLOOR_NOTE, { exact: true })).toHaveCount(0);
+});
+
+test("a Max context below the floor says the floor goes out, on Ollama's native send with no trained maximum", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capability = await ollamaConnection(caller, UNTRAINED_ORIGIN);
+  // Control: the route sends the window but nothing marks it settable, and its window is a guess the preset's number replaces.
+  expect(capability.context.settable).toBeUndefined();
+  expect(capability.context.sendsWindow).toBe(true);
+  expect(capability.context.windowEstimated).toBe(true);
+  const preset = await caller.preset.create({ name: "Below the floor, no maximum", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  await typeMaxContext(page, BELOW_FLOOR);
+  await expect(page.getByText(FLOOR_NOTE, { exact: true })).toBeVisible();
+  await typeMaxContext(page, ABOVE_FLOOR);
+  await expect(page.getByText(FLOOR_NOTE, { exact: true })).toHaveCount(0);
+});
+
+test("a Max context below the floor says nothing on a route that sends no window", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, SCENARIOS.guessed);
+  expect(capability.context.sendsWindow).toBeUndefined();
+  const preset = await caller.preset.create({ name: "Below the floor, plain route", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  await typeMaxContext(page, BELOW_FLOOR);
+  await expect(page.getByText(FLOOR_NOTE, { exact: true })).toHaveCount(0);
+  // The positive control: this row takes typing and draws its notes on this route, so the missing floor note is the route's.
+  const pastGuess = capability.context.window + 1;
+  await typeMaxContext(page, pastGuess);
+  await expect(page.getByText(presetPastGuessNote(groupThousands(pastGuess), groupThousands(capability.context.window)), { exact: true })).toBeVisible();
 });

@@ -30,7 +30,16 @@
 // gloss and the vertical `Summary instructions` textarea.
 
 import type { GenerationCapability, LimitSource, Verbosity, Wire } from "@orb/contracts/inference";
-import { contextLimitSource, maxOutputCoversThinking, outputCeilingOf, outputLimitSource, statesKnob, windowForPreset } from "@orb/contracts/inference";
+import {
+  contextLimitSource,
+  maxOutputCoversThinking,
+  outputCeilingOf,
+  outputLimitSource,
+  SETTABLE_WINDOW_FLOOR,
+  statesKnob,
+  windowFloorRaises,
+  windowForPreset,
+} from "@orb/contracts/inference";
 import type { EffectiveProvenance } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -80,6 +89,7 @@ import {
   presetPastGuessNote,
   presetReplyExceedsCapNote,
   presetSentWindowHint,
+  presetWindowFloorNote,
 } from "../lib/preset-names.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
@@ -163,7 +173,13 @@ function OutputCluster({
               { ceiling: outputMax, guessed: outputGuessed, heldTo, turnWindow: turn.context.window },
               effective?.knobs["maxOutputTokens"],
             );
-            const contextNote = maxContextNote(limits.maxContextTokens, { ceiling: contextMax, window, source: contextSource, sentByServer });
+            const contextNote = maxContextNote(limits.maxContextTokens, {
+              ceiling: contextMax,
+              window,
+              source: contextSource,
+              sentByServer,
+              floorRaises: windowFloorRaises(capability, limits.maxContextTokens),
+            });
             return (
               <>
                 {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send, and the note
@@ -407,8 +423,18 @@ const BLANK_DEFAULT_RUNGS: ReadonlySet<string> = new Set(["floor", "clamped"] sa
  *  connection's ceiling says what happens to it. */
 function maxContextNote(
   stored: number | undefined,
-  limit: { readonly ceiling: number; readonly window: number; readonly source: LimitSource; readonly sentByServer: boolean },
+  limit: {
+    readonly ceiling: number;
+    readonly window: number;
+    readonly source: LimitSource;
+    readonly sentByServer: boolean;
+    /** The route sends the window and the turn's window is under the floor it never runs below. */
+    readonly floorRaises: boolean;
+  },
 ): LimitNote | undefined {
+  if (limit.floorRaises) {
+    return { text: presetWindowFloorNote(stored === undefined ? undefined : groupThousands(stored), groupThousands(SETTABLE_WINDOW_FLOOR)) };
+  }
   if (stored === undefined) {
     return { text: presetBlankContextNote(groupThousands(limit.window), limit.source, limit.sentByServer) };
   }
