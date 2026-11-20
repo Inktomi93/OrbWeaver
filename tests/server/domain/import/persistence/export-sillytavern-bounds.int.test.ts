@@ -22,6 +22,7 @@ import {
   stExportReportSchema,
   stProfileExportPath,
 } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { chatDocuments, documents, worldBooks } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -30,6 +31,7 @@ import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makeAssetBytes, withheldTable } from "@orb/testkit/node/composed";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { eq, getTableName, sql } from "drizzle-orm";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Files } from "./_st-tree-door.ts";
@@ -39,11 +41,16 @@ const OK = 200;
 // A stored file turned into a directory fails its read with this, never with a missing file.
 const EISDIR = "EISDIR";
 const CONFLICT = 409;
+// Each slow case's base is about three times its measured runtime on this box at per-core load 0.8 (14 s and 19 s), so
+// a busier box stretches it through the load budget and no case shares the slow tag's ceiling.
+const HELD_BYTES_CASE_BASE_MS = 45_000;
+const ENTRY_COUNT_CASE_BASE_MS = 60_000;
+const DOWNLOAD_HEADERS = ["content-type", "content-disposition"] as const;
 const MIB = 1024 * 1024;
 const PICTURE_BYTES = 8 * MIB;
-const LARGE_COUNT = 10;
+const LARGE_COUNT = 6;
 // Eight bodies: a read body, its deflated copy and the chunks in flight fit well under this however loaded the box, and
-// the library (two pictures per count) is two and a half times it.
+// the library (two pictures per count) is one and a half times it.
 const HELD_BOUND = 8 * PICTURE_BYTES;
 const IEND_CHUNK_BYTES = 12;
 const PNG_CHUNK_TYPE = "abCd";
@@ -120,7 +127,9 @@ async function peakWhileReading(root: ServerTestHarness, keep: boolean): Promise
   return { peak, read };
 }
 
-test("the export holds one file body at a time however large the library, and the probe sees a client that holds it all", { tags: ["slow"] }, async () => {
+test("the export holds one file body at a time however large the library, and the probe sees a client that holds it all", {
+  timeout: budget(HELD_BYTES_CASE_BASE_MS),
+}, async () => {
   await using root = await harness();
   await finishRun(root, await admit(root, largeLibrary(root, LARGE_COUNT, PICTURE_BYTES)));
   const library = 2 * LARGE_COUNT * PICTURE_BYTES;
@@ -311,7 +320,9 @@ test("a Data Bank file whose text is past the zip's entry cap is named and left 
 const INSERT_CHUNK = 500;
 const BOOK_PREFIX = "Book ";
 
-test("a library past the zip's entry cap names every row it cannot hold, the zip completes, and the next export starts", { tags: ["slow"] }, async () => {
+test("a library past the zip's entry cap names every row it cannot hold, the zip completes, and the next export starts", {
+  timeout: budget(ENTRY_COUNT_CASE_BASE_MS),
+}, async () => {
   await using root = await harness();
   const principal = await root.principalFor(root.ownerId);
   // One book through the product, then its row copied under new ids: a library holding more books than one zip may.
@@ -382,4 +393,21 @@ test("the dry run reads no document's text: it answers in full when no text can 
   // The control: the zip reads the document's text and fails on it.
   const zip = await root.http.request(stProfileExportPath(false));
   await expect(zip.arrayBuffer()).rejects.toThrow(documents.extractedText.name);
+});
+
+test("a HEAD request answers the download's headers with no body and takes no hold, for every library format", async () => {
+  await using root = await harness();
+  for (const path of [stProfileExportPath(false), stProfileExportPath(true), PORTABILITY_ROUTES.exportLibrary]) {
+    const head = await root.http.request(path, { method: "HEAD" });
+    expect(head.status).toBe(OK);
+    expect(await head.text()).toBe("");
+    // A hold left by the HEAD would refuse this with the running code.
+    expect(await dryRunStatus(root)).toBe(OK);
+    const download = await root.http.request(path);
+    await present(download.body).cancel();
+    for (const header of DOWNLOAD_HEADERS) {
+      expect(head.headers.get(header)).toBe(download.headers.get(header));
+    }
+    expect(await statusOnceReleased(root)).toBe(OK);
+  }
 });

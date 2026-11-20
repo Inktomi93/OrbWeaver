@@ -52,6 +52,8 @@ const ST_PROFILE_FILENAME = "orbweaver-sillytavern.zip";
 const DRY_RUN_VALUE = "1";
 const ST_EXPORT_RUNNING_ERROR = "an export is already running";
 const JSON_REPORT_INDENT = 2;
+const HEAD_METHOD = "HEAD";
+const DRY_RUN_HEADERS = { "Content-Type": JSON_MIME } as const;
 
 /** R6 — the chat door's THIRD container: the orb-native bundle. Not an `ExportChatFormat` member, because
  *  that union is the ST INTERCHANGE's two text shapes and this one is neither text nor ST — it is the same
@@ -107,6 +109,35 @@ function parseKinds(raw: string | undefined): ParsedKinds {
     requested.add(trimmed as PortableKind);
   }
   return { kinds: requested, invalid: null };
+}
+
+/** The library route's request, read once so a HEAD and a GET answer the same request. */
+type LibraryRequest = { readonly stProfile: true; readonly dryRun: boolean } | { readonly stProfile: false; readonly kinds: ReadonlySet<PortableKind> | null };
+
+function parseLibraryRequest(
+  format: string | undefined,
+  rawKinds: string | undefined,
+  dryRun: string | undefined,
+): LibraryRequest | { readonly error: string } {
+  if (format === ST_EXPORT_FORMAT) {
+    // A SillyTavern profile is the whole library: SillyTavern pairs chats with their cards by folder.
+    if (rawKinds !== undefined) {
+      return { error: `"${KINDS_QUERY}" does not apply to the ${ST_EXPORT_FORMAT} format` };
+    }
+    return { stProfile: true, dryRun: dryRun === DRY_RUN_VALUE };
+  }
+  const { kinds, invalid } = parseKinds(rawKinds);
+  if (invalid !== null) {
+    return { error: `invalid "${KINDS_QUERY}" token: ${invalid}` };
+  }
+  return { stProfile: false, kinds };
+}
+
+function libraryHeaders(request: LibraryRequest): Readonly<Record<string, string>> {
+  if (!request.stProfile) {
+    return zipHeaders(LIBRARY_FILENAME);
+  }
+  return request.dryRun ? DRY_RUN_HEADERS : zipHeaders(ST_PROFILE_FILENAME);
 }
 
 /** Stream every requested entity's files as zip entries under distinct paths, so the archive also restores as a
@@ -196,13 +227,17 @@ async function serveStProfile(deps: ExportDeps, holds: ExportHolds, principal: P
   const source = stProfileSource(deps, principal);
   if (dryRun) {
     try {
-      return Response.json(await stProfileDryRun(source, ZIP_WRITE_LIMITS));
+      return Response.json(await stProfileDryRun(source, ZIP_WRITE_LIMITS), { headers: DRY_RUN_HEADERS });
     } finally {
       release();
     }
   }
   const profile = packZip(heldZip(stProfileZip(source, ZIP_WRITE_LIMITS), release), deps.logger, deps.traces);
-  return new Response(profile, { headers: { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${ST_PROFILE_FILENAME}"` } });
+  return new Response(profile, { headers: zipHeaders(ST_PROFILE_FILENAME) });
+}
+
+function zipHeaders(filename: string): Readonly<Record<string, string>> {
+  return { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${filename}"` };
 }
 
 function serveDownload(body: Uint8Array | string, mime: string, filename: string): Response {
@@ -292,23 +327,19 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
-    if (c.req.query(FORMAT_QUERY) === ST_EXPORT_FORMAT) {
-      // A SillyTavern profile is the whole library: SillyTavern pairs chats with their cards by folder.
-      if (c.req.query(KINDS_QUERY) !== undefined) {
-        return c.json({ error: `"${KINDS_QUERY}" does not apply to the ${ST_EXPORT_FORMAT} format` }, BAD_REQUEST);
-      }
-      return await serveStProfile(deps, holds, principal, c.req.query(ST_EXPORT_DRY_RUN_QUERY) === DRY_RUN_VALUE);
+    const request = parseLibraryRequest(c.req.query(FORMAT_QUERY), c.req.query(KINDS_QUERY), c.req.query(ST_EXPORT_DRY_RUN_QUERY));
+    if ("error" in request) {
+      return c.json({ error: request.error }, BAD_REQUEST);
     }
-    const { kinds, invalid } = parseKinds(c.req.query(KINDS_QUERY));
-    if (invalid !== null) {
-      return c.json({ error: `invalid "${KINDS_QUERY}" token: ${invalid}` }, BAD_REQUEST);
+    // Hono answers a HEAD by running this GET handler and dropping its body uncancelled: a stream built here would never
+    // end, and a SillyTavern export's hold would stay taken until restart. A HEAD stops before the hold and the stream.
+    if (c.req.method === HEAD_METHOD) {
+      return new Response(null, { headers: libraryHeaders(request) });
     }
-    const stream = packZip(libraryEntries(deps.registry, kinds, principal.userId), deps.logger, deps.traces);
-    return new Response(stream, {
-      headers: {
-        "Content-Type": ZIP_MIME,
-        "Content-Disposition": `attachment; filename="${LIBRARY_FILENAME}"`,
-      },
-    });
+    if (request.stProfile) {
+      return await serveStProfile(deps, holds, principal, request.dryRun);
+    }
+    const stream = packZip(libraryEntries(deps.registry, request.kinds, principal.userId), deps.logger, deps.traces);
+    return new Response(stream, { headers: libraryHeaders(request) });
   });
 }
