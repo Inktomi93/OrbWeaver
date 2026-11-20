@@ -3,6 +3,7 @@
 // chat's history to the guess once the preset asks for more. A stated window (here, the user's own override) still
 // bounds the same preset, so the guess yielding is the guess's doing and not a missing bound.
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { JsonValue } from "@orb/kit/json";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -72,6 +73,38 @@ test("a preset's Max context tokens over a guessed window fits the history to th
   expect(sent).toContain(line(1));
   expect(sent).toContain(line(HISTORY_LINES));
 });
+
+// A stated window with no stated max output, as a local server reports: the preset's reply ask is held to half the window.
+const HELD_REPLIES = [
+  { window: STATED_WINDOW, held: 4096 },
+  { window: 32_000, held: 16_000 },
+] as const;
+
+function maxTokensOf(body: JsonValue): unknown {
+  return typeof body === "object" && body !== null && !Array.isArray(body) ? body["max_tokens"] : undefined;
+}
+
+for (const { window, held } of HELD_REPLIES) {
+  test(`a preset's reply ask over a guessed max output holds to ${String(held)} tokens on a stated ${String(window)}-token window, and history is kept`, async () => {
+    await using h = await longRoom(["The keeper answers."], PRESET_ASKS);
+    await bindProxy(h, window);
+
+    const fit = await h.caller.chat.previewContextFit({ chatId: h.chatId });
+    if ("unbound" in fit) {
+      throw new Error("The room lost its chat binding");
+    }
+    expect(fit).toMatchObject({ reserveOutputTokens: held, limit: { kind: "window", tokens: window } });
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.droppedCount).toBeLessThan(HISTORY_LINES - 1);
+
+    const { newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on." }));
+    expect(maxTokensOf(newest)).toBe(held);
+    const sent = wireText(newest);
+    expect(sent).toContain(line(HISTORY_LINES - 1));
+    expect(sent).toContain(line(HISTORY_LINES));
+    expect(sent).not.toContain(line(1));
+  });
+}
 
 test("a window the user states still bounds the same preset, so the history is trimmed to it", async () => {
   await using h = await longRoom(["The keeper answers."], { ...PRESET_ASKS, maxOutputTokens: SMALL_REPLY });

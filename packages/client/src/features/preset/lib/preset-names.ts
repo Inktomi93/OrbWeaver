@@ -360,6 +360,17 @@ export function presetPastGuessNote(stored: string, ceiling: string): string {
   return `Saved as ${stored}, past the guess of ${ceiling}. It is sent as saved; if the server refuses it, set the real limit.`;
 }
 
+/** A reply the stated window cannot hold beside a prompt: the value stays saved and the turn holds the reply to what the
+ *  window leaves. */
+export function presetHeldToWindowNote(stored: string, heldTo: string, window: string): string {
+  return `Saved as ${stored}, but this model's window of ${window} tokens leaves room for a reply of at most ${heldTo}, so replies stop there.`;
+}
+
+/** A reply as large as the guessed window: nothing is left for history until the real window is set. */
+export function presetFillsGuessedWindowNote(stored: string, window: string): string {
+  return `A reply of ${stored} tokens fills the ${window}-token window this connection is guessed to have, so only the newest message is sent. Set the real window or Max context tokens.`;
+}
+
 /** A blank Max context tokens row: what the history is trimmed to when the preset sets nothing. */
 export function presetBlankContextNote(window: string, source: LimitSource, sentByServer: boolean): string {
   if (sentByServer) {

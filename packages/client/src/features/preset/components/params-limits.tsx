@@ -30,7 +30,7 @@
 // gloss and the vertical `Summary instructions` textarea.
 
 import type { GenerationCapability, LimitSource, Verbosity, Wire } from "@orb/contracts/inference";
-import { contextLimitSource, maxOutputCoversThinking, outputLimitSource, statesKnob } from "@orb/contracts/inference";
+import { contextLimitSource, maxOutputCoversThinking, outputCeilingOf, outputLimitSource, statesKnob, windowForPreset } from "@orb/contracts/inference";
 import type { EffectiveProvenance } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -70,6 +70,8 @@ import {
   presetBlankContextNote,
   presetBlankOutputNote,
   presetCappedOnConnectionNote,
+  presetFillsGuessedWindowNote,
+  presetHeldToWindowNote,
   presetLimitDoorName,
   presetLimitSourceLine,
   presetMaxContextHint,
@@ -151,47 +153,66 @@ function OutputCluster({
             maxContextTokens: state.values.params.maxContextTokens,
           })}
         >
-          {(limits): ReactElement => (
-            <>
-              {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send, and the note
+          {(limits): ReactElement => {
+            // What the turn runs: a guessed window yields to the preset's own Max context tokens.
+            const heldTo = outputCeilingOf(windowForPreset(capability, limits.maxContextTokens));
+            return (
+              <>
+                {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send, and the note
                   says that a blank row sends the app's default however high the model's own limit is. */}
-              <KnobRow
-                effective={effective?.knobs["maxOutputTokens"]}
-                form={form}
-                hint={presetMaxOutputHint(groupThousands(outputMax), outputGuessed)}
-                label={PRESET_MAX_OUTPUT_LABEL}
-                largeStep={pageStep(1, outputMax)}
-                max={outputMax}
-                min={1}
-                name="params.maxOutputTokens"
-                note={maxOutputNote(limits.maxOutputTokens, outputMax, outputGuessed, effective?.knobs["maxOutputTokens"])}
-                step={1}
-                storesPastRail={outputGuessed ? true : undefined}
-              />
-              <KnobRow
-                effective={{ value: window, provenance: capability.context.settable === undefined ? "window" : SENT_WINDOW_PROVENANCE }}
-                form={form}
-                hint={maxContextHint(
-                  capability.context,
-                  Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax),
-                  limits.maxContextTokens,
-                  windowGuessed,
-                )}
-                label={PRESET_MAX_CONTEXT_LABEL}
-                largeStep={pageStep(1, contextMax)}
-                max={contextMax}
-                min={1}
-                name="params.maxContextTokens"
-                note={maxContextNote(limits.maxContextTokens, { ceiling: contextMax, window, source: contextSource, sentByServer })}
-                step={1}
-                storesPastRail={windowGuessed ? true : undefined}
-              />
-            </>
-          )}
+                <KnobRow
+                  effective={effective?.knobs["maxOutputTokens"]}
+                  form={form}
+                  hint={presetMaxOutputHint(groupThousands(outputMax), outputGuessed)}
+                  label={PRESET_MAX_OUTPUT_LABEL}
+                  largeStep={pageStep(1, outputMax)}
+                  max={outputMax}
+                  min={1}
+                  name="params.maxOutputTokens"
+                  note={maxOutputNote(limits.maxOutputTokens, { ceiling: outputMax, guessed: outputGuessed, heldTo }, effective?.knobs["maxOutputTokens"])}
+                  step={1}
+                  storesPastRail={outputGuessed ? true : undefined}
+                />
+                <KnobRow
+                  effective={{ value: window, provenance: capability.context.settable === undefined ? "window" : SENT_WINDOW_PROVENANCE }}
+                  form={form}
+                  hint={maxContextHint(
+                    capability.context,
+                    Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, heldTo ?? Number.POSITIVE_INFINITY),
+                    limits.maxContextTokens,
+                    windowGuessed,
+                  )}
+                  label={PRESET_MAX_CONTEXT_LABEL}
+                  largeStep={pageStep(1, contextMax)}
+                  max={contextMax}
+                  min={1}
+                  name="params.maxContextTokens"
+                  note={maxContextNote(limits.maxContextTokens, { ceiling: contextMax, window, source: contextSource, sentByServer })}
+                  step={1}
+                  storesPastRail={windowGuessed ? true : undefined}
+                />
+              </>
+            );
+          }}
         </form.Subscribe>
       </KnobGrid>
       <Stack gap="tight">
         <LimitSourceLine chatConnectionId={chatConnectionId} ceiling={outputMax} name={PRESET_OUTPUT_LIMIT_NAME} source={outputSource} />
+        <form.Subscribe
+          selector={(state): { readonly maxOutputTokens: number | undefined; readonly maxContextTokens: number | undefined } => ({
+            maxOutputTokens: state.values.params.maxOutputTokens,
+            maxContextTokens: state.values.params.maxContextTokens,
+          })}
+        >
+          {(limits): ReactElement | null => {
+            const note = replyFitNote(limits.maxOutputTokens, capability, limits.maxContextTokens);
+            return note === undefined ? null : (
+              <Text cap="prose" prose={true} voice="gloss">
+                {note}
+              </Text>
+            );
+          }}
+        </form.Subscribe>
         {/* A route that sends the window runs the preset's Max context, so the connection has no window to override. */}
         <LimitSourceLine
           chatConnectionId={sentByServer ? undefined : chatConnectionId}
@@ -319,7 +340,11 @@ function maxContextHint(
 /** Max output tokens' visible line: a blank row names what it sends (the shared default, held under the model's cap as
  *  the funnel holds it); a stored value over the cap keeps its number and says the turn is capped at the connection's stated limit, or
  *  that it passes a guess. */
-function maxOutputNote(stored: number | undefined, outputMax: number, guessed: boolean, effective: EffectiveKnobRow | undefined): string | undefined {
+function maxOutputNote(
+  stored: number | undefined,
+  limit: { readonly ceiling: number; readonly guessed: boolean; readonly heldTo: number | undefined },
+  effective: EffectiveKnobRow | undefined,
+): string | undefined {
   if (stored === undefined) {
     // The note speaks only for the app's default. A quality dial or a model default sets a blank row's value too, and
     // the row's own ghost line names that rung truly, so the note stays out of its way.
@@ -328,10 +353,33 @@ function maxOutputNote(stored: number | undefined, outputMax: number, guessed: b
     }
     // The readout's floor rung reports the bare default; the turn materializes it and `resolveChat` then holds it
     // under the model's cap, so the cap bounds what the row says it sends.
-    const sends = Math.min(typeof effective?.value === "number" ? effective.value : DEFAULT_MAX_OUTPUT_TOKENS, outputMax);
+    const sends = Math.min(typeof effective?.value === "number" ? effective.value : DEFAULT_MAX_OUTPUT_TOKENS, limit.heldTo ?? Number.POSITIVE_INFINITY);
     return presetBlankOutputNote(groupThousands(sends), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS));
   }
-  return cappedNote(stored, outputMax, guessed);
+  // A guessed cap beside a stated window is held to what the window leaves; the line under the rows says so.
+  if (limit.guessed && limit.heldTo !== undefined && stored > limit.heldTo) {
+    return;
+  }
+  return cappedNote(stored, limit.ceiling, limit.guessed);
+}
+
+/** The line beside the output source line when the reply asked for cannot fit its window: a guessed cap beside a stated
+ *  window holds the reply to what leaves the prompt room, and a guessed window leaves a reply as large as itself no
+ *  room for history until the real window is set. */
+function replyFitNote(stored: number | undefined, capability: GenerationCapability, maxContextTokens: number | undefined): string | undefined {
+  if (stored === undefined) {
+    return;
+  }
+  const turn = windowForPreset(capability, maxContextTokens);
+  const heldTo = outputCeilingOf(turn);
+  const window = groupThousands(turn.context.window);
+  if (outputLimitSource(turn) === "guessed" && heldTo !== undefined && stored > heldTo) {
+    return presetHeldToWindowNote(groupThousands(stored), groupThousands(heldTo), window);
+  }
+  if (contextLimitSource(turn) === "guessed" && stored >= turn.context.window) {
+    return presetFillsGuessedWindowNote(groupThousands(stored), window);
+  }
+  return undefined;
 }
 
 /** The funnel rungs a blank Max output row lands on when only the app default stands: the default itself, or that

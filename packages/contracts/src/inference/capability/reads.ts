@@ -2,6 +2,7 @@
 // `capability.<axis>?.` re-spelled outside this file is a second home: every such copy migrates here so the
 // SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 
+import { windowReplyCeiling } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
@@ -79,15 +80,23 @@ export function contextLimitSource(capability: GenerationCapability): LimitSourc
 export const WIRES_ADDING_THINKING_BUDGET: ReadonlySet<Wire> = new Set<Wire>(["anthropic-messages"]);
 
 /** Does a request's max output cover the model's thinking as well as its reply on this wire? False on a model that
- *  cannot reason, and on a wire whose SDK adds the thinking budget beside the reply's cap. */
+ *  cannot reason, and where the SDK adds a thinking budget beside the reply's cap, which only a budget-mode model on
+ *  such a wire sends (an adaptive or effort-mode model's cap covers both). */
 export function maxOutputCoversThinking(capability: GenerationCapability, wire: Wire): boolean {
-  return capability.reasoning.enabled && !WIRES_ADDING_THINKING_BUDGET.has(wire);
+  const { enabled, mode } = capability.reasoning;
+  return enabled && !(mode === "budget" && WIRES_ADDING_THINKING_BUDGET.has(wire));
 }
 
-/** The max output a request is held under, or `undefined` when the only cap is a guess. A guessed cap never stops a
- *  preset's own number: a server that really stops sooner says so itself. */
+/** The max output a request is held under, or `undefined` when nothing the model stated holds it. A guessed cap never
+ *  stops a preset's own number: a server that really stops sooner says so itself. A window the model or the user
+ *  stated is a limit, though, so beside a guessed cap it still holds the reply to what leaves the prompt room
+ *  ({@link windowReplyCeiling}). A guessed window holds nothing either. The funnel and the history fit both read this,
+ *  so the reply sent and the reply reserved stay one value. */
 export function outputCeilingOf(capability: GenerationCapability): number | undefined {
-  return outputLimitSource(capability) === "guessed" ? undefined : capability.output.maxTokens.max;
+  if (outputLimitSource(capability) !== "guessed") {
+    return capability.output.maxTokens.max;
+  }
+  return contextLimitSource(capability) === "guessed" ? undefined : windowReplyCeiling(capability.context.window);
 }
 
 /** The window a turn sends and budgets. On a route whose window the request sets, the preset's Max context tokens, at

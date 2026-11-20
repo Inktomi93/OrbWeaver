@@ -34,10 +34,20 @@ test("a route that sends the window reports its ceiling whatever the window was 
   expect(contextLimitSource(sent)).toBe("reported");
 });
 
-test("only a guessed max output leaves a request unbounded", () => {
+test("a stated or declared max output holds a request to it, and a guess with a guessed window holds nothing", () => {
   expect(outputCeilingOf(guessed)).toBeUndefined();
   expect(outputCeilingOf(stated)).toBe(STATED_MAX);
   expect(outputCeilingOf(declared)).toBe(STATED_MAX);
+});
+
+test("a guessed max output beside a stated window holds a reply to half the window, whoever stated it", () => {
+  const unreportedCap = { ...GENERATION_FLOOR.output, maxTokensEstimated: true };
+  expect(outputCeilingOf(makeGenerationCapability({ output: unreportedCap, context: { window: STATED_WINDOW } }))).toBe(STATED_WINDOW / 2);
+  expect(outputCeilingOf(makeGenerationCapability({ output: unreportedCap, context: { window: STATED_WINDOW, windowDeclared: true } }))).toBe(
+    STATED_WINDOW / 2,
+  );
+  // The preset's own Max context tokens is the window the turn runs once it replaces a guessed one.
+  expect(outputCeilingOf(windowForPreset(guessed, PRESET_WINDOW))).toBe(PRESET_WINDOW / 2);
 });
 
 test("a preset's Max context tokens becomes a guessed window, and a stated window stays", () => {
@@ -55,9 +65,14 @@ test("a settable window still runs the preset's number within the trained maximu
   expect(windowForPreset(settable, TRAINED_MAX * 2).context.window).toBe(TRAINED_MAX);
 });
 
-test("max output covers the thinking on a model that thinks, except where the wire's SDK adds the thinking budget", () => {
-  const thinks = makeGenerationCapability({ reasoning: { mode: "effort", enabled: true } });
-  expect(maxOutputCoversThinking(thinks, "openai-compat")).toBe(true);
-  expect(maxOutputCoversThinking(thinks, "anthropic-messages")).toBe(false);
+test("max output covers the thinking on a model that thinks, except a budget-mode model on a wire whose SDK adds the budget", () => {
+  const effortModel = makeGenerationCapability({ reasoning: { mode: "effort", enabled: true } });
+  const adaptiveModel = makeGenerationCapability({ reasoning: { mode: "adaptive", enabled: true } });
+  const budgetModel = makeGenerationCapability({ reasoning: { mode: "budget", enabled: true } });
+  expect(maxOutputCoversThinking(effortModel, "openai-compat")).toBe(true);
+  expect(maxOutputCoversThinking(effortModel, "anthropic-messages")).toBe(true);
+  expect(maxOutputCoversThinking(adaptiveModel, "anthropic-messages")).toBe(true);
+  expect(maxOutputCoversThinking(budgetModel, "openai-compat")).toBe(true);
+  expect(maxOutputCoversThinking(budgetModel, "anthropic-messages")).toBe(false);
   expect(maxOutputCoversThinking(stated, "openai-compat")).toBe(false);
 });

@@ -30,6 +30,8 @@ import {
   presetBlankContextNote,
   presetBlankOutputNote,
   presetCappedOnConnectionNote,
+  presetFillsGuessedWindowNote,
+  presetHeldToWindowNote,
   presetLimitDoorName,
   presetLimitSourceLine,
   presetMaxContextHint,
@@ -60,8 +62,11 @@ const PROVIDER = "nanogpt";
 const KEY = "synthetic-nanogpt-key-never-returned";
 const REPORTED_MODEL = "vendor/reports-its-limits";
 const THINKING_MODEL = "vendor/reports-and-thinks";
+const WINDOW_ONLY_MODEL = "vendor/reports-its-window-only";
 const UNREPORTED_MODEL = "vendor/states-no-limits";
 const REPORTED = { window: 262_144, output: 32_768 } as const;
+// A server that reports a window and no output cap, as a local one does: a reply may take half of that window.
+const WINDOW_ONLY = { window: 32_768, heldTo: 16_384 } as const;
 const NANOGPT_LIST = {
   object: "list",
   data: [
@@ -73,6 +78,7 @@ const NANOGPT_LIST = {
       ["max_output_tokens"]: REPORTED.output,
       capabilities: { reasoning: true },
     },
+    { id: WINDOW_ONLY_MODEL, object: "model", ["context_length"]: WINDOW_ONLY.window, ["max_output_tokens"]: null },
     { id: UNREPORTED_MODEL, object: "model", ["context_length"]: null, ["max_output_tokens"]: null },
   ],
 };
@@ -388,6 +394,38 @@ test("a Max output typed above a guessed ceiling is stored as typed, survives a 
   await expect(valueBox(page, PRESET_MAX_OUTPUT_LABEL)).toHaveValue(String(TYPED_OUTPUT));
   await expect(page.getByText(presetPastGuessNote(groupThousands(TYPED_OUTPUT), groupThousands(ceiling)), { exact: true })).toBeVisible();
   await expect(page.getByRole("slider", { name: PRESET_MAX_OUTPUT_LABEL, exact: true })).toHaveAttribute("aria-valuenow", String(ceiling));
+});
+
+test("a reply ask over a guessed max output beside a reported window says the window holds it", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, { model: WINDOW_ONLY_MODEL });
+  expect(capability.context.window).toBe(WINDOW_ONLY.window);
+  const presetId = await importedPreset(caller, IMPORTED);
+  await mountDeck(page, mount, presetId, caller);
+
+  const held = presetHeldToWindowNote(groupThousands(IMPORTED.output), groupThousands(WINDOW_ONLY.heldTo), groupThousands(WINDOW_ONLY.window));
+  await expect(page.getByText(held, { exact: true })).toBeVisible();
+  await expect(page.getByText(outputLine(capability, "guessed"), { exact: true })).toBeVisible();
+  // The row's own note stays quiet: it would say the guess passes, which the window does not allow.
+  await expect(
+    page.getByText(presetPastGuessNote(groupThousands(IMPORTED.output), groupThousands(capability.output.maxTokens.max)), { exact: true }),
+  ).toHaveCount(0);
+});
+
+test("a reply ask as large as a guessed window says only the newest message is sent", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, SCENARIOS.guessed);
+  const preset = await caller.preset.create({ name: "Reply fills the guess", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+  const box = valueBox(page, PRESET_MAX_OUTPUT_LABEL);
+  await box.fill(String(TYPED_OUTPUT));
+  await box.blur();
+
+  await expect(
+    page.getByText(presetFillsGuessedWindowNote(groupThousands(TYPED_OUTPUT), groupThousands(capability.context.window)), { exact: true }),
+  ).toBeVisible();
 });
 
 test("a Max output typed above a reported ceiling stops at it", async ({ mount, page }) => {
