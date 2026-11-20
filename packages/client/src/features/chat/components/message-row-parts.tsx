@@ -4,6 +4,7 @@
 // message-row-header.tsx.
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { FrameStyleSheet } from "@orb/kit/content";
 import type { UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -100,6 +101,8 @@ export function resolveRowContent(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The room's sheets written before this row (`roomSheetsBefore`). */
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   /** The row's display depth (`displayDepthsOf`). */
   readonly displayDepth: number | undefined;
   /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
@@ -123,6 +126,7 @@ export function resolveRowContent(args: {
       display={bodyDisplayRow(args.message, args.displayDepth)}
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
+      roomSheets={args.roomSheets}
       cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
       // The COMMITTED row identity the plugin display seam needs (U6, seam 14). Only committed rows carry one:
       // a ghost row has no settled `MessageView`, so it renders untransformed and always did.
@@ -189,6 +193,8 @@ export function renderRowBubble(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The room's sheets written before this row (`roomSheetsBefore`). */
+  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
   /** The row's display depth (`displayDepthsOf`). */
   readonly displayDepth: number | undefined;
   /** #245 — EDIT mode: the bubble stops hugging (`w-fit`, D66 N3) and fills the column the row holds open
@@ -237,6 +243,7 @@ export function renderRowBubble(args: {
       renderContext={args.renderContext}
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
+      roomSheets={args.roomSheets}
     />
   );
   // #2425 — THE SPEAKER SCOPE IS THE CONTENT COLUMN'S, NOT THE BUBBLE'S. It used to wrap this function's

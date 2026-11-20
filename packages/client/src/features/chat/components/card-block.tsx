@@ -16,10 +16,9 @@ import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
-import { FormingChip, useFramedLinkConfirm } from "#components";
+import { FormingChip, FramedMediaNotice, FramedScriptNotice, useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
-import { FramedMediaNotice, FramedScriptNotice } from "./plain-content-notice.tsx";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -50,7 +49,7 @@ function TierBCard({
   readonly allowExternal: boolean;
   readonly cardOrigin: CardOrigin | undefined;
 }): ReactElement {
-  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const { themeTokens, cardStyleTokens: styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily });
   const links = useFramedLinkConfirm();
   const { mint } = frame;

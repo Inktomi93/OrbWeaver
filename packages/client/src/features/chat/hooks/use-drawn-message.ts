@@ -2,6 +2,7 @@
 // speaker split, each run once over the text. The single-bubble row draws its body through it once
 // (`MessageContent`), and Tide's train draws the whole reply through it once and cuts what it drew (`MessageTrain`).
 
+import type { FrameStyleSheet } from "@orb/kit/content";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -12,7 +13,7 @@ import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib
 import { PLAIN_REPLY_REASON } from "#lib";
 import type { CardOrigin } from "../components/card-block.tsx";
 import type { ReplyLayout } from "../lib/reply-parts.ts";
-import { PANEL_READ_MAX_CHARS, readPanels, replyLayout } from "../lib/reply-parts.ts";
+import { carriedRoomSheets, PANEL_READ_MAX_CHARS, readPanels, replyLayout } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import { useDisplayText } from "./use-display-text.ts";
 
@@ -45,6 +46,9 @@ export interface MessageDrawProps {
   readonly pluginDisplayRow?: PluginDisplayRow | undefined;
   /** This body's place in the display-pass queue: a higher value runs first. The row's sequence number. */
   readonly displayOrder?: number | undefined;
+  /** The room's sheets written before this row (`roomSheetsBefore`), which a framed body carries when its markup uses
+   *  a class they name. Absent (a ghost, a preview, a room with none) ⇒ the body frames only on its own triggers. */
+  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
 }
 
 /** A body as the display pipeline drew it: the text, its speaker spans, and the pass's verdicts. */
@@ -84,18 +88,27 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
 }
 
 /** How a drawn body lays out: undefined for the inert path, else framed or the plain path whole, with why (D354).
- *  On the sandboxed tier a reply draws in a card frame when a display script's own markup styled it, or when its drawn
- *  prose holds a panel its author wrote. A plugin that rewrote the text has changed what the scripts produced, so the
- *  script trigger no longer holds; the panel trigger reads the text after the plugin, so a plugin's own panel frames
- *  like the model's. A row still waiting on its scripts is never framed: it stays on the held inert path until its
- *  answer lands. */
-export function drawnLayout(drawn: Omit<DrawnMessage, "observeBody">, props: Pick<MessageDrawProps, "render" | "speakerThemes">): ReplyLayout | undefined {
-  const { render, speakerThemes } = props;
-  const frames = (drawn.styled && !drawn.rewritten) || drawn.modelPanel;
-  if (render.cardTier !== "tierB" || !frames || drawn.pending) {
+ *  On the sandboxed tier a reply draws in a card frame when a display script's own markup styled it, when its drawn
+ *  prose holds a panel its author wrote, or when its prose markup uses a class one of the room's sheets names
+ *  (`roomSheets`, {@link carriedRoomSheets}), which its frame then carries. A plugin that rewrote the text has changed
+ *  what the scripts produced, so the script trigger no longer holds; the panel and room triggers read the text after the
+ *  plugin, so a plugin's own markup frames like the model's. A row still waiting on its scripts is never framed: it
+ *  stays on the held inert path until its answer lands. */
+export function drawnLayout(
+  drawn: Omit<DrawnMessage, "observeBody">,
+  props: Pick<MessageDrawProps, "render" | "speakerThemes" | "roomSheets">,
+): ReplyLayout | undefined {
+  const { render, speakerThemes, roomSheets } = props;
+  if (render.cardTier !== "tierB" || drawn.pending) {
     return undefined;
   }
-  if (drawn.text.length > PANEL_READ_MAX_CHARS) {
+  const overRead = drawn.text.length > PANEL_READ_MAX_CHARS;
+  // Past the read bound the room trigger reads nothing, as the panel trigger does.
+  const room = roomSheets === undefined || overRead ? [] : carriedRoomSheets(roomSheets, drawn.text, { lenientHtml: render.lenientCards });
+  if (!((drawn.styled && !drawn.rewritten) || drawn.modelPanel || room.length > 0)) {
+    return undefined;
+  }
+  if (overRead) {
     return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
   }
   return replyLayout(
@@ -103,6 +116,6 @@ export function drawnLayout(drawn: Omit<DrawnMessage, "observeBody">, props: Pic
       text: span.text,
       tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
     })),
-    { lenientHtml: render.lenientCards, cardTrust: render.cardTier },
+    { lenientHtml: render.lenientCards, cardTrust: render.cardTier, room },
   );
 }

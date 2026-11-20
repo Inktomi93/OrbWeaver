@@ -1,10 +1,11 @@
 // A framed reply's style and script texts are lifted out for the Markdown parse and put back after it: each text goes
 // back as it was wherever the parse put it, escaped as text or attribute value, never as markup. A block-level panel
 // parses whole: blank lines and indented lines inside one stay the panel's own HTML, and the prose round it stays
-// Markdown.
+// Markdown. Reference links copy into the frame document only up to the copy budget.
 // @subject packages/ui/src/markdown/frame/raw-text-lift.ts
 // @subject packages/ui/src/markdown/frame/frame-markdown.tsx
 // @subject packages/client/src/lib/message-render.ts
+// @subject packages/ui/src/markdown/reference-budget.ts
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { frameStyleElements, stripStyleElements, tokenizeContent } from "@orb/kit/content";
@@ -21,6 +22,8 @@ import type { DisplayRowCall, MessageRenderContext } from "#client/lib/message-r
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { FrameDocumentContext } from "../../../packages/ui/src/markdown/frame/frame-document-context.ts";
 import { liftRawText } from "../../../packages/ui/src/markdown/frame/raw-text-lift.ts";
+import { REFERENCE_COPY_BUDGET } from "../../../packages/ui/src/markdown/reference-budget.ts";
+import { REFERENCE_URL, reusedReference } from "./reference-budget.shapes.ts";
 
 const PRIVATE_USE_RE = /\p{Co}/u;
 // The mark the lift writes around a reply's first text, read from its own output for a reply naming no private-use
@@ -386,6 +389,26 @@ test("a hostile name in backticks in a card block's body stays escaped, since th
   const body = card?.kind === "card" ? card.body : "";
   expect(body).toContain(`Say \`${ESCAPED_NAME}\`.`);
   expect(body).toContain(`\`\`\`\n${ESCAPED_NAME}\n\`\`\``);
+});
+
+// A frame document holds each resolved reference link's address and title, so one long definition reused many times
+// grew the document past its source many times over (725 times for this shape before the copy budget).
+function referenceLinks(document: string): number {
+  return document.split(`href="${REFERENCE_URL}"`).length - 1;
+}
+
+test("a definition reused past the copy budget resolves only its budget, so the frame document stays near its source", () => {
+  const { source, resolved } = reusedReference(2500, 10_000);
+  const document = framed(source);
+  expect(referenceLinks(document)).toBe(resolved);
+  expect(resolved).toBeLessThan(2500);
+  expect(document.length).toBeLessThan(source.length + 2 * REFERENCE_COPY_BUDGET);
+});
+
+test("a few references to one definition all resolve in the frame document", () => {
+  const { source, resolved } = reusedReference(20, 40);
+  expect(resolved).toBe(20);
+  expect(referenceLinks(framed(source))).toBe(20);
 });
 
 // The text a reader sees in rendered markup: every tag dropped and every character reference read back.

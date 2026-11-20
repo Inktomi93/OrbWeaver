@@ -12,8 +12,8 @@
 import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
 import { CARD_FRAME_STYLE_TOKEN, clampCardFrameFontFamily, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
 import { useSyncExternalStore } from "react";
-import { createLiveTokenStore, resolveCssVar } from "#lib";
-import { TOKENS } from "#tokens";
+import { createLiveTokenStore, resolveCssLength, resolveCssVar } from "#lib";
+import { LENGTH_BASE_PX, TOKENS } from "#tokens";
 
 // THE CURATED HOUSE SLICE (#799). It was TWO colors — a frame could match the app's surface and its text and
 // nothing else, which is why `pocket-arcade` was the ceiling of "looks house" for the tier (stickler
@@ -43,6 +43,8 @@ const STYLE_TOKENS = {
 /** The appearance channel that scales the host root. */
 const FONT_SCALE_CSS_VAR = "--appearance-font-scale";
 const ROOT_SIZE_VAR = CARD_FRAME_STYLE_TOKEN.rootSize;
+/** A card's content inset: the block step, the one an inert card's body and every card header take. */
+const CARD_INSET_TOKEN = "spacing.block";
 const PERCENT = 100;
 
 /** The frame root's font-size as a percent of the frame's own default, so the clamp's length grammar admits it. */
@@ -56,6 +58,9 @@ export interface SandboxThemeTokens {
   readonly themeTokens: Readonly<Record<string, string>>;
   /** The NON-COLOR slice (radius, the mono family, the root size), re-clamped by the kit style-token grammar. */
   readonly styleTokens: CardFrameStyleTokens;
+  /** `styleTokens` plus the card body's inset, for a card's frame. A styled reply's frame takes `styleTokens`, so its
+   *  body sits flush with the message. */
+  readonly cardStyleTokens: CardFrameStyleTokens;
   /** The resolved UI font-family list, or `undefined` when unresolved/unsafe. */
   readonly fontFamily: string | undefined;
 }
@@ -73,19 +78,26 @@ function resolveTokens(): SandboxThemeTokens {
   styleTokens[ROOT_SIZE_VAR] = rootSizePercent(Number.parseFloat(resolveCssVar(FONT_SCALE_CSS_VAR, "1")));
   // Clamped HERE as well as at the frame boundary: the resolved value comes off a live cascade a custom theme
   // can write, so a hostile `--radius-base` must not travel as a mint payload at all.
+  // Resolved through the browser to px: the token's value is a `round()` expression the frame's length grammar refuses,
+  // and the frame cannot resolve the host's rem.
+  const inset = `${resolveCssLength(TOKENS[CARD_INSET_TOKEN].cssVar, LENGTH_BASE_PX[CARD_INSET_TOKEN])}px`;
   return {
     themeTokens,
     styleTokens: clampCardFrameStyleTokens(styleTokens),
+    cardStyleTokens: clampCardFrameStyleTokens({ ...styleTokens, [CARD_FRAME_STYLE_TOKEN.inset]: inset }),
     fontFamily: clampCardFrameFontFamily(resolveCssVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)),
   };
 }
 
+const FALLBACK_STYLE_TOKENS = {
+  ...Object.fromEntries(Object.entries(STYLE_TOKENS).map(([name, token]) => [name, token.value])),
+  [ROOT_SIZE_VAR]: rootSizePercent(1),
+};
+
 const FALLBACK_TOKENS: SandboxThemeTokens = {
   themeTokens: Object.fromEntries(Object.entries(COLOR_TOKENS).map(([name, token]) => [name, token.value])),
-  styleTokens: clampCardFrameStyleTokens({
-    ...Object.fromEntries(Object.entries(STYLE_TOKENS).map(([name, token]) => [name, token.value])),
-    [ROOT_SIZE_VAR]: rootSizePercent(1),
-  }),
+  styleTokens: clampCardFrameStyleTokens(FALLBACK_STYLE_TOKENS),
+  cardStyleTokens: clampCardFrameStyleTokens({ ...FALLBACK_STYLE_TOKENS, [CARD_FRAME_STYLE_TOKEN.inset]: `${LENGTH_BASE_PX[CARD_INSET_TOKEN]}px` }),
   fontFamily: clampCardFrameFontFamily(FONT_TOKEN.value),
 };
 

@@ -34,6 +34,8 @@ test("the mint refuses a style value that carries CSS, per token grammar", () =>
     [CARD_FRAME_STYLE_TOKEN.monoFamily, "'Geist Mono\", monospace"],
     [CARD_FRAME_STYLE_TOKEN.rootSize, "125px"],
     [CARD_FRAME_STYLE_TOKEN.rootSize, "var(--x)"],
+    [CARD_FRAME_STYLE_TOKEN.inset, "round(up, 0.75rem, 1px)"],
+    [CARD_FRAME_STYLE_TOKEN.inset, "12px; } body { background: url(//evil.test) }"],
   ] as const) {
     expect(mint({ ...IN_RANGE_CARD_FRAME_STYLE, [name]: value }).success, `${name}: ${value}`).toBe(false);
   }

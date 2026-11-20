@@ -172,7 +172,7 @@ export function ImmersiveCard({
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
-  const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
+  const { themeTokens, cardStyleTokens: styleTokens, fontFamily } = useSandboxTheme();
   const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc, pending, onMissing, onFloor };
   const inlineLink =
     onLink === undefined

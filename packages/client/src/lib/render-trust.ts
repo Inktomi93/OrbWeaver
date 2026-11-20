@@ -217,6 +217,18 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
   };
 }
 
+/** The room's character seats by character id: the map every row's policy and every framed notice's verdict reads,
+ *  in the transcript and in the game's card archive. */
+export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
+  const byId = new Map<CharacterId, ParticipantView>();
+  for (const participant of participants) {
+    if (participant.kind === "character" && participant.characterId !== null) {
+      byId.set(participant.characterId, participant);
+    }
+  }
+  return byId;
+}
+
 /** Which setting holds external media out of a framed card or styled reply: the install's, the character's own, or
  *  none, because no seated character's policy covers the row and the frame takes the floor. */
 const FRAMED_MEDIA_REASONS = ["install-media", "character-media", "unattributed-media"] as const;

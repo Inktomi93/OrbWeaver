@@ -1134,7 +1134,12 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
   },
   "tests/client/features/chat/lib/reply-parts.test.ts": {
-    "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
+    "packages/client/src/features/chat/lib/reply-parts.ts":
+      "replyLayout and carriedRoomSheets: the feature-private split of a styled reply into frame runs and the room sheets it carries",
+  },
+  "tests/client/features/chat/lib/room-sheets.test.ts": {
+    "packages/client/src/features/chat/lib/room-sheets.ts":
+      "roomSheetSources and roomSheetsBefore: the feature-private choice of which rows' stylesheets a room carries",
   },
   "tests/client/features/chat/lib/panel-reads.test.ts": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "readPanels and PANEL_READ_MAX_CHARS: the bounded panel read every drawn body takes",

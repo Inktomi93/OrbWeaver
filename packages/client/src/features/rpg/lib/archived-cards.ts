@@ -8,7 +8,7 @@ import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/co
 import type { CardSpanOrigin } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
-import { resolveRowRenderPolicy } from "#lib";
+import { buildParticipantsById, resolveRowRenderPolicy } from "#lib";
 
 /** One archived card projected from the visible transcript, stamped with its birth time (`createdAt` —
  *  the origin MESSAGE's wall time; Journal's day-grouping key). */
@@ -48,14 +48,7 @@ const CARD_LABEL = "Immersive card";
 /** Collect the card spans from the transcript's messages, TRANSCRIPT ORDER (oldest first — callers own
  *  their sort). The lenient arm is ON to match the game reading surface. */
 export function collectArchivedCards(messages: readonly ArchivedCardSource[], viewer: ArchivedCardViewer): readonly ArchivedCard[] {
-  // The by-character index the trust resolver reads. Built here rather than imported from chat's participants
-  // helper — a cross-feature RUNTIME import is banned, and this is a lookup, not a second copy of the rule.
-  const byCharacter = new Map<CharacterId, ParticipantView>();
-  for (const participant of viewer.participants ?? []) {
-    if (participant.characterId !== null) {
-      byCharacter.set(participant.characterId, participant);
-    }
-  }
+  const byCharacter = buildParticipantsById(viewer.participants ?? []);
   const cards: ArchivedCard[] = [];
   for (const message of messages) {
     const policy = resolveRowRenderPolicy({
