@@ -181,3 +181,22 @@ test("another room's group character and an unknown id read alike, and a departe
   expect(departed instanceof Error && outsider instanceof Error && departed.message === outsider.message).toBe(true);
   expect(await errorOf(authorPolicy(h, member, present(h.characters[0]).id))).toBeInstanceOf(DomainNotFoundError);
 });
+
+test("a character removed from the room reads no policy for its old rows, whatever the room's narrator policy", async () => {
+  // A round with no narrator: each seated card speaks once.
+  await using h = await textRoom([CARD, CARD], { characters: CAST });
+  const member = await invitePerson(h);
+  expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on." })).aborted).toBe(false);
+  // The room's own row stamped with a seated card, not a narrator row and not a group character.
+  const spoke = present((await readRoomCanon(h.root, h.owner, h.chatId)).findLast((message) => message.role === "assistant" && message.characterId !== null));
+  expect(spoke.kind).not.toBe("narrator");
+  const speaker = present(spoke.characterId);
+  // Positive control: seated, the speaker reads its own seat's policy.
+  expect(await authorPolicy(h, member, speaker)).toEqual(policyOf(h, "interactive"));
+
+  await h.root.services.chat.removeCharacterFromChat({ principal: h.owner, chatId: h.chatId, characterId: speaker });
+  await h.caller.character.update({ characterId: speaker, input: renderPolicyOverrideForStep("untrusted") });
+  // The remaining seat still gives the room an Interactive narrator policy, which the removed card's rows must not take.
+  expect(await narratorRenderFor(h, member)).toMatchObject({ renderPolicy: policyOf(h, "interactive") });
+  expect(await authorPolicy(h, member, speaker)).toBeUndefined();
+});
