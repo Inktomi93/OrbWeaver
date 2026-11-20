@@ -64,65 +64,80 @@ function builtElements(text: string, names: ReadonlySet<string>): readonly strin
 // ---- seeded replies
 
 const NBSP = String.fromCodePoint(0xa0);
-const FRAGMENTS: readonly string[] = [
-  "<style>",
-  ".hostile{a:b}",
-  "</style>",
-  "<script>",
-  "run()",
-  "</script>",
-  "<textarea>",
-  "</textarea>",
-  "<div>",
-  "</div>",
-  '<div style="c:d">',
-  "<section>",
-  "</section>",
-  "<details>",
-  "</details>",
-  "<response>",
-  "</response>",
-  "<svg>",
-  "</svg>",
-  "<!--",
-  "-->",
-  "<!-- c -->",
-  "```",
-  "~~~",
-  "```js {{x}}",
-  "`",
-  "``",
-  "\\",
-  "    ",
-  "\t",
-  "\n",
-  "\n\n",
-  "- ",
-  "* ",
-  "1. ",
-  "> ",
-  "{{user}}",
-  "text",
-  "word ",
-  "<b>",
-  "</b>",
-  "<p>",
-  "</p>",
-  "#",
-  "---",
-  "<pre>",
-  "</pre>",
-  "$",
-  "$$",
-  "$5",
-  NBSP,
-  "\n  ",
-  ">\n",
-  "\n> <div>",
-  "\n- <div>",
-  "\n  <div>",
-  "\n1. ",
+// Each fragment with its weight: how many times it stands in the pool a reply draws from. The weights favour the
+// fragments that open what the kit reads in doubt (a text element, a comment, a math or code run, a block line).
+const FRAGMENTS: readonly (readonly [fragment: string, weight: number])[] = [
+  ["<style>", 2],
+  [".hostile{a:b}", 1],
+  ["</style>", 1],
+  ["<script>", 1],
+  ["run()", 1],
+  ["</script>", 1],
+  ["<textarea>", 3],
+  ["</textarea>", 1],
+  ["<title>", 1],
+  ["</title>", 1],
+  ["<div>", 2],
+  ["</div>", 2],
+  ["</div>\n", 1],
+  ['<div style="c:d">', 1],
+  ["<section>", 1],
+  ["</section>", 1],
+  ["<details>", 1],
+  ["</details>", 1],
+  ["<response>", 1],
+  ["</response>", 1],
+  ["<svg>", 1],
+  ["</svg>", 1],
+  ["<!--", 3],
+  ["-->", 2],
+  ["<!-- c -->", 1],
+  ["<!-->", 1],
+  ["<!--->", 1],
+  ["```", 1],
+  ["~~~", 1],
+  ["```js {{x}}", 1],
+  ["`", 2],
+  ["``", 1],
+  ["`<b>", 1],
+  ["\\", 1],
+  ["    ", 1],
+  ["\t", 1],
+  ["\n", 3],
+  ["\n\n", 1],
+  ["- ", 1],
+  ["* ", 1],
+  ["1. ", 1],
+  ["> ", 1],
+  ["{{user}}", 3],
+  ["\n\n{{user}}", 1],
+  ["text", 1],
+  ["word ", 1],
+  ["<b>", 1],
+  ["</b>", 1],
+  ["<p>", 1],
+  ["</p>", 1],
+  ["#", 1],
+  ["---", 1],
+  ["<pre>", 1],
+  ["</pre>", 1],
+  ["$", 2],
+  ["$$", 3],
+  ["$$\n", 1],
+  ["\n$$", 1],
+  ["$5", 1],
+  [NBSP, 1],
+  [`\n${NBSP}\n`, 1],
+  [`<style${NBSP}>`, 1],
+  [`<textarea${NBSP}>`, 1],
+  ["\n  ", 1],
+  [">\n", 1],
+  ["\n> <div>", 1],
+  ["\n- <div>", 1],
+  ["\n  <div>", 1],
+  ["\n1. ", 1],
 ];
+const POOL: readonly string[] = FRAGMENTS.flatMap(([fragment, weight]) => Array.from({ length: weight }, () => fragment));
 const MAX_FRAGMENTS = 22;
 // Park and Miller's minimal standard generator: seeded, so each run reads the same replies.
 const MULTIPLIER = 48_271;
@@ -134,7 +149,7 @@ function replies(count: number, seed: number): readonly string[] {
     state = (state * MULTIPLIER) % MODULUS;
     return state % bound;
   };
-  return Array.from({ length: count }, () => Array.from({ length: 1 + next(MAX_FRAGMENTS) }, () => FRAGMENTS[next(FRAGMENTS.length)]).join(""));
+  return Array.from({ length: count }, () => Array.from({ length: 1 + next(MAX_FRAGMENTS) }, () => POOL[next(POOL.length)]).join(""));
 }
 
 // ---- axes: each returns the first reply it fails, or undefined
@@ -225,11 +240,24 @@ function macroInCode(texts: readonly string[], named: (text: string) => readonly
     const held = holdBlocksWhole(text);
     const toHeld = heldOffsets(text, held);
     const settled = shownAsWritten(held);
-    const streamed = shownAsWritten(remend(text));
+    const streamed = streamedShownAsWritten(text);
     const covers = (ranges: readonly TextRange[], start: number): boolean =>
       ranges.some((range) => range.start <= start && start + MACRO_OPEN.length <= range.end);
     return named(text).some((stretch) => !(covers(settled, toHeld(stretch.start)) && covers(streamed, stretch.start)));
   });
+}
+
+// The streamed render repairs the tail, which only appends, and parses each block on its own, so each block's
+// stretches shift by the blocks before it.
+function streamedShownAsWritten(text: string): readonly TextRange[] {
+  const ranges: TextRange[] = [];
+  let at = 0;
+  for (const block of parseMarkdownIntoBlocks(remend(text))) {
+    const from = at;
+    ranges.push(...shownAsWritten(block).map((range) => ({ start: range.start + from, end: range.end + from })));
+    at += block.length;
+  }
+  return ranges;
 }
 
 const CONTAINER_NODES: ReadonlySet<string> = new Set(["root", "list", "listItem", "blockquote", "html", "text"]);
@@ -284,20 +312,24 @@ function liftedOffsets(lifted: string, bodies: readonly string[]): (offset: numb
 
 // ---- the suite
 
-const RUNS = 3000;
-const STREAM_RUNS = 600;
-const SEED = MULTIPLIER;
-const REPLIES = replies(RUNS, SEED);
-const STREAMED = REPLIES.slice(0, STREAM_RUNS);
+// The seeds were chosen so that reverting a kit fix one at a time turns an axis red: each seed's replies reach a class
+// another seed's miss. The streamed axis parses every prefix, so it reads the first replies of two seeds only.
+const SEEDS = [MULTIPLIER, 7, 101, 3, 29] as const;
+const RUNS_PER_SEED = 2000;
+const STREAM_SEEDS = [MULTIPLIER, 7] as const;
+const STREAM_RUNS_PER_SEED = 300;
+const REPLIES = SEEDS.flatMap((seed) => replies(RUNS_PER_SEED, seed));
+const STREAMED = STREAM_SEEDS.flatMap((seed) => replies(STREAM_RUNS_PER_SEED, seed));
 
-test("the strips leave no element HTML reads raw in the settled render", () => {
+// Each reply of every seed renders twice, once per strip, about six seconds under load.
+test("the strips leave no element HTML reads raw in the settled render", { tags: ["slow"] }, () => {
   expect(settledLeak(REPLIES, stripUnreadElements, UNREAD_ELEMENTS)).toBeUndefined();
   expect(settledLeak(REPLIES, stripStyleElements, STYLE_ELEMENTS)).toBeUndefined();
   // Planted defect: a strip that removes nothing.
   expect(settledLeak(REPLIES, (text) => text, UNREAD_ELEMENTS)).toBeDefined();
 });
 
-// Every sampled prefix of each reply parses on its own, about four seconds on a quiet box.
+// Every sampled prefix of each reply parses on its own, about five seconds under load.
 test("the strips leave no element HTML reads raw in any streamed prefix", { tags: ["slow"] }, () => {
   expect(streamedLeak(STREAMED, stripUnreadElements, UNREAD_ELEMENTS)).toBeUndefined();
   expect(streamedLeak(STREAMED, stripStyleElements, STYLE_ELEMENTS)).toBeUndefined();
@@ -305,7 +337,8 @@ test("the strips leave no element HTML reads raw in any streamed prefix", { tags
   expect(streamedLeak(STREAMED, (text) => text, STYLE_ELEMENTS)).toBeDefined();
 });
 
-test("a macro the kit names as code is code to the frame's parse and to the streamed one", () => {
+// Each reply with a macro parses whole and block by block, about three seconds under load.
+test("a macro the kit names as code is code to the frame's parse and to the streamed one", { tags: ["slow"] }, () => {
   expect(macroInCode(REPLIES, markdownCodeAfterMacros)).toBeUndefined();
   // Planted defect: every macro named code.
   const everyMacro = (text: string): readonly TextRange[] =>
