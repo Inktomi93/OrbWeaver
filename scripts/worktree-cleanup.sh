@@ -20,7 +20,7 @@ fi
 # reports/ct-results is bulky and rebuilt by the next run. A report main already holds with other text may
 # carry later additions, so it stays and this copy lands beside it.
 if [ "$checkout" != "$root" ]; then
-  for family in lanes code-reviewer ux-reviewer deep-reviewer security; do
+  for family in lanes code-reviewer ux-reviewer deep-reviewer security research; do
     [ -d "$checkout/reports/$family" ] || continue
     (cd "$checkout/reports" && find "$family" -type f) | while IFS= read -r report; do
       target="$root/reports/$report"
