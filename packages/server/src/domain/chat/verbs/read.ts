@@ -68,7 +68,7 @@ import {
 import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { GenerationCapability, UnavailableCause } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, outputCeilingOf, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
   DEFAULT_FORMAT_STRINGS,
@@ -1454,7 +1454,7 @@ async function fitShapedHistory(args: {
     maxContextTokens: params.maxContextTokens,
     maxOutputTokens: params.maxOutputTokens,
     systemTokens,
-    outputCeiling: args.capability?.output.maxTokens.max,
+    outputCeiling: args.capability === undefined ? undefined : outputCeilingOf(args.capability),
   });
   const convertEnv: Parameters<typeof buildWireHistory>[0] = {
     toolsOk: args.capability?.tools !== undefined,

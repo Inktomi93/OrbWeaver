@@ -126,6 +126,7 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     declared?.output?.maxTokens !== undefined;
   const { maxTokensEstimated: _priorCapFlag, ...output } = capability.output;
   capability = { ...capability, output: capStated ? output : { ...output, maxTokensEstimated: true } };
+  capability = withDeclaredLimits(capability, declared);
   capability = withTurnsProvenance(capability, [
     ...(evidence.curated ?? []).map((row) => row.generation?.turns),
     (evidence.advertised as GenerationPatch | undefined)?.turns,
@@ -135,6 +136,19 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
   return {
     capability: { kind: "generation", generation: withDeclaredNoTools(applyFamilyFloor(family, capability), declared) },
     warnings: declaredOverridesMeasured(declared, measuredRows),
+  };
+}
+
+/** Marks the limits the user's own `declared` block states, which the fold lets win over every other tier. A declared
+ *  window the block itself marks estimated stays a guess. The marks are the fold's alone, so a stored one is dropped. */
+function withDeclaredLimits(capability: GenerationCapability, declared: GenerationPatch | undefined): GenerationCapability {
+  const { windowDeclared: _priorWindow, ...context } = capability.context;
+  const { maxTokensDeclared: _priorCap, ...output } = capability.output;
+  const windowDeclared = declared?.context?.window !== undefined && context.windowEstimated !== true;
+  return {
+    ...capability,
+    context: windowDeclared ? { ...context, windowDeclared } : context,
+    output: declared?.output?.maxTokens === undefined ? output : { ...output, maxTokensDeclared: true },
   };
 }
 

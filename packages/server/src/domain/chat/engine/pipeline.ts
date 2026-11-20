@@ -39,6 +39,7 @@ import {
   acceptsImageInput,
   acceptsVideoInput,
   coEmitsProseWithTools,
+  outputCeilingOf,
   projectGenerationUsage,
   turnsLevelFor,
   WARNING_CODE,
@@ -316,7 +317,7 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
     // Materialized in `buildHistoryBudget` to a concrete response length, mirroring the runner's `max_tokens`.
     maxOutputTokens: intent.maxOutputTokens,
     systemTokens,
-    outputCeiling: generationOf(args.connection).output.maxTokens.max,
+    outputCeiling: outputCeilingOf(generationOf(args.connection)),
   });
 }
 

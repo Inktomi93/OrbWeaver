@@ -371,6 +371,8 @@ export const generationCapabilitySchema = z
         maxTokens: rangeSchema,
         /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
         maxTokensEstimated: z.boolean().optional(),
+        /** `maxTokens` is the connection's own `declared` override: the user stated it. Read through {@link outputLimitSource}. */
+        maxTokensDeclared: z.boolean().optional(),
         /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
         structured: z.boolean().optional(),
         /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
@@ -406,6 +408,8 @@ export const generationCapabilitySchema = z
       .object({
         window: z.number(),
         windowEstimated: z.boolean().optional(),
+        /** `window` is the connection's own `declared` override: the user stated it. Read through {@link contextLimitSource}. */
+        windowDeclared: z.boolean().optional(),
         /** The route sends the window with each request (Ollama's native `num_ctx`), so a preset's Max context tokens
          *  sets the window the server runs, up to `max`, the model's trained maximum. Absent (another route, or a server
          *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through

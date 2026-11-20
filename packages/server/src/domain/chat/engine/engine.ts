@@ -40,7 +40,7 @@ import {
   VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
-import { projectGenerationUsage } from "@orb/contracts/inference";
+import { outputCeilingOf, projectGenerationUsage, windowForPreset } from "@orb/contracts/inference";
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -1051,13 +1051,14 @@ function preTurnFitUsage(args: {
   readonly currentCoverage: number | null;
   readonly systemTokens: number;
 }): { readonly used: number; readonly ceiling: number } | null {
-  const generation = generationOf(args.connection);
+  // The window the turn will send: a guessed one yields to the preset's own Max context tokens, as the fit's does.
+  const generation = windowForPreset(generationOf(args.connection), args.maxContextTokens);
   const budget = buildHistoryBudget({
     windowTokens: generation.context.window,
     maxContextTokens: args.maxContextTokens,
     maxOutputTokens: args.maxOutputTokens,
     systemTokens: args.systemTokens,
-    outputCeiling: generation.output.maxTokens.max,
+    outputCeiling: outputCeilingOf(generation),
   });
   const ceiling = fitCeiling(budget);
   if (ceiling === null) {
