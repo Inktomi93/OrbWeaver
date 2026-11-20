@@ -14,6 +14,12 @@
 // UI CSS transition whose bound launch state is exactly one of the two `data-starting-style` /
 // `data-ending-style` phases, and whose claimed phase matches that state. An application-authored height
 // animation, or a Base UI claim whose lifecycle evidence contradicts it, stays dirty.
+//
+// A SCROLL-DRIVEN ANIMATION IS THE SECOND ALLOWANCE (ui-platform-rulings §8.4 adopts scroll-driven fades). A CSS
+// animation on a scroll or view timeline advances only while the reader scrolls its scroller, so a time window
+// measures nothing it does, and its scroll cost reads in the frame metrics of a window that scrolls. Chromium's
+// `getKeyframes()` drops the registered custom properties the fades animate, so the record carries no property
+// set and the timeline is the only fact that tells it apart; an empty property set is never clean on its own.
 
 // The property set a library-owned lifecycle animation may carry — Base UI's measured panel height.
 const SANCTIONED_LIBRARY_PROPERTIES = ["height"] as const;
@@ -21,6 +27,13 @@ const SANCTIONED_LIBRARY_PROPERTIES = ["height"] as const;
 const SANCTIONED_ANIMATION_OWNER = "base-ui";
 // The only mechanism the allowance covers: a CSS transition attached to the library's lifecycle states.
 const SANCTIONED_ANIMATION_MECHANISM = "css-transition";
+// The mechanism and the timelines a scroll-driven allowance covers: a CSS animation on `scroll()` or `view()`.
+const SCROLL_DRIVEN_MECHANISM = "css-animation";
+const SCROLL_DRIVEN_TIMELINES: ReadonlySet<string> = new Set(["scroll", "view"]);
+
+/** The allowances a dirty animation can leave the budget under, each named in the row that records it. */
+const MOTION_ALLOWANCES = ["library-lifecycle", "scroll-driven"] as const;
+export type MotionAllowance = (typeof MOTION_ALLOWANCES)[number];
 
 /** The launch facts an allowance decision reads.
  *
@@ -45,6 +58,8 @@ export interface SanctionableAnimation {
     readonly mechanism: string;
     readonly phase?: string;
   };
+  /** The timeline the animation runs on; absent in a bundle that predates the field, which no allowance reads as scroll. */
+  readonly timeline?: string;
 }
 
 /** The lifecycle phase the bound launch state proves, or `null` when it proves neither (absent evidence,
@@ -77,9 +92,9 @@ export function baseUiAttributionMismatch(animation: SanctionableAnimation): str
   return `${animation.target} claimed owner=${SANCTIONED_ANIMATION_OWNER} mechanism=${animation.attribution.mechanism} phase=${animation.attribution.phase ?? "absent"}, but bound launch state was ${stateText}; a library-owned allowance requires one exact transition-run lifecycle state and its matching CSS-transition phase`;
 }
 
-/** true ⇒ this dirty animation is the owner-accepted Base UI lifecycle one and leaves the budget.
- *  A compositor-clean animation is never "sanctioned" — it was never accused. */
-export function isSanctionedLibraryAnimation(animation: SanctionableAnimation): boolean {
+// true ⇒ this dirty animation is the owner-accepted Base UI lifecycle one and leaves the budget.
+// A compositor-clean animation is never "sanctioned" — it was never accused.
+function isSanctionedLibraryAnimation(animation: SanctionableAnimation): boolean {
   return (
     !animation.compositorClean &&
     animation.attribution?.owner === SANCTIONED_ANIMATION_OWNER &&
@@ -87,4 +102,22 @@ export function isSanctionedLibraryAnimation(animation: SanctionableAnimation): 
     animation.properties.length === SANCTIONED_LIBRARY_PROPERTIES.length &&
     animation.properties.every((property, index) => property === SANCTIONED_LIBRARY_PROPERTIES[index])
   );
+}
+
+// true ⇒ this dirty animation is a CSS animation on a scroll or view timeline and leaves the time budget.
+function isScrollDrivenAnimation(animation: SanctionableAnimation): boolean {
+  return (
+    !animation.compositorClean &&
+    animation.attribution?.mechanism === SCROLL_DRIVEN_MECHANISM &&
+    animation.timeline !== undefined &&
+    SCROLL_DRIVEN_TIMELINES.has(animation.timeline)
+  );
+}
+
+/** The allowance a dirty animation leaves the budget under, or `null` when it counts. */
+export function motionAllowanceOf(animation: SanctionableAnimation): MotionAllowance | null {
+  if (isSanctionedLibraryAnimation(animation)) {
+    return "library-lifecycle";
+  }
+  return isScrollDrivenAnimation(animation) ? "scroll-driven" : null;
 }

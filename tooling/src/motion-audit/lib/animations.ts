@@ -22,7 +22,7 @@
 // the sample appears in both — so the budgeted count deduplicates on target+property identity. Without
 // that, one loop would be reported as two offenders.
 
-import { baseUiAttributionMismatch, isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
+import { baseUiAttributionMismatch, motionAllowanceOf } from "@orb/kit/motion-allowance";
 import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { AnimationRecord, MotionFlagRecord } from "../contract/types.ts";
 
@@ -41,7 +41,9 @@ export interface AnimationTotals {
   /** Not compositor-clean among the TRANSIENT raises — the population a sampler cannot see (#1070). */
   readonly transientDirty: number;
   readonly sanctionedLibrary: number;
-  /** The deduplicated union of both populations, minus the #953 allowance — what the budget judges. */
+  /** Dirty animations on a scroll or view timeline, which a time window does not judge. */
+  readonly sanctionedScrollDriven: number;
+  /** The deduplicated union of both populations, minus both allowances — what the budget judges. */
   readonly budgetedDirty: number;
   readonly gaps: readonly EvidenceGap[];
 }
@@ -75,12 +77,15 @@ export function animationTotals(animations: readonly AnimationRecord[], flags: r
   // Only the transients the sample did NOT already report can add to the budget.
   const novelTransient = transientDirty.filter((animation) => !activeIdentities.has(animationIdentity(animation)));
   const judged = [...activeDirty, ...novelTransient];
-  const sanctionedLibrary = judged.filter(isSanctionedLibraryAnimation).length;
+  const allowances = judged.map(motionAllowanceOf);
+  const sanctionedLibrary = allowances.filter((allowance) => allowance === "library-lifecycle").length;
+  const sanctionedScrollDriven = allowances.filter((allowance) => allowance === "scroll-driven").length;
   return {
     rawDirty: activeDirty.length,
     transientDirty: transientDirty.length,
     sanctionedLibrary,
-    budgetedDirty: judged.length - sanctionedLibrary,
+    sanctionedScrollDriven,
+    budgetedDirty: allowances.filter((allowance) => allowance === null).length,
     gaps: [...animations, ...transient].map(baseUiAttributionGap).filter((gap): gap is EvidenceGap => gap !== null),
   };
 }

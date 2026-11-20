@@ -158,7 +158,7 @@
       /* The shell's own overlay step, as on desktop: inside the grid's isolated scope a fixed pane still paints
        * inside it, so a portal-tier number would order nothing more. */
       z-index: var(--z-overlay);
-      transition: transform var(--shell-motion) var(--shell-ease);
+      transition: var(--shell-panel-slide);
     }
     /* The width is re-stated at the desktop context-width rule's specificity, or a collapsed context drawer keeps
      * its desktop width and its slide leaves a slab over the content. A fixed sheet escapes the grid's insets, so
@@ -208,6 +208,10 @@
      * swap: a second would abort the transition to a hard cut. */
     .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] {
       view-transition-name: orb-section-content;
+    }
+    /* A phone context pane is only ever a sheet, so it keeps its own capture name while parked too (content.css). */
+    :root:active-view-transition .shell-panel[data-panel-side="context"] {
+      view-transition-name: orb-shell-context-sheet;
     }
     /* The title the rule below sheds holds no floor either, so the actions get the band back. */
     .shell-grid[data-list-mode="docked"]

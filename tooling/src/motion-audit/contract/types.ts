@@ -153,6 +153,10 @@ export interface AnimationRecord {
   } | null;
   /** The browser-observed owner/mechanism. Tooling revalidates Base UI claims before classification. */
   readonly attribution?: AnimationAttribution;
+  /** The CSS animation's name or the transition's property; the attribution a record with no readable property set has. */
+  readonly name?: string;
+  /** Optional only for old bundles: the document clock, a scroll or view timeline, or none. Absence is never scroll-driven. */
+  readonly timeline?: AnimationTimelineKind;
 }
 
 const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
@@ -161,6 +165,8 @@ const ANIMATION_MECHANISMS = ["css-transition", "css-animation", "web-animation"
 type AnimationMechanism = (typeof ANIMATION_MECHANISMS)[number];
 const ANIMATION_PHASES = ["starting-style", "ending-style"] as const;
 type AnimationPhase = (typeof ANIMATION_PHASES)[number];
+const ANIMATION_TIMELINES = ["document", "scroll", "view", "none"] as const;
+type AnimationTimelineKind = (typeof ANIMATION_TIMELINES)[number];
 
 interface AnimationAttribution {
   readonly owner: AnimationOwner;

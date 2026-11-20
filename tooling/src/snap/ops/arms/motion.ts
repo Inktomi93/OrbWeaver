@@ -274,6 +274,7 @@ function motionPairs(opts: Args, snapshot: MotionMeasurement | null): readonly R
     ["transient-dirty-animations", animations.transientDirty],
     ["anim-flags", data.flags === null ? "absent" : data.flags.filter((flag) => flag.tag === "anim").length],
     ["library-height-animations", animations.sanctionedLibrary],
+    ["scroll-driven-animations", animations.sanctionedScrollDriven],
     ["dirty-animations-budgeted", animations.budgetedDirty],
     ["vt-crossfade", snapshot.crossfade === null ? "absent" : judgeCrossfade(snapshot.crossfade).verdict],
   ];
