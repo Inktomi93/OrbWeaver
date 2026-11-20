@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-16
+status: doing
+updated: 2026-11-20
 priority: P1
 area: kit
+lane: wt/agent-a88b4b514a130f34e
 plan: chat-html-and-presets
 ---
 
