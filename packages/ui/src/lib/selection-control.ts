@@ -2,7 +2,7 @@
 // machine (focus ring, disabled, read-only cursor, invalid border + destructive ring) and the
 // touch-target hit-area pseudo. The per-control bits — rounding (`rounded-control` vs `rounded-full`),
 // checkbox's `text-primary-foreground`, and each control's checked/indeterminate fill — layer on top.
-import { DISABLED_STATE } from "./disabled-state.ts";
+import { DISABLED_SELECTION } from "./disabled-state.ts";
 import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring.ts";
 import { COLOR_MOTION } from "./state-motion.ts";
 
@@ -23,4 +23,4 @@ export const TOUCH_TARGET_PSEUDO =
 export const TOUCH_TARGET_PSEUDO_STRETCH =
   "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-full before:min-inline-(--size-touch-target) before:-translate-x-1/2 rtl:before:translate-x-1/2 before:-translate-y-1/2 before:content-['']";
 
-export const SELECTION_CONTROL = `relative inline-flex block-(--size-checkbox) inline-(--size-checkbox) shrink-0 cursor-pointer items-center justify-center border border-input-border bg-input ${COLOR_MOTION} outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;
+export const SELECTION_CONTROL = `relative inline-flex block-(--size-checkbox) inline-(--size-checkbox) shrink-0 cursor-pointer items-center justify-center border border-input-border bg-input ${COLOR_MOTION} outline-none ${FOCUS_RING} ${DISABLED_SELECTION} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;

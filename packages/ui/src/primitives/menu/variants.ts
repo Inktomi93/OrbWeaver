@@ -1,4 +1,4 @@
-import { CAP, COLOR_MOTION, OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, SCROLLER_Y, tv } from "#lib";
+import { CAP, COLOR_MOTION, DISABLED_DIM, OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, SCROLLER_Y, tv } from "#lib";
 
 // THE HIGHLIGHT NEEDS A REAL INDICATOR (side-eye 2026-08-08 P2). The fill swap alone was the whole cue:
 // `bg-accent` (oklch 0.285) over `bg-popover` (oklch 0.245) is a 1.13:1 step, with `outline-none` and no
@@ -24,7 +24,7 @@ const HIGHLIGHT_INDICATOR =
 // `wrap-anywhere` is what lets a label give way: the label is a flex item whose automatic minimum is its longest word, so at enlarged
 // text a word wider than the popup's room pushed the row (and a submenu trigger's trailing chevron) past the popup's edge and made the
 // popup scroll sideways. `overflow-wrap: anywhere` is the one wrap value that also lowers that minimum, so the label wraps inside the row.
-const itemBase = `flex min-block-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body wrap-anywhere outline-none select-none ${COLOR_MOTION} data-disabled:opacity-disabled data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
+const itemBase = `flex min-block-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body wrap-anywhere outline-none select-none ${COLOR_MOTION} ${DISABLED_DIM} data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
 
 // EVERY COMMAND ROW RESERVES THE LEADING GLYPH GUTTER (side-eye 2026-08-06 P2). One menu mixes iconed rows
 // (`<Icon>` as the first child) with bare-text rows, and the bare ones started their label a whole glyph +

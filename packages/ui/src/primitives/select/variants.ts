@@ -4,13 +4,19 @@ import {
   CONTROL_BLOCK,
   CONTROL_MIN_BLOCK,
   CONTROL_WRAP,
+  DISABLED_DIM,
+  DISABLED_DIM_WITHIN,
+  DISABLED_FIELD,
+  DISABLED_FIELD_INK_WITHIN,
+  DISABLED_GROUP,
+  DISABLED_POINTER,
   DISABLED_STATE,
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
   FIELD_LABEL,
   FLOOR,
   FOCUS_RING,
-  ITEM_ROW,
+  ITEM_ROW_FRAME,
   OVERLAY_ARROW,
   OVERLAY_MOTION,
   POPUP_SURFACE,
@@ -28,19 +34,13 @@ const WRAPPING_TRIGGER = [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spaci
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
-    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
-    trigger: [
-      "flex cursor-pointer items-center justify-between gap-row select-none",
-      `${COLOR_MOTION} hover:bg-accent`,
-      "outline-none",
-      FOCUS_RING,
-      DISABLED_STATE,
-    ],
+    label: `${FIELD_LABEL} ${DISABLED_DIM}`,
+    trigger: ["flex cursor-pointer items-center justify-between gap-row select-none", `${COLOR_MOTION} hover:bg-accent`, "outline-none", FOCUS_RING],
     // The selected value is what the reader chose the control for, so it is never cut: a value past the trigger's room wraps between its
     // words and the trigger grows from its step. `min-inline-0` lets the flex child shrink to the trigger's width, so only a word wider
     // than the room breaks inside itself, at one of the word's hyphenation points.
     value: `text-start ${CONTROL_WRAP.word}`,
-    icon: "flex shrink-0 text-muted-foreground",
+    icon: ["flex shrink-0 text-muted-foreground", DISABLED_FIELD_INK_WITHIN],
     positioner: "z-(--z-popover) outline-none",
     // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
     // `itemDescription`). The growth's two max-width ceilings (Base UI's collision width + the reading measure)
@@ -50,13 +50,13 @@ export const selectVariants = tv({
     groupLabel: "px-block py-field text-label leading-label font-medium text-muted-foreground select-none",
     // A disabled option dims its LABEL only (`itemLabel`): the description is the one place that says why it
     // is disabled, so the row itself keeps full opacity.
-    item: [ITEM_ROW, "group/select-item justify-between gap-row data-disabled:opacity-100"],
+    item: [ITEM_ROW_FRAME, DISABLED_GROUP, DISABLED_POINTER, "justify-between gap-row"],
     // An option that carries a `description` stacks label-over-gloss; the column keeps the check
     // indicator centred against the pair instead of against a single line.
     // `flex-1` gives the body the row's full width: a description that does not size the popup must still be
     // laid out across it, or it wraps at its label's width.
     itemBody: "flex flex-1 flex-col min-inline-0",
-    itemLabel: "group-data-disabled/select-item:opacity-disabled",
+    itemLabel: DISABLED_DIM_WITHIN,
     // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
     // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the
     // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the
@@ -89,14 +89,16 @@ export const selectVariants = tv({
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.
     layout: {
-      field: { trigger: WRAPPING_TRIGGER },
+      field: { trigger: [WRAPPING_TRIGGER, DISABLED_FIELD, DISABLED_GROUP] },
       // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
-      hug: { trigger: [WRAPPING_TRIGGER, "inline-auto"] },
+      hug: { trigger: [WRAPPING_TRIGGER, "inline-auto", DISABLED_FIELD, DISABLED_GROUP] },
       // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
       inline: {
         trigger: [
           FIELD_CONTROL_BOX,
           "relative border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0",
+          // No box to fill, so a disabled text trigger takes the fill-less state.
+          DISABLED_STATE,
           TOUCH_TARGET_PSEUDO_STRETCH,
         ],
       },

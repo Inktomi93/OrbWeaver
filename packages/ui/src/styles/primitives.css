@@ -273,7 +273,9 @@
       @apply orb-gradient-ring-masked;
     }
   }
-  /* A disabled primary is neutral, so its ring goes neutral too; an accent hairline would still read as live. */
+  /* A disabled primary is neutral, so its ring goes neutral too; an accent hairline would still read as live. The one
+   * disabled look outside disabled-state.ts (D355): this layer sorts after `utilities`, so a class could beat the ring only
+   * with the important modifier. `selector-disallowed-list` admits this selector here and no other disabled one. */
   [data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after {
     background: none;
     border-color: var(--color-border);

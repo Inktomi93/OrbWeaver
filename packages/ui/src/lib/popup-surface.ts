@@ -21,4 +21,7 @@ export const POPUP_DESCRIPTION = "mbs-field text-body leading-body text-muted-fo
 // The anchored-popup ITEM row — byte-identical between autocomplete and combobox; select layers
 // `justify-between gap-row` on top. (Menu's row is a genuinely different recipe — cursor-default,
 // px-row, min-h-(--size-control-sm) — and stays its own `itemBase`.)
-export const ITEM_ROW = `flex min-block-(--size-touch-target) cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground ${DISABLED_STATE}`;
+/** {@link ITEM_ROW} without its disabled state, for a row that dims only its label (a select option, whose description says why). */
+export const ITEM_ROW_FRAME =
+  "flex min-block-(--size-touch-target) cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground";
+export const ITEM_ROW = `${ITEM_ROW_FRAME} ${DISABLED_STATE}`;

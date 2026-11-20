@@ -1,9 +1,9 @@
-import { CAP, CAPTION, FIELD_LABEL, FIELD_STACK, FLOOR, GROW, INLINE_FIELD_ROW, tv } from "#lib";
+import { CAP, CAPTION, DISABLED_DIM, FIELD_LABEL, FIELD_STACK, FLOOR, GROW, INLINE_FIELD_ROW, tv } from "#lib";
 
 export const fieldVariants = tv({
   slots: {
     root: `${FIELD_STACK} inline-full`,
-    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
+    label: `${FIELD_LABEL} ${DISABLED_DIM}`,
     // inline-flex so the hint trigger sits on the label's baseline instead of dropping to its own line.
     // FINE-POINTER-ONLY WIDENING (#1286): HintTrigger renders `size="inline"` here — a 12px icon box whose
     // layout-neutral touch-target pseudo (button/variants.ts's `inline` arm) is centered on the box and

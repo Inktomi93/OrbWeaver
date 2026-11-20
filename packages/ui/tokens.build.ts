@@ -16,9 +16,11 @@ import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
 import type { ToneModel } from "./tokens.tones.ts";
 import {
   assertShippedToneFloors,
+  INACTIVE_OPACITY_PATH,
   renderToneBlocks,
   renderToneHostUtilities,
   renderToneTs,
+  shippedInactiveOpacity,
   toneModel,
   toneReferenceValues,
   toneRootDefaults,
@@ -580,10 +582,31 @@ function renderDensitySums(cssValues: TokenContractResult["cssValues"], portable
   return `\n@layer ui {\n  [data-density] {\n${body}\n  }\n}\n`;
 }
 
-function renderSeedThemesBlock(themes: readonly SeedTheme[], resets: readonly string[]): string {
+/** The inactive-control opacity a palette block declares: the step its own inks need (D355), never another palette's. */
+function inactiveOpacityLine(inactive: ReadonlyMap<string, number>, id: string): string {
+  const percent = inactive.get(id);
+  if (percent === undefined) {
+    throw new Error(`no inactive opacity derived for palette ${id}`);
+  }
+  return `--${INACTIVE_OPACITY_PATH.replace(".", "-")}: ${percent}%;`;
+}
+
+/** Hearth's inactive-control opacity line: the base palette owns no `[data-theme]` block, so the root and its stamp declare it. */
+function baseInactiveOpacityLine(contract: TokenContractResult, inactive: ReadonlyMap<string, number>): string {
+  const base = contract.themes.find((theme) => theme.source === "base");
+  if (base === undefined) {
+    throw new Error("the token contract carries no base palette");
+  }
+  return inactiveOpacityLine(inactive, base.id);
+}
+
+function renderSeedThemesBlock(themes: readonly SeedTheme[], resets: readonly string[], inactive: ReadonlyMap<string, number>): string {
   const parts: string[] = [];
   for (const theme of themes) {
-    const lines = [...theme.vars.map(([name, value]) => `  ${name}: ${value};`), ...resets.map((line) => `  ${line}`)];
+    const lines = [
+      ...theme.vars.map(([name, value]) => `  ${name}: ${value};`),
+      ...[...resets, inactiveOpacityLine(inactive, theme.name)].map((line) => `  ${line}`),
+    ];
     const block = `\n[data-theme="${theme.name}"] {\n  color-scheme: ${theme.colorScheme};\n${lines.join("\n")}\n}\n`;
     assertSeedBlockRestatesEmitSurface(block, `[data-theme="${theme.name}"]`);
     parts.push(block);
@@ -602,7 +625,12 @@ const BASE_PALETTE_SELECTOR = `[${BASE_PALETTE_ATTRIBUTE}="${BASE_PALETTE_VALUE}
  * `[data-theme]` block and the shell paints it by stamping nothing; a nested box that must show Hearth under another
  * palette's scope (a theme thumbnail) spreads `BASE_PALETTE_STAMP` instead. Same keys as a seed block, values from the base tokens.
  */
-function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>, resets: readonly string[]): string {
+function renderBasePaletteBlock(
+  seeds: readonly SeedTheme[],
+  portableByPath: ReadonlyMap<string, string>,
+  resets: readonly string[],
+  inactiveLine: string,
+): string {
   const [seed] = seeds;
   if (seed === undefined) {
     throw new Error("no seed value-set to key the base palette block");
@@ -615,7 +643,7 @@ function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: Rea
     }
     return `  ${name}: ${value};`;
   });
-  const block = `\n${BASE_PALETTE_SELECTOR} {\n  color-scheme: dark;\n${[...lines, ...resets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
+  const block = `\n${BASE_PALETTE_SELECTOR} {\n  color-scheme: dark;\n${[...lines, ...[...resets, inactiveLine].map((line) => `  ${line}`)].join("\n")}\n}\n`;
   assertSeedBlockRestatesEmitSurface(block, BASE_PALETTE_SELECTOR);
   return block;
 }
@@ -717,17 +745,20 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const conditions = resolveConditions(contract.conditions, portableByPath);
   const seedThemes = loadSeedThemes(contract);
   const seedResets = [...staticSeedResets(portableByPath), ...toneSeedResets(tones)];
+  const inactive = shippedInactiveOpacity(contract, tones);
+  const baseInactiveLine = baseInactiveOpacityLine(contract, inactive);
   return {
     themeCss:
       renderGeneratedCss(
         flat,
         conditions,
         renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
-          renderSeedThemesBlock(seedThemes, seedResets) +
-          renderBasePaletteBlock(seedThemes, portableByPath, seedResets) +
+          renderSeedThemesBlock(seedThemes, seedResets, inactive) +
+          renderBasePaletteBlock(seedThemes, portableByPath, seedResets, baseInactiveLine) +
           renderToneBlocks(tones) +
           renderPigmentBlocks(contract.pigments),
-        toneRootDefaults(tones),
+        // Hearth paints the root, so the root declares Hearth's own step over the token's resting value.
+        [...toneRootDefaults(tones), baseInactiveLine],
       ) +
       renderToneHostUtilities() +
       renderDensitySums(contract.cssValues, portableByPath),

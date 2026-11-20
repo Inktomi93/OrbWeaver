@@ -83,7 +83,7 @@ export const segmentedClockVariants = tv({
     },
     filled: { false: { segment: "text-muted" } },
     // Dims the whole glyph — never the sole signal, paired with the lock glyph in the center-emphasis slot.
-    hidden: { true: { root: "opacity-disabled" } },
+    hidden: { true: { root: "opacity-receded" } },
   },
   defaultVariants: { size: "md" },
 });

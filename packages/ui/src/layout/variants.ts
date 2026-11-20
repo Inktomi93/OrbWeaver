@@ -9,6 +9,9 @@ import {
   CARD_CORNERS,
   CENTRED,
   CORNER,
+  DISABLED_FIELD,
+  DISABLED_FIELD_NATIVE,
+  DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
   FLOOR,
@@ -887,6 +890,7 @@ export const toolbarButtonVariants = tv({
     hover:bg-accent
     focus-visible:outline-none
     ${DISABLED_STATE_NATIVE}
+    ${DISABLED_STATE}
     ${FOCUS_RING}
   `,
 });
@@ -897,9 +901,9 @@ export const toolbarSeparatorVariants = tv({
 
 // A Group is a LAYOUT + SEMANTICS box inside the strip (Base UI gives it the group role wiring and a
 // `disabled` that cascades to its items): tighter than the strip's own `gap-row` so a related cluster
-// reads as one unit against its neighbours.
+// reads as one unit against its neighbours. It paints no disabled state of its own: each item it disables paints it, so the group never dims twice.
 export const toolbarGroupVariants = tv({
-  base: "flex flex-row items-center gap-field data-disabled:opacity-disabled",
+  base: "flex flex-row items-center gap-field",
 });
 
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
@@ -921,7 +925,8 @@ export const toolbarInputVariants = tv({
     rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground block-(--size-control-sm) min-inline-0
     placeholder:text-muted-foreground
     focus-visible:outline-none
-    ${DISABLED_STATE_NATIVE}
+    ${DISABLED_FIELD_NATIVE}
+    ${DISABLED_FIELD}
     ${FOCUS_RING}
   `,
 });

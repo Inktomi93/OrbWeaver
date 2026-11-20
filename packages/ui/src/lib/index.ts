@@ -32,7 +32,30 @@ export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL
 export { CONTROL_WRAP } from "./control-wrap.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
-export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
+export {
+  DISABLED_ACTIVE,
+  DISABLED_DIM,
+  DISABLED_DIM_WITHIN,
+  DISABLED_FIELD,
+  DISABLED_FIELD_INK,
+  DISABLED_FIELD_INK_NATIVE,
+  DISABLED_FIELD_INK_WITHIN,
+  DISABLED_FIELD_NATIVE,
+  DISABLED_FIELD_WITHIN,
+  DISABLED_GROUP,
+  DISABLED_INK_WITHIN,
+  DISABLED_MARK,
+  DISABLED_MARK_WITHIN,
+  DISABLED_POINTER,
+  DISABLED_SELECTION,
+  DISABLED_SOLID,
+  DISABLED_STATE,
+  DISABLED_STATE_ARIA,
+  DISABLED_STATE_NATIVE,
+  DISABLED_SWITCH,
+  DISABLED_SWITCH_THUMB,
+  DISABLED_UNDIMMED,
+} from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export { CONTROL_INSET, FLOOR, GROW, PASS_THROUGH, PUSH, RUN_INSET, SELF, WRAP } from "./flex-share.ts";
 export { FOCUS_LANDING_ATTRIBUTE } from "./focus-landing.ts";
@@ -70,7 +93,7 @@ export { declaresOverlay, OVERLAY_RELATION_ATTRIBUTE } from "./overlay-relation.
 export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
 export { CORNER, PINNED, PLACED } from "./placed.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
-export { ITEM_ROW, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
+export { ITEM_ROW, ITEM_ROW_FRAME, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
 export {
   type PortalContainer,
   PortalContainerContext,
