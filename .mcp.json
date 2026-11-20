@@ -4,7 +4,10 @@
       "type": "stdio",
       "command": "codegraph",
       "args": ["serve", "--mcp", "-p", "."],
-      "alwaysLoad": true
+      "alwaysLoad": true,
+      "env": {
+        "CODEGRAPH_MCP_TOOLS": "explore,node,search,callers,callees,impact,files,status"
+      }
     }
   }
 }

@@ -166,6 +166,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - During a visual migration, run `ux-reviewer` once, after the CSS work lands. Do not run it per batch.
 - Call `ux-reviewer` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
+- Before you accept a lane's or scout's report, run `agent-trace <agent id>`. It counts codegraph, ast-grep and rg use across shell calls, `REPL` script bodies and MCP calls. Send back a report whose survey rests on rg alone.
 - Rerun a tool's headline number yourself before you repeat it to the owner. A clean count is not a clean result: say what the tool cannot see.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
 - To sweep finished lanes for dropped follow-ups, read each lane's last message in full. A keyword search misses other wording.

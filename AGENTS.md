@@ -111,11 +111,12 @@ To get green, never add a lint suppression for a real finding, a dep-cruiser exe
 | Question | Use |
 | - | - |
 | How X works, or the path from X to Y | the `codegraph_explore` MCP tool, naming the symbols |
-| Who calls X, what breaks if X changes, which tests cover a file | `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
+| Who calls X, what breaks if X changes, which tests cover a file | the `codegraph_callers`, `codegraph_impact` and `codegraph_node` MCP tools, or `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
 | A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
 | Which files keep getting fixed or churned | `pnpm hotspots` |
 | Literal text, config | `rg`; the Bash `grep` differs by harness: a ugrep wrapper that honors ignore files in Claude Code, GNU grep elsewhere. Read law docs in full: a ruling lives in the context around a line |
 
+- In a worktree, pass your worktree's absolute path as `projectPath` to every CodeGraph MCP tool, or the answer reads main. The server's watcher re-indexes your edits; `codegraph sync` fails on its lock while the server runs.
 - A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.
 - A zero result counts only with a non-zero `scanned=` count and a second method. The evidence rules are in the `code-recon` skill.
 
