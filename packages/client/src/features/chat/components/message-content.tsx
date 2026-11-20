@@ -29,6 +29,7 @@ import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
+import { HoldsRowDraw } from "./row-handover.tsx";
 
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
@@ -304,7 +305,13 @@ export function MessageBody({
         {inert}
       </Stack>
     );
-  return withNotice(body, notices ? rowNotices(drawn, layout, render) : null);
+  // A body still waiting on its scripts is laid out unseen, so it holds a settled row's hand-over (`row-handover.tsx`).
+  return (
+    <>
+      {withNotice(body, notices ? rowNotices(drawn, layout, render) : null)}
+      {pending ? <HoldsRowDraw /> : null}
+    </>
+  );
 }
 
 export function MessageContent({ content, ...props }: MessageContentProps): ReactElement {

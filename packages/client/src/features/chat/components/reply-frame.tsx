@@ -41,6 +41,7 @@ import { readFramePanels, rememberFramePanels, useCardFrame } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
+import { HoldsRowDraw } from "./row-handover.tsx";
 
 export interface ReplyFrameProps {
   readonly segments: readonly FrameReplySegment[];
@@ -183,7 +184,9 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
     // A frame given up on (lost twice, or fallen to its floor) reads as the floor too.
     mintRefused: built !== undefined && mint.state === "floor",
   });
-  const unframed = delivery === "held" ? held : fallback;
+  // The held run is the one stand-in: while it shows, the settled row's hand-over waits (`row-handover.tsx`).
+  const holding = <HoldsRowDraw>{held}</HoldsRowDraw>;
+  const unframed = delivery === "held" ? holding : fallback;
   const links = useFramedLinkConfirm();
 
   return (
@@ -205,7 +208,7 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
               rememberFramePanels(cardOrigin, panelsBytes, panels);
             }
           }}
-          pending={held}
+          pending={holding}
           onFloor={frame.giveUp}
         />
       ) : (

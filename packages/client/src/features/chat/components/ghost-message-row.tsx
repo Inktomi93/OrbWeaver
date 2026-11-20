@@ -33,7 +33,9 @@
 // settled row draws the final bytes. Its mint asks for the forming cap, which the server enforces: the static posture and external media
 // off whatever the speaker's step, so the window above still runs no model script and fetches nothing off the box.
 // `data:` images follow the step, as they fetch nothing. At most `FORMING_PANELS_MAX` panels draw per stream; the
-// rest hold their chips until the reply settles.
+// rest hold their chips until the reply settles. At the commit this row stays over its committed row, in that row's
+// own transcript item, until the settled frame draws (`row-handover.tsx`), so its drawn panels never fall back to
+// chips; once the turn stops streaming it admits no new panel.
 
 import type { CardTrust } from "@orb/contracts/chat";
 import type { FrameStyleSheet, GhostContentSegment } from "@orb/kit/content";
@@ -266,10 +268,14 @@ function GhostBubbleBody({
   const heldParts = segments.map((segment) =>
     drawsPanels && segment.kind === "text" && holdsText(segment.text, shared) ? formingParts(segment.text, roomSheets) : undefined,
   );
-  const next = admitPanels(
-    admitted,
-    heldParts.flatMap((parts) => parts?.flatMap((part) => (part.kind === "panel" ? [panelIdentity(part)] : [])) ?? []),
-  );
+  // A turn that stopped streaming admits no new panel: its settled row is already minting the reply's own frame, and the
+  // ghost stands over that row only until the frame draws (`row-handover.tsx`).
+  const next = streaming
+    ? admitPanels(
+        admitted,
+        heldParts.flatMap((parts) => parts?.flatMap((part) => (part.kind === "panel" ? [panelIdentity(part)] : [])) ?? []),
+      )
+    : admitted;
   if (next !== admitted) {
     setAdmitted(next);
   }

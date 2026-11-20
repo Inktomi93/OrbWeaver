@@ -88,6 +88,7 @@ export {
   heldGhostMessageId,
   isLiveTurnPhase,
   subscribeUserMessageCommitted,
+  useGhostExtendsMessageId,
   useGhostSpeakerCharacterId,
   useHeldGhost,
   useRecallState,
