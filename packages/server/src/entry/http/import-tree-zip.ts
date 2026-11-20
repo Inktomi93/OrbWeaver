@@ -3,13 +3,16 @@
 // import as the folder door: a SillyTavern profile becomes an import-st workload over the same staged tree and
 // manifest, so a zip and the folder it was made from preview and import the same.
 //
-// Belt order: auth (401 before the body is read) → CSRF (403) → the query fields (400) → one staging upload per owner
-// (409 before the body is read) → a declared length over the tree door's total (413, nothing read) → the body streamed to a staged file under the owner's root, capped at the tree
-// door's total (413, partial file removed) → the file told apart from a zip by its first bytes when it has no
+// Belt order: auth (401 before the body is read) → CSRF (403) → a declared length over the tree door's total (413,
+// nothing read) → the query fields (400) → one staging upload per owner (409 before the body is read) → the body
+// streamed to a staged file under the owner's root, its bytes counted against the tree door's total as they arrive
+// (413, partial file removed). No body-limit middleware fronts this route: it would buffer a body with no declared
+// length in memory before any of these steps → the file told apart from a zip by its first bytes when it has no
 // central directory (400 with a reason) → the central directory read by position under the entry-count and
 // per-entry declared-size belts, every name refused fail-closed on traversal (400) → the profile found and its
 // entries mapped by name alone: macOS resource forks and Finder files skipped, `secrets.json` dropped, an entry
-// outside the profile left in the zip → layout admission and the case-twin refusal over the mapped names, before a
+// outside the profile left in the zip, and only a profile's own top-level planes kept, so the files beside the
+// profiles (`cookie-secret.txt`, `_storage/`) stay in the zip → layout admission and the case-twin refusal over the mapped names, before a
 // byte is inflated (400) → one entry at a time inflated under its declared size (an entry that inflates past what it
 // declares is a bomb, refused by its name) and its CRC-32, the inflated total capped at the tree door's total, each
 // written O_EXCL under the staged tree after a resolve-prefix check → the manifest → owner-scoped start (202). A
@@ -30,6 +33,7 @@ import {
   profileZipStartedSchema,
   ST_SETTINGS_FILE,
   STAGED_MANIFEST_FILE,
+  stProfileEntryDisposition,
   TREE_DRY_RUN_FIELD,
   TREE_DRY_RUN_VALUE,
 } from "@orb/contracts/import";
@@ -47,7 +51,6 @@ import { stageCapped } from "./import.ts";
 import type { ImportTreeDeps } from "./import-tree.ts";
 import {
   authCsrfGuard,
-  bodyCap,
   commonWrapper,
   nativeDirsOf,
   OWNER_ONLY_DIR,
@@ -207,6 +210,16 @@ function profileEntries(directory: ZipDirectory): ProfileEntry[] {
   return kept;
 }
 
+/** The entries a profile import reads: those under a profile's own top-level planes, as the collector and the folder
+ *  planner keep them. Anything else beside the profiles, such as SillyTavern's `cookie-secret.txt` or its `_storage/`
+ *  account records at the root of a `data/` folder, stays in the zip. */
+function profileContent(entries: readonly ProfileEntry[], stagePrefix: string): ProfileEntry[] {
+  return entries.filter((entry) => {
+    const [, top, ...rest] = (stagePrefix + entry.relPath).split("/");
+    return top !== undefined && stProfileEntryDisposition(top, rest.length > 0).handled;
+  });
+}
+
 /** Run a tree door belt, and tell its refusal as `reason`. */
 function asRefusal<T>(reason: ProfileZipRefusal, belt: () => T): T {
   try {
@@ -336,12 +349,13 @@ async function stageFromZip(zipPath: string, ownerRoot: string, deps: ImportTree
       const found = layout.kind === "reject" ? layout.found.join(", ") : "Orbweaver backup folders";
       throw new ProfileZipRefused("layout", `this zip holds no SillyTavern profile (found: ${found || "nothing"})`);
     }
-    asRefusal("case-twins", () => refuseCaseTwins(entries.map((entry) => entry.relPath)));
+    const kept = profileContent(entries, layout.stagePrefix);
+    asRefusal("case-twins", () => refuseCaseTwins(kept.map((entry) => entry.relPath)));
     const token = `${STAGED_TREE_PREFIX}${deps.newOpaqueId()}`;
     const stagedRoot = join(ownerRoot, token);
     await mkdir(stagedRoot, { recursive: true });
     try {
-      return { kind: "staged", token, ...(await stageProfile(stagedRoot, directory, entries, layout.stagePrefix)) };
+      return { kind: "staged", token, ...(await stageProfile(stagedRoot, directory, kept, layout.stagePrefix)) };
     } catch (err) {
       await rm(stagedRoot, { recursive: true, force: true });
       throw err;
@@ -372,10 +386,11 @@ async function importZip({ c, body, principal, fields }: ZipRequest, deps: Impor
     if (outcome.kind === "backup") {
       return c.body(null, NO_CONTENT);
     }
-    const collisions: readonly PersonaCollision[] = fields.dryRun
-      ? await deps.persona.reviewImport({ principal, incoming: incomingPersonasOf(outcome.reviewParts) })
-      : [];
+    // The stage is this request's until a job owns it, so a failed review or start removes it.
     try {
+      const collisions: readonly PersonaCollision[] = fields.dryRun
+        ? await deps.persona.reviewImport({ principal, incoming: incomingPersonasOf(outcome.reviewParts) })
+        : [];
       const { id } = await deps.workloads.start({
         input: {
           kind: "import-st",
@@ -406,12 +421,18 @@ export function registerImportTreeZip(app: Hono<PrincipalEnv>, deps: ImportTreeD
   const nativeDirs = nativeDirsOf(deps.registry);
   // Owners whose zip is still staging: the import slot answers only at `start`, after the whole zip is on disk.
   const staging = new Set<UserId>();
-  app.post(PORTABILITY_ROUTES.importTreeZip, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
+  app.post(PORTABILITY_ROUTES.importTreeZip, authCsrfGuard, async (c) => {
     // The guard above answered a signed-out caller already.
     const principal = c.get("principal");
     const body = c.req.raw.body;
     if (principal === null || body === null) {
       return c.json({ error: "this upload is empty", reason: "empty" satisfies ProfileZipRefusal }, BAD_REQUEST);
+    }
+    // Hono's body limit would buffer a body with no declared length before this handler runs, so the cap is applied
+    // here: a declared length over it is refused unread, and `stageCapped` counts the bytes as they stream to disk.
+    if (Number(c.req.header("content-length")) > IMPORT_TREE_MAX_TOTAL_BYTES) {
+      await body.cancel();
+      return c.json({ error: "this zip is over the maximum upload size", reason: "too-large" satisfies ProfileZipRefusal }, PAYLOAD_TOO_LARGE);
     }
     const fields = readFields(c);
     if (typeof fields === "string" || staging.has(principal.userId)) {

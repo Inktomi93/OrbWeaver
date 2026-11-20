@@ -120,7 +120,7 @@ export const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): R
   await next();
 };
 
-export function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
+function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
   return bodyLimit({ maxSize: maxBytes, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
 }
 
@@ -227,12 +227,14 @@ export async function stagePart(stagedRoot: string, relTarget: string, bytes: Ui
   if (target !== stagedRoot && !target.startsWith(stagedRoot + sep)) {
     throw new TreeRejected(BAD_REQUEST, `file path escapes the staging root: ${relTarget}`);
   }
-  await mkdir(dirname(target), { recursive: true });
   try {
+    await mkdir(dirname(target), { recursive: true });
     await writeStaged(target, bytes);
   } catch (err) {
+    // A file where a later path needs a directory, the reverse, or a name longer than the volume holds: the upload's
+    // own names are at fault, so the refusal is typed, never a server failure.
     const code = errnoCode(err);
-    if (code === "EEXIST" || code === "ENOTDIR" || code === "EISDIR") {
+    if (code === "EEXIST" || code === "ENOTDIR" || code === "EISDIR" || code === "ENAMETOOLONG") {
       // biome-ignore lint/style/useErrorCause: cause IS forwarded — TreeRejected passes its 3rd-arg ErrorOptions to super(); biome only inspects the 2nd constructor arg (same exemption ZipRejectedError carries).
       throw new TreeRejected(BAD_REQUEST, `conflicting paths in the upload near: ${relTarget}`, {
         cause: err,

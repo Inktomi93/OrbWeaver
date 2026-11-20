@@ -5,6 +5,8 @@
 // a zip is refused with the reason that says what it is. An Orbweaver backup zip is not this door's and stages nothing.
 // An entry named to leave the staged tree, or more entries than the tree door admits, refuses the whole zip with nothing
 // staged; a credentials file is never staged in any letter case; and a zip stages only under the account that sent it.
+// A second upload from one account is refused before its body is read however it is framed; only a profile's own planes
+// are staged; two entries whose paths collide on disk are refused as unsafe; and a failed persona review leaves no stage.
 // @subject packages/server/src/entry/http/import-tree-zip.ts
 // @subject packages/server/src/infra/storage/zip.ts
 
@@ -28,7 +30,8 @@ import { expect, test } from "@orb/testkit/node";
 import { createAuthModeRoot, mintMember, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { strToU8, zipSync } from "fflate";
-import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
+import { vi } from "vitest";
+import { bodyRequest, CSRF_HEADERS, observedBody } from "../../../entry/http/_body-limit-inputs.ts";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, bothKindFolders, finishRun, harness, stagedEntries } from "./_st-tree-door.ts";
 
@@ -40,6 +43,8 @@ const ACCEPTED = 202;
 const NO_CONTENT = 204;
 const REFUSED = 400;
 const TOO_LARGE = 413;
+const CONFLICT = 409;
+const SERVER_FAILED = 500;
 
 const ST_AI_OUTPUT = 2;
 // SillyTavern wire text is snake_case and integer placements by spec, so the preset is raw JSON.
@@ -307,4 +312,94 @@ test("a zip stages only under the account that sent it, and another account can 
     kind: "import-st",
     ownerId: owner.principal.userId,
   });
+});
+
+/** A request body that sends `bytes` in two parts and holds the second until `release` is called. */
+function heldBody(bytes: Uint8Array): { readonly body: ReadableStream<Uint8Array>; readonly firstPulled: Promise<void>; readonly release: () => void } {
+  const half = Math.floor(bytes.length / 2);
+  const firstPull = Promise.withResolvers<void>();
+  const gate = Promise.withResolvers<void>();
+  let part = 0;
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull: async (target): Promise<void> => {
+        part += 1;
+        if (part === 1) {
+          target.enqueue(bytes.subarray(0, half));
+          firstPull.resolve();
+          return;
+        }
+        await gate.promise;
+        target.enqueue(bytes.subarray(half));
+        target.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  return { body, firstPulled: firstPull.promise, release: () => gate.resolve() };
+}
+
+test("a second zip from one account is refused before its body is read, even with no declared length", async () => {
+  await using root = await harness();
+  const zip = profileZip(bothKindFolders(root).held);
+  const route = `${PORTABILITY_ROUTES.importTreeZip}?${TREE_DRY_RUN_FIELD}=${TREE_DRY_RUN_VALUE}`;
+  // The first upload holds the account's staging slot, its body half sent.
+  const first = heldBody(zip);
+  const firstAnswer = bodyRequest(root, route, first.body);
+  await first.firstPulled;
+
+  // A body with no declared length is streamed by the door itself, so the slot answers before one byte is pulled.
+  using second = observedBody(IMPORT_TREE_MAX_TOTAL_BYTES);
+  const refused = await bodyRequest(root, route, second.body);
+  expect(refused.status).toBe(CONFLICT);
+  await refused.arrayBuffer();
+  expect(second.snapshot().pulls).toBe(0);
+
+  // The control: the held upload, itself sent with no declared length, finishes and is admitted.
+  first.release();
+  expect((await firstAnswer).status).toBe(ACCEPTED);
+});
+
+test("a zip of SillyTavern's data folder stages only its profiles' own planes, never the files beside them", async () => {
+  await using root = await harness();
+  const data = "SillyTavern/data/";
+  const zip = profileZip(bothKindFolders(root).held, `${data}default-user/`, {
+    [`${data}other-user/${ST_SETTINGS_FILE}`]: JSON.stringify({ ["power_user"]: { personas: {} } }),
+    [`${data}cookie-secret.txt`]: "a session-signing secret",
+    [`${data}_storage/user`]: '{"handle":"user","password":"scrypt-hash","salt":"salt"}',
+    [`${data}default-user/movingUI/layout.json`]: "{}",
+  });
+  expect((await postZip(root, zip, { dryRun: true })).status).toBe(ACCEPTED);
+  const staged = await stagedPaths(root);
+  expect(staged.filter((path) => path.includes("cookie-secret") || path.includes("_storage") || path.includes("movingUI"))).toEqual([]);
+  // The control: both profiles' settings files are staged.
+  expect(staged).toEqual(expect.arrayContaining([`default-user/${ST_SETTINGS_FILE}`, `other-user/${ST_SETTINGS_FILE}`]));
+});
+
+const COLLIDING_ON_DISK: Readonly<Record<string, Files>> = {
+  "a file where a later entry needs a folder": { "worlds/a": "{}", "worlds/a/b.json": "{}" },
+  "a name longer than a volume holds": { [`worlds/${"w".repeat(300)}.json`]: "{}" },
+};
+
+test.each(Object.entries(COLLIDING_ON_DISK))("%s is refused as unsafe, with nothing staged and no job", async (_case, extra) => {
+  await using root = await harness();
+  const refused = await refusalOf(await postZip(root, profileZip({ ...bothKindFolders(root).held, ...extra }), { dryRun: true }));
+  expect(refused).toMatchObject({ status: REFUSED, reason: "unsafe" });
+  expect(await stagedEntries(root)).toEqual([]);
+  expect(await jobsOf(root)).toBe(0);
+});
+
+test("a dry run whose persona review fails leaves no stage behind", async () => {
+  await using root = await harness();
+  const zip = profileZip(bothKindFolders(root).held);
+  {
+    using review = vi.spyOn(root.services.persona, "reviewImport").mockRejectedValue(new Error("the persona read failed"));
+    expect((await postZip(root, zip, { dryRun: true })).status).toBe(SERVER_FAILED);
+    expect(review).toHaveBeenCalledOnce();
+  }
+  expect(await stagedEntries(root)).toEqual([]);
+  expect(await jobsOf(root)).toBe(0);
+  // The control: with the review answering, the same dry run stages its tree.
+  expect((await postZip(root, zip, { dryRun: true })).status).toBe(ACCEPTED);
+  expect(await stagedPaths(root)).toContain(`profile/${ST_SETTINGS_FILE}`);
 });
