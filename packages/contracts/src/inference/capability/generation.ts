@@ -263,6 +263,9 @@ const reasoningCapabilitySchema = z
      *  false, so a prefix-bound model on the route keeps its thinking inside one turn (`carryReasoning: tool-chain`). */
     prefixEditSafe: z.boolean().optional(),
     supportsMaxTokens: z.boolean().optional(),
+    /** The route carries a preset's authored chain of thought (`reasoningSeed`) on a continue row. A route fact,
+     *  stamped after synthesis by the inference capability floor, which replaces whatever a row states. */
+    seedable: z.boolean().optional(),
   })
   .strip();
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
@@ -413,6 +416,9 @@ export const generationCapabilitySchema = z
     /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
     modalitiesEstimated: z.boolean().optional(),
     moderated: z.boolean().optional(),
+    /** The route shortens the chat on the provider's side when a preset asks (`providerContextCompression`). A
+     *  route fact, stamped after synthesis like `reasoning.seedable`. */
+    contextCompression: z.boolean().optional(),
     turns: turnsCapabilitySchema.optional(),
     /** The `turns` cells no evidence tier stated, so they hold {@link TURNS_FLOOR}'s fail-closed guess. A preset's
      *  role handling is clamped only against a STATED floor (`turnsLevelFor`), and an estimated prefill cell does

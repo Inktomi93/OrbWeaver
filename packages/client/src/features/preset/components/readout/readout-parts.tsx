@@ -23,7 +23,6 @@ import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-kno
 import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "#src/features/preset/lib/effective-knobs.ts";
 import { formatCount } from "#src/features/preset/lib/format-count.ts";
 import { PRESET_ESTIMATED_LIMIT_SUFFIX, PRESET_OPEN_CONNECTIONS_NAME, PRESET_READOUT_OUTPUT_CAP_LABEL } from "#src/features/preset/lib/preset-names.ts";
-import { PARAMS_VIEW_LABEL } from "#src/features/preset/lib/preset-nav.ts";
 import { failureCause, resolveFailureCopy, resolveFailureMessage } from "#src/features/preset/lib/resolve-failure.ts";
 import { openConfigTo } from "#state";
 
@@ -131,13 +130,6 @@ export function EffectiveProfile({
       )}
       <Text voice="gloss">
         {resolvedForLabel(effective.model)} · {subject}
-        {effective.stale.length === 0
-          ? ""
-          : /* IT NAMES THE TAB, NOT THE MODULE. "the deck" is this feature's internal name for the Params
-               view and appears nowhere in the UI, so naming it would send the reader to a place that does
-               not exist on screen.
-               `PARAMS_VIEW_LABEL` is the strip's own word, read from the view tuple. */
-            ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores: clear them in ${PARAMS_VIEW_LABEL}`}
       </Text>
     </Section>
   );
@@ -233,7 +225,8 @@ export function CapabilityCard({
           value={formatKnobValue(capability.output.maxTokens.max)}
         />
       </Stack>
-      <Text voice="gloss">{honored.length === 0 ? "This connection honors no sampling knobs." : `honors ${honored.join(" · ")}`}</Text>
+      {/* What the connection cannot take is not named (D68); a connection that takes no sampler has no line. */}
+      {honored.length === 0 ? null : <Text voice="gloss">{`honors ${honored.join(" · ")}`}</Text>}
     </Section>
   );
 }

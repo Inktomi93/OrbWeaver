@@ -11,7 +11,8 @@
 //     `modalitiesEstimated`, so the editor and the add step can tell it from a model stated as text only.
 //   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.
 
-import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
+import type { Capability, ChatApi, Dialect, EndpointFeatures, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill } from "@orb/contracts/inference";
 import type { ServedWindow, ServerToolChoice } from "../contract/capability.ts";
 
 /** A server that states its model's trained maximum clamps any larger window to it at load (Ollama), so a
@@ -67,6 +68,42 @@ export function applyServerToolChoice(capability: Capability, toolChoice: Server
     ...(toolChoice.parallel || "parallelControl" in tools ? {} : { parallelControl: false }),
   };
   return Object.keys(stated).length === 0 ? capability : { kind: "generation", generation: { ...capability.generation, tools: { ...tools, ...stated } } };
+}
+
+/** The route a connection's turns take, as the route-fact floor reads it. */
+export interface RouteFacts {
+  readonly wire: ProviderDef["wire"];
+  readonly api: ChatApi | null;
+  readonly dialect: Dialect;
+  readonly prefill: EndpointFeatures["prefill"];
+}
+
+/** The controls a route alone decides, stamped over whatever a row stated, because they follow from the code path a
+ *  turn takes rather than from the model:
+ *  • `contextCompression`: only the OpenRouter chat-completions shape sends the middle-out plugin
+ *    (`backends/openai-compat/chat.ts`).
+ *  • `reasoning.seedable`: only a `prefix-flag` continue row on the chat-completions route carries the authored chain
+ *    of thought (`backends/openai-compat/body.ts` rule 5a), and only where the model takes a prefill.
+ *  • `tools.parallelControl: false` on the agent-sdk wire: the bundled runtime exposes no parallel tool control. */
+export function markRouteFacts(capability: Capability, route: RouteFacts): Capability {
+  if (capability.kind !== "generation") {
+    return capability;
+  }
+  const generation = capability.generation;
+  const chatCompletions = route.wire === "openai-compat" && route.api === "chat-completions";
+  const { contextCompression: _replacedCompression, ...rest } = generation;
+  const { seedable: _replacedSeed, ...reasoning } = generation.reasoning;
+  const seedable = chatCompletions && route.prefill === "prefix-flag" && acceptsAssistantPrefill(generation);
+  const tools = route.wire === "agent-sdk" && generation.tools !== undefined ? { ...generation.tools, parallelControl: false } : generation.tools;
+  return {
+    kind: "generation",
+    generation: {
+      ...rest,
+      reasoning: seedable ? { ...reasoning, seedable: true } : reasoning,
+      ...(chatCompletions && route.dialect === "openrouter" ? { contextCompression: true } : {}),
+      ...(tools === undefined ? {} : { tools }),
+    },
+  };
 }
 
 /** `modalitiesStated` = the declaration or the server's list states the input; `rowsStateInput` = a hosted catalog's

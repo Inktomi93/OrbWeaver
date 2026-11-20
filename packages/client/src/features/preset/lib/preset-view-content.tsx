@@ -11,7 +11,6 @@ import { ActionsView } from "../components/actions-view.tsx";
 import { ParamsDeck } from "../components/params-deck.tsx";
 import { PresetStructureTabs } from "../components/preset-structure-tabs.tsx";
 import { RegexTab } from "../components/regex-tab.tsx";
-import type { StalenessRowProps } from "../components/staleness-row.tsx";
 import { UserMacrosTab } from "../components/user-macros-tab.tsx";
 import { VariablesTab } from "../components/variables-tab.tsx";
 import type { EffectiveProfileRow } from "./effective-knobs.ts";
@@ -35,16 +34,15 @@ export interface ViewContentProps {
    *  cannot say different things about the same eight pipeline stages (side-eye 2026-08-07 P2). */
   readonly attachable: boolean;
   readonly onRevealSection?: (() => void) | undefined;
-  readonly samplerSpelling: StalenessRowProps["spelling"];
 }
 
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 export function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, chatConnectionId, effective, presetId, attachable, onRevealSection, samplerSpelling } = props;
+  const { form, capability, chatConnectionId, effective, presetId, attachable, onRevealSection } = props;
   switch (id) {
     case "params":
-      return <ParamsDeck capability={capability} chatConnectionId={chatConnectionId} effective={effective} form={form} samplerSpelling={samplerSpelling} />;
+      return <ParamsDeck capability={capability} chatConnectionId={chatConnectionId} effective={effective} form={form} />;
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).

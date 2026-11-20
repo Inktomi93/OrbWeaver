@@ -18,10 +18,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
-export type EffectiveProfileRow = Pick<
-  inferOutput<Trpc["preset"]["resolveEffective"]>,
-  "cache" | "cacheWarnings" | "model" | "knobs" | "stale" | "qualityMapping"
->;
+export type EffectiveProfileRow = Pick<inferOutput<Trpc["preset"]["resolveEffective"]>, "cache" | "cacheWarnings" | "model" | "knobs" | "qualityMapping">;
 
 /** The ghost also accepts client-only window provenance; its value still derives the actual wire reading. */
 export type EffectiveKnobRow = Pick<WireKnobReading, "value"> & { readonly provenance: string };
@@ -46,8 +43,8 @@ export function responseReplayChoice(settings: ResponseCacheSettings | undefined
 /** The DISPLAY name for one resolved knob. The read is keyed by SCHEMA names (`maxOutputTokens`), and a
  *  readout that prints those is showing the eye a wire identifier instead of a datum label (side-eye
  *  F-13; the mock reads "max output"). Display only — the read stays the authority on its own keys, and
- *  an unmapped key prints itself rather than being hidden. ONE home: the readout rows, the quality-mapping
- *  gloss and the staleness copy all read it, so the surfaces cannot drift on what a knob is called. */
+ *  an unmapped key prints itself rather than being hidden. ONE home: the readout rows and the quality-mapping
+ *  gloss both read it, so the surfaces cannot drift on what a knob is called. */
 const KNOB_LABELS: Readonly<Record<string, string>> = {
   effort: "Effort",
   thinkingBudgetTokens: "Thinking budget",

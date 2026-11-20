@@ -49,6 +49,7 @@ paths:
 
 - Distinguish an omitted state, a taught empty state and a populated state explicitly. A section that silently renders nothing when empty reads the same as an unbuilt feature.
 - Never build a separate reduced-mode surface for a not-ready state. Render the real surface with inapplicable affordances disabled and explained, and omit only permission-gated ones.
+- Omit a preset, generation or sampling control the connected model cannot apply. Never disable or mark it (D68, `statesKnob`).
 - Put essential copy in visible or announced content, never only in `title`; it is invisible on touch and is not the accessible name.
 - Inside the chat transcript, a tool call always renders, even with no registered card. Fall back to the generic block rather than rendering nothing.
 

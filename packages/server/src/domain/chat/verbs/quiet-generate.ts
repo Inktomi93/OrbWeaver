@@ -12,9 +12,9 @@
 
 import type { AssembledPrompt } from "@orb/contracts/chat";
 import type { RolePresetParams, UserIntent } from "@orb/contracts/preset";
-import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { SIDE_GEN_POSTURES, statedIntent } from "@orb/contracts/preset";
 import type { ChatHistoryMessage } from "@orb/inference";
-import { resolveSideGenSampling, withPresetWindow } from "@orb/inference";
+import { generationOf, resolveSideGenSampling, withPresetWindow } from "@orb/inference";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
 
 /** The minimal `AssembledPrompt` a quiet generation carries: the instruction as the static system prefix, an
@@ -89,7 +89,8 @@ export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {
       chatId: params.chatId,
       prompt: quietPrompt(params.systemPrompt),
       history: quietHistory(params.userText),
-      intent: quietIntent(params.intent, chatParams),
+      // A value whose control this model does not take never reaches the turn (D68).
+      intent: statedIntent(quietIntent(params.intent, chatParams), generationOf(params.connection)),
       kind: "generate",
       cacheBreakpointFromEnd: null,
       signal: params.signal,

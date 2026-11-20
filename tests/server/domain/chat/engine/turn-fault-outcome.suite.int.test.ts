@@ -120,14 +120,15 @@ async function withHttpRoom(refuse: boolean, prove: (h: ChatRoot, routed: () => 
     model: CORPUS_TEXT_MODEL,
     declared: {
       kind: "generation",
-      generation: { input: ["text"], context: { window: 32_000 }, sampling: { topK: undefined } },
+      // The model takes effort at one level, so a turn asking another level is a stated drop the room is told of.
+      generation: { input: ["text"], context: { window: 32_000 }, reasoning: { mode: "effort", enabled: true, effortLevels: ["low"] } },
       features: { detectServer: false },
     },
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   const routed = async (): Promise<TurnOutcome> => {
     const completed = h.caller.chat
-      .send({ chatId: h.chatId, content: "Report the actual provider outcome.", timeZone: UTC_TIME_ZONE, intent: { topK: 5 } })
+      .send({ chatId: h.chatId, content: "Report the actual provider outcome.", timeZone: UTC_TIME_ZONE, intent: { effort: "high" } })
       .then(
         (value) => ({ status: "success" as const, value }),
         (error: Error) => ({ status: "error" as const, error }),
@@ -213,11 +214,11 @@ test("the outcome row is a passenger: the public service rethrows the actual obs
 test("a completed native turn keeps raw warning code and operator prose while its room warning is revoiced", async () => {
   await withHttpRoom(false, async (h, routed) => {
     expect((await routed()).aborted).toBe(false);
-    const raw = "topK ignored: model does not expose a topK range";
+    const raw = 'effort "high" ignored: model lists low';
     expect(await outcomes(h)).toEqual([
       expect.objectContaining({
         disposition: "completed",
-        warnings: expect.arrayContaining([{ code: WARNING_CODE.samplingKnobDropped, message: raw }]),
+        warnings: expect.arrayContaining([{ code: WARNING_CODE.effortDropped, message: raw }]),
       }),
     ]);
     const warnings = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) =>

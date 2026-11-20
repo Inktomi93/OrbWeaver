@@ -2527,7 +2527,8 @@ async function emitCapabilityDropWarnings(
  *  requested knob / reasoning budget / tool result applied when the provider ignored or clamped it.
  *  The owner ruled SURFACE: they ride ONE `settings_adjusted` code carrying the drop's structured detail, which
  *  the client re-voices per class. No `null` arm survives, and no `default: return null` may replace this list
- *  — listing every code one by one is what keeps the `assertNever` honest. */
+ *  — listing every code one by one is what keeps the `assertNever` honest. A value whose control the model does
+ *  not take never reaches the funnel (`statedIntent`, D68), so no warning here names a control the user cannot see. */
 function toChatWarning(warning: ResolvedWarning): ChatWarning {
   const code = warning.code;
   switch (code) {

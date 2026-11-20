@@ -59,7 +59,6 @@ import { PresetEditorHeader } from "../components/preset-editor-header.tsx";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
-import { samplerSpellingOf } from "../lib/capability-panel-model.ts";
 import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
@@ -192,18 +191,9 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const onActivate = (onLanded: () => void): void => {
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } }, { onSuccess: onLanded });
   };
-  // The staleness row names a dropped sampler under the target server's own spelling: its provider row, then the
-  // connection's declared override, both already in the client's hands.
-  const providersQuery = useQuery(trpc.connection.providersAvailable.queryOptions());
+  // The connection list names the Chat connection the Params view edits for.
   const connectionsQuery = useQuery(trpc.connection.list.queryOptions());
   const target = capabilityQuery.data;
-  const samplerSpelling =
-    target === undefined
-      ? undefined
-      : samplerSpellingOf(
-          providersQuery.data?.find((entry) => entry.provider.id === target.providerId)?.provider.features,
-          connectionsQuery.data?.find((row) => row.id === target.connectionId)?.declared?.features,
-        );
 
   // #1716: the stored blob could not be read, so `preset.config` above is a STAND-IN and every config write
   // derived from it is refused server-side (`stored_config_unreadable`, the #1026 guard on
@@ -238,7 +228,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
                 ? undefined
                 : (connectionsQuery.data?.find((row) => row.id === target.connectionId)?.label ?? `${target.providerId} · ${target.model}`)
             }
-            samplerSpelling={samplerSpelling}
             effective={effectiveQuery.data ?? undefined}
             reset={reset}
             configUnreadable={configUnreadable}
@@ -277,7 +266,6 @@ interface PresetEditorBodyProps {
   readonly capability: GenerationCapability | undefined;
   readonly chatConnectionId: ViewContentProps["chatConnectionId"];
   readonly editorConnection: string | undefined;
-  readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
   /** #1716: the stored blob's read verdict — `null` = read faithfully, a failure kind = the body below is a
@@ -298,7 +286,6 @@ function PresetEditorBody({
   capability,
   chatConnectionId,
   editorConnection,
-  samplerSpelling,
   effective,
   reset,
   configUnreadable,
@@ -331,7 +318,6 @@ function PresetEditorBody({
     presetId,
     attachable: !isSystemDefault,
     onRevealSection,
-    samplerSpelling,
   };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;

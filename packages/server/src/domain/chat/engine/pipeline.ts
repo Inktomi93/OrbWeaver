@@ -44,7 +44,7 @@ import {
   WARNING_CODE,
 } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
+import { DEFAULT_NAMES_BEHAVIOR, statedIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsManagedCompaction, withPresetWindow } from "@orb/inference";
@@ -807,7 +807,11 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // reserve) and the runner's wire `max_tokens` read `effectiveIntent.maxOutputTokens` from here — pinning
   // the reserve to exactly what the runner generates. Unset ⇒ the shared response-length default (NOT the
   // model's output-cap ceiling / window), so the fit-pass leaves history room instead of reserving it all.
-  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences));
+  // STATED: a value whose control this model does not take is removed here, before any reader (D68), so the seed,
+  // the request and the reply row's recorded params never carry it.
+  const effectiveIntent = materializeMaxOutput(
+    statedIntent(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences), generationOf(input.connection)),
+  );
   // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
   // effective Max context; every read of `args.connection` below, the request included, sees it.
   let streamedText = "";

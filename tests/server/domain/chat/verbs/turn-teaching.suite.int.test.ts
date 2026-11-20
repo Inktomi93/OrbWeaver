@@ -456,6 +456,8 @@ test("a folded turn that carries tools stands the tail prefill down and says so"
         context: { window: 32_000 },
         tools: { parallel: true, silencesProse: false },
         turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+        // A seed has a chain of thought to seed only on a model that reasons (D68).
+        reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] },
       },
       features: { detectServer: false, prefill: "prefix-flag" },
     },

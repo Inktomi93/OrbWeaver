@@ -1,11 +1,13 @@
 // @subject packages/client/src/features/preset/components/params-limits.tsx
-// The Params deck's open Advanced panel: the Word bias info button sits whole inside the clipping panel, and the add row's controls never lie over each other.
+// The Params deck's open Advanced panel, on a Chat model that takes logit bias: the Word bias info button sits whole
+// inside the clipping panel, and the add row's controls never lie over each other.
 
 import { presetDetailSchema } from "@orb/contracts/preset";
 import type { LayoutBox } from "@orb/testkit/browser/spec";
 import { boxOf, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { PRESET_ADVANCED_NAME, PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
@@ -25,6 +27,7 @@ const PROCEDURES = [
   "connection.list",
   "connection.tokenizeWords",
 ] as const;
+type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 // Rounding of two fractional boxes.
 const EDGE_SLACK = 0.5;
 
@@ -40,6 +43,24 @@ async function openWordBias(page: Page, factor: number): Promise<{ group: Locato
   // The fold animates its height; a box read mid-fold is not the open panel.
   await expect.poll(() => panel.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeLessThanOrEqual(1);
   return { group, panel };
+}
+
+/** The corpus Chat model states no logit bias, so the deck hides Word bias there (D68). Bind a local server, whose
+ *  offered set takes it, and return the caller the editor reads through. */
+async function bindLogitBiasModel(root: ServerTestHarness): Promise<Caller> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const local = await caller.connection.create({
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:8080/v1",
+    model: "word-bias-model",
+    label: "Local server",
+    declared: { kind: "generation", features: { detectServer: false } },
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: local.id });
+  const view = await caller.connection.resolveChatCapability();
+  expect(view.capability.kind === "generation" && view.capability.generation.sampling.logitBias).toBe(true);
+  return caller;
 }
 
 function apart(first: LayoutBox, second: LayoutBox): boolean {
@@ -58,7 +79,7 @@ test.describe("desktop", () => {
         throw new Error("The committed corpus omitted the preset library");
       }
       await using root = await createCorpusHarness();
-      await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
+      await routeTrpc(page, serveCorpusProcedures(await bindLogitBiasModel(root), PROCEDURES));
       await mount<typeof PresetListLifetimeStory>(STORY, { presetId: presetDetailSchema.shape.id.parse(library.reads.presetDetail.output.id) });
       const { group, panel } = await openWordBias(page, factor);
       const trigger = await boxOf(group.locator('[data-slot="hint-trigger"]'));
@@ -85,7 +106,7 @@ test.describe("phone", () => {
         throw new Error("The committed corpus omitted the preset library");
       }
       await using root = await createCorpusHarness();
-      await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
+      await routeTrpc(page, serveCorpusProcedures(await bindLogitBiasModel(root), PROCEDURES));
       await mount<typeof PresetListLifetimeStory>(STORY, { presetId: presetDetailSchema.shape.id.parse(library.reads.presetDetail.output.id) });
       const { group } = await openWordBias(page, factor);
       // With no entries the group's first textbox is the word field, the number field's own input is its own slot and the last button is Add.

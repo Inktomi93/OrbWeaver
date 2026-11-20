@@ -15,8 +15,12 @@ import { PRESET_REPLAY_LIFETIME_NAME } from "../lib/preset-names.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
-export function ResponseReplayCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow }): ReactElement {
+/** The replay controls, on a connection whose endpoint replays complete answers; absent everywhere else (D68). */
+export function ResponseReplayCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow }): ReactElement | null {
   const replay = effective.cache.replay;
+  if (!replay.supported) {
+    return null;
+  }
   return (
     <Section kicker="Response replay">
       <Text cap="prose" prose={true} voice="gloss">
@@ -24,23 +28,19 @@ export function ResponseReplayCluster({ form, effective }: { readonly form: AppF
         upstream setting can prevent a hit even when replay is requested.
       </Text>
       <Text voice="gloss">
-        {replay.supported
-          ? `${replay.provenance === "connection" ? "Inherited" : "Resolved"} request: replay ${replay.enabled ? "on" : "off"} ${replay.provenance === "connection" ? "from connection headers" : "by the resolved setting"}.`
-          : "Complete-response replay is unsupported on this connection's endpoint."}
+        {`${replay.provenance === "connection" ? "Inherited" : "Resolved"} request: replay ${replay.enabled ? "on" : "off"} ${replay.provenance === "connection" ? "from connection headers" : "by the resolved setting"}.`}
       </Text>
       <SettingRowGroup>
         <SettingTrackRow>
           <form.Field name="params.responseCache">
             {(field): ReactElement => (
               <Field
-                disabled={!replay.supported}
                 label="Complete-response replay"
                 name={field.name}
                 description="Inherit preserves intentional connection-header opt-in. Off explicitly bypasses replay for this preset."
               >
                 <Select
                   aria-label="Complete-response replay"
-                  disabled={!replay.supported}
                   items={RESPONSE_REPLAY_CHOICES.map((value) => ({ value, label: RESPONSE_REPLAY_LABELS[value] }))}
                   value={responseReplayChoice(field.state.value)}
                   onValueChange={(value): void => {
@@ -57,7 +57,7 @@ export function ResponseReplayCluster({ form, effective }: { readonly form: AppF
         <form.Subscribe selector={(state): boolean => state.values.params.responseCache?.enabled === true}>
           {(enabled): ReactElement => (
             <SettingTrackRow>
-              <ReplayRetention disabled={!(replay.supported && enabled)} form={form} />
+              <ReplayRetention disabled={!enabled} form={form} />
             </SettingTrackRow>
           )}
         </form.Subscribe>

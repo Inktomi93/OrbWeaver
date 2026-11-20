@@ -25,7 +25,6 @@ test("effective output keeps partial knobs and nullable mapping while refusing u
     presetId: ids.next(ID_PREFIX.preset),
     model: testModelId("chat-model"),
     knobs: { temperature: reading },
-    stale: [],
     qualityMapping: { quality: "deep", entries: [{ knob: "temperature", value: 0.8 }] },
   };
   expect(effectivePresetSchema.parse(effective)).toEqual(effective);
