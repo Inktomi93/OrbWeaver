@@ -8,7 +8,7 @@ updated: 2026-11-20
 
 ## Context
 
-Presets draw styled panels with display regex scripts, or have the model write them. The owner ruled that a preset's styling draws on a row whose existing tier allows the card frame (D294), with no new consent, and that nothing styled reaches the main document.
+Presets draw styled panels with display regex scripts, or the model writes them. A preset's styling draws on a row whose tier allows the card frame (D294), with no new consent. Nothing styled reaches the main document.
 
 ## Decision
 
@@ -27,11 +27,11 @@ The frame document holds:
 
 The frame's `style-src` stays `'unsafe-inline'` only.
 
-The frame mints under the row's card origin, so the interactive posture applies to it as to a card. Its height follows its content up to the reply cap. After it settles, each change spends a credit from a small refilling burst (`foldCardFrameHeight` in `@orb/kit/card-frame`); a change with no credit lands when one returns. A drawer closes at once, nothing stays clipped, and a self-feeding height relayouts at a bounded rate. The frame drops the app's `min-block-size: 100dvh` body floor. The run takes the transcript's full measure (`FILLS_MEASURE` in `@orb/ui/lib`), because the frame cannot size its bubble.
+The frame mints under the row's card origin, so the interactive posture applies to it as to a card. Its height follows its content up to the reply cap. After it settles, each change spends a credit from a small refilling burst (`foldCardFrameHeight` in `@orb/kit/card-frame`); a change with no credit lands when one returns. A drawer closes at once, nothing stays clipped, and a self-feeding height relayouts at a bounded rate. The frame drops the app's `min-block-size: 100dvh` body floor. The run takes the transcript's full measure (`FILLS_MEASURE` in `@orb/ui/lib`), as the frame cannot size its bubble.
 
 **Links.** The pinned frame script hands a link click in the reply to the host, as for a card. The host takes a link only from its own frame window, under a live user activation, from a frame the focus gate admitted (`holdsAdmittedFocus` in `frame-focus.ts`), as an http, https or mailto address off the app's origin. A press or a Tab admits a frame, its own `focus()` never; after that input its script may post too. An app press or key ends an admission; focus leaving with no app input relies on blur order, measured only in Chromium.
 
-A link opens only through a confirm, whose header states its parse and display rule. It wraps the host only between labels and leaves the registrable domain unmarked, an accepted residual. A Cancel returns focus to the frame's stop in the app. Repeated requests are paced (`framed-link-pace.ts`): after two Cancels in a row each doubles the next wait, 2 s to 30 s, then the newest waiting request raises its confirm, whose close returns focus where the reader was. An Open or a remount resets the count.
+A link opens only through a confirm, whose header states its parse and display rule. It wraps the host only between labels and leaves the registrable domain unmarked (accepted). A Cancel returns focus to the frame's stop in the app. Repeated requests are paced (`framed-link-pace.ts`): after two Cancels in a row each doubles the next wait, 2 s to 30 s, then the newest waiting request raises its confirm, whose close returns focus where the reader was. An Open or a remount resets the count.
 
 **Before the frame draws.** The row shows the reply as a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, each HTML block as a forming chip with none of its bytes. A block opens on CommonMark's block shapes and holds to its element's close, blank lines included, so nothing a script styles, hides or deletes shows early. Pending, it splits the display output until the first height report; streaming, the model's text while a display script is in force, or on Tier B once a panel or an arriving tag line shows. Inline tags drop with their words kept.
 
@@ -45,11 +45,11 @@ A link opens only through a confirm, whose header states its parse and display r
 
 | Limit | Value and basis |
 | - | - |
-| Mint HTML | `CARD_FRAME_HTML_MAX_CHARS`, ten times the largest measured reply. |
-| Mint CSS | 256,000 chars. A reply matched 58,319 of the app sheet's 388,191, so an untrimmed sheet is refused. |
+| Mint HTML | `CARD_FRAME_HTML_MAX_CHARS`, ten times the largest reply. |
+| Mint CSS | 256,000 chars. An untrimmed app sheet is refused. |
 | Theme tokens | `CARD_FRAME_THEME_TOKEN_LIMITS` in `@orb/kit/card-frame`. |
-| Carry per frame | `REPLY_FRAME_CARRY_BUDGET_CHARS`, a quarter of the mint HTML cap. Sola V4's full sheet set fits. |
-| Handle store | `CARD_FRAME_CEILINGS`. The longest reply stores about 0.27 MiB. |
+| Carry per frame | `REPLY_FRAME_CARRY_BUDGET_CHARS`, a quarter of the mint HTML cap. |
+| Handle store | `CARD_FRAME_CEILINGS`. |
 | Mints in flight | `CARD_FRAME_MINTS_IN_FLIGHT` per account. The gate runs before the body limit, which buffers a chunked body whole, and answers 429. The client queues to the same bound. |
 
 An account's mints evict its own oldest handles first.
@@ -74,13 +74,13 @@ An account's mints evict its own oldest handles first.
 
 ## Consequences
 
-A preset's panels, inline colours and keyframes draw as their author built them on a Tier B row. A preset is not a theme, so no contrast floor judges its colours.
+A preset's panels, inline colours and keyframes draw as their author built them on a Tier B row. No contrast floor judges a preset's colours.
 
 ## Alternatives rejected
 
-- **Linking the app stylesheet in the frame.** `Cross-Origin-Resource-Policy: same-origin` bars the frame's opaque origin, and widening it changes the app's security headers for one feature.
+- **Linking the app stylesheet in the frame.** `Cross-Origin-Resource-Policy: same-origin` bars the frame's opaque origin, and widening it changes the app's security headers.
 - **Per-region frames or in-text markers.** Later scripts break markers, and a capture echo loses provenance.
 - **A new trust setting or consent.** The row's tier already decides where a card frame may draw.
-- **The srcdoc floor for a reply.** It runs no script, so it can neither measure the reply nor hand over a link.
+- **The srcdoc floor for a reply.** It runs no script, so it cannot measure the reply or hand over a link.
 - **The inert render while the frame is pending.** The allowlist keeps a `<style>` element's content as text, so an opened room would show the template's CSS.
-- **Muting a frame's links after a Cancel.** It reads as a dead control, and the pace bounds a scripted frame too.
+- **Muting a frame's links after a Cancel.** It reads as a dead control.
