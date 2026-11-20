@@ -204,7 +204,10 @@ export function ChatSummaryRow({
       // (`2h`/`3w`, not "2 hours ago"): in a list this is a column the eye scans, and the long form ate ~7
       // characters of the title's width on every row (side-eye P1-2a).
       actionsFloat={true}
-      {...(titleQualifier === undefined ? { meta: timeLib.formatRelativeCompact(when) } : { titleQualifier })}
+      // ONE PLACE FOR THE STAMP: a row whose title collides carries its qualifier (the stamp, escalated where stamps collide
+      // too) in the same trailing slot every row's stamp rides, where it also joins the row's name.
+      meta={titleQualifier ?? timeLib.formatRelativeCompact(when)}
+      metaQualifiesTitle={titleQualifier !== undefined}
       {...(markers === undefined ? {} : { markers })}
       {...(hasControls
         ? {

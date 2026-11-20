@@ -418,6 +418,7 @@ export const TOKENS = {
   "size.switch-thumb": { cssVar: "--size-switch-thumb", value: "calc(var(--size-switch-track-height) - 2 * var(--border-width-control) - 2 * var(--size-switch-inset))" },
   "size.combobox-chip-chip": { cssVar: "--size-combobox-chip-chip", value: "calc(var(--size-touch-target) - 2 * var(--border-width-control) - 2 * var(--spacing-tight))" },
   "size.control-clearance": { cssVar: "--size-control-clearance", value: "calc(var(--size-control-sm) + var(--spacing-row))" },
+  "size.picker-check-clearance": { cssVar: "--size-picker-check-clearance", value: "calc(2 * var(--spacing-field) + var(--size-icon-xs) + 2 * var(--spacing-tight))" },
   "size.dialog-footer-clear": { cssVar: "--size-dialog-footer-clear", value: "calc(var(--size-control-lg) + var(--spacing-field))" },
   "size.typing-line": { cssVar: "--size-typing-line", value: "calc(var(--size-dot-sm) + 2 * var(--spacing-field))" },
   "size.room-island-inset-narrow": { cssVar: "--size-room-island-inset-narrow", value: "round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px)" },

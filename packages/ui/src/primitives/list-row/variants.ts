@@ -83,7 +83,9 @@ export const listRowVariants = tv({
     markers: "flex shrink-0 items-center gap-field",
     // Trailing title-line meta (e.g. relative-time): a quiet mono DATUM (tabular so a column of stamps
     // aligns), never shrinks. The tier map takes it to the `gloss` step under an instrument surface.
-    meta: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums",
+    // `PUSH.inlineEnd` holds it at the line's end edge on every row, a wrapped line and an inline-placed row included, so
+    // a list's data form one column whatever each name's length.
+    meta: `shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums ${PUSH.inlineEnd}`,
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
     subtitle: `block text-start ${CAPTION}`,

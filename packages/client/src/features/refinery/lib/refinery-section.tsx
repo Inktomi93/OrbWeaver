@@ -85,7 +85,6 @@ export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: REFINERY_SECTION_LABEL, icon: FlaskConical, group: "authoring", mobile: "sheet" },
   // D62's content-first hub: both side panels default collapsed; the persisted override wins thereafter.
-  contentInset: "section",
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Refinery",

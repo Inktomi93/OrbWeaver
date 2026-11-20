@@ -17,15 +17,14 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
+// `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab).
 import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
-import { Container, Row, Stack } from "@orb/ui/layout";
-import { usePinnedBarCap } from "@orb/ui/lib";
+import { Row } from "@orb/ui/layout";
 import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
+import { ConfirmDialog, ContentPaneBand, DetailHeader, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import {
@@ -75,10 +74,6 @@ export function PresetEditorHeader({
   // edge cue honest about which edge is currently hiding a view.
   const stripRef = useRef<HTMLDivElement>(null);
   useScrollFadeX(stripRef);
-  // Enlarged text grows the band with its copy while the pane does not: a band that would fill the pane stops pinning, so the controls
-  // under it can scroll clear.
-  const bandRef = useRef<HTMLDivElement>(null);
-  const pinned = usePinnedBarCap(bandRef) === null;
 
   const [resetOpen, setResetOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -99,24 +94,15 @@ export function PresetEditorHeader({
 
   return (
     <>
-      {/* THE HEADER SHARES THE BODY'S COLUMN. The sticky band itself stays full-bleed — it is the surface a
-          scrolled body slides under, and a capped band would leave the body visible through the gap — but
-          its CONTENT rides the same capped, centered column every view body does, one element in, so the two
-          ends of the header never sit a hand-span outside the body they belong to.
-          The `Container` is here for the same reason it is around each panel: `@5xl` has to measure the
-          PANE, and only a container can. Same classes as the panel column, deliberately — the header and
-          the body must breathe together or they realign at every dock.
-
-          The Params deck carries a THIRD, deeper column — its own instrument cap (`params-deck.tsx`) — so an
-          offset between this header and the deck shows on Params and on no other tab. The header keeps
-          to the panel column; the deck's cap is argued at its own site. */}
-      <Stack gap="block" placed={pinned ? "pinned" : undefined} paddingBlock="block" ground="card" layer="raised" ref={bandRef}>
-        <Container width="full">
-          <EditorPage gap="block">
-            <DetailHeader
-              actions={
-                <>
-                  {/* THE NAME HAS A DOOR HERE. `New` mints a preset called "New preset" and opens THIS editor,
+      {/* THE HEADER IS THE PANE'S BAND: `ContentPaneBand` spans the pane with the card ground, pins, and stops pinning when it
+          would fill the pane, while its content rides the same column every view body does. The Params deck carries a
+          deeper column, its own instrument cap (`params-deck.tsx`), so an offset between this header and the deck shows on
+          Params and on no other tab. */}
+      <ContentPaneBand gap="block">
+        <DetailHeader
+          actions={
+            <>
+              {/* THE NAME HAS A DOOR HERE. `New` mints a preset called "New preset" and opens THIS editor,
                       so the name must be editable where its effect shows (§13) — on mobile the LIST is a closed
                       sheet.
 
@@ -133,52 +119,52 @@ export function PresetEditorHeader({
                       edited, so the heading's accessible name says what it IS, and a control's name would have
                       to say what it DOES; making one element carry both means one of them lies. The icon door's
                       `aria-label` and tooltip come from ONE string, so the two cannot drift. */}
-                  {isSystemDefault ? null : (
-                    <Tip text={PRESET_RENAME_NAME}>
-                      <Button aria-label={PRESET_RENAME_NAME} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
-                        <Icon icon={Pencil} size="sm" />
-                      </Button>
-                    </Tip>
-                  )}
-                  {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
+              {isSystemDefault ? null : (
+                <Tip text={PRESET_RENAME_NAME}>
+                  <Button aria-label={PRESET_RENAME_NAME} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
+                    <Icon icon={Pencil} size="sm" />
+                  </Button>
+                </Tip>
+              )}
+              {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
                       verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
                       that only ever says "not active" is a dead end when the LIST is a closed sheet.
                       the `soft` style (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
                       pane's one primary CTA, so a status read as a second call to action. */}
-                  {active ? (
-                    // `role="status"` names the result to AT when focus lands on it; `tabIndex={-1}` makes it a focus target, not a tab stop.
-                    <Badge ref={statusRef} role="status" size="sm" tabIndex={-1} tone="primary">
-                      {PRESET_ACTIVE_STATUS}
-                    </Badge>
-                  ) : (
-                    // ITS NAME IS DISTINCT FROM THE LIST RADIO'S. One name in two ROLES (a one-of-N `radio` in
-                    // the list's radiogroup, a `button` here) would attach one name to two contracts. The ROLE
-                    // split is correct: the list is where the pick LIVES (one-of-N, roving tabindex), and this
-                    // is a one-shot COMMAND on the thing you are editing. So the command names itself as one, in
-                    // the editor's own deictic voice ("this preset" — the header is already about a named preset,
-                    // which the h2 two elements away states). One act, one writer, two honestly-different names.
-                    // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
-                    // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
-                    // from the list's radio.
-                    <Button
-                      aria-label={PRESET_ACTIVATE_NAME}
-                      variant="ghost"
-                      onClick={(): void => onActivate((): void => setLandedHere(true))}
-                      size="sm"
-                      type="button"
-                    >
-                      <Icon icon={Zap} size="sm" />
-                      Activate
-                    </Button>
-                  )}
-                  {/* NO MODEL CHIP. A `resolved for <model>` chip beside the name is paid in the NAME: it is a
+              {active ? (
+                // `role="status"` names the result to AT when focus lands on it; `tabIndex={-1}` makes it a focus target, not a tab stop.
+                <Badge ref={statusRef} role="status" size="sm" tabIndex={-1} tone="primary">
+                  {PRESET_ACTIVE_STATUS}
+                </Badge>
+              ) : (
+                // ITS NAME IS DISTINCT FROM THE LIST RADIO'S. One name in two ROLES (a one-of-N `radio` in
+                // the list's radiogroup, a `button` here) would attach one name to two contracts. The ROLE
+                // split is correct: the list is where the pick LIVES (one-of-N, roving tabindex), and this
+                // is a one-shot COMMAND on the thing you are editing. So the command names itself as one, in
+                // the editor's own deictic voice ("this preset" — the header is already about a named preset,
+                // which the h2 two elements away states). One act, one writer, two honestly-different names.
+                // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
+                // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
+                // from the list's radio.
+                <Button
+                  aria-label={PRESET_ACTIVATE_NAME}
+                  variant="ghost"
+                  onClick={(): void => onActivate((): void => setLandedHere(true))}
+                  size="sm"
+                  type="button"
+                >
+                  <Icon icon={Zap} size="sm" />
+                  Activate
+                </Button>
+              )}
+              {/* NO MODEL CHIP. A `resolved for <model>` chip beside the name is paid in the NAME: it is a
                       strict PREFIX of a line the CONTEXT panel renders in full, and the preset's own name — the
                       one thing the whole pane is about — truncates to pay for it. The READOUT is the one home for
                       resolution truth (`resolvedForLabel` spells it, once, for that panel), including the case
                       where the panel is away — not a permanent tax on every header in every regime. */}
-                  {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
-                  <AutosaveStatus state={saveState} onRetry={onRetrySave} />
-                  {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a
+              {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
+              <AutosaveStatus state={saveState} onRetry={onRetrySave} />
+              {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a
                       destructive confirm, because the built-in IS the starter arrangement (side-eye F-25). An
                       empty menu renders no ⋯ at all rather than a trigger that opens nothing (the section
                       drill-in's own rule); items are OMITTED, never disabled.
@@ -187,25 +173,25 @@ export function PresetEditorHeader({
                       LIST row's, and the fix-all's §16 rows 7+27 sanction of that echo is OVERRULED. ONE home —
                       the list-row kebab, matching the characters/chats precedent that lifecycle lives
                       list-side. */}
-                  {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
+              {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
                       bought nothing and cost discoverability twice over: `⋯` signals "there is more here" (there
                       isn't) and signals nothing about WHAT, so the only way to learn the surface offers a reset
                       was to open a menu on the chance. The command is now its own control. If a second header
                       command ever lands, the kebab comes back with two items in it. */}
-                  {/* THE WHOLE-PRESET RESET WEARS ITS WORD. Every knob row's reset is the same bare ↺, so the glyph alone
+              {/* THE WHOLE-PRESET RESET WEARS ITS WORD. Every knob row's reset is the same bare ↺, so the glyph alone
                       could not tell a one-knob reset from this one; the icon set has no separate reset-all glyph, so the
                       scope is said in words, as Activate beside it is. */}
-                  {isSystemDefault ? null : (
-                    <Button aria-label={PRESET_RESET_ARRANGEMENT_NAME} variant="ghost" onClick={(): void => setResetOpen(true)} size="sm" type="button">
-                      <Icon icon={RotateCcw} size="sm" />
-                      {PRESET_RESET_ARRANGEMENT_LABEL}
-                    </Button>
-                  )}
-                </>
-              }
-              title={presetName}
-            />
-            {/* THE STRIP DEGRADES TO A SCROLL, which is the house rule for a strip that outgrows its box —
+              {isSystemDefault ? null : (
+                <Button aria-label={PRESET_RESET_ARRANGEMENT_NAME} variant="ghost" onClick={(): void => setResetOpen(true)} size="sm" type="button">
+                  <Icon icon={RotateCcw} size="sm" />
+                  {PRESET_RESET_ARRANGEMENT_LABEL}
+                </Button>
+              )}
+            </>
+          }
+          title={presetName}
+        />
+        {/* THE STRIP DEGRADES TO A SCROLL, which is the house rule for a strip that outgrows its box —
                 `shell.css` states it for the context tabs verbatim: "degrade to a SCROLL, never into an
                 ellipsis". Otherwise a narrow content pane paints the last tab UNDER the CONTEXT panel.
                 The scroll box is a WRAPPER and not the `TabsList` itself, for two reasons: the list's own
@@ -215,21 +201,19 @@ export function PresetEditorHeader({
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}
-            <Row className="overflow-x-auto" minWidth="shrinks" paddingBlock="tight" ref={stripRef} scrollFade="x">
-              {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
+        <Row className="overflow-x-auto" minWidth="shrinks" paddingBlock="tight" ref={stripRef} scrollFade="x">
+          {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
                   contents — `ParamsPromptActionsDataTransforms` — and no semantic selector can address it. */}
-              <TabsList aria-label={PRESET_SECTIONS_NAME} track="free">
-                {PRESET_EDITOR_VIEWS.map((entry) => (
-                  <TabsTab key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </TabsTab>
-                ))}
-                <TabsIndicator />
-              </TabsList>
-            </Row>
-          </EditorPage>
-        </Container>
-      </Stack>
+          <TabsList aria-label={PRESET_SECTIONS_NAME} track="free">
+            {PRESET_EDITOR_VIEWS.map((entry) => (
+              <TabsTab key={entry.id} value={entry.id}>
+                {entry.label}
+              </TabsTab>
+            ))}
+            <TabsIndicator />
+          </TabsList>
+        </Row>
+      </ContentPaneBand>
 
       {/* The rename dialog is the LIST's own component, mounted here — ONE flow, one write, two doors. */}
       <PresetRenameDialog currentName={presetName} onOpenChange={setRenameOpen} onRename={onRename} open={renameOpen} />

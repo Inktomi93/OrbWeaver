@@ -25,7 +25,7 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import { MutedLine, QueryBoundary } from "#components";
+import { ContentPane, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
@@ -67,23 +67,21 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
     }
   }, [returnFocusTo]);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} minHeight="shrinks" height="fill" focusTarget={true} data-testid={testId("analyticsOverviewSurface")}>
+    <ContentPane data-testid={testId("analyticsOverviewSurface")} data-slot="analytics-content" ref={surfaceRef} tabIndex={-1}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
-          slot ride the scroller. */}
-      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="analytics-content">
-        <QueryBoundary
-          resetKeys={[]}
-          fallback={<SkeletonRows count={3} shape="datum" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
-          reserveKey="analytics.overview"
-        >
-          <OverviewBody />
-        </QueryBoundary>
-      </Stack>
-    </Stack>
+          slot ride the pane. */}
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={3} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
+        reserveKey="analytics.overview"
+      >
+        <OverviewBody />
+      </QueryBoundary>
+    </ContentPane>
   );
 }
 

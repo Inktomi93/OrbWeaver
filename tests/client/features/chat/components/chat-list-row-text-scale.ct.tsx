@@ -1,6 +1,6 @@
-// A chats-list row keeps a readable share of its name at every app font setting. Rooms that share a title carry a date qualifier. At the
-// default font setting the name fits beside it and they share one line; at a larger setting the qualifier gives way to its own line before
-// the name is squeezed under the title floor.
+// A chats-list row keeps a readable share of its name at every app font setting. Rooms that share a title carry a date qualifier in the
+// row's trailing datum slot, at the line's end like every row's stamp. At the default font setting the name fits beside it and they share
+// one line; at every setting the name keeps its floor and the date stays whole beside it, at the line's end.
 // The rows are the production Chats list of the real shell, over rooms a real server holds.
 // @subject packages/client/src/features/chat/components/chat-summary-row.tsx
 
@@ -17,17 +17,13 @@ import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME } from "#client/features/chat/lib/ch
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const SAME_TITLE_ROOMS = 3;
-// The default font setting, a larger one, and the largest the appearance control offers; the date shares the name's line only at the first.
-const FONT_SETTINGS = [
-  { scale: 1, dateBesideName: true },
-  { scale: 1.25, dateBesideName: false },
-  { scale: FONT_SCALE.max, dateBesideName: false },
-] as const;
+// The default font setting, a larger one, and the largest the appearance control offers.
+const FONT_SCALES = [1, 1.25, FONT_SCALE.max] as const;
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-for (const { scale, dateBesideName } of FONT_SETTINGS) {
-  test(`rooms sharing a title keep the name at its floor, with the date ${dateBesideName ? "beside it" : "on its own line"}, at an app font scale of ${String(scale)}`, async ({
+for (const scale of FONT_SCALES) {
+  test(`rooms sharing a title keep the name at its floor, with the date beside it at the line's end, at an app font scale of ${String(scale)}`, async ({
     corpus,
     mount,
     page,
@@ -66,7 +62,7 @@ for (const { scale, dateBesideName } of FONT_SETTINGS) {
     const shown = await rows.evaluateAll((nodes) =>
       nodes.map((row) => {
         const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]');
-        const qualifier = row.querySelector('[data-slot="list-row-title-qualifier"]')?.getBoundingClientRect();
+        const qualifier = row.querySelector('[data-slot="list-row-meta"]')?.getBoundingClientRect();
         const box = title?.getBoundingClientRect();
         // The name's own text width, whatever width the title box was given.
         const text = document.createRange();
@@ -78,6 +74,7 @@ for (const { scale, dateBesideName } of FONT_SETTINGS) {
           natural: text.getBoundingClientRect().width,
           beside: qualifier !== undefined && box !== undefined && qualifier.top < box.bottom,
           qualifierRight: qualifier?.right ?? 0,
+          lineRight: row.querySelector('[data-slot="list-row-title-row"]')?.getBoundingClientRect().right ?? 0,
           rowRight: row.getBoundingClientRect().right,
         };
       }),
@@ -85,7 +82,8 @@ for (const { scale, dateBesideName } of FONT_SETTINGS) {
     for (const row of shown) {
       // A name shorter than the floor keeps its own width; a longer one keeps the floor.
       expect(row.title).toBeGreaterThanOrEqual(Math.min(floor, row.natural) - SUBPIXEL);
-      expect(row.beside).toBe(dateBesideName);
+      expect(row.beside).toBe(true);
+      expect(Math.abs(row.qualifierRight - row.lineRight), "the date ends at the line's end").toBeLessThanOrEqual(SUBPIXEL);
       // The positive control: the qualifier is on the row, whole, so the title is not at its floor only because the qualifier is gone.
       expect(row.qualifierRight).toBeGreaterThan(0);
       expect(row.qualifierRight).toBeLessThanOrEqual(row.rowRight + SUBPIXEL);

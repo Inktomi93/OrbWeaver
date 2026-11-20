@@ -1,4 +1,5 @@
-import { CollectionGrid, DetailHeader, EditorPage, LibraryListRows, ListPage, SettingsPane } from "@orb/client/components";
+import type { ContentPaneMeasure } from "@orb/client/components";
+import { CollectionGrid, ContentPane, DetailHeader, EditorPage, LibraryListRows, ListPage, SettingsPane } from "@orb/client/components";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -119,29 +120,70 @@ export function DetailHeaderMatrixStory(): ReactElement {
   );
 }
 
-/** `EditorPage` in both kinds inside a pane below and above the `@cq-64` breathe step, plus a tier probe card. */
+/** `EditorPage` in both kinds on a content pane below and above the `@cq-64` breathe step, plus a tier probe card. */
 export function EditorPageMatrixStory(): ReactElement {
   return (
     <CtIsolation subject="EditorPage" isolates="The template lays out the column it is given and reads no application data.">
       <Matrix width="50rem">
         <Container>
-          <EditorPage data-probe="form" gap="block">
-            <Card data-probe="form-card">Form island</Card>
-          </EditorPage>
-          <EditorPage data-probe="instrument" gap="block" kind="instrument">
-            <Card data-probe="instrument-card">Instrument island</Card>
-          </EditorPage>
+          <ContentPane gap="block">
+            <EditorPage data-probe="form" gap="block">
+              <Card data-probe="form-card">Form island</Card>
+            </EditorPage>
+            <EditorPage data-probe="instrument" gap="block" kind="instrument">
+              <Card data-probe="instrument-card">Instrument island</Card>
+            </EditorPage>
+          </ContentPane>
         </Container>
       </Matrix>
       {(["form", "instrument"] as const).map((kind) => (
         <div data-case={`wide-${kind}`} key={kind} style={{ inlineSize: "80rem" }}>
           <Container>
-            <EditorPage data-probe={kind} kind={kind}>
-              <Text>Column</Text>
-            </EditorPage>
+            <ContentPane>
+              <EditorPage data-probe={kind} kind={kind}>
+                <Text>Column</Text>
+              </EditorPage>
+            </ContentPane>
           </Container>
         </div>
       ))}
+    </CtIsolation>
+  );
+}
+
+const PANE_MEASURES = {
+  column: "column",
+  instrument: "instrument",
+  full: { full: "The probe spans the pane to pin the full measure." },
+} as const satisfies Record<string, ContentPaneMeasure>;
+
+/** The pane widths each measure is laid in: below the `@cq-64` step, and above it. */
+const PANE_WIDTHS = ["60rem", "90rem"] as const;
+
+/** `ContentPane` in every measure, below and above the breathe step, in a bounded shell region, with a band over a body that
+ *  overflows the pane. */
+export function ContentPaneMatrixStory(): ReactElement {
+  return (
+    <CtIsolation subject="ContentPane" isolates="The template lays out the band and body it is given and reads no application data.">
+      <Stack gap="block">
+        {Object.entries(PANE_MEASURES).flatMap(([name, measure]) =>
+          PANE_WIDTHS.map((width) => (
+            <div
+              data-case={`${name}-${width}`}
+              key={`${name}-${width}`}
+              style={{ inlineSize: width, blockSize: "20rem", display: "flex", flexDirection: "column" }}
+            >
+              <Container height="fill">
+                <ContentPane band={<Text data-probe="band">Band</Text>} measure={measure}>
+                  {ROWS.map((row) => (
+                    <Text key={row}>{row}</Text>
+                  ))}
+                </ContentPane>
+              </Container>
+            </div>
+          )),
+        )}
+      </Stack>
     </CtIsolation>
   );
 }
