@@ -5,23 +5,28 @@ import { COLOR_MOTION } from "./state-motion.ts";
 // only where hover exists, so a fine pointer that cannot hover is not left with a hidden cluster.
 // Every arm names `scale` beside `opacity`: a button wears its press (`active:scale-95`) on the same transition-property
 // group, and tailwind-merge keeps one, so an opacity-only arm would evict the press ease.
+// A cluster that holds an open popup stays shown and live: focus leaves the row for the portalled popup, and the pointer
+// leaves it on the way there, so a trigger keyed only on the row would fade under its own menu.
 export const HOVER_REVEAL = {
-  /** A named field group keeps nested groups from revealing unrelated row actions. */
+  /** A named field group keeps nested groups from revealing unrelated row actions. It keys on `:focus-visible`, as `focus`
+   *  does, because a tap focuses the row's own control and sets `:focus-within` (ui-surface-and-interaction-rules §4.2); it
+   *  hides at rest only where the primary input can hover, so an input without hover finds it shown (§4.1). */
   setting:
-    "opacity-0 transition-[opacity,scale] duration-(--motion-fast) ease-out-expo group-hover/setting:opacity-100 group-focus-within/setting:opacity-100 has-[[data-popup-open]]:opacity-100",
+    "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover/setting:opacity-100 group-has-focus-visible/setting:opacity-100 has-[[data-popup-open]]:opacity-100",
   /** Hidden at rest, shown on the row's hover or focus-within. */
-  hover: "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+  hover:
+    "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[data-popup-open]]:opacity-100",
   /** Secondary chrome (a pin, a crown): faint on the row's hover, full on its own hover or focus, or when focus is inside it (it sits on a wrapper), always faint on touch. */
   faint:
     "opacity-faint transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-receded group-has-focus-visible:opacity-receded hover:opacity-100 focus-visible:opacity-100 has-focus-visible:opacity-100",
   /** `hover` for a cluster of controls: it also takes no pointer while hidden, so a pass over the row lands on nothing. */
   interactive:
-    "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 hover-capable:pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto",
+    "transition-[opacity,scale] duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 hover-capable:pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto has-[[data-popup-open]]:opacity-100 has-[[data-popup-open]]:pointer-events-auto",
   /** Hidden and inert at rest at every pointer, shown on the row's hover or keyboard focus. It keys on `:focus-visible`, as
    *  {@link HOVER_SWAP} does, because a tap focuses a control inside the row and sets `:focus-within` too
    *  (ui-surface-and-interaction-rules §4.2). A caller that a touch reader reaches picks another arm. */
   focus:
-    "opacity-0 pointer-events-none transition-[opacity,scale] duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-hover:pointer-events-auto group-has-focus-visible:opacity-100 group-has-focus-visible:pointer-events-auto",
+    "opacity-0 pointer-events-none transition-[opacity,scale] duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-hover:pointer-events-auto group-has-focus-visible:opacity-100 group-has-focus-visible:pointer-events-auto has-[[data-popup-open]]:opacity-100 has-[[data-popup-open]]:pointer-events-auto",
 } as const;
 
 /** Art that is also its own tap target dims while the pointer is over it: `self` on the art's box, `parent` on a layer

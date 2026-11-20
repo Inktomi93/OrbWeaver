@@ -1,16 +1,17 @@
 // @subject packages/client/src/features/chat/lib/message-actions-reveal.ts
-// A touch reader reaches every message's actions on every chat style with the setting at its default, and a fine pointer
-// keeps hover and keyboard-focus reveal. Each case opens the room's production transcript; the rows are earlier ones, so the
-// last row's own always-shown actions cannot stand in for them.
+// A touch reader, and a fine pointer that cannot hover, reach every message's actions on every chat style with the setting
+// at its default; a pointer that can hover keeps hover and keyboard-focus reveal, and the actions hold while their own menu
+// is open. Each case opens the room's production transcript; the rows are earlier ones, so the last row's own always-shown
+// actions cannot stand in for them.
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
-import { TOKENS } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
 import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
@@ -24,6 +25,15 @@ const PHONE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 // Rows the transcript must mount before an "earlier row" case means anything: the last row and at least two before it.
 const MINIMUM_ROWS = 3;
+
+// A pen tablet's stylus: a fine primary pointer with no hover. CDP media emulation refuses `hover`, so Blink's own input
+// settings carry it; the launch is a worker option, which a describe refuses, so these cases ride their own test type.
+const STYLUS_INPUT = "--blink-settings=primaryPointerType=4,availablePointerTypes=4,primaryHoverType=1,availableHoverTypes=1";
+const stylusTest = test.extend({
+  launchOptions: async ({ launchOptions }, provide) => {
+    await provide({ ...launchOptions, args: [...(launchOptions.args ?? []), STYLUS_INPUT] });
+  },
+});
 
 let readingRoom: ReadingRoom;
 
@@ -147,6 +157,69 @@ test.describe("at a fine pointer", () => {
       await page.mouse.move(0, 0);
       await expect(actions).toHaveCSS("opacity", "0");
       await row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).focus();
+      await expect(actions).toHaveCSS("opacity", "1");
+      await expect(actions).toHaveCSS("pointer-events", "auto");
+    });
+  }
+});
+
+stylusTest.describe("at a fine pointer that cannot hover", () => {
+  stylusTest.use({ viewport: DESKTOP, hasTouch: false, isMobile: false });
+
+  for (const chatStyle of THEME_CHAT_STYLES) {
+    stylusTest(`${chatStyle} shows every earlier row's actions at rest, clear of its text`, async ({ corpus, mount, page }) => {
+      // The control: the launch took, so no hover reveal can stand in for the rest state.
+      const input = await page.evaluate(([hover, fine]) => ({ hover: matchMedia(hover).matches, fine: matchMedia(fine).matches }), [
+        MEDIA_QUERIES["hover-capable"],
+        MEDIA_QUERIES["pointer-fine"],
+      ] as const);
+      expect(input).toEqual({ hover: false, fine: true });
+      await openRoom(page, corpus, chatStyle);
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomProps());
+      await rowsMounted(page);
+      const rows = await earlierRows(page);
+      expect(rows.length).toBeGreaterThanOrEqual(MINIMUM_ROWS - 1);
+      for (const row of rows) {
+        await row.scrollIntoViewIfNeeded();
+        const actions = row.locator(ACTIONS);
+        await expect(actions).toHaveCSS("opacity", "1");
+        await expect(actions).toHaveCSS("pointer-events", "auto");
+        await expect(row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true })).toBeVisible();
+        expect(intersects(await boxOf(actions), await boxOf(row.locator("p").first()))).toBe(false);
+      }
+    });
+  }
+});
+
+test.describe("with a row's actions menu open", () => {
+  test.use({ viewport: DESKTOP, hasTouch: false, isMobile: false });
+
+  for (const chatStyle of THEME_CHAT_STYLES) {
+    test(`${chatStyle} keeps the menu's trigger shown and live after the pointer leaves the row`, async ({ corpus, mount, page }) => {
+      await openRoom(page, corpus, chatStyle);
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomProps());
+      await rowsMounted(page);
+      const [row] = await earlierRows(page);
+      if (row === undefined) {
+        throw new Error("The transcript mounted no earlier row");
+      }
+      const actions = row.locator(ACTIONS);
+      await row
+        .locator('[data-slot="message-bubble"]')
+        .first()
+        .hover({ position: { x: 44, y: 4 } });
+      const trigger = row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true });
+      await trigger.click();
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible();
+      // On to the menu, which is portalled outside the row: the row loses hover, and focus is in the menu, not the row.
+      await menu.hover();
+      // The controls: neither the row's hover nor focus inside it is what holds the actions now.
+      expect(await row.evaluate((element) => ({ hovered: element.matches(":hover"), focused: element.matches(":focus-within") }))).toEqual({
+        hovered: false,
+        focused: false,
+      });
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
       await expect(actions).toHaveCSS("opacity", "1");
       await expect(actions).toHaveCSS("pointer-events", "auto");
     });

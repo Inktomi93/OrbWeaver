@@ -27,7 +27,7 @@ export { CARD_CORNERS } from "./card-corners.ts";
 // for the import-order race that shape kills.
 export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
-export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
+export { coarsePointerNow, finePointerNow, useCoarsePointer, useHoverCapable } from "./coarse-pointer-now.ts";
 export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
 export { CONTROL_WRAP } from "./control-wrap.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";

@@ -5,7 +5,7 @@
 // owns them so app-shell (feature) imports from state, never the reverse.
 
 import { isPlainObject } from "@orb/kit/guards";
-import { withViewTransition } from "../lib/view-transition.ts";
+import { joinViewTransition, withViewTransition } from "../lib/view-transition.ts";
 import { consumeReturnFocus } from "./chat-return-store.ts";
 import { healCorpusModeFrom } from "./corpus-mode-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
@@ -326,8 +326,11 @@ export function revealContextPanelBesideContent(tab: string): void {
   setPanelMode("context", "docked");
 }
 
+/** Close the open modal. A close raised in the same task as a swap joins that swap, so the modal leaves with the outgoing content. */
 export function closeModal(): void {
-  useShellStore.setState({ openModal: null }, false, "shell/closeModal");
+  joinViewTransition(() => {
+    useShellStore.setState({ openModal: null }, false, "shell/closeModal");
+  });
 }
 
 /** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). A `PanelName` opens that
