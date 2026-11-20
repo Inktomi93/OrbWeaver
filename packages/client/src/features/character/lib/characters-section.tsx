@@ -61,7 +61,6 @@ export function makeCharactersSection(
   return {
     id: "characters",
     rail: { label: CHARACTERS_SECTION_LABEL, icon: Users, group: "primary", mobile: "tab" },
-    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CHARACTERS_SECTION_LABEL,

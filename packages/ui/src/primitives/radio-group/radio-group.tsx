@@ -113,6 +113,8 @@ export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "childre
   /** A short trailing datum on the label row ("current"). Visual only. */
   readonly meta?: ReactNode | undefined;
   readonly shape?: PickerCellProps["shape"];
+  /** The marks the cell carries: its own check always, and a control-sized mark when the host lays one over the other corner. */
+  readonly corners?: Exclude<PickerCellProps["corners"], "none">;
   /** DOM id prefix for the label/description targets — the caller owns the id space (one `useId` per group). */
   readonly idPrefix: string;
 }
@@ -127,7 +129,18 @@ export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "childre
  * `aria-describedby` — never an `aria-label` that silently overrides the pixels. That is the same wiring
  * the chat-style cards were corrected to in #1022, preserved here.
  */
-export function RadioGroupPickerItem({ className, width, art, label, description, meta, shape, idPrefix, ...rest }: RadioGroupPickerItemProps): ReactElement {
+export function RadioGroupPickerItem({
+  className,
+  width,
+  art,
+  label,
+  description,
+  meta,
+  shape,
+  corners = "check",
+  idPrefix,
+  ...rest
+}: RadioGroupPickerItemProps): ReactElement {
   const labelId = `${idPrefix}-label`;
   const descriptionId = `${idPrefix}-description`;
   return (
@@ -140,6 +153,7 @@ export function RadioGroupPickerItem({ className, width, art, label, description
         <PickerCell
           art={art}
           className={radioGroupPickerItemBoxVariants({ width, className })}
+          corners={corners}
           descriptionId={descriptionId}
           label={label}
           labelId={labelId}

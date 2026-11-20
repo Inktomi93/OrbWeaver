@@ -55,3 +55,19 @@ export function QualifierPairStory({ width }: { readonly width: number }): React
     </CtIsolation>
   );
 }
+
+/** Clickable rows that each carry a trailing datum: two of one name told apart by it, one plain, and two inline-placed rows with and
+ *  without a subtitle, in a pane of a fixed width. */
+export function MetaSlotStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtIsolation subject="ListRow meta slot" isolates="Where a row's trailing datum sits and what it names needs no application services.">
+      <Container style={{ inlineSize: width }}>
+        <ListRow clickable={true} meta="2h" metaQualifiesTitle={true} onClick={(): void => undefined} title="Chat with Eleni" />
+        <ListRow clickable={true} meta="3w" metaQualifiesTitle={true} onClick={(): void => undefined} title="Chat with Eleni" />
+        <ListRow clickable={true} meta="5d" onClick={(): void => undefined} title="Aveline" />
+        <ListRow clickable={true} meta="#1" onClick={(): void => undefined} subtitle="A gloss" subtitlePlacement="inline" title="Keeper" />
+        <ListRow clickable={true} meta="#2" onClick={(): void => undefined} subtitlePlacement="inline" title="Warden" />
+      </Container>
+    </CtIsolation>
+  );
+}

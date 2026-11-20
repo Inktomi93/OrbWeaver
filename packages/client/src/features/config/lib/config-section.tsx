@@ -90,7 +90,6 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
   return {
     id: "config",
     rail: { label: CONFIG_SECTION_LABEL, icon: Settings, group: "authoring", mobile: "sheet", zone: "rail.end" },
-    contentInset: { planned: "The settings skimmer owns its pinned navigation and independently scrolling editor." },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CONFIG_SECTION_LABEL,

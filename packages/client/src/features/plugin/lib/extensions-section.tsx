@@ -34,7 +34,6 @@ import { useExtensionsSelectionTitle } from "./use-extensions-selection-title.ts
 export const extensionsSection: SectionDefinition = {
   id: "extensions",
   rail: { label: EXTENSIONS_SECTION_LABEL, icon: Blocks, group: "authoring", mobile: "sheet" },
-  contentInset: { planned: "The plugin attribution band and page viewport occupy the full content region." },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: EXTENSIONS_PLACEHOLDER,
   list: () => <ExtensionsSwitcherSurface />,

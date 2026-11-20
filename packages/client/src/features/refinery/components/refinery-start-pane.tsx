@@ -48,7 +48,7 @@ function ResumeSessions(): ReactElement | null {
     return null;
   }
   return (
-    <Card width="full" cap="reading">
+    <Card width="full">
       <Stack gap="row" padding="block">
         <Text voice="kicker">Continue a session</Text>
         <Stack gap="tight">

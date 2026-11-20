@@ -92,8 +92,8 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" paddingBlock="section" ref={containerRef}>
-      <Stack align="center" cap="reading" gap="tight">
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" ref={containerRef}>
+      <Stack align="center" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
@@ -108,7 +108,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             note says the cap belongs on the PARAGRAPH — so it moves here, where the two now agree.
             SINCE #1145 the token here is `--reading-measure-prose`, not the house one: 75 CSS `ch` is
             ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
-            Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
+            Stack, Card and steps Grid around this paragraph take the content pane's column: they bound a
             picker and three step cards, which are layout, not a line of prose. */}
         <Text textAlign="center" cap="prose" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
@@ -117,7 +117,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
       {resume}
       {/* THE LANDING'S JOB (header). Mounted open, first, and full-library — `CharacterPicker` walks the
           whole keyset now, so this is the same browse the characters section offers, not its first page. */}
-      <Card width="full" cap="reading">
+      <Card width="full">
         <Stack gap="row" padding="block">
           <Text voice="kicker">{starting ? "Opening the session…" : "Start from a character"}</Text>
           {/* THE LIST BOX IS RESERVED, NOT FLUID (side-eye 2026-08-19 P3: "+98px post-paint jump"). The
@@ -144,7 +144,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      <Section cap="reading" kicker="How it works" width="full">
+      <Section kicker="How it works" width="full">
         {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
         <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
           {STEPS.map((step, index) => (

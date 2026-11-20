@@ -12,6 +12,8 @@ export { ConfirmDialog, DestructiveAction } from "./confirm-dialog.tsx";
 export type { ConfirmedAction } from "./confirmed-action.ts";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
+export type { ContentPaneMeasure } from "./content-pane.tsx";
+export { ContentPane, ContentPaneBand, ContentPaneBody } from "./content-pane.tsx";
 export { ContextTabBody } from "./context-tab-body.tsx";
 export { CountText } from "./count-text.tsx";
 export { DescribedMenuItem } from "./described-menu-item.tsx";

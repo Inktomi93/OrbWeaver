@@ -131,7 +131,6 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
   return {
     id: "chats",
     rail: { label: CHATS_SECTION_LABEL, icon: MessagesSquare, group: "primary", mobile: "tab" },
-    contentInset: { planned: "The transcript, composer and room chrome own separate scroll regions and touch the content edges." },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Chats",
