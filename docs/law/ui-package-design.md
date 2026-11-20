@@ -454,8 +454,6 @@ Base UI documents both props as `T | ((state) => T)` (Base UI's styling handbook
 state-driven classes uses data attributes, or drops to the Base UI part directly inside its own
 primitive dir.
 
-Recorded because it looks like an oversight and is not.
-
 ## 16. Known LOSSY seams (report, not rot)
 
 - **The context-menu shim.** `packages/client/src/features/chat/components/member-row.tsx` maps
