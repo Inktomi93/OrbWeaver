@@ -3,25 +3,34 @@
 // and pairs them into per-character bundles. Every read goes through an open `ImportDirectory`, never a path.
 //
 // Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png,
-// /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
+// /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl,
+// /user/files/*.txt (the Data Bank, by its attachment index) and /user/images/<folder>/* (character galleries).
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
 import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/character";
+import { DATABANK_NAME_MAX } from "@orb/contracts/databank";
 import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
-import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
+import { chatDirCardCandidates, ST_DATABANK_PLANE, ST_GALLERY_PLANE, ST_SETTINGS_FILE, ST_USER_DIR, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
+import { sha256Hex } from "#primitives/content-hash";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
+import type { StAttachment } from "#primitives/serde/databank";
+import { readStAttachments, stAttachmentFile } from "#primitives/serde/databank";
 import { portableParseError } from "#primitives/serde/lib";
 import type { StScriptNote } from "#primitives/serde/regex";
 import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
+import { ST_POWER_USER_KEY, stAppearancePatch } from "#primitives/serde/st-appearance";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
   CollectedBackground,
   CollectedCard,
   CollectedChat,
+  CollectedDocument,
+  CollectedGalleryImage,
   CollectedGroup,
   CollectedPersona,
   CollectedPreset,
@@ -30,10 +39,11 @@ import type {
   CollectResult,
 } from "../contract/collection.ts";
 import { ImportInfraFailureError, importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
-import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
-import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
+import { ST_BACKGROUND_DIR } from "../substrate/background.ts";
 import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
+import { stGalleryFolders } from "../substrate/gallery.ts";
 import { parseStGroupFile } from "../substrate/group.ts";
+import { stMediaMime, stMediaName } from "../substrate/media.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
 import { parseStPresetFile, parseStSettingsPreset, ST_PRESET_DIR, ST_PRESET_SETTINGS_KEY } from "../substrate/preset.ts";
 import { parseStTags } from "../substrate/tags.ts";
@@ -71,6 +81,11 @@ interface CollectState {
   readonly themes: CollectedTheme[];
   readonly backgrounds: CollectedBackground[];
   readonly groups: CollectedGroup[];
+  readonly documents: CollectedDocument[];
+  readonly galleryImages: CollectedGalleryImage[];
+  readonly skippedDocuments: { file: string; reason: string }[];
+  readonly documentNotes: { file: string; reason: string }[];
+  readonly skippedGalleryImages: { file: string; reason: string }[];
   readonly unreadableWorlds: string[];
   readonly unreadablePresets: string[];
   readonly refusedThemes: { file: string; reason: string }[];
@@ -468,13 +483,13 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: ImportDirectory,
       continue;
     }
     const sourceFile = fs.join(ST_BACKGROUND_DIR, ent.name);
-    const mime = stBackgroundMime(ent.name);
+    const mime = stMediaMime(ent.name);
     if (mime === null) {
       state.skippedBackgrounds.push({ file: sourceFile, reason: "not an importable image/video file (unrecognized extension)" });
       continue;
     }
     const bytes = await readStagedFile(fs, dir, ent.name);
-    state.backgrounds.push({ filename: sourceFile, name: stBackgroundName(ent.name), mime, bytes });
+    state.backgrounds.push({ filename: sourceFile, name: stMediaName(ent.name), mime, bytes });
   }
 }
 
@@ -584,12 +599,28 @@ async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: Co
 // Enumerate what the importer does NOT process: every top-level profile entry the contracts tuple omits, plus
 // every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
 // import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
-async function collectUnhandled(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
+// `user/` imports only some of its planes, so each other child of it is reported on its own.
+async function collectUnhandledUserPlanes(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
+  await using userDir = await listedPlane(fs, profile, ST_USER_DIR);
+  for (const ent of userDir === null ? [] : await listDir(userDir, state)) {
+    if (!stProfileEntryDisposition(ST_USER_DIR, true, ent.name).handled) {
+      state.unhandled.push(`${ST_USER_DIR}/${ent.name}${ent.kind === "directory" ? "/" : ""}`);
+    }
+  }
+}
+
+async function collectUnhandledEntries(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
   for (const ent of profile.entries) {
-    if (!stProfileEntryDisposition(ent.name, ent.kind === "directory").handled) {
+    if (ent.name === ST_USER_DIR && ent.kind === "directory") {
+      await collectUnhandledUserPlanes(fs, profile, state);
+    } else if (!stProfileEntryDisposition(ent.name, ent.kind === "directory").handled) {
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
   }
+}
+
+async function collectUnhandled(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
+  await collectUnhandledEntries(fs, profile, state);
   const settingsPath = fs.join(profile.dir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; a missing/corrupt settings.json is documented below as nothing-to-report (personas collection
@@ -696,35 +727,180 @@ async function collectCharLore(fs: ImportFsPort, profileDir: ImportDirectory): P
   return out;
 }
 
-/** Count the ST Data Bank + character-gallery planes so the report can NAME them with counts — these were
- *  fully silent before (buried under the `user/` "misc user files" line). `user/files/` holds Data Bank
- *  attachment bytes (orb counterpart: `domain/databank`); `user/images/<character>/` holds the per-character
- *  gallery (orb counterpart: the assets gallery verbs). BOTH are EMPTY on the real corpus, so the write
- *  waves are a named follow-up — this count line is what guarantees a future profile that carries data can
- *  never again lose it silently. */
-async function countUserPlanes(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<{ databankFiles: number; galleryImages: number }> {
-  await using userDir = await openPlane(fs, profileDir, "user");
-  if (userDir === null) {
-    return { databankFiles: 0, galleryImages: 0 };
+/** `descend`'s plain-object read: the object's own string-valued entries, or none. */
+function stringEntries(raw: unknown): [string, unknown][] {
+  return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? Object.entries(raw) : [];
+}
+
+/** One file of the Data Bank index, with every scope the index attaches it under. */
+interface IndexedDocument {
+  name: string;
+  global: boolean;
+  readonly cardFiles: Set<string>;
+  readonly chats: Set<CollectedChat>;
+}
+
+function indexedDocument(index: Map<string, IndexedDocument>, attachment: StAttachment): IndexedDocument {
+  const existing = index.get(attachment.file);
+  if (existing !== undefined) {
+    return existing;
   }
-  await using filesDir = await openPlane(fs, userDir, "files");
-  const databankFiles = filesDir === null ? 0 : (await listDir(filesDir, state)).filter((ent) => ent.kind === "file").length;
-  let galleryImages = 0;
-  await using imagesDir = await openPlane(fs, userDir, "images");
-  for (const ent of imagesDir === null ? [] : await listDir(imagesDir, state)) {
+  const fresh: IndexedDocument = { name: attachment.name, global: false, cardFiles: new Set(), chats: new Set() };
+  index.set(attachment.file, fresh);
+  return fresh;
+}
+
+// SillyTavern's Data Bank index: the global list, the per-card lists (keyed by card filename) and each transcript's own
+// list. A file the index names twice is one document with every scope (SillyTavern `public/scripts/chats.js`).
+function dataBankIndex(settingsRaw: unknown, chats: readonly CollectedChat[]): Map<string, IndexedDocument> {
+  const index = new Map<string, IndexedDocument>();
+  for (const attachment of readStAttachments(descend(settingsRaw, "extension_settings", "attachments"))) {
+    indexedDocument(index, attachment).global = true;
+  }
+  for (const [cardFile, list] of stringEntries(descend(settingsRaw, "extension_settings", "character_attachments"))) {
+    for (const attachment of readStAttachments(list)) {
+      indexedDocument(index, attachment).cardFiles.add(cardFile);
+    }
+  }
+  for (const chat of chats) {
+    for (const attachment of chat.parsed.attachments) {
+      indexedDocument(index, attachment).chats.add(chat);
+    }
+  }
+  return index;
+}
+
+const TXT_EXT = /\.txt$/iu;
+
+// ST's Data Bank files: `user/files/<file>`, each one the index names. SillyTavern converts every attachment to text
+// before it stores it (`uploadFileAttachmentToServer`), so the plane holds `.txt` files and anything else is no Data Bank
+// file. A file the index does not name, or an index entry naming no file, is recorded with why, never guessed at.
+async function collectDocuments(args: {
+  readonly fs: ImportFsPort;
+  readonly profile: ListedProfile;
+  readonly settingsRaw: unknown;
+  readonly bundles: readonly CollectedCard[];
+  readonly chats: readonly CollectedChat[];
+  readonly state: CollectState;
+  readonly maxBytes: number;
+}): Promise<void> {
+  const { fs, profile, settingsRaw, bundles, chats, state, maxBytes } = args;
+  const index = dataBankIndex(settingsRaw, chats);
+  await using userDir = await listedPlane(fs, profile, ST_USER_DIR);
+  await using dir = userDir === null ? null : await openPlane(fs, userDir, ST_DATABANK_PLANE);
+  const planePath = fs.join(ST_USER_DIR, ST_DATABANK_PLANE);
+  const files = await planeFiles(dir, state);
+  const disabledList = descend(settingsRaw, "extension_settings", "disabled_attachments");
+  const disabled = new Set((Array.isArray(disabledList) ? disabledList : []).map(stAttachmentFile));
+  const cardByFile = new Map(bundles.map((bundle) => [bundle.filename, bundle]));
+  for (const name of [...files].filter((file) => !index.has(file)).toSorted((a, b) => a.localeCompare(b))) {
+    state.skippedDocuments.push({ file: fs.join(planePath, name), reason: "SillyTavern's Data Bank does not list this file" });
+  }
+  for (const [file, entry] of [...index].toSorted(([a], [b]) => a.localeCompare(b))) {
+    const sourceFile = fs.join(planePath, file);
+    if (dir === null || !files.has(file)) {
+      state.skippedDocuments.push({ file: sourceFile, reason: "the Data Bank lists this file, but the profile does not hold it" });
+      continue;
+    }
+    if (!TXT_EXT.test(file)) {
+      state.skippedDocuments.push({ file: sourceFile, reason: "not a Data Bank text file" });
+      continue;
+    }
+    if ((await statStagedFile(fs, dir, file)).size > maxBytes) {
+      state.skippedDocuments.push({ file: sourceFile, reason: `over the ${String(maxBytes)}-byte Data Bank file limit` });
+      continue;
+    }
+    const bytes = await readStagedFile(fs, dir, file);
+    const cards = [...entry.cardFiles].flatMap((cardFile) => cardByFile.get(cardFile) ?? []);
+    for (const cardFile of [...entry.cardFiles].filter((key) => !cardByFile.has(key))) {
+      state.documentNotes.push({ file: sourceFile, reason: `attached to \`${cardFile}\`, a card this profile does not hold, so that attachment was dropped` });
+    }
+    if (disabled.has(file)) {
+      state.documentNotes.push({ file: sourceFile, reason: "switched off in SillyTavern, so it lands in your Data Bank attached to nothing" });
+    }
+    state.documents.push({
+      sourceFile,
+      name: entry.name.slice(0, DATABANK_NAME_MAX),
+      bytes,
+      importHash: sha256Hex(bytes),
+      global: entry.global,
+      cards,
+      chats: [...entry.chats],
+      disabled: disabled.has(file),
+    });
+  }
+}
+
+// One gallery folder's images, for the cards that own it. A file that is no image or video, or one over the image
+// limit, is a recorded skip.
+async function collectGalleryFolder(args: {
+  readonly fs: ImportFsPort;
+  readonly folderDir: ImportDirectory;
+  readonly folderPath: string;
+  readonly cards: readonly [CollectedCard, ...CollectedCard[]];
+  readonly state: CollectState;
+}): Promise<void> {
+  const { fs, folderDir, folderPath, cards, state } = args;
+  for (const image of (await listDir(folderDir, state)).filter((sub) => sub.kind === "file")) {
+    const sourceFile = fs.join(folderPath, image.name);
+    const mime = stMediaMime(image.name);
+    if (mime === null) {
+      state.skippedGalleryImages.push({ file: sourceFile, reason: "not an image or video file" });
+      continue;
+    }
+    if ((await statStagedFile(fs, folderDir, image.name)).size > ASSET_UPLOAD_MAX_BYTES) {
+      state.skippedGalleryImages.push({ file: sourceFile, reason: `over the ${String(ASSET_UPLOAD_MAX_BYTES)}-byte image limit` });
+      continue;
+    }
+    const bytes = await readStagedFile(fs, folderDir, image.name);
+    state.galleryImages.push({ sourceFile, name: stMediaName(image.name), mime, bytes, cards });
+  }
+}
+
+// ST's character galleries: `user/images/<folder>/<image>`, where each folder belongs to the cards the gallery folder rule
+// names (`substrate/gallery.ts`). A loose file at the plane's top and a folder no card owns are recorded skips: a gallery
+// row with no character is never shown.
+async function collectGallery(args: {
+  readonly fs: ImportFsPort;
+  readonly profile: ListedProfile;
+  readonly settingsRaw: unknown;
+  readonly bundles: readonly CollectedCard[];
+  readonly state: CollectState;
+}): Promise<void> {
+  const { fs, profile, settingsRaw, bundles, state } = args;
+  await using userDir = await listedPlane(fs, profile, ST_USER_DIR);
+  await using dir = userDir === null ? null : await openPlane(fs, userDir, ST_GALLERY_PLANE);
+  if (dir === null) {
+    return;
+  }
+  const planePath = fs.join(ST_USER_DIR, ST_GALLERY_PLANE);
+  const overrides = new Map(
+    stringEntries(descend(settingsRaw, "extension_settings", "gallery", "folders")).flatMap(([cardFile, folder]): [string, string][] =>
+      typeof folder === "string" ? [[cardFile, folder]] : [],
+    ),
+  );
+  const folders = stGalleryFolders(bundles, overrides);
+  for (const ent of await listDir(dir, state)) {
+    const folderPath = fs.join(planePath, ent.name);
     if (ent.kind === "file") {
-      galleryImages += 1;
+      state.skippedGalleryImages.push({ file: folderPath, reason: "not in a character's gallery folder" });
       continue;
     }
-    if (ent.kind !== "directory" || imagesDir === null) {
+    if (ent.kind !== "directory") {
       continue;
     }
-    await using characterDir = await openPlane(fs, imagesDir, ent.name);
-    if (characterDir !== null) {
-      galleryImages += (await listDir(characterDir, state)).filter((sub) => sub.kind === "file").length;
+    await using folderDir = await openPlane(fs, dir, ent.name);
+    const [first, ...rest] = folders.get(ent.name) ?? [];
+    if (folderDir === null) {
+      continue;
     }
+    if (first === undefined) {
+      const count = (await listDir(folderDir, state)).filter((sub) => sub.kind === "file").length;
+      state.skippedGalleryImages.push({ file: `${folderPath}/`, reason: `${String(count)} file(s) in a folder no character of this profile owns` });
+      continue;
+    }
+    await collectGalleryFolder({ fs, folderDir, folderPath, cards: [first, ...rest], state });
   }
-  return { databankFiles, galleryImages };
 }
 
 // Best-effort: the ST library-tag assignments (`settings.tags` + `tag_map`) resolved to per-entity tag names.
@@ -782,7 +958,13 @@ async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: 
   return out;
 }
 
-export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: ImportDirectory, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
+/** `maxDocumentBytes` is the Data Bank's effective per-file cap, which the upload verb refuses a larger file by. */
+export async function collectBundlesFromDir(
+  fs: ImportFsPort,
+  profileDir: ImportDirectory,
+  skipCharacterNames: readonly string[],
+  maxDocumentBytes: number,
+): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
@@ -792,6 +974,11 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
     themes: [],
     backgrounds: [],
     groups: [],
+    documents: [],
+    galleryImages: [],
+    skippedDocuments: [],
+    documentNotes: [],
+    skippedGalleryImages: [],
     unreadableWorlds: [],
     unreadablePresets: [],
     refusedThemes: [],
@@ -825,7 +1012,6 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
   const appearance = await collectAppearance(fs, profileDir);
   const globalRegex = await collectGlobalRegexScripts(fs, profileDir);
   const extraBooksByCardStem = await collectCharLore(fs, profileDir);
-  const userPlanes = await countUserPlanes(fs, profileDir, state);
 
   const bundles: CollectedCard[] = [];
   const orphanChatDirs: string[] = [];
@@ -841,6 +1027,11 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
       orphanBundles.push({ dirName: g.dirName ?? handle, handle: characterHandleSchema.parse(handle), chats: g.chats });
     }
   }
+  // The Data Bank and the galleries name cards and transcripts, so they collect against the bundles this run returns.
+  const settingsRaw = await readSettingsJson(fs, profileDir);
+  const chats = [...bundles, ...orphanBundles, ...state.groups].flatMap((owner) => owner.chats);
+  await collectDocuments({ fs, profile, settingsRaw, bundles, chats, state, maxBytes: maxDocumentBytes });
+  await collectGallery({ fs, profile, settingsRaw, bundles, state });
 
   return {
     bundles,
@@ -855,8 +1046,11 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
     globalRegexScripts: globalRegex.scripts,
     globalRegexScriptNotes: globalRegex.notes,
     extraBooksByCardStem,
-    databankFileCount: userPlanes.databankFiles,
-    galleryImageCount: userPlanes.galleryImages,
+    documents: state.documents,
+    galleryImages: state.galleryImages,
+    skippedDocuments: state.skippedDocuments,
+    documentNotes: state.documentNotes,
+    skippedGalleryImages: state.skippedGalleryImages,
     orphanChatDirs,
     orphanBundles,
     unreadableCards: state.unreadableCards,

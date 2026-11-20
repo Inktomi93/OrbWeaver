@@ -438,6 +438,23 @@ export async function importGalleryItem(db: Db, input: ImportGalleryItemInput): 
   return { created: true };
 }
 
+/** The content hashes among `hashes` the owner holds in `characterId`'s gallery: the `(asset, subject)` key the gallery
+ *  write dedups by, read through the owned asset. */
+export async function heldGalleryHashes(
+  db: Db,
+  input: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly hashes: readonly string[] },
+): Promise<ReadonlySet<string>> {
+  if (input.hashes.length === 0) {
+    return new Set();
+  }
+  const rows = await db
+    .select({ hash: assets.hash })
+    .from(galleryItems)
+    .innerJoin(assets, eq(assets.id, galleryItems.assetId))
+    .where(and(eq(assets.ownerId, input.ownerId), eq(galleryItems.subjectCharacterId, input.characterId), inArray(assets.hash, [...input.hashes])));
+  return new Set(rows.map((row) => row.hash));
+}
+
 /** Gallery v2: the caller's gallery via the asset join, in `input.sort`'s date order, keyset-paged by
  *  `(createdAt, id)`. The room filter is an EXISTS over imagery provenance, never a join: one asset can carry
  *  several provenance rows for the same chat, and a join would list its gallery item once per row. */

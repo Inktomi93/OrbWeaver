@@ -56,7 +56,19 @@ function folder(): File[] {
 function emptyPreview(): ImportPreview {
   const none = importPreviewListOf([]);
   return {
-    kinds: { characters: none, chats: none, personas: none, worlds: none, presets: none, themes: none, backgrounds: none, groups: none, orphans: none },
+    kinds: {
+      characters: none,
+      chats: none,
+      personas: none,
+      worlds: none,
+      presets: none,
+      themes: none,
+      backgrounds: none,
+      groups: none,
+      orphans: none,
+      documents: none,
+      gallery: none,
+    },
     skipped: { total: 0, items: [] },
   };
 }

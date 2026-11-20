@@ -8,7 +8,7 @@
 // this document.
 
 import { characterHandleSchema, portableCharacterHandle } from "@orb/contracts/character";
-import type { DatabankImportOutcome, ExportDocument, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
+import type { DatabankImportOutcome, ExportDocument, HeldDocumentHashes, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -32,6 +32,21 @@ export function createListOwnedDocumentIds(input: DbAssemblyInput<Pick<DatabankP
   return async ({ ownerId }): Promise<readonly DocumentId[]> => {
     const rows = await ctx.db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
     return rows.map((r) => r.id);
+  };
+}
+
+/** Which of these import hashes the owner's bank already holds: the `(ownerId, importHash)` key every write dedups by. */
+export function createHeldDocumentHashes(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): HeldDocumentHashes {
+  const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
+  return async ({ ownerId, hashes }): Promise<ReadonlySet<string>> => {
+    if (hashes.length === 0) {
+      return new Set();
+    }
+    const rows = await ctx.db
+      .select({ importHash: documents.importHash })
+      .from(documents)
+      .where(and(eq(documents.ownerId, ownerId), inArray(documents.importHash, [...hashes])));
+    return new Set(rows.map((r) => r.importHash));
   };
 }
 

@@ -10,7 +10,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
 import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
-import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
+import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES, ST_SLOT_METADATA_KEY, stSlotSchema } from "@orb/kit/world-info";
 import { z } from "zod";
 
 /** The cap on a book or entry name. */
@@ -70,6 +70,8 @@ export const entryMetadataSchema = z
     keyMode: z.enum(ENTRY_KEY_MODES).exactOptional(),
     inject: injectionDirectiveSchema.exactOptional(),
     position: z.enum(ENTRY_POSITIONS).exactOptional(),
+    /** The SillyTavern slot with no seat here that the entry came from, kept so the SillyTavern export restores it. */
+    [ST_SLOT_METADATA_KEY]: stSlotSchema.exactOptional(),
     provenance: loreEntryProvenanceSchema.exactOptional(),
   })
   .catchall(jsonMemberSchema);

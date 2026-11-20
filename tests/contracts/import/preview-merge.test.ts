@@ -32,6 +32,8 @@ function uploadOf(...items: readonly ImportPreviewItem[]): ImportPreview {
       backgrounds: empty,
       groups: empty,
       orphans: empty,
+      documents: empty,
+      gallery: empty,
     },
     skipped: { total: 0, items: [] },
   };

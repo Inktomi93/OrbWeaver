@@ -582,6 +582,8 @@ const TEST_CONSTANT_HOMES = {
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
   "packages/client/src/features/workloads/lib/import-library-names.ts":
     "IMPORT_FOLDER_NAME and its siblings: the import section's doors, its preflight report and the persona review's answers",
+  "packages/client/src/features/workloads/lib/st-export-names.ts":
+    "ST_EXPORT_OPEN_NAME and its siblings: the SillyTavern export's preflight, its door names and its left-behind reasons",
   "packages/client/src/features/workloads/lib/workloads-names.ts":
     "WORKLOAD_JOB_FIELD_NAME and its siblings: the Jobs, Schedules, export and tuning sections' names",
   "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",
@@ -777,6 +779,10 @@ const SERVER_TEST_REACHES = {
   // A host who hands the seat off mid-invocation meets chat's host gate, and the guest sees that gate's error class.
   "tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts": {
     "domain/chat": "ChatOperationError: the refusal the host gate raises for a handed-off installer",
+  },
+  // The SillyTavern export leaves out what the zip writer would refuse, so its bounds suite needs the writer's own caps.
+  "tests/server/domain/import/persistence/export-sillytavern-bounds.int.test.ts": {
+    "infra/storage": "ZIP_WRITE_LIMITS: the entry count past which the zip writer refuses an archive",
   },
   // A staged upload's life ends at a boot, and the boot sweep removes the zip extractor's directories by their name.
   "tests/server/domain/import/persistence/import-staging-lifetime.int.test.ts": {

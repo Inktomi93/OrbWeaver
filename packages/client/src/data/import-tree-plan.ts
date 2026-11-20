@@ -233,7 +233,7 @@ function roleOf(f: PlannedFile, caps: TreeImportCaps): FileRole {
   if (isStSecretsFile(f.path)) {
     return { kind: "skip", reason: ST_PROFILE_SECRETS_REASON };
   }
-  const disposition = stProfileEntryDisposition(top, second !== undefined);
+  const disposition = stProfileEntryDisposition(top, second !== undefined, second);
   if (!disposition.handled) {
     return { kind: "skip", reason: disposition.reason ?? UNHANDLED_FALLBACK };
   }

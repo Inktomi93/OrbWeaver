@@ -443,3 +443,21 @@ export interface HashHolderScope {
   readonly ownerIds: readonly UserId[];
   readonly assetIds: readonly AssetId[];
 }
+
+/** The assets write for one gallery image a profile import carries: the image stored under the owner (kind `gallery`,
+ *  magic-verified, capped) and curated into each character's gallery, idempotent by `(asset, character)`. `created`
+ *  counts the gallery rows it added. */
+export type ImportGalleryImage = (args: {
+  readonly principal: Principal;
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+  readonly characterIds: readonly CharacterId[];
+}) => Promise<{ readonly created: number }>;
+
+/** Which of these content hashes one character's gallery already holds: the key {@link ImportGalleryImage} dedups by.
+ *  A read: it writes nothing. A character that is not the owner's holds none. */
+export type HeldGalleryHashes = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly hashes: readonly string[];
+}) => Promise<ReadonlySet<string>>;

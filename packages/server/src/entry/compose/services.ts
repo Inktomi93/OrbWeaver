@@ -49,6 +49,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { CATALOG_SETTINGS_PREFIX, mintBackgroundEntryId } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
+import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { SEED_MANIFEST } from "@orb/default-content";
@@ -1003,6 +1004,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     toolUse,
   });
 
+  // The Data Bank's effective per-file cap: the upload verb and the profile import's preview both judge by it.
+  const databankUploadBytes = (): number => resolveUploadCaps(settings.getEffectiveConfig()).databankUpload;
   // ── databank (the databank seam) — built BEFORE chat so `gatherDatabank` (DB6) can inject into the chat build.
   const { databank, databankIngest, databankPortability } = buildDatabank({
     logger: deps.logger,
@@ -1013,6 +1016,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     audit,
     assetsStore: assets.store,
+    maxUploadBytes: databankUploadBytes,
     loadAssetBytes: createAssetEmbeddingReads(assets).loadAssetBytes,
     embeddings,
     extractText,
@@ -1374,6 +1378,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       bumpStatsCanonVersion,
     }),
     databankCtx: databankPortability,
+    importAttachedDocument: databank.importAttached,
+    maxDatabankUploadBytes: databankUploadBytes,
     persona,
     exportService,
     exportCurrentCard,

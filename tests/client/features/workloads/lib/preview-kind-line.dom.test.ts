@@ -28,7 +28,19 @@ test("a split folder's line states the writes no other upload could be compared 
   const wrap = (presets: ImportPreviewList): ImportPreview => {
     const none = importPreviewListOf([]);
     return {
-      kinds: { characters: none, chats: none, personas: none, worlds: none, presets, themes: none, backgrounds: none, groups: none, orphans: none },
+      kinds: {
+        characters: none,
+        chats: none,
+        personas: none,
+        worlds: none,
+        presets,
+        themes: none,
+        backgrounds: none,
+        groups: none,
+        orphans: none,
+        documents: none,
+        gallery: none,
+      },
       skipped: { total: 0, items: [] },
     };
   };

@@ -23,6 +23,7 @@ import { stThemeFromJson } from "./st.ts";
 
 export { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 export type { ParsedStTheme } from "./st.ts";
+export { stThemeToJson } from "./st.ts";
 
 const THEME_SCHEMA_VERSION = 1;
 

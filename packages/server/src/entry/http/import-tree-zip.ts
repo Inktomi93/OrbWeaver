@@ -46,6 +46,7 @@ import type { UploadedFile } from "#domain/import";
 import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "#domain/import";
 import type { CentralRecord, StagedFile, ZipDirectory, ZipRejectKind } from "#infra/storage";
 import { readZipDirectory, stagedFileOf, writeStagedManifest, ZipRejectedError } from "#infra/storage";
+import { volumeFold } from "#primitives/volume-fold";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 import { stageCapped } from "./import.ts";
 import type { ImportTreeDeps } from "./import-tree.ts";
@@ -59,7 +60,6 @@ import {
   stagePart,
   stripWrapper,
   TreeRejected,
-  volumeFold,
 } from "./import-tree.ts";
 
 const BAD_REQUEST = 400;
@@ -216,7 +216,7 @@ function profileEntries(directory: ZipDirectory): ProfileEntry[] {
 function profileContent(entries: readonly ProfileEntry[], stagePrefix: string): ProfileEntry[] {
   return entries.filter((entry) => {
     const [, top, ...rest] = (stagePrefix + entry.relPath).split("/");
-    return top !== undefined && stProfileEntryDisposition(top, rest.length > 0).handled;
+    return top !== undefined && stProfileEntryDisposition(top, rest.length > 0, rest[0]).handled;
   });
 }
 

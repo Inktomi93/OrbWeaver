@@ -18,29 +18,22 @@
 // preset literally called `Default.json`; qualifying the name keeps SillyTavern's apart from an owner's own
 // preset of that name instead of numbering it "Default 2".
 
+import { ST_CHAT_PRESET_FAMILY, stChatPresetName } from "@orb/contracts/import";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
 import type { ParsedStPreset } from "#primitives/serde/preset";
 import { parseStPresetJson } from "#primitives/serde/preset";
-import { ST_POWER_USER_KEY } from "./appearance.ts";
+import { ST_POWER_USER_KEY } from "#primitives/serde/st-appearance";
 
 /** The ST profile SUBDIRECTORY holding the chat-completion family's saved presets. */
 export const ST_PRESET_DIR = "OpenAI Settings";
 /** The `settings.json` section holding the family's LIVE (selected + unsaved-edits) copy. */
 export const ST_PRESET_SETTINGS_KEY = "oai_settings";
-/** The name qualifier — see the module header for why every imported preset carries one. */
-const FAMILY_LABEL = "OpenAI";
-
-/** The qualified preset name for a SAVED `OpenAI Settings/<stem>.json`: SillyTavern names a preset by its file
- *  stem, the same rule `parseStWorldFile` follows for books. */
-function stPresetName(stem: string): string {
-  return `${stem} (${FAMILY_LABEL})`;
-}
 
 /** The preset name for the LIVE `settings.json` blob. Measured against the real corpus, `oai_settings` matches
  *  the selected preset FILE on 90 of 95 shared keys — the differences are the author's UNSAVED tuning, so the
  *  blob imports rather than being dropped, under a name that can never merge onto a file preset. */
-const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
+const ST_ACTIVE_PRESET_NAME = `${ST_CHAT_PRESET_FAMILY} (active)`;
 
 // Both folder arms answer a refusal as `null`: the collector records it as unreadable, and a bulk import has no
 // door to render a per-file reason at.
@@ -53,7 +46,7 @@ function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): Pars
 export function parseStPresetFile(bytes: Uint8Array, stem: string): ParsedStPreset | null {
   // `collectPresetDir` records the `null` as one of the report's `unreadablePresets`.
   const raw = parseJsonText(new TextDecoder("utf-8").decode(bytes));
-  return raw === undefined ? null : stPresetFromJson(raw, stPresetName(stem));
+  return raw === undefined ? null : stPresetFromJson(raw, stChatPresetName(stem));
 }
 
 /** The LIVE preset blob inside an already-parsed `settings.json`, or null when the section is absent or is not

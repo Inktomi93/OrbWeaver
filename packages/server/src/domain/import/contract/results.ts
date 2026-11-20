@@ -2,6 +2,8 @@
 
 import type { CardLorebookRestoreResult, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { StSeatlessPosition } from "@orb/kit/world-info";
+import type { CollectedChat } from "./collection.ts";
 
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
@@ -51,6 +53,8 @@ export interface ImportBookNote {
   readonly entries: number;
   /** Each inert activation field present with a non-default value, with how many entries carry it. */
   readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
+  /** Each SillyTavern slot with no seat here that entries came from, with how many entries it placed. */
+  readonly seatlessSlots: readonly { readonly slot: StSeatlessPosition; readonly entries: number }[];
 }
 
 /** The embedded world book one imported card landed, named by its card file. */
@@ -112,6 +116,8 @@ export interface ImportThemesResult {
  *  canon" line the preset wave draws. `memoryChatIds` is every real conversation the wave wrote, for the
  *  driver's report. */
 export interface ImportGroupsResult {
+  /** The room each group transcript landed on or was held under. */
+  readonly chatIdByChat: ReadonlyMap<CollectedChat, ChatId>;
   readonly groupsImported: number;
   readonly groupChatsImported: number;
   /** Groups whose every transcript the write found already landed, and the transcripts it found so. */
@@ -393,10 +399,16 @@ export interface ImportReport {
   readonly worldLinksMissing: readonly { readonly character: string; readonly book: string }[];
   /** Why real name-links did not attach (unwired op / dryRun), or null when they attached (or none exist). */
   readonly worldLinksSkippedReason: string | null;
-  /** Files found under the ST Data Bank plane (`user/files/`) — named follow-up when non-zero. */
-  readonly databankFileCount: number;
-  /** Files found under the ST character-gallery plane (`user/images/`) — named follow-up when non-zero. */
-  readonly galleryImageCount: number;
+  /** ST Data Bank files the run landed in the databank (a re-run lands none: the upload dedups by content). */
+  readonly documentsImported: number;
+  /** A Data Bank file, index entry or scope that did not land, with why. */
+  readonly skippedDocuments: readonly ImportSkippedCard[];
+  /** A Data Bank file that landed without a scope SillyTavern gave it, with why. */
+  readonly documentNotes: readonly ImportSkippedCard[];
+  /** Gallery images the run added to at least one character's gallery (a re-run adds none). */
+  readonly galleryImagesImported: number;
+  /** A gallery file or folder that did not land, with why. */
+  readonly skippedGalleryImages: readonly ImportSkippedCard[];
   /** Orphan chat dirs IMPORTED via a minted placeholder character (name from the dir's own evidence; the
    *  mint is tagged `orphan import` so the owner can find every husk). Empty on a dryRun. */
   readonly orphanImports: readonly { readonly dir: string; readonly characterName: string; readonly created: boolean; readonly chatsImported: number }[];

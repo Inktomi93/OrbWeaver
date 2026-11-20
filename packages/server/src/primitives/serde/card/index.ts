@@ -44,7 +44,19 @@ import type { JsonObject, JsonValue } from "@orb/kit/json";
 import { jsonObjectOf } from "@orb/kit/json";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
-import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
+import type { EntryPosition, StSeatlessPosition } from "@orb/kit/world-info";
+import {
+  ENTRY_POSITIONS,
+  inertActivationFields,
+  resolveEntryInjection,
+  resolveEntryKeyMode,
+  resolveEntryPosition,
+  resolveEntryScope,
+  resolveEntryStSlot,
+  ST_SEATLESS_POSITIONS,
+  ST_SLOT_METADATA_KEY,
+  ST_WORLD_INFO_POSITION,
+} from "@orb/kit/world-info";
 import type { StScriptNote } from "#primitives/serde/regex";
 import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 
@@ -529,8 +541,27 @@ export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "descript
 };
 
 // ST's at-depth directive lives under `extensions.position = 4` with a sibling `depth`/`role` (the
-// world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
-const ST_POSITION_AT_DEPTH = 4;
+// world-info-at-depth encoding).
+const ST_POSITION_AT_DEPTH = ST_WORLD_INFO_POSITION.atDepth;
+// The card book's V2 position string, as SillyTavern's own card writer spells it from the numeric slot
+// (`convertWorldInfoToCharacterBook`, src/endpoints/characters.js in SillyTavern): only before-character is `before_char`.
+const ST_CARD_POSITION_BEFORE = "before_char";
+const ST_CARD_POSITION_AFTER = "after_char";
+
+function storedBucket(meta: Readonly<Record<string, unknown>>): EntryPosition | null {
+  return ENTRY_POSITIONS.find((position) => position === meta["position"]) ?? null;
+}
+
+/** The numeric SillyTavern slot one stored entry fills: at-depth for an inject directive; the seatless slot the import
+ *  kept while the entry still sits in the bucket it was placed in; else its before or after bucket. */
+function stWorldPosition(meta: Readonly<Record<string, unknown>>, injects: boolean): number {
+  if (injects) {
+    return ST_POSITION_AT_DEPTH;
+  }
+  const kept = resolveEntryStSlot(meta);
+  const stored = storedBucket(meta);
+  return kept !== null && kept.placed === stored ? ST_WORLD_INFO_POSITION[kept.slot] : ST_WORLD_INFO_POSITION[resolveEntryPosition(meta)];
+}
 
 // The `spec_version` emitted per spec marker. V3 is "3.0"; a V2-sourced card round-trips as "2.0".
 const SPEC_VERSION_BY_SPEC = { [CHARA_CARD_V2_SPEC]: "2.0", [CHARA_CARD_V3_SPEC]: "3.0" } as const;
@@ -585,21 +616,28 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
   };
 }
 
-function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
+/** One lore entry on the `character_book` entry wire, the shape a standalone SillyTavern world file adapts. */
+export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
+  const { [ST_SLOT_METADATA_KEY]: _kept, ...carried } = meta;
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
-  const extensions = inject
-    ? {
-        ...baseExtensions,
-        position: ST_POSITION_AT_DEPTH,
-        depth: inject.depth,
-        role: messageRoleToSt(inject.role),
-      }
-    : baseExtensions;
+  const position = stWorldPosition(meta, inject !== null);
+  const stored = storedBucket(meta);
+  // SillyTavern reads the slot from `extensions` first (`convertCharacterBook`, public/scripts/world-info.js), and an
+  // outlet entry fires only with its outlet name.
+  const outletName = position === ST_WORLD_INFO_POSITION.outlet && typeof meta["outletName"] === "string" ? { ["outlet_name"]: meta["outletName"] } : {};
+  const extensions = {
+    ...baseExtensions,
+    position,
+    ...outletName,
+    ...(inject === null ? {} : { depth: inject.depth, role: messageRoleToSt(inject.role) }),
+  };
   return {
-    ...meta,
+    ...carried,
+    // Written only for a stored bucket, so an entry that names none re-imports naming none and keeps its identity.
+    ...(stored === null ? {} : { position: stored === "before" ? ST_CARD_POSITION_BEFORE : ST_CARD_POSITION_AFTER }),
     keys: entry.keys,
     content: entry.content,
     enabled: entry.enabled,
@@ -725,6 +763,14 @@ function orbEntryPositionFromSt(raw: unknown): "before" | "after" | null {
   return null;
 }
 
+/** The seatless SillyTavern slot an ST entry names numerically (its card `extensions.position`, else a native world
+ *  entry's top-level `position`), or null when it names a slot this model holds or none. */
+function stSeatlessSlot(entry: Record<string, unknown>, rawPosition: unknown): StSeatlessPosition | null {
+  const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
+  const numeric = [ext?.["position"], rawPosition].find((value) => typeof value === "number" && Number.isInteger(value));
+  return ST_SEATLESS_POSITIONS.find((slot) => ST_WORLD_INFO_POSITION[slot] === numeric) ?? null;
+}
+
 /** Resolve an at-depth `inject` directive from an ST entry, or `null` when it is not at-depth. At-depth is
  *  ST's `extensions.position:4` (embedded chara_card book) or a top-level numeric `position:4` (native ST
  *  world-info entry); `depth`/`role` sit beside whichever encoding carried it (role via the message-role
@@ -760,7 +806,7 @@ function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unk
 export function loreEntryMetadata(entry: Record<string, unknown>): Record<string, unknown> {
   // `position` is normalized (not passed through raw), so drop the source key from the lossless base and
   // re-add only a valid orb value — a `delete` would trip `performance/noDelete`.
-  const { position: rawPosition, ...rest } = entry;
+  const { position: rawPosition, [ST_SLOT_METADATA_KEY]: _forged, ...rest } = entry;
   const meta: Record<string, unknown> = { ...rest };
   if (meta["scopeMode"] === undefined && entry["constant"] === true) {
     meta["scopeMode"] = "always";
@@ -768,6 +814,10 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
   const orbPosition = orbEntryPositionFromSt(rawPosition);
   if (orbPosition !== null) {
     meta["position"] = orbPosition;
+  }
+  const slot = stSeatlessSlot(entry, rawPosition);
+  if (slot !== null) {
+    meta[ST_SLOT_METADATA_KEY] = { slot, placed: orbPosition };
   }
   if (meta["inject"] === undefined) {
     const inject = stEntryInjectDirective(entry, rawPosition);

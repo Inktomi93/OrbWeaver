@@ -28,6 +28,14 @@ const OCTET_STREAM = "application/octet-stream";
 
 /** The image types {@link sniffMime} recognizes by signature: the images the asset store accepts. */
 export const SNIFFED_IMAGE_MIMES = [PNG_MIME, JPEG_MIME, GIF_MIME, WEBP_MIME] as const;
+/** The file extension each stored image type is written under. */
+export const IMAGE_EXTENSION_BY_MIME: Readonly<Record<string, string>> = {
+  [PNG_MIME]: "png",
+  [JPEG_MIME]: "jpg",
+  [GIF_MIME]: "gif",
+  [WEBP_MIME]: "webp",
+  [AVIF_MIME]: "avif",
+};
 /** Animated PNG: it carries the PNG signature, so a claim of this type is accepted for bytes that sniff as PNG. */
 export const APNG_MIME = "image/apng";
 // Exported (contracts/types-in-contract doesn't apply to `kit` — it's the leaf below contracts, and

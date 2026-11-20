@@ -22,6 +22,7 @@ import type {
   DocumentAttachmentsView,
   DocumentDetailView,
   DocumentView,
+  ImportAttachedDocument,
   IngestRunResult,
   ReindexMode,
   ReindexResult,
@@ -161,6 +162,8 @@ export interface DatabankContext {
   readonly captureRoomReachForDelete: CaptureDatabankRoomReachOp;
   // injected cross-feature ops (types from the owning contracts; wired at compose)
   readonly assetsStore: AssetsStoreOp;
+  /** The effective Data Bank document cap, read per upload so an admin's change reaches the next write. */
+  readonly maxUploadBytes: () => number;
   /** Re-read a document's original CAS bytes by asset id (the re-extract path). `undefined` when the blob was
    *  purged (a degraded doc that can no longer re-extract — never a block). */
   readonly loadAssetBytes: LoadAssetBytes;
@@ -217,6 +220,8 @@ export interface DatabankService {
   /** The sync canon write: CAS store → extract → documents row → enqueue the ingest workload. A failed
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
+  /** A profile import's document: the upload, then every scope it carried attached. */
+  readonly importAttached: ImportAttachedDocument<AbortSignal>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
   readonly createFromText: CreateDocumentFromText<AbortSignal>;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon

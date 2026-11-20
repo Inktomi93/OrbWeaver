@@ -17,9 +17,14 @@ import type {
   ExportChatParams,
   ListHostChatsCreatedAtParams,
   ListHostChatsParams,
+  ListStCardsParams,
+  ListStDocumentsParams,
+  OwnedBlobParams,
+  OwnedBlobsParams,
   SeatCardIdentity,
+  StDocumentTextParams,
 } from "./params.ts";
-import type { ExportedCard, ExportedText, HostChatRef } from "./results.ts";
+import type { ExportedCard, ExportedText, HostChatRef, StCardRef, StDocumentRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
@@ -59,4 +64,16 @@ export interface ExportService {
   readonly listHostChats: (params: ListHostChatsParams) => Promise<readonly HostChatRef[]>;
   /** The hosted chats a restored bundle can be: those that seat its primary and were created when it says. */
   readonly listHostChatsCreatedAt: (params: ListHostChatsCreatedAtParams) => Promise<readonly ChatId[]>;
+  /** The owned cards among the ids, with handle and accepted tags, and no card body read. */
+  readonly listStCards: (params: ListStCardsParams) => Promise<readonly StCardRef[]>;
+  /** The mime of each listed content hash the caller holds; a hash it does not hold is absent. */
+  readonly ownedBlobMimes: (params: OwnedBlobsParams) => Promise<ReadonlyMap<string, string>>;
+  /** One blob the caller holds, or null when it holds it no more. */
+  readonly readOwnedBlob: (params: OwnedBlobParams) => Promise<Uint8Array | null>;
+  /** The import hash of each of the caller's documents attached to each chat the caller hosts. */
+  readonly listChatDocumentHashes: (params: ListHostChatsParams) => Promise<ReadonlyMap<ChatId, readonly string[]>>;
+  /** The caller's Data Bank documents with their scopes, and no document text read. */
+  readonly listStDocuments: (params: ListStDocumentsParams) => Promise<readonly StDocumentRef[]>;
+  /** One document's extracted text, or null when the caller holds it no more. */
+  readonly readStDocumentText: (params: StDocumentTextParams) => Promise<string | null>;
 }

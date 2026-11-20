@@ -3,13 +3,15 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices, StExportReport } from "@orb/contracts/import";
 import {
   cardImportResultSchema,
   encodePersonaCollisionChoices,
   importStartedSchema,
   PERSONA_COLLISION_FIELD,
   ST_SETTINGS_FILE,
+  stExportReportSchema,
+  stProfileExportPath,
   TREE_DRY_RUN_FIELD,
   TREE_DRY_RUN_VALUE,
   TREE_FILE_FIELD,
@@ -24,6 +26,7 @@ import { expect } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
+import { unzipSync } from "fflate";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
 
 const WRAPPER = "default-user";
@@ -85,8 +88,14 @@ export async function importThroughDialog(root: ServerTestHarness, filename: str
   return result;
 }
 
-export function settings(personas: Readonly<Record<string, string>>): string {
-  return JSON.stringify({ ["power_user"]: { personas } });
+/** A settings file naming these personas, with an `extension_settings` section when one is given. */
+export function settings(personas: Readonly<Record<string, string>>, extensionSettings?: Readonly<Record<string, unknown>>): string {
+  return JSON.stringify({ ["power_user"]: { personas }, ...(extensionSettings === undefined ? {} : { ["extension_settings"]: extensionSettings }) });
+}
+
+/** One SillyTavern attachment entry for a `user/files/` file, as the Data Bank writes it. */
+export function attachmentOf(file: string, name: string): Readonly<Record<string, unknown>> {
+  return { url: `/user/files/${file}`, name, size: name.length, created: 0 };
 }
 
 export function chatOf(text: string): string {
@@ -217,12 +226,28 @@ export type KindNames = Readonly<Record<ImportPreviewKind, readonly string[]>>;
  *  imported `held` owns every item of it and none of `fresh`. */
 function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonly files: Files; readonly names: KindNames } {
   const held = which === "held";
-  const [card, persona, personaFile, book, preset, theme, surface, group, groupLeaf, orphan, backdrop, text] = held
-    ? ["Aria", "Bob", "bob.png", "Eldoria", "Held", "Dusk", "rgba(23, 23, 40, 1)", "Held Group", "held-room", "Wanderer", "Dawn", "held"]
-    : ["Bram", "Cat", "cat.png", "Mirefen", "Fresh", "Ember", "rgba(60, 20, 20, 1)", "Fresh Group", "fresh-room", "Drifter", "Dusk", "fresh"];
+  const [card, persona, personaFile, book, preset, theme, surface, group, groupLeaf, orphan, backdrop, text, document, picture] = held
+    ? ["Aria", "Bob", "bob.png", "Eldoria", "Held", "Dusk", "rgba(23, 23, 40, 1)", "Held Group", "held-room", "Wanderer", "Dawn", "held", "Held notes", "Glade"]
+    : [
+        "Bram",
+        "Cat",
+        "cat.png",
+        "Mirefen",
+        "Fresh",
+        "Ember",
+        "rgba(60, 20, 20, 1)",
+        "Fresh Group",
+        "fresh-room",
+        "Drifter",
+        "Dusk",
+        "fresh",
+        "Fresh notes",
+        "Marsh",
+      ];
   const cardFile = `${card}.png`;
+  const documentFile = `${text}-notes.txt`;
   const files: Files = {
-    [ST_SETTINGS_FILE]: settings({ [personaFile]: persona }),
+    [ST_SETTINGS_FILE]: settings({ [personaFile]: persona }, { attachments: [attachmentOf(documentFile, document)] }),
     [`characters/${cardFile}`]: cardPng(root, card),
     [`chats/${card}/solo.jsonl`]: chatOf(`${text} solo`),
     [`worlds/${book}.json`]: JSON.stringify({ entries: { "0": { uid: 0, key: [book.toLowerCase()], comment: book, content: `${text} lore.`, order: 100 } } }),
@@ -232,6 +257,9 @@ function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonl
     [`groups/${text}.json`]: KIND_GROUP(group, cardFile, groupLeaf),
     [`group chats/${groupLeaf}.jsonl`]: chatOf(`${text} room`),
     [`chats/${orphan}/orphan.jsonl`]: chatOf(`${text} orphan`),
+    [`user/files/${documentFile}`]: `${text} notes for every chat.`,
+    // SillyTavern keeps a character's gallery in a folder named for the card.
+    [`user/images/${card}/${picture}.png`]: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   };
   return {
     files,
@@ -245,6 +273,8 @@ function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonl
       backgrounds: [backdrop],
       groups: [group],
       orphans: [orphan],
+      documents: [document],
+      gallery: [`${card}: ${picture}`],
     },
   };
 }
@@ -261,7 +291,14 @@ export function bothKindFolders(root: ServerTestHarness): {
   return {
     held: held.files,
     fresh: fresh.files,
-    both: { ...held.files, ...fresh.files, [ST_SETTINGS_FILE]: settings({ ["bob.png"]: "Bob", ["cat.png"]: "Cat" }) },
+    both: {
+      ...held.files,
+      ...fresh.files,
+      [ST_SETTINGS_FILE]: settings(
+        { ["bob.png"]: "Bob", ["cat.png"]: "Cat" },
+        { attachments: [attachmentOf("held-notes.txt", "Held notes"), attachmentOf("fresh-notes.txt", "Fresh notes")] },
+      ),
+    },
     names: { held: held.names, fresh: fresh.names },
   };
 }
@@ -283,4 +320,18 @@ export function namesakeFolder(root: ServerTestHarness): Files {
     "themes/Dusk.json": themeOf("Dusk", "rgba(90, 90, 20, 1)"),
     "backgrounds/Dawn.png": new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   };
+}
+
+/** The library's SillyTavern export through the export door, unpacked. */
+export async function exportedZip(root: ServerTestHarness): Promise<Readonly<Record<string, Uint8Array>>> {
+  const response = await root.http.request(stProfileExportPath(false));
+  expect(response.status).toBe(200);
+  return unzipSync(new Uint8Array(await response.arrayBuffer()));
+}
+
+/** The SillyTavern export's dry-run report through the export door. */
+export async function exportDryRun(root: ServerTestHarness): Promise<StExportReport> {
+  const response = await root.http.request(stProfileExportPath(true));
+  expect(response.status).toBe(200);
+  return stExportReportSchema.parse(await response.json());
 }

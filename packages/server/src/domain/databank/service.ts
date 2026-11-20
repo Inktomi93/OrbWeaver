@@ -20,6 +20,7 @@ import { createBankHealth } from "./verbs/bank-health.ts";
 import { createCreateFromText } from "./verbs/create-from-text.ts";
 import { createGatherRetrieval } from "./verbs/gather-retrieval.ts";
 import { createGet } from "./verbs/get.ts";
+import { createImportAttached } from "./verbs/import-attached.ts";
 import { createList } from "./verbs/list.ts";
 import { createListActiveForChat } from "./verbs/list-active-for-chat.ts";
 import { createListAttachments } from "./verbs/list-attachments.ts";
@@ -33,8 +34,13 @@ import { createUpload } from "./verbs/upload.ts";
 
 export function createDatabankService(input: DbAssemblyInput<DatabankContext>): DatabankService {
   const ctx: DatabankContext = { ...input, db: databaseForOwner(input.db) };
+  const upload = createUpload(ctx);
+  const attachGlobal = createAttachGlobal(ctx);
+  const attachToChat = createAttachToChat(ctx);
+  const attachToCharacter = createAttachToCharacter(ctx);
   return {
-    upload: createUpload(ctx),
+    upload,
+    importAttached: createImportAttached({ upload, attachGlobal, attachToCharacter, attachToChat }),
     createFromText: createCreateFromText(ctx),
     scrapeWeb: createScrapeWeb(ctx),
     scrapeYoutube: createScrapeYoutube(ctx),
@@ -45,12 +51,12 @@ export function createDatabankService(input: DbAssemblyInput<DatabankContext>): 
     rename: createRename(ctx),
     remove: createRemove(ctx),
     reindex: createReindex(ctx),
-    attachGlobal: createAttachGlobal(ctx),
+    attachGlobal,
     detachGlobal: createDetachGlobal(ctx),
     listGlobal: createListGlobal(ctx),
-    attachToChat: createAttachToChat(ctx),
+    attachToChat,
     detachFromChat: createDetachFromChat(ctx),
-    attachToCharacter: createAttachToCharacter(ctx),
+    attachToCharacter,
     detachFromCharacter: createDetachFromCharacter(ctx),
     listAttachments: createListAttachments(ctx),
     listActiveForChat: createListActiveForChat(ctx),

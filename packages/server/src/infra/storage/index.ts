@@ -16,4 +16,4 @@ export { listStagedEntries, removeContained, resolveStagedPath } from "./staged-
 export { createUserRuntimeDirs } from "./user-runtime-dir.ts";
 export { createVariantCache } from "./variant-cache.ts";
 export type { CentralRecord, ZipDirectory, ZipRejectKind } from "./zip.ts";
-export { extractZip, packZip, readZipDirectory, ZIP_STAGING_PREFIX, ZipRejectedError } from "./zip.ts";
+export { extractZip, packZip, readZipDirectory, ZIP_STAGING_PREFIX, ZIP_WRITE_LIMITS, ZipRejectedError } from "./zip.ts";

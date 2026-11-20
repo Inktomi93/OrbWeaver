@@ -81,6 +81,9 @@ const DEFAULT_MAX_ENTRY_BYTES = MAX_ENTRY_MIB * BYTES_PER_MIB;
 const DEFAULT_MAX_TOTAL_BYTES = MAX_TOTAL_MIB * BYTES_PER_MIB;
 const DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES = MAX_TOTAL_DECOMPRESSED_MIB * BYTES_PER_MIB;
 const DEFAULT_MAX_ENTRIES = 50_000;
+/** The writer's own caps: `packZip` refuses an entry over `maxEntryBytes` and an archive past `maxEntries`. A producer
+ *  that would rather leave a file out than fail the archive checks them first. */
+export const ZIP_WRITE_LIMITS = { maxEntryBytes: DEFAULT_MAX_ENTRY_BYTES, maxEntries: DEFAULT_MAX_ENTRIES } as const;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 
@@ -617,10 +620,17 @@ export function packZip(entries: AsyncIterable<ZipEntry>, log: Logger, traces: T
     async pull(controller: ReadableStreamDefaultController<Uint8Array>): Promise<void> {
       const next = await iterator.next();
       if (next.done !== true) {
-        if (centrals.length >= DEFAULT_MAX_ENTRIES) {
-          throw new ZipRejectedError("too-many-entries", `archive exceeds the cap of ${DEFAULT_MAX_ENTRIES} entries`);
+        try {
+          if (centrals.length >= DEFAULT_MAX_ENTRIES) {
+            throw new ZipRejectedError("too-many-entries", `archive exceeds the cap of ${DEFAULT_MAX_ENTRIES} entries`);
+          }
+          offset += emitEntry(controller, next.value, offset, centrals);
+        } catch (err) {
+          // A throw from pull errors the stream, and an errored stream never calls cancel. The source is finalized here,
+          // or a generator parked at its yield never runs its finally (an export's hold, a file handle).
+          await iterator.return?.(undefined);
+          throw err;
         }
-        offset += emitEntry(controller, next.value, offset, centrals);
         return;
       }
       const cdOffset = offset;

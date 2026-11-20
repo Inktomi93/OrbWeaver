@@ -11,7 +11,7 @@ import type { WorldBookId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { isDelimitedKeyPattern } from "@orb/kit/world-info";
 import { z } from "zod";
-import { loreEntryColumns, loreEntryIdentity, loreEntryMetadata } from "#primitives/serde/card";
+import { exportBookEntry, loreEntryColumns, loreEntryIdentity, loreEntryMetadata } from "#primitives/serde/card";
 import { decodePortableObject, defineJsonRowsSerde } from "#primitives/serde/lib";
 
 export { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
@@ -144,6 +144,40 @@ function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput
   const adapted = toCharacterBookEntry(stEntry);
   const metadata = narrowedEntryMetadataSchema.safeParse(stEntryKeyMode(adapted, loreEntryMetadata(adapted)));
   return metadata.success ? { ...loreEntryColumns(adapted), metadata: metadata.data } : null;
+}
+
+// The inverse of toCharacterBookEntry: the three ST spellings back, keyed by a uid as SillyTavern keys its entries. A
+// native world entry carries its slot, depth and role at the top level, where SillyTavern's placement reads them; the
+// card wire carries them under `extensions` (lifted as `convertCharacterBook` lifts them, public/scripts/world-info.js
+// in SillyTavern).
+function toStWorldEntry(entry: BulkImportLoreEntryInput, uid: number): Record<string, unknown> {
+  const {
+    keys,
+    insertion_order: order,
+    enabled,
+    position: _cardPosition,
+    ...rest
+  } = exportBookEntry({
+    title: entry.title,
+    content: entry.content,
+    keys: [...entry.keys],
+    enabled: entry.enabled,
+    priority: entry.priority,
+    ignoreBudget: entry.ignoreBudget,
+    metadata: entry.metadata,
+  });
+  const extensions = isPlainObject(rest["extensions"]) ? rest["extensions"] : {};
+  const placement = Object.fromEntries(
+    (["position", "depth", "role"] as const).flatMap((field) => (extensions[field] === undefined ? [] : [[field, extensions[field]]])),
+  );
+  return { ...rest, ...placement, uid, key: keys, order, disable: enabled !== true };
+}
+
+/** The book as a SillyTavern `worlds/*.json` file: a bare `{ entries: { <uid>: {...} } }`, which SillyTavern's world
+ *  import takes and {@link parseWorldBookFile} reads back to the same entries. The name rides the filename. */
+export function buildStWorldFile(book: BulkImportLorebookInput): Uint8Array {
+  const entries = Object.fromEntries(book.entries.map((entry, uid) => [String(uid), toStWorldEntry(entry, uid)]));
+  return new TextEncoder().encode(JSON.stringify({ entries }, null, 2));
 }
 
 /** A decoded object is an ST world file when it carries an `entries` object and no envelope. */

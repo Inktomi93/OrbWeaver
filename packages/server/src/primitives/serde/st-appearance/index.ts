@@ -1,5 +1,5 @@
-// domain/import/substrate/appearance — the ST `settings.json` → `power_user` → orb `appearance` mapper.
-// Pure: an already-JSON-parsed settings blob in, a partial `appearance` patch out. Never throws.
+// The ST `settings.json` → `power_user` ⇄ orb `appearance` mapper, both directions over one seat table. Pure: an
+// already-JSON-parsed settings blob in, a partial `appearance` patch out, and back. Never throws.
 //
 // WHY THIS EXISTS BESIDE THE THEME PARSER. ST puts a theme's PALETTE and the viewer's ERGONOMICS in the same
 // file; orb splits them (D63/D71 + the card-embeddable partition) — colour goes on a theme, size/density/
@@ -76,59 +76,57 @@ function putNumbers(pu: Record<string, unknown>, patch: Record<string, unknown>)
   }
 }
 
-/** ST `avatar_style` → orb's TWO axes. RECTANGULAR is ST's tall big-avatar mode, which orb expresses as a
- *  square-cornered avatar on the PORTRAIT aspect — the only ST value that needs both fields. */
-function putAvatarStyle(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
-  switch (pu["avatar_style"]) {
-    case ST_AVATAR_ROUND:
-      patch["avatarShape"] = "round";
-      break;
-    case ST_AVATAR_SQUARE:
-      patch["avatarShape"] = "square";
-      break;
-    case ST_AVATAR_ROUNDED:
-      patch["avatarShape"] = "rounded";
-      break;
-    case ST_AVATAR_RECTANGULAR:
-      patch["avatarShape"] = "square";
-      patch["avatarAspect"] = "portrait";
-      break;
-    default:
-      break;
-  }
-}
+// Each ST enum value with the orb fields it IS; the reads below and the write in {@link stPowerUserOf} share them.
+// RECTANGULAR is ST's tall big-avatar mode, which orb expresses as a square-cornered avatar on the PORTRAIT aspect.
+const AVATAR_STYLE_SEATS: ReadonlyArray<readonly [stValue: number, seat: Readonly<Record<string, string>>]> = [
+  [ST_AVATAR_RECTANGULAR, { avatarShape: "square", avatarAspect: "portrait" }],
+  [ST_AVATAR_ROUND, { avatarShape: "round" }],
+  [ST_AVATAR_SQUARE, { avatarShape: "square" }],
+  [ST_AVATAR_ROUNDED, { avatarShape: "rounded" }],
+];
 
-/** ST `chat_display` → orb `appearance.chatStyle`. The three ST modes are three orb row skins by the same name. */
-function putChatStyle(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
-  switch (pu["chat_display"]) {
-    case ST_CHAT_DEFAULT:
-      patch["chatStyle"] = "flat";
-      break;
-    case ST_CHAT_BUBBLES:
-      patch["chatStyle"] = "bubble";
-      break;
-    case ST_CHAT_DOCUMENT:
-      patch["chatStyle"] = "document";
-      break;
-    default:
-      break;
-  }
-}
+/** One ST enum key, its values with the orb value each IS, and the orb field it seats. ST's `chat_display` modes are
+ *  three orb row skins by the same name; ST's `reduced_motion: false` defers to the device, which orb calls `system`. */
+const ENUM_SEATS: ReadonlyArray<readonly [stKey: string, orbKey: string, values: ReadonlyArray<readonly [stValue: unknown, orbValue: string]>]> = [
+  [
+    "chat_display",
+    "chatStyle",
+    [
+      [ST_CHAT_DEFAULT, "flat"],
+      [ST_CHAT_BUBBLES, "bubble"],
+      [ST_CHAT_DOCUMENT, "document"],
+    ],
+  ],
+  [
+    "expand_message_actions",
+    "messageActions",
+    [
+      [true, "expanded"],
+      [false, "hover"],
+    ],
+  ],
+  [
+    "reduced_motion",
+    "reducedMotion",
+    [
+      [true, "on"],
+      [false, "system"],
+    ],
+  ],
+];
 
-/** ST `expand_message_actions` → orb `appearance.messageActions` (`expanded` vs the default `hover`). */
-function putMessageActions(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
-  const value = pu["expand_message_actions"];
-  if (typeof value === "boolean") {
-    patch["messageActions"] = value ? "expanded" : "hover";
-  }
-}
+const AVATAR_KEY = "avatar_style";
 
-/** ST `reduced_motion` → orb `appearance.reducedMotion`. ST's `true` forces reduced motion; its `false` defers to
- *  the device, which orb calls `system`. */
-function putReducedMotion(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
-  const value = pu["reduced_motion"];
-  if (typeof value === "boolean") {
-    patch["reducedMotion"] = value ? "on" : "system";
+function putEnums(pu: Record<string, unknown>, patch: Record<string, unknown>): void {
+  const avatar = AVATAR_STYLE_SEATS.find(([stValue]) => stValue === pu[AVATAR_KEY]);
+  for (const [key, value] of Object.entries(avatar?.[1] ?? {})) {
+    patch[key] = value;
+  }
+  for (const [stKey, orbKey, values] of ENUM_SEATS) {
+    const seat = values.find(([stValue]) => stValue === pu[stKey]);
+    if (seat !== undefined) {
+      patch[orbKey] = seat[1];
+    }
   }
 }
 
@@ -148,9 +146,52 @@ export function stAppearancePatch(settingsRaw: unknown): Record<string, unknown>
   const patch: Record<string, unknown> = {};
   putBooleans(pu, patch);
   putNumbers(pu, patch);
-  putAvatarStyle(pu, patch);
-  putChatStyle(pu, patch);
-  putMessageActions(pu, patch);
-  putReducedMotion(pu, patch);
+  putEnums(pu, patch);
   return patch;
+}
+
+/**
+ * The ST `power_user` keys an orb `appearance` namespace carries, the inverse of {@link stAppearancePatch}: each
+ * returned key reads back to the orb value it came from. `carried` names the orb fields that found a key, so the
+ * caller can name the rest.
+ */
+export function stPowerUserOf(appearance: Readonly<Record<string, unknown>>): {
+  readonly powerUser: Record<string, unknown>;
+  readonly carried: ReadonlySet<string>;
+} {
+  const powerUser: Record<string, unknown> = {};
+  const carried = new Set<string>();
+  const seat = (stKey: string, orbKeys: readonly string[], value: unknown): void => {
+    powerUser[stKey] = value;
+    for (const key of orbKeys) {
+      carried.add(key);
+    }
+  };
+  for (const [stKey, orbKey] of BOOLEAN_SEATS) {
+    if (typeof appearance[orbKey] === "boolean") {
+      seat(stKey, [orbKey], appearance[orbKey]);
+    }
+  }
+  for (const [stKey, orbKey] of INVERTED_BOOLEAN_SEATS) {
+    if (typeof appearance[orbKey] === "boolean") {
+      seat(stKey, [orbKey], !appearance[orbKey]);
+    }
+  }
+  for (const [stKey, orbKey] of NUMBER_SEATS) {
+    if (typeof appearance[orbKey] === "number") {
+      seat(stKey, [orbKey], appearance[orbKey]);
+    }
+  }
+  // The first seat whose every field matches: RECTANGULAR is listed first, so a portrait square avatar finds it.
+  const avatar = AVATAR_STYLE_SEATS.find(([, fields]) => Object.entries(fields).every(([key, value]) => appearance[key] === value));
+  if (avatar !== undefined) {
+    seat(AVATAR_KEY, Object.keys(avatar[1]), avatar[0]);
+  }
+  for (const [stKey, orbKey, values] of ENUM_SEATS) {
+    const value = values.find(([, orbValue]) => orbValue === appearance[orbKey]);
+    if (value !== undefined) {
+      seat(stKey, [orbKey], value[0]);
+    }
+  }
+  return { powerUser, carried };
 }

@@ -23,6 +23,7 @@ export { createGeneratedAssetStore, createStoreGeneratedImage } from "./verbs/ge
 export { createImageryGalleryAdd } from "./verbs/imagery-gallery-add.ts";
 export { createImportAsset } from "./verbs/import-asset.ts";
 export { createImportGallery } from "./verbs/import-gallery.ts";
+export { createHeldGalleryHashes, createImportGalleryImage } from "./verbs/import-gallery-image.ts";
 export { createImportOwnedAsset } from "./verbs/import-owned.ts";
 export { createImportAvatarStore } from "./verbs/import-store.ts";
 export { createMaterializeBackground } from "./verbs/materialize-background.ts";

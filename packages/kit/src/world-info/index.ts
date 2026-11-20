@@ -67,6 +67,39 @@ export function resolveEntryPosition(metadata: unknown): EntryPosition {
   return parsed.success ? parsed.data : "before";
 }
 
+// SillyTavern's `world_info_position` enum (`public/scripts/world-info.js` in a SillyTavern checkout): the prompt slot
+// a world entry fills there, by its numeric spelling.
+export const ST_WORLD_INFO_POSITION = { before: 0, after: 1, anTop: 2, anBottom: 3, atDepth: 4, emTop: 5, emBottom: 6, outlet: 7 } as const;
+export type StWorldInfoPosition = keyof typeof ST_WORLD_INFO_POSITION;
+
+/** The SillyTavern slots with no seat here: the Author's Note and example-message edges and a named outlet. An entry
+ *  from one is placed in the before or after bucket, and its metadata keeps the slot it came from. */
+export const ST_SEATLESS_POSITIONS = ["anTop", "anBottom", "emTop", "emBottom", "outlet"] as const satisfies readonly StWorldInfoPosition[];
+export type StSeatlessPosition = (typeof ST_SEATLESS_POSITIONS)[number];
+
+/** The metadata key that keeps a seatless slot, with the bucket the entry was placed in when it was kept. */
+export const ST_SLOT_METADATA_KEY = "stSlot";
+
+export const stSlotSchema = z.strictObject({ slot: z.enum(ST_SEATLESS_POSITIONS), placed: z.enum(ENTRY_POSITIONS).nullable() });
+export type StSlot = z.infer<typeof stSlotSchema>;
+
+/** The seatless slot an entry's metadata keeps, read in isolation; null when it keeps none or a malformed one. */
+export function resolveEntryStSlot(metadata: unknown): StSlot | null {
+  return stSlotSchema.safeParse(metadataField(metadata, ST_SLOT_METADATA_KEY)).data ?? null;
+}
+
+/** Each seatless slot a book's entries came from, with how many entries came from it, in first-seen order. */
+export function seatlessSlotCounts(entries: readonly { readonly metadata?: unknown }[]): { readonly slot: StSeatlessPosition; readonly entries: number }[] {
+  const counts = new Map<StSeatlessPosition, number>();
+  for (const entry of entries) {
+    const kept = resolveEntryStSlot(entry.metadata);
+    if (kept !== null) {
+      counts.set(kept.slot, (counts.get(kept.slot) ?? 0) + 1);
+    }
+  }
+  return [...counts].map(([slot, count]) => ({ slot, entries: count }));
+}
+
 // How an entry's keys are COMPILED: `literal` (the default — every key is `RegExp.escape`d, so a `.` is a
 // period) or `regex` (the keys ARE patterns). The orb spelling of Character-Card-V3's `use_regex`, which the
 // card serde normalizes into `metadata.keyMode` the way it normalizes ST `constant` into `scopeMode`.

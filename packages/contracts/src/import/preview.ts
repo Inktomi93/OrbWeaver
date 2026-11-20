@@ -19,7 +19,19 @@
 
 import { z } from "zod";
 
-export const IMPORT_PREVIEW_KINDS = ["characters", "chats", "personas", "worlds", "presets", "themes", "backgrounds", "groups", "orphans"] as const;
+export const IMPORT_PREVIEW_KINDS = [
+  "characters",
+  "chats",
+  "personas",
+  "worlds",
+  "presets",
+  "themes",
+  "backgrounds",
+  "groups",
+  "orphans",
+  "documents",
+  "gallery",
+] as const;
 export type ImportPreviewKind = (typeof IMPORT_PREVIEW_KINDS)[number];
 
 /** The most entries one preview list holds, so a stored run and its bus frame stay small. */
@@ -200,6 +212,9 @@ export const importPreviewSchema = z.strictObject({
     backgrounds: importPreviewListSchema,
     groups: importPreviewListSchema,
     orphans: importPreviewListSchema,
+    // A stored run from before these kinds imported holds none of them.
+    documents: importPreviewListSchema.default(() => importPreviewListOf([])),
+    gallery: importPreviewListSchema.default(() => importPreviewListOf([])),
   }),
   skipped: importPreviewSkippedSchema,
 });
@@ -217,6 +232,9 @@ export const importKindCountsSchema = z.strictObject({
   backgrounds: z.number().int().nonnegative(),
   groups: z.number().int().nonnegative(),
   orphans: z.number().int().nonnegative(),
+  // A stored run from before these kinds imported holds none of them.
+  documents: z.number().int().nonnegative().default(0),
+  gallery: z.number().int().nonnegative().default(0),
 }) satisfies z.ZodType<Readonly<Record<ImportPreviewKind, number>>>;
 export type ImportKindCounts = z.infer<typeof importKindCountsSchema>;
 

@@ -78,9 +78,13 @@ const entriesWord = (count: number): string => `${count} ${count === 1 ? "entry"
 /** The SillyTavern activation fields a book's entries keep stored but inert (owner ruling: kept untouched, shown
  *  as not active yet), as a line suffix; empty when they keep none. */
 function inertSuffix(note: ImportBookNote): string {
-  return note.inertFields.length === 0
-    ? ""
-    : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+  const inert =
+    note.inertFields.length === 0 ? "" : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${entriesWord(f.entries)})`).join(", ")}`;
+  const seatless =
+    note.seatlessSlots.length === 0
+      ? ""
+      : `; placed before or after the character, since that SillyTavern slot has no seat here (kept for a SillyTavern export): ${note.seatlessSlots.map((s) => `\`${s.slot}\` (${entriesWord(s.entries)})`).join(", ")}`;
+  return `${inert}${seatless}`;
 }
 
 /** One line per standalone world book the run landed: where it landed, and the fields its entries keep inert. */
@@ -124,21 +128,6 @@ function worldLinkLines(report: ImportReport): string[] {
   return lines;
 }
 
-/** The ST Data Bank + character-gallery planes — counted, with the honest disposition. These have real orb
- *  counterparts (`domain/databank`; the assets gallery) and the write waves are a NAMED FOLLOW-UP: the real
- *  corpus carries zero files in both, so mappers today would be proven against nothing. The count line is
- *  the guarantee that a future profile carrying data shows LOUDLY instead of vanishing under `user/`. */
-function userPlaneLines(report: ImportReport): string[] {
-  const disposition = (count: number, plane: string, home: string): string =>
-    count === 0
-      ? `${plane}: 0 files found — nothing to import`
-      : `${plane}: ${count} file(s) found — NOT imported yet (the ${home} import wave is a named follow-up; nothing was lost, the files stay in the ST profile)`;
-  return [
-    disposition(report.databankFileCount, "Data Bank files (`user/files/` + the attachments index)", "databank"),
-    disposition(report.galleryImageCount, "Character-gallery images (`user/images/`)", "gallery"),
-  ];
-}
-
 const FOUND_LABELS: Readonly<Record<ImportPreviewKind, string>> = {
   characters: "Characters",
   chats: "Chat transcripts",
@@ -149,6 +138,8 @@ const FOUND_LABELS: Readonly<Record<ImportPreviewKind, string>> = {
   backgrounds: "Background images",
   groups: "Group rooms",
   orphans: "Orphan chat directories (a placeholder character each)",
+  documents: "Data Bank files",
+  gallery: "Character gallery images",
 };
 
 /** What the folder holds, by kind: the same counts the dry run's preview lists. A rehearsal's write counts are
@@ -182,13 +173,15 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     `- Entities scanned: ${report.scanned}`,
     report.dryRun
       ? `- Predicted new characters (read-only match): ${report.changed}`
-      : `- New canon written (characters + personas + chats + world books + presets + group rooms): ${report.changed}`,
+      : `- New canon written (characters + personas + chats + world books + presets + group rooms + Data Bank files + gallery images): ${report.changed}`,
     `- Cards skipped (could not import): ${report.skippedCards.length}`,
     `- World books imported: ${report.worldNotes.length} (${report.worldNotes.filter((n) => n.created).length} new, ${report.worldNotes.filter((n) => !n.created).length} already in your library)`,
     `- Presets imported: ${report.presetsImported} (${report.presetsCreated} new, ${report.presetsImported - report.presetsCreated} already in your library)`,
     `- Themes converted: ${report.themesImported} (${report.themesCreated} new, ${report.themesImported - report.themesCreated} already in your library)`,
     `- Background images imported: ${report.backgroundsImported}`,
     `- Group rooms imported: ${report.groupsImported} (${report.groupChatsImported} group transcript(s))`,
+    `- Data Bank files imported: ${report.documentsImported}`,
+    `- Character gallery images imported: ${report.galleryImagesImported}`,
     // The dedup-skip HEAL. Rendered even at zero: a re-run over an already-imported corpus writes no new
     // canon, so this is the ONLY line that can tell an operator the re-run did anything at all.
     `- Personas merged into an existing persona of the same name: ${report.personasMergedKeys.length}`,
@@ -246,7 +239,18 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     ),
     section("Regex scripts (cards · presets · global)", regexLines(report)),
     section("World book name-links (card `extensions.world` + `charLore`)", worldLinkLines(report)),
-    section("ST Data Bank / character-gallery planes (counted every run)", userPlaneLines(report)),
+    section(
+      "Data Bank files NOT imported",
+      report.skippedDocuments.map((d) => `\`${d.file}\` — ${d.reason}`),
+    ),
+    section(
+      "Data Bank files that imported without an attachment SillyTavern gave them",
+      report.documentNotes.map((d) => `\`${d.file}\` — ${d.reason}`),
+    ),
+    section(
+      "Character gallery files NOT imported",
+      report.skippedGalleryImages.map((g) => `\`${g.file}\` — ${g.reason}`),
+    ),
     section("Themes converted — what did NOT map", noteLines(report.themeNotes)),
     section(
       "Theme files NOT converted",

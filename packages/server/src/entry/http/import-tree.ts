@@ -17,11 +17,6 @@
 // declared native batch that is not wholly native — the declaration routes, it never authorizes) → case-twin
 // refusal (400 naming two paths that differ only in letter case, which collide on a Windows or macOS volume; the
 // check runs on every host and before any byte is staged) → owner-scoped start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
-//
-// The case-twin fold is the union of what NTFS and APFS treat as one name: the path in NFC (APFS ignores the
-// normalization form), then each code point folded alone, upper then lower, kept as it is when that fold is not one
-// code point. Both volumes fold one code point to one, so a final and a medial sigma meet and the Kelvin sign meets
-// "k", while "ß" and "ss" stay two names.
 
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
@@ -59,6 +54,7 @@ import { hasCsrfHeader } from "#infra/auth";
 import type { StagedFile } from "#infra/storage";
 import { stagedFileOf, writeStagedManifest } from "#infra/storage";
 import { errnoCode } from "#primitives/errno";
+import { volumeFold } from "#primitives/volume-fold";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
@@ -242,17 +238,6 @@ export async function stagePart(stagedRoot: string, relTarget: string, bytes: Ui
     }
     throw err;
   }
-}
-
-/** The one name a Windows or macOS volume stores `name` under, by the fold the file header states. */
-export function volumeFold(name: string): string {
-  let folded = "";
-  for (const codePoint of name.normalize("NFC")) {
-    const simple = codePoint.toUpperCase().toLowerCase();
-    const first = simple.codePointAt(0);
-    folded += first !== undefined && String.fromCodePoint(first) === simple ? simple : codePoint;
-  }
-  return folded;
 }
 
 /** Refuse two files whose paths differ only in letter case. A Windows or macOS volume holds them as one name, so

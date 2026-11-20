@@ -26,7 +26,7 @@ import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import { fileStem } from "@orb/kit/strings";
-import { inertFieldCounts } from "@orb/kit/world-info";
+import { inertFieldCounts, seatlessSlotCounts } from "@orb/kit/world-info";
 import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
 import type { ImportBookNote, ImportCharacterResult } from "../contract/results.ts";
@@ -142,7 +142,12 @@ async function attachCarriedContent(
       skippedOverlays.push(BOOK_KEPT_NOTE);
     } else {
       await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
-      embeddedBook = { name: carried.book.name, entries: carried.book.entries.length, inertFields: inertFieldCounts(carried.book.entries) };
+      embeddedBook = {
+        name: carried.book.name,
+        entries: carried.book.entries.length,
+        inertFields: inertFieldCounts(carried.book.entries),
+        seatlessSlots: seatlessSlotCounts(carried.book.entries),
+      };
     }
   }
 
