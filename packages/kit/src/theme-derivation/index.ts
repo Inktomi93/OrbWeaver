@@ -2152,17 +2152,12 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string>(
   return literals;
 }
 
-/** A fill an inactive control paints under its ink: a tone tint. */
-export interface InactiveFill {
-  readonly color: Oklch;
-  readonly alpha: number;
-}
-
 /** One ink an inactive control paints, over the host its control sits on, on the control's own fill when it has one. */
 export interface InactiveInkPair {
   readonly ink: Oklch;
   readonly host: Oklch;
-  readonly fill?: InactiveFill;
+  /** The tone tint under the ink. */
+  readonly fill?: { readonly color: Oklch; readonly alpha: number };
 }
 
 /** What {@link inactiveInkPairs} reads: the page scheme, every tone the palette paints, and the role colours each paints on a host. */

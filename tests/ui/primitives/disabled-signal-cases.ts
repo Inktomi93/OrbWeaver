@@ -12,6 +12,8 @@ export const SIGNAL_CASES = [
   "active rail cell",
   "pressed toggle",
   "text field",
+  "field textarea",
+  "bare textarea",
   "empty text field",
   "number field",
   "select trigger",

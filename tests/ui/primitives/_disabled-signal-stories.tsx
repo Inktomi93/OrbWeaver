@@ -12,6 +12,7 @@ import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Tabs, TabsList, TabsTab } from "@orb/ui/tabs";
+import { Textarea } from "@orb/ui/textarea";
 import type { ThemeScopeProps } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toggle } from "@orb/ui/toggle";
@@ -73,6 +74,8 @@ const RENDERS = {
   ),
   "color field": (disabled: boolean) => <ColorField aria-label="Colour" disabled={disabled} onValueChange={(): void => undefined} value="#336699" />,
   "text field": (disabled: boolean) => <Input aria-label="Name" defaultValue="Ash" disabled={disabled} />,
+  "field textarea": (disabled: boolean) => <Textarea aria-label="Notes" defaultValue="Ash" disabled={disabled} />,
+  "bare textarea": (disabled: boolean) => <Textarea aria-label="Draft" chrome="bare" defaultValue="Ash" disabled={disabled} />,
   "empty text field": (disabled: boolean) => <Input aria-label="Search" disabled={disabled} placeholder="Search chats" />,
   "number field": (disabled: boolean) => <NumberField aria-label="Count" defaultValue={3} disabled={disabled} />,
   "select trigger": (disabled: boolean) => <Select aria-label="Pick" defaultValue="one" disabled={disabled} items={SELECT_ITEMS} />,

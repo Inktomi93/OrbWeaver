@@ -19,11 +19,12 @@ Two shapes were open for the floor: derive the disabled ink so it always clears 
 Every palette derives the opacity a fill-less inactive control dims to, and every control kind carries a second disabled signal besides opacity. The active inks never move.
 
 - **The second signal, one home.** `packages/ui/src/lib/disabled-state.ts` spells every opacity, fill and ink a disabled control paints, and each primitive's variants compose its constants. `better-tailwindcss/no-restricted-classes` refuses the spelling in any other `@orb/ui` or client file (`tests/tooling/eslint-ui-law.test.ts`). A stylesheet names no disabled selector, and `selector-disallowed-list` refuses one (`tests/tooling/stylelint-rules.test.ts`). It admits one exception, the disabled CTA ring in `packages/ui/src/styles/primitives.css`. That ring is a pseudo-element painted in the `ui` layer, which sorts after `utilities`, so a class could reach it only with the important modifier:
-  - A fill-less control (a ghost, outline or link Button, a toggle, a tab, a row, an item) dims by the derived step and drops to the muted ink (`DISABLED_STATE`, `DISABLED_DIM`). An active tab's own ink yields to it.
-  - A form control drawn by its D159 edge (a text field, a number field, a select trigger, a color field's trigger, a combobox or autocomplete group) never dims its box. The box swaps to the muted fill at full opacity, and its content (the value, the placeholder, a chevron, a stepper glyph) paints the muted ink at the derived step as a colour alpha (`DISABLED_FIELD`). On a dark palette the muted fill sits within a few percent of the field fill, so the dimmed content carries the signal there.
+  - A fill-less control (a ghost, outline or link Button, a toggle, a tab, a row, an item, a bare textarea) dims by the derived step and drops to the muted ink (`DISABLED_STATE`, `DISABLED_DIM`). An active tab's own ink yields to it.
+  - A form control drawn by its D159 edge (a text field, a field textarea, a number field, a select trigger, a color field's trigger, a combobox or autocomplete group) never dims its box. The box swaps to the muted fill at full opacity, and its content (the value, the placeholder, a chevron, a stepper glyph) paints the muted ink at the derived step as a colour alpha (`DISABLED_FIELD`). On a dark palette the muted fill sits within a few percent of the field fill, so the dimmed content carries the signal there.
   - A selection control (a checkbox, a radio, a switch) never dims its box. A checkbox or radio swaps to the muted pair at every state, so a checked one drops its accent or quiet fill, and its check or dot takes the muted ink (`DISABLED_SELECTION`). A disabled switch sits on the muted track whether it is on or off, so it is never louder than an enabled switch, and its knob carries the state. The knob is the muted ink at full strength at the on end and dimmed by the derived step at the off end (`DISABLED_SWITCH`). Its track stands apart from an enabled quiet switch that is on by at least 3:1. A slider's rail takes the muted fill and its range and knob the muted ink.
   - A solid fill (a solid Button, a selected chip, a pressed toggle) drops for the muted pair at full opacity (`DISABLED_SOLID`, `DISABLED_PRESSED`).
   - A part paints the state once. A group whose parts carry the state paints none of its own.
+  - A state that is not a disabled control takes its own step. A meter's series hidden from others recedes with `opacity-receded`, not the disabled step.
 
 - **The floor.** Every ink an inactive control paints clears `AA_NON_TEXT_RATIO`, 3:1, on its host, with the control's own fill dimmed with it. A pair is judged on the float colour and on the 8-bit pixel.
 
@@ -39,7 +40,7 @@ The derived step can rise far above the resting step near the black/white crosso
 
 ## Consequences
 
-Each seed's disabled controls dim less than the resting step where its own inks need it. A custom theme's disabled controls read as present on any accepted base, with no field to edit and no refusal at save or import.
+Each seed's disabled controls dim less than the resting step where its own inks need it. A meter's hidden series renders at the receded step, 60%, instead of the disabled resting step, 55%. A custom theme's disabled controls read as present on any accepted base, with no field to edit and no refusal at save or import.
 
 An accent-only scope over a seed palette is judged by no D336 floor, so its primary's disabled ink is not judged either. That gap belongs to D336.
 

@@ -56,6 +56,13 @@ const READS = {
     content: { part: '[data-slot="color-field-swatch"]', paint: "backgroundColor" },
   },
   "text field": { part: '[data-slot="input-root"]', paint: "backgroundColor", dims: false, content: { part: '[data-slot="input-root"]', paint: "color" } },
+  "field textarea": {
+    part: '[data-slot="textarea-root"]',
+    paint: "backgroundColor",
+    dims: false,
+    content: { part: '[data-slot="textarea-root"]', paint: "color" },
+  },
+  "bare textarea": { part: '[data-slot="textarea-root"]', paint: "color", dims: true },
   "empty text field": {
     part: '[data-slot="input-root"]',
     paint: "backgroundColor",
