@@ -19,7 +19,7 @@ A real user plays one character with a second person and asked for exactly this;
 
 ## Done when
 
-The host can turn the mode on in a room with one or more characters and two or more humans; each human's send posts without a reply; the reply starts when the last present human writes or when someone releases it; every waiting member sees who the room is waiting on; an integration case drives two members through the real verbs and sees exactly one reply after both write, and a component test covers the waiting line.
+The host can turn the mode on in a room with one or more characters and two or more humans; each human's send posts without a reply; the reply starts when the last present human writes or when someone releases it; every waiting member sees who the room is waiting on; an integration case drives two members through the real verbs and sees exactly one reply after both write, and a component test covers the waiting line. After it ships, the Rooms-and-Group-Chats wiki page says where the switch lives, that only the host sees it, and that it appears once a second person is seated in the room.
 
 ## Evidence
 
