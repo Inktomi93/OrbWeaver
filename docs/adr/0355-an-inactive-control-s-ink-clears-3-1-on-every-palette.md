@@ -32,7 +32,7 @@ Every palette derives the opacity a fill-less inactive control dims to, and ever
 
 - **The step.** `inactiveOpacityPercent` returns the least whole percent, at or above the resting step, at which every pair clears. The resting step is the `opacity.disabled` token. Every pair clears its active floor of at least 4.5:1 at full opacity, so a step always exists, and a miss at full opacity throws.
 
-- **One home for every palette.** The kit owns the pairs and the solve. The token build emits each seed's step into its `[data-theme]` block, and Hearth's into `:root` and the base palette block (`shippedInactiveOpacity` in `packages/ui/tokens.tones.ts`). `clampThemeTokens` emits `--opacity-disabled` for every carried scope, so a custom theme, an imported one and a bubble's box each carry their own step. An accent-only scope over a carried palette re-derives it for its own primary. A seed gets no exemption.
+- **One home for every palette.** The kit owns the pairs and the solve. The token build emits each seed's step into its `[data-theme]` block, and Hearth's into `:root` and the base palette block (`shippedInactiveOpacity` in `packages/ui/tokens.tones.ts`). `clampThemeTokens` emits `--opacity-disabled` for every carried scope, so a custom theme, an imported one and a bubble's box each carry their own step. An accent-only scope over a carried palette or a seed palette re-derives it for its own primary, judged on that palette's hosts. A seed gets no exemption.
 
 - **Owner CSS.** `--opacity-disabled` is on the owner CSS surface, and owner CSS stays the later winning plane.
 
@@ -42,9 +42,9 @@ The derived step can rise far above the resting step near the black/white crosso
 
 Each seed's disabled controls dim less than the resting step where its own inks need it. A meter's hidden series renders at the receded step, 60%, instead of the disabled resting step, 55%. A custom theme's disabled controls read as present on any accepted base, with no field to edit and no refusal at save or import.
 
-An accent-only scope over a seed palette is judged by no D336 floor, so its primary's disabled ink is not judged either. That gap belongs to D336.
+An accent-only scope over a seed palette solves its primary on the seed's own hosts, read through `seedTonePalette` in `packages/ui/src/content/theme-scope/seed-palette.ts`, so the D336 floors and this step apply to it as to a carried palette.
 
-Pins: `tests/ui/primitives/disabled-signal.ct.tsx`, `tests/tooling/eslint-ui-law.test.ts`, `tests/tooling/stylelint-rules.test.ts`, `tests/kit/theme-derivation/inactive-opacity.test.ts`, `tests/ui/content/theme-scope/inactive-opacity.test.ts`, `tests/ui/primitives/button/button-disabled-ink.ct.tsx` and `tests/ui/primitives/button/custom-theme-disabled-ink.ct.tsx`.
+Pins: `tests/ui/primitives/disabled-signal.ct.tsx`, `tests/tooling/eslint-ui-law.test.ts`, `tests/tooling/stylelint-rules.test.ts`, `tests/kit/theme-derivation/inactive-opacity.test.ts`, `tests/ui/content/theme-scope/inactive-opacity.test.ts`, `tests/ui/content/theme-scope/seed-accent.test.ts`, `tests/ui/primitives/button/button-disabled-ink.ct.tsx` and `tests/ui/primitives/button/custom-theme-disabled-ink.ct.tsx`.
 
 ## Alternatives rejected
 

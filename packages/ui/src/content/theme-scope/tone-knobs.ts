@@ -21,6 +21,7 @@ import { TOKEN_POLARITY_ARMS, TOKENS, TONE_HOST_VAR, TONE_MIX_DEFAULTS, TONE_ROL
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette } from "./derive-vars.ts";
+import { seedTonePalette } from "./seed-palette.ts";
 
 /**
  * The scope knobs a carried palette re-solves (D336), judged over every tone it paints: text and the tint pair lower
@@ -97,6 +98,12 @@ function solidSteps(scheme: CarriedToneScheme, fill: Oklch): readonly Oklch[] {
 /** The scheme a carried palette resolves its tone roles against. */
 export function carriedToneScheme({ pixel, inks }: CarriedPalette): CarriedToneScheme {
   return { recipes: TONE_ROLE_RECIPES, palette: carriedTonePalette(pixel, inks) };
+}
+
+/** The scheme a seed palette resolves its tone roles against, read from the seed's own hosts. `null` when no seed paints that base. */
+export function seedToneScheme(background: string | undefined): CarriedToneScheme | null {
+  const palette = seedTonePalette(background);
+  return palette === null ? null : { recipes: TONE_ROLE_RECIPES, palette };
 }
 
 /**
@@ -264,6 +271,16 @@ export function inactiveOpacityVars({ scheme, tones, mix, literals }: CarriedIna
 }
 
 /**
+ * The opacity an inactive control dims to under a scope that paints its own accent over a seed palette (D355). The seed
+ * keeps its default knobs and paints no literal, so every tone but the primary is judged as the seed paints it, and the
+ * primary as the scope's raised steps and literals paint it.
+ */
+export function seedInactiveOpacityVars({ scheme, tones, mix, literals }: CarriedInactiveInks): Readonly<Record<string, string>> {
+  const primary = new Map([...literals].filter(([tone]) => tone === "primary"));
+  return inactiveOpacityVars({ scheme, tones, mix: { scope: TONE_MIX_DEFAULTS, raised: mix.raised }, literals: primary });
+}
+
+/**
  * The host a scope that paints its own background resets to the page: a scope nested on a card must mix its washes over
  * its own background, not the outer palette's card. A surface inside the scope names its own host again.
  */
@@ -272,8 +289,8 @@ export function toneHostReset(): Readonly<Record<string, string>> {
 }
 
 /**
- * The primary literals a scope that paints its own accent over a seed palette resets to the mix fallback: the mix
- * follows this scope's `--color-primary` over the seed's own ramp, which the token build holds to the floors.
+ * The primary literals a scope that paints its own accent resets to the mix fallback when no palette is known to judge it
+ * on: the mix follows this scope's `--color-primary` over the ambient ramp.
  */
 export function primaryLiteralResets(): Readonly<Record<string, string>> {
   return Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), MIX_FALLBACK]));
