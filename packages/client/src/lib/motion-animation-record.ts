@@ -4,6 +4,7 @@
 // an application-authored layout animation, while a state attribute alone must not exempt every popup,
 // drawer, or toast property. Keep the raw browser facts here; tooling owns the narrow verdict policy.
 
+import { COMPOSITOR_SAFE_PROPS } from "@orb/kit/motion-allowance";
 import { surfaceLabelOf } from "./motion-stats.ts";
 
 const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
@@ -52,10 +53,6 @@ export interface AnimationRecord {
   /** What drives the animation's time: the document clock, a scroll or view progress timeline, or nothing. */
   readonly timeline: AnimationTimelineKind;
 }
-
-// translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
-// scale-*/translate-* utilities to, and composite exactly like transform.
-export const COMPOSITOR_SAFE_PROPS: ReadonlySet<string> = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
 
 // getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must
 // be dropped too or every animation reads as dirty.

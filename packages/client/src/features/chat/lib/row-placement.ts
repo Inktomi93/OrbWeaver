@@ -54,11 +54,11 @@ export function rowAlignFor(skin: RowSkin, role: MessageRole): "start" | "center
 
 /** The header bar's shape for this skin and row. A bar that names its speaker always takes a line; an
  *  actions-only bar (`RowSkin.actionsRow`, stock document) takes one where its actions show at rest, the last row and
- *  every row at a touch pointer, and otherwise overlays the row's top trailing corner, so the page runs on without a
- *  gap per message. */
-export function headerShape(skin: RowSkin, lastRow: boolean, coarse: boolean): HeaderShape {
+ *  every row where the primary input cannot hover, and otherwise overlays the row's top trailing corner, so the page runs
+ *  on without a gap per message. */
+export function headerShape(skin: RowSkin, lastRow: boolean, canHover: boolean): HeaderShape {
   const identity = skin.actionsRow.identity;
-  return { identity, ownLine: identity || lastRow || coarse };
+  return { identity, ownLine: identity || lastRow || !canHover };
 }
 
 /** The settled transcript's last row id. While a turn is live the ghost is the tail, so no row is last. */

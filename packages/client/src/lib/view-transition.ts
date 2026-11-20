@@ -11,7 +11,7 @@
 // menu, tooltip, toast) are neither snapshotted nor hidden by a swap — the shell's portal root is a SIBLING
 // of `.shell-grid`, outside the one captured region. The snapshots still paint ABOVE every live element, so
 // a float over the content sits under them for the fade unless it carries a capture name of its own, as the
-// shell's sheets and scrim do (ui-surface-and-interaction-rules §5.7). Whether a given float
+// shell's sheets and scrim, the portal root and the toast viewport do (ui-surface-and-interaction-rules §5.7). Whether a given float
 // MAY do that is a product rule with a declared answer, and it is NOT decided here: this module is `#lib`,
 // below `#state`, so reading the open modal slot from it would be an upward import. The rule lives one
 // tier up — `MODAL_CONTENT_LIFETIME` (state/modal-slot-ids.ts) declares it per slot, `withContentSwap`
@@ -261,4 +261,18 @@ export function withViewTransition(update: () => void): void {
     Promise.allSettled([current.finished]).then(clear).catch(surfaceDeferredFailure);
   }
   observeViewTransition(transition);
+}
+
+/**
+ * Run `update` inside the transition this task already raised, or at once when there is none. A float that its own
+ * door closes as it starts a swap (the palette's Go to, the You sheet's section rows) closes inside the swap this way, so
+ * the old frame still holds it and it leaves with the outgoing content (ui-surface-and-interaction-rules §5.7), instead of
+ * vanishing before the snapshot. It never starts a transition of its own.
+ */
+export function joinViewTransition(update: () => void): void {
+  if (taskTransition?.acceptingUpdates === true) {
+    taskTransition.updates.push(update);
+    return;
+  }
+  update();
 }

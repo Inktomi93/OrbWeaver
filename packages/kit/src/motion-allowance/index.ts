@@ -19,7 +19,9 @@
 // animation on a scroll or view timeline advances only while the reader scrolls its scroller, so a time window
 // measures nothing it does, and its scroll cost reads in the frame metrics of a window that scrolls. Chromium's
 // `getKeyframes()` drops the registered custom properties the fades animate, so the record carries no property
-// set and the timeline is the only fact that tells it apart; an empty property set is never clean on its own.
+// set and the timeline is the only fact that tells it apart; an empty property set is never clean on its own. The ruling
+// covers fades, so the allowance admits that empty set, or a set of compositor-safe and mask properties, and nothing else:
+// a scroll-timeline `width` is a layout animation the timeline does not excuse.
 
 // The property set a library-owned lifecycle animation may carry — Base UI's measured panel height.
 const SANCTIONED_LIBRARY_PROPERTIES = ["height"] as const;
@@ -30,6 +32,22 @@ const SANCTIONED_ANIMATION_MECHANISM = "css-transition";
 // The mechanism and the timelines a scroll-driven allowance covers: a CSS animation on `scroll()` or `view()`.
 const SCROLL_DRIVEN_MECHANISM = "css-animation";
 const SCROLL_DRIVEN_TIMELINES: ReadonlySet<string> = new Set(["scroll", "view"]);
+
+/** The properties the compositor animates without a layout or paint per frame, as `getKeyframes()` keys them.
+ *  `translate`, `scale` and `rotate` are the CSS Transforms L2 individual properties Tailwind compiles its utilities to. */
+export const COMPOSITOR_SAFE_PROPS: ReadonlySet<string> = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
+// The mask longhands a scroll fade draws its edge with, as `getKeyframes()` keys them.
+const MASK_PROPERTIES: ReadonlySet<string> = new Set([
+  "mask",
+  "maskImage",
+  "maskPosition",
+  "maskSize",
+  "maskRepeat",
+  "maskOrigin",
+  "maskClip",
+  "maskComposite",
+  "maskMode",
+]);
 
 /** The allowances a dirty animation can leave the budget under, each named in the row that records it. */
 const MOTION_ALLOWANCES = ["library-lifecycle", "scroll-driven"] as const;
@@ -104,13 +122,14 @@ function isSanctionedLibraryAnimation(animation: SanctionableAnimation): boolean
   );
 }
 
-// true ⇒ this dirty animation is a CSS animation on a scroll or view timeline and leaves the time budget.
+// true ⇒ this dirty animation is a CSS fade on a scroll or view timeline and leaves the time budget.
 function isScrollDrivenAnimation(animation: SanctionableAnimation): boolean {
   return (
     !animation.compositorClean &&
     animation.attribution?.mechanism === SCROLL_DRIVEN_MECHANISM &&
     animation.timeline !== undefined &&
-    SCROLL_DRIVEN_TIMELINES.has(animation.timeline)
+    SCROLL_DRIVEN_TIMELINES.has(animation.timeline) &&
+    animation.properties.every((property) => COMPOSITOR_SAFE_PROPS.has(property) || MASK_PROPERTIES.has(property))
   );
 }
 

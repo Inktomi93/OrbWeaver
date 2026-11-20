@@ -30,10 +30,10 @@
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
 import type { MotionAllowance } from "@orb/kit/motion-allowance";
-import { motionAllowanceOf } from "@orb/kit/motion-allowance";
+import { COMPOSITOR_SAFE_PROPS, motionAllowanceOf } from "@orb/kit/motion-allowance";
 import { logClock } from "./log-clock.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
-import { animatedProperties, animationRecordOf, COMPOSITOR_SAFE_PROPS, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
+import { animatedProperties, animationRecordOf, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";

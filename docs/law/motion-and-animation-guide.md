@@ -342,6 +342,8 @@ in order.
    never the word "height": an application-authored height animation is still a §3.7 violation.
    The same home holds the scroll-driven allowance: a CSS animation on a scroll or view timeline
    moves only while its scroller scrolls, and ui-platform-rulings §8.4 adopts scroll-driven fades.
+   It admits only a fade: an empty property set, or compositor-safe and mask properties. A layout
+   property such as `width` on a scroll timeline is still a §3.7 violation.
    Both instruments print an admitted animation with its allowance's name, never as clean.
 
    **Bake glow and blur. Never compute them on an animating element.** A live blur on an element
