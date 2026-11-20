@@ -514,6 +514,7 @@
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
+    --opacity-disabled: 67%;
   }
 
   @media (pointer: fine) {
@@ -626,6 +627,7 @@
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
     --tone-host: initial;
+    --opacity-disabled: 78%;
   }
 
   [data-theme="mocha"] {
@@ -719,6 +721,7 @@
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
     --tone-host: initial;
+    --opacity-disabled: 68%;
   }
 
   [data-palette="base"] {
@@ -812,6 +815,7 @@
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
     --tone-host: initial;
+    --opacity-disabled: 67%;
   }
 
   [data-tone="primary"] {

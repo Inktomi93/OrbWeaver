@@ -3,6 +3,8 @@ import type { SeedScopeProps } from "@orb/testkit/browser";
 import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import type { ThemeScopeProps } from "@orb/ui/theme-scope";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { TOKENS, TONES } from "@orb/ui/tokens";
 import type { ComponentProps, ReactElement } from "react";
 
@@ -44,21 +46,46 @@ export function HostInkStory(): ReactElement {
 /** The fill styles a Button draws; a style the primitive gains and this list lacks fails to compile. */
 const DISABLED_INK_VARIANTS = everyMember<NonNullable<ComponentProps<typeof Button>["variant"]>>()(["solid", "outline", "ghost", "link"]);
 
+/** Every fill style in every tone, disabled. */
+function DisabledInkGrid(): ReactElement {
+  return (
+    <>
+      {TONES.map((tone) => (
+        <div key={tone} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+          {DISABLED_INK_VARIANTS.map((variant) => (
+            <Button key={variant} data-case={variant} disabled={true} tone={tone} variant={variant}>
+              {`${tone} ${variant}`}
+            </Button>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** Every fill style in every tone, disabled, on the page ground of the seed palette (Hearth when absent). */
 export function DisabledInkStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="Button disabled ink" isolates="Each fill style's disabled text against the page ground, in every tone and seed">
       <SeedScope {...props}>
-        {TONES.map((tone) => (
-          <div key={tone} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-            {DISABLED_INK_VARIANTS.map((variant) => (
-              <Button key={variant} data-case={variant} disabled={true} tone={tone} variant={variant}>
-                {`${tone} ${variant}`}
-              </Button>
-            ))}
-          </div>
-        ))}
+        <DisabledInkGrid />
       </SeedScope>
+    </CtIsolation>
+  );
+}
+
+/** The same disabled grid under a user's theme, on the page ground that theme carries. */
+export function CustomThemeDisabledInkStory({ tokens }: { readonly tokens: ThemeScopeProps["tokens"] }): ReactElement {
+  return (
+    <CtIsolation
+      subject="Button disabled ink under a custom theme"
+      isolates="Each fill style's disabled text on a theme's own page, through the ThemeScope a theme renders in"
+    >
+      <ThemeScope tokens={tokens}>
+        <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}>
+          <DisabledInkGrid />
+        </div>
+      </ThemeScope>
     </CtIsolation>
   );
 }

@@ -40,13 +40,15 @@ import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette, InputBorderFallback } from "./derive-vars.ts";
-import { carriedPaletteOf, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
+import { carriedFieldFill, carriedPaletteOf, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import {
   accentInk,
+  carriedToneLiterals,
   carriedToneScheme,
   carriedToneSources,
+  inactiveOpacityVars,
   paintedAccentFill,
   primaryLiteralResets,
   primaryToneMix,
@@ -488,21 +490,33 @@ function accentAndTonesOn(
   if (carried === null && picked !== undefined && carriedAmbient !== null) {
     return nestedAccentOn(picked, carriedAmbient);
   }
-  const scheme = carried === null ? null : carriedToneScheme(carried);
-  const accent = accentEmissionOn(picked, ambientAccent, scheme);
-  if (scheme === null) {
+  if (carried === null) {
+    const accent = accentEmissionOn(picked, ambientAccent, null);
     return { accent, toneVars: accent === undefined ? {} : primaryLiteralResets(), fallback: undefined };
   }
+  const scheme = carriedToneScheme(carried);
+  const accent = accentEmissionOn(picked, ambientAccent, scheme);
   const sources = carriedToneSources(scheme, accent?.painted ?? null);
   const mix = solveCarriedToneMix(scheme, sources);
+  const literals = carriedToneLiterals(scheme, sources);
   const primary = primaryToneMix(mix);
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
-  return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources), ...toneHostReset() }, fallback };
+  return {
+    accent,
+    toneVars: {
+      ...toneMixVars(mix),
+      ...toneLiteralVars(literals),
+      ...toneHostReset(),
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals, fieldFill: carriedFieldFill(carried) }),
+    },
+    fallback,
+  };
 }
 
 /**
  * An accent-only scope over a carried palette (D336): its primary lands on that palette's ramp, which the outer scope
- * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there.
+ * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there. Its own
+ * primary can need a different inactive-control opacity (D355), so it re-derives that over every tone the palette paints.
  */
 function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones {
   const scheme = carriedToneScheme(ambient);
@@ -510,15 +524,21 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
   if (accent === undefined) {
     return { accent, toneVars: primaryLiteralResets(), fallback: undefined };
   }
-  const primary = carriedToneSources(scheme, accent.painted).filter(({ tone }) => tone === "primary");
+  const sources = carriedToneSources(scheme, accent.painted);
+  const primary = sources.filter(({ tone }) => tone === "primary");
   const mix = solveCarriedToneMix(scheme, primary);
+  const literals = carriedToneLiterals(scheme, sources);
   const steps = primaryToneMix(mix);
   const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
   // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
   const ring = nestedRingOn(ambient, accent.painted);
   return {
     accent,
-    toneVars: { ...primaryToneVars(scheme, mix, primary), ...ring.vars },
+    toneVars: {
+      ...primaryToneVars(mix, literals),
+      ...ring.vars,
+      ...inactiveOpacityVars({ scheme, tones: sources, mix, literals, fieldFill: carriedFieldFill(ambient) }),
+    },
     fallback,
     ...(ring.fallback === undefined ? {} : { inputBorderFallback: ring.fallback }),
   };

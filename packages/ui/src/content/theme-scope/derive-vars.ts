@@ -5,7 +5,7 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { CarriedInks, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import type { CarriedInks, InactiveFill, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
   bubbleFills,
   carriedInks,
@@ -85,6 +85,14 @@ function lightFieldFill(): { readonly ink: Oklch; readonly alpha: number } {
     throw new Error("the generated field-fill light arm is not a parseable color");
   }
   return { ink: fill, alpha: fill.alpha };
+}
+/** The fill a carried palette's text field paints, as {@link fieldFillOn} spells it: the dark case's solved wash, the light case's opaque arm. */
+export function carriedFieldFill({ pixel, inks }: CarriedPalette): InactiveFill {
+  if (surfacePolarity(pixel) === "dark") {
+    return { color: { l: inks.muted.inputWash, c: 0, h: pixel.h }, alpha: INPUT_ALPHA };
+  }
+  const { ink, alpha } = lightFieldFill();
+  return { color: ink, alpha };
 }
 /** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;

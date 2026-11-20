@@ -70,7 +70,7 @@ test("a scope that paints its own accent over a seed palette resets the primary 
   expect(literalVars(clampThemeTokens({ dialogueColor: "oklch(0.8 0.1 90)" }, MID_BASE, HEARTH_ACCENT).vars)).toEqual({});
 });
 
-test("an accent-only scope over a carried palette emits its primary alone, so every other tone keeps the outer solve", () => {
+test("an accent-only scope over a carried palette emits its primary and the inactive opacity it needs, so every other tone keeps the outer solve", () => {
   const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, { palette: "carried" });
   const primaryLiterals = LITERAL_ROLES.map((role) => toneLiteralVar("primary", role));
   const primarySteps = ["hover", "active"] as const satisfies readonly ToneMixKnob[];
@@ -81,6 +81,7 @@ test("an accent-only scope over a carried palette emits its primary alone, so ev
       TOKENS["color.primary-foreground"].cssVar,
       ...primaryLiterals,
       ...primarySteps.map((knob) => toneKnobVar("primary", knob)),
+      TOKENS["opacity.disabled"].cssVar,
     ].toSorted(),
   );
   expect(primaryLiterals.filter((name) => toOklch(vars[name] ?? "") === null)).toEqual([]);

@@ -1,7 +1,8 @@
 // D336 tone roles in the token build: the scoped `[data-tone]` blocks, their Tailwind registration, the recipe map
-// the clamp and tests read, and the floor check that fails a shipped palette under a role floor.
+// the clamp and tests read, the floor check that fails a shipped palette under a role floor, and the inactive-control
+// opacity each shipped palette derives from the same recipes (D355).
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
-import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, InactiveFill, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   AA_NON_TEXT_RATIO,
   BUBBLE_HOSTS,
@@ -9,6 +10,8 @@ import {
   CARRIED_TONE_HOSTS,
   carriedLiteralRoles,
   compositeSrgb,
+  inactiveInkPairs,
+  inactiveOpacityPercent,
   oklchToSrgb,
   paintedDistance,
   srgbToOklch,
@@ -324,6 +327,69 @@ function toneFindings(scheme: ToneScheme<string, string, CarriedToneHost>, sourc
   return [...floors, ...separations, ...marks];
 }
 
+/** A shipped palette as the tone checks read it: its page palette, each tone's colours, and its text-field fill. */
+interface ShippedPalette {
+  readonly page: TonePalette<CarriedToneHost>;
+  readonly sources: ReadonlyMap<string, ToneSource>;
+  readonly fieldFill: InactiveFill;
+}
+
+function shippedPalette(contract: TokenContractResult, theme: TokenContractResult["themes"][number], model: ToneModel): ShippedPalette {
+  const color = seedPalette(contract, theme);
+  const background = color("color.background");
+  const sources = new Map(
+    model.tones.map((tone): [string, ToneSource] => [
+      tone,
+      tone === NEUTRAL_TONE ? "neutral" : { base: color(`color.${tone}`), foreground: color(`color.${tone}-foreground`) },
+    ]),
+  );
+  return {
+    page: {
+      polarity: theme.colorScheme,
+      foreground: color("color.foreground"),
+      background,
+      host: background,
+      hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
+    },
+    sources,
+    fieldFill: rawColor(seedValue(contract, theme, FIELD_FILL_PATH), FIELD_FILL_PATH),
+  };
+}
+
+const FIELD_FILL_PATH = "color.field-fill";
+
+/** The element-opacity token an inactive control dims by: its value is the resting step a palette raises (D355). */
+export const INACTIVE_OPACITY_PATH = "opacity.disabled";
+
+function restingInactivePercent(contract: TokenContractResult): number {
+  const value = contract.baseTokens.find((token) => token.pathString === INACTIVE_OPACITY_PATH)?.value;
+  if (typeof value !== "number") {
+    throw new Error(`${INACTIVE_OPACITY_PATH} must be a number token`);
+  }
+  return value;
+}
+
+/**
+ * The opacity each shipped palette dims an inactive control to (D355), keyed by seed id: the resting step, raised until
+ * every ink the palette paints on an inactive control clears 3:1 at the default mix amounts. The palette moves; the floor does not.
+ */
+export function shippedInactiveOpacity(contract: TokenContractResult, model: ToneModel): ReadonlyMap<string, number> {
+  const recipes = Object.fromEntries(model.roles.map((role) => [role.name, role.recipe]));
+  const resting = restingInactivePercent(contract);
+  return new Map(
+    contract.themes.map((theme) => {
+      const { page, sources, fieldFill } = shippedPalette(contract, theme, model);
+      const pairs = inactiveInkPairs({
+        scheme: { recipes, palette: page },
+        tones: [...sources.values()],
+        rolesOn: (scheme, tone) => toneRoleColors(scheme, tone, model.defaults),
+        fieldFill,
+      });
+      return [theme.id, inactiveOpacityPercent(pairs, resting)] as const;
+    }),
+  );
+}
+
 /**
  * Fails the build when a shipped palette misses a D336 floor at the default mix amounts, or a colored tone's tint
  * merges with its host, over each surface a wash sits on.
@@ -332,24 +398,15 @@ export function assertShippedToneFloors(contract: TokenContractResult, model: To
   const recipes = Object.fromEntries(model.roles.map((role) => [role.name, role.recipe]));
   const findings: string[] = [];
   for (const theme of contract.themes) {
-    const color = seedPalette(contract, theme);
-    const background = color("color.background");
-    const page: TonePalette<CarriedToneHost> = {
-      polarity: theme.colorScheme,
-      foreground: color("color.foreground"),
-      background,
-      host: background,
-      hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
-    };
+    const { page, sources } = shippedPalette(contract, theme, model);
     findings.push(
-      ...bubblePageMisses(background, Object.fromEntries(BUBBLE_HOSTS.map((host) => [host, page.hosts[host]]))).map(
+      ...bubblePageMisses(page.background, Object.fromEntries(BUBBLE_HOSTS.map((host) => [host, page.hosts[host]]))).map(
         ({ host, distance }) => `${theme.id}: ${host} paints ${distance.toFixed(SEPARATION_DIGITS)} off the page`,
       ),
     );
     for (const host of TONE_HOSTS) {
       const scheme = { recipes, palette: tonePaletteOn(page, host) };
-      for (const tone of model.tones) {
-        const source: ToneSource = tone === NEUTRAL_TONE ? "neutral" : { base: color(`color.${tone}`), foreground: color(`color.${tone}-foreground`) };
+      for (const [tone, source] of sources) {
         findings.push(...toneFindings(scheme, source, model).map((finding) => `${theme.id} ${tone} over ${host}: ${finding}`));
       }
     }

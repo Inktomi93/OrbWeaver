@@ -1,12 +1,14 @@
 // D336 tone knobs and literal roles for a carried background. The `[data-tone]` blocks read `--tone-mix-*` and each
 // colored tone's `--tone-<tone>-<role>` literal from the cascade, so a scope that paints its own palette emits both
 // beside its colours; the root leaves every literal invalid, and the knob defaults clear every seed floor, which the token build proves.
-import type { CarriedToneHost, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, InactiveFill, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   accentFillLightness,
   carriedLiteralRoles,
   carriedTonePalette,
   compositeSrgb,
+  inactiveInkPairs,
+  inactiveOpacityPercent,
   oklchToSrgb,
   solidInkLightness,
   solveCarriedToneRoles,
@@ -189,18 +191,27 @@ export function toneMixVars(mix: CarriedToneMix): Readonly<Record<string, string
   return Object.fromEntries([...scope, ...perTone]);
 }
 
+/** The literal role colours a carried scope solved for each colored tone it judges (D336); a tone it cannot judge has none. */
+type CarriedToneLiterals = ReadonlyMap<Tone, Readonly<Partial<Record<ToneRole, Oklch>>>>;
+
+/** Each judged colored tone's literal roles, solved once: the literal vars and the inactive-control opacity both read them. */
+export function carriedToneLiterals(scheme: CarriedToneScheme, tones: readonly CarriedTone[]): CarriedToneLiterals {
+  return new Map(
+    tones.flatMap(({ tone, source }) => (source === "neutral" ? [] : [[tone, solveCarriedToneRoles(scheme, source, TONE_MIX_DEFAULTS)] as const])),
+  );
+}
+
 /**
  * The literal role colours a carried scope emits (D336), one per colored tone and literal role: each keeps its tone's
  * hue where a mix toward this palette's page would grey it out. A tone the scope cannot judge, a primary with no known
  * accent, declares the mix fallback, so a nested scope never paints an outer palette's literal.
  */
-export function toneLiteralVars(scheme: CarriedToneScheme, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
-  return Object.fromEntries(COLORED_TONES.flatMap((tone) => toneLiteralEntries(scheme, tone, tones)));
+export function toneLiteralVars(literals: CarriedToneLiterals): Readonly<Record<string, string>> {
+  return Object.fromEntries(COLORED_TONES.flatMap((tone) => toneLiteralEntries(tone, literals)));
 }
 
-function toneLiteralEntries(scheme: CarriedToneScheme, tone: ColoredTone, tones: readonly CarriedTone[]): readonly (readonly [string, string])[] {
-  const source = tones.find((carried) => carried.tone === tone)?.source;
-  const literals = source === undefined || source === "neutral" ? undefined : solveCarriedToneRoles(scheme, source, TONE_MIX_DEFAULTS);
+function toneLiteralEntries(tone: ColoredTone, solved: CarriedToneLiterals): readonly (readonly [string, string])[] {
+  const literals = solved.get(tone);
   return LITERAL_ROLES.map((role) => {
     if (literals === undefined) {
       return [toneLiteralVar(tone, role), MIX_FALLBACK] as const;
@@ -217,12 +228,41 @@ function toneLiteralEntries(scheme: CarriedToneScheme, tone: ColoredTone, tones:
  * The primary roles a scope emits when it paints its own accent over a carried palette (D336): the primary's literals
  * and solid steps solved on that palette. Every other knob and literal stays the outer scope's solve through the cascade.
  */
-export function primaryToneVars(scheme: CarriedToneScheme, mix: CarriedToneMix, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
+export function primaryToneVars(mix: CarriedToneMix, literals: CarriedToneLiterals): Readonly<Record<string, string>> {
   const steps = primaryToneMix(mix);
   return Object.fromEntries([
     ...STEP_KNOBS.map((knob) => [toneKnobVar("primary", knob), `${steps[knob]}%`] as const),
-    ...toneLiteralEntries(scheme, "primary", tones),
+    ...toneLiteralEntries("primary", literals),
   ]);
+}
+
+const INACTIVE_OPACITY = TOKENS["opacity.disabled"];
+// The token's value is the resting step every palette starts from, spelled as the generated percentage.
+const RESTING_INACTIVE_PERCENT = Number.parseFloat(INACTIVE_OPACITY.value);
+
+/** What a carried scope's inactive-control opacity is judged over: its scheme, its tones, the knobs and literals they paint with, and its text-field fill. */
+interface CarriedInactiveInks {
+  readonly scheme: CarriedToneScheme;
+  readonly tones: readonly CarriedTone[];
+  readonly mix: CarriedToneMix;
+  readonly literals: CarriedToneLiterals;
+  readonly fieldFill: InactiveFill;
+}
+
+/**
+ * The opacity an inactive control dims to under a carried scope (D355): the resting step, raised until every ink the
+ * scope paints on an inactive control clears 3:1 over its own ramp. Each tone paints its literals over the mix, and a
+ * tone the scope cannot judge is left out, as the knob solve leaves it out.
+ */
+export function inactiveOpacityVars({ scheme, tones, mix, literals, fieldFill }: CarriedInactiveInks): Readonly<Record<string, string>> {
+  const literalsOf = new Map(tones.map(({ tone, source }) => [source, literals.get(tone)] as const));
+  const pairs = inactiveInkPairs({
+    scheme,
+    tones: tones.map(({ source }) => source),
+    rolesOn: (onHost, source) => ({ ...toneRoleColors(onHost, source, mix.scope), ...literalsOf.get(source) }),
+    fieldFill,
+  });
+  return { [INACTIVE_OPACITY.cssVar]: `${inactiveOpacityPercent(pairs, RESTING_INACTIVE_PERCENT)}%` };
 }
 
 /**
