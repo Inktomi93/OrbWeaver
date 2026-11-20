@@ -29,7 +29,6 @@ export const THEME_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper
 export type ThemeChatStyle = (typeof THEME_CHAT_STYLES)[number];
 
 export const THEME_DENSITIES = ["comfortable", "compact"] as const;
-export type ThemeDensity = (typeof THEME_DENSITIES)[number];
 
 export const THEME_RADII = ["base", "control", "card", "full"] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
@@ -77,7 +76,6 @@ export const themeOverrideSchema = z
     /** An explicit UI border color (ST parity). When set it WINS; when unset, `--color-border` derives
      *  from the base `background` surface (the ThemeScope clamp does the derivation). */
     borderColor: colorToken,
-    density: z.enum(THEME_DENSITIES).optional().catch(undefined),
   })
   .strip();
 export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
@@ -88,9 +86,9 @@ export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 // how expensive. Tie-break for any future key: would card-forcing it change how comfortably or expensively
 // the VIEWER reads, or only what the room looks like? Comfort/cost ⇒ viewer-sacred.
 //
-// `density` is the one axis that is live on a TIER-A THEME and sacred from a CARD: selecting a theme is
-// the viewer's OWN consented act, while a card arrives with the room. The CONSENT CHAIN differs, not the
-// key — so the field stays on the schema and the projection is what a card-sourced read runs through.
+// Density is viewer ergonomics, so it is not a theme key at all: `appearance.density` is its one home, and a
+// stored or imported theme that still carries `density` has it stripped at the parse. A theme that pinned it
+// silently overrode the viewer's own Density control.
 //
 // Enforcement is a classification RECORD, not a second key list: every `ThemeOverride` key is classified
 // here or tsc fails (`pnpm typecheck`), and the card projection derives from it (one home, no drift).
@@ -112,7 +110,6 @@ const THEME_KEY_REACH = {
   radius: "card-embeddable",
   background: "card-embeddable",
   borderColor: "card-embeddable",
-  density: "viewer-sacred",
 } as const satisfies Record<keyof ThemeOverride, ThemeKeyReach>;
 
 type KeysWithReach<R extends ThemeKeyReach> = {
@@ -125,9 +122,7 @@ type CardEmbeddableThemeKey = KeysWithReach<"card-embeddable">;
 const REACH_ENTRIES = Object.entries(THEME_KEY_REACH) as ReadonlyArray<readonly [keyof ThemeOverride, ThemeKeyReach]>;
 
 // The keys a card carries — the projection surface of {@link cardEmbeddableSubset}.
-const CARD_EMBEDDABLE_THEME_KEYS: readonly CardEmbeddableThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "card-embeddable").map(
-  ([key]) => key as CardEmbeddableThemeKey,
-);
+const CARD_EMBEDDABLE_THEME_KEYS: readonly CardEmbeddableThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "card-embeddable").map(([key]) => key);
 
 /** The card-carriable half of a `ThemeOverride`. */
 export type CardEmbeddableTheme = Pick<ThemeOverride, CardEmbeddableThemeKey>;

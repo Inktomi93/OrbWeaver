@@ -85,14 +85,13 @@ export const cardVariants = tv({
       tier: "",
       none: "p-0",
     },
-    // An operable card follows the user's elevation and takes the tone's pressed tint on hover and press.
+    // An operable card takes the tone's pressed tint on hover and press; it never casts (ui-surface-and-interaction-rules §2).
     interactive: {
       true: `
         cursor-pointer ${COLOR_MOTION}
         ${TONE_TINT_HOVER}
         focus-visible:outline-none
         active:bg-tone-tint-active active:text-tone-text-on-tint
-        in-data-[elevation=glow]:shadow-overlay
         ${FOCUS_RING}
       `,
       false: "",

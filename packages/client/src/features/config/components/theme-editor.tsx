@@ -1,4 +1,4 @@
-// The theme editor — edits one owned themes row. Token-override pickers, font/radius/density selects, a
+// The theme editor — edits one owned themes row. Token-override pickers, font/radius selects, a
 // custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a scoped live
 // <ThemeScope> preview (authoring never restyles the real app), non-blocking WCAG AA badges on the
 // picked text colors, and a notice naming any contrast bound the theme's colours made the app relax. AUTOSAVE through `updateTheme` (the house pattern — north-star §7 / D66 A4, the
@@ -37,7 +37,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
-import { DENSITY_ITEMS, THEME_RADIUS_LABELS } from "#lib";
+import { THEME_RADIUS_LABELS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import {
@@ -161,7 +161,6 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <boundForm.AppField name="radius">
             {(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}
           </boundForm.AppField>
-          <boundForm.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</boundForm.AppField>
         </Section>
       </Grid>
 

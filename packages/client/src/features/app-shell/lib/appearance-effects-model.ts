@@ -11,7 +11,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   id: "effects",
   label: "Effects",
   teach: {
-    summary: "Surface treatments layered over the app: frosted-glass blur, prose readability shadows, film-grain texture and accent tinting.",
+    summary: "Surface treatments layered over the app: frosted-glass blur, a texture overlay and accent tinting.",
     affects: ["panels, dialogs, composer and message text across the app, on this account"],
   },
   settings: [
@@ -23,30 +23,17 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["blur", "glass", "backdrop"],
       teach: {
         summary:
-          "Backdrop blur plus a translucent fill on the surfaces you pick. Light themes keep dialogs solid so their text stays readable. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.",
+          "Backdrop blur plus a translucent fill on the surfaces you pick. Light themes keep dialogs solid so their text stays readable. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in. When your device asks for reduced transparency, every surface stays solid.",
         affects: ["the panels, topbar, dialogs and composer you switch on", "readability over a background image"],
         related: [{ group: "appearance", sub: "background", setting: "background-image" }],
       },
     },
     {
-      id: "glass-blur",
-      key: "blurStrength",
-      label: "Glass blur radius",
-      teach: { summary: "How strong the frosted-glass blur is, for any surface enabled above.", affects: ["every surface with Frosted glass on"] },
-    },
-    {
-      id: "prose-shadow",
-      key: "shadowEffects",
-      label: "Prose shadow",
-      keywords: ["halo", "readability"],
-      teach: { summary: "A subtle readability halo on message text.", affects: ["message text over busy or translucent backdrops"] },
-    },
-    {
       id: "surface-texture",
       key: "surfaceTexture",
       options: SURFACE_TEXTURE_ITEMS,
-      label: "Surface texture",
-      keywords: ["grain", "film", "noise"],
+      label: "Texture",
+      keywords: ["grain", "film", "noise", "surface"],
       teach: {
         summary:
           "A subtle film-grain overlay across the whole app that breaks up flat-color banding. Off by default; dropped automatically if your system asks for higher contrast.",

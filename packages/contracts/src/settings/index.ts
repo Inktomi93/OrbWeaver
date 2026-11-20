@@ -15,17 +15,18 @@ import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import type { HtmlTrustStep } from "#chat";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema, HTML_TRUST_STEPS, storedGroupConfigSchema } from "#chat";
+import { HTML_TRUST_STEPS } from "#chat";
 import type { DatabankSettings } from "#databank";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { IpCertificateSetting, Principal } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
-import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { EXTRACTION_MODES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS, MULTIMODAL_MODES } from "#imagery";
 import type { ImportAnswer } from "#import";
 import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { pluginSurfaceIdSchema } from "#plugin";
-import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
+import type { ProseOverrides } from "#prose";
+import { proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
 import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
@@ -48,6 +49,7 @@ export type {
 } from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
+  BACKGROUND_SCRIM_DIM,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
   mintBackgroundEntryId,
@@ -201,8 +203,8 @@ const durationMs = (): z.ZodOptional<z.ZodNumber> => z.int().positive().optional
 export const DEFAULT_LOCAL_MULTI_USER = false;
 export const DEFAULT_DISCREET_LOGIN = false;
 
-const MAX_IMAGE_BYTES_FLOOR = 100_000;
-const MAX_IMAGE_BYTES_CEIL = 100_000_000;
+export const MAX_IMAGE_BYTES_FLOOR = 100_000;
+export const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
 // The databank-upload override CEILING = the route belt (@orb/contracts/uploads DATABANK_UPLOAD_MAX_BYTES,
@@ -387,7 +389,7 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // `connection_bindings` rows (`actorKind: "user"`), never `roleDefaults.<task>` leaves here, and there are no
 // source lists mirroring the firewall. v8 → v9 DROPS the `routing`
 // section outright (no lift, pre-launch posture).
-export const USER_SETTINGS_SCHEMA_VERSION = 10;
+export const USER_SETTINGS_SCHEMA_VERSION = 11;
 
 /** How the Utility role picks its preset. Absent (`null`) is task defaults: each background task runs at its
  *  own posture with no preset params. `same-as-chat` follows the active preset; `preset` names one. */
@@ -405,23 +407,21 @@ const WI_TOKEN_BUDGET_MIN = 0;
 const WI_TOKEN_BUDGET_MAX = 65_536;
 const WI_TOKEN_BUDGET_DEFAULT = 1024;
 const AUTO_SWIPE_MIN_LENGTH_DEFAULT = 0;
-// Post-round auto-behavior bounds — the max follow-ups a send auto-issues. Default 1 (one follow-up); the
-// ceiling caps a pathological spend (each retry is a full generation). A value outside these self-heals to the default.
-const AUTO_SWIPE_MAX_RETRIES_MIN = 1;
-const AUTO_SWIPE_MAX_RETRIES_MAX = 5;
-const AUTO_SWIPE_MAX_RETRIES_DEFAULT = 1;
-const AUTO_CONTINUE_ROUNDS_MIN = 1;
-const AUTO_CONTINUE_ROUNDS_MAX = 5;
-const AUTO_CONTINUE_ROUNDS_DEFAULT = 1;
+// The max auto-continue follow-ups one send issues. 0 is off; the ceiling caps a pathological spend (each round is
+// a full generation). A value outside these self-heals to off. Exported because the editor's control reads them.
+export const AUTO_CONTINUE_ROUNDS_OFF = 0;
+export const AUTO_CONTINUE_ROUNDS_MAX = 5;
 // Temporary-chat reap TTL in HOURS (the per-user reaper's cutoff). Default 24h; 1h..1yr bounds keep a
 // fat-fingered value from wiping fresh temp chats or never reaping.
-const TEMP_CHAT_TTL_HOURS_MIN = 1;
-const TEMP_CHAT_TTL_HOURS_MAX = 8760;
+export const TEMP_CHAT_TTL_HOURS_MIN = 1;
+export const TEMP_CHAT_TTL_HOURS_MAX = 8760;
 const TEMP_CHAT_TTL_HOURS_DEFAULT = 24;
-// Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the trickle floor in chars/sec.
-// Default OFF so the reveal tracks raw chunk cadence unless opted in.
-const SMOOTH_STREAM_CPS_MIN = 15;
-const SMOOTH_STREAM_CPS_MAX = 300;
+// Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the reveal rate in chars/sec, where
+// 0 is off and the reveal tracks raw chunk cadence; the editor's one slider steps from Off through the rates.
+// Exported because that control reads them.
+export const SMOOTH_STREAM_OFF = 0;
+export const SMOOTH_STREAM_CPS_MAX = 300;
+export const SMOOTH_STREAM_CPS_STEP = 10;
 const SMOOTH_STREAM_CPS_DEFAULT = 80;
 const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
@@ -504,21 +504,13 @@ const chatSchema = z
     attachmentQuality: attachmentQualitySchema,
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
     enterSends: z.boolean().catch(true).default(true),
-    autoContinue: z.boolean().catch(false).default(false),
-    // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
-    // engine's AUTO_CONTINUE loop reads). Default 1 — one follow-up.
-    autoContinueRounds: z
-      .int()
-      .min(AUTO_CONTINUE_ROUNDS_MIN)
-      .max(AUTO_CONTINUE_ROUNDS_MAX)
-      .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
-      .default(AUTO_CONTINUE_ROUNDS_DEFAULT),
-    continueOnSend: z.boolean().catch(true).default(true),
-    // W-E: bare Enter on an EMPTY composer with a NON-assistant tail (a draft-forked user tail, an empty
-    // committed chat) triggers a generate — the "simple send" keyboard convenience so a reply can be prompted
-    // without typing one. The ▷ Response icon is the always-discoverable equivalent; this pref only governs the
-    // keyboard shortcut. Default ON (owner-ratified). Off ⇒ empty Enter is a no-op on a non-assistant tail.
-    generateOnEmptySend: z.boolean().catch(true).default(true),
+    // The max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn engine's
+    // AUTO_CONTINUE loop reads). 0 is off, the default.
+    autoContinueRounds: z.int().min(AUTO_CONTINUE_ROUNDS_OFF).max(AUTO_CONTINUE_ROUNDS_MAX).catch(AUTO_CONTINUE_ROUNDS_OFF).default(AUTO_CONTINUE_ROUNDS_OFF),
+    // Bare Enter on an EMPTY composer asks for a reply: it continues an assistant tail, and on any other committed
+    // tail (a fresh chat, your own message last) it generates one. The ▷ Response icon is the always-discoverable
+    // equivalent; this pref only governs the keyboard shortcut. Default ON. Off ⇒ an empty Enter does nothing.
+    emptyEnterReplies: z.boolean().catch(true).default(true),
     autoSwipe: z
       .object({
         enabled: z.boolean().default(false),
@@ -527,24 +519,21 @@ const chatSchema = z
         // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
         // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
-        // The max auto-swipe regenerations for a rejected reply (the bound the turn engine's
-        // AUTO_SWIPE loop reads). Default 1 — one follow-up.
-        maxRetries: z.int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
       .strip()
       .prefault({}),
+    // The user's own stop list, applied with every preset: the turn unions it with the active preset's `params.stop`.
     // Element-wise: a non-string element costs THAT entry, not every stop string the user wrote.
     customStoppingStrings: tolerantArray(z.string(), []).default([]),
     // How long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
     // caller's hosted chats) may delete it. Per-user because the reaper runs under the caller's principal over
     // THEIR chats. A value outside the bounds self-heals to the default.
     tempChatTtlHours: z.int().min(TEMP_CHAT_TTL_HOURS_MIN).max(TEMP_CHAT_TTL_HOURS_MAX).catch(TEMP_CHAT_TTL_HOURS_DEFAULT).default(TEMP_CHAT_TTL_HOURS_DEFAULT),
-    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling):
-    // the per-word fade lives on `mode="streaming"` itself, so this knob is PURELY
-    // pacing — and the "smooth is jankier" objection was measured dead on that build (over-budget
-    // commits 205→55, LoAFs 18→11). Off ⇒ raw network-chunk cadence, still faded.
-    smoothStream: z.boolean().catch(true).default(true),
-    smoothStreamCps: z.int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
+    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON at 80 chars/sec (owner ruling): the
+    // per-word fade lives on `mode="streaming"` itself, so this knob is PURELY pacing — and the "smooth is jankier"
+    // objection was measured dead on that build (over-budget commits 205→55, LoAFs 18→11). 0 ⇒ raw network-chunk
+    // cadence, still faded.
+    smoothStreamCps: z.int().min(SMOOTH_STREAM_OFF).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
     // Client-honored (the MessageList `scrollMode`). Default `follow`: the sealed sticky-tail behavior.
     streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),
     // Client-honored (the streaming ghost's `<ReasoningBlock>`). Default ON: the live
@@ -554,10 +543,10 @@ const chatSchema = z
     // (the measured 350–677px prose fling). Live-ghost only — a committed row already
     // mounts collapsed + host-expandable.
     reasoningAutoCollapse: z.boolean().catch(true).default(true),
-    // The per-USER default for the room-level "offer choices" posture: a room that carries no
-    // explicit `chatMetadata.offerChoices` inherits this, so a NEW room is born playing the way its host
-    // plays (the cold-start half of the knob — the room value alone would leave every fresh chat off). The
-    // room value always wins; the precedence has ONE home (`resolveOfferChoices`, @orb/contracts/chat).
+    // The per-USER default for the room-level "offer choices" posture: EVERY room this user hosts that carries no
+    // explicit `chatMetadata.offerChoices` follows this, read per turn — a new room and an old room whose host never
+    // set it alike, so flipping it reaches both (the editor's copy says so). The room value always wins; the
+    // precedence has ONE home (`resolveOfferChoices`, @orb/contracts/chat).
     // SERVER-honored, on the same `UserSettings.chat` → `ChatBehaviorInputs` FOREIGN seam `autoContinue` and
     // `customStoppingStrings` ride. Default OFF ⇒ byte-identical to a tree that never heard of the knob.
     offerChoices: z.boolean().catch(false).default(false),
@@ -585,69 +574,15 @@ const chatSchema = z
 
 export type ChatSettings = z.infer<typeof chatSchema>;
 
-// The library-list page size (rows fetched per page by the paginated library surfaces). Client-honored:
-// the collection-surface CONSUMER reads it and passes `limit` into the query (never a factory-internal read,
-// tier direction). Default 30; the ceiling mirrors
-// the server list verb's MAX_LIMIT=100 (a larger request is server-clamped anyway).
-export const LIBRARY_PAGE_SIZE_MIN = 10;
-const LIBRARY_PAGE_SIZE_MAX = 100;
-export const LIBRARY_PAGE_SIZE_DEFAULT = 30;
-const librarySchema = z
-  .object({
-    pageSize: z.int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
-  })
-  .strip()
-  .prefault({});
-
-// Per-user image-prompt-building overrides — each mode's extraction/caption instruction, authored by the
-// user, composing over the shipped `@orb/contracts/imagery` catalog (unset ⇒ the byte-identical default). Keyed
-// by the canonical PROMPT_TEMPLATE_MODES literals (the imagery catalog's shape); every field OPTIONAL with a
-// per-field `.catch(undefined)` so a malformed override self-heals to the default (never nukes the section).
-// Cap mirrors the request prompt cap scale — an instruction is a paragraph, not an essay.
-const IMAGERY_TEMPLATE_MAX_CHARS = 4000;
-const imageryTemplateField = (): z.ZodCatch<z.ZodOptional<z.ZodString>> => z.string().max(IMAGERY_TEMPLATE_MAX_CHARS).optional().catch(undefined);
-const imagerySchema = z
-  .object({
-    // The four text-EXTRACTION mode instructions ({{char}}/{{user}} resolve via the ONE macro engine).
-    templates: z
-      .object({
-        character: imageryTemplateField(),
-        face: imageryTemplateField(),
-        scenario: imageryTemplateField(),
-        background: imageryTemplateField(),
-      })
-      .strip()
-      .prefault({}),
-    // The two MULTIMODAL vision-caption instructions (no macros — the image is the subject).
-    captions: z
-      .object({
-        character_multimodal: imageryTemplateField(),
-        face_multimodal: imageryTemplateField(),
-      })
-      .strip()
-      .prefault({}),
-  })
-  .strip()
-  .prefault({});
-
-export type ImagerySettings = z.infer<typeof imagerySchema>;
-
-/** Resolve the extraction instruction for a mode: the user's per-mode override ⊕ the shipped
- *  `@orb/contracts/imagery` catalog default. Unset ⇒ byte-identical to the shipped default (the
- *  default-identity discipline). The ONE resolver both the compose op + the tests read (never a re-spelled
- *  fallback that could drift from the catalog).
- *
- *  The STORAGE is unchanged (`imagery.templates.<mode>`, a bare string) — the two rungs are
- *  funnelled through `resolveProse` so precedence and the staleness signal come from ONE place. */
-export function resolveImageryTemplate(imagery: ImagerySettings, mode: ExtractionMode): string {
-  const id = IMAGERY_TEMPLATE_SLOT_IDS[mode];
-  return resolveProseText(id, legacyProseOverrides(id, imagery.templates[mode]));
+/** Resolve the extraction instruction for a mode: the user's `prose` override ⊕ the shipped `@orb/contracts/imagery`
+ *  catalog default. Unset ⇒ byte-identical to the shipped default. */
+export function resolveImageryTemplate(prose: ProseOverrides, mode: ExtractionMode): string {
+  return resolveProseText(IMAGERY_TEMPLATE_SLOT_IDS[mode], prose);
 }
 
-/** Resolve the multimodal caption instruction for a mode: the user's override ⊕ the shipped catalog default. */
-export function resolveImageryCaption(imagery: ImagerySettings, mode: MultimodalCaptionMode): string {
-  const id = IMAGERY_CAPTION_SLOT_IDS[mode];
-  return resolveProseText(id, legacyProseOverrides(id, imagery.captions[mode]));
+/** Resolve the multimodal caption instruction for a mode: the user's `prose` override ⊕ the shipped catalog default. */
+export function resolveImageryCaption(prose: ProseOverrides, mode: MultimodalCaptionMode): string {
+  return resolveProseText(IMAGERY_CAPTION_SLOT_IDS[mode], prose);
 }
 
 const personaSchema = z
@@ -741,20 +676,11 @@ export const userSettingsSchema = z
     memory: memorySchema,
     databank: databankSchema,
     chat: chatSchema,
-    library: librarySchema,
-    imagery: imagerySchema,
-    // The per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
-    // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
-    // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
-    // The older `imagery.templates/.captions` fields keep their own storage (adapted, never
-    // duplicated) and are NOT mirrored here.
+    // The per-USER prose-slot overrides (`home: "user"` slots only), the image-prompt instructions included. Keyed
+    // by the closed `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam
+    // rather than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
     prose: proseOverridesSchema,
     persona: personaSchema,
-    // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key
-    // is dropped before the strict arms see it, because this `.catch` would otherwise revert the user's saved
-    // room defaults to per-speaker — the chat blob's silent-reversal class, one tier up. The section's write
-    // path is deep-merge-and-re-validate through this same lenient parser by design, so no strict door moves.
-    groupDefaults: storedGroupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
     onboarding: onboardingSchema,
     workloads: workloadsSchema,
     profile: profileSchema,
@@ -783,16 +709,12 @@ export const USER_SETTINGS_SECTIONS = [
   "memory",
   "databank",
   "chat",
-  "library",
-  "imagery",
   // The section tuple is the EDITOR's door, so a member exists only beside the writer that writes it
   // (D107 arm B — a member registered ahead of its writer is a dead switch). The
   // writer is the chat-owned `prose-settings` contribution at the `chat-behavior` anchor; it patches ONE
   // slot-id key at a time (a blank field sends the leaf `null` = back to the shipped default).
   "prose",
   "persona",
-
-  "groupDefaults",
   "onboarding",
   "workloads",
   "profile",
@@ -822,6 +744,117 @@ export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = DEFAULT_USER_SETTINGS.appearance;
 
 export const DEFAULT_CHAT_SETTINGS: ChatSettings = DEFAULT_USER_SETTINGS.chat;
+
+/** The v10→v11 `chat` section: the empty-Enter pair folds into one switch (both on keeps it on; any off turns it
+ *  off, the conservative reading of a user who disabled half of it), auto-continue's switch folds into its round count
+ *  (0 is off), the smooth-stream switch folds into its rate (0 is off), and `autoSwipe.maxRetries` goes: nothing ever
+ *  wrote it. A non-object section passes through for the schema to judge. */
+function liftChatCleanup(chat: unknown): unknown {
+  if (!isPlainObject(chat)) {
+    return chat;
+  }
+  const { continueOnSend, generateOnEmptySend, autoContinue, smoothStream, autoSwipe, ...rest } = chat;
+  const lifted: Record<string, unknown> = { ...rest };
+  if (continueOnSend !== undefined || generateOnEmptySend !== undefined) {
+    lifted["emptyEnterReplies"] = continueOnSend !== false && generateOnEmptySend !== false;
+  }
+  if (autoContinue !== true) {
+    lifted["autoContinueRounds"] = AUTO_CONTINUE_ROUNDS_OFF;
+  } else if (rest["autoContinueRounds"] === undefined) {
+    lifted["autoContinueRounds"] = LEGACY_AUTO_CONTINUE_ROUNDS;
+  }
+  if (smoothStream === false) {
+    lifted["smoothStreamCps"] = SMOOTH_STREAM_OFF;
+  }
+  if (isPlainObject(autoSwipe)) {
+    const { maxRetries: _maxRetries, ...swipe } = autoSwipe;
+    lifted["autoSwipe"] = swipe;
+  } else if (autoSwipe !== undefined) {
+    lifted["autoSwipe"] = autoSwipe;
+  }
+  return lifted;
+}
+
+/** The v10→v11 `appearance` section: knobs that became derived leave (speaker name size from message size,
+ *  paragraph spacing from line height, the scrim from the contrast floor, the prose halo from the background, the
+ *  glass radius from its token); the `glow` look keeps its depth as `ramp`; and an app-side "reduce transparency"
+ *  that was forced on becomes glass off, because the glass control is now the one transparency choice. */
+function liftAppearanceCleanup(appearance: unknown): unknown {
+  if (!isPlainObject(appearance)) {
+    return appearance;
+  }
+  const {
+    readingNameScale: _nameScale,
+    readingParagraphSpacing: _paragraphSpacing,
+    backgroundDim: _dim,
+    shadowEffects: _shadow,
+    blurStrength: _blurStrength,
+    reducedTransparency,
+    ...rest
+  } = appearance;
+  const lifted: Record<string, unknown> = { ...rest };
+  if (lifted["elevation"] === "glow") {
+    lifted["elevation"] = "ramp";
+  }
+  if (reducedTransparency === "on") {
+    lifted["blurSurfaces"] = [];
+  }
+  return lifted;
+}
+
+/** The v10→v11 image-prompt move: each `imagery.templates.<mode>` and `imagery.captions.<mode>` string becomes the
+ *  `prose` override of its slot, stamped at the first slot version as the legacy adapter stamped it, so its stale
+ *  signal reads exactly as before. An override the `prose` blob already holds for the slot wins. */
+function liftImageryIntoProse(imagery: unknown, prose: unknown): unknown {
+  const group = isPlainObject(imagery) ? imagery : {};
+  const moved = {
+    ...legacyImageryOverrides(group["templates"], EXTRACTION_MODES, IMAGERY_TEMPLATE_SLOT_IDS),
+    ...legacyImageryOverrides(group["captions"], MULTIMODAL_MODES, IMAGERY_CAPTION_SLOT_IDS),
+  };
+  if (Object.keys(moved).length === 0) {
+    return prose;
+  }
+  return isPlainObject(prose) ? { ...moved, ...prose } : moved;
+}
+
+/** One stored imagery group's string overrides, re-keyed by their prose slot ids. */
+function legacyImageryOverrides<Mode extends string>(
+  group: unknown,
+  modes: readonly Mode[],
+  slotIds: Readonly<Record<Mode, string>>,
+): Record<string, { text: string; baseVersion: number }> {
+  const moved: Record<string, { text: string; baseVersion: number }> = {};
+  for (const mode of modes) {
+    const text = isPlainObject(group) ? group[mode] : undefined;
+    if (typeof text === "string") {
+      moved[slotIds[mode]] = { text, baseVersion: LEGACY_IMAGERY_BASE_VERSION };
+    }
+  }
+  return moved;
+}
+
+// The version the legacy bare-string imagery overrides were adapted at (`proseOverrideFromLegacy`).
+const LEGACY_IMAGERY_BASE_VERSION = 1;
+// The v10 round count an enabled auto-continue ran when no count was stored.
+const LEGACY_AUTO_CONTINUE_ROUNDS = 1;
+
+/** v10→v11 (see the lift table): `groupDefaults` and `library` leave, `imagery` moves into `prose`, and the chat and
+ *  appearance sections fold their merged pairs. Every section is rebuilt minus its retired keys, never replaced. */
+function liftSettingsCleanup(c: Record<string, unknown>): Record<string, unknown> {
+  const { groupDefaults: _groupDefaults, library: _library, imagery, prose, chat, appearance, ...rest } = c;
+  const lifted: Record<string, unknown> = { ...rest };
+  const movedProse = liftImageryIntoProse(imagery, prose);
+  if (movedProse !== undefined) {
+    lifted["prose"] = movedProse;
+  }
+  if (chat !== undefined) {
+    lifted["chat"] = liftChatCleanup(chat);
+  }
+  if (appearance !== undefined) {
+    lifted["appearance"] = liftAppearanceCleanup(appearance);
+  }
+  return lifted;
+}
 
 const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c) => {
@@ -911,6 +944,9 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
   },
   // v9→v10: `seeds.summarizePreset` is additive; an absent field reads back as task defaults.
   9: (c) => ({ ...c }),
+  // v10→v11: the settings cleanup. Dead and duplicate knobs leave the blob and merged pairs fold into their one key,
+  // so the stored blob is rewritten clean at the next write instead of carrying keys no reader or editor addresses.
+  10: liftSettingsCleanup,
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
@@ -1031,7 +1067,6 @@ const appSettingsOutputSchema = appSettingsSchema.strict().extend({
   rateLimits: rateLimitsSchema.strict().nullable().optional(),
 });
 const userSettingsOutputSchema = userSettingsSchema.strict().extend({
-  groupDefaults: groupConfigSchema,
   prose: proseOverridesViewSchema,
   seeds: seedsSchema.unwrap().strict(),
   worldInfo: worldInfoSchema.unwrap().strict(),
@@ -1043,11 +1078,6 @@ const userSettingsOutputSchema = userSettingsSchema.strict().extend({
   chat: chatSchema.unwrap().strict().extend({
     autoSwipe: chatSchema.unwrap().shape.autoSwipe.unwrap().strict(),
     attachmentQuality: attachmentQualitySchema.unwrap().strict(),
-  }),
-  library: librarySchema.unwrap().strict(),
-  imagery: imagerySchema.unwrap().strict().extend({
-    templates: imagerySchema.unwrap().shape.templates.unwrap().strict(),
-    captions: imagerySchema.unwrap().shape.captions.unwrap().strict(),
   }),
   persona: personaSchema.unwrap().strict(),
   onboarding: onboardingSchema.unwrap().strict(),

@@ -1,5 +1,5 @@
 // The Media & trust admin SECTION (SET-SEAMS stage 4) — the deployment-wide content-render gates
-// (forbidExternalMedia, defaultHtmlStep) plus the generated-image download cap. Was the System pane's first
+// (forbidExternalMedia, defaultHtmlStep). The image size cap lives beside the databank upload cap in System tuning. Was the System pane's first
 // group; it is a self-owned settings-SECTION CONTRIBUTION at the `admin` anchor now (§10 Q2 merged the
 // system pane into admin).
 //
@@ -18,7 +18,6 @@ import type { AppSettings } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
@@ -26,39 +25,13 @@ import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS, rethrowUnlessT
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
-import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "../lib/user-admin-names.ts";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
-
-/** Decimal MB (1 MB = 1e6 B, matching safeFetch's own byte accounting) — the cap is edited in MB and
- *  written in BYTES. */
-const BYTES_PER_MB = 1_000_000;
-// A local mirror of the contract's private byte floor/ceiling; a client-side UX clamp only — the schema
-// re-validates at the transport (and an out-of-range value would trip its `.catch`, silently no-opping the
-// save, so the clamp is what keeps a fat-fingered number from looking like a successful write).
-const MAX_IMAGE_MB_MIN = 0.1;
-const MAX_IMAGE_MB_MAX = 100;
-const MAX_IMAGE_MB_STEP = 1;
+import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 const DEFAULT_HTML_STEP_ITEMS = HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_STEP_LABELS[step] }));
 
 // Narrowed by membership, never cast: the select hands back a string.
 function htmlTrustStepOf(value: string): HtmlTrustStep | undefined {
   return HTML_TRUST_STEPS.find((step): boolean => step === value);
-}
-
-/** The MB draft for a byte value. */
-function toMbDraft(bytes: number): string {
-  return String(bytes / BYTES_PER_MB);
-}
-
-/** The MB draft as a schema-legal byte count, or `null` for a blank/non-finite/out-of-range draft (Save
- *  stays disabled rather than sending a value the schema would drop). */
-function toBytes(draft: string): number | null {
-  const mb = Number(draft);
-  if (!Number.isFinite(mb) || draft.trim() === "" || mb < MAX_IMAGE_MB_MIN || mb > MAX_IMAGE_MB_MAX) {
-    return null;
-  }
-  return Math.round(mb * BYTES_PER_MB);
 }
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
@@ -86,29 +59,19 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
 
   const resolved = data.resolved;
   const overrides = data.overrides;
-  const [maxImageDraft, setMaxImageDraft] = useState<string>(() => toMbDraft(resolved.maxImageBytes));
-
-  const bytes = toBytes(maxImageDraft);
-  const dirty = bytes !== null && bytes !== resolved.maxImageBytes;
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid: bytes === null }));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
   const forbidOverridden = isOverridden(overrides.forbidExternalMedia);
   const stepOverridden = isOverridden(overrides.defaultHtmlStep);
-  const capOverridden = isOverridden(overrides.maxImageBytes);
-  const anyOverridden = forbidOverridden || stepOverridden || capOverridden;
+  const anyOverridden = forbidOverridden || stepOverridden;
 
-  // Every write names ONLY this section's keys (S1) — the switches write immediately (a toggle IS the
-  // override), the cap batches through Save.
-  const write = (partial: Pick<AppSettings, "forbidExternalMedia" | "defaultHtmlStep" | "maxImageBytes">): void => {
+  // Every write names ONLY this section's keys (S1); both controls write immediately (a toggle IS the override).
+  const write = (partial: Pick<AppSettings, "forbidExternalMedia" | "defaultHtmlStep">): void => {
     save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure); // the sticky save.error slot surfaces the failure
   };
-  // Reset clears this section's three keys to the floor. All three are TOP-LEVEL scalars, so a plain `null`
-  // each is the merge-clear (no nested-object hazard here). Re-sync the draft to the RESOLVED floor the
-  // reset returned so the input VALUE flips alongside the "Using the deployment default" copy.
+  // Reset clears this section's two keys to the floor. Both are TOP-LEVEL scalars, so a plain `null` each is the
+  // merge-clear (no nested-object hazard here).
   const onReset = (): void => {
-    save
-      .mutateAsync({ partial: { forbidExternalMedia: null, defaultHtmlStep: null, maxImageBytes: null } })
-      .then((resolvedAfter) => setMaxImageDraft(toMbDraft(resolvedAfter.maxImageBytes)))
-      .catch(rethrowUnlessTrpcFailure);
+    save.mutateAsync({ partial: { forbidExternalMedia: null, defaultHtmlStep: null } }).catch(rethrowUnlessTrpcFailure);
   };
 
   return (
@@ -145,29 +108,12 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
               }
             }}
           />
-          <AdminOverrideField
-            label={ADMIN_MAX_IMAGE_DOWNLOAD_NAME}
-            hint="Byte cap for a generated-image download fetched from a provider URL. Raise it for high-res models."
-            value={maxImageDraft}
-            onChange={setMaxImageDraft}
-            overridden={capOverridden}
-            floorValue={envFloor(capOverridden, resolved.maxImageBytes / BYTES_PER_MB)}
-            min={MAX_IMAGE_MB_MIN}
-            max={MAX_IMAGE_MB_MAX}
-            step={MAX_IMAGE_MB_STEP}
-          />
         </SettingRowGroup>
         <AdminOverrideResetRow
           sectionLabel={MEDIA_TRUST_SUBCATEGORY.label}
-          dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
           error={save.error}
-          onSave={(): void => {
-            if (bytes !== null) {
-              write({ maxImageBytes: bytes });
-            }
-          }}
           onReset={onReset}
         />
       </Stack>

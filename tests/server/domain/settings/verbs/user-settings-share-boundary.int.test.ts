@@ -2,6 +2,7 @@
 // @subject packages/server/src/primitives/serde/user-settings/index.ts
 // @subject packages/server/src/domain/settings/verbs/export-user-settings.ts
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
+import { IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { PresetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -10,6 +11,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { z } from "zod";
+import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
 
 type Principal = Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
 
@@ -37,7 +39,10 @@ async function exportedFile(root: ServerTestHarness, principal: Principal): Prom
 }
 
 async function writePrivateSections(root: ServerTestHarness, principal: Principal, privatePreset: PresetId): Promise<void> {
-  await root.services.settings.updateUserSettingsSection({ principal, input: { section: "imagery", patch: { templates: { character: PRIVATE_PROMPT } } } });
+  await root.services.settings.updateUserSettingsSection({
+    principal,
+    input: { section: "prose", patch: { [IMAGERY_TEMPLATE_SLOT_IDS.character]: proseOverrideFromLegacy(PRIVATE_PROMPT) } },
+  });
   await root.services.settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch: { defaultPresetId: privatePreset } } });
 }
 
@@ -47,7 +52,7 @@ test("an export carries no value from a section outside the share-safe allowlist
   const owner = await root.principalFor(root.ownerId);
   await writePrivateSections(root, owner, privatePreset);
   const stored = (await root.services.settings.getUserSettings({ principal: owner })).config;
-  expect(stored.imagery.templates.character).toBe(PRIVATE_PROMPT);
+  expect(stored.prose[IMAGERY_TEMPLATE_SLOT_IDS.character]?.text).toBe(PRIVATE_PROMPT);
   expect(stored.seeds.defaultPresetId).toBe(privatePreset);
 
   const text = new TextDecoder().decode((await exportedFile(root, owner)).bytes);
@@ -61,14 +66,14 @@ test("an import reads only allowlisted sections from a crafted file", async ({ i
   await using root = await createServerHarness();
   const owner = await root.principalFor(root.ownerId);
   const donor = await root.principalFor((await root.actor()).id);
-  await root.services.settings.updateUserSettingsSection({ principal: donor, input: { section: "chat", patch: { continueOnSend: false } } });
+  await root.services.settings.updateUserSettingsSection({ principal: donor, input: { section: "chat", patch: { emptyEnterReplies: false } } });
   const file = await exportedFile(root, donor);
   const backup = backupSchema.parse(JSON.parse(new TextDecoder().decode(file.bytes)));
   const crafted = {
     ...backup,
     settings: {
       ...backup.settings,
-      imagery: { templates: { character: PRIVATE_PROMPT } },
+      prose: { [IMAGERY_TEMPLATE_SLOT_IDS.character]: proseOverrideFromLegacy(PRIVATE_PROMPT) },
       seeds: { defaultPresetId: privatePreset },
     },
   };
@@ -77,7 +82,7 @@ test("an import reads only allowlisted sections from a crafted file", async ({ i
 
   expect(outcome).toMatchObject({ ok: true });
   const { config } = await root.services.settings.getUserSettings({ principal: owner });
-  expect(config.chat.continueOnSend).toBe(false);
-  expect(config.imagery.templates.character).not.toBe(PRIVATE_PROMPT);
+  expect(config.chat.emptyEnterReplies).toBe(false);
+  expect(config.prose).not.toHaveProperty(IMAGERY_TEMPLATE_SLOT_IDS.character);
   expect(config.seeds.defaultPresetId).not.toBe(privatePreset);
 });

@@ -21,7 +21,7 @@ interface FollowupCase {
 const CASES: readonly FollowupCase[] = [
   {
     patch: {
-      autoContinue: true,
+      autoContinueRounds: 1,
     },
     replies: [
       {
@@ -41,7 +41,7 @@ const CASES: readonly FollowupCase[] = [
   },
   {
     patch: {
-      autoContinue: true,
+      autoContinueRounds: 1,
     },
     replies: [
       {
@@ -57,7 +57,7 @@ const CASES: readonly FollowupCase[] = [
   },
   {
     patch: {
-      autoContinue: true,
+      autoContinueRounds: 1,
     },
     replies: [
       {
@@ -81,7 +81,6 @@ const CASES: readonly FollowupCase[] = [
         enabled: true,
         minLength: 12,
         blacklist: [],
-        maxRetries: 1,
       },
     },
     replies: [
@@ -104,7 +103,6 @@ const CASES: readonly FollowupCase[] = [
         enabled: true,
         minLength: 0,
         blacklist: ["Sorry"],
-        maxRetries: 1,
       },
     },
     replies: [
@@ -127,7 +125,6 @@ const CASES: readonly FollowupCase[] = [
         enabled: true,
         minLength: 100,
         blacklist: [],
-        maxRetries: 1,
       },
     },
     replies: [
@@ -141,38 +138,11 @@ const CASES: readonly FollowupCase[] = [
     calls: 2,
     variants: 2,
     fragments: ["still short"],
-    title: "autoSwipe respects its bound: a persistently rejected model rerolls only ONCE",
+    title: "autoSwipe rerolls a persistently rejected model only ONCE",
     comparison: "exact",
   },
   {
     patch: {
-      autoSwipe: {
-        enabled: true,
-        minLength: 100,
-        blacklist: [],
-        maxRetries: 2,
-      },
-    },
-    replies: [
-      {
-        text: "nope",
-      },
-      {
-        text: "still short",
-      },
-      {
-        text: "again short",
-      },
-    ],
-    calls: 3,
-    variants: 3,
-    fragments: ["again short"],
-    title: "autoSwipe honors maxRetries=2: a persistently rejected model rerolls exactly TWICE (the knob, not a const)",
-    comparison: "exact",
-  },
-  {
-    patch: {
-      autoContinue: true,
       autoContinueRounds: 2,
     },
     replies: [
@@ -197,12 +167,11 @@ const CASES: readonly FollowupCase[] = [
   },
   {
     patch: {
-      autoContinue: true,
+      autoContinueRounds: 1,
       autoSwipe: {
         enabled: true,
         minLength: 20,
         blacklist: [],
-        maxRetries: 1,
       },
     },
     replies: [
@@ -222,12 +191,11 @@ const CASES: readonly FollowupCase[] = [
   },
   {
     patch: {
-      autoContinue: false,
+      autoContinueRounds: 0,
       autoSwipe: {
         enabled: false,
         minLength: 0,
         blacklist: [],
-        maxRetries: 1,
       },
     },
     replies: [
@@ -296,7 +264,7 @@ test("a fault in the auto-continue is logged at error and the send still answers
     ],
     { group: { output: "per-speaker", policy: "natural" }, server: { logLevel: "error" } },
   );
-  await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinue: true } });
+  await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinueRounds: 1 } });
   // Only the continuation's commit carries the continued text, so the send's own reply commits untouched.
   await using _refusal = await refuseWrites(h.root.db, {
     table: messageVariants,
@@ -321,7 +289,7 @@ test("a fault in the auto-continue is logged at error and the send still answers
 test("a follow-up past the script, which production swallows, still fails the room when it closes", async () => {
   await expect(async () => {
     await using h = await followupRoom([{ text: "cut off", finishReason: "length" }], { group: { output: "per-speaker", policy: "natural" } });
-    await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinue: true } });
+    await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinueRounds: 1 } });
     expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "go" })).aborted).toBe(false);
     await h.root.settleBackground();
     expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(2);

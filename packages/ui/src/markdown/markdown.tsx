@@ -177,7 +177,7 @@ export function Markdown({
   // Streamdown's root div HARDCODES its own spacing utilities (a 1rem block gap + whitespace-normal +
   // first/last-child margin trims) and twMerges our className over them. Its dist is deliberately NOT a
   // Tailwind source (its raw spacing would fight the reading-typography tokens —
-  // `--appearance-reading-paragraph-spacing` owns prose spacing via the higher-specificity
+  // the reader's line spacing owns prose spacing via the higher-specificity
   // `[data-slot="message-bubble"] p + p` rule), so those defaults were DEADCSS in the DOM. The base
   // className below neutralizes them with COMPILED equivalents: `space-y-0` replaces the 1rem gap via
   // the twMerge conflict group; the other three dedupe to the identical literal, which this scanned
@@ -191,7 +191,7 @@ export function Markdown({
   // Quoted content and the narrator's voice became the same rendering, on a surface whose entire voice system is
   // typographic. The element now carries house tokens only, so no dead vendor class stays in the DOM. Adding
   // `@source "…/streamdown/dist"` would have resurrected the vendor's whole spacing scale app-wide, the thing
-  // `--appearance-reading-paragraph-spacing` exists to own.
+  // the line-spacing-derived paragraph gap exists to own.
   //
   // #490 — THE INLINE-CODE HALF of that ruling. Inline code was first paid only a horizontal padding (`px-tight`). The vendor also spells
   // a SIZE and a VERTICAL padding on that element, and both were dropping on the floor: measured in a room

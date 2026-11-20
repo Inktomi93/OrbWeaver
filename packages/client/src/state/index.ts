@@ -143,7 +143,15 @@ export type {
   SettingsViewerView,
   SettingTeach,
 } from "./config-group-registry.ts";
-export { configSettingControlId, configSettingLabel, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
+export {
+  CONFIG_ADVANCED_FOLD_NAME,
+  configSettingControlId,
+  configSettingLabel,
+  isCollectionGroup,
+  isPlaceholderGroup,
+  isTeachNone,
+  rendersOwnBody,
+} from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
   arriveAtConfigGroup,

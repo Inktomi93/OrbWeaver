@@ -1,5 +1,4 @@
-// The "Sizing & motion" appearance SECTION (SET-SEAMS stage 1): chat width, text size, density, elevation and
-// the three OS preferences. A settings-section contribution at the `appearance` anchor owned by features/app-shell,
+// The "Sizing" appearance SECTION (SET-SEAMS stage 1): chat width, text size, density and elevation. A settings-section contribution at the `appearance` anchor owned by features/app-shell,
 // the feature that reads them (`surfaces/app-shell.tsx`: the shell scope tokens, `data-elevation` and the root
 // appearance channel). §6's rule is reader-owns, and app-shell is already a definition owner (chrome + the You
 // modal), so this is not a new privilege.
@@ -23,7 +22,6 @@ import { configSettingLabel } from "#state";
 import { useUpdateSizing } from "../hooks/use-appearance-mutations.ts";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
-import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
 import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
@@ -36,7 +34,7 @@ const SizingAutosaveForm = createAutosaveEntityForm<SizingForm>({
 
 const SIZING_ENTITY_ID = "appearance-sizing";
 
-/** The Sizing & motion section body — mounted at the appearance pane's contributed-sections anchor. */
+/** The Sizing section body — mounted at the appearance pane's contributed-sections anchor. */
 export function AppearanceSizingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
@@ -133,27 +131,6 @@ function SizingBody({
               options with every colour/hairline/shadow DERIVED from the shell's own tokens. */}
           <SettingRow settingId="elevation" span={true}>
             <form.AppField name="elevation">{(field): ReactElement => <ElevationCards onPick={field.handleChange} value={field.state.value} />}</form.AppField>
-          </SettingRow>
-          <SettingRow settingId="reduced-motion">
-            <form.AppField name="reducedMotion">
-              {(field): ReactElement => (
-                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "reducedMotion")} items={OS_PREFERENCE_ITEMS} />
-              )}
-            </form.AppField>
-          </SettingRow>
-          <SettingRow settingId="reduced-transparency">
-            <form.AppField name="reducedTransparency">
-              {(field): ReactElement => (
-                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "reducedTransparency")} items={OS_PREFERENCE_ITEMS} />
-              )}
-            </form.AppField>
-          </SettingRow>
-          <SettingRow settingId="increased-contrast">
-            <form.AppField name="increasedContrast">
-              {(field): ReactElement => (
-                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "increasedContrast")} items={OS_PREFERENCE_ITEMS} />
-              )}
-            </form.AppField>
           </SettingRow>
         </SettingRowGroup>
       </ConfigTeachScope>

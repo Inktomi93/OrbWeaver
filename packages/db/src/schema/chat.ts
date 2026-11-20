@@ -188,7 +188,7 @@ export const chats = sqliteTable(
     compactSummary: nulFreeText("compact_summary"),
     compactedAtSeq: integer("compacted_at_seq"),
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
-    // `@orb/db/query` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
+    // `@orb/db/query` read seam; never trusted raw.
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
     // PERSISTED CANON: the per-chat ChoiceBlock variable flush — `setVariables` writes it,
     // `getVariablePicks` reads it back. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/query` read

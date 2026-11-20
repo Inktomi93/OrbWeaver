@@ -109,8 +109,8 @@ function renderRowIdentity(args: {
         // contract's own declaration for this row (`appearance-invariant-manifest.ts`
         // #dark-name-time-short-bubble: tailwind-core `items-center` -> `items-baseline` on
         // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
-        // name is the one datum whose size moves independently (`--appearance-reading-name-scale`, globals.css:795),
-        // so centring it puts a scaled name off the line its own row sits on.
+        // name is the one datum whose size moves with the message text size (`--appearance-reading-body-scale`), not
+        // the row's own, so centring it puts a scaled name off the line its own row sits on.
         <Row gap="field" align="baseline" minWidth="shrinks" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>

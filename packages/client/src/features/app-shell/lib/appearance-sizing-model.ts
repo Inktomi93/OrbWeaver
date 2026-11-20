@@ -1,19 +1,18 @@
-// The "Sizing & motion" appearance-section MODEL (SET-SEAMS §6): the one `ConfigSubcategory` shared by the
-// contribution def and the section body's `<Section>` anchor stamp. app-shell reads every knob here (the shell scope
-// tokens, `data-elevation` and the root appearance channel), and §6's rule is that a section is owned by its reader.
-// The `sizing` anchor id is stable (§7.1), so a fuzzy jump for "reduce motion" or "density" lands on a real anchor.
+// The "Sizing" appearance-section MODEL (SET-SEAMS §6): the one `ConfigSubcategory` shared by the contribution def
+// and the section body's `<Section>` anchor stamp. app-shell reads every knob here (the shell scope tokens,
+// `data-elevation` and the root appearance channel), and §6's rule is that a section is owned by its reader.
+// The `sizing` anchor id is stable (§7.1), so a fuzzy jump for "density" lands on a real anchor.
 
-import { APPEARANCE_OWNER_KEYS, DENSITY_ITEMS } from "#lib";
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
-import { ELEVATION_ITEMS, OS_PREFERENCE_ITEMS } from "./appearance-select-items.ts";
+import { DENSITY_ITEMS, ELEVATION_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
-  label: "Sizing & motion",
+  label: "Sizing",
   teach: {
-    summary:
-      "Global layout knobs: chat column width, text scale, density and surface elevation, and the app's answer to your device's motion, transparency and contrast settings.",
-    affects: ["the entire app's spacing, depth, animation, glass and contrast, on this account"],
+    summary: "Global layout knobs: chat column width, text scale, density and surface elevation.",
+    affects: ["the entire app's spacing and depth, on this account"],
   },
   settings: [
     {
@@ -53,48 +52,10 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       key: "elevation",
       label: "Surface elevation",
       options: ELEVATION_ITEMS,
-      keywords: ["layered", "depth", "shadow", "flat"],
+      keywords: ["layered", "depth", "flat", "hairline"],
       teach: {
-        summary:
-          "Flat parts the regions with hairlines, Layered with a brightness ladder, and Lifted keeps Flat's hairlines and adds a shadow under clickable cards. Panels never cast a shadow.",
-        affects: ["panel backgrounds and region borders app-wide", "the shadow under clickable cards"],
-      },
-    },
-    {
-      id: "reduced-motion",
-      key: "reducedMotion",
-      label: "Reduce motion",
-      options: OS_PREFERENCE_ITEMS,
-      keywords: ["animation", "transition", "accessibility", "motion"],
-      teach: {
-        summary:
-          "System follows your device's reduced-motion setting. On freezes animations and transitions; Off keeps them even when the device asks for less motion.",
-        affects: ["animations and transitions app-wide, including portals and the boot veil"],
-      },
-    },
-    {
-      id: "reduced-transparency",
-      key: "reducedTransparency",
-      label: "Reduce transparency",
-      options: OS_PREFERENCE_ITEMS,
-      keywords: ["glass", "blur", "transparency", "accessibility", "solid"],
-      teach: {
-        summary:
-          "System follows your device's reduce-transparency setting. On makes the glass surfaces solid; Off keeps the glass even when the device asks for less transparency.",
-        affects: ["the glass panels, composer, dialogs and message bubbles you enabled under Effects"],
-        related: [{ group: "appearance", sub: "effects", setting: "frosted-glass" }],
-      },
-    },
-    {
-      id: "increased-contrast",
-      key: "increasedContrast",
-      label: "Increase contrast",
-      options: OS_PREFERENCE_ITEMS,
-      keywords: ["contrast", "borders", "accessibility", "legibility"],
-      teach: {
-        summary:
-          "System follows your device's increase-contrast setting. On draws stronger edges, a denser glass fill and drops the film grain; Off keeps the standard look even when the device asks for more contrast.",
-        affects: ["panel, composer and dialog edges on large screens", "the glass fill and the film-grain texture"],
+        summary: "Flat parts the regions with hairlines; Layered drops them for a brightness ladder. Clickable cards and panels never cast a shadow.",
+        affects: ["panel backgrounds and region borders app-wide"],
       },
     },
   ],

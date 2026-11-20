@@ -7,9 +7,9 @@
 // (substrate/theme.ts) and the ACTIVE ergonomics import from here, because `power_user` is the only place the
 // SELECTED values live (a theme file is one of five saved palettes; `power_user` is what ST was rendering).
 //
-// FOURTEEN KEYS, EACH WITH AN EXACT ORB SEAT — nothing is invented. A `power_user` key with no orb field is
+// EACH KEY HAS AN EXACT ORB SEAT — nothing is invented. A `power_user` key with no orb field is
 // NOT patched.
-// Two are INVERTED (ST states the negative), three are enum
+// One is INVERTED (ST states the negative), three are enum
 // re-spellings, and one ST value (RECTANGULAR avatars) needs two orb fields because orb splits avatar SHAPE
 // from avatar ASPECT.
 //
@@ -45,8 +45,6 @@ const BOOLEAN_SEATS: ReadonlyArray<readonly [stKey: string, orbKey: string]> = [
 const INVERTED_BOOLEAN_SEATS: ReadonlyArray<readonly [stKey: string, orbKey: string]> = [
   // ST hides avatars; orb shows them.
   ["hideChatAvatars_enabled", "showInChatAvatars"],
-  // ST turns shadows OFF; orb turns the effect ON.
-  ["noShadows", "shadowEffects"],
 ];
 
 /** One directly-carried number: the ST key and the orb `appearance` field it IS. */

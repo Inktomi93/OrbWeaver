@@ -632,6 +632,7 @@ export const OWNER_CSS_SLOTS = [
   "roster-member-editor",
   "roster-row",
   "roster-rules",
+  "row-handover-settled",
   "rpg-act-rail",
   "rpg-attribute-row",
   "rpg-band-satellites",
@@ -965,20 +966,18 @@ export const OWNER_CSS_SHELL_CLASSES = [
 
 /** Every custom property theme.css serves on the document, plus the registered appearance properties; the ramp primitives are private and unserved. The D336 `--color-tone-*` roles resolve only on or under a `[data-tone]` element. */
 export const OWNER_CSS_TOKEN_VARS = [
-  "--appearance-blur-strength",
   "--appearance-chat-width-pct",
   "--appearance-font-scale",
   "--appearance-reading-body-scale",
   "--appearance-reading-letter-spacing",
   "--appearance-reading-line-height",
-  "--appearance-reading-name-scale",
-  "--appearance-reading-paragraph-spacing",
   "--aspect-banner",
   "--aspect-portrait",
   "--blur-fill-chrome",
   "--blur-fill-contrast",
   "--blur-fill-dense",
   "--blur-fill-solid",
+  "--blur-glass",
   "--blur-saturate",
   "--blur-veil",
   "--border-width-control",
@@ -1220,7 +1219,6 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--shadow-glow",
   "--shadow-layer-ambient-far",
   "--shadow-overlay",
-  "--shadow-prose",
   "--shadow-shell-over-art",
   "--size-avatar-hero",
   "--size-avatar-lg",
@@ -1526,23 +1524,6 @@ export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [
       "system",
       "on",
       "off"
-    ],
-    "members": false
-  },
-  {
-    "name": "data-appearance-reduced-transparency",
-    "values": [
-      "system",
-      "on",
-      "off"
-    ],
-    "members": false
-  },
-  {
-    "name": "data-appearance-shadow-effects",
-    "values": [
-      "false",
-      "true"
     ],
     "members": false
   },

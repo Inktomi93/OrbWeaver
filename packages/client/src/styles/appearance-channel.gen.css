@@ -30,21 +30,6 @@
 @custom-variant appearance-reduced-motion-on (&:where(:root[data-appearance-reduced-motion="on"], :root[data-appearance-reduced-motion="on"] *));
 @custom-variant appearance-reduced-motion-off (&:where(:root[data-appearance-reduced-motion="off"], :root[data-appearance-reduced-motion="off"] *));
 
-@custom-variant appearance-reduced-transparency {
-  &:where(:root[data-appearance-reduced-transparency="on"], :root[data-appearance-reduced-transparency="on"] *) {
-    @slot;
-  }
-  @media (prefers-reduced-transparency: reduce) {
-    &:where(:root:not([data-appearance-reduced-transparency="off"]), :root:not([data-appearance-reduced-transparency="off"]) *) {
-      @slot;
-    }
-  }
-}
-
-@custom-variant appearance-reduced-transparency-system (&:where(:root[data-appearance-reduced-transparency="system"], :root[data-appearance-reduced-transparency="system"] *));
-@custom-variant appearance-reduced-transparency-on (&:where(:root[data-appearance-reduced-transparency="on"], :root[data-appearance-reduced-transparency="on"] *));
-@custom-variant appearance-reduced-transparency-off (&:where(:root[data-appearance-reduced-transparency="off"], :root[data-appearance-reduced-transparency="off"] *));
-
 @custom-variant appearance-increased-contrast {
   &:where(:root[data-appearance-increased-contrast="on"], :root[data-appearance-increased-contrast="on"] *) {
     @slot;
@@ -65,16 +50,6 @@
 @custom-variant appearance-blur-surfaces-messages (&:where(:root[data-appearance-blur-surfaces~="messages"], :root[data-appearance-blur-surfaces~="messages"] *));
 @custom-variant appearance-blur-surfaces-modals (&:where(:root[data-appearance-blur-surfaces~="modals"], :root[data-appearance-blur-surfaces~="modals"] *));
 
-/* appearance.blurStrength: 4 to 28, read as `* 1px` */
-@property --appearance-blur-strength {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 14;
-}
-
-@custom-variant appearance-shadow-effects-false (&:where(:root[data-appearance-shadow-effects="false"], :root[data-appearance-shadow-effects="false"] *));
-@custom-variant appearance-shadow-effects-true (&:where(:root[data-appearance-shadow-effects="true"], :root[data-appearance-shadow-effects="true"] *));
-
 @custom-variant appearance-surface-texture-none (&:where(:root[data-appearance-surface-texture="none"], :root[data-appearance-surface-texture="none"] *));
 @custom-variant appearance-surface-texture-grain (&:where(:root[data-appearance-surface-texture="grain"], :root[data-appearance-surface-texture="grain"] *));
 
@@ -93,20 +68,6 @@
   syntax: "<number>";
   inherits: true;
   initial-value: 0;
-}
-
-/* appearance.readingParagraphSpacing: 0 to 3, read as `* 1rem` */
-@property --appearance-reading-paragraph-spacing {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0.75;
-}
-
-/* appearance.readingNameScale: 0.8 to 1.6 */
-@property --appearance-reading-name-scale {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
 }
 
 /* appearance.readingBodyScale: 0.8 to 1.6 */

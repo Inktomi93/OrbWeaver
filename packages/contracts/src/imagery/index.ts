@@ -41,10 +41,10 @@ export type ExtractionMode = (typeof EXTRACTION_MODES)[number];
 export const MULTIMODAL_MODES = ["character_multimodal", "face_multimodal"] as const satisfies readonly PromptTemplateMode[];
 export type MultimodalCaptionMode = (typeof MULTIMODAL_MODES)[number];
 
-/** The shipped-default extraction instructions. Each instructs the LLM to open with the
- *  mode's REQUIRED composition prefix (the size defaults assume it; `ensurePrefix` re-asserts it as a drift
- *  belt), and opens by pausing the roleplay so the ask is never read as story continuation. */
-export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
+// The shipped-default extraction instructions. Each instructs the LLM to open with the mode's REQUIRED
+// composition prefix (the size defaults assume it; `ensurePrefix` re-asserts it as a drift belt), and opens by
+// pausing the roleplay so the ask is never read as story continuation.
+const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
   character:
     "Pause the roleplay. Describe {{char}}'s complete physical appearance in the current moment " +
     "as a single comma-delimited list of concrete visual keywords for an image-generation model: " +
@@ -70,9 +70,8 @@ export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
     "— no people, no characters, no figures. Begin your reply with: background,",
 };
 
-/** The shipped-default multimodal vision-caption instructions. No macros — the image IS
- *  the subject. */
-export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
+// The shipped-default multimodal vision-caption instructions. No macros: the image is the subject.
+const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
   character_multimodal:
     "Describe the person in this image as a single comma-delimited list of concrete visual " +
     "keywords for an image-generation model: body type, hair, eyes, skin, clothing, accessories, " +

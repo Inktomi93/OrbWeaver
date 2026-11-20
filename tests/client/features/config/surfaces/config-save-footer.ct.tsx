@@ -2,13 +2,14 @@
 // The pane footer never says Saved over a write that has not happened: a valid draft waiting on its Save says so, and
 // a field the form refuses says it needs a fix.
 
+import { CONFIG_ADVANCED_FOLD_NAME } from "@orb/client/state";
 import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { CONFIG_SECTION_NEEDS_FIX_TEXT, CONFIG_SECTION_WAITING_TEXT } from "#client/features/config/lib/config-control-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
-import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
+import { ADMIN_IMAGE_SIZE_CAP_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { AUTOSAVE_NOT_SAVED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { ConfigSaveFooterStory } from "./_config-save-footer-stories.tsx";
 
@@ -40,6 +41,7 @@ test("a valid admin draft reads as waiting for Save, then Saved once saved", asy
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
+  await page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }).click();
   const footer = page.locator(FOOTER);
   const depth = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME });
   await expect(depth).toBeVisible();
@@ -61,8 +63,9 @@ test("an admin draft Save cannot send needs a fix, not Saved", async ({ mount, p
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
+  await page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }).click();
   const footer = page.locator(FOOTER);
-  const cap = page.getByRole("textbox", { name: ADMIN_MAX_IMAGE_DOWNLOAD_NAME });
+  const cap = page.getByRole("textbox", { name: ADMIN_IMAGE_SIZE_CAP_NAME });
   await expect(cap).toBeVisible();
   await expect(footer).toHaveText(SAVED);
 
@@ -86,6 +89,7 @@ for (const { section, name } of NUMERIC_ADMIN_FIELDS) {
     await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
     await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
     await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
+    await page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }).click();
     const footer = page.locator(FOOTER);
     const field = page.getByRole("textbox", { name });
     await expect(field).toBeVisible();
@@ -108,6 +112,7 @@ test("a section whose form refuses its field reads as needing a fix, not as a dr
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin", report: { id: "refused-field", state: "blocked" } });
+  await page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }).click();
   await expect(page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME })).toBeVisible();
   await expect(page.locator(FOOTER)).toContainText(NEEDS_A_FIX);
   await expect(page.locator(FOOTER)).not.toContainText("waiting for Save");

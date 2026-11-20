@@ -10,12 +10,9 @@
 // `ChatSettings`. Minimality is still tsc-forced — {@link ChatMessageHandlingPatch} is DERIVED from the
 // `OWNS` tuple, so a patch field this section does not own does not typecheck.
 //
-// `autoContinueRounds` and `tempChatTtlHours` joined the tuple after stage 2 (they were the two cited
-// gap-arm exemptions): both are SERVER-honored — the turn engine's AUTO_CONTINUE loop bound and the
-// `reapTemporaryChats` delete cutoff — and neither had ever had an editor. `tempChatTtlHours` is not
-// literally "message handling", but the chat-behavior pane's other section is Streaming (reveal pacing),
-// and a chat's retention is a chat BEHAVIOR the same way auto-continue is; it lands beside them rather
-// than forking a third section.
+// `tempChatTtlHours` is not literally "message handling", but the chat-behavior pane's other section is
+// Streaming (reveal pacing), and a chat's retention is a chat BEHAVIOR the same way auto-continue is; it lands
+// beside them rather than forking a third section.
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ConfigSubcategory } from "#state";
@@ -45,46 +42,25 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "empty-enter-generates",
-      key: "generateOnEmptySend",
-      label: "Empty Enter generates a reply",
-      keywords: ["enter", "generate", "empty", "prompt"],
+      id: "empty-enter-replies",
+      key: "emptyEnterReplies",
+      label: "Empty Enter asks for a reply",
+      keywords: ["enter", "send", "generate", "continue", "extend", "empty", "prompt"],
       teach: {
         summary:
-          "With an empty composer and no assistant message last (a fresh chat, or your own message last), Enter prompts a reply instead of doing nothing. The ▷ generate button does the same, always.",
-        affects: ["what an empty-composer Enter does"],
-      },
-    },
-    {
-      id: "continue-on-send",
-      key: "continueOnSend",
-      label: "Send continues the reply",
-      keywords: ["continue", "extend", "empty"],
-      teach: {
-        summary: "With an empty composer and an assistant message last, Send extends that reply instead of doing nothing.",
-        affects: ["what an empty-composer Send does"],
-      },
-    },
-    {
-      id: "auto-continue",
-      key: "autoContinue",
-      label: "Auto-continue",
-      keywords: ["continue", "length", "cap", "follow-up"],
-      teach: {
-        summary: "When a reply stops at the length cap, fires follow-up continues automatically. As many as the round limit. Syncs across your devices.",
-        affects: ["every reply that stops at the length cap"],
-        related: [{ group: "chat-behavior", sub: "message-handling", setting: "auto-continue-rounds" }],
+          "With an empty composer, Enter extends the last reply when the model spoke last, and prompts a new reply otherwise (a fresh chat, or your own message last). Off makes an empty Enter do nothing. The ▷ generate button works either way.",
+        affects: ["what an empty-composer Enter or Send does"],
       },
     },
     {
       id: "auto-continue-rounds",
       key: "autoContinueRounds",
       label: "Auto-continue rounds",
-      keywords: ["continue", "rounds", "limit", "follow-up", "cap"],
+      keywords: ["auto-continue", "continue", "rounds", "limit", "follow-up", "length", "cap"],
       teach: {
         summary:
-          "The most follow-up continues one send may fire while the reply keeps stopping at the length cap. A model that always hits the cap wants a bigger reply limit, not more rounds.",
-        affects: ["how far one send may chain continues"],
+          "When a reply stops at the length cap, fires up to this many follow-up continues automatically. 0 turns auto-continue off. A model that always hits the cap wants a bigger reply limit, not more rounds.",
+        affects: ["every reply that stops at the length cap"],
       },
     },
     {
@@ -104,8 +80,9 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       label: "Custom stopping strings",
       keywords: ["stop", "stopping", "sequence", "generation"],
       teach: {
-        summary: "One per line. Generation stops as soon as the model emits any of these strings.",
-        affects: ["every generation, on every connection"],
+        summary:
+          "One per line. Generation stops as soon as the model emits any of these strings. They apply with every preset, on top of the active preset's own stop list.",
+        affects: ["every generation, on every connection and preset"],
       },
     },
     {
@@ -122,33 +99,34 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "offer-choices",
       key: "offerChoices",
-      label: "Offer choices in new chats",
+      label: "Offer choices by default",
       keywords: ["choices", "options", "cyoa", "branching", "interactive"],
       teach: {
         summary:
-          "New chats start out asking the model to end replies with a few numbered options; clicking one puts it in your composer to edit before you send.",
-        affects: ["new chats' starting posture only"],
+          "Chats you host ask the model to end replies with a few numbered options; clicking one puts it in your composer to edit before you send. A chat whose own This chat tab sets it keeps that; every other chat you host, old or new, follows this.",
+        affects: ["every chat you host that has not set its own"],
       },
     },
     {
       id: "reactions",
       key: "reactionsEnabled",
-      label: "Reactions in new chats",
+      label: "Reactions by default",
       keywords: ["reactions", "emoji"],
       teach: {
-        summary: "New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to. Change one in its This chat tab.",
-        affects: ["new chats you host"],
+        summary:
+          "Chats you host let members react to messages with emoji. A chat whose own This chat tab sets it keeps that; every other chat you host, old or new, follows this.",
+        affects: ["every chat you host that has not set its own"],
       },
     },
     {
       id: "character-reactions",
       key: "charactersCanReact",
-      label: "Characters can react in new chats",
+      label: "Characters can react by default",
       keywords: ["reactions", "emoji", "character"],
       teach: {
         summary:
-          "New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default: turning it on is the opt-in.",
-        affects: ["new chats you host"],
+          "Chats you host let the model drop an emoji reaction from a present character while it replies. Off by default: turning it on is the opt-in. A chat whose own This chat tab sets it keeps that; every other chat you host, old or new, follows this.",
+        affects: ["every chat you host that has not set its own"],
       },
     },
     {
@@ -169,13 +147,10 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
  *  three consumers: the {@link ChatMessageHandlingPatch} type, the seeded defaults/serverValues projection,
  *  and the contribution's `owns` claim — so "the patch names only the keys this section owns" is true by
  *  construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
- *  `autoSwipe` is claimed at the TOP-level key (§2.3): its leaves are this section's business, and the
- *  server's `deepMergePlain` preserves the one leaf with no editor (`maxRetries`). */
+ *  `autoSwipe` is claimed at the TOP-level key (§2.3): every one of its leaves has a control here. */
 export const CHAT_MESSAGE_HANDLING_KEYS = [
   "enterSends",
-  "continueOnSend",
-  "generateOnEmptySend",
-  "autoContinue",
+  "emptyEnterReplies",
   "autoContinueRounds",
   "autoSwipe",
   "customStoppingStrings",
@@ -199,20 +174,10 @@ export const CHAT_MESSAGE_HANDLING_KEYS = [
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
 
-// The editor bounds MIRROR the `chatSchema` clamps in `@orb/contracts/settings` (the schema's own
-// MIN/MAX consts are module-private there) — the streaming section's `SMOOTH_STREAM_CPS_*` precedent. The
-// server is still the authority: an out-of-range blob self-heals to the default via `.catch()`.
-export const AUTO_CONTINUE_ROUNDS_MIN = 1;
-export const AUTO_CONTINUE_ROUNDS_MAX = 5;
-export const TEMP_CHAT_TTL_HOURS_MIN = 1;
-export const TEMP_CHAT_TTL_HOURS_MAX = 8760;
-
 /** The flat form shape — one field per bound control; the two `string[]`s are newline-joined text. */
 export interface ChatMessageHandlingForm {
   readonly enterSends: boolean;
-  readonly continueOnSend: boolean;
-  readonly generateOnEmptySend: boolean;
-  readonly autoContinue: boolean;
+  readonly emptyEnterReplies: boolean;
   readonly autoContinueRounds: number;
   readonly autoSwipeEnabled: boolean;
   readonly autoSwipeMinLength: number;
@@ -225,12 +190,9 @@ export interface ChatMessageHandlingForm {
   readonly runCardScripts: boolean;
 }
 
-/** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
- *  narrowed to the leaves the form edits (`maxRetries` has no editor and the deep-merge preserves it). Kept
- *  a local ALIAS (not exported): §7.4 reserves exported type aliases for the type homes. */
-type ChatMessageHandlingPatch = Omit<Pick<ChatSettings, (typeof CHAT_MESSAGE_HANDLING_KEYS)[number]>, "autoSwipe"> & {
-  readonly autoSwipe: Omit<ChatSettings["autoSwipe"], "maxRetries">;
-};
+/** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys. Kept a local ALIAS (not
+ *  exported): §7.4 reserves exported type aliases for the type homes. */
+type ChatMessageHandlingPatch = Pick<ChatSettings, (typeof CHAT_MESSAGE_HANDLING_KEYS)[number]>;
 
 /** One phrase per line — split, trim, drop blanks (the stored list never carries empty entries). */
 function linesToList(text: string): string[] {
@@ -243,9 +205,7 @@ function linesToList(text: string): string[] {
 export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandlingForm {
   return {
     enterSends: chat.enterSends,
-    continueOnSend: chat.continueOnSend,
-    generateOnEmptySend: chat.generateOnEmptySend,
-    autoContinue: chat.autoContinue,
+    emptyEnterReplies: chat.emptyEnterReplies,
     autoContinueRounds: chat.autoContinueRounds,
     autoSwipeEnabled: chat.autoSwipe.enabled,
     autoSwipeMinLength: chat.autoSwipe.minLength,
@@ -262,9 +222,7 @@ export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandl
 export function toMessageHandlingPatch(form: ChatMessageHandlingForm): ChatMessageHandlingPatch {
   return {
     enterSends: form.enterSends,
-    continueOnSend: form.continueOnSend,
-    generateOnEmptySend: form.generateOnEmptySend,
-    autoContinue: form.autoContinue,
+    emptyEnterReplies: form.emptyEnterReplies,
     autoContinueRounds: form.autoContinueRounds,
     autoSwipe: {
       enabled: form.autoSwipeEnabled,

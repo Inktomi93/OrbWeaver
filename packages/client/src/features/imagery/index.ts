@@ -7,7 +7,7 @@
 //
 // SCOPE FENCE — this feature owns the chat-image FLOW (generate/edit/set-background/provenance). Two
 // imagery-adjacent surfaces deliberately live elsewhere and must not migrate here:
-//   · the prompt-template + negative-prompt EDITOR is a contributed SETTINGS section (`imageryTemplatesSection`)
+//   · the prompt-template + negative-prompt EDITOR is the contributed Prose SETTINGS section (`proseSettingsSection`)
 //     owned by `features/chat` — it edits the user's stored prose slots, a settings concern.
 //   · the composer's "generate from typed text" button stays in `features/chat` (the composer owns its own
 //     tools); `/imagine` is the richer surface (mode + preview) beside it, not a replacement.

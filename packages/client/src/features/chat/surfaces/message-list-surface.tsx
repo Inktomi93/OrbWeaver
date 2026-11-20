@@ -419,7 +419,6 @@ function ChatThread({
       generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
       holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
       roomSheets={roomSheetsBefore(roomSources, Number.POSITIVE_INFINITY)}
-      smoothStream={behaviorPrefs.smoothStream}
       smoothStreamCps={behaviorPrefs.smoothStreamCps}
       reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
       enterMotion={enterMotion}

@@ -255,7 +255,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
   const settingsBefore = await read<"settings.getUserSettings">(undefined, caller.settings.getUserSettings);
   const initialThemes = await read<"settings.listThemes">(undefined, caller.settings.listThemes);
   const source = await read<"settings.createTheme">(
-    { name: "Corpus settings palette", override: { accent: "#aabbcc", background: "#202830", density: "compact" }, css: ".corpus-witness { color: #aabbcc; }" },
+    { name: "Corpus settings palette", override: { accent: "#aabbcc", background: "#202830" }, css: ".corpus-witness { color: #aabbcc; }" },
     caller.settings.createTheme,
   );
   const duplicate = await read<"settings.duplicateTheme">({ id: source.output.id }, caller.settings.duplicateTheme);

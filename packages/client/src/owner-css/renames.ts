@@ -10,11 +10,8 @@ type AppearanceKey = Parameters<typeof appearanceChannelName>[0];
 // The root custom properties the appearance channel replaced, each with the setting that now carries it.
 const RETIRED_PROPERTIES = [
   ["--font-scale", "fontScale"],
-  ["--blur-strength", "blurStrength"],
   ["--reading-line-height", "readingLineHeight"],
   ["--reading-letter-spacing", "readingLetterSpacing"],
-  ["--reading-paragraph-spacing", "readingParagraphSpacing"],
-  ["--reading-name-scale", "readingNameScale"],
   ["--reading-body-scale", "readingBodyScale"],
 ] as const satisfies readonly (readonly [string, AppearanceKey])[];
 
@@ -25,7 +22,6 @@ const RETIRED_ATTRIBUTES = [
   ["data-blur-composer", "blurSurfaces"],
   ["data-blur-messages", "blurSurfaces"],
   ["data-blur-modals", "blurSurfaces"],
-  ["data-shadow", "shadowEffects"],
   ["data-justify-body-text", "justifyBodyText"],
   ["data-theme-colorization", "enableThemeColorization"],
   ["data-texture", "surfaceTexture"],
@@ -85,6 +81,20 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
   { kind: "token", name: "--default-border-width", to: "--border-width-default" },
   { kind: "token", name: "--default-ring-width", to: "--border-width-default" },
+  // Settings that became derived or automatic, so no setting carries their value any more: the glass blur radius is a
+  // token, paragraph gaps follow the line spacing, speaker names follow the message size, text over a wallpaper takes
+  // the shell's over-art halo while a bubble keeps its own fill, and the glass always follows the device's
+  // reduced-transparency setting.
+  { kind: "token", name: "--blur-strength", to: null },
+  { kind: "token", name: "--appearance-blur-strength", to: null },
+  { kind: "token", name: "--reading-paragraph-spacing", to: null, see: appearanceChannelName("readingLineHeight") },
+  { kind: "token", name: "--appearance-reading-paragraph-spacing", to: null, see: appearanceChannelName("readingLineHeight") },
+  { kind: "token", name: "--reading-name-scale", to: null, see: appearanceChannelName("readingBodyScale") },
+  { kind: "token", name: "--appearance-reading-name-scale", to: null, see: appearanceChannelName("readingBodyScale") },
+  { kind: "token", name: "--shadow-prose", to: null, see: "--shadow-shell-over-art" },
+  { kind: "appearance-attribute", name: "data-shadow", to: null },
+  { kind: "appearance-attribute", name: "data-appearance-shadow-effects", to: null },
+  { kind: "appearance-attribute", name: "data-appearance-reduced-transparency", to: null },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];

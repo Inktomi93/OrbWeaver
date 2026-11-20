@@ -65,9 +65,7 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 // No chatStyle axis: a theme/card cannot force a message-row anatomy (TD/O-4). The row skin reads the
 // viewer's own `appearance.chatStyle` setting, whose vocabulary is `@orb/contracts/theme`'s
 // THEME_CHAT_STYLES — nothing here ever stamped a `data-chat-style` any selector read.
-const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
-const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
 
 // Asks only `isSafeColor`; the wire twin (`@orb/contracts/theme`) also asks `isRenderableColor`. Every value the wire keeps
@@ -96,20 +94,17 @@ const themeScopeTokensSchema = z
     radius: z.enum(RADII).optional().catch(undefined),
     background: deterministicColorToken,
     borderColor: colorToken,
-    density: z.enum(DENSITIES).optional().catch(undefined),
   })
   .strip();
 export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys,
- * only validated values) plus the non-custom-property axes. `density` maps to a `data-*` attribute;
- * `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
+ * only validated values) plus the non-custom-property axes. `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
  * emit surface) — see the `colorSchemeFor` derivation for why it rides this struct.
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
-  readonly density?: (typeof DENSITIES)[number];
   readonly colorScheme?: "light" | "dark";
   /**
    * THE SCOPE'S INHERITED INK (#2424). A carried palette that paints its own surface must also RESTATE
@@ -714,7 +709,6 @@ export function clampThemeTokens(
     proseInks,
     bubbleFills: fills,
     bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(seedBackground), ...proseInks }, accentSource),
-    ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
     ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),

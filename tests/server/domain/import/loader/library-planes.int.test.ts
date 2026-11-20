@@ -449,24 +449,24 @@ test("an owner's persona, world book, global databank document and settings valu
   });
   await source.services.databank.attachGlobal({ principal: owner, documentId: document.id });
   // A value off its default, so a restored read proves the value travelled and not only the section.
-  await source.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "chat", patch: { continueOnSend: false } } });
-  expect((await sourceCaller.settings.getUserSettings()).config.chat.continueOnSend).toBe(false);
+  await source.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "chat", patch: { emptyEnterReplies: false } } });
+  expect((await sourceCaller.settings.getUserSettings()).config.chat.emptyEnterReplies).toBe(false);
   const bundle = await exportLibrary(source, ["persona", "world-info", "databank", "user-settings"]);
 
   await using target = await signedInBox();
   const targetCaller = await target.internalCallerFor(target.ownerId);
-  expect((await targetCaller.settings.getUserSettings()).config.chat.continueOnSend).not.toBe(false);
+  expect((await targetCaller.settings.getUserSettings()).config.chat.emptyEnterReplies).not.toBe(false);
   const landed = async (): Promise<unknown> => ({
     personas: (await targetCaller.persona.list()).map((persona) => persona.name).filter((name) => name === "Backup Persona"),
     books: (await targetCaller.worldInfo.listBooks()).map((book) => book.name).filter((name) => name === "Backup World"),
     documents: (await targetCaller.databank.list({})).items.map((item) => item.name).filter((name) => name === "Field Notes"),
     globalDocuments: (await targetCaller.databank.listGlobal()).length,
-    continueOnSend: (await targetCaller.settings.getUserSettings()).config.chat.continueOnSend,
+    emptyEnterReplies: (await targetCaller.settings.getUserSettings()).config.chat.emptyEnterReplies,
   });
 
   expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const first = await landed();
-  expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
+  expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, emptyEnterReplies: false });
   // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
   expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
   expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });

@@ -42,7 +42,7 @@ const LEFTOVER_KEYS = {
 } as const satisfies Record<ThemeLeftoverReasonKind, readonly string[]>;
 const LEFTOVERS = { ["custom_css"]: "#chat { color: red; }", ["font_scale"]: 1.2, ["chat_width"]: 60, ["main_text_color"]: "rgb(24, 40, 76)" };
 const ST_THEME = { name: "Azure", ["blur_tint_color"]: "rgb(16, 32, 64)", ...LEFTOVERS };
-// Where the viewer finds those two settings in Appearance, in the order the file lists them: both in Sizing & motion, which sits
+// Where the viewer finds those two settings in Appearance, in the order the file lists them: both in Sizing, which sits
 // behind the "Customize this look" disclosure.
 const APPEARANCE_PLACES = [
   { label: configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale"), section: APPEARANCE_SIZING_SUBCATEGORY.label, folded: true },

@@ -183,8 +183,10 @@
     --row-foot-inset-left: var(--spacing-block);
     --row-foot-inset-right: var(--spacing-block);
   }
+  /* Paragraph gaps follow the reader's line spacing rather than a knob of their own: half a line, so a looser
+   * line spacing opens the gaps with it and the gap scales with the message's own size. */
   [data-slot="message-bubble"] p + p {
-    margin-block-start: calc(var(--appearance-reading-paragraph-spacing) * 1rem);
+    margin-block-start: 0.5lh;
   }
   /* Wide code scrolls inside its message, never widens it: `contain: inline-size` takes the block out of the
    * bubble's intrinsic width. */
@@ -367,8 +369,9 @@
       hyphens: auto;
     }
   }
+  /* Speaker names follow the message text size, so the name above a message never outgrows or vanishes under it. */
   [data-slot="message-attribution"] {
-    font-size: calc(var(--text-label) * var(--appearance-reading-name-scale));
+    font-size: calc(var(--text-label) * var(--appearance-reading-body-scale));
   }
 
   /* Over a wallpaper the transcript's metadata steps up from the gloss voice to the full foreground, the ink the
@@ -407,8 +410,7 @@
   [data-slot="new-chat-actions"],
   [data-slot="message-bubble"],
   [data-slot="empty-state-root"] {
-    /* `1px` casts the unitless strength dial to a length; it is a unit, not a spacing value. */
-    --glass-blur-radius: calc(var(--appearance-blur-strength) * 1px);
+    --glass-blur-radius: var(--blur-glass);
     --glass-filter: blur(calc(var(--glass-blur-radius) * var(--glass-blur-scale))) saturate(var(--blur-saturate));
   }
   /* Glass (`appearance.blurSurfaces`, the `BLUR_SURFACES` list): the surface variants key on the root, so they
@@ -543,12 +545,6 @@
     --width-shell-content: clamp(var(--dimension-shell-content-floor), calc(var(--appearance-chat-width-pct) * 1dvw), 100dvw);
   }
 
-  /* The prose halo (`appearance.shadowEffects`); `text-shadow` inherits, so one declaration reaches the bubble's text. */
-  @variant appearance-shadow-effects-true {
-    [data-slot="message-bubble"] {
-      text-shadow: var(--shadow-prose);
-    }
-  }
   /* `appearance.enableThemeColorization` retints the hairline tokens from the accent: generated with the channel
    * (appearance-channel.gen.css), because the recipe mixes an intent colour (D336). */
 
@@ -629,8 +625,9 @@
       --blur-fill-chrome: var(--blur-fill-contrast);
       --blur-fill-dense: var(--blur-fill-contrast);
     }
-    /* This later declaration wins when both preferences are enabled. */
-    @variant appearance-reduced-transparency {
+    /* This later declaration wins when both preferences are enabled. The device's reduced-transparency setting
+     * always wins over the glass: no reader setting overrides it. */
+    @variant transparency-reduce {
       --blur-fill-chrome: var(--blur-fill-solid);
       --blur-fill-dense: var(--blur-fill-solid);
     }
@@ -640,7 +637,7 @@
    * so every surface stays tinted as itself (`revert` would roll past the author origin to transparent). The blur
    * is dropped per surface too: an opaque fill hides it but the compositor still pays for it. Each selector names
    * the box its glass counterpart paints, so this layer's declaration lands on it. */
-  @variant appearance-reduced-transparency {
+  @variant transparency-reduce {
     @variant appearance-blur-surfaces-panels {
       .shell-panel::before,
       .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"],

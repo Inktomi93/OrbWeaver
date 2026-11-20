@@ -32,7 +32,6 @@ export { chatMastheadTile } from "./lib/home-masthead-tile.tsx";
 export { chatQuickPicksTile } from "./lib/home-quick-picks-tile.tsx";
 export { chatRecentsTile } from "./lib/home-recents-tile.tsx";
 export { chatTempChatTile } from "./lib/home-temp-chat-tile.tsx";
-export { imageryTemplatesSection } from "./lib/imagery-templates-section.tsx";
 export { memorySettingsSection } from "./lib/memory-settings-section.tsx";
 // B6 — the per-row reaction pills, mounted through chat's own `message-footer` anchor at the door.
 export { chatMessageReactionsSurface } from "./lib/message-reactions-surface.tsx";

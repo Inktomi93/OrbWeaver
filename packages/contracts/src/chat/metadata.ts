@@ -190,8 +190,8 @@ function stripRetiredGroupKeys(raw: unknown): unknown {
 }
 
 /** The STORED-blob read of {@link groupConfigSchema}: retired keys are stripped BEFORE the strict arms see
- *  them. ONE HOME for every fault-isolated stored read of a group config — today the `chats.metadata.group`
- *  sub-blob (`domain/chat/contract/metadata.ts`) and the per-user `settings.groupDefaults`.
+ *  them. ONE HOME for every fault-isolated stored read of a group config — the `chats.metadata.group`
+ *  sub-blob (`domain/chat/contract/metadata.ts`).
  *
  *  WHY a strip and not the `authorsNote` heal-to-absent precedent: both of those seams wrap this schema in a
  *  `.catch(...)`, and for a group config that catch is NOT free. A retired key would fail the strict parse

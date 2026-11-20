@@ -13,7 +13,7 @@ import { WebSpinner } from "@orb/ui/spinner";
 import { Switch } from "@orb/ui/switch";
 import { Heading, Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
+import type { ThemeScopeProps, ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TOKENS } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
@@ -58,7 +58,7 @@ export function RampChartsStory({
   density = "comfortable",
 }: {
   readonly font?: ThemeScopeTokens["font"];
-  readonly density?: ThemeScopeTokens["density"];
+  readonly density?: ThemeScopeProps["density"];
 }): ReactElement {
   const [chart, setChart] = useState<OrbEChartsInstance | null>(null);
   const [snapshot, setSnapshot] = useState("");
@@ -67,7 +67,7 @@ export function RampChartsStory({
       subject="Chart token consumers"
       isolates="Public chart components and their real ECharts instance exercise live theme, density and font metrics without application data."
     >
-      <ThemeScope tokens={{ font, density }}>
+      <ThemeScope tokens={{ font }} density={density}>
         <div data-live-token-root="" style={{ inlineSize: "100%", maxInlineSize: `var(${TOKENS["width.lane"].cssVar})` }}>
           <Text voice="label" data-slot="chart-font-reference">
             12345 tokens

@@ -1,10 +1,10 @@
-// The Background appearance SECTION (SET-SEAMS stage 1) — the background image kind + its library, fit,
-// scrim and blur. A settings-SECTION CONTRIBUTION at the `appearance` anchor owned by features/app-shell:
+// The Background appearance SECTION (SET-SEAMS stage 1) — the background image kind + its library, fit and
+// blur. The scrim is derived, not chosen (`BACKGROUND_SCRIM_DIM`). A settings-SECTION CONTRIBUTION at the `appearance` anchor owned by features/app-shell:
 // app-shell PAINTS the background (`surfaces/app-shell.tsx` mounts the image/video layers off
 // `#lib`'s `resolveThemeBackground`), so under §6 it owns the editor too.
 //
 // S1 — PATCH MINIMALITY: `OWNS` is spelled once and drives the projection, the seeded defaults, the form
-// type and the contribution's `owns` claim. The nine background keys are ONE section deliberately — a
+// type and the contribution's `owns` claim. The background keys are ONE section deliberately — a
 // newly-added background writes `backgroundLibrary` + the three `backgroundAsset*` selection fields in ONE
 // patch (BG-D), so splitting them across sections would split an atomic write.
 
@@ -28,7 +28,7 @@ import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { useUpdateBackground } from "../hooks/use-appearance-mutations.ts";
 import { ADD_BACKGROUND_NAME, BACKGROUND_IMAGE_NAME } from "../lib/app-shell-names.ts";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
-import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
+import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
 import { BackgroundUploadField } from "./background-upload-field.tsx";
 import { ExternalBackgroundField } from "./external-background-field.tsx";
@@ -182,7 +182,7 @@ function BackgroundBody({
             </CollapsiblePanel>
           </Collapsible>
 
-          {/* Fit / Scrim / Blur — correctly primitive'd rows, below the grid, while an image is picked. */}
+          {/* Fit / Blur — correctly primitive'd rows, below the grid, while an image is picked. */}
           <form.Subscribe selector={(state): string => state.values.backgroundImageKind}>
             {(kind): ReactElement | null => {
               if (kind === "none") {
@@ -193,13 +193,6 @@ function BackgroundBody({
                   <SettingRow settingId="background-fit">
                     <form.AppField name="backgroundFit">
                       {(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}
-                    </form.AppField>
-                  </SettingRow>
-                  <SettingRow settingId="background-dim">
-                    <form.AppField name="backgroundDim">
-                      {(field): ReactElement => (
-                        <field.SliderField label="Scrim opacity" min={BACKGROUND_DIM_MIN} max={BACKGROUND_DIM_MAX} step={BACKGROUND_DIM_STEP} />
-                      )}
                     </form.AppField>
                   </SettingRow>
                   <SettingRow settingId="background-blur">

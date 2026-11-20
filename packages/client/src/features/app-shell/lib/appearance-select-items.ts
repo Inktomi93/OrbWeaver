@@ -5,24 +5,29 @@
 // Split out of the settings feature's one `appearance-select-items.ts` at SET-SEAMS stage 1: the appearance
 // pane decomposed into sections owned by their READERS, and app-shell is the reader of every knob below
 // (`surfaces/app-shell.tsx` + `#lib`'s background resolver). The chat-owned half (chat display / avatars /
-// message actions) lives at `features/chat/lib/appearance-select-items.ts`. The two THEME-shaped tables a
-// third feature also renders (chatStyle/density) home at `#lib` instead.
+// message actions) lives at `features/chat/lib/appearance-select-items.ts`.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES, OS_PREFERENCE_MODES } from "@orb/contracts/settings";
+import { THEME_DENSITIES } from "@orb/contracts/theme";
 import type { SelectOption } from "@orb/ui/select/items";
 import { OS_PREFERENCE_LABELS } from "#lib";
+
+const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
+  comfortable: "Comfortable",
+  compact: "Compact",
+};
+export const DENSITY_ITEMS: readonly SelectOption[] = THEME_DENSITIES.map((value) => ({ value, label: DENSITY_LABELS[value] }));
 
 // FLAT rows typed to the UNION (#866 §7.8) — the illustrated elevation cards key their total diagram
 // map off `item.value`, so the table carries the real member type, not a widened string.
 export const ELEVATION_ITEMS: readonly SelectOption<AppearanceSettings["elevation"]>[] = [
   { value: "flat", label: "Flat" },
   { value: "ramp", label: "Layered" },
-  { value: "glow", label: "Lifted (glow)" },
 ] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
 
-// The three OS preferences (reduced motion, reduced transparency, increased contrast): follow the device, or
-// override it either way. One table, since the three share the `system | on | off` vocabulary.
+// The two OS preferences (reduced motion, increased contrast): follow the device, or override it either way.
+// One table, since the two share the `system | on | off` vocabulary.
 export const OS_PREFERENCE_ITEMS: readonly SelectOption[] = OS_PREFERENCE_MODES.map((value) => ({ value, label: OS_PREFERENCE_LABELS[value] }));
 
 // surfaceTexture — the opt-in film-grain overlay. It hosts on the WHOLE SHELL (`.shell-grid::after`,

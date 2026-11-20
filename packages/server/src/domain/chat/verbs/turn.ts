@@ -1613,15 +1613,12 @@ async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: U
 // ── Post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
 // neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
 // server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
-// continueOnSend has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn on an
-// empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
-// server-read field stays inert BY DESIGN.
+// emptyEnterReplies has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn or
+// chat.generate on an empty send).
 
-// The bound on each auto-behavior is now the host's knob (`UserSettings.chat.autoContinueRounds` /
-// `autoSwipe.maxRetries`, default 1 — the neo-parity ONE-follow-up floor, byte-identical), threaded via
-// `ChatBehaviorInputs` and read in the loops below. A model that keeps hitting the length cap wants a bigger
-// `maxOutputTokens`, and one that keeps producing rejects wants a different prompt — the ceiling (5) caps a
-// pathological spend.
+// The auto-continue bound is the host's knob (`UserSettings.chat.autoContinueRounds`, 0 off, ceiling 5), threaded
+// via `ChatBehaviorInputs`. The auto-swipe bound is the constant `AUTO_SWIPE_ROUNDS`: a model that keeps producing
+// rejects wants a different prompt, not more rerolls, so no reader would change it.
 
 /** The auxiliary verbs the send's post-round auto-behaviors re-enter (built once at {@link createTurn}). Each
  *  re-runs the full member gate under the SAME principal + registers its OWN abort handle, so a user abort
@@ -1677,13 +1674,16 @@ interface AutoFrame {
   readonly logger: ChatContext["logger"];
 }
 
+/** One send regenerates a rejected reply at most this many times: each regeneration is a full generation. */
+const AUTO_SWIPE_ROUNDS = 1;
+
 /** The bounded auto-swipe loop: regenerate the rejected reply, re-checking each fresh variant, up to the
  *  bound. `tip` enters rejected (the caller's precedence gate proved it); stops when a variant passes, the
  *  bound is hit, a swipe fails, or abort fires. */
 async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView, cfg: ChatBehaviorInputs["autoSwipe"]): Promise<MessageView[]> {
   const rows: MessageView[] = [];
   let current = tip;
-  for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
+  for (let i = 0; i < AUTO_SWIPE_ROUNDS && !frame.signal.aborted; i += 1) {
     const target = current;
     const next = await runAutoFollowUp(frame, "auto-swipe", target, () =>
       auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }),
@@ -1744,7 +1744,7 @@ async function runAutoBehaviors(
   if (args.behavior.autoSwipe.enabled && isAutoSwipeRejected(tip.content, args.behavior.autoSwipe)) {
     return await runAutoSwipe(auto, frame, tip, args.behavior.autoSwipe);
   }
-  if (args.behavior.autoContinue) {
+  if (args.behavior.autoContinueRounds > 0) {
     return await runAutoContinue(auto, frame, tip, args.behavior.autoContinueRounds);
   }
   return [];

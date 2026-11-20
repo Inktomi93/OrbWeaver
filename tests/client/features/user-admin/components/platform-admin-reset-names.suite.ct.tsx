@@ -35,7 +35,7 @@ for (const regime of REGIMES) {
       const floor = await caller.settings.getAppSettingsWithOverrides();
       await caller.settings.updateAppSettings({
         partial: {
-          maxImageBytes: floor.resolved.maxImageBytes,
+          defaultHtmlStep: "trusted",
           discreetLogin: true,
           corpusAutoindex: false,
           memoryDefaults: { keywordMatch: true },
@@ -88,6 +88,7 @@ for (const regime of REGIMES) {
         catalogRefreshIntervalMs: null,
         imageVariantQuality: null,
         maxDatabankBytes: null,
+        maxImageBytes: null,
         promptCacheMinDepth: null,
       };
       expect(after.overrides).toEqual({ ...seeded.overrides, ...cleared });

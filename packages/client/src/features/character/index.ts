@@ -23,6 +23,5 @@ export {} from "./lib/character-list-view.ts";
 
 export { characterSlashCommands } from "./lib/character-slash-commands.ts";
 export { makeCharactersSection } from "./lib/characters-section.tsx";
-export { librarySettingsSection } from "./lib/library-settings-section.tsx";
 export { CharacterEditorSurface } from "./surfaces/character-editor-surface.tsx";
 export {} from "./surfaces/character-library-surface.tsx";

@@ -7,7 +7,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { MEDIA_QUERIES } from "@orb/ui/tokens";
 import { APPEARANCE_HISTORICAL_ROWS } from "./appearance-invariant-manifest.ts";
 
-export const APPEARANCE_EDITOR_OWNERS = ["sizing", "effects", "background", "reading", "avatars", "message-style", "message-details"] as const;
+export const APPEARANCE_EDITOR_OWNERS = ["accessibility", "sizing", "effects", "background", "reading", "avatars", "message-style", "message-details"] as const;
 export type AppearanceEditorOwner = (typeof APPEARANCE_EDITOR_OWNERS)[number];
 
 export const APPEARANCE_CARRIER_PLANES = ["root-html", "theme-scope", "shell-grid", "background-layer", "message-props", "source-catalog"] as const;
@@ -48,7 +48,7 @@ type AppearanceChannel =
   | { readonly kind: "none" };
 
 /** The OS media condition a `system | on | off` preference follows; its generated variant resolves the three in CSS. */
-type AppearancePreferenceCondition = Extract<keyof typeof MEDIA_QUERIES, "motion-reduce" | "transparency-reduce" | "contrast-more">;
+type AppearancePreferenceCondition = Extract<keyof typeof MEDIA_QUERIES, "motion-reduce" | "contrast-more">;
 
 /** A number reaches CSS as a property; every other value as an attribute. */
 type ChannelFor<V> = Extract<AppearanceChannel, { readonly kind: "none" | (V extends number ? "property" : "attribute") }>;
@@ -96,8 +96,9 @@ const MESSAGE_APPEARANCE = { file: "packages/client/src/features/chat/hooks/use-
 const CHAT_STYLE = { file: "packages/client/src/features/chat/hooks/use-chat-style.ts", symbol: "useChatStyle" } as const;
 
 export const APPEARANCE_OWNER_KEYS = {
-  sizing: ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion", "reducedTransparency", "increasedContrast"],
-  effects: ["blurSurfaces", "blurStrength", "shadowEffects", "surfaceTexture", "enableThemeColorization"],
+  accessibility: ["reducedMotion", "increasedContrast"],
+  sizing: ["chatWidthPct", "fontScale", "density", "elevation"],
+  effects: ["blurSurfaces", "surfaceTexture", "enableThemeColorization"],
   background: [
     "backgroundImageKind",
     "backgroundAssetId",
@@ -105,10 +106,9 @@ export const APPEARANCE_OWNER_KEYS = {
     "backgroundAssetMime",
     "backgroundLibrary",
     "backgroundFit",
-    "backgroundDim",
     "backgroundBlur",
   ],
-  reading: ["readingLineHeight", "readingLetterSpacing", "readingParagraphSpacing", "readingNameScale", "readingBodyScale", "justifyBodyText"],
+  reading: ["readingLineHeight", "readingLetterSpacing", "readingBodyScale", "justifyBodyText"],
   avatars: ["showInChatAvatars", "avatarSize", "avatarShape", "avatarAspect", "avatarRing"],
   "message-style": ["chatStyle", "colorQuotedSpeech", "autoFixMarkdown"],
   "message-details": [
@@ -129,7 +129,7 @@ const NUMBER = { kind: "property", unit: "" } as const;
 const ROOT = { carriers: ["root-html"], lifecycle: "hydrated", portal: "must-reach-portals", consumer: APP_SHELL } as const;
 const ROOT_ATTRIBUTE = { ...ROOT, channel: ATTRIBUTE } as const;
 const ROOT_NUMBER = { ...ROOT, channel: NUMBER } as const;
-// The boot replay writes the three OS preferences before React mounts, so the boot veil and the first shell frame honour them.
+// The boot replay writes the two OS preferences before React mounts, so the boot veil and the first shell frame honour them.
 const PREFERENCE = { lifecycle: "prepaint-and-hydrated", requiredDistinctArms: ["system", "on"] } as const;
 const GRID = { carriers: ["shell-grid"], lifecycle: "hydrated", portal: "grid-only", consumer: APP_SHELL, channel: NONE } as const;
 const BACKGROUND = { carriers: ["background-layer"], lifecycle: "hydrated", portal: "outside-theme-scope", consumer: APP_SHELL, channel: NONE } as const;
@@ -138,28 +138,19 @@ const CHAT_WIDTH_NARROW = 60;
 const CHAT_WIDTH_WIDE = 90;
 const FONT_SCALE_DEFAULT = 1;
 const FONT_SCALE_LARGE = 1.25;
-const BLUR_STRENGTH_LOW = 4;
-const BLUR_STRENGTH_HIGH = 28;
-const BACKGROUND_DIM_LOW = 0.45;
-const BACKGROUND_DIM_HIGH = 1;
 const BACKGROUND_BLUR_NONE = 0;
 const BACKGROUND_BLUR_VISIBLE = 12;
 const READING_LINE_HEIGHT_TIGHT = 1.2;
 const READING_LINE_HEIGHT_LOOSE = 2.2;
 const READING_LETTER_SPACING_TIGHT = -0.02;
 const READING_LETTER_SPACING_LOOSE = 0.08;
-const READING_PARAGRAPH_SPACING_NONE = 0;
-const READING_PARAGRAPH_SPACING_LOOSE = 1.5;
 const READING_SCALE_SMALL = 0.8;
 const READING_SCALE_LARGE = 1.6;
 const CHAT_WIDTH_ARMS = [CHAT_WIDTH_NARROW, CHAT_WIDTH_WIDE] as const;
 const FONT_SCALE_ARMS = [FONT_SCALE_DEFAULT, FONT_SCALE_LARGE] as const;
-const BLUR_STRENGTH_ARMS = [BLUR_STRENGTH_LOW, BLUR_STRENGTH_HIGH] as const;
-const BACKGROUND_DIM_ARMS = [BACKGROUND_DIM_LOW, BACKGROUND_DIM_HIGH] as const;
 const BACKGROUND_BLUR_ARMS = [BACKGROUND_BLUR_NONE, BACKGROUND_BLUR_VISIBLE] as const;
 const READING_LINE_HEIGHT_ARMS = [READING_LINE_HEIGHT_TIGHT, READING_LINE_HEIGHT_LOOSE] as const;
 const READING_LETTER_SPACING_ARMS = [READING_LETTER_SPACING_TIGHT, READING_LETTER_SPACING_LOOSE] as const;
-const READING_PARAGRAPH_SPACING_ARMS = [READING_PARAGRAPH_SPACING_NONE, READING_PARAGRAPH_SPACING_LOOSE] as const;
 const READING_SCALE_ARMS = [READING_SCALE_SMALL, READING_SCALE_LARGE] as const;
 
 /**
@@ -181,19 +172,10 @@ export const APPEARANCE_CARRIER_MANIFEST = {
     requiredDistinctArms: ["comfortable", "compact"],
   },
   elevation: { owner: "sizing", ...GRID, requiredDistinctArms: ["flat", "ramp"] },
-  reducedMotion: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "motion-reduce" }, ...PREFERENCE },
-  reducedTransparency: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "transparency-reduce" }, ...PREFERENCE },
-  increasedContrast: { owner: "sizing", ...ROOT, channel: { kind: "attribute", preference: "contrast-more" }, ...PREFERENCE },
+  reducedMotion: { owner: "accessibility", ...ROOT, channel: { kind: "attribute", preference: "motion-reduce" }, ...PREFERENCE },
+  increasedContrast: { owner: "accessibility", ...ROOT, channel: { kind: "attribute", preference: "contrast-more" }, ...PREFERENCE },
 
   blurSurfaces: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [[], ["panels"]] },
-  blurStrength: {
-    owner: "effects",
-    ...ROOT,
-    channel: { kind: "property", unit: "px" },
-    requiredDistinctArms: BLUR_STRENGTH_ARMS,
-    dependsOn: ["blurSurfaces"],
-  },
-  shadowEffects: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
   surfaceTexture: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: ["none", "grain"] },
   enableThemeColorization: { owner: "effects", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
 
@@ -215,13 +197,10 @@ export const APPEARANCE_CARRIER_MANIFEST = {
     dependsOn: ["backgroundImageKind", "backgroundAssetId", "backgroundAssetHash", "backgroundAssetMime"],
   },
   backgroundFit: { owner: "background", ...BACKGROUND, requiredDistinctArms: ["cover", "contain"], dependsOn: ["backgroundImageKind"] },
-  backgroundDim: { owner: "background", ...BACKGROUND, requiredDistinctArms: BACKGROUND_DIM_ARMS, dependsOn: ["backgroundImageKind"] },
   backgroundBlur: { owner: "background", ...BACKGROUND, requiredDistinctArms: BACKGROUND_BLUR_ARMS, dependsOn: ["backgroundImageKind"] },
 
   readingLineHeight: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_LINE_HEIGHT_ARMS },
   readingLetterSpacing: { owner: "reading", ...ROOT, channel: { kind: "property", unit: "em" }, requiredDistinctArms: READING_LETTER_SPACING_ARMS },
-  readingParagraphSpacing: { owner: "reading", ...ROOT, channel: { kind: "property", unit: "rem" }, requiredDistinctArms: READING_PARAGRAPH_SPACING_ARMS },
-  readingNameScale: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_SCALE_ARMS },
   readingBodyScale: { owner: "reading", ...ROOT_NUMBER, requiredDistinctArms: READING_SCALE_ARMS },
   justifyBodyText: { owner: "reading", ...ROOT_ATTRIBUTE, requiredDistinctArms: [false, true] },
 
@@ -356,21 +335,15 @@ export const APPEARANCE_CARRIER_OBSERVABLES = {
   density: { kind: "attribute", selector: '[data-slot="theme-scope"]:has(.shell-grid)', signal: "data-density" },
   elevation: { kind: "attribute", selector: ".shell-grid", signal: "data-elevation" },
   reducedMotion: rootObservable("reducedMotion"),
-  reducedTransparency: rootObservable("reducedTransparency"),
   increasedContrast: rootObservable("increasedContrast"),
   blurSurfaces: rootObservable("blurSurfaces"),
-  blurStrength: rootObservable("blurStrength"),
-  shadowEffects: rootObservable("shadowEffects"),
   surfaceTexture: rootObservable("surfaceTexture"),
   enableThemeColorization: rootObservable("enableThemeColorization"),
   backgroundImageKind: { kind: "attribute", selector: ".shell-grid", signal: "data-has-bg-image" },
   backgroundFit: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "background-size" },
-  backgroundDim: { kind: "inline-style", selector: '[data-slot="theme-background-scrim"]', signal: "opacity" },
   backgroundBlur: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "filter" },
   readingLineHeight: rootObservable("readingLineHeight"),
   readingLetterSpacing: rootObservable("readingLetterSpacing"),
-  readingParagraphSpacing: rootObservable("readingParagraphSpacing"),
-  readingNameScale: rootObservable("readingNameScale"),
   readingBodyScale: rootObservable("readingBodyScale"),
   justifyBodyText: rootObservable("justifyBodyText"),
   showInChatAvatars: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "showInChatAvatars" },

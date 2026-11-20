@@ -20,7 +20,7 @@ import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { DENSITY_ITEMS } from "#lib";
+import { DENSITY_ITEMS } from "../lib/appearance-select-items.ts";
 
 type Density = AppearanceSettings["density"];
 

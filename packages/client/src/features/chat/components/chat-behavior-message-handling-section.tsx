@@ -1,9 +1,9 @@
-// The "Chat & message handling" chat-behavior SECTION (SET-SEAMS stage 2) — Enter-to-send, the two
-// continue knobs (+ the auto-continue round bound), auto-swipe (+ its gated detail fields), the custom
+// The "Chat & message handling" chat-behavior SECTION (SET-SEAMS stage 2) — Enter-to-send, the empty-Enter
+// reply switch, the auto-continue round count (0 is off), auto-swipe (+ its gated detail fields), the custom
 // stopping strings and the temporary-chat TTL. A
 // settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by features/chat, the feature that READS
 // these knobs: the composer's keydown path (`lib/composer-send-keys.ts`, `lib/continue-on-empty.ts`) and the
-// server turn engine chat drives (autoContinue / autoSwipe / customStoppingStrings).
+// server turn engine chat drives (autoContinueRounds / autoSwipe / customStoppingStrings).
 //
 // SET-SEAMS stage 2: it used to be one `<Section>` inside the pane's ONE welded autosave form, which sent
 // the whole `chat` blob on every keystroke; it owns its own read, its own KEY-MINIMAL write and its own form
@@ -11,7 +11,13 @@
 // projection, the seeded defaults, the patch type and the contribution's `owns` claim. Homed in components/ —
 // a FRAGMENT inside the chat-behavior pane, which owns containment + focus.
 
-import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
+import {
+  AUTO_CONTINUE_ROUNDS_MAX,
+  AUTO_CONTINUE_ROUNDS_OFF,
+  DEFAULT_CHAT_SETTINGS,
+  TEMP_CHAT_TTL_HOURS_MAX,
+  TEMP_CHAT_TTL_HOURS_MIN,
+} from "@orb/contracts/settings";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
@@ -22,13 +28,9 @@ import { configSettingLabel, RUN_CARD_SCRIPTS_CONFIG_SETTING } from "#state";
 import { useUpdateMessageHandling } from "../hooks/use-chat-settings-mutations.ts";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
-  AUTO_CONTINUE_ROUNDS_MAX,
-  AUTO_CONTINUE_ROUNDS_MIN,
   AUTO_SWIPE_MIN_LENGTH_MIN,
   CHAT_MESSAGE_HANDLING_SUBCATEGORY,
   projectMessageHandlingForm,
-  TEMP_CHAT_TTL_HOURS_MAX,
-  TEMP_CHAT_TTL_HOURS_MIN,
   toMessageHandlingPatch,
 } from "../lib/chat-behavior-message-handling-model.ts";
 
@@ -87,40 +89,22 @@ function MessageHandlingBody({
               {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends")} />}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="continue-on-send">
-            <form.AppField name="continueOnSend">
-              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "continueOnSend")} />}
+          <SettingRow settingId="empty-enter-replies">
+            <form.AppField name="emptyEnterReplies">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "emptyEnterReplies")} />}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="empty-enter-generates">
-            <form.AppField name="generateOnEmptySend">
-              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "generateOnEmptySend")} />}
+          <SettingRow settingId="auto-continue-rounds">
+            <form.AppField name="autoContinueRounds">
+              {(field): ReactElement => (
+                <field.NumberField
+                  label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoContinueRounds")}
+                  max={AUTO_CONTINUE_ROUNDS_MAX}
+                  min={AUTO_CONTINUE_ROUNDS_OFF}
+                />
+              )}
             </form.AppField>
           </SettingRow>
-          <SettingRow settingId="auto-continue">
-            <form.AppField name="autoContinue">
-              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoContinue")} />}
-            </form.AppField>
-          </SettingRow>
-          {/* The bound the switch modulates: DISABLED rather than hidden when auto-continue is off, so the
-              coupling is visible and the stored value stays readable (the auto-swipe details below hide
-              instead — they are a whole sub-feature, this is one number the switch above governs). */}
-          <form.Subscribe selector={(state): boolean => state.values.autoContinue}>
-            {(on): ReactElement => (
-              <SettingRow settingId="auto-continue-rounds">
-                <form.AppField name="autoContinueRounds">
-                  {(field): ReactElement => (
-                    <field.NumberField
-                      label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoContinueRounds")}
-                      disabled={!on}
-                      max={AUTO_CONTINUE_ROUNDS_MAX}
-                      min={AUTO_CONTINUE_ROUNDS_MIN}
-                    />
-                  )}
-                </form.AppField>
-              </SettingRow>
-            )}
-          </form.Subscribe>
           {/* ONE ADDRESS, ONE ROW (#932). These three fields all name the leaf `auto-swipe` — its declared
               `key` is the TOP-LEVEL `autoSwipe` object, so all three of the old rows' Resets wrote the
               same patch — yet each mounted its own `SettingRow`, which painted three modified rails, three

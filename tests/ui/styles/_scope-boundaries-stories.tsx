@@ -13,7 +13,7 @@ export function ScopeBoundariesStory({ wide = false, dir = "ltr" }: { readonly w
     <CtIsolation subject="Scope boundaries" isolates="Density inheritance, bounded focus and asynchronous scroll geometry through their production primitives">
       <CtAppearanceChannels settings={{ surfaceTexture: "grain" }}>
         <Surface tier="form">
-          <ThemeScope tokens={{ density: "compact", radius: "control" }}>
+          <ThemeScope tokens={{ radius: "control" }} density="compact">
             <Card data-case="scoped-card">Scoped card</Card>
             <Surface tier="instrument">
               <Card data-case="instrument-card">Instrument card</Card>

@@ -143,8 +143,8 @@
     border-block-end: none;
   }
 
-  /* Elevation `glow` writes nothing here: a docked pane is chrome and never casts, and an overlay pane casts the float
-   * shadow at every setting (panels.css). Glow lifts only an interactive Card (ui-surface-and-interaction-rules §2.4). */
+  /* Elevation `flat` writes nothing here: the hairlines are the base rules. A docked pane is chrome and never casts,
+   * and an overlay pane casts the float shadow at every setting (panels.css). */
 
   /* Under a wallpaper the grid is transparent so the fixed background layer behind it shows through. */
   .shell-grid[data-has-bg-image] {

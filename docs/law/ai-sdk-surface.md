@@ -181,7 +181,7 @@ missing spans to 0 (`@openrouter/ai-sdk-provider@3.1.0`)".
 2. Web-search `source` parts: the app runs no web-search feature, but the parts are **stored, not dropped** —
    `ChatResult` carries the field and the fold keeps them; no UI is promised.
 3. Google `continuationToken`: the domain path wins — a truncated reply continues through the EXISTING
-   `continue` turn intent (`autoContinue` / `runAutoContinue`, already gated on `finishReason === "length"`),
+   `continue` turn intent (`autoContinueRounds` / `runAutoContinue`, already gated on `finishReason === "length"`),
    not a new backend leg loop. The owner ruled the leg loop over-engineered: its resume fidelity and
    invisibility do not pay for a capability cell, a funnel policy and a ledger row, and its billing is a wash
    against the continue's canon re-send. The leg-loop design stays parked at `docs/plans/` for the day resume

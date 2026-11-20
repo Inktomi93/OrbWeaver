@@ -3,7 +3,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_NEGATIVE_SLOT_ID, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
 import { modelIdSchema } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -144,7 +144,13 @@ export async function policyRoom(
   await root.services.chat.commitMessage({ principal: host, chatId: chat.id, content: "The traveller stands beside the loom." });
   await root.services.settings.updateUserSettingsSection({
     principal: member,
-    input: { section: "imagery", patch: { templates: { character: "Member extraction." }, captions: { [CAPTION_MODE]: "Member caption." } } },
+    input: {
+      section: "prose",
+      patch: {
+        [IMAGERY_TEMPLATE_SLOT_IDS.character]: proseOverrideFromLegacy("Member extraction."),
+        [IMAGERY_CAPTION_SLOT_IDS[CAPTION_MODE]]: proseOverrideFromLegacy("Member caption."),
+      },
+    },
   });
   await root.services.settings.updateUserSettingsSection({
     principal: member,

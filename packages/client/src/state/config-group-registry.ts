@@ -133,6 +133,10 @@ export interface ConfigSubcategory {
   readonly teach?: SettingTeach;
 }
 
+/** The fold a non-appearance group gives its expert tuning sections: values few readers change, kept out of the
+ *  way so the settings a reader does change are the ones the pane shows first. */
+export const CONFIG_ADVANCED_FOLD_NAME = "Advanced";
+
 /** The label the section's model gives the setting stored under `key`. A pane prints its control's name from here, so Settings search,
  *  the roster and a sentence that points at the setting all say the word the control wears. */
 export function configSettingLabel(subcategory: ConfigSubcategory, key: string): string {

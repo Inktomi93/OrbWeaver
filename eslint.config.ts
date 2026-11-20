@@ -2022,9 +2022,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },
-    // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
+    // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`). The owner-CSS rename
+    // table is outside too: its rows name channels the manifest retired, so an owner theme written against them still loads.
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/client/**/*.{ts,tsx}", "tests/ui/**/*.{ts,tsx}"],
+      ignores: homes("packages/client/src/owner-css/renames.ts"),
       rules: { "orb/appearance-name-in-manifest": "error" },
     },
     {

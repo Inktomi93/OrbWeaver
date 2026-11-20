@@ -27,7 +27,6 @@ export { BACKGROUND_UNAVAILABLE_OP_CODE, backgroundMaterializeMessage } from "./
 export type {
   CardEmbeddableTheme,
   ThemeChatStyle,
-  ThemeDensity,
   ThemeFont,
   ThemeOverride,
   ThemeRadius,

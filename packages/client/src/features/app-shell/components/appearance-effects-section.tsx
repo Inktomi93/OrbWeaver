@@ -1,11 +1,11 @@
-// The "Effects" appearance SECTION — the frosted-glass surface switches + glass blur radius, prose shadow,
-// surface texture and the accent tint. Redesigned to the settings-row grammar (owner ruling: the old
+// The "Effects" appearance SECTION — the frosted-glass surface switches, the texture overlay and the accent
+// tint. Redesigned to the settings-row grammar (owner ruling: the old
 // ToggleGroup multi-select + a dangling "Enable" button read ugly). By value type (§13.8 R4): the
 // frosted-glass surfaces are INDEPENDENT on/off effects, so each is its own label-left / switch-right
 // `SettingSwitchRow` (a toggle-group would imply exclusivity/segmentation, which is wrong here) —
 // every switch toggles membership in the one `blurSurfaces` array field, so the autosave binding law is
-// intact (all state still flows through `form.AppField`). `blurStrength` stays a slider (a continuous
-// value); Prose shadow + accent tint join the same clean switch-row list.
+// intact (all state still flows through `form.AppField`). The accent tint joins the same clean switch-row
+// list. The glass blur radius is a token, not a knob, and the OS reduced-transparency setting always wins.
 //
 // SET-SEAMS stage 1: it used to be a fragment TAKING the pane's one welded autosave form as a prop; it owns
 // its own read, its own key-minimal write and its own form session now, as a settings-SECTION CONTRIBUTION
@@ -24,7 +24,6 @@ import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configSettingLabel } from "#state";
 import { useUpdateEffects } from "../hooks/use-appearance-mutations.ts";
-import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items.ts";
 
@@ -109,25 +108,6 @@ function EffectsBody({
                 )}
               </form.AppField>
             </Stack>
-          </SettingRow>
-          <SettingRow settingId="glass-blur">
-            <form.AppField name="blurStrength">
-              {(field): ReactElement => (
-                <field.SliderField label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "blurStrength")} min={BLUR_STRENGTH_MIN} max={BLUR_STRENGTH_MAX} />
-              )}
-            </form.AppField>
-          </SettingRow>
-          <SettingRow settingId="prose-shadow">
-            <form.AppField name="shadowEffects">
-              {(field): ReactElement => (
-                <SettingSwitchRow
-                  label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "shadowEffects")}
-                  checked={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={field.handleChange}
-                />
-              )}
-            </form.AppField>
           </SettingRow>
           <SettingRow settingId="surface-texture">
             <form.AppField name="surfaceTexture">

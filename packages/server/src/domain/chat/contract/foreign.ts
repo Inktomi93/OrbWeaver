@@ -23,9 +23,8 @@ import type { MemoryConfig } from "./memory.ts";
 /** The host's turn-behavior knobs the engine honors — the schema-real `UserSettings.chat` arm the
  *  settings domain owns, picked (never re-spelled) to exactly the fields the SERVER turn path consumes:
  *   • `customStoppingStrings` — extra stop strings merged into the generation request's stop set (pipeline).
- *   • `autoContinue`          — after a length-capped reply, auto-issue continues (up to `autoContinueRounds`).
- *   • `autoContinueRounds`    — the max auto-continue follow-ups (the AUTO_CONTINUE loop cap).
- *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate (up to `autoSwipe.maxRetries`).
+ *   • `autoContinueRounds`    — after a length-capped reply, auto-issue up to this many continues; 0 is off.
+ *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate once.
  *   • `offerChoices`          — B1 / RULED F2: the host's per-USER DEFAULT for the offer-choices posture, which
  *                               a room inherits when its own `chatMetadata.offerChoices` is absent. It rides
  *                               HERE rather than being read chat-side because it is a settings value under the
@@ -37,14 +36,14 @@ import type { MemoryConfig } from "./memory.ts";
  *                               the SAME meeting point for the teaching knobs; the VERB-time gates
  *                               (`toggleReaction`/`listReactions`) resolve it through their own injected op
  *                               because no ForeignInputs exists outside the turn path.
- *  `enterSends`/`continueOnSend`/`smoothStream*` are CLIENT-honored (composer keydown / empty-send / stream
+ *  `enterSends`/`emptyEnterReplies`/`smoothStreamCps` are CLIENT-honored (composer keydown / empty-send / stream
  *  pacer) and carry no server arm, so they are deliberately absent here. All fields default to their shipped
  *  posture (off/empty, except `reactionsEnabled` whose shipped posture is ON) ⇒ a host who never touched the
  *  pane sees byte-identical behavior. */
 
 export type ChatBehaviorInputs = Pick<
   ChatSettings,
-  "autoContinue" | "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
+  "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
 > &
   Partial<Pick<ChatSettings, "attachmentQuality">>;
 
@@ -161,9 +160,8 @@ export interface ForeignInputs {
 /** The turn-behavior floor: no custom stops, no auto-continue, no auto-swipe. The one home the turn
  *  path defaults to when a `ForeignInputs` omits `chatBehavior` (a test fake / the memory-opt-out precedent). */
 export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
-  autoContinue: false,
-  autoContinueRounds: 1,
-  autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
+  autoContinueRounds: 0,
+  autoSwipe: { enabled: false, minLength: 0, blacklist: [] },
   charactersCanReact: false,
   customStoppingStrings: [],
   offerChoices: false,

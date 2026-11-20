@@ -1,7 +1,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_NEGATIVE_SLOT_ID, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
 import { providerDefSchema, WARNING_CODE } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -70,7 +70,7 @@ test("member previews use the host's live Utility binding, preset and instructio
     messages: expect.arrayContaining([
       {
         role: "system",
-        content: processMacros(resolveImageryTemplate(defaults.imagery, "character"), {
+        content: processMacros(resolveImageryTemplate(defaults.prose, "character"), {
           char: room.character.name,
           user: "User",
           persona: "",
@@ -84,7 +84,7 @@ test("member previews use the host's live Utility binding, preset and instructio
   expect(await preview()).toMatchObject({ prompt: CAPTION.trim(), source: "captioned" });
   expect(await wire.requests[1]?.clone().json()).toMatchObject({
     model: HOST_MODEL,
-    messages: expect.arrayContaining([{ role: "system", content: resolveImageryCaption(defaults.imagery, "character_multimodal") }]),
+    messages: expect.arrayContaining([{ role: "system", content: resolveImageryCaption(defaults.prose, "character_multimodal") }]),
   });
   const preset = await root.services.preset.create({
     userId: room.host.userId,
@@ -98,7 +98,13 @@ test("member previews use the host's live Utility binding, preset and instructio
   });
   await root.services.settings.updateUserSettingsSection({
     principal: room.host,
-    input: { section: "imagery", patch: { templates: { character: HOST_TEMPLATE }, captions: { [CAPTION_MODE]: HOST_CAPTION } } },
+    input: {
+      section: "prose",
+      patch: {
+        [IMAGERY_TEMPLATE_SLOT_IDS.character]: proseOverrideFromLegacy(HOST_TEMPLATE),
+        [IMAGERY_CAPTION_SLOT_IDS[CAPTION_MODE]]: proseOverrideFromLegacy(HOST_CAPTION),
+      },
+    },
   });
   const captioned = await preview();
   expect(captioned.prompt).toBe(CAPTION.trim());
