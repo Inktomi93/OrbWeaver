@@ -108,6 +108,7 @@ import {
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
+import { registryAbortReason } from "../substrate/abort-cause.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
@@ -1340,8 +1341,8 @@ class StaleLockAbort extends Error {
 
 /** Classify a post-turnStarted throw into its {@link TurnAbortReason}, consulting the turn's abort signal so a
  *  lock-fault abort is distinguishable from a caller cancel. A settled (aborted) signal means the throw is an
- *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); any other aborted-signal
- *  cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
+ *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); `ShutdownAbort` → "shutdown"
+ *  (the registry's dispose); any other aborted-signal cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
  *  fault (provider/DB) → "error".
  *
  *  …EXCEPT the commit fence's own refusal. {@link assertTurnMayCommit} can find the lock gone up to a
@@ -1369,7 +1370,7 @@ function abortReasonFor(err: unknown, signal: AbortSignal): TurnAbortReason {
     return "stale";
   }
   if (signal.aborted) {
-    return signal.reason instanceof StaleLockAbort ? "stale" : "user";
+    return signal.reason instanceof StaleLockAbort ? "stale" : registryAbortReason(signal);
   }
   return "error";
 }

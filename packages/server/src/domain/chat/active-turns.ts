@@ -9,6 +9,7 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AbortResult, ActiveTurnHandle, OwnedActiveTurns } from "./contract/active-turns.ts";
+import { ShutdownAbort } from "./substrate/abort-cause.ts";
 
 interface Entry {
   readonly controller: AbortController;
@@ -99,7 +100,8 @@ export function createActiveTurns(): OwnedActiveTurns {
       closed = true;
       const turns = [...unsettled];
       for (const turn of turns) {
-        turn.controller.abort();
+        // A distinct cause: a shutdown is not a member's Stop, so an owed reply it cuts stays owed (D332).
+        turn.controller.abort(new ShutdownAbort());
       }
       await Promise.all(turns.map((turn) => turn.released.promise));
     },

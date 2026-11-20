@@ -9,8 +9,8 @@ import type { NotificationType } from "@orb/contracts/notifications";
 import { messages, notifications, pendingTurns } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
-import { connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
+import { connectDevice, freshHeldDb, readRoomCanon } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import type { CoreWireReply } from "../engine/core-physical.ts";
 import { coreFrame, coreHeldReply, coreHttpRoom, corePartialReply, coreProse } from "../engine/core-physical.ts";
@@ -58,9 +58,9 @@ interface OwedRoom {
 
 /** A member's send while the host is offline, leaving exactly one owed row. The host stays offline: each case
  *  runs the drain verb itself, so the drain's verdict is awaited rather than raced against a connect edge. */
-async function owedRoom(replies: readonly CoreWireReply[]): Promise<OwedRoom & AsyncDisposable> {
+async function owedRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<OwedRoom & AsyncDisposable> {
   await using construction = new AsyncDisposableStack();
-  const h = construction.use(await coreHttpRoom(replies));
+  const h = construction.use(await coreHttpRoom(replies, options));
   const member = await h.root.principalFor((await h.root.actor()).id);
   const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
   await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
@@ -137,6 +137,33 @@ test("a member's Stop on an owed reply before any text drops the debt: no re-que
   await room.h.root.settleBackground();
   expect(await listed()).toEqual(["user"]);
   expect(await room.h.root.services.stats.overview(room.h.owner.userId)).toMatchObject({ assistantTurns: 0, tokensIn: null, tokensOut: null });
+});
+
+test("a shutdown that cuts an owed reply before any text is not a Stop: the debt stays queued", async () => {
+  using held = await freshHeldDb();
+  const reply = coreHeldReply();
+  await using ownership = new AsyncDisposableStack();
+  const room = ownership.use(await owedRoom([reply.respond], { server: { db: held.db } }));
+  const queued = (): Promise<(typeof pendingTurns.$inferSelect)[]> => held.db.select().from(pendingTurns).where(eq(pendingTurns.chatId, room.h.chatId));
+  const before = await queued();
+  const draining = room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId });
+  const settled = Promise.allSettled([draining]);
+  try {
+    await Promise.race([
+      reply.reached,
+      draining.then(() => {
+        throw new Error("the drain settled before the shutdown point");
+      }),
+    ]);
+    // The process closing disposes the chat graph, whose active-turns registry aborts the drain's in-flight round.
+    await ownership.disposeAsync();
+    expect(await draining).toEqual({ ran: 0, dropped: 0 });
+    expect(await queued()).toEqual(before);
+    expect(await held.db.select().from(notifications).where(eq(notifications.type, DROPPED_NOTICE))).toEqual([]);
+  } finally {
+    reply.release();
+    await settled;
+  }
 });
 
 /** A stream that delivers one text frame and then loses its connection. Text has streamed, so the provider layer
