@@ -20,12 +20,13 @@
 // cannot carry as stored is named in the zip's export report (`PORTABLE_EXPORT_REPORT_FILE`), never a broken stream.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableKind } from "@orb/contracts/portability";
+import { ST_EXPORT_DRY_RUN_QUERY, ST_EXPORT_FORMAT, ST_EXPORT_REPORT_FILE } from "@orb/contracts/import";
+import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableFile, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
-import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
-import { createBundlePaths } from "#domain/export";
+import type { ExportCardFormat, ExportChatFormat, ExportService, StProfileSource } from "#domain/export";
+import { createBundlePaths, planStProfileExport } from "#domain/export";
 import type { Logger, TraceRing } from "#foundation/observability";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
@@ -44,6 +45,8 @@ const ZIP_MIME = "application/zip";
 const FORMAT_QUERY = "format";
 const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
+const ST_PROFILE_FILENAME = "orbweaver-sillytavern.zip";
+const DRY_RUN_VALUE = "1";
 const JSON_REPORT_INDENT = 2;
 
 /** R6 — the chat door's THIRD container: the orb-native bundle. Not an `ExportChatFormat` member, because
@@ -61,7 +64,7 @@ const WHOLE_LIBRARY_ONLY_VALUES: readonly string[] = WHOLE_LIBRARY_ONLY_KINDS;
 export interface ExportDeps {
   readonly logger: Logger;
   readonly traces: TraceRing;
-  readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle">;
+  readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle" | "listHostChats">;
   readonly registry: PortabilityRegistry;
 }
 
@@ -105,6 +108,28 @@ async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet
     const report: PortableExportReport = { notes };
     yield { path: bundlePath(PORTABLE_EXPORT_REPORT_FILE), bytes: new TextEncoder().encode(JSON.stringify(report, null, JSON_REPORT_INDENT)) };
   }
+}
+
+// The SillyTavern export reads the same per-kind streams the library zip reads, under the same one owner.
+function stProfileSource(deps: ExportDeps, principal: Principal): StProfileSource {
+  return {
+    async *files(kind, note): AsyncGenerator<PortableFile> {
+      for (const entity of deps.registry.filter((candidate) => candidate.kind === kind)) {
+        yield* entity.exportAll(principal.userId, note);
+      }
+    },
+    listHostChats: () => deps.export.listHostChats({ principal }),
+    exportChat: (chatId) => deps.export.exportChat({ principal, chatId, format: "jsonl" }),
+  };
+}
+
+// The plan's files, then its report at the zip root. The report is the plan's own, so it says what the zip holds.
+async function* stProfileEntries(deps: ExportDeps, principal: Principal): AsyncGenerator<ZipEntry> {
+  const plan = await planStProfileExport(stProfileSource(deps, principal));
+  for (const entry of plan.entries) {
+    yield { path: entry.path, bytes: await entry.bytes() };
+  }
+  yield { path: ST_EXPORT_REPORT_FILE, bytes: new TextEncoder().encode(JSON.stringify(plan.report, null, JSON_REPORT_INDENT)) };
 }
 
 function serveDownload(body: Uint8Array | string, mime: string, filename: string): Response {
@@ -188,10 +213,21 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     return serveDownload(transcript.text, transcriptMime(format), transcript.filename);
   });
 
-  app.get(PORTABILITY_ROUTES.exportLibrary, (c) => {
+  app.get(PORTABILITY_ROUTES.exportLibrary, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
+    }
+    if (c.req.query(FORMAT_QUERY) === ST_EXPORT_FORMAT) {
+      // A SillyTavern profile is the whole library: SillyTavern pairs chats with their cards by folder.
+      if (c.req.query(KINDS_QUERY) !== undefined) {
+        return c.json({ error: `"${KINDS_QUERY}" does not apply to the ${ST_EXPORT_FORMAT} format` }, BAD_REQUEST);
+      }
+      if (c.req.query(ST_EXPORT_DRY_RUN_QUERY) === DRY_RUN_VALUE) {
+        return c.json((await planStProfileExport(stProfileSource(deps, principal))).report);
+      }
+      const profile = packZip(stProfileEntries(deps, principal), deps.logger, deps.traces);
+      return new Response(profile, { headers: { "Content-Type": ZIP_MIME, "Content-Disposition": `attachment; filename="${ST_PROFILE_FILENAME}"` } });
     }
     const { kinds, invalid } = parseKinds(c.req.query(KINDS_QUERY));
     if (invalid !== null) {

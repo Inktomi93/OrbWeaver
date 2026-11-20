@@ -585,7 +585,8 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
   };
 }
 
-function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
+/** One lore entry on the `character_book` entry wire, the shape a standalone SillyTavern world file adapts. */
+export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
