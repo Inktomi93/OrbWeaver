@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: blocked
 updated: 2026-11-20
 priority: P2
 area: ui
+blocked: owner
 ---
 
 # Decide how the context tab strip shows tabs that do not fit

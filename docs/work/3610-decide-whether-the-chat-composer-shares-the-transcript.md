@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
+status: blocked
 updated: 2026-11-20
 priority: P2
 area: chat
+blocked: owner
 ---
 
 # Decide whether the chat composer shares the transcript's text column or spans the whole track
