@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-20
 priority: P2
 area: tests
+lane: wt/agent-a4d098f9b2f799d95
 plan: chat-html-and-presets
 ---
 
