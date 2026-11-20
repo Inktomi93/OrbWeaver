@@ -36,8 +36,10 @@ import {
 } from "#state";
 
 const UNNAMED_CHARACTER = "this character";
+const NO_AUTHORS: readonly CharacterId[] = [];
 const PLAIN_REPLY_CAUSE: Record<PlainReplyReason, string> = {
   [PLAIN_REPLY_REASON.carriedStylesOverBudget]: "This reply carries more styling than its frame may hold, so it shows as plain.",
+  [PLAIN_REPLY_REASON.frameUnavailable]: "This reply's frame could not be drawn, so it shows as plain.",
 };
 const NO_REMEDY: PlainRemedy = "none";
 const OWN_SCRIPTS_ACTION_LABEL = "Open your card script setting";
@@ -172,6 +174,9 @@ export interface FramedMediaNoticeProps {
   /** The room the frame mints under; absent ⇒ no roster, so no setting to name and no notice. */
   readonly chatId: ChatId | undefined;
   readonly characterId: CharacterId | null;
+  /** The other characters whose stylesheets the frame carries (the mint's `carriedFrom`); each one's media setting
+   *  also holds the frame's external media. */
+  readonly carriedFrom?: readonly CharacterId[] | undefined;
   /** The markup and stylesheet the frame document is built from. */
   readonly html: string;
   readonly css: string | undefined;
@@ -182,7 +187,7 @@ export interface FramedMediaNoticeProps {
 
 /** Why a framed card or styled reply shows without its external images and media, and, when the viewer may change it,
  *  the control that opens the setting. Nothing when the document loads external media or the markup names none. */
-export function FramedMediaNotice({ chatId, characterId, html, css, granted }: FramedMediaNoticeProps): ReactElement | null {
+export function FramedMediaNotice({ chatId, characterId, carriedFrom = NO_AUTHORS, html, css, granted }: FramedMediaNoticeProps): ReactElement | null {
   const trpc = useTRPC();
   const { isAdmin } = useSettingsViewerView();
   const config = useAuthConfig().data;
@@ -191,16 +196,16 @@ export function FramedMediaNotice({ chatId, characterId, html, css, granted }: F
   if (config === undefined || room === undefined) {
     return null;
   }
-  const verdict = resolveFramedMediaVerdict(
-    {
-      characterId,
-      participants: buildParticipantsById(room.participants),
-      narrator: room.narratorRender,
-      installForbids: config.forbidExternalMedia,
-      viewerIsHost: room.viewerIsHost,
-    },
-    isAdmin,
-  );
+  const participants = buildParticipantsById(room.participants);
+  // The frame's own author first, then each author whose stylesheet it carries: the first that withholds is named.
+  const verdict = [characterId, ...carriedFrom]
+    .map((author) =>
+      resolveFramedMediaVerdict(
+        { characterId: author, participants, narrator: room.narratorRender, installForbids: config.forbidExternalMedia, viewerIsHost: room.viewerIsHost },
+        isAdmin,
+      ),
+    )
+    .find((found) => found !== undefined);
   if (granted.externalMedia || verdict === undefined || !holdsExternalMedia(html, css)) {
     return null;
   }

@@ -2,7 +2,6 @@
 // speaker split, each run once over the text. The single-bubble row draws its body through it once
 // (`MessageContent`), and Tide's train draws the whole reply through it once and cuts what it drew (`MessageTrain`).
 
-import type { FrameStyleSheet } from "@orb/kit/content";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -14,6 +13,7 @@ import { PLAIN_REPLY_REASON } from "#lib";
 import type { CardOrigin } from "../components/card-block.tsx";
 import type { ReplyLayout } from "../lib/reply-parts.ts";
 import { carriedRoomSheets, PANEL_READ_MAX_CHARS, readPanels, replyLayout } from "../lib/reply-parts.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import { useDisplayText } from "./use-display-text.ts";
 
@@ -48,7 +48,7 @@ export interface MessageDrawProps {
   readonly displayOrder?: number | undefined;
   /** The room's sheets written before this row (`roomSheetsBefore`), which a framed body carries when its markup uses
    *  a class they name. Absent (a ghost, a preview, a room with none) ⇒ the body frames only on its own triggers. */
-  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets?: readonly RoomSheet[] | undefined;
 }
 
 /** A body as the display pipeline drew it: the text, its speaker spans, and the pass's verdicts. */

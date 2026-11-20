@@ -136,6 +136,8 @@ export {
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export {
+  CARD_FRAME_CARRIED_AUTHORS_MAX,
+  CARD_FRAME_HTML_MAX_CHARS,
   CARD_FRAME_MINT_BODY_MAX_BYTES,
   CARD_FRAME_MINTS_IN_FLIGHT,
   CARD_FRAME_ROUTE,

@@ -32,6 +32,10 @@
 //     static posture and no external media, whatever the selector grants, because the room has not kept those bytes and
 //     a save-pass script, a stop string or an abort can still remove them. `data:` images keep the step's answer: they
 //     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows).
+//   • CARRIED AUTHORS (`carriedFrom`, the other characters whose stylesheets a framed reply carries) are resolved through
+//     the same read, at mint and on every serve: external media loads only while each of them allows it too, so one
+//     character's media setting never admits another's `url()`. An author the read cannot resolve allows none. They
+//     narrow the media grant only: a stylesheet runs no script.
 //
 // ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or an
 // INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
@@ -55,6 +59,7 @@
 // ceilings (this doorway's are `CARD_FRAME_CEILINGS`, sized there for split replies), oldest-first eviction, a
 // sliding 30-minute TTL, and the owner check as the last word.
 
+import type { RenderPolicy } from "@orb/contracts/chat";
 import {
   CARD_FRAME_MINT_BODY_MAX_BYTES,
   CARD_FRAME_MINTS_IN_FLIGHT,
@@ -68,6 +73,7 @@ import {
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_MISSING_ATTRIBUTE, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
+import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Hono, MiddlewareHandler } from "hono";
@@ -153,25 +159,48 @@ async function readViewerConsent(deps: CardFrameDeps, principal: Principal): Pro
   }
 }
 
+/** The selector a mint names and a named document keeps for its serves. */
+interface FrameSelector {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId | null;
+  readonly carriedFrom?: readonly CharacterId[] | undefined;
+}
+
+// One author's server-resolved policy in the room, or null when the caller cannot resolve it there.
+async function authorPolicy(deps: CardFrameDeps, principal: Principal, chatId: ChatId, characterId: CharacterId): Promise<RenderPolicy | null> {
+  // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
+  try {
+    return (await deps.participants.resolveAuthorRenderPolicy({ principal, chatId, characterId })) ?? null;
+  } catch (error) {
+    // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
+    // between "not a member" and "no such character" — both are the floor. Any other failure is a fault.
+    if (error instanceof DomainNotFoundError || error instanceof DomainForbiddenError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+// Whether every carried author lets external media load. A carried sheet's `url()` loads under the receiving document's
+// grant, so the document takes the narrower of its own grant and each author's (UI-Theming-and-Content §12.2). An author
+// the caller cannot resolve in the room allows none.
+async function carriedAuthorsAllowMedia(deps: CardFrameDeps, principal: Principal, selector: FrameSelector): Promise<boolean> {
+  for (const characterId of selector.carriedFrom ?? []) {
+    const policy = await authorPolicy(deps, principal, selector.chatId, characterId);
+    if (policy === null || !resolveCardMediaVerdict({ installForbids: !deps.allowExternalMedia(), policy }).external.loads) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Resolve the frame's media policy + posture from the SELECTOR. Every failure arm returns the safe floor. */
-async function resolvePolicy(
-  deps: CardFrameDeps,
-  principal: Principal,
-  selector: { readonly chatId: ChatId; readonly characterId: CharacterId | null },
-): Promise<ResolvedFramePolicy> {
+async function resolvePolicy(deps: CardFrameDeps, principal: Principal, selector: FrameSelector): Promise<ResolvedFramePolicy> {
   if (selector.characterId === null) {
     return FRAME_POLICY_FLOOR;
   }
-  let policy: Awaited<ReturnType<CardFrameParticipantsPort["resolveAuthorRenderPolicy"]>>;
-  // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
-  try {
-    policy = await deps.participants.resolveAuthorRenderPolicy({ principal, chatId: selector.chatId, characterId: selector.characterId });
-  } catch {
-    // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
-    // between "not a member" and "no such character" — both are the floor.
-    return FRAME_POLICY_FLOOR;
-  }
-  if (policy === undefined) {
+  const policy = await authorPolicy(deps, principal, selector.chatId, selector.characterId);
+  if (policy === null) {
     return FRAME_POLICY_FLOOR;
   }
   // The deployment ceilings are passed HERE as well as folded inside `resolveRenderPolicy`: this is the boundary that
@@ -182,8 +211,11 @@ async function resolvePolicy(
   // The viewer's consent is asked only when the other two allow scripts; a failed read is a no, so the document
   // still serves, static, rather than erroring (D294).
   const viewerRuns = cardScriptsNeedViewerConsent({ installAllows, step: policy.htmlTrust }) && (await readViewerConsent(deps, principal));
+  // Carried stylesheets are CSS only, so they narrow the media grant and never the posture or `data:` images, which
+  // fetch nothing.
+  const externalMedia = media.external.loads && (await carriedAuthorsAllowMedia(deps, principal, selector));
   return {
-    media: { allowExternalMedia: media.external.loads, allowInlineData: media.inlineData },
+    media: { allowExternalMedia: externalMedia, allowInlineData: media.inlineData },
     // THE PER-DOCUMENT POSTURE SELECTION: the interactive posture emits `script-src 'unsafe-inline'` and the card's own
     // scripts RUN. `resolveCardScriptVerdict` is the one home of the rule.
     posture: resolveCardScriptVerdict({ installAllows, step: policy.htmlTrust, viewerRuns }).runs ? "interactive" : "static",
@@ -249,7 +281,8 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.json({ error: "invalid card-frame mint" }, BAD_REQUEST);
     }
     const body = parsed.data;
-    const resolved = await resolvePolicy(deps, principal, { chatId: body.chatId, characterId: body.characterId });
+    const selector: FrameSelector = { chatId: body.chatId, characterId: body.characterId, carriedFrom: body.carriedFrom };
+    const resolved = await resolvePolicy(deps, principal, selector);
     const policy = body.forming === true ? capForming(resolved) : resolved;
     // The clamps inside `buildCardFrameDocument` run on OUR side of the boundary — the client's own clamp
     // is defense in depth for the srcdoc floor, never the reason these values are safe here.
@@ -267,7 +300,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     // SERVE can withdraw any of them (see the GET below). A null selector resolves to the floor, which has
     // nothing left to withdraw.
     const grant =
-      body.characterId === null ? {} : { grant: { chatId: body.chatId, characterId: body.characterId, media: policy.media, posture: policy.posture } };
+      body.characterId === null
+        ? {}
+        : { grant: { chatId: body.chatId, characterId: body.characterId, carriedFrom: body.carriedFrom, media: policy.media, posture: policy.posture } };
     const id = store.put({
       userId: principal.userId,
       doc,

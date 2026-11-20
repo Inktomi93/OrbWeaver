@@ -8,7 +8,6 @@
 import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { FrameStyleSheet } from "@orb/kit/content";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
@@ -41,6 +40,7 @@ import { actionsRevealFor } from "../lib/message-actions-reveal.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
 import { gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
@@ -101,7 +101,7 @@ export interface MessageRowProps {
   /** The room is a game whose immersive HTML cards are off, folded into this row's render policy. Absent ⇒ not. */
   readonly gameCardsOff?: boolean | undefined;
   /** The room's sheets written before this row (`roomSheetsBefore`), resolved once by the surface. Absent ⇒ none. */
-  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets?: readonly RoomSheet[] | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
    *  (D166). Absent ⇒ the ordinary variant strip. */

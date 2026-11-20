@@ -4,7 +4,6 @@
 // message-row-header.tsx.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { FrameStyleSheet } from "@orb/kit/content";
 import type { UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -19,6 +18,7 @@ import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
 import { storedReplyTrains } from "../lib/split-paragraphs.ts";
 import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
@@ -102,7 +102,7 @@ export function resolveRowContent(args: {
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
   /** The room's sheets written before this row (`roomSheetsBefore`). */
-  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets: readonly RoomSheet[] | undefined;
   /** The row's display depth (`displayDepthsOf`). */
   readonly displayDepth: number | undefined;
   /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
@@ -194,7 +194,7 @@ export function renderRowBubble(args: {
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
   /** The room's sheets written before this row (`roomSheetsBefore`). */
-  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets: readonly RoomSheet[] | undefined;
   /** The row's display depth (`displayDepthsOf`). */
   readonly displayDepth: number | undefined;
   /** #245 — EDIT mode: the bubble stops hugging (`w-fit`, D66 N3) and fills the column the row holds open

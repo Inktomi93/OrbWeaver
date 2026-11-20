@@ -9,7 +9,8 @@
 // `held`: its prose, with every HTML block a forming chip that carries none of the template's bytes. When the frame
 // cannot come (no room, a refused mint, a handle lost twice, a frame fallen to its floor for taking the reader's focus
 // or for a document that loaded and never reported), it
-// shows the inert `fallback`. The srcdoc floor is script-dead, so it could neither measure the reply's height nor hand
+// shows the inert `fallback`, and under it the shared plain notice saying the frame could not draw, so a reply never
+// goes plain in silence. The srcdoc floor is script-dead, so it could neither measure the reply's height nor hand
 // a link to the host, and a reply must not become a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
 // it only when its document reports its first height, so the reader never sees an empty frame while it loads, however
 // long that takes. The run takes the whole measure in every state
@@ -29,6 +30,7 @@
 
 import { CARD_FRAME_OPEN_PANELS_ATTRIBUTE, cardFrameOpenPanelsValue, readCardFramePanels } from "@orb/kit/card-frame";
 import type { FrameStyleSheet } from "@orb/kit/content";
+import type { CharacterId } from "@orb/kit/ids";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
 import { FILLS_MEASURE } from "@orb/ui/lib";
@@ -36,8 +38,9 @@ import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sa
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { FramedMediaNotice, FramedScriptNotice, useFramedLinkConfirm } from "#components";
+import { FramedMediaNotice, FramedScriptNotice, PlainReplyNotice, useFramedLinkConfirm } from "#components";
 import { readFramePanels, rememberFramePanels, useCardFrame } from "#data";
+import { PLAIN_REPLY_REASON } from "#lib";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
@@ -134,15 +137,22 @@ interface BuiltReply {
   readonly look: ReturnType<typeof resolveFrameReplyLook>;
 }
 
-// The mint for a built run: its bytes, the viewer's sandbox slice, the panels a reader left open, and the forming cap.
+// The other characters whose room sheets the run carries: the speaker's own sheets need no second read of its grant.
+function carriedAuthors(styles: ReplyRunStyles, cardOrigin: CardOrigin | undefined): readonly CharacterId[] {
+  return styles.authors.filter((author) => author !== cardOrigin?.characterId);
+}
+
+// The mint for a built run: its bytes, the viewer's sandbox slice, the panels a reader left open, the forming cap, and
+// the authors whose sheets it carries, each of whose media grants narrows the frame's.
 function frameRequest(input: {
   readonly cardOrigin: CardOrigin | undefined;
   readonly built: BuiltReply | undefined;
   readonly sandbox: ReturnType<typeof useSandboxTheme>;
   readonly restoredPanels: readonly number[] | undefined;
   readonly forming: boolean;
+  readonly carriedFrom: readonly CharacterId[];
 }): Parameters<typeof useCardFrame>[0] {
-  const { cardOrigin, built, sandbox, restoredPanels, forming } = input;
+  const { cardOrigin, built, sandbox, restoredPanels, forming, carriedFrom } = input;
   if (cardOrigin === undefined || built === undefined) {
     return undefined;
   }
@@ -159,6 +169,7 @@ function frameRequest(input: {
         ? built.look.rootAttributes
         : { ...built.look.rootAttributes, [CARD_FRAME_OPEN_PANELS_ATTRIBUTE]: cardFrameOpenPanelsValue(restoredPanels) },
     ...(forming ? { forming: true } : {}),
+    ...(carriedFrom.length === 0 ? {} : { carriedFrom: [...carriedFrom] }),
   };
 }
 
@@ -174,14 +185,16 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
     (html) => (host.current === null ? undefined : { html, look: resolveFrameReplyLook(host.current, html) }),
   );
   const built = framed.state === "ready" ? framed.value : undefined;
-  const frame = useCardFrame(frameRequest({ cardOrigin, built, sandbox, restoredPanels, forming }));
+  const carriedFrom = carriedAuthors(styles, cardOrigin);
+  const frame = useCardFrame(frameRequest({ cardOrigin, built, sandbox, restoredPanels, forming, carriedFrom }));
   const { mint } = frame;
+  // A frame given up on (lost twice, or fallen to its floor) reads as the floor too.
+  const mintRefused = built !== undefined && mint.state === "floor";
   const delivery = deliveryOf({
     routed: mint.state === "routed",
     framedable: cardOrigin !== undefined,
     documentFailed: framed.state === "failed",
-    // A frame given up on (lost twice, or fallen to its floor) reads as the floor too.
-    mintRefused: built !== undefined && mint.state === "floor",
+    mintRefused,
   });
   const unframed = delivery === "held" ? held : fallback;
   const links = useFramedLinkConfirm();
@@ -212,11 +225,16 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
         unframed
       )}
       {links.confirm}
+      {/* A run that lost its frame says so; a forming panel does not, because its settled row says it. */}
+      {delivery === "fallback" && (mintRefused || framed.state === "failed") && !forming ? (
+        <PlainReplyNotice reason={PLAIN_REPLY_REASON.frameUnavailable} />
+      ) : null}
       {mint.state === "routed" && built !== undefined && !forming ? (
         <>
           <FramedMediaNotice
             chatId={cardOrigin?.chatId}
             characterId={cardOrigin?.characterId ?? null}
+            carriedFrom={carriedFrom}
             html={built.html}
             css={built.look.css}
             granted={mint.granted}

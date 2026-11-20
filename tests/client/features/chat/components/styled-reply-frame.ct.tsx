@@ -78,6 +78,7 @@ const PHONE_VIEWPORT = { width: 320, height: 640 } as const;
 // Two boxes laid out at the same width can differ by a rounding step of the device pixel grid.
 const SUBPIXEL_PX = 1;
 const FORMING_CHIP = '[data-slot="forming-card-chip"]';
+const FRAME_UNAVAILABLE_NOTICE = `[data-slot="plain-notice"][data-reason="${PLAIN_REPLY_REASON.frameUnavailable}"]`;
 const STREAM_STORY = "tests/client/features/chat/components/_styled-reply-stream-stories/StyledReplyStreamStory";
 const CHUNK_LABEL = "Stream the next chunk";
 // The styled body as a provider would stream it, cut inside its tag, inside an attribute, and inside the prose.
@@ -838,8 +839,29 @@ test("a handle that is gone again after its fresh mint leaves the reply on the i
   await expect(page.locator(SANDBOX)).toHaveCount(0);
   await expect(page.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
   await expect(page.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+  // The reply says why it is plain.
+  await expect(page.locator(FRAME_UNAVAILABLE_NOTICE)).toHaveCount(1);
   // Given up: no third mint and no further serve.
   expect([traffic.mints, traffic.serves]).toEqual([2, 2]);
+});
+
+test("a reply whose mint the server refuses reads on the inert path and says its frame could not draw", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await using traffic = await serveRoom(page, root, corpus);
+  // A later route wins: every mint answers as an oversized body does, before it reaches the root.
+  await page.route("**/api/card-frame", async (route) => {
+    await route.fulfill({ status: 413, body: "" });
+  });
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"]`);
+  await expect(row.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
+  const notice = row.locator(FRAME_UNAVAILABLE_NOTICE);
+  await expect(notice).toHaveCount(1);
+  await expect(notice.locator('[data-slot="plain-notice-action"]')).toHaveCount(0);
+  // Positive control: the script ran on this row, and no mint reached the root.
+  await expect(row.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+  expect(traffic.mints).toBe(0);
 });
 
 for (const status of [401, 500]) {
