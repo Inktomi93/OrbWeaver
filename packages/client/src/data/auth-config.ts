@@ -7,7 +7,6 @@
 import type { AuthConfig } from "@orb/contracts/auth-config";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
-import { installAllowsCardScripts } from "@orb/contracts/chat";
 import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
@@ -125,15 +124,6 @@ export function useMultiHumanCapable(): boolean {
  *  it would be its own lie. The config is fetched once at app root, so in practice it is present. */
 export function useExternalMediaBlocked(): boolean {
   return useAuthConfig().data?.forbidExternalMedia === true;
-}
-
-/** Does this install let any card run scripts, its "Default for characters" being Interactive? FALSE ⇒ the
- *  per-character Interactive step stores fine but resolves to the static posture everywhere, so a surface offering it
- *  must say so. A not-yet-landed config reads as not allowed, the strict direction, even though the server's floor is
- *  on. (The external-media twin defaults the other way for the same reason: there the strict reading is "blocked".) */
-export function useInteractiveCardsAllowed(): boolean {
-  const config = useAuthConfig().data;
-  return config !== undefined && installAllowsCardScripts(config);
 }
 
 /** The deployment RENDER-POLICY FLOOR — the pair `resolveRenderPolicy` (`@orb/contracts/chat`) combines a

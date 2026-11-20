@@ -1,11 +1,14 @@
 // A framed card or styled reply whose controls need scripts the frame's posture does not run says why, naming the
-// install's "Default for characters" step, the character's step or the viewer's own script setting, with a control only for a
-// viewer who may change it: the real transcript (`MessageListSurface`) over a corpus room, its reads, `/api/auth/config`
-// and the card-frame mint and serve answered by the corpus root, so the frame's posture is the server's own. A static
-// card shows none, and a card whose scripts run shows none while its script visibly runs.
+// install's "Default for characters" step an inheriting character takes, the character's own step or the viewer's own
+// script setting, with a control only for a viewer who may change it: the real transcript (`MessageListSurface`) over a
+// corpus room, its reads, `/api/auth/config` and the card-frame mint and serve answered by the corpus root, so the
+// frame's posture is the server's own. A static card shows none, and a card whose scripts run shows none while its
+// script visibly runs, a character's own Interactive step under a lower default included.
 
 import type { FramedScriptReason, PlainRemedy } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID, DEFAULT_HTML_STEP_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
+import type { HtmlTrustStep } from "@orb/contracts/chat";
+import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -70,16 +73,21 @@ async function scriptRoom(host: Caller, viewer: Caller, body: string): Promise<S
   throw new Error("No room the viewer sits in has a character reply its host can rewrite");
 }
 
-/** The three consents the frame's script posture reads: the install ceiling, the character's step and the viewer's own. */
+// The character's step: Inherit default, or its own Rich HTML or Interactive. Each renders trusted HTML under a default of
+// Rich HTML or above, so the card keeps its sandboxed frame on every posture.
+const INHERIT_DEFAULT = "inherit";
+type FramedStep = Exclude<HtmlTrustStep, "untrusted">;
+
+/** The consents the frame's script posture reads: the install's default, the character's step and the viewer's own. */
 async function setConsents(
   owner: Caller,
   viewer: Caller,
   room: ScriptRoom,
-  consents: { readonly install: boolean; readonly interactive: boolean; readonly viewerRuns: boolean },
+  consents: { readonly defaultStep: FramedStep; readonly character: typeof INHERIT_DEFAULT | FramedStep; readonly viewerRuns: boolean },
 ): Promise<void> {
-  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: consents.install ? "interactive" : "trusted" } });
-  // The character renders trusted HTML either way, so the card keeps its sandboxed frame on every posture.
-  await owner.character.update({ characterId: room.characterId, input: { trustHtml: true, interactiveHtml: consents.interactive } });
+  await owner.settings.updateAppSettings({ partial: { defaultHtmlStep: consents.defaultStep } });
+  const input = consents.character === INHERIT_DEFAULT ? { trustHtml: null, interactiveHtml: null } : renderPolicyOverrideForStep(consents.character);
+  await owner.character.update({ characterId: room.characterId, input });
   await viewer.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: consents.viewerRuns } });
 }
 
@@ -110,11 +118,14 @@ async function sharedRoomPeople(root: Root, corpus: CorpusPlayback): Promise<{ r
   return { owner: await root.internalCallerFor(root.ownerId), member: await root.internalCallerFor(memberId), memberId };
 }
 
-test("a scripted card held by the install's default step names it, and the admin's control opens that setting", async ({ mount, page }) => {
+test("a scripted card of an inheriting character held by the install's default names it, and the admin's control opens that setting", async ({
+  mount,
+  page,
+}) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   const room = await scriptRoom(owner, owner, SCRIPTED_CARD);
-  await setConsents(owner, owner, room, { install: false, interactive: true, viewerRuns: true });
+  await setConsents(owner, owner, room, { defaultStep: "trusted", character: INHERIT_DEFAULT, viewerRuns: true });
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   // The frame drew the card and ran none of its script.
@@ -127,11 +138,23 @@ test("a scripted card held by the install's default step names it, and the admin
   await page.unrouteAll({ behavior: "wait" });
 });
 
+test("a scripted card of a character set to Interactive runs its script under a Rich HTML default, with no notice", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const room = await scriptRoom(owner, owner, SCRIPTED_CARD);
+  await setConsents(owner, owner, room, { defaultStep: "trusted", character: "interactive", viewerRuns: true });
+  await serveRoom(page, root, owner, root.ownerId);
+  await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
+  await expect(page.frameLocator(CARD_FRAME).getByText(RAN_TEXT)).toBeVisible();
+  await expect(page.locator(NOTICE)).toHaveCount(0);
+  await page.unrouteAll({ behavior: "wait" });
+});
+
 test("a scripted card of a character below Interactive names her, and the host's control opens her Trust tab", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   const room = await scriptRoom(owner, owner, SCRIPTED_CARD);
-  await setConsents(owner, owner, room, { install: true, interactive: false, viewerRuns: true });
+  await setConsents(owner, owner, room, { defaultStep: "interactive", character: "trusted", viewerRuns: true });
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
@@ -153,7 +176,7 @@ test("a styled reply whose panel carries script, viewed with the viewer's own sc
   });
   await owner.regex.attachGlobal({ scriptId: script.id });
   const room = await scriptRoom(owner, owner, STYLED_REPLY);
-  await setConsents(owner, owner, room, { install: true, interactive: true, viewerRuns: false });
+  await setConsents(owner, owner, room, { defaultStep: "interactive", character: "interactive", viewerRuns: false });
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(REPLY_FRAME).getByText(STATIC_TEXT)).toBeVisible();
@@ -170,7 +193,7 @@ test("a member who cannot change the character's step is told who can, with no c
   await using root = await createCorpusHarness();
   const { owner, member, memberId } = await sharedRoomPeople(root, corpus);
   const room = await scriptRoom(owner, member, SCRIPTED_CARD);
-  await setConsents(owner, member, room, { install: true, interactive: false, viewerRuns: true });
+  await setConsents(owner, member, room, { defaultStep: "interactive", character: "trusted", viewerRuns: true });
   await serveRoom(page, root, member, memberId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(CARD_FRAME).getByText(STATIC_TEXT)).toBeVisible();
@@ -183,7 +206,7 @@ test("a scripted card whose scripts run shows no notice, and neither does a stat
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   const room = await scriptRoom(owner, owner, SCRIPTED_CARD);
-  await setConsents(owner, owner, room, { install: true, interactive: true, viewerRuns: true });
+  await setConsents(owner, owner, room, { defaultStep: "interactive", character: "interactive", viewerRuns: true });
   await serveRoom(page, root, owner, root.ownerId);
   const running = await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   // The script ran inside the frame, so its controls work and there is nothing to explain.
@@ -193,7 +216,7 @@ test("a scripted card whose scripts run shows no notice, and neither does a stat
   await page.unrouteAll({ behavior: "wait" });
 
   await owner.chat.editMessage({ chatId: room.chatId, messageId: await latestReplyId(owner, room), content: STATIC_CARD, timeZone: UTC_TIME_ZONE });
-  await setConsents(owner, owner, room, { install: false, interactive: false, viewerRuns: false });
+  await setConsents(owner, owner, room, { defaultStep: "trusted", character: "trusted", viewerRuns: false });
   await serveRoom(page, root, owner, root.ownerId);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
   await expect(page.frameLocator(CARD_FRAME).getByText("Tide", { exact: true })).toBeVisible();

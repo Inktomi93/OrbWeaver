@@ -1,6 +1,7 @@
 // An install's stored v11 override row held two HTML-trust keys; v12 holds one "Default for characters" step (D294). A
-// v11 row read by this build lifts to the step that keeps what its characters drew: an inheriting character, a Rich HTML
-// character and an Interactive character each resolve on the roster to the step the two keys gave them.
+// v11 row read by this build lifts to the step that keeps what an inheriting character and a Rich HTML character drew
+// under the two keys. A character set to Interactive resolves to Interactive under every lift, because its own step wins
+// over the default.
 // @subject packages/contracts/src/settings/index.ts
 // @subject packages/server/src/domain/settings/effective-config/layer.ts
 import type { HtmlTrustStep } from "@orb/contracts/chat";
@@ -17,7 +18,7 @@ interface LegacyRow {
   readonly stored: Readonly<Record<string, boolean | null>>;
   /** The lifted override, `null` when the row leaves the step to the floor. */
   readonly lifted: HtmlTrustStep | null;
-  /** What each kind of character drew under the v11 keys. */
+  /** What each kind of character draws after the lift. */
   readonly drew: { readonly inheriting: HtmlTrustStep; readonly richHtml: HtmlTrustStep; readonly interactive: HtmlTrustStep };
 }
 
@@ -36,21 +37,21 @@ const LEGACY_ROWS: Readonly<Record<string, LegacyRow>> = {
   "interactive cards off, rich html on": {
     stored: { allowInteractiveCards: false, trustHtml: true },
     lifted: "trusted",
-    drew: { inheriting: "trusted", richHtml: "trusted", interactive: "trusted" },
+    drew: { inheriting: "trusted", richHtml: "trusted", interactive: "interactive" },
   },
   "interactive cards off, rich html off": {
     stored: { allowInteractiveCards: false, trustHtml: false },
     lifted: "untrusted",
-    drew: { inheriting: "untrusted", richHtml: "trusted", interactive: "trusted" },
+    drew: { inheriting: "untrusted", richHtml: "trusted", interactive: "interactive" },
   },
   "interactive cards off, rich html unset": {
     stored: { allowInteractiveCards: false },
     lifted: "untrusted",
-    drew: { inheriting: "untrusted", richHtml: "trusted", interactive: "trusted" },
+    drew: { inheriting: "untrusted", richHtml: "trusted", interactive: "interactive" },
   },
 };
 
-test.for(Object.entries(LEGACY_ROWS))("a v11 row with %s keeps what its characters draw", async ([, row], { harness }) => {
+test.for(Object.entries(LEGACY_ROWS))("a v11 row with %s lifts to the step its characters draw at", async ([, row], { harness }) => {
   const principal = await harness.principalFor(harness.ownerId);
   const caller = await harness.internalCallerFor(harness.ownerId);
   const inheriting = await caller.character.create({ input: { handle: "inherits", name: "Inherits", description: "Follows the install." } });

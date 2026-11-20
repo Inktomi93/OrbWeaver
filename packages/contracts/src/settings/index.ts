@@ -245,9 +245,8 @@ const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
-  // "Default for characters": the step an "Inherit default" character takes, and the script ceiling, because
-  // below `interactive` no character's frame runs scripts. Floor `interactive`. See
-  // `@orb/contracts/chat::DeploymentRenderPolicy`.
+  // "Default for characters": the step an "Inherit default" character takes; a character's own step wins over it.
+  // Floor `interactive`. See `@orb/contracts/chat::DeploymentRenderPolicy`.
   defaultHtmlStep: z.enum(HTML_TRUST_STEPS).nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),

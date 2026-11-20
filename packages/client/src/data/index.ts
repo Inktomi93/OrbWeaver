@@ -19,7 +19,6 @@ export {
   fetchLiveShare,
   useAuthConfig,
   useExternalMediaBlocked,
-  useInteractiveCardsAllowed,
   useLiveShare,
   useMultiHumanCapable,
   useRenderPolicyFloor,

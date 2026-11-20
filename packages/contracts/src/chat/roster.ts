@@ -99,7 +99,7 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
  *
  * THE TOP RUNG IS THE LADDER'S ONLY CAPABILITY JUMP: `trusted` widens what markup renders, but the
  * renderer sanitizes it, so no rung below `interactive` executes author code at all — and it is the one
- * rung that also needs the deployment operator's consent ({@link DeploymentRenderPolicy}).
+ * rung that also needs the viewer's own consent ({@link resolveCardScriptVerdict}).
  *
  * INTERACTIVE IMPLIES TRUSTED BY CONSTRUCTION — that is the whole reason this is a ladder and not two
  * booleans: with two flags, "interactive but not trusted" is representable, and every consumer has to
@@ -116,25 +116,22 @@ export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
 }
 
 /** Does this step select the INTERACTIVE card-frame posture — i.e. may this participant's routed cards RUN
- *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm
- *  selection. A step only REACHES `interactive` when the deployment ceiling allowed it ({@link
- *  resolveRenderPolicy}), so a reader of the resolved ladder never has to re-check the AppSetting. */
+ *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm selection. */
 function allowsInteractiveCards(step: HtmlTrustStep): boolean {
   return step === "interactive";
 }
 
-const CARD_SCRIPT_HOLDERS = ["install", "character", "viewer"] as const;
-/** Which consent holds a frame's scripts off: the install's interactive ceiling, the author's ladder step, or the
- *  viewer's own `chat.runCardScripts`. */
+const CARD_SCRIPT_HOLDERS = ["character", "viewer"] as const;
+/** Which consent holds a frame's scripts off: the author's resolved ladder step, or the viewer's own
+ *  `chat.runCardScripts`. An inheriting author's step is the install's "Default for characters", so the install's
+ *  setting holds scripts only through that step; the notice tells the two apart by the seat's `renderSource`. */
 type CardScriptHolder = (typeof CARD_SCRIPT_HOLDERS)[number];
 
 /** Whether a routed frame's own scripts run, and when they do not, the first consent that holds them off. */
 export type CardScriptVerdict = { readonly runs: true } | { readonly runs: false; readonly heldBy: CardScriptHolder };
 
-/** The three consents a frame's script posture reads, all already resolved. */
+/** The consents a frame's script posture reads, both already resolved. */
 export interface CardScriptConsents {
-  /** Whether the install's "Default for characters" is `interactive`, read live ({@link installAllowsCardScripts}). */
-  readonly installAllows: boolean;
   /** The author's resolved ladder step ({@link RenderPolicy.htmlTrust}). */
   readonly step: HtmlTrustStep;
   /** The viewer's own `chat.runCardScripts`. */
@@ -144,30 +141,26 @@ export interface CardScriptConsents {
 const SCRIPTS_RUN: CardScriptVerdict = { runs: true };
 
 /**
- * THE script posture of a routed card frame: scripts run only when all three consents say yes. The ONE home of the
- * rule and of its order. The card-frame route builds the frame's CSP from it, and the client's notice names the
- * holder it returns.
+ * THE script posture of a routed card frame: scripts run only when the author's step is Interactive and the viewer's
+ * own switch is on. The ONE home of the rule and of its order. The card-frame route builds the frame's CSP from it,
+ * and the client's notice names the holder it returns.
  *
- * @remarks The order names the setting whose change matters first. The install ceiling binds every character, so it
- * is named before a character's own step; the viewer's switch is named last, because the other two decide whether
- * the frame may run scripts at all. A served document keeps the narrower of its minted and its current posture, so
- * a frame minted static stays static until it mints again: whether a frame runs scripts is its mint's
- * `granted.interactive`, and this verdict names the holder when it does not.
+ * @remarks The order names the setting whose change matters first: the viewer's switch is named last, because the
+ * author's step decides whether the frame may run scripts at all. A served document keeps the narrower of its minted
+ * and its current posture, so a frame minted static stays static until it mints again: whether a frame runs scripts
+ * is its mint's `granted.interactive`, and this verdict names the holder when it does not.
  */
 export function resolveCardScriptVerdict(consents: CardScriptConsents): CardScriptVerdict {
-  if (!consents.installAllows) {
-    return { runs: false, heldBy: "install" };
-  }
   if (!allowsInteractiveCards(consents.step)) {
     return { runs: false, heldBy: "character" };
   }
   return consents.viewerRuns ? SCRIPTS_RUN : { runs: false, heldBy: "viewer" };
 }
 
-/** Whether the viewer's consent is even asked: the install and the author's step must both allow scripts first. The
- *  card-frame route reads the viewer's settings only when this holds. */
+/** Whether the viewer's consent is even asked: the author's step must allow scripts first. The card-frame route reads
+ *  the viewer's settings only when this holds. */
 export function cardScriptsNeedViewerConsent(consents: Omit<CardScriptConsents, "viewerRuns">): boolean {
-  return consents.installAllows && allowsInteractiveCards(consents.step);
+  return allowsInteractiveCards(consents.step);
 }
 
 const CARD_MEDIA_HOLDERS = ["install", "character"] as const;
@@ -217,17 +210,12 @@ const renderPolicySchema = z.strictObject({
 /** The DEPLOYMENT tier as the resolver takes it. */
 export interface DeploymentRenderPolicy {
   /** The install's "Default for characters" (D294). FLOOR IS `interactive` (owner ruling: interactive cards are on by
-   *  default for every character). It plays two parts in {@link resolveRenderPolicy}: the step a card that inherits
-   *  takes, and, below `interactive`, the script CEILING no per-character answer rises above. Setting it below
-   *  `interactive` is the revocation: the only box-wide control over the WebRTC/STUN beacon no CSP directive in
-   *  Chromium can close. A viewer's own `UserSettings.chat.runCardScripts` closes it for that viewer. */
+   *  default for every character). It is the step a card that inherits takes, and nothing more: a character's own
+   *  step wins over it in either direction, Interactive included. Setting it below `interactive` closes the WebRTC/STUN
+   *  beacon no CSP directive in Chromium can close for every INHERITING character; a character its owner set to
+   *  Interactive keeps it open, and a viewer's own `UserSettings.chat.runCardScripts` closes it for that viewer. */
   readonly defaultHtmlStep: HtmlTrustStep;
   readonly forbidExternalMedia: boolean;
-}
-
-/** Whether the install lets any card run scripts: its default step is the top one. */
-export function installAllowsCardScripts(deployment: Pick<DeploymentRenderPolicy, "defaultHtmlStep">): boolean {
-  return allowsInteractiveCards(deployment.defaultHtmlStep);
 }
 
 /** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
@@ -259,17 +247,14 @@ export interface RenderPolicyOverride {
  *    ONE ordered step, and the fold is where "interactive implies trusted" becomes unrepresentable-otherwise:
  *      – a card that INHERITS (both columns `null`, "Inherit default", every imported card included) takes the
  *        install's step as it stands, Interactive included.
- *      – a card's own render answer (`trustHtml`) wins over the install's step in either direction: an explicit
+ *      – a card's own step wins over the install's step in either direction, Interactive included: an explicit
  *        per-character step IS the designed escalation path, and a card may also step below the default. A
  *        `null` render answer beside a set `interactiveHtml` takes the install step's render half.
- *      – the INTERACTIVE step is an AND under the install's step being `interactive`, the
- *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches it while
- *        the install sits lower. Under that ceiling a card reaches it by inheriting or by
- *        `interactiveHtml: true`. "Rich HTML" and "Plain text" store `interactiveHtml: false`, the per-character
- *        disable. Inside the ceiling the top step WINS over a lower render answer: the contradictory pair of
- *        `trustHtml: false` with `interactiveHtml: true`, reachable only by a direct API write, resolves to
- *        `interactive`, so no consumer ever sees "runs scripts but renders untrusted". When the ceiling vetoes, that card falls back to
- *        its own stored render answer, never to a step it did not store.
+ *      – a card reaches the INTERACTIVE step by inheriting it or by `interactiveHtml: true`. "Rich HTML" and
+ *        "Plain text" store `interactiveHtml: false`, the per-character disable. The top step WINS over a lower
+ *        render answer: the contradictory pair of `trustHtml: false` with `interactiveHtml: true`, reachable only
+ *        by a direct API write, resolves to `interactive`, so no consumer ever sees "runs scripts but renders
+ *        untrusted".
  *  • `override === null` is NO CARD (a seat with no readable card, or a room with no consenting host): no one
  *    consents for it, so it is Plain text whatever the install says, and it never reaches Interactive.
  */
@@ -281,7 +266,7 @@ export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override
   if (override.trustHtml === null && override.interactiveHtml === null) {
     return { htmlTrust: deployment.defaultHtmlStep, forbidExternalMedia };
   }
-  if (installAllowsCardScripts(deployment) && override.interactiveHtml === true) {
+  if (override.interactiveHtml === true) {
     return { htmlTrust: "interactive", forbidExternalMedia };
   }
   const trusted = override.trustHtml ?? rendersTrustedHtml(deployment.defaultHtmlStep);
