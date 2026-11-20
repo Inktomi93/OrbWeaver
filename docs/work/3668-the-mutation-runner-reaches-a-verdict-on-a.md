@@ -19,7 +19,7 @@ The repo mutation tool cannot judge the module whose tests most need it, so lane
 
 ## Done when
 
-A mutation run over that module reaches a verdict on a standard runner: time-budget cases are skipped or scaled under instrumentation by a stated rule, the run can name its test set and narrow to changed functions, and the verdict lands within the tool own time cap.
+Owner ruling: mutation testing has no time limit. A mutation run over that module reaches a verdict: it runs in the background with no wall-clock cap from the tool or the shell, time-budget test cases are excluded from mutation runs by a stated rule because they measure speed rather than behaviour, the run can name its test set and narrow to changed functions, and the runner uses the cores the box can spare.
 
 ## Evidence
 
