@@ -192,6 +192,8 @@ type PropertyDefinition = string | readonly [string, ...(string | number | boole
 interface SanitizeSchema {
   readonly tagNames?: readonly string[] | null | undefined;
   readonly attributes?: Readonly<Record<string, readonly PropertyDefinition[]>> | null | undefined;
+  readonly clobber?: readonly string[] | null | undefined;
+  readonly clobberPrefix?: string | null | undefined;
 }
 type RehypeEntry = NonNullable<StreamdownProps["rehypePlugins"]>[number];
 type RehypePlugin = Extract<RehypeEntry, (...parameters: never) => unknown>;
@@ -200,7 +202,7 @@ function isSchema(value: unknown): value is SanitizeSchema {
   return typeof value === "object" && value !== null;
 }
 
-// Streamdown's own sanitize step, with its schema: its protocol and clobber choices stay the vendor's.
+// Streamdown's own sanitize step, with its schema: its protocol choices stay the vendor's.
 function vendorSanitize(): readonly [RehypePlugin, SanitizeSchema] {
   const entry = defaultRehypePlugins["sanitize"];
   if (!(Array.isArray(entry) && typeof entry[0] === "function" && isSchema(entry[1]))) {
@@ -215,6 +217,12 @@ function vendorSanitize(): readonly [RehypePlugin, SanitizeSchema] {
  * itself. `font` is kept as a tag. Streamdown's `*` attributes already keep `color` on every element at any value, so
  * the seal's `font` component is the step that admits a {@link FONT_COLOUR_RE} value as a colour and drops every other
  * attribute. `extraTags` adds tags with no attributes, for the trusted tier's `<speaker>`.
+ *
+ * @remarks THE AUTHOR'S NAMES ARE PREFIXED. A message renders in the main document, so an `id` would name a global
+ * (`window[id]`) and an element the app looks up, and a `name` on an `img` would shadow a document member: an image
+ * named `createElement` replaces `document.createElement` and blanks the app for every viewer of the room. Streamdown
+ * turns the prefix off; the seal turns it back on, for every attribute that names or points at an element, and
+ * {@link prefixFragmentLinks} moves the in-message links with them.
  */
 function sealSanitize(extraTags: readonly string[]): RehypeEntry {
   const [plugin, schema] = vendorSanitize();
@@ -227,12 +235,55 @@ function sealSanitize(extraTags: readonly string[]): RehypeEntry {
       span: [...(attributes["span"] ?? []), ["style", COLOUR_ONLY_STYLE_RE]],
       ...Object.fromEntries(extraTags.map((tag) => [tag, []])),
     },
+    clobber: ELEMENT_NAME_PROPERTIES,
+    clobberPrefix: AUTHOR_NAME_PREFIX,
   };
   return [plugin, extended];
 }
 
+/** The prefix every name an author's markup gives an element carries in the main document. */
+const AUTHOR_NAME_PREFIX = "user-content-";
+// The hast properties that name an element, or point at one by its id.
+const ELEMENT_NAME_PROPERTIES: readonly string[] = ["id", "name", "ariaDescribedBy", "ariaLabelledBy", "htmlFor", "headers"];
+const FRAGMENT = "#";
+
+// Minimal structural hast shapes; ui carries no hast type dependency (the `reveal-plugin.ts` precedent).
+interface HastNode {
+  readonly type: string;
+  readonly properties?: Record<string, unknown>;
+  readonly children?: readonly HastNode[];
+}
+
+function isHastNode(value: unknown): value is HastNode {
+  return typeof value === "object" && value !== null && "type" in value;
+}
+
+function prefixFragments(node: HastNode): void {
+  const href = node.properties?.["href"];
+  if (node.properties !== undefined && typeof href === "string" && href.startsWith(FRAGMENT)) {
+    node.properties["href"] = `${FRAGMENT}${AUTHOR_NAME_PREFIX}${href.slice(FRAGMENT.length)}`;
+  }
+  for (const child of node.children ?? []) {
+    prefixFragments(child);
+  }
+}
+
+/**
+ * The rehype step after the sanitizer: every in-message link (`href="#…"`) takes the prefix the sanitizer gave every
+ * id, so an anchor the author wrote and a footnote's links still land on their targets. Each side is prefixed once,
+ * whatever it held: a footnote's generated `user-content-fn-1` becomes `user-content-user-content-fn-1` on the id and on
+ * the link alike.
+ */
+function prefixFragmentLinks(): (tree: unknown) => void {
+  return (tree) => {
+    if (isHastNode(tree)) {
+      prefixFragments(tree);
+    }
+  };
+}
+
 function sealRehypePlugins(extraTags: readonly string[]): NonNullable<StreamdownProps["rehypePlugins"]> {
-  return Object.entries(defaultRehypePlugins).map(([name, entry]) => (name === "sanitize" ? sealSanitize(extraTags) : entry));
+  return Object.entries(defaultRehypePlugins).flatMap(([name, entry]) => (name === "sanitize" ? [sealSanitize(extraTags), prefixFragmentLinks] : [entry]));
 }
 
 /** The custom tag the trusted tier keeps for the `<speaker>` wire format, with no attribute, so a raw

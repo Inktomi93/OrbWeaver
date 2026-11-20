@@ -8,12 +8,16 @@
 // member's or a system row's sheet is a posture question, not a source.
 // WHO RECEIVES: a later row, through `carriedRoomSheets`, which keeps only the sheets naming a class the reply uses.
 // The receiving row's own tier decides whether it frames.
+// WHOSE MEDIA GRANT: each sheet keeps the character who wrote it, and the receiving frame names those authors in its
+// mint (`carriedFrom`), so a carried `url()` loads only under the narrower of the receiver's grant and each author's
+// (UI-Theming-and-Content §12.2).
 // WHAT IS READ: the rows the transcript holds and the room's head (`ROOM_HEAD_ROWS`), so the greeting carries on a
 // room load whose tail no longer holds it.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { FrameStyleSheet } from "@orb/kit/content";
 import { frameStyleElements, holdBlocksWhole } from "@orb/kit/content";
+import type { CharacterId } from "@orb/kit/ids";
 import type { RowRenderPolicy } from "#lib";
 
 /** A room's first canon row has this sequence number. */
@@ -21,10 +25,15 @@ export const ROOM_FIRST_SEQ = 1;
 /** The rows of the room's head read: its greeting, which may follow one opening row (a scenario or a system note). */
 export const ROOM_HEAD_ROWS = 2;
 
+/** One stylesheet a later row may carry, with the character whose row wrote it. */
+export interface RoomSheet extends FrameStyleSheet {
+  readonly authorId: CharacterId;
+}
+
 /** One row's sheets, as a later row carries them. */
 export interface RoomSheetSource {
   readonly seq: number;
-  readonly sheets: readonly FrameStyleSheet[];
+  readonly sheets: readonly RoomSheet[];
 }
 
 export type RoomSheetRow = Pick<MessageView, "id" | "seq" | "role" | "kind" | "authorUserId" | "characterId" | "content">;
@@ -47,7 +56,8 @@ export function roomSheetSources(
       continue;
     }
     // Read as a frame parses it, so the sheets are the ones the row's own frame draws.
-    const sheets = frameStyleElements(holdBlocksWhole(row.content));
+    const authorId = row.characterId;
+    const sheets = frameStyleElements(holdBlocksWhole(row.content)).map((sheet): RoomSheet => ({ ...sheet, authorId }));
     if (sheets.length > 0) {
       bySeq.set(row.seq, { seq: row.seq, sheets });
     }
@@ -56,7 +66,7 @@ export function roomSheetSources(
 }
 
 /** The sheets of the sources before `seq`, in canon order: what a row at `seq` may carry. Undefined when there are none. */
-export function roomSheetsBefore(sources: readonly RoomSheetSource[], seq: number): readonly FrameStyleSheet[] | undefined {
+export function roomSheetsBefore(sources: readonly RoomSheetSource[], seq: number): readonly RoomSheet[] | undefined {
   const sheets = sources.filter((source) => source.seq < seq).flatMap((source) => source.sheets);
   return sheets.length === 0 ? undefined : sheets;
 }

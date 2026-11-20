@@ -10,11 +10,12 @@
 // `undefined`, and `SandboxFrame` renders the srcdoc FLOOR — a strictly TIGHTER frame (it inherits the app
 // document's policy on top of its own). A card is never blank because the door was shut.
 
-import type { CardFrameMintRequest, CardFrameMintResponse, cardFrameMintRequestSchema } from "@orb/contracts/chat";
+import type { CardFrameMintRequest, CardFrameMintResponse, cardFrameMintRequestSchema, RenderPolicy } from "@orb/contracts/chat";
 import { CARD_FRAME_MINTS_IN_FLIGHT, CARD_FRAME_ROUTE, cardFrameMintResponseSchema, installAllowsCardScripts } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { viewerRunsCardScripts } from "@orb/contracts/settings";
 import { isFetchFailure } from "@orb/kit/fetch-failure";
+import type { CharacterId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
@@ -57,6 +58,7 @@ function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
     ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
     ...(request.rootAttributes === undefined ? {} : { rootAttributes: { ...request.rootAttributes } }),
     ...(request.forming === true ? { forming: true } : {}),
+    ...(request.carriedFrom === undefined ? {} : { carriedFrom: [...request.carriedFrom] }),
   };
 }
 
@@ -147,11 +149,15 @@ function useMintConsents(request: CardFrameRequest | undefined): string | undefi
   const config = configRead.data;
   const settings = settingsRead.data;
   const room = roomRead.data;
-  const seat = request?.characterId === null ? undefined : room?.participants.find((participant) => participant.characterId === request?.characterId);
+  const policyOf = (characterId: CharacterId): RenderPolicy | null =>
+    room?.participants.find((participant) => participant.characterId === characterId)?.renderPolicy ?? null;
+  const seatPolicy = request?.characterId === null || request?.characterId === undefined ? null : policyOf(request.characterId);
   return JSON.stringify([
     config === undefined ? null : installAllowsCardScripts(config),
     settings === undefined ? null : viewerRunsCardScripts(settings),
-    seat?.renderPolicy ?? room?.narratorRender?.renderPolicy ?? null,
+    seatPolicy ?? room?.narratorRender?.renderPolicy ?? null,
+    // A carried author's media setting narrows the grant, so one that rises mints anew too.
+    (request?.carriedFrom ?? []).map(policyOf),
   ]);
 }
 

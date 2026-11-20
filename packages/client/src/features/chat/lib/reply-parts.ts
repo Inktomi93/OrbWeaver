@@ -5,6 +5,7 @@
 // chrome is the app's).
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
+import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_HTML_MAX_CHARS } from "@orb/contracts/chat";
 import type { FormingPanelSegment, FrameStyleSheet, TextRange } from "@orb/kit/content";
 import {
   frameStyleElements,
@@ -18,10 +19,12 @@ import {
   scanStyledHold,
   tokenizeContent,
 } from "@orb/kit/content";
+import type { CharacterId } from "@orb/kit/ids";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import type { PlainReplyReason, RowRenderPolicy } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
 import { toContentBlocks } from "./content-blocks.ts";
+import type { RoomSheet } from "./room-sheets.ts";
 
 /** One run of a framed reply: settled markdown (under its speaker's tint in a narrator room), or a card's own HTML. */
 export type FrameReplySegment =
@@ -34,6 +37,8 @@ export type FrameReplySegment =
 export interface ReplyRunStyles {
   readonly sheets: readonly FrameStyleSheet[];
   readonly own: { readonly start: number; readonly end: number };
+  /** The characters whose room sheets are among `sheets`, each once: the frame's mint names them (`carriedFrom`). */
+  readonly authors: readonly CharacterId[];
 }
 
 const CHARS_PER_MIB = 1_048_576;
@@ -44,6 +49,13 @@ export const REPLY_CARRY_BUDGET_CHARS = REPLY_CARRY_BUDGET_MIB * CHARS_PER_MIB;
 /** The stylesheet copies all of one reply's runs may carry between them. Each is an element in another run's document,
  *  and text alone cannot bound them: an empty sheet carries none. A heavy styling preset carries a few dozen. */
 export const REPLY_CARRY_BUDGET_SHEETS = 1024;
+// The share of the mint's markup cap a frame's carried stylesheets may take; the rest is the run's own markup.
+const FRAME_CARRY_SHARE_OF_MINT = 4;
+/** The stylesheet text ONE frame run may carry: the room's sheets plus the reply's other runs' sheets. A quarter of the
+ *  mint's markup cap ({@link CARD_FRAME_HTML_MAX_CHARS}), so a carry never pushes a run's mint past the cap: the largest
+ *  framed reply measured is a tenth of it. A heavy styling preset's whole display-script sheet set is about 353,000
+ *  characters and fits. Past it the reply takes the plain path whole, with its notice. */
+export const REPLY_FRAME_CARRY_BUDGET_CHARS = Math.floor(CARD_FRAME_HTML_MAX_CHARS / FRAME_CARRY_SHARE_OF_MINT);
 /** The longest drawn body the panel readers read (`modelPanels`, `markupUnitRanges`), each linear in it. A bound against
  *  abuse that fails closed: a longer body never frames, and a longer stream holds. It is about five times the largest
  *  framed reply measured, 204,544 characters (`packages/contracts/src/chat/card-frame.ts`), so no real reply nears it.
@@ -205,14 +217,24 @@ function carriedSheets(parts: readonly UnstyledPart[]): readonly (readonly Frame
   );
 }
 
-/** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. Its runs
- *  together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of stylesheet text and {@link REPLY_CARRY_BUDGET_SHEETS}
- *  copies, counting one another's sheets and the room's `room` sheets ({@link carriedRoomSheets}), which every run
- *  carries first, ahead of the reply's own; past either the reply takes the plain path whole, never half its runs
- *  styled. `cardTrust` is the row's resolved card tier, which a native card renders at. */
+function charsOf(list: readonly FrameStyleSheet[]): number {
+  return list.reduce((sum, sheet) => sum + sheetChars(sheet), 0);
+}
+
+// The room sheets' authors, each once, in the order they first carry.
+function authorsOf(room: readonly RoomSheet[]): readonly CharacterId[] {
+  return [...new Set(room.map((sheet) => sheet.authorId))];
+}
+
+/** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. Each run
+ *  carries the room's `room` sheets ({@link carriedRoomSheets}) first, ahead of the reply's other runs' sheets, at most
+ *  {@link REPLY_FRAME_CARRY_BUDGET_CHARS} in one run and from at most {@link CARD_FRAME_CARRIED_AUTHORS_MAX} authors; the
+ *  runs together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of stylesheet text and {@link REPLY_CARRY_BUDGET_SHEETS}
+ *  copies. Past any bound the reply takes the plain path whole, with its reason, never half its runs styled.
+ *  `cardTrust` is the row's resolved card tier, which a native card renders at. */
 export function replyLayout(
   spans: readonly ReplySpan[],
-  options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust; readonly room?: readonly FrameStyleSheet[] | undefined },
+  options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust; readonly room?: readonly RoomSheet[] | undefined },
 ): ReplyLayout {
   const parts = unstyledParts(spans, options);
   const carried = carriedSheets(parts);
@@ -220,11 +242,19 @@ export function replyLayout(
   // A room sheet the reply repeats is dropped, as a repeat within the reply is: the reply's later copy wins its ties.
   const repeated = new Set(reply.map(sheetIdentity));
   const room = (options.room ?? []).filter((sheet) => LAYER_RULE_RE.test(sheet.css) || !repeated.has(sheetIdentity(sheet)));
+  const authors = authorsOf(room);
   const runs = parts.filter((part) => part.kind === "frame").length;
   // Each run carries every reply sheet but its own, so once per run less one, and every room sheet once per run.
   const others = Math.max(0, runs - 1);
-  const chars = (list: readonly FrameStyleSheet[]): number => list.reduce((sum, sheet) => sum + sheetChars(sheet), 0);
-  if (others * chars(reply) + runs * chars(room) > REPLY_CARRY_BUDGET_CHARS || others * reply.length + runs * room.length > REPLY_CARRY_BUDGET_SHEETS) {
+  const roomChars = charsOf(room);
+  const replyChars = charsOf(reply);
+  const heaviestRun = Math.max(0, ...parts.map((part, index) => (part.kind === "frame" ? roomChars + replyChars - charsOf(carried[index] ?? []) : 0)));
+  if (
+    heaviestRun > REPLY_FRAME_CARRY_BUDGET_CHARS ||
+    authors.length > CARD_FRAME_CARRIED_AUTHORS_MAX ||
+    others * replyChars + runs * roomChars > REPLY_CARRY_BUDGET_CHARS ||
+    others * reply.length + runs * room.length > REPLY_CARRY_BUDGET_SHEETS
+  ) {
     return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
   }
   const sheets = [...room, ...reply];
@@ -234,7 +264,7 @@ export function replyLayout(
     parts: parts.map((part, index) => {
       const own = { start, end: start + (carried[index]?.length ?? 0) };
       start = own.end;
-      return part.kind === "frame" ? { ...part, styles: { sheets, own } } : part;
+      return part.kind === "frame" ? { ...part, styles: { sheets, own, authors } } : part;
     }),
   };
 }
@@ -253,7 +283,7 @@ function namesAny(sheet: FrameStyleSheet, used: ReadonlySet<string>): boolean {
  *  the reply's prose markup uses (`markupClassNames`), only the last copy of a repeated sheet, as {@link replyLayout}
  *  keeps one. A sheet naming no class the reply uses is not carried: the reply needs none of it, and every carried byte
  *  is paid once per frame run. Empty when the reply uses none, so it does not frame for the room's sake. */
-export function carriedRoomSheets(room: readonly FrameStyleSheet[], text: string, options: { readonly lenientHtml: boolean }): readonly FrameStyleSheet[] {
+export function carriedRoomSheets(room: readonly RoomSheet[], text: string, options: { readonly lenientHtml: boolean }): readonly RoomSheet[] {
   const used = markupClassNames(text, options);
   if (used.size === 0) {
     return [];
@@ -298,8 +328,9 @@ export type FormingPart =
 
 /** A streaming reply's parts (`scanFormingPanels`). Each complete panel carries the room's sheets its own markup uses
  *  and the sheets of the complete panels before it, never a later one's, so its bytes stay fixed while the reply streams
- *  on. Past {@link PANEL_READ_MAX_CHARS} nothing is read and every unit holds. */
-export function formingParts(text: string, room: readonly FrameStyleSheet[] | undefined): readonly FormingPart[] {
+ *  on. A panel that would carry past the bounds a settled run keeps ({@link replyLayout}) holds as forming markup until
+ *  the reply settles. Past {@link PANEL_READ_MAX_CHARS} nothing is read and every unit holds. */
+export function formingParts(text: string, room: readonly RoomSheet[] | undefined): readonly FormingPart[] {
   if (text.length > PANEL_READ_MAX_CHARS) {
     return scanStyledHold(text);
   }
@@ -308,8 +339,13 @@ export function formingParts(text: string, room: readonly FrameStyleSheet[] | un
     if (segment.kind !== "panel") {
       return segment;
     }
-    const sheets = [...(room === undefined ? [] : carriedRoomSheets(room, segment.markup, { lenientHtml: false })), ...before];
+    const carriedRoom = room === undefined ? [] : carriedRoomSheets(room, segment.markup, { lenientHtml: false });
+    const sheets = [...carriedRoom, ...before];
+    const authors = authorsOf(carriedRoom);
     before = [...before, ...frameStyleElements(holdBlocksWhole(segment.markup))];
-    return { kind: "panel", markup: segment.markup, styles: { sheets, own: { start: sheets.length, end: sheets.length } } };
+    if (charsOf(sheets) > REPLY_FRAME_CARRY_BUDGET_CHARS || authors.length > CARD_FRAME_CARRIED_AUTHORS_MAX) {
+      return { kind: "forming-markup" };
+    }
+    return { kind: "panel", markup: segment.markup, styles: { sheets, own: { start: sheets.length, end: sheets.length }, authors } };
   });
 }

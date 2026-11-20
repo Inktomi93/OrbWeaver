@@ -36,7 +36,7 @@ export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { defaultHtmlStep: "untr
 
 /** Why a styled reply the row's tier would frame renders on the inert plain path instead, by role: the reason the
  *  plain-content notice names. */
-export const PLAIN_REPLY_REASON = { carriedStylesOverBudget: "carried-styles-over-budget" } as const;
+export const PLAIN_REPLY_REASON = { carriedStylesOverBudget: "carried-styles-over-budget", frameUnavailable: "frame-unavailable" } as const;
 export type PlainReplyReason = (typeof PLAIN_REPLY_REASON)[keyof typeof PLAIN_REPLY_REASON];
 
 export interface RowRenderPolicy {

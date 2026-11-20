@@ -114,6 +114,8 @@ type FrameHandleScope = {
       readonly grant?: {
         readonly chatId: ChatId;
         readonly characterId: CharacterId;
+        /** The other authors whose stylesheets the document carries, rechecked with the selector. */
+        readonly carriedFrom: readonly CharacterId[] | undefined;
         readonly media: CardFrameMediaPolicy;
         readonly posture: CardFramePosture;
       };

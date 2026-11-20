@@ -36,7 +36,7 @@
 // rest hold their chips until the reply settles.
 
 import type { CardTrust } from "@orb/contracts/chat";
-import type { FrameStyleSheet, GhostContentSegment } from "@orb/kit/content";
+import type { GhostContentSegment } from "@orb/kit/content";
 import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -66,6 +66,7 @@ import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import type { FormingPart } from "../lib/reply-parts.ts";
 import { carriedRoomSheets, FORMING_PANELS_MAX, formingParts, PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
+import type { RoomSheet } from "../lib/room-sheets.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
@@ -166,7 +167,7 @@ function formsPanel(text: string, opts: Pick<GhostSegmentOptions, "cardTier" | "
 
 // Whether the stream shows a panel yet, or markup using a class the room's sheets name, which settles framed the same
 // way. Past the read bound it holds unread, as a settled body that long never frames.
-function streamShowsPanel(held: string, roomSheets: readonly FrameStyleSheet[] | undefined): boolean {
+function streamShowsPanel(held: string, roomSheets: readonly RoomSheet[] | undefined): boolean {
   return (
     held.length > PANEL_READ_MAX_CHARS ||
     modelPanels(held).length > 0 ||
@@ -240,7 +241,7 @@ function GhostBubbleBody({
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
   readonly holdsMarkup: boolean;
-  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets: readonly RoomSheet[] | undefined;
   readonly providerWaiting: boolean;
 }): ReactElement {
   // A stream that has shown a panel holds to its end, so the whole-text read stops there: each delta would otherwise read
@@ -308,7 +309,7 @@ function GhostBubbleContent(props: {
   readonly cardTier: CardTrust;
   readonly heldCards: HeldCards | undefined;
   readonly holdsMarkup: boolean;
-  readonly roomSheets: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets: readonly RoomSheet[] | undefined;
   readonly providerWaiting: boolean;
   readonly origin: CardOrigin;
   readonly speakerName: string | undefined;
@@ -411,7 +412,7 @@ export interface GhostMessageRowProps {
   readonly holdsMarkup?: boolean | undefined;
   /** The room's sheets (`roomSheetsBefore`): markup using a class they name settles framed, so the stream holds it as
    *  it holds a panel. Absent ⇒ none. */
-  readonly roomSheets?: readonly FrameStyleSheet[] | undefined;
+  readonly roomSheets?: readonly RoomSheet[] | undefined;
 }
 
 export function GhostMessageRow({

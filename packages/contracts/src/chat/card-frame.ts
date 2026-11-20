@@ -43,6 +43,11 @@ export function frameDocumentUrlSchema(route: string): z.ZodCustomStringFormat<"
 const LARGEST_MEASURED_REPLY_HTML_CHARS = 204_544;
 const HTML_HEADROOM = 10;
 const MAX_HTML_CHARS = LARGEST_MEASURED_REPLY_HTML_CHARS * HTML_HEADROOM;
+/** The longest markup one mint takes. A framed reply's carried stylesheets sit inside it, so the client bounds them
+ *  below it (`REPLY_FRAME_CARRY_BUDGET_CHARS`). */
+export const CARD_FRAME_HTML_MAX_CHARS = MAX_HTML_CHARS;
+/** The most other characters whose stylesheets one mint may carry (`carriedFrom`). A group room seats a handful. */
+export const CARD_FRAME_CARRIED_AUTHORS_MAX = 16;
 // A card's own CSS, or a framed reply's CSS: the app rules its markup can match, read from the page's own sheets.
 // Measured on the production build: 58,319 chars matched for that long scene. The whole app stylesheet is 388,191, so
 // a reply that sent it untrimmed is refused here.
@@ -72,9 +77,13 @@ const MAX_STRING_CODE_UNITS =
   MAX_FONT_FAMILY_CHARS +
   MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS) +
   STYLE_TOKEN_NAMES.reduce((sum, name) => sum + name.length + MAX_FONT_FAMILY_CHARS, 0) +
-  MAX_ROOT_ATTRIBUTES * (MAX_ROOT_ATTRIBUTE_NAME_CHARS + MAX_ROOT_ATTRIBUTE_VALUE_CHARS);
+  MAX_ROOT_ATTRIBUTES * (MAX_ROOT_ATTRIBUTE_NAME_CHARS + MAX_ROOT_ATTRIBUTE_VALUE_CHARS) +
+  CARD_FRAME_CARRIED_AUTHORS_MAX * MAX_CHARACTER_ID_CHARS;
 const JSON_ENVELOPE_BYTES =
-  '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":"","rootAttributes":{},"forming":true}'.length;
+  '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":"","rootAttributes":{},"forming":true,"carriedFrom":[]}'
+    .length;
+// Two quotes around each array item, and a comma between items.
+const ARRAY_ITEM_PUNCTUATION_BYTES = 3;
 const entryPunctuationBytes = (entries: number): number => entries * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (entries - 1);
 /** Byte cap for the raw mint POST. Derived from the accepted schema so transport cannot reject a valid mint. */
 export const CARD_FRAME_MINT_BODY_MAX_BYTES =
@@ -82,7 +91,8 @@ export const CARD_FRAME_MINT_BODY_MAX_BYTES =
   JSON_ENVELOPE_BYTES +
   entryPunctuationBytes(MAX_THEME_TOKENS) +
   entryPunctuationBytes(STYLE_TOKEN_NAMES.length) +
-  entryPunctuationBytes(MAX_ROOT_ATTRIBUTES);
+  entryPunctuationBytes(MAX_ROOT_ATTRIBUTES) +
+  CARD_FRAME_CARRIED_AUTHORS_MAX * ARRAY_ITEM_PUNCTUATION_BYTES;
 
 // One slice value: bounded for the parse, then refused unless the frame's own grammar for that name admits it.
 // The server still re-clamps at assembly, which is where an out-of-range root size is bounded.
@@ -137,6 +147,11 @@ export const cardFrameMintRequestSchema = z.strictObject({
    *  with external media off whatever the selector resolves to, and keeps that cap on every serve. `data:` images still
    *  follow the step, because they fetch nothing. Only `true` parses; absent is an ordinary mint. */
   forming: z.literal(true).optional(),
+  /** The other characters whose stylesheets the markup carries: a framed reply carries the room's earlier sheets that
+   *  name its classes (D354). It only NARROWS: the server resolves each through the same membership-gated read as
+   *  `characterId`, at mint and on every serve, and the document loads external media only while every one of them,
+   *  and the selector, allows it (UI-Theming-and-Content §12.2). An author it cannot resolve allows none. */
+  carriedFrom: z.array(typeIdSchema(ID_PREFIX.character)).min(1).max(CARD_FRAME_CARRIED_AUTHORS_MAX).optional(),
 });
 /** Type twin of `cardFrameMintRequestSchema`. */
 export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;

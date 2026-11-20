@@ -1,13 +1,15 @@
 // The room's stylesheet cascade (D354, `room-sheets.ts`): a later row that uses a class only an earlier character row's
 // `<style>` names draws framed in that sheet, through the real transcript over corpus rooms the root built through
 // production verbs. It covers a group room's greeting window, a greeting step that swaps the sheet, the step a source
-// draws at, a member's own sheet, which never carries, and a room load whose tail no longer holds the greeting.
+// draws at, a member's own sheet, which never carries, a room load whose tail no longer holds the greeting, and a carried
+// sheet's external media, which loads only while its author allows it too.
 // @subject packages/client/src/features/chat/lib/room-sheets.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { CardFrameTraffic } from "@orb/testkit/ct";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
@@ -144,12 +146,12 @@ async function sendTurn(root: Root, chatId: ChatId, content: string): Promise<Me
   return reply.id;
 }
 
-async function serveRoom(page: Page, root: Root, owner: Caller): Promise<void> {
+async function serveRoom(page: Page, root: Root, owner: Caller): Promise<CardFrameTraffic> {
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
   const config = await root.http.request("/api/auth/config", { headers: { cookie } });
   await routeAuthConfig(page, await config.text());
   await routeTrpc(page, serveCorpusProcedures(owner, READS));
-  await routeCardFrames(page, root, cookie);
+  return await routeCardFrames(page, root, cookie);
 }
 
 const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
@@ -261,3 +263,40 @@ test("a streaming reply that uses a room class holds that markup as forming, as 
   await expect(ghost.locator(FORMING_CHIP)).toHaveCount(1);
   await expect(ghost).not.toContainText(REPLY_TEXT);
 });
+
+// The keeper's greeting sheet paints its class over an image from the internet; the guard's greeting uses that class.
+const MEDIA_URL = "https://media.test/lantern.png";
+const MEDIA_GREETING = `<style>.rc-mark{color:${FIRST_COLOUR};background-image:url(${MEDIA_URL})}</style>\n<p class="rc-mark" id="rc-keeper">The keeper lifts the lantern.</p>`;
+const MEDIA_NOTICE = '[data-slot="plain-notice"][data-reason="character-media"]';
+
+for (const keeperForbids of [true, false]) {
+  test(`a carried sheet's external media loads only while its author allows it: keeper ${keeperForbids ? "forbids" : "allows"}`, async ({ mount, page }) => {
+    await using root = await replyingRoot();
+    await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { forbidExternalMedia: false } });
+    // Internal callers capture one request's capability, so this one is taken after the switch.
+    const owner = await root.internalCallerFor(root.ownerId);
+    const keeperId = await createCharacter(owner, "rc-keeper", "Lantern Keeper", [MEDIA_GREETING]);
+    await owner.character.update({ characterId: keeperId, input: { forbidExternalMedia: keeperForbids } });
+    const started = await owner.chat.startChat({ characterIds: [keeperId], opening: "first-message" });
+    const keeperGreeting = started.opening?.messages[0]?.id;
+    const guardId = await createCharacter(owner, "rc-guard", "Gate Guard", [GUARD_GREETING]);
+    await owner.chat.addCharacterToChat({ chatId: started.chat.id, characterId: guardId });
+    const guardGreeting = (await owner.chat.listMessages({ chatId: started.chat.id })).messages.find((message) => message.characterId === guardId)?.id;
+    if (keeperGreeting === undefined || guardGreeting === undefined) {
+      throw new Error("The room did not seed both greetings");
+    }
+    const traffic = await serveRoom(page, root, owner);
+    await page.context().route(`${new URL(MEDIA_URL).origin}/**`, async (route) => {
+      await route.fulfill({ status: 404, body: "" });
+    });
+    await mount<typeof GreetingRoomStory>(STORY, { chatId: started.chat.id, messageId: keeperGreeting, deliverLabel: DELIVER_LABEL });
+    const guard = rowOf(page, guardGreeting);
+    // Positive control: the guard's row draws in the keeper's sheet, so the sheet and its media rule reached its frame.
+    await expectCarried(guard, "#rc-guard", FIRST_COLOUR);
+    await expect.poll(() => traffic.minted.length).toBe(2);
+    // The guard allows external media, so only the carried author can withhold it from the guard's frame.
+    expect(traffic.minted.map((record) => record.granted?.externalMedia)).toEqual([!keeperForbids, !keeperForbids]);
+    // The guard's notice names the keeper, whose setting holds the media out.
+    await expect(guard.locator(MEDIA_NOTICE).filter({ hasText: "Lantern Keeper" })).toHaveCount(keeperForbids ? 1 : 0);
+  });
+}

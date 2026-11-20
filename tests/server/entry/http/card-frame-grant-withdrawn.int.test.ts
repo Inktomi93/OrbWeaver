@@ -3,10 +3,11 @@
 // external media, then one grant is withdrawn between the mint and the serve, and the served policy loses exactly
 // that grant. A grant added after the mint never reaches the handle, and a forming mint (a panel of a reply still
 // streaming) is capped at the static posture with no external media for its whole life. A viewer's script consent is read off their stored
-// settings, and a blob this build cannot read faithfully is no consent at all (D294). Everything runs over the real HTTP
-// entry.
+// settings, and a blob this build cannot read faithfully is no consent at all (D294). A mint that carries another
+// character's stylesheets loads external media only while that character allows it too, at mint and on every serve
+// (UI-Theming-and-Content §12.2). Everything runs over the real HTTP entry.
 import type { CardFrameMintRequest } from "@orb/contracts/chat";
-import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
+import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
@@ -58,7 +59,10 @@ async function postMint(room: GrantedRoom, extra: Readonly<Record<string, unknow
   });
 }
 
-async function mint(room: GrantedRoom, request: Pick<CardFrameMintRequest, "forming"> = {}): Promise<{ readonly url: string; readonly granted: Granted }> {
+async function mint(
+  room: GrantedRoom,
+  request: Pick<CardFrameMintRequest, "forming" | "carriedFrom"> = {},
+): Promise<{ readonly url: string; readonly granted: Granted }> {
   const response = await postMint(room, request);
   expect(response.status).toBe(200);
   return cardFrameMintResponseSchema.parse(await response.json());
@@ -207,4 +211,51 @@ test("a forming flag other than true is refused, so the field can only narrow a 
   }
   // Positive control: the same request without the flag mints.
   expect((await postMint(room)).status).toBe(200);
+});
+
+/** A second character seated in the room, whose stylesheets a later reply of the first may carry. */
+async function seatAuthor(room: GrantedRoom, input: { readonly forbidExternalMedia: boolean }): Promise<CharacterId> {
+  const card = await room.host.character.create({ input: { handle: "lamp-keeper", name: "Lamp Keeper", description: "Keeps the lamps." } });
+  await room.host.character.update({ characterId: card.id, input });
+  await room.host.chat.addCharacterToChat({ chatId: room.chatId, characterId: card.id });
+  return card.id;
+}
+
+test("a mint carrying the stylesheet of a character who forbids external media loads none, on every serve", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  const author = await seatAuthor(room, { forbidExternalMedia: true });
+  // Positive control: the same bytes with no carried author load external media.
+  await mintWithEveryGrant(room);
+  const carrying = await mint(room, { carriedFrom: [author] });
+  expect(carrying.granted).toEqual({ externalMedia: false, inlineData: true, interactive: true });
+  expect(await servedPolicy(room, carrying.url)).toBe(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "interactive"));
+});
+
+test("a carried author who forbids external media after the mint narrows the next serve", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  const author = await seatAuthor(room, { forbidExternalMedia: false });
+  const carrying = await mint(room, { carriedFrom: [author] });
+  expect(carrying.granted).toEqual({ externalMedia: true, inlineData: true, interactive: true });
+  await room.host.character.update({ characterId: author, input: { forbidExternalMedia: true } });
+  expect(await servedPolicy(room, carrying.url)).toBe(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "interactive"));
+});
+
+test("a carried author the room does not seat allows no external media", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  const outsider = await room.host.character.create({ input: { handle: "far-keeper", name: "Far Keeper", description: "Keeps elsewhere." } });
+  expect((await mint(room, { carriedFrom: [outsider.id] })).granted).toEqual({ externalMedia: false, inlineData: true, interactive: true });
+});
+
+test("a carried-author list that is empty or too long is refused, so the field can only narrow a mint", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  const tooMany = Array.from({ length: CARD_FRAME_CARRIED_AUTHORS_MAX + 1 }, () => room.characterId);
+  for (const carriedFrom of [[], tooMany, ["not-a-character"]]) {
+    expect((await postMint(room, { carriedFrom })).status, JSON.stringify(carriedFrom).slice(0, 40)).toBe(400);
+  }
+  // Positive control: one named author mints.
+  expect((await postMint(room, { carriedFrom: [room.characterId] })).status).toBe(200);
 });

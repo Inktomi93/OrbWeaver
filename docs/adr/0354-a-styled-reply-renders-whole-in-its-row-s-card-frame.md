@@ -8,7 +8,7 @@ updated: 2026-11-20
 
 ## Context
 
-Presets draw styled panels with display regex scripts, or have the model write them. A region cannot be traced through later scripts, captures and markdown repair. The owner ruled that a preset's styling draws on a row whose existing tier allows the card frame (D294), with no new consent, and that nothing styled reaches the main document.
+Presets draw styled panels with display regex scripts, or have the model write them. The owner ruled that a preset's styling draws on a row whose existing tier allows the card frame (D294), with no new consent, and that nothing styled reaches the main document.
 
 ## Decision
 
@@ -37,7 +37,7 @@ A link opens only through a confirm, whose header states its parse and display r
 
 **A streaming panel.** On Tier B a held unit, read after the live display pass, draws in its own routed frame once every block in it closed and a prose line after it ended (`scanFormingPanels`). Its mint sends `forming: true`: the server caps each serve static with no external media, since a save-pass script, stop string or abort can drop those bytes. At most `FORMING_PANELS_MAX` draw per stream. At settle the reply mints at the row's grant.
 
-**Inert path.** The reply renders through the inert allowlist on a Tier A row, or when a plugin rewrote its text, the mint is refused, a handle is lost twice, its scripts were stopped for taking focus (D294), or its document reports no height in time. Its style, script and text elements drop with their content first; other dropped markup keeps its words.
+**Inert path.** The reply renders through the inert allowlist on a Tier A row, or when a plugin rewrote its text, its carry passes a limit, the mint is refused, a handle is lost twice, its scripts were stopped for taking focus (D294), or its document reports no height in time. Its style, script and text elements drop with their content first; other dropped markup keeps its words. A carry past a limit, a refused mint or a lost handle shows the plain notice with its `PLAIN_REPLY_REASON`.
 
 **A lost handle.** The server's miss document carries `data-frame-missing`, which the pinned script reports; the frame mints again once, then renders the inert path.
 
@@ -45,10 +45,11 @@ A link opens only through a confirm, whose header states its parse and display r
 
 | Limit | Value and basis |
 | - | - |
-| Mint HTML | 204,544 chars, ten times the largest measured reply. |
+| Mint HTML | `CARD_FRAME_HTML_MAX_CHARS`, ten times the largest measured reply. |
 | Mint CSS | 256,000 chars. A reply matched 58,319 of the app sheet's 388,191, so an untrimmed sheet is refused. |
 | Theme tokens | `CARD_FRAME_THEME_TOKEN_LIMITS` in `@orb/kit/card-frame`. |
-| Handle store | 8 MiB and 256 handles per account, 32 MiB and 1024 in all. The longest reply stores about 0.27 MiB. |
+| Carry per frame | `REPLY_FRAME_CARRY_BUDGET_CHARS`, a quarter of the mint HTML cap. Sola V4's full sheet set fits. |
+| Handle store | `CARD_FRAME_CEILINGS`. The longest reply stores about 0.27 MiB. |
 | Mints in flight | `CARD_FRAME_MINTS_IN_FLIGHT` per account. The gate runs before the body limit, which buffers a chunked body whole, and answers 429. The client queues to the same bound. |
 
 An account's mints evict its own oldest handles first.
@@ -74,8 +75,6 @@ An account's mints evict its own oldest handles first.
 ## Consequences
 
 A preset's panels, inline colours and keyframes draw as their author built them on a Tier B row. A preset is not a theme, so no contrast floor judges its colours.
-
-One gap remains: the app's font files meet `Cross-Origin-Resource-Policy: same-origin` from the frame's opaque origin, so framed prose uses the system face. Loading them is not yet built.
 
 ## Alternatives rejected
 

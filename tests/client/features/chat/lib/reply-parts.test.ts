@@ -2,15 +2,35 @@
 // a marked card. A blank line inside a display script's `<style>` is no paragraph break, a marked card keeps its own
 // block at the row's tier while a lenient one stays in the reply's frame, and every run carries the reply's other runs'
 // stylesheets, the last copy of a repeated one only and every copy of a layered one, while a native card carries none.
-// Past the carry budget the whole reply takes the plain path.
+// Past the carry budget the whole reply takes the plain path. One run's carry stays under the frame's own bound, which
+// sits under the mint's markup cap, so a long room's carry never refuses a mint, and each run names the room sheets'
+// authors for its mint.
 // @subject packages/client/src/features/chat/lib/reply-parts.ts
 
 import { PLAIN_REPLY_REASON } from "@orb/client/lib";
 import type { CardTrust } from "@orb/contracts/chat";
+import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_HTML_MAX_CHARS } from "@orb/contracts/chat";
 import type { FrameStyleSheet } from "@orb/kit/content";
+import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ReplyPart } from "#client/features/chat/lib/reply-parts.ts";
-import { carriedRoomSheets, REPLY_CARRY_BUDGET_CHARS, REPLY_CARRY_BUDGET_SHEETS, replyLayout } from "#client/features/chat/lib/reply-parts.ts";
+import {
+  carriedRoomSheets,
+  formingParts,
+  REPLY_CARRY_BUDGET_CHARS,
+  REPLY_CARRY_BUDGET_SHEETS,
+  REPLY_FRAME_CARRY_BUDGET_CHARS,
+  replyLayout,
+} from "#client/features/chat/lib/reply-parts.ts";
+
+// The room's sheets as `carriedRoomSheets` reads them; `room-sheets.test.ts` proves which rows contribute them.
+type RoomSheet = Parameters<typeof carriedRoomSheets>[0][number];
+
+const ids = createSeededIds();
+const keeperId = mintTypeId(ID_PREFIX.character, ids.next);
+const guardId = mintTypeId(ID_PREFIX.character, ids.next);
 
 const PANEL_CSS = [".hud{display:block}", "", ".hud b{font-weight:600}", "", "/* Order check */ .hud summary{color:red}", ""].join("\n");
 const PANEL_STYLE = `<style>${PANEL_CSS}</style>`;
@@ -113,15 +133,31 @@ test("a sheet that names layers is carried at every copy, so the layer order sta
   ]);
 });
 
+// A sheet each run may carry on its own, so only the runs' total passes a budget.
+const UNDER_FRAME_BOUND = Math.floor(REPLY_FRAME_CARRY_BUDGET_CHARS / 2);
+const RUNS_PAST_REPLY_BUDGET = Math.ceil(REPLY_CARRY_BUDGET_CHARS / UNDER_FRAME_BOUND) + 1;
+
 test("a reply whose runs would carry more than the budget renders plain whole, and says why", () => {
-  const heavy = `<style>.h{content:"${"x".repeat(Math.ceil(REPLY_CARRY_BUDGET_CHARS / 3))}"}</style>Panel.`;
+  const heavy = `<style>.h{content:"${"x".repeat(UNDER_FRAME_BOUND)}"}</style>Panel.`;
   const splits = (count: number): string => [heavy, ...Array.from({ length: count }, () => `${DICE}\n\nProse.`)].join("\n\n");
-  expect(replyLayout([{ text: splits(4), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB" })).toEqual({
+  expect(replyLayout([{ text: splits(RUNS_PAST_REPLY_BUDGET), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB" })).toEqual({
     kind: "plain",
     reason: PLAIN_REPLY_REASON.carriedStylesOverBudget,
   });
   // Positive control: two splits carry the sheet twice, under the budget.
   expect(replyLayout([{ text: splits(2), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB" }).kind).toBe("framed");
+});
+
+test("one run that would carry past the frame's bound renders the reply plain whole, though the reply's total fits", () => {
+  const sheet = (chars: number): string => `<style>.h{content:"${"x".repeat(chars)}"}</style>Panel.`;
+  const reply = (chars: number): string => [sheet(chars), `${DICE}\n\nProse.`].join("\n\n");
+  expect(replyLayout([{ text: reply(REPLY_FRAME_CARRY_BUDGET_CHARS), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB" })).toEqual({
+    kind: "plain",
+    reason: PLAIN_REPLY_REASON.carriedStylesOverBudget,
+  });
+  // Positive control: the same reply a little lighter frames, and the bound is a quarter of the mint's markup cap.
+  expect(replyLayout([{ text: reply(UNDER_FRAME_BOUND), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB" }).kind).toBe("framed");
+  expect(REPLY_FRAME_CARRY_BUDGET_CHARS * 4).toBeLessThanOrEqual(CARD_FRAME_HTML_MAX_CHARS);
 });
 
 test("a lenient card is the reply's own markup and stays in its frame", () => {
@@ -205,7 +241,7 @@ test.each([
   expect(sheets.filter((sheet) => HTML_STYLE_CLOSE_RE.test(sheet.css) || sheet.css.includes("<script"))).toEqual([]);
 });
 
-const roomSheet = (css: string): FrameStyleSheet => ({ media: undefined, title: undefined, css });
+const roomSheet = (css: string, authorId: CharacterId = keeperId): RoomSheet => ({ media: undefined, title: undefined, css, authorId });
 
 test("a reply carries only the room's sheets naming a class its prose markup uses, the last copy of a repeat", () => {
   const room = [roomSheet(".mark{color:red}"), roomSheet(".other{}"), roomSheet("@media (width > 1px){.mark b{}}"), roomSheet(".mark{color:red}")];
@@ -242,12 +278,74 @@ test("a room sheet the reply repeats rides once, as the reply's own, and a layer
 });
 
 test("a room sheet past the carry budget across the reply's runs renders the reply plain whole", () => {
-  const room = [roomSheet(`.mark{content:"${"x".repeat(Math.ceil(REPLY_CARRY_BUDGET_CHARS / 3))}"}`)];
+  const room = [roomSheet(`.mark{content:"${"x".repeat(UNDER_FRAME_BOUND)}"}`)];
   const splits = (count: number): string => ["A.", ...Array.from({ length: count }, () => `${DICE}\n\nProse.`)].join("\n\n");
-  expect(replyLayout([{ text: splits(3), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room })).toEqual({
+  expect(replyLayout([{ text: splits(RUNS_PAST_REPLY_BUDGET), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room })).toEqual({
     kind: "plain",
     reason: PLAIN_REPLY_REASON.carriedStylesOverBudget,
   });
   // Positive control: two runs carry the room's sheet twice, under the budget.
   expect(replyLayout([{ text: splits(1), tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room }).kind).toBe("framed");
+});
+
+// A long room where the model rewrites its panel stylesheet every turn: each reply the character wrote holds a distinct
+// sheet naming the panel class, so every later reply using that class carries all of them.
+const PANEL_SHEET_CHARS = 2800;
+const LONG_ROOM_ROWS = 300;
+const PANEL_REPLY = '<div class="panel">HP 10</div>\n\nThe hall waits.';
+
+function longRoom(rows: number): readonly RoomSheet[] {
+  return Array.from({ length: rows }, (_, index) => roomSheet(`.panel{--turn:${String(index)};content:"${"x".repeat(PANEL_SHEET_CHARS)}"}`));
+}
+
+// What one room length draws: plain with its reason, or framed with how many sheets and characters its run carries.
+function longRoomOutcome(rows: number): { readonly plain: string } | { readonly sheets: number; readonly chars: number } {
+  const room = carriedRoomSheets(longRoom(rows), PANEL_REPLY, { lenientHtml: false });
+  const layout = replyLayout([{ text: PANEL_REPLY, tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room });
+  if (layout.kind === "plain") {
+    return { plain: layout.reason };
+  }
+  const run = layout.parts.find((part) => part.kind === "frame");
+  const others = run?.kind === "frame" ? run.styles.sheets.filter((_, index) => index < run.styles.own.start || index >= run.styles.own.end) : [];
+  return { sheets: others.length, chars: others.reduce((sum, sheet) => sum + sheet.css.length, 0) };
+}
+
+test("on a long room a reply's carry stays under the frame's bound, and past it the reply is plain with its reason", () => {
+  const outcomes = [10, 60, LONG_ROOM_ROWS].map(longRoomOutcome);
+  // The shorter rooms frame and carry every sheet they name; the long one would carry past the bound.
+  expect(outcomes).toEqual([
+    { sheets: 10, chars: expect.any(Number) },
+    { sheets: 60, chars: expect.any(Number) },
+    { plain: PLAIN_REPLY_REASON.carriedStylesOverBudget },
+  ]);
+  expect(outcomes.flatMap((outcome) => ("chars" in outcome && outcome.chars > REPLY_FRAME_CARRY_BUDGET_CHARS ? [outcome] : []))).toEqual([]);
+});
+
+test("each run names the room sheets' authors once, and a carry from more authors than a mint names renders plain", () => {
+  const room = [roomSheet(".mark{}", keeperId), roomSheet(".mark b{}", guardId), roomSheet(".mark i{}", keeperId)];
+  const split = replyLayout([{ text: `<b class="mark">A.</b>\n\n${DICE}\n\nB.`, tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room });
+  if (split.kind !== "framed") {
+    throw new Error(`expected a framed reply, got the plain path: ${split.reason}`);
+  }
+  expect(split.parts.flatMap((part) => (part.kind === "frame" ? [part.styles.authors] : []))).toEqual([
+    [keeperId, guardId],
+    [keeperId, guardId],
+  ]);
+  const crowd = Array.from({ length: CARD_FRAME_CARRIED_AUTHORS_MAX + 1 }, (_, index) =>
+    roomSheet(`.mark{--n:${String(index)}}`, mintTypeId(ID_PREFIX.character, ids.next)),
+  );
+  expect(replyLayout([{ text: "A.", tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room: crowd })).toEqual({
+    kind: "plain",
+    reason: PLAIN_REPLY_REASON.carriedStylesOverBudget,
+  });
+  // Positive control: one author fewer frames.
+  expect(replyLayout([{ text: "A.", tokens: undefined }], { lenientHtml: false, cardTrust: "tierB", room: crowd.slice(1) }).kind).toBe("framed");
+});
+
+test("a streaming panel that would carry past the frame's bound holds as forming markup, and a lighter one draws", () => {
+  const panel = '<div class="panel">\nHP 10\n</div>\n\nThe hall waits.\n';
+  const heavy = [roomSheet(`.panel{content:"${"x".repeat(REPLY_FRAME_CARRY_BUDGET_CHARS)}"}`, guardId)];
+  expect(formingParts(panel, heavy).map((part) => part.kind)).toContain("forming-markup");
+  const light = formingParts(panel, [roomSheet(".panel{}", guardId)]).find((part) => part.kind === "panel");
+  expect(light?.kind === "panel" ? light.styles.authors : undefined).toEqual([guardId]);
 });

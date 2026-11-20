@@ -45,6 +45,8 @@ test("only a row a character wrote at the sandboxed step contributes its sheets"
     policyOf,
   );
   expect(cssOf(sources)).toEqual([[".greeting{}"], [".later{}"]]);
+  // Each sheet keeps the character whose row wrote it: a receiving frame's mint names it.
+  expect(roomSheetsBefore(sources, Number.POSITIVE_INFINITY)?.map((sheet) => sheet.authorId)).toEqual([characterId, characterId]);
 });
 
 test("a row read twice contributes once, the first copy read, and sources come in canon order", () => {
