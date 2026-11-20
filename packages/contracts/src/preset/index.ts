@@ -1050,6 +1050,50 @@ const templatedMarkerSection = z
 const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
 export type PromptSection = z.infer<typeof promptSectionSchema>;
 
+// Every section key that appears more than once, in first-appearance order. The editor, the assembly readout and
+// the token costs key a section by its id, so two sections with one key would be edited and priced as one.
+function repeatedSectionIds(sections: readonly { readonly id: string }[]): readonly string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const { id } of sections) {
+    if (seen.has(id)) {
+      repeated.add(id);
+    }
+    seen.add(id);
+  }
+  return [...repeated];
+}
+
+// The first section of each key. The read path keeps a stored blob readable this way, and the next save writes it
+// back without the repeats; the write and file doors refuse a repeat instead (`repeatedSectionIds`).
+function firstOfEachSectionId<S extends { readonly id: string }>(sections: S[]): S[] {
+  const seen = new Set<string>();
+  return sections.filter(({ id }) => {
+    if (seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
+}
+
+function repeatedSectionMessage(id: string): string {
+  return `Two sections share the key "${id}". Each section needs its own key.`;
+}
+
+// The stored and imported section list: bounded, with a repeated key read as its first section.
+const readSectionsSchema = z.array(promptSectionSchema).max(MAX_SECTIONS).transform(firstOfEachSectionId);
+
+// The authored section list: a repeated key is refused by name.
+const writeSectionsSchema = z
+  .array(promptSectionSchema)
+  .max(MAX_SECTIONS)
+  .superRefine((sections, ctx): void => {
+    for (const id of repeatedSectionIds(sections)) {
+      ctx.addIssue({ code: "custom", path: [sections.findLastIndex((section) => section.id === id), "id"], message: repeatedSectionMessage(id) });
+    }
+  });
+
 /** The FALLBACK the assembler uses when a preset doesn't supply a `formatStrings.<key>` — one PROSE-1 slot
  *  each, so the bytes are authored once in `./prose`. The KEYS are the editable/importable
  *  format-string vocabulary (the ST import mapper keys off this
@@ -2444,7 +2488,7 @@ const formatStringsSchema = z
 export const promptConfigSchema = z
   .object({
     schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
-    sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
+    sections: readSectionsSchema,
     // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
     // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
     params: userIntentSchema.catch({}).default({}),
@@ -2640,7 +2684,7 @@ export function proseCarrierMisses(prose: ProseOverrides): readonly ProseCarrier
 export const promptConfigWriteSchema = promptConfigSchema
   // The read schema's `.catch({})` heals a stored blob; on a write it would silently reset every knob over one
   // stray key, so the write door takes `params` strictly and refuses (Spine-Config "Degrading is read-only").
-  .extend({ params: userIntentSchema.default({}) })
+  .extend({ params: userIntentSchema.default({}), sections: writeSectionsSchema })
   .superRefine((config, ctx): void => {
     const formatStrings = config.formatStrings;
     if (formatStrings !== undefined) {
@@ -3470,6 +3514,8 @@ function buildWalk(order: StOrderGroup["order"], prompts: StPrompt[]): { identif
   }));
 }
 
+const REPEATED_PROMPT_REASON = "The prompt order lists this prompt more than once. It was imported once, at its first place.";
+
 /** Build the section list from the id→prompt map walked in the authored order, or name the first prompt whose
  *  identifier cannot key a section (the import refuses it rather than inventing a key). */
 function buildSections(
@@ -3478,15 +3524,23 @@ function buildSections(
   dropped: StDroppedField[],
 ): PromptSection[] | { readonly unkeyed: string } {
   const sections: PromptSection[] = [];
+  const placed = new Set<string>();
   for (const entry of walk) {
     const prompt = byId.get(entry.identifier);
-    if (prompt !== undefined) {
-      const id = promptSectionIdSchema.safeParse(prompt.identifier);
-      if (!id.success) {
-        return { unkeyed: prompt.identifier };
-      }
-      sections.push(sectionFromPrompt(prompt, id.data, entry.enabled, dropped));
+    if (prompt === undefined) {
+      continue;
     }
+    // A section key is unique per preset, so a repeated identifier keeps its first place in the walk.
+    if (placed.has(prompt.identifier)) {
+      dropped.push({ field: `prompt_order.${prompt.identifier}`, reason: REPEATED_PROMPT_REASON });
+      continue;
+    }
+    const id = promptSectionIdSchema.safeParse(prompt.identifier);
+    if (!id.success) {
+      return { unkeyed: prompt.identifier };
+    }
+    placed.add(prompt.identifier);
+    sections.push(sectionFromPrompt(prompt, id.data, entry.enabled, dropped));
   }
   return sections;
 }
@@ -3713,6 +3767,11 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 /** The mapped config's validated outcome once every section is keyed. */
 function stConfigOutcome(rawObj: Record<string, unknown>, authored: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
   const { sections, added } = withOrbSlots(authored);
+  // The read schema keeps a repeated key's first section, which here would silently drop a section the import built.
+  const [repeated] = repeatedSectionIds(sections);
+  if (repeated !== undefined) {
+    return { ok: false, recognised: true, reason: `${repeatedSectionMessage(repeated)} Nothing was imported.` };
+  }
   const seats = mapSeats(rawObj);
   // Each param was judged alone against its own schema, so the whole set is never parsed (and dropped) as one.
   const { params } = seats;
@@ -3798,6 +3857,9 @@ export function presetContentKey(config: unknown): string {
  *  then STRICTLY validates the lifted config via `promptConfigSchema` directly: a structurally-wrong config
  *  is REJECTED (not degraded to DEFAULT) so a broken file errors loudly instead of silently importing as an
  *  empty preset — the deliberate contrast with `parsePromptConfig`'s lenient degrade-to-default. */
+// A file is an author's write, so a repeated section key is refused by name rather than read as its first.
+const presetFileConfigSchema = promptConfigSchema.extend({ sections: writeSectionsSchema });
+
 export function parsePresetFile(raw: unknown): ParsePresetResult {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error: "Not a JSON object." };
@@ -3821,7 +3883,7 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
       ? envelopeVersion
       : probeSchemaVersion((rawConfig as Record<string, unknown>)["schemaVersion"]);
   const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion, CONFIG_LIFTS);
-  const result = promptConfigSchema.safeParse(lifted?.config);
+  const result = presetFileConfigSchema.safeParse(lifted?.config);
   if (!result.success) {
     // `z.prettifyError` (not `issues[0].message`): the flattened form prints "Too small: expected string to
     // have >=1 characters" with NO path, so an operator importing a 500-section preset is told a field was bad

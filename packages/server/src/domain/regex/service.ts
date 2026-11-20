@@ -28,6 +28,7 @@ import {
   createListForChat,
   createListForPreset,
   createListGlobal,
+  createListPresetOnly,
   createListScriptUsage,
 } from "./verbs/attachments/index.ts";
 import {
@@ -38,7 +39,9 @@ import {
   createCreate,
   createDuplicate,
   createList,
+  createListUnattached,
   createRemove,
+  createRemoveUnattachedScripts,
   createUpdate,
 } from "./verbs/scripts/index.ts";
 
@@ -51,6 +54,7 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
   // portability registry, and this seam is the only place a Principal becomes an ownerId for them.
   const exportScript = createExportRegexScript(input);
   const importScript = createImportRegexScript(input);
+  const removeUnattached = createRemoveUnattachedScripts(input);
   return {
     countScripts: createCount(ctx),
     listScripts: createList(ctx),
@@ -63,6 +67,8 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
     bulkSetScriptsGlobal: createBulkSetGlobal(ctx),
     bulkSetScriptsAxes: createBulkSetAxes(ctx),
     bulkRemoveScripts: createBulkRemove(ctx),
+    listUnattachedScripts: createListUnattached(ctx),
+    removeUnattachedScripts: ({ principal, scriptIds }) => removeUnattached({ ownerId: principal.userId, scriptIds }),
     exportScript: ({ principal, scriptId }) => exportScript({ ownerId: principal.userId, scriptId }),
     importScriptFile: ({ principal, fileText }) => importScript({ ownerId: principal.userId, bytes: ENC.encode(fileText) }),
     attachGlobal: createAttachGlobal(ctx),
@@ -74,6 +80,7 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
     attachToPreset: createAttachToPreset(ctx),
     detachFromPreset: createDetachFromPreset(ctx),
     listForPreset: createListForPreset(ctx),
+    listPresetOnlyScripts: createListPresetOnly(ctx),
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     listForChat: createListForChat(ctx),

@@ -1,5 +1,15 @@
 import type { PromptConfig } from "@orb/contracts/preset";
-import { buildPresetFile, DEFAULT_PROMPT_CONFIG, MARKER_TYPES, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import {
+  buildPresetFile,
+  DEFAULT_PROMPT_CONFIG,
+  MARKER_TYPES,
+  PROMPT_CONFIG_SCHEMA_VERSION,
+  parsePresetFile,
+  promptConfigConfig,
+  promptConfigWriteSchema,
+  promptSectionIdSchema,
+  tryImportStChatCompletionPreset,
+} from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "@orb/testkit/node";
 
@@ -316,4 +326,63 @@ test("a slot section takes a key the author's prompts leave free, and the same f
     { id: "databank", content: "Theirs too." },
   ]);
   expect(importedOrThrow(file).config).toEqual(first.config);
+});
+
+test("a prompt order that lists one prompt twice imports it once, at its first place, and names the repeat", () => {
+  const file = {
+    prompts: [
+      { identifier: "intro", content: "Set the scene." },
+      { identifier: "rules", content: "Keep it short." },
+    ],
+    ["prompt_order"]: [
+      {
+        ["character_id"]: 100_001,
+        order: [
+          { identifier: "intro", enabled: true },
+          { identifier: "rules", enabled: true },
+          { identifier: "intro", enabled: false },
+        ],
+      },
+    ],
+  };
+  const outcome = tryImportStChatCompletionPreset(file);
+  if (!outcome.ok) {
+    throw new Error(JSON.stringify(outcome));
+  }
+  expect(authored(outcome.result).map(({ id, enabled }) => ({ id, enabled }))).toEqual([
+    { id: "intro", enabled: true },
+    { id: "rules", enabled: true },
+  ]);
+  expect(outcome.result.dropped.filter(({ field }) => field.startsWith("prompt_order."))).toEqual([
+    { field: "prompt_order.intro", reason: expect.stringMatching(/more than once/u) },
+  ]);
+});
+
+const REPEATED = {
+  ...DEFAULT_PROMPT_CONFIG,
+  sections: [
+    { type: "literal", id: promptSectionIdSchema.parse("note"), name: "First note", role: "system", enabled: true, content: "First." },
+    ...DEFAULT_PROMPT_CONFIG.sections,
+    { type: "literal", id: promptSectionIdSchema.parse("note"), name: "Second note", role: "system", enabled: true, content: "Second." },
+  ],
+} satisfies PromptConfig;
+
+test("the write door and a preset file refuse two sections with one key, naming the key", () => {
+  const written = promptConfigWriteSchema.safeParse(REPEATED);
+  expect(written.success).toBe(false);
+  expect(written.error?.issues).toEqual([
+    expect.objectContaining({ path: ["sections", REPEATED.sections.length - 1, "id"], message: expect.stringMatching(/"note"/u) }),
+  ]);
+  // Positive control: the same config with the repeat removed is written.
+  expect(promptConfigWriteSchema.safeParse({ ...REPEATED, sections: REPEATED.sections.slice(0, -1) }).success).toBe(true);
+
+  const file = parsePresetFile(buildPresetFile("Repeated", REPEATED));
+  expect(file).toMatchObject({ ok: false, error: expect.stringMatching(/"note"/u) });
+});
+
+test("a stored config with two sections under one key still reads, as its first section, and reads intact", () => {
+  const outcome = promptConfigConfig.parseOutcome(REPEATED, PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(outcome.intact).toBe(true);
+  expect(outcome.value.sections.filter((section) => section.id === "note").map((section) => section.name)).toEqual(["First note"]);
+  expect(outcome.value.sections).toHaveLength(REPEATED.sections.length - 1);
 });

@@ -1,15 +1,17 @@
 // The regex write door (D53): a verb that stores a find pattern measures its compile once, off the event loop, and
 // refuses one that costs more than the door admits, naming the script, its measured cost and the limit. A
 // compile-heavy pattern within the stored length cap is the refused case; an ordinary panel pattern beside it is the
-// positive control. The lifts' door is `tests/server/domain/import/persistence/preset-regex-shapes.int.test.ts`.
+// positive control. A burst of saves shares a fixed number of probe workers. The lifts' door is `tests/server/domain/import/persistence/preset-regex-shapes.int.test.ts`.
 // @subject packages/server/src/primitives/regex/compile-probe.ts
 // @subject packages/server/src/domain/regex/substrate/find-door.ts
 // @subject packages/server/src/domain/regex/persistence/portability-write.ts
+import process from "node:process";
+import type { Worker } from "node:worker_threads";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/compile-probe.ts";
+import { FIND_COMPILE_LIMIT_MS, PROBE_WORKER_NAME, PROBE_WORKERS_AT_ONCE } from "#server/primitives/regex/compile-probe.ts";
 
 // The save pass over replies.
 const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
@@ -37,6 +39,42 @@ test("create stores a panel pattern and refuses a compile-heavy one by name, its
   });
 
   expect((await caller.regex.listScripts()).map((script) => script.name)).toEqual(["panel"]);
+});
+
+test("a burst of saves runs a fixed number of probe workers at once and every save gets its verdict", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The probe's own thread name picks its workers out of any other worker the process starts meanwhile.
+  let live = 0;
+  let peak = 0;
+  let started = 0;
+  const onWorker = (worker: Worker): void => {
+    if (worker.threadName !== PROBE_WORKER_NAME) {
+      return;
+    }
+    started += 1;
+    live += 1;
+    peak = Math.max(peak, live);
+    worker.once("exit", () => {
+      live -= 1;
+    });
+  };
+  process.on("worker", onWorker);
+  try {
+    const panels = Array.from({ length: PROBE_WORKERS_AT_ONCE * 3 }, (_, index) => `panel-${String(index)}`);
+    const saves = await Promise.allSettled([
+      caller.regex.createScript({ input: scriptInput("heavy", COMPILE_HEAVY) }),
+      ...panels.map((name) => caller.regex.createScript({ input: scriptInput(name, PANEL) })),
+    ]);
+
+    expect(saves[0]).toMatchObject({ status: "rejected", reason: { cause: { message: expect.stringMatching(REFUSAL) } } });
+    expect(saves.slice(1).map((save) => save.status)).toEqual(panels.map(() => "fulfilled"));
+    expect(started).toBe(panels.length + 1);
+    expect(peak).toBe(PROBE_WORKERS_AT_ONCE);
+    expect((await caller.regex.listScripts()).map((script) => script.name).toSorted()).toEqual(panels.toSorted());
+  } finally {
+    process.off("worker", onWorker);
+  }
 });
 
 test("update refuses a compile-heavy find and leaves the stored script as it was", { tags: ["slow"] }, async () => {

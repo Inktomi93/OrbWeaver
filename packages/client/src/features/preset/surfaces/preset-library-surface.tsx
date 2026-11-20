@@ -18,12 +18,13 @@
 // client cannot read in one place.
 
 import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
@@ -115,6 +116,7 @@ function PresetList({
   const create = useCreatePreset({ trpc, invalidation });
   const remove = useRemovePreset({ trpc, invalidation, failureShownInline: "the delete-preset confirm's alert line" });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
+  const queryClient = useQueryClient();
 
   const activeId = settings.config.seeds.defaultPresetId;
 
@@ -171,18 +173,23 @@ function PresetList({
       .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
-  const onDelete = (id: PresetId): Promise<void> =>
-    // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
-    // selected, every refetch answers 404. The active pick moves only once the row is gone, so a refused delete
-    // leaves what generates untouched.
-    remove.mutateAsync({ id }).then((): void => {
-      if (activeId === id) {
-        setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
-      }
-      if (getSelectedPresetId() === id) {
-        presetSectionSelection.clear();
-      }
-    });
+  const onDelete = (id: PresetId, kept: ReadonlySet<RegexScriptId>): Promise<void> =>
+    // The scripts the confirm listed, less the unchecked ones: the server deletes only those still attached nowhere.
+    queryClient
+      // A cached answer is the list the confirm showed, which is the list the owner checked, so it is not refetched here.
+      .query({ ...trpc.regex.listPresetOnly.queryOptions({ presetId: id }), staleTime: Number.POSITIVE_INFINITY })
+      .then((scripts) => remove.mutateAsync({ id, scriptIds: scripts.flatMap((script) => (kept.has(script.id) ? [] : [script.id])) }))
+      // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
+      // selected, every refetch answers 404. The active pick moves only once the row is gone, so a refused delete
+      // leaves what generates untouched.
+      .then((): void => {
+        if (activeId === id) {
+          setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
+        }
+        if (getSelectedPresetId() === id) {
+          presetSectionSelection.clear();
+        }
+      });
 
   const qualifiers = rowQualifiers(
     filtered.map((preset) => ({ name: preset.name, at: preset.updatedAt })),

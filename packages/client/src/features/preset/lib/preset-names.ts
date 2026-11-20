@@ -351,3 +351,12 @@ export function presetCappedOnConnectionNote(stored: string, ceiling: string): s
 export function presetCappedByGuessNote(stored: string, ceiling: string): string {
   return `Saved as ${stored}, but capped at ${ceiling} because this model's limit is a guess. Set the real limits to use more.`;
 }
+
+/** The delete confirm's list of the scripts only this preset uses. */
+export const PRESET_DELETE_SCRIPTS_REGION_NAME = "Scripts only this preset uses";
+
+/** The line over that list: what a checked script and an unchecked one become. */
+export function presetDeleteScriptsLead(count: number): string {
+  const scripts = count === 1 ? "1 regex script is" : `${String(count)} regex scripts are`;
+  return `${scripts} attached only to this preset. Checked scripts are deleted with it; an unchecked one stays in your script library, attached nowhere.`;
+}

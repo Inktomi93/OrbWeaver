@@ -6,9 +6,9 @@
 //   • PROBED (owner-scoped, `principal.userId` in the WHERE): listScripts, createScript,
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
-//     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
+//     listForPreset, listPresetOnly, listUnattached, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
 //   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetAxes,
-//     bulkRemove put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
+//     bulkRemove, removeUnattached put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
 //     is DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
 //     "you don't own it" and "it's already gone", so the list can never be probed for membership.
 //     `exportScript` collapses a foreign/absent id to `null` for the same reason (the `exportBook` posture).
@@ -42,6 +42,7 @@ import {
   regexChatInputSchema,
   regexPresetInputSchema,
   regexScriptIdInputSchema,
+  regexScriptIdsInputSchema,
   regexScriptUsageSchema,
   regexScriptViewSchema,
   reorderResultSchema,
@@ -54,12 +55,9 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-/** How many scripts one bulk gesture may name — far above any real selection, low enough to bound the
- *  statement a single request can build. */
-const MAX_BULK_SCRIPTS = 500;
 const DEC = new TextDecoder();
 
-const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
+const scriptIdsInput = regexScriptIdsInputSchema;
 
 export const regexRouter = t.router({
   countScripts: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.regex.countScripts({ principal: ctx.auth })),
@@ -111,6 +109,14 @@ export const regexRouter = t.router({
     .output(bulkResultSchema)
     .input(z.strictObject({ scriptIds: scriptIdsInput }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkRemoveScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
+
+  // The library's "attached nowhere" sweep: the list it offers, and the delete that keeps any script a scope took up since.
+  listUnattached: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listUnattachedScripts({ principal: ctx.auth })),
+
+  removeUnattached: authedProcedure
+    .output(bulkResultSchema)
+    .input(z.strictObject({ scriptIds: scriptIdsInput }))
+    .mutation(({ ctx, input }) => ctx.services.regex.removeUnattachedScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
 
   // ── The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`) ───────────────────────
   // Both are thin arms over the backup bundle's own verbs (the `worldInfo.exportBook`/`importFile` shape),
@@ -183,6 +189,12 @@ export const regexRouter = t.router({
     .output(z.array(regexScriptViewSchema))
     .input(regexPresetInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
+
+  // What a preset delete offers to take with it: the scripts attached to that preset and to no other scope.
+  listPresetOnly: authedProcedure
+    .output(z.array(regexScriptViewSchema))
+    .input(regexPresetInputSchema)
+    .query(({ ctx, input }) => ctx.services.regex.listPresetOnlyScripts({ principal: ctx.auth, presetId: input.presetId })),
 
   attachToChat: authedProcedure
     .output(z.void())

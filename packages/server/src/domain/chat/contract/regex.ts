@@ -11,6 +11,7 @@
 
 import type { CharacterRegexSlice, HostTierRegexAllow } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { ChatId } from "@orb/kit/ids";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
@@ -83,4 +84,19 @@ export interface PromptHistoryRegexEnv {
   readonly room: RoomStanding;
   /** A continue extends the newest row, which then sits at depth -1 rather than 0. */
   readonly continuing: boolean;
+  /** The room's last output of this leg, reused when every input it read is unchanged. Required and nullable: a
+   *  real turn runs the leg fresh (`null`); a repeated read of an unchanged room passes its room's memo. */
+  readonly memo: PromptHistoryMemo | null;
+}
+
+/** One room's last prompt-history output, keyed by a digest of every input the leg read. It holds one entry, so a
+ *  changed room replaces it. */
+export interface PromptHistoryMemo {
+  readonly read: (key: string) => readonly string[] | undefined;
+  readonly write: (key: string, contents: readonly string[]) => void;
+}
+
+/** Hands out each room's {@link PromptHistoryMemo}. Process-wide and bounded by room count. */
+export interface PromptHistoryMemos {
+  readonly forRoom: (chatId: ChatId) => PromptHistoryMemo;
 }

@@ -91,3 +91,17 @@ export const REGEX_PREVIEW_STOPPED = "Stopped: this pattern ran too long, so it 
 
 /** A script the browser could not run because it could not start the Worker. */
 export const REGEX_PREVIEW_UNAVAILABLE = "This browser could not start the regex runner, so the pattern did not run.";
+
+/** The library's sweep of the scripts attached nowhere: its verb and the confirm's list. */
+export const REGEX_DELETE_UNATTACHED_NAME = "Delete unattached";
+export const REGEX_UNATTACHED_LIST_NAME = "Scripts attached nowhere";
+
+/** The line over the library rows while some scripts are attached nowhere. */
+export function regexUnattachedLine(count: number): string {
+  return count === 1 ? "1 script is attached nowhere." : `${String(count)} scripts are attached nowhere.`;
+}
+
+/** The sweep's confirm title. */
+export function regexUnattachedDeleteTitle(count: number): string {
+  return count === 1 ? "Delete 1 unattached script?" : `Delete ${String(count)} unattached scripts?`;
+}
