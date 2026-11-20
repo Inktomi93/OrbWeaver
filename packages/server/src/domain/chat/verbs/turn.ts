@@ -29,6 +29,9 @@
 // reply queued (`pending_turns`) and no turn in flight (`activeTurns`), so a press after the reply landed is a no-op.
 // A member's release while the host is dark defers exactly as that member's send would, so it never spends the dark
 // host's connection; the queued row then makes every later press a no-op until the drain answers the line once.
+// A Stop on that queued reply settles the debt, with or without kept text (D332): nothing is queued again, billed or
+// failed at a host handoff. A fault, a stale abort or a shutdown before any text is not a Stop and leaves the row
+// queued; a shutdown after text keeps the text as the reply, which settles the debt (D332).
 // `generate` stays lock-free and unclaimed: the wand and the empty send ask for an extra reply on purpose.
 // - swipe, continueTurn, impersonate, forceCharacterTurn and the auto-chain do not wait. A swipe or continue keeps
 //   the last reply as the last assistant row, so the count holds; a forced reply resets it like any reply.
@@ -144,6 +147,7 @@ import {
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
+import { abortSettlesOwedReply, registryAbortReason } from "../substrate/abort-cause.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
@@ -1285,7 +1289,7 @@ async function runChain(
           chatId: args.base.chatId,
           turnId,
           intent: chainIntent,
-          reason: "user",
+          reason: registryAbortReason(args.signal),
           automationDepth: args.base.automationDepth ?? 0,
         });
         return null;
@@ -1381,15 +1385,16 @@ async function runAiRound(
   });
   // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
   // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
-  // outcome is the bare aborted shape ("user": the only pre-engine abort source is `activeTurns`, i.e. the
-  // caller's own Stop or the host's room-gone sweep — the heartbeat's "stale" lock abort lives INSIDE the
+  // outcome is the bare aborted shape (the only pre-engine abort source is `activeTurns`: the caller's own Stop
+  // or the host's room-gone sweep read "user", the registry's shutdown dispose reads "shutdown" — the heartbeat's "stale" lock abort lives INSIDE the
   // engine and cannot fire before a turn starts). The `turnAborted` bus emit — deliberately WITHHELD before
   // `turnAccepted` existed (the slot was idle, nothing listened) — now CLOSES the slot this abort left open.
   // Depth rides `automationDepth` off the base (0 for a human turn) so an automation cascade gates the same as
   // the engine's own `turnAborted`.
   if (arbitration.aborted) {
-    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, turnId, intent, reason: "user", automationDepth: args.base.automationDepth ?? 0 });
-    return { messages: [], aborted: true, abortReason: "user" };
+    const reason = registryAbortReason(args.signal);
+    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, turnId, intent, reason, automationDepth: args.base.automationDepth ?? 0 });
+    return { messages: [], aborted: true, abortReason: reason };
   }
   const speakers = arbitration.speakers;
   // THE THIRD FORCED DOOR (F7): `forceCharacterTurn` and `requestTurn` both coerce a narrator room to a
@@ -2884,8 +2889,9 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         : { speaker: speakerCharacterId, aborted: false };
     // The two speakerless exits close the accepted slot exactly as a send round's do (`runAiRound`).
     if (pick.aborted) {
-      await deps.emit({ type: "turnAborted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, reason: "user", automationDepth: 0 });
-      return { messages: [], aborted: true, abortReason: "user" };
+      const reason = registryAbortReason(handle.signal);
+      await deps.emit({ type: "turnAborted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, reason, automationDepth: 0 });
+      return { messages: [], aborted: true, abortReason: reason };
     }
     if (pick.speaker === null) {
       await deps.emit({ type: "turnCompleted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, messageId: null });
@@ -3200,7 +3206,10 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
     const completed = await runDeferredRound(ctx, settlementDeps, claimed);
     // A reply that committed before the abort (a Stop's kept text, or the speakers who finished before it) has
     // answered the send, so the debt is settled; re-running it would generate and bill a second reply on top.
-    if (completed.aborted && completed.messages.length === 0) {
+    // A Stop that kept nothing settles it too: the member does not want that reply (D332). Any other abort
+    // (a stale lock, a shutdown) is not the member's call, so the debt stays owed.
+    const stopped = completed.abortReason !== undefined && abortSettlesOwedReply(completed.abortReason);
+    if (completed.aborted && completed.messages.length === 0 && !stopped) {
       throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
     }
   };

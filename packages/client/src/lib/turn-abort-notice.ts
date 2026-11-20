@@ -4,7 +4,8 @@
 // WHY these functions, one home:
 //   • `turnAbortNotice(reason)` — the bus-side surface. `applyChatBusEvent` sees EVERY turnAborted (SSE),
 //     including detached auto-mode turns no awaiting caller sees, so the bus is the one place a stale abort
-//     is always observable. `stale` → the honest notice; `user` (deliberate cancel) → nothing; `error` →
+//     is always observable. `stale` → the honest notice; `user` (deliberate cancel) and `shutdown` (the server
+//     closing, so the socket drops with it) → nothing; `error` →
 //     nothing HERE — a real fault ALSO throws out the awaited verb and rides the tRPC error boundary
 //     (query-client `meta.errorToast`), so notifying on the bus too would double-toast. Deliberate dedupe.
 //   • `turnMutationToast(error, fallback)` — the hook-side surface, the ONE `errorToast` every turn-starting
@@ -33,6 +34,7 @@ export function turnAbortNotice(reason: TurnAbortReason): string | null {
       return TURN_STALE_ABORT_COPY;
     case "user":
     case "error":
+    case "shutdown":
       return null;
     default:
       return assertNeverReason(reason);

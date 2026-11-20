@@ -1,4 +1,4 @@
-import type { ToolCallRecord } from "@orb/contracts/chat";
+import type { ToolCallRecord, TurnAbortReason } from "@orb/contracts/chat";
 import type { WireCapture } from "@orb/contracts/debug";
 import type { GenerationUsageLeg, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
 import type { LookupText } from "@orb/kit/ids";
@@ -29,7 +29,7 @@ export interface WireOutcome extends Readonly<Pick<GenerationUsageLeg, "tokensOu
   readonly at: WireCapture["at"];
   readonly model: WireCapture["model"] | null;
   /** Engine lifecycle, not provider termination: a returned but refused generation is still completed. */
-  readonly disposition: "completed" | "error" | "user" | "stale";
+  readonly disposition: "completed" | TurnAbortReason;
   readonly finishReason: string | null;
   readonly contentChars: number;
   readonly reasoningChars: number;

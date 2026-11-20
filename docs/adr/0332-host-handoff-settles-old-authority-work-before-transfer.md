@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-10-21
+updated: 2026-11-20
 ---
 
 # Host handoff settles old-authority work before transfer
@@ -16,6 +16,10 @@ Host acceptance settles the room's already-authorized old-host work before copyi
 
 A chat-scoped transition closes new admission and joins admitted preparation, queue claims, commits and owned continuation work that can still affect the room. Requests blocked by the transition receive a retryable refusal before preparing stale authority. Normal turn concurrency remains unchanged outside a handoff. Stop ownership, native engine leases and durable claim and commit checks remain in force.
 
+A Stop on an owed reply is the member's own cancellation, so it settles that debt. A Stop that kept text keeps the text as the reply. A Stop that produced no text drops the debt: the reply is not queued again, the next drain neither generates nor bills it, and a handoff acceptance does not fail on it. The reader does not want that reply, and a later reply to that line is a new request.
+
+Once text has streamed, it stays when a Stop or a shutdown cuts the reply. A server shutdown that cuts a reply after text keeps that text as the reply, for an ordinary turn and for an owed one, and the kept text settles the owed row. The reply stores the turn abort reason `shutdown` as its terminal reason, and the turn closes with the same reason, so a shutdown never reads as a member's Stop. A shutdown before any text is not a Stop and leaves the owed row queued. A fault, a lost lease or a stale abort keeps no text and leaves the row owed.
+
 If settlement cannot complete, acceptance returns a retryable refusal before property copying or the authority swap. Owed rows remain owed. Completed replies and their paid facts remain committed; a later handoff failure does not roll them back. After settlement, the existing D131 copy and atomic room transfer run under their current ownership checks. Subsequent turns use the new host.
 
 Do not borrow the recipient's authority, retain old-owner room property after transfer or introduce historical execution snapshots to bypass settlement. The chat domain owns settlement and admission; composition only wires its graph.
@@ -28,4 +32,4 @@ Admission follows the supported single-replica service lifecycle. Native databas
 
 ## Alternatives rejected
 
-Immediate transfer with historical queued-context snapshots adds a new persistence and attribution contract. Refusing every handoff with pending debt leaves settlement to a separate action. Cancelling owed replies changes their accepted liability. These alternatives are not the selected behavior.
+Immediate transfer with historical queued-context snapshots adds a new persistence and attribution contract. Refusing every handoff with pending debt leaves settlement to a separate action. Cancelling owed replies at handoff changes their accepted liability; only the member's own Stop cancels one. These alternatives are not the selected behavior.
