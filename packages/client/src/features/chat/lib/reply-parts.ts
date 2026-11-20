@@ -5,7 +5,7 @@
 // chrome is the app's).
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
-import type { FrameStyleSheet, TextRange } from "@orb/kit/content";
+import type { FormingPanelSegment, FrameStyleSheet, TextRange } from "@orb/kit/content";
 import {
   frameStyleElements,
   heldBlockRanges,
@@ -14,6 +14,8 @@ import {
   markupUnitRanges,
   modelPanels,
   paragraphBreaks,
+  scanFormingPanels,
+  scanStyledHold,
   tokenizeContent,
 } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -281,4 +283,33 @@ function unstyledParts(spans: readonly ReplySpan[], options: { readonly lenientH
     }
   }
   return parts;
+}
+
+/** The most panels of one streaming reply that draw before it settles. Each distinct panel mints once under the forming
+ *  cap, plus the one re-mint a lost handle earns, so a streamed reply spends at most twice this many forming mints on top
+ *  of its settled frame's own; a panel past it stays behind its chip until the reply settles. */
+export const FORMING_PANELS_MAX = 8;
+
+/** One part of a reply still streaming: prose, a panel still forming (no bytes), or a complete panel with the sheets its
+ *  forming frame carries above its body. */
+export type FormingPart =
+  | Exclude<FormingPanelSegment, { readonly kind: "panel" }>
+  | { readonly kind: "panel"; readonly markup: string; readonly styles: ReplyRunStyles };
+
+/** A streaming reply's parts (`scanFormingPanels`). Each complete panel carries the room's sheets its own markup uses
+ *  and the sheets of the complete panels before it, never a later one's, so its bytes stay fixed while the reply streams
+ *  on. Past {@link PANEL_READ_MAX_CHARS} nothing is read and every unit holds. */
+export function formingParts(text: string, room: readonly FrameStyleSheet[] | undefined): readonly FormingPart[] {
+  if (text.length > PANEL_READ_MAX_CHARS) {
+    return scanStyledHold(text);
+  }
+  let before: readonly FrameStyleSheet[] = [];
+  return scanFormingPanels(text).map((segment): FormingPart => {
+    if (segment.kind !== "panel") {
+      return segment;
+    }
+    const sheets = [...(room === undefined ? [] : carriedRoomSheets(room, segment.markup, { lenientHtml: false })), ...before];
+    before = [...before, ...frameStyleElements(holdBlocksWhole(segment.markup))];
+    return { kind: "panel", markup: segment.markup, styles: { sheets, own: { start: sheets.length, end: sheets.length } } };
+  });
 }

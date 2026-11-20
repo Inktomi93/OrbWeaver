@@ -29,7 +29,7 @@ A row at or above `trusted` renders sanitized markdown in the main DOM under the
 
 A reply that a display regex script styled renders whole in one card frame on a Tier B row (D354).
 
-A card runs its own scripts only under the `interactive` frame posture: `resolveCardScriptVerdict` needs the character and the default step at Interactive and the viewer's `runCardScripts`, read through `viewerRunsCardScripts` so an unreadable blob is off, and only when the other two allow. A failed read draws static. Every serve resolves all three again, so one switched off withdraws scripts at the next load.
+A card runs its own scripts only under the `interactive` frame posture: `resolveCardScriptVerdict` needs the character and the default step at Interactive and the viewer's `runCardScripts`, read through `viewerRunsCardScripts` so an unreadable blob is off, and only when the other two allow. A failed read draws static; a streaming panel's mint draws static with no external media (D354). Every serve resolves all three again, so one switched off withdraws scripts at the next load.
 
 The sandbox does not change with the posture: an opaque origin with `sandbox allow-scripts` and never `allow-same-origin`, `default-src 'none'` with no `connect-src`, `form-action 'none'`, `base-uri 'none'`, `frame-ancestors 'self'`, and the app's `frame-src 'self'`. Only `script-src` changes. The static posture admits our pinned script by hash, which measures the height and hands a link click to the host, and the interactive posture admits `'unsafe-inline'`.
 
