@@ -166,16 +166,16 @@ test("an effort request rides `reasoning.effort` despite the SDK catalog — the
   expect(bare.turn.appliedEffort).toBeNull();
 });
 
-test("samplers the Responses body does not model drop loudly; temperature rides", async () => {
-  const sent = await send({}, { params: { temperature: 0.7, topK: 40 } satisfies UserIntent });
+test("samplers the Responses body does not model drop loudly under their own knob name; temperature rides", async () => {
+  // The capability exposes topK, so the funnel resolves it and only the route rule can drop it.
+  const capability = generationCapability({ sampling: { temperature: { min: 0, max: 1 }, topK: { min: 1, max: 100 } } });
+  const sent = await send({ capability }, { params: { temperature: 0.7, topK: 40 } satisfies UserIntent });
   expect(sent.body["temperature"]).toBe(0.7);
   expect(sent.body).not.toHaveProperty("top_k");
-  const dropped = sent.events.flatMap((event) =>
-    event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [`${event.knob ?? ""} ${event.message}`] : [],
-  );
-  // Whether the funnel or the runner's route rule drops it, the receipt is the same event code — and the
-  // body must not carry a spelling the Responses route has no arm for.
-  expect(dropped.some((line) => /top_?K/i.test(line))).toBe(true);
+  const dropped = sent.events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
+  expect(dropped, "the route's drop names the knob the receipt reports").toEqual(["topK"]);
+  const sampling = lastReceipt(sent.receipts, PROVIDER_SAMPLING_EVENT);
+  expect(sampling["dropped"]).toContainEqual(expect.objectContaining({ knob: "topK" }));
 });
 
 test("the structured plan's strict flag rides explicitly — strict on default-on, off when the row declines to force it", async () => {
@@ -287,7 +287,7 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   }
 
   // An OVER-cap frame delivered ATOMICALLY still folds whole: the boundary loop reads a single chunk to
-  // completion before the cap is ever consulted (responses-dialect.ts, the pending-buffer flush), so the
+  // completion before the cap is ever consulted (`sseFrameTransform` in packages/inference/src/backends/http/sse.ts), so the
   // 1.2 MB delta never faces buffering pressure — the giant delta arrives folded end to end. The cap only
   // bites when bytes arrive in pieces, which is what the next arm delivers.
   const giant = "G".repeat(1_200_000);
@@ -308,7 +308,7 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   // cap unframed, and the arm pins the OUTCOME that is this cap's whole contract: graceful degradation — the
   // stream survives, the named frames still fold, the over-cap delta is lost (the vendor's raw
   // `reasoning_text.delta` name is what the SDK's catch-all drops) and `hard.` (later, under-cap) is not.
-  // Whether the withheld bytes pass through byte-identical is the dialect header's mechanism claim; this
+  // Whether the withheld bytes pass through byte-identical is the sse.ts header claim; this
   // test asserts the turn-level degradation, not the byte equality.
   const chunkedTape: typeof fetch = () => {
     const bytes = new TextEncoder().encode(giantBody);

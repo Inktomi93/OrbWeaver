@@ -57,22 +57,10 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
 }
 
 /** The GENERATION half of a chat-shaped resolve. The resolver only hands a chat/summarize/structured task a
- *  generation-kind row (`connectionTasks` refuses the others), so the miss is a program error, not a user one. */
-export function generationOf(resolved: Resolved): GenerationCapability {
-  if (resolved.capability.kind !== "generation") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `connection ${resolved.connectionId} resolved a ${resolved.capability.kind} model for a generation task`,
-    });
-  }
-  return resolved.capability.generation;
-}
-
-/** {@link generationOf}'s sibling for a call site that already carries a user-facing provider LABEL (the
- *  runner's `${providerId} chat (${model})`): same refusal, voiced with the label the turn's other errors
- *  use, so one failure reads as one sentence. */
-export function requireGeneration(resolved: Resolved, label: string): GenerationCapability {
+ *  generation-kind row (`connectionTasks` refuses the others), so the miss is a program error, not a user one.
+ *  A runner passes its provider label (`${providerId} chat (${model})`) so the refusal reads like the turn's
+ *  other errors. */
+export function generationOf(resolved: Resolved, label = `connection ${resolved.connectionId}`): GenerationCapability {
   if (resolved.capability.kind !== "generation") {
     throw new ProviderError({
       kind: "invalid",

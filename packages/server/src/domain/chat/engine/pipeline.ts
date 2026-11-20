@@ -740,15 +740,14 @@ function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
 }
 
 /** The verdict's loud half: an authored tail prefill (an assistant injection at depth 0) that ONLY the tools
- *  could have stood down is a degradation their author must be told about — no silent vanish. The capability
- *  and the tools are read again rather than inferred from the honored flag, so a stand-down for any other
- *  reason (a wire that cannot continue at all — the documented plain-message normalization) stays quiet,
- *  exactly as the delivery-cluster contract spells it. */
-function prefillStoodDownByTools(args: RunTurnPipelineArgs, prefillHonored: boolean, inChatInjections: readonly ChatInjection[]): boolean {
+ *  could have stood down is a degradation their author must be told about — no silent vanish. It requires the
+ *  capability, not only an unhonored prefill: on a wire that cannot continue at all the tools changed nothing
+ *  (the documented plain-message normalization), so that turn stays quiet, as the delivery-cluster contract
+ *  spells it. */
+function prefillStoodDownByTools(args: RunTurnPipelineArgs, inChatInjections: readonly ChatInjection[]): boolean {
   return (
-    !prefillHonored &&
-    acceptsAssistantPrefill(generationOf(args.connection)) &&
     turnCarriesTools(args) &&
+    acceptsAssistantPrefill(generationOf(args.connection)) &&
     inChatInjections.some((inj) => inj.role === "assistant" && inj.depth === 0)
   );
 }
@@ -856,7 +855,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // THE TURN'S PREFILL VERDICT — one value, two readers: SHAPE (keep an assistant@depth-0 injection at depth 0
   // and skip the continuation nudge) and {@link shapeTail} (drop the continue verb's fallback row).
   const prefillHonored = honorsAssistantPrefill(args);
-  const prefillSuppressedByTools = prefillStoodDownByTools(args, prefillHonored, inChatInjections);
+  const prefillSuppressedByTools = prefillStoodDownByTools(args, inChatInjections);
 
   // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`): SHAPE reads it
   // for the cue replay and the CONVERT step below for the carried thinking, both upstream of every wire call. The

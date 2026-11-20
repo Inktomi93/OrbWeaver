@@ -1,11 +1,13 @@
-// The OpenAI-dialect SSE line parser — the ONE place a `data:` stream is READ into JSON events. `wrapFetch` on
-// the `openai-compatible` transport reshapes each chunk through a connection's `transport.responseMap` BEFORE
-// the SDK parses it, and reshaping needs the chunks as objects.
-// A malformed RESULT-BEARING `data:` line is a protocol error the caller must see — silently dropping
+// The OpenAI-dialect SSE framing — the ONE place a `data:` stream is split. Two shapes over one buffer limit:
+// `parseOpenAiSse` READS a stream into JSON events (`wrapFetch` reshapes each chunk through a connection's
+// `transport.responseMap` BEFORE the SDK parses it, and reshaping needs the chunks as objects), and
+// `sseFrameTransform` REWRITES chosen frames of a stream the SDK still parses itself, every other frame passing
+// through as sent, so a frame the rewriter does not name keeps the exact error or event it would have raised.
+// A malformed RESULT-BEARING `data:` line is a protocol error the reader's caller must see — silently dropping
 // it let a reducer return an empty turn as a SUCCESS; blank lines, comments and non-data fields stay skippable.
-// The one sibling that frames SSE separately is `openai-compat/responses-dialect.ts`: a TRANSFORMER, not a
-// reader — it must pass unnamed frames byte-identical (the wire capture keeps the bytes the server sent),
-// which an object round-trip through this parser cannot promise.
+// Past the limit the reader refuses and the transform forwards the tail unframed, on purpose: a `/responses`
+// terminal frame carries the whole reply, so a max-length turn can outgrow the limit in its last frame, and
+// refusing there would fail a complete turn; the SDK downstream frames those bytes itself.
 
 const SSE_DATA_PREFIX = "data:";
 const SSE_DONE = "[DONE]";
@@ -18,11 +20,17 @@ function truncateSsePayload(payload: string): string {
 
 type SseLine = { readonly kind: "data"; readonly value: unknown } | { readonly kind: "done" | "skip" };
 
+/** The payload of a `data:` line, trimmed (the space after the colon is optional and a CRLF line keeps its CR),
+ *  or `undefined` for any other line. */
+export function sseDataPayload(line: string): string | undefined {
+  return line.startsWith(SSE_DATA_PREFIX) ? line.slice(SSE_DATA_PREFIX.length).trim() : undefined;
+}
+
 function parseSseLine(line: string): SseLine {
-  if (!line.startsWith(SSE_DATA_PREFIX)) {
+  const payload = sseDataPayload(line);
+  if (payload === undefined) {
     return { kind: "skip" };
   }
-  const payload = line.slice(SSE_DATA_PREFIX.length).trim();
   if (payload === SSE_DONE) {
     return { kind: "done" };
   }
@@ -98,3 +106,50 @@ export function encodeSseData(value: unknown): string {
 }
 
 export const SSE_DONE_LINE = `${SSE_DATA_PREFIX} ${SSE_DONE}\n\n`;
+
+const SSE_SEPARATORS = ["\r\n\r\n", "\n\n"] as const;
+
+/** The next frame boundary: `\r\n\r\n` or `\n\n`, whichever starts first (the `\n\n` inside a CRLF separator
+ *  is that boundary, not an earlier one). */
+function frameBoundaryOf(pending: string): { readonly index: number; readonly separator: string } | undefined {
+  let found: { readonly index: number; readonly separator: string } | undefined;
+  for (const separator of SSE_SEPARATORS) {
+    const index = pending.indexOf(separator);
+    if (index !== -1 && (found === undefined || index < found.index)) {
+      found = { index, separator };
+    }
+  }
+  return found;
+}
+
+/** A byte-stream transform over SSE frames, for a reply translator that rewrites some frames and passes the rest
+ *  through. `rewrite` receives one frame without its separator and returns its replacement INCLUDING the
+ *  terminator (end the data line with {@link encodeSseData}), or `undefined` to forward the frame and its
+ *  separator as sent. Frames split across network chunks are buffered up to the reader's limit. */
+export function sseFrameTransform(rewrite: (frame: string) => string | undefined): TransformStream<Uint8Array, Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let pending = "";
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller): void {
+      pending += decoder.decode(chunk, { stream: true });
+      let boundary = frameBoundaryOf(pending);
+      while (boundary !== undefined) {
+        const frame = pending.slice(0, boundary.index);
+        controller.enqueue(encoder.encode(rewrite(frame) ?? `${frame}${boundary.separator}`));
+        pending = pending.slice(boundary.index + boundary.separator.length);
+        boundary = frameBoundaryOf(pending);
+      }
+      if (pending.length > SSE_BUFFER_LIMIT) {
+        controller.enqueue(encoder.encode(pending));
+        pending = "";
+      }
+    },
+    flush(controller): void {
+      pending += decoder.decode();
+      if (pending !== "") {
+        controller.enqueue(encoder.encode(pending));
+      }
+    },
+  });
+}
