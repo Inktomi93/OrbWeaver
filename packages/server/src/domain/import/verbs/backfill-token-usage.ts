@@ -90,7 +90,10 @@ function settlePageSequentially(args: {
  */
 function reconcileChangedOwners(args: { readonly deps: ImportTokenUsageBackfillDeps; readonly changedOwners: ReadonlySet<UserId> }): Promise<void> {
   return [...args.changedOwners].reduce<Promise<void>>(
-    (previous, ownerId) => previous.then(() => args.deps.reconcileImportStats({ ownerId })),
+    (previous, ownerId) =>
+      previous.then(async () => {
+        await args.deps.settleImportStats({ ownerId });
+      }),
     Promise.resolve(),
   );
 }

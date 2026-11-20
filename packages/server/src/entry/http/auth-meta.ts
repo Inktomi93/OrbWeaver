@@ -41,10 +41,9 @@ export interface AuthMetaDeps {
    *  both ignore. Read per request, like every other flag here. */
   readonly forbidExternalMedia: () => boolean;
   /** The install's "Default for characters" (`effectiveConfig.defaultHtmlStep`, floor `interactive`): the step an
-   *  inheriting character takes and, below `interactive`, the script ceiling (D294). Served because a client surface
-   *  that PREVIEWS card content resolves the same policy the server will, and the per-character Interactive step says it
-   *  is inert while the install sits lower instead of offering a capability the mint refuses. Never a capability by
-   *  itself: the frame policy is built server-side from the server's own read. */
+   *  inheriting character takes (D294). Served because a client surface that PREVIEWS card content resolves the same
+   *  policy the server will. Never a capability by itself: the frame policy is built server-side from the server's
+   *  own read. */
   readonly defaultHtmlStep: () => HtmlTrustStep;
   /** The share relay's live state (`domain/share`'s controller). */
   readonly share: RelayController["status"];

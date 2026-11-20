@@ -484,7 +484,7 @@ export interface TurnPrep {
   readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
    *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION: a post-start throw with
-   *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the
+   *  the signal SETTLED is `turnAborted(reason:"user"|"stale"|"shutdown")` and returns the aborted outcome; with the
    *  signal un-settled it is a fault — `turnAborted(reason:"error")` and a rethrow — however the error is
    *  NAMED. Absent ⇒ nothing can cancel this turn, so every post-start throw is a fault. */
   readonly signal: AbortSignal;

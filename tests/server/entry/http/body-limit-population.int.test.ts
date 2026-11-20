@@ -20,11 +20,18 @@ import {
   PENDING_ROUTES,
   PLUGIN_DELETE_ROUTE,
   REQUEST_CHUNK_BYTES,
+  TREE_ZIP_ROUTE,
 } from "./_body-limit-inputs.ts";
 
 const MUTATIONS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const COMMON = [...INTAKE_ROUTES, ...FRAME_ROUTES, DEBUG_ROUTE];
-const COMMON_KEYS = [...COMMON.map(({ path }) => `POST ${path}`), `POST ${BUNDLE_ROUTE}`, `POST ${LOGOUT_ROUTE}`, `DELETE ${PLUGIN_DELETE_ROUTE}`];
+const COMMON_KEYS = [
+  ...COMMON.map(({ path }) => `POST ${path}`),
+  `POST ${BUNDLE_ROUTE}`,
+  `POST ${TREE_ZIP_ROUTE}`,
+  `POST ${LOGOUT_ROUTE}`,
+  `DELETE ${PLUGIN_DELETE_ROUTE}`,
+];
 // Native ALL rows are actual global/debug middleware and the separately JSON-guarded, capped tRPC mount.
 const MIDDLEWARE_PATHS = ["/*", "/api/trpc/*", "/api/_debug/*"].sort();
 

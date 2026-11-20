@@ -313,8 +313,8 @@ export interface ChatSettingsAdjustedWarning {
 const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
 export type TurnIntent = (typeof TURN_INTENTS)[number];
 
-/** Why a turn aborted. */
-export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
+/** Why a turn aborted. `shutdown` is the server closing under the turn: no member asked for it to end. */
+export const TURN_ABORT_REASONS = ["user", "error", "stale", "shutdown"] as const;
 export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 
 // The pre-provider `{{memory}}` recall phase the header brain-icon reflects (the `memoryRecall` bus member).

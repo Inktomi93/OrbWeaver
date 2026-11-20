@@ -424,7 +424,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
   "packages/server/src/domain/chat/persistence/import-landing.ts":
-    "LANDING_STAGE_ROWS: the rows one import landing stage commits, which landing suites size a room of several stages by",
+    "LANDING_STAGE_ROWS and LANDING_STAGE_CHARS: the rows and text one import landing stage commits, which landing suites size a room of several stages by",
   "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts":
     "CHUNK: the rows one rebuild page reads, which the rebuild yield suite sizes a library of several pages by",
   "packages/server/src/domain/automation/contract/analysis.ts":
@@ -485,6 +485,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/verbs/upstream-probes.ts": "UPSTREAM_ANSWER_TTL_MS: the probe answer lifetime",
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
   "packages/server/src/primitives/serde/databank/index.ts": "DATABANK_SCHEMA_KIND: the sibling envelope kind a chat bundle refuses as foreign",
+  "packages/server/src/primitives/serde/chat/index.ts":
+    "CHAT_SLICE_BUDGET: the text one turn of the loop translates, which the translation yield suite floors its turns by",
   "packages/server/src/infra/plugin-host/budgets.ts": "PLUGIN_ASSET_MAX_BYTES: the fetched-asset byte cap the image-cap suite sends one byte past",
   "packages/server/src/infra/plugin-host/cpu-guard.ts":
     "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context, to plant the missed site no door can reach",
@@ -816,6 +818,9 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/domain/import/persistence/large-chat-yields.int.test.ts": {
     "domain/chat": "LANDING_STAGE_ROWS: the most rows one landing stage commits between two turns of the loop",
+  },
+  "tests/server/domain/import/persistence/large-chat-translation-yields.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_CHARS: the most text one landing stage carries, which floors the turns the write takes before its room lands",
   },
   "tests/server/domain/sessions/persistence/users.int.test.ts": {
     "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",

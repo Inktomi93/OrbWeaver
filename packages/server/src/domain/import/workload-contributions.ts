@@ -12,7 +12,7 @@ import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads"
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { listStagedEntries, openVerifiedArchive, removeContained, resolveStagedPath, ZIP_STAGING_PREFIX } from "#infra/storage";
-import type { ImportWorkloadDeps } from "./contract/workloads.ts";
+import type { ImportStatsSettlement, ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
@@ -45,6 +45,12 @@ async function refreshPlannerAfterImport(
   }
 }
 
+/** What the run's progress says of a settled stats rebuild; a rebuild that ran needs no line. */
+const STATS_SETTLED_LINE: Readonly<Record<ImportStatsSettlement, string | null>> = {
+  rebuilt: null,
+  deferred: "Import committed; the library kept changing, so its stats rebuild was queued to run next.",
+};
+
 /** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
  *  progress, then reconcile owner stats on a real run that wrote canon. Extracted to keep the run body under
  *  the cognitive-complexity gate. */
@@ -53,12 +59,12 @@ async function settleImportRun(args: {
   readonly dryRun: boolean;
   readonly ownerId: UserId;
   readonly report: ReportProgress;
-  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly settleImportStats: ImportWorkloadDeps["settleImportStats"];
   readonly refreshPlannerStats: ImportWorkloadDeps["refreshPlannerStats"];
   readonly emitLibraryChanged: ImportWorkloadDeps["emitLibraryChanged"];
   readonly logger: Logger;
 }): Promise<void> {
-  const { result, dryRun, ownerId, report, reconcileImportStats, refreshPlannerStats, emitLibraryChanged } = args;
+  const { result, dryRun, ownerId, report, settleImportStats, refreshPlannerStats, emitLibraryChanged } = args;
   if (result.failed > 0) {
     // Per-card isolation surfaced: some cards were skipped but the batch completed (never a hard abort).
     report({ message: `imported with ${result.failed} card(s) skipped (validation)` });
@@ -68,7 +74,11 @@ async function settleImportRun(args: {
   }
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
-    await reconcileImportStats({ ownerId });
+    const settled = await settleImportStats({ ownerId });
+    const settledLine = STATS_SETTLED_LINE[settled];
+    if (settledLine !== null) {
+      report({ message: settledLine });
+    }
     await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report, args.logger);
     // Refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
@@ -221,7 +231,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           dryRun,
           ownerId: targetOwnerId,
           report,
-          reconcileImportStats: deps.reconcileImportStats,
+          settleImportStats: deps.settleImportStats,
           refreshPlannerStats: deps.refreshPlannerStats,
           emitLibraryChanged: deps.emitLibraryChanged,
         });

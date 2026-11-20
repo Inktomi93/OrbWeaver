@@ -84,12 +84,13 @@ const DEFAULT_MAX_ENTRIES = 50_000;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 
-const ZIP_REJECT_KINDS = ["too-large", "too-many-entries", "bad-method", "zip-slip", "bomb", "unsupported", "malformed"] as const;
+// `no-directory` is a file with no end-of-central-directory record: not a zip, or one cut short before its end.
+const ZIP_REJECT_KINDS = ["too-large", "too-many-entries", "bad-method", "zip-slip", "bomb", "unsupported", "malformed", "no-directory"] as const;
 
-type ZipRejectKind = (typeof ZIP_REJECT_KINDS)[number];
+export type ZipRejectKind = (typeof ZIP_REJECT_KINDS)[number];
 
-/** Thrown by `extractZip`; never carries file bytes, only the machine-auditable rejection cause. */
-class ZipRejectedError extends Error {
+/** Thrown by `extractZip` and {@link readZipDirectory}; never carries file bytes, only the machine-auditable rejection cause. */
+export class ZipRejectedError extends Error {
   readonly kind: ZipRejectKind;
   constructor(kind: ZipRejectKind, message: string, options?: ErrorOptions) {
     super(`zip rejected (${kind}): ${message}`, options);
@@ -198,7 +199,8 @@ function assertSafeName(name: string): void {
   }
 }
 
-interface CentralRecord {
+/** One entry of an archive's central directory, its sizes already checked against the directory's belts. */
+export interface CentralRecord {
   readonly name: string;
   readonly method: number;
   readonly crc: number;
@@ -224,7 +226,7 @@ async function readEocd(archive: ArchiveReader): Promise<CentralDirLocation> {
     }
   }
   if (eocdAt === -1) {
-    throw new ZipRejectedError("malformed", "no end-of-central-directory record (not a zip)");
+    throw new ZipRejectedError("no-directory", "no end-of-central-directory record (not a zip)");
   }
   const count = u16(tail, eocdAt + EOCD_OFF_TOTAL_ENTRIES);
   const cdSize = u32(tail, eocdAt + EOCD_OFF_CD_SIZE);
@@ -440,11 +442,11 @@ async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
-async function stageRecords(dir: string, archive: ArchiveReader, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
+async function stageRecords(dir: string, directory: ZipDirectory, maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
   const entries: StagedEntry[] = [];
   let producedTotal = 0;
-  for (const [i, rec] of records.entries()) {
-    const bytes = await inflateEntry(archive, rec);
+  for (const [i, rec] of directory.entries.entries()) {
+    const bytes = await directory.inflate(rec);
     producedTotal += bytes.length;
     if (producedTotal > maxTotalDecompressedBytes) {
       throw new ZipRejectedError("bomb", `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`);
@@ -458,24 +460,37 @@ async function stageRecords(dir: string, archive: ArchiveReader, records: readon
   return entries;
 }
 
-/** Validate and stage an untrusted archive. A staged file handle stays its caller's to close. */
-export async function extractZip(source: ZipSource, options?: ExtractOptions): Promise<StagedArchive> {
+/** An archive's checked central directory, and the one way to read an entry of it: inflated in memory under its
+ *  declared size, its CRC-32 checked. Nothing is inflated until a caller asks for that entry. */
+export interface ZipDirectory {
+  readonly entries: readonly CentralRecord[];
+  readonly inflate: (entry: CentralRecord) => Promise<Uint8Array>;
+}
+
+/** Read an untrusted archive's central directory under the archive, entry-count and per-entry belts. A staged file
+ *  is read by position and never loaded whole; its handle stays the caller's to close. */
+export async function readZipDirectory(source: ZipSource, options?: Omit<ExtractOptions, "maxTotalDecompressedBytes" | "stagingRoot">): Promise<ZipDirectory> {
   const maxTotalBytes = options?.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
   const maxEntryBytes = options?.maxEntryBytes ?? DEFAULT_MAX_ENTRY_BYTES;
-  const maxTotalDecompressedBytes = options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
   const maxEntries = Math.min(options?.maxEntries ?? DEFAULT_MAX_ENTRIES, DEFAULT_MAX_ENTRIES);
-  const stagingRoot = options?.stagingRoot ?? tmpdir();
-
   const archive = await openArchive(source, maxTotalBytes);
   const location = await readEocd(archive);
   // Structural belts run here eagerly, before a single byte is inflated (fail-closed).
-  const records = await readCentralDirectory(archive, location, { maxEntries, maxEntryBytes });
+  const entries = await readCentralDirectory(archive, location, { maxEntries, maxEntryBytes });
+  return { entries, inflate: (entry) => inflateEntry(archive, entry) };
+}
+
+/** Validate and stage an untrusted archive. A staged file handle stays its caller's to close. */
+export async function extractZip(source: ZipSource, options?: ExtractOptions): Promise<StagedArchive> {
+  const maxTotalDecompressedBytes = options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
+  const stagingRoot = options?.stagingRoot ?? tmpdir();
+  const directory = await readZipDirectory(source, options);
 
   await mkdir(stagingRoot, { recursive: true });
   const dir = await mkdtemp(join(stagingRoot, ZIP_STAGING_PREFIX));
   await using staging = new AsyncDisposableStack();
   staging.defer(() => rm(dir, { recursive: true, force: true }));
-  const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);
+  const entries = await stageRecords(dir, directory, maxTotalDecompressedBytes);
   const lifetime = staging.move();
   return { entries, dispose: () => lifetime.disposeAsync() };
 }

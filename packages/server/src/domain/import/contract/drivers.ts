@@ -15,6 +15,6 @@ export interface ImportDriverDeps {
     args: Pick<StagedBundleImportDeps, "ownerId" | "signal"> & { readonly stagedPath: string; readonly digest: string },
   ) => Promise<BundleImportReport>;
   readonly writeReport: (markdown: string, generatedAt: number) => Promise<string>;
-  readonly reconcileStats: ImportWorkloadDeps["reconcileImportStats"];
+  readonly settleStats: ImportWorkloadDeps["settleImportStats"];
   readonly settleMemory: SettleImportMemory;
 }

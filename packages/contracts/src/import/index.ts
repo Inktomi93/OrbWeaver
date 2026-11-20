@@ -41,6 +41,8 @@ export {
   importPreviewSchema,
   mergeImportPreviews,
 } from "./preview.ts";
+export type { ProfileZipRefusal } from "./profile-zip.ts";
+export { profileZipRefusalSchema, profileZipStartedSchema } from "./profile-zip.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 

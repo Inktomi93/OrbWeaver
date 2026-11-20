@@ -1,5 +1,5 @@
 // import-library-section — the Backup & Restore pane's import half: a dropzone that accepts a .zip
-// portability backup or a bare character card, and a folder picker for an unzipped backup or a SillyTavern
+// portability backup, a zipped SillyTavern profile or a bare character card, and a folder picker for an unzipped backup or a SillyTavern
 // profile. A .zip or a folder runs as background workloads; a bare card imports synchronously. On success
 // the library is already blanket-invalidated; the report renders below, with the memory-build offer for the
 // chats the import wrote (an import enqueues no paid model run on its own).
@@ -252,15 +252,15 @@ export function ImportLibrarySection(): ReactElement {
   return (
     <Stack gap="block">
       <Text ink="muted" cap="prose">
-        {IMPORT_INTRO_LEAD} Drop a full .zip export (characters, chats, personas, world books, everything) or a single character card, or pick an unzipped
-        backup / SillyTavern profile folder.
+        {IMPORT_INTRO_LEAD} Drop a full .zip export (characters, chats, personas, world books, everything), a zipped SillyTavern profile or a single character
+        card, or pick an unzipped backup / SillyTavern profile folder.
       </Text>
       <FileDropzone
         accept=".zip,.png,.json"
         aria-label={IMPORT_FILE_PICKER_NAME}
         data-testid={testId("backupImportDropzone")}
-        subject="a .zip backup or a character card"
-        hint="A .zip carries your whole library; a .png / .json is a single card"
+        subject="a .zip backup or profile, or a character card"
+        hint="A .zip carries a whole library or SillyTavern profile; a .png / .json is a single card"
         loading={busy}
         success={succeeded}
         maxSizeBytes={importMaxBytes}
