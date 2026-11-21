@@ -3,7 +3,7 @@
 // control that outgrows its line stays reachable, a popup fits the screen, and a stepped number field keeps its input box.
 import { enlargedTextFindings as findings, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { EndRowStory, FullDialogStory, LabelsStory, NumberRowStory, PopoverFieldsStory } from "./_enlarged-text-stories.tsx";
 
 const STORIES = "tests/ui/primitives/_enlarged-text-stories";

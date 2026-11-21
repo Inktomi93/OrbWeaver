@@ -1,5 +1,5 @@
 // A screen reader announces the viewer by what it shows, and by its own name when the picture has no alt text.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { LightboxMedia } from "../../../../packages/ui/src/content/lightbox/control-labels.ts";
 import { LIGHTBOX_LABELS } from "../../../../packages/ui/src/content/lightbox/control-labels.ts";
 import type { LightboxNameStory } from "./_lightbox-stories.tsx";

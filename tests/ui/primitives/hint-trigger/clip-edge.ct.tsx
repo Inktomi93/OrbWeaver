@@ -4,9 +4,9 @@
 // and takes a press. A shut panel paints none of it, unmounted or kept mounted.
 import { resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { HintClipEdgeStory } from "./_clip-edge-stories.tsx";
 

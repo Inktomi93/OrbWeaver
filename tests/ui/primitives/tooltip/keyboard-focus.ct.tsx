@@ -1,6 +1,6 @@
 // @subject packages/ui/src/primitives/tooltip/tooltip.tsx
 // A tooltip opened by keyboard focus closes when focus moves on, whether to a neighbour that has its own tooltip or to a control that has none.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { TooltipRailStory } from "./_keyboard-focus-stories.tsx";
 import { RAIL_FIRST_HINT, RAIL_FIRST_NAME, RAIL_PLAIN_NAME, RAIL_SECOND_HINT, RAIL_SECOND_NAME } from "./keyboard-focus-names.ts";
 

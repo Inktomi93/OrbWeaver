@@ -2,8 +2,8 @@
 // overlay shadow only while it overlays the transcript. An in-row panel rests in place, and a column outside panel mode has no sheet at all.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { FlankColumnStory } from "./_flank-column-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_flank-column-stories/FlankColumnStory";

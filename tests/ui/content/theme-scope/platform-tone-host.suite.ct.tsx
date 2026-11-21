@@ -3,8 +3,8 @@
 import type { ToneHost } from "@orb/kit/theme-derivation";
 import { oklabDistance, srgbToOklch, TONE_HOSTS, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { ToneHostStory } from "./_tone-host-stories.tsx";
 import { BASES } from "./contrast-cases.ts";
 

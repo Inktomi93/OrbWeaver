@@ -3,9 +3,9 @@
 // on its control step.
 import { resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { WrappedSelectStory } from "./_wrapped-value-stories.tsx";
 
 const STORY = "tests/ui/primitives/select/_wrapped-value-stories/WrappedSelectStory";

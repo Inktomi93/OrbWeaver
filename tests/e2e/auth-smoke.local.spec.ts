@@ -9,8 +9,8 @@
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { loginLocal, ownerActor } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { E2E_DEBUG_TOKEN, LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
 const NO_SESSION_COOKIE = /no session cookie/u;

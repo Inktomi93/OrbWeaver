@@ -1,7 +1,8 @@
 // @subject packages/ui/src/primitives/autocomplete/variants.ts
 // The input a finger lands on is as tall as the field's step, not the box inside its border.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { InlineAutocompleteStory } from "./_touch-floor-stories.tsx";
 
 const STORY = "tests/ui/primitives/autocomplete/_touch-floor-stories/InlineAutocompleteStory";

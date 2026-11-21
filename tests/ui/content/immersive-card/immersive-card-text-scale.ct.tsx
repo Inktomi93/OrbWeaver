@@ -3,8 +3,8 @@
 // The px line is the unscaled reference, so the expectation is derived from the frame itself, not a restated 16.
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ImmersiveCardTextScaleStory } from "./_card-stories.tsx";
 
 const STORY = "tests/ui/content/immersive-card/_card-stories/ImmersiveCardTextScaleStory";

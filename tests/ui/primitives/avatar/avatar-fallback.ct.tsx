@@ -1,8 +1,8 @@
 // An avatar with no picture draws its initials at a share of its own box and a depth pigment under them, at every size
 // from the small chip to a card portrait, and the initials stay readable on every seed palette.
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { PIGMENTS, SEED_THEME_NAMES, TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import { CARD_PORTRAIT_WIDTH_PX, HUE_SEEDS, TOKEN_SIZES } from "./_avatar-fallback-cases.ts";
 import type { AvatarFallbackStory, AvatarFallbackThemesStory } from "./_avatar-fallback-stories.tsx";
 

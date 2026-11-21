@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { FormDialogDismissalStory } from "./_form-dialog-stories.tsx";
 

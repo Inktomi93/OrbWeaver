@@ -4,8 +4,8 @@
 // the pixels that reach the screen, not off the authored colours.
 import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
 import { pixelMarkContrast } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { SwitchLockGlyphStory } from "./_lock-glyph-stories.tsx";
 
 const STORY = "tests/ui/primitives/switch/_lock-glyph-stories/SwitchLockGlyphStory";

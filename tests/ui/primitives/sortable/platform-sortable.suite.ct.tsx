@@ -1,9 +1,9 @@
 // SortableList reorders by keyboard and by pointer through dnd-kit; the seal's own wiring keeps focus on the handle and speaks row
 // names, never ids.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ReorderableTracksStory } from "./sortable-stories.tsx";
 
 const STORY = "tests/ui/primitives/sortable/sortable-stories/ReorderableTracksStory";

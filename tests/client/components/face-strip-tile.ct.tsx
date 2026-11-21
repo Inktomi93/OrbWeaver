@@ -1,7 +1,7 @@
 // @subject packages/client/src/components/face-strip.tsx
 // The overflow tile is one more cell of the row: it starts and ends where the faces beside it do.
 import { accessibilityScan } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FaceStripInitialsStory, FaceStripTileStory } from "./_face-strip-stories.tsx";
 
 const STORY = "tests/client/components/_face-strip-stories/FaceStripTileStory";

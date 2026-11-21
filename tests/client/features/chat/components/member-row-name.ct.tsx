@@ -5,8 +5,8 @@
 // word: it wants the shown words as one run of the name and counts the painted responding mark as a label.
 import { ID_PREFIX, mintUserId } from "@orb/kit/ids";
 import { auditSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds, FIXTURE_ID_CURSOR, FROZEN_AT_MS } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { MemberRowNameStory } from "./_member-row-name-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_member-row-name-stories/MemberRowNameStory";

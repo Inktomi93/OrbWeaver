@@ -1,5 +1,5 @@
 import { SECTION_LABELS } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { RegistryDoorStory, RuntimeLifetimeStory, RuntimeTeardownStory } from "./_mount-stories.tsx";
 
 test("a provider rerender retains its data runtime and warmed cache", async ({ mount, page }) => {

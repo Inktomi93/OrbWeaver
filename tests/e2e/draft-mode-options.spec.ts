@@ -6,7 +6,6 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_REGENERATE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
@@ -21,6 +20,7 @@ import {
   renameOpenChat,
   waitForAppReady,
 } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { createLiteGame, mintFreshCharacter, removeCharacter, trpc } from "./support/trpc.ts";

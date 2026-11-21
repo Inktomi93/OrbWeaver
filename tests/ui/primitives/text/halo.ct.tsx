@@ -1,5 +1,5 @@
 // A halo is a text shadow: the wordmark keeps the type step and the whole-pixel line height its voice sets.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { TextHaloStory } from "./_halo-stories.tsx";
 
 const STORY = "tests/ui/primitives/text/_halo-stories/TextHaloStory";

@@ -1,7 +1,7 @@
 // The corner close of a dialog: where it sits in the popup, what it leaves the title, and that it closes.
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { FormDialogCloseStory } from "./_form-dialog-stories.tsx";
 

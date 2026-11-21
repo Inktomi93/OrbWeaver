@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   GALLERY_EFFECT_SETUPS_LABEL,
   GALLERY_JITLESS_TEXT,

@@ -2,8 +2,8 @@
 // A glyph over art takes the theme-derived over-art halo, never a framework default (ui-surface-and-interaction-rules §2.8),
 // read against a probe that draws the served token in the same scope, so the halo follows every seed's polarity.
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { IconShadowStory } from "./_icon-shadow-stories.tsx";
 
 const STORY = "tests/ui/primitives/icons/_icon-shadow-stories/IconShadowStory";

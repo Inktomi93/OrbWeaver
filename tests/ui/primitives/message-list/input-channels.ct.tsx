@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { MessageListInputChannelsStory } from "./_input-channel-stories.tsx";
 
 const INPUT_EVENTS = ["wheel", "touchstart", "touchmove", "keydown"] as const;

@@ -2,7 +2,7 @@
 // A Field description with no break point wraps inside its pane at a phone's largest text instead of pushing the pane sideways.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { UnbrokenDescriptionStory } from "./field-description-wrap-stories.tsx";
 
 const STORIES = "tests/ui/primitives/field/field-description-wrap-stories";

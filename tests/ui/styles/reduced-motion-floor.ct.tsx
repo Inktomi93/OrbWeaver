@@ -2,8 +2,8 @@
 // and it keys on the resolved state: the app's `on` floors under a full-motion OS, its `off` beats a reduced-motion OS, and
 // `system` or no attribute follows the OS query (packages/ui/src/styles/motion-floor.css).
 import type { OsPreferenceMode } from "@orb/contracts/settings/appearance";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { APP_REDUCED_MOTION_ATTRIBUTE, resolveReducedMotion } from "../../../packages/ui/src/lib/reduced-motion-now.ts";
 import type { MotionFloorStory } from "./_motion-floor-stories.tsx";
 

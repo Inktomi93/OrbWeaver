@@ -8,8 +8,8 @@ import { REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { readSurfaceDesignAudit, seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";

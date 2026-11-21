@@ -2,7 +2,7 @@
 // a global, a document member or an element the app looks up. The seal's sanitize schema prefixes both, and the
 // fragment links that point at them, so an anchor the author wrote and a footnote still land on their targets.
 // @subject packages/ui/src/markdown/policy.ts
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ContentIdsStory } from "./_content-ids-stories.tsx";
 
 const STORY = "tests/ui/markdown/_content-ids-stories/ContentIdsStory";

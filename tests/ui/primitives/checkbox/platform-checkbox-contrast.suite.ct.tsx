@@ -2,9 +2,9 @@
 // paints around, and stays below the focus ring on the card, under each seed and under custom ThemeScopes near the crossover.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { HEARTH_ACCENT, MID_GREY, SEED_SCOPES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { LIGHT_MID_TONE, STRONG_ACCENT } from "../../content/theme-scope/contrast-cases.ts";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
 

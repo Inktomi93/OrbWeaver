@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ArtRecipesStory } from "./_css-ownership-stories.tsx";
 
 const STORY = "tests/ui/styles/_css-ownership-stories/ArtRecipesStory";

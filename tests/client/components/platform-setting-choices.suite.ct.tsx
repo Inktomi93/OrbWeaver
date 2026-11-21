@@ -1,5 +1,5 @@
 import { touchTargetFindings } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { SettingChoicesStory } from "./_setting-choices-stories.tsx";
 

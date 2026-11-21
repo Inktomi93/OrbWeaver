@@ -1,6 +1,6 @@
 // @subject packages/ui/src/primitives/number-field/variants.ts
 // The steppers keep the touch-target token as their own box inside the bordered settings group, where a flush child is 2px short.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { SettingNumberStory } from "./_setting-number-stories.tsx";
 
 const STORY = "tests/client/components/_setting-number-stories/SettingNumberStory";

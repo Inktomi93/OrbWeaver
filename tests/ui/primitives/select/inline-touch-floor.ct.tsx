@@ -1,7 +1,8 @@
 // @subject packages/ui/src/primitives/select/variants.ts
 // The inline Select is a text-height trigger at both pointers; its hit area reaches the touch-target token.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { InlineSelectStory } from "./_inline-touch-floor-stories.tsx";
 
 const STORY = "tests/ui/primitives/select/_inline-touch-floor-stories/InlineSelectStory";

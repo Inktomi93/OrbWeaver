@@ -1,8 +1,9 @@
 // @subject packages/ui/src/primitives/list-row/parts.tsx
 // The subtitle yields to its reveal line on a fine pointer's hover and on keyboard focus, never on a tap: a tap sets
 // `:hover` and `:focus-within` on a phone, where the swap was never meant to exist.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { SubtitleSwapStory } from "./_subtitle-swap-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_subtitle-swap-stories/SubtitleSwapStory";

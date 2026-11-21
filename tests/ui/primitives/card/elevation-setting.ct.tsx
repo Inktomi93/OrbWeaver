@@ -3,7 +3,7 @@
 // value, and an interactive or static Card never casts.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { computedStyle } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ElevationSettingStory } from "./_elevation-setting-stories.tsx";
 
 const STORY = "tests/ui/primitives/card/_elevation-setting-stories/ElevationSettingStory";

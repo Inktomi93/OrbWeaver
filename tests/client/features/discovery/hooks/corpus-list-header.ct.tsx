@@ -1,7 +1,7 @@
 // @subject packages/client/src/features/discovery/hooks/use-corpus-list-header.tsx
 import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { distilledCensus } from "#client/features/discovery/lib/corpus-vocabulary.ts";
 import type { CorpusListHeaderStory } from "./_list-header-stories.tsx";
 

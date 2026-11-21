@@ -8,8 +8,8 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { actorViaHeader, importsIdle, rawTrpcCall } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { E2E_SSO_GROUPS } from "./support/modes.ts";
 
 const INGEST_ROUTES = ["/api/assets/upload", DATABANK_UPLOAD_ROUTE, PORTABILITY_ROUTES.importCards, PORTABILITY_ROUTES.restoreCardLorebook] as const;

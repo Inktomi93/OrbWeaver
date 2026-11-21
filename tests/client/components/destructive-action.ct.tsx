@@ -1,5 +1,5 @@
 // The control asks first: Cancel acts on nothing and returns focus, and a refused verb keeps the confirm open as its retry.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { DestructiveActionRetryStory } from "./_destructive-action-stories.tsx";
 

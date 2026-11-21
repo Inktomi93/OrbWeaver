@@ -29,12 +29,12 @@ import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { revealActionName } from "@orb/ui/lib";
 import type { Page, Response } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { RPG_CONTEXT_TAB_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { GAME_STRIP_LABEL } from "#client/lib/registry-contracts.ts";
 import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
 import { assistantRows, messageRow, openContextTab, openNewestChat, witnessTurn } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { CASE_LIVE_LOOP_MS, CASE_LIVE_TURN_MS, CASE_STREAM_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createLiteGame,

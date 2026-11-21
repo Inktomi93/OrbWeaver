@@ -2,7 +2,7 @@
 // styled reply explains controls that do nothing: every form a browser runs, the forms it does not, and the read itself,
 // which parses the markup without running any script it holds.
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FrameScriptStory } from "./_frame-script-stories.tsx";
 
 const STORY = "tests/ui/content/sandbox-frame/_frame-script-stories/FrameScriptStory";

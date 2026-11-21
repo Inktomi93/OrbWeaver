@@ -1,5 +1,5 @@
 // RevealGate keeps a secret out of the DOM until an explicit reveal and carries focus through both transitions.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ExternallyRevealedGateStory, PinnedHiddenGateStory, UncontrolledGateStory } from "./reveal-gate-stories.tsx";
 
 const STORIES = "tests/ui/primitives/reveal-gate/reveal-gate-stories";

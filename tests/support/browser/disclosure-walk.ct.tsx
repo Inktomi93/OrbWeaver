@@ -1,5 +1,5 @@
 // The shared walkers open every closed disclosure and details element under a scope, checkpoint each body, then restore.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 import { walkDisclosures } from "./disclosure-walk.ts";
 

@@ -1,7 +1,8 @@
 // @subject packages/ui/src/primitives/number-field/variants.ts
 // The inline number cell sits on the control scale, and the stepped field's input and steppers reach the touch floor under a finger.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { InlineNumberFieldStory } from "./_inline-height-stories.tsx";
 
 const STORY = "tests/ui/primitives/number-field/_inline-height-stories/InlineNumberFieldStory";

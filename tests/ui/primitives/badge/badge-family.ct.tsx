@@ -2,10 +2,10 @@
 // custom scope. Neither draws a hover paint, so no hover media query is read. A status set mixes the Badge's fill styles, so the
 // pill is one height whichever style it wears.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
 import { TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { BASES } from "../../content/theme-scope/contrast-cases.ts";
 import type { BadgeFamilyStory } from "./_badge-family-stories.tsx";
 

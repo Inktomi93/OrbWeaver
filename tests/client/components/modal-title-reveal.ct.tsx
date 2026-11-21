@@ -7,7 +7,7 @@
 // closing the modal. A title the line seats whole, or a tall window that lets it wrap, carries no control.
 
 import { hitExtent, PLATFORM_TEXT_SCALES, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ViewerDialogStory } from "./_dialog-stories.tsx";
 import type { FormDialogTitleStory, SheetDialogTitleStory } from "./_form-dialog-stories.tsx";
 

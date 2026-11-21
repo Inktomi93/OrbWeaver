@@ -29,8 +29,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "@playwright/test";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import { CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 

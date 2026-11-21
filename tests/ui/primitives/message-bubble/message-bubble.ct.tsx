@@ -1,8 +1,8 @@
 // A MessageBubble paints its role's fill and ink, and takes its box and inset from the shape and the surface's tier.
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { MessageBubbleStory } from "./_message-bubble-stories.tsx";
 
 const STORY = "tests/ui/primitives/message-bubble/_message-bubble-stories/MessageBubbleStory";

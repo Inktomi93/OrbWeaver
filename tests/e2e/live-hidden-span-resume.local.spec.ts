@@ -31,8 +31,8 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
-import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import {
   FIXTURE_COVER_MARKER,
   FIXTURE_LIE_REASON,

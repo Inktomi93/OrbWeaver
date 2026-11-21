@@ -1,8 +1,8 @@
 import { resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { OneAxisOwnersStory } from "./_one-axis-owners-stories.tsx";
 
 const STORY = "tests/ui/layout/_one-axis-owners-stories/OneAxisOwnersStory";

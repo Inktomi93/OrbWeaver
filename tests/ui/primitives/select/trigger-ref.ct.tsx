@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { SelectTriggerRefStory } from "./_trigger-ref-stories.tsx";
 
 test("the public trigger ref restores focus and releases its unmounted node", async ({ mount, page }) => {

@@ -11,8 +11,8 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { actorViaHeader } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { E2E_SSO_GROUPS } from "./support/modes.ts";
 
 test("a signed-JWT identity with a non-owner handle resolves as role=user", async ({ baseURL }) => {

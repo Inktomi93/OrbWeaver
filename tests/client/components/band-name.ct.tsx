@@ -2,7 +2,7 @@
 // A band's name must contain its visible label (WCAG 2.5.3). axe reads the DOM text of the band, so the label, the census and
 // the mark have to be separate words there, not one welded token.
 import { accessibilityScan } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { BandNameStory } from "./_band-name-stories.tsx";
 
 const STORY = "tests/client/components/_band-name-stories/BandNameStory";

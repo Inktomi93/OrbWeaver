@@ -1,5 +1,5 @@
 // @subject packages/client/src/components/skip-to-first-row.tsx
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { SkipToFirstRowStory } from "./_skip-to-first-row-stories.tsx";
 
 test("the skip link is the first tab stop, hidden until focused, and lands on the first row past the chrome", async ({ mount, page }) => {

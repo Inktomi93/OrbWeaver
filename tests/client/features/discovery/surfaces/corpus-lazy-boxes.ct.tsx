@@ -7,8 +7,8 @@ import { CORPUS_WHOLE_LABEL } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { LAYOUT_SUBPIXEL_PX, seedShellState } from "@orb/testkit/browser/spec";
 import { absenceWindow, holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { distilledCensus } from "#client/features/discovery/lib/corpus-vocabulary.ts";
 import type { CorpusDestinationStory } from "./_corpus-destination-stories.tsx";
 

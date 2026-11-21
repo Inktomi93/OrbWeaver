@@ -4,7 +4,7 @@
 // @subject packages/ui/src/markdown/policy.ts
 // @subject packages/ui/src/markdown/colour-font-component.tsx
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { DialogueColourStory } from "./_dialogue-colour-stories.tsx";
 import { ACCEPTED_COLOUR_LINES, REFUSED_COLOUR_LINES } from "./dialogue-colour.cases.ts";
 

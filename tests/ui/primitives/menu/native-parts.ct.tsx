@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { CHARACTER_ACTIONS_MENU_NAME } from "#client/features/character/lib/character-names.ts";
 import type { MenuChoiceStory, MenuHandleStory } from "./_native-parts-stories.tsx";
 

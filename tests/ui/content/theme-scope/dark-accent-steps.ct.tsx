@@ -3,7 +3,7 @@
 
 import { AA_NORMAL_RATIO, oklabDistance, srgbToOklch } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { AccentButtonStory } from "./_dark-accent-stories.tsx";
 import { ACCENT_STEP_CASES } from "./contrast-cases.ts";
 

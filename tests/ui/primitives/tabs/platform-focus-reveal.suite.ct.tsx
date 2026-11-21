@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { TabsFocusRevealStory } from "./_focus-reveal-stories.tsx";
 
 const STORY = "tests/ui/primitives/tabs/_focus-reveal-stories/TabsFocusRevealStory";

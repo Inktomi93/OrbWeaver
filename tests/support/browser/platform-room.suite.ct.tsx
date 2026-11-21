@@ -1,6 +1,7 @@
 // The composer never runs wider than the content column it sits under; the chat-width dial still narrows both.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { RoomTracksStory } from "./_platform-room-stories.tsx";
 
 const STORY = "tests/support/browser/_platform-room-stories/RoomTracksStory";

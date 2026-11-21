@@ -1,5 +1,5 @@
 import { readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CommandSelectionCensusStory } from "./_selection-census-stories.tsx";
 
 test("actual Command false-string selections are judged while a genuinely all-selected fault stays withheld", async ({ mount, page }) => {

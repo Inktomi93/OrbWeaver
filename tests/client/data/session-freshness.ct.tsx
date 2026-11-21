@@ -1,8 +1,8 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { routeAuthConfig, routeTrpc } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { SessionFreshnessStory } from "./_session-freshness-stories.tsx";
 
 const STORY = "tests/client/data/_session-freshness-stories/SessionFreshnessStory";

@@ -1,6 +1,6 @@
 // The dropzone's instruction line follows the pointer class: one spelling is shown per class and the other leaves
 // layout and the accessibility tree, with or without a subject.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PointerInstructionsStory } from "./_pointer-instructions-stories.tsx";
 
 const STORY = "tests/ui/primitives/file-dropzone/_pointer-instructions-stories/PointerInstructionsStory";
