@@ -7,8 +7,8 @@
 // parsed by the wire schema, as the transcript builds it. The viewer's own message loads external media under the
 // install's switch alone; another member's never does (docs/law/UI-Theming-and-Content.md §12.2).
 
-import type { FramedHoldReads, FramedScriptReason, PlainReason, PlainRemedy, TrustHold } from "@orb/client/lib";
-import { actionHold, mergeTrustHolds, resolveFramedHolds, resolvePlainHolds, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
+import type { PlainRemedy, PlainSubject, TrustCause, TrustHold } from "@orb/client/lib";
+import { actionHold, mergeTrustHolds, resolveFramedHolds, resolvePlainHolds, resolveRowRenderPolicy } from "@orb/client/lib";
 import type { HtmlTrustStep, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { participantViewSchema, resolveNarratorRenderPolicy, resolveRenderPolicy, resolveSeatRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
@@ -17,6 +17,22 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const ids = createSeededIds();
+
+type PlainReason = Exclude<TrustCause, `${string}-scripts` | `${string}-media`>;
+type FramedScriptReason = Extract<TrustCause, `${string}-scripts`>;
+type FramedHoldReads = Parameters<typeof resolveFramedHolds>[1];
+
+/** The styling hold a plain row owes, read through the row's production door: its reason, remedy and named characters. */
+function resolvePlainVerdict(
+  subject: PlainSubject,
+  isAdmin: boolean,
+): { readonly reason: TrustCause; readonly remedy: PlainRemedy; readonly characters: TrustHold["characters"] } {
+  const [styling] = resolvePlainHolds(subject, { scripts: false, media: false }, isAdmin);
+  if (styling === undefined) {
+    throw new Error("a plain row always holds its styling");
+  }
+  return { reason: styling.cause, remedy: styling.remedy, characters: styling.characters };
+}
 const CHARACTER_NAME = "Charlotte";
 
 const VIEWERS = ["admin host", "admin member", "host", "member"] as const;

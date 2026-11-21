@@ -18,7 +18,7 @@ export interface RoundCall {
 }
 
 /** A finished round answer: the tool calls as the vendor streams them, closed by the `tool_calls` terminal. */
-export function roundAnswer(calls: readonly RoundCall[]): Response {
+function roundAnswer(calls: readonly RoundCall[]): Response {
   return coreSse([
     coreFrame({
       choices: [

@@ -4,7 +4,7 @@
 // once, under the whole row, however many plain arms it holds: inert `:::card`s, and a reply a display script styled
 // that its tier draws through the inert path.
 
-import type { PlainReason, PlainRemedy } from "@orb/client/lib";
+import type { PlainRemedy, TrustCause } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID, DEFAULT_HTML_STEP_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -93,7 +93,7 @@ async function rowNotice(page: Page): Promise<Locator> {
   return notice;
 }
 
-async function expectVerdict(notice: Locator, reason: PlainReason, remedy: PlainRemedy): Promise<void> {
+async function expectVerdict(notice: Locator, reason: Exclude<TrustCause, `${string}-scripts` | `${string}-media`>, remedy: PlainRemedy): Promise<void> {
   await expect(notice).toHaveAttribute("data-reason", reason);
   await expect(notice).toHaveAttribute("data-remedy", remedy);
   // The reason is visible text, never a tooltip.

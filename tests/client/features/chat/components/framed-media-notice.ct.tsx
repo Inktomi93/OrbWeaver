@@ -4,7 +4,7 @@
 // card-frame mint and serve answered by the corpus root. Every external address routes to a recorder, so no case reaches
 // the network: a refused image never asks for its address, and an allowed one is answered by the recorder.
 
-import type { FramedMediaReason, PlainRemedy } from "@orb/client/lib";
+import type { PlainRemedy, TrustCause } from "@orb/client/lib";
 import { CHARACTER_TRUST_TAB_ID, FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB } from "@orb/client/state";
 import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
@@ -101,7 +101,7 @@ async function addBannerScript(viewer: Caller): Promise<void> {
   await viewer.regex.attachGlobal({ scriptId: script.id });
 }
 
-async function expectVerdict(page: Page, reason: FramedMediaReason, remedy: PlainRemedy): Promise<Locator> {
+async function expectVerdict(page: Page, reason: Extract<TrustCause, `${string}-media`>, remedy: PlainRemedy): Promise<Locator> {
   const notice = page.locator(NOTICE);
   await expect(notice).toHaveCount(1);
   await expect(notice).toHaveAttribute("data-reason", reason);

@@ -6,7 +6,7 @@ import type { PrivateText } from "./disk-safe-argv.ts";
 export const STAGE_LOCAL_ENGINE = "local";
 
 /** The repository env keys a stage connection may be seeded from, by name. */
-export const STAGE_CONNECTION_KEY_NAMES = ["OPENROUTER_API_KEY", "OPENROUTER_PROBE_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_PROBE_KEY"] as const;
+const STAGE_CONNECTION_KEY_NAMES = ["OPENROUTER_API_KEY", "OPENROUTER_PROBE_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_PROBE_KEY"] as const;
 export type StageConnectionKeyName = (typeof STAGE_CONNECTION_KEY_NAMES)[number];
 
 /** Every seeded credential and connection label starts with this; a later run finds its own rows by the label. */
