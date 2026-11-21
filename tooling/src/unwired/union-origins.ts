@@ -4,11 +4,21 @@
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, Sources } from "./classify.ts";
-import { isProductionFile, nameAt } from "./classify.ts";
+import { isProductionFile, nameAt, siteKey } from "./classify.ts";
 
-/** The tuples a slot derives from, as `file:NAME` keys; null when the slot's declaration cannot be read to the end,
- *  which no tuple may rule out. */
-export type Origins = ReadonlySet<string> | null;
+/** What a slot's spellings reach: the tuples, as `file:NAME` keys, and the string literal types written on the way,
+ *  each site key to its text. A literal type that re-spells a tuple member belongs to the tuple only where the scan
+ *  links the two: the tuple `satisfies` a type that reaches it, or a value typed by it feeds the tuple's slot. */
+export interface Spelled {
+  readonly tuples: ReadonlySet<string>;
+  readonly literals: ReadonlyMap<string, string>;
+}
+
+/** A slot's {@link Spelled} vocabulary; null when the slot's declaration cannot be read to the end, which no tuple may
+ *  rule out. */
+export type Origins = Spelled | null;
+
+const NOTHING_SPELLED: Spelled = { tuples: new Set(), literals: new Map() };
 
 // A value, or the requests that produce it: the native engine batches its questions, the TypeScript 6 engine answers at once.
 type Answer<T> = T | APIRequestGenerator<T>;
@@ -37,6 +47,11 @@ type Declared = readonly ts.Node[] | null;
 /** The spellings read for one slot before it is called unreadable: a slot that reaches this many is a generated table or
  *  a whole schema, and ruling a tuple out of it would be a guess. */
 const SPELLING_LIMIT = 2000;
+
+/** Where the name at `site` is declared, in either engine. */
+export function* declaredSites(oracle: SlotOracle, site: Site): APIRequestGenerator<readonly Site[]> {
+  return yield* answered(oracle.declarationsOf(site));
+}
 
 /** Run a generator whose engine never issues a request. */
 export function settled<T>(generator: APIRequestGenerator<T>): T {
@@ -109,14 +124,14 @@ function propertyName(name: ts.PropertyName): string | null {
   return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null;
 }
 
-// The spellings of the property's declarations; undefined when it has none to read, so the object's own slot decides.
+// The spellings of the declarations of property `name` in the object's contextual type; undefined when it has none to
+// read, so the object's own slot decides.
 function* propertySpellings(
   oracle: SlotOracle,
   sources: Sources,
-  property: ts.PropertyAssignment,
+  name: string | null,
   object: ts.ObjectLiteralExpression,
 ): APIRequestGenerator<Declared | undefined> {
-  const name = propertyName(property.name);
   const sites = name === null ? [] : yield* answered(oracle.propertiesOf(siteOf(object), name));
   const spellings: ts.Node[] = [];
   for (const site of sites) {
@@ -163,15 +178,34 @@ function inspectsOnly(use: ts.Node): boolean {
 const isUnannotatedConstant = (declaration: ts.VariableDeclaration): boolean =>
   declaration.type === undefined && ts.isIdentifier(declaration.name) && declaration.parent.getFirstToken()?.kind === ts.SyntaxKind.ConstKeyword;
 
-/** Whether the literal at `site` initialises an unannotated `const`: it holds its own text, and its slot is wherever
- *  the constant is read. */
-export function isNamedConstant(sources: Sources, site: Site): boolean {
+/** How the literal at `site` initialises an unannotated `const`: `direct` as its whole value, `nested` under a
+ *  property of its object; null when it initialises none. Either way it holds its own text, and its slot is wherever
+ *  the constant, or the constant's property, is read. An element of a constant array is no constant: the array is a
+ *  tuple or a list production enumerates. */
+export function constantDepth(sources: Sources, site: Site): "direct" | "nested" | null {
   let at = nameAt(sources.get(site.file), site.position);
-  while (at !== undefined && passesThrough(at.parent, at) && !ts.isArrayLiteralExpression(at.parent)) {
-    at = at.parent;
+  let nested = false;
+  let inArray = false;
+  while (at !== undefined) {
+    const { parent } = at;
+    if (passesThrough(parent, at)) {
+      inArray ||= ts.isArrayLiteralExpression(parent);
+      at = parent;
+    } else if (ts.isPropertyAssignment(parent) && parent.initializer === at && ts.isObjectLiteralExpression(parent.parent)) {
+      nested = true;
+      at = parent.parent;
+    } else {
+      break;
+    }
   }
   const parent = at?.parent;
-  return parent !== undefined && ts.isVariableDeclaration(parent) && parent.initializer === at && isUnannotatedConstant(parent);
+  if (!(parent !== undefined && ts.isVariableDeclaration(parent) && parent.initializer === at && isUnannotatedConstant(parent))) {
+    return null;
+  }
+  if (nested) {
+    return "nested";
+  }
+  return inArray ? null : "direct";
 }
 
 // A module-private constant's reads are all in its file; an exported one is read where the scan cannot follow.
@@ -180,8 +214,10 @@ function isFileLocal(declaration: ts.VariableDeclaration): boolean {
   return ts.isVariableStatement(statement) && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) !== true;
 }
 
-// The spellings of every slot a constant is read into; null when one cannot be read or a read leaves the file.
-function* constantSpellings(oracle: SlotOracle, sources: Sources, declaration: ts.VariableDeclaration): APIRequestGenerator<Declared> {
+// The spellings of every slot a constant is read into; null when one cannot be read or a read leaves the file. `path`
+// names the properties, outermost first, from the constant's object down to the literal asked about: a read of that
+// property (`ROOT.carriers`) or a spread of the object is the literal's slot.
+function* constantSpellings(oracle: SlotOracle, sources: Sources, declaration: ts.VariableDeclaration, path: readonly string[]): APIRequestGenerator<Declared> {
   if (!(isFileLocal(declaration) && isUnannotatedConstant(declaration))) {
     return null;
   }
@@ -189,10 +225,12 @@ function* constantSpellings(oracle: SlotOracle, sources: Sources, declaration: t
   const spellings: ts.Node[] = [];
   for (const use of referencedNames(declaration.getSourceFile()).filter((name) => name.text === declaration.name.getText() && name !== declaration.name)) {
     const sites = yield* answered(oracle.declarationsOf(siteOf(use)));
-    if (!sites.some((site) => site.file === home.file && site.position === home.position) || inspectsOnly(use)) {
+    const { parent } = use;
+    const readsPath = path.length > 0 && ts.isPropertyAccessExpression(parent) && parent.expression === use && parent.name.text === path[0];
+    if (!sites.some((site) => site.file === home.file && site.position === home.position) || (!readsPath && inspectsOnly(use))) {
       continue;
     }
-    const declared = yield* receivingSpellings(oracle, sources, use);
+    const declared = readsPath ? yield* receivingSpellings(oracle, sources, parent, path.slice(1)) : yield* receivingSpellings(oracle, sources, use, path);
     if (declared === null) {
       return null;
     }
@@ -201,35 +239,55 @@ function* constantSpellings(oracle: SlotOracle, sources: Sources, declaration: t
   return spellings;
 }
 
-// The spellings of the slot a value flows into.
-function* receivingSpellings(oracle: SlotOracle, sources: Sources, start: ts.Node): APIRequestGenerator<Declared> {
-  let node = start;
-  for (;;) {
-    const parent = node.parent;
-    if (passesThrough(parent, node)) {
-      node = parent;
-      continue;
-    }
-    const spelled = spelledFor(parent, node);
-    if (spelled !== undefined) {
-      return [spelled];
-    }
-    if (isArgument(parent, node)) {
-      return yield* parameterSpellings(oracle, sources, node);
-    }
-    if (ts.isVariableDeclaration(parent)) {
-      return yield* constantSpellings(oracle, sources, parent);
-    }
-    if (ts.isPropertyAssignment(parent) && parent.initializer === node && ts.isObjectLiteralExpression(parent.parent)) {
-      const declared = yield* propertySpellings(oracle, sources, parent, parent.parent);
-      if (declared !== undefined) {
-        return declared;
-      }
-      node = parent.parent;
-      continue;
-    }
-    return null;
+// One step up from a value toward its slot: the slot's spellings when this parent decides them, else the node and
+// property path to climb from next.
+type Step = { readonly done: Declared } | { readonly node: ts.Node; readonly path: readonly string[] };
+
+function* receivingStep(oracle: SlotOracle, sources: Sources, node: ts.Node, path: readonly string[]): APIRequestGenerator<Step> {
+  const { parent } = node;
+  if (passesThrough(parent, node)) {
+    return { node: parent, path };
   }
+  const spelled = spelledFor(parent, node);
+  if (spelled !== undefined) {
+    return { done: [spelled] };
+  }
+  if (isArgument(parent, node)) {
+    return { done: yield* parameterSpellings(oracle, sources, node) };
+  }
+  if (ts.isVariableDeclaration(parent)) {
+    return { done: yield* constantSpellings(oracle, sources, parent, path) };
+  }
+  return yield* objectStep(oracle, sources, node, path);
+}
+
+// A value written into an object literal: a property's declared spelling, or the object's own slot further up.
+function* objectStep(oracle: SlotOracle, sources: Sources, node: ts.Node, path: readonly string[]): APIRequestGenerator<Step> {
+  const { parent } = node;
+  if (ts.isPropertyAssignment(parent) && parent.initializer === node && ts.isObjectLiteralExpression(parent.parent)) {
+    const name = propertyName(parent.name);
+    const declared = yield* propertySpellings(oracle, sources, name, parent.parent);
+    return declared === undefined ? { node: parent.parent, path: name === null ? path : [name, ...path] } : { done: declared };
+  }
+  // `{ ...ROOT }`: the spread object's properties become the outer object's, so the path's first property is the slot.
+  if (ts.isSpreadAssignment(parent) && path.length > 0) {
+    const declared = yield* propertySpellings(oracle, sources, path[0] ?? null, parent.parent);
+    if (declared === undefined) {
+      return { node: parent.parent, path };
+    }
+    return { done: path.length === 1 ? declared : null };
+  }
+  return { done: null };
+}
+
+// The spellings of the slot a value flows into. `path` names the properties, outermost first, from `start` down to the
+// value asked about, when that value sits inside an unannotated object.
+function* receivingSpellings(oracle: SlotOracle, sources: Sources, start: ts.Node, path: readonly string[] = []): APIRequestGenerator<Declared> {
+  let step: Step = { node: start, path };
+  while (!("done" in step)) {
+    step = yield* receivingStep(oracle, sources, step.node, step.path);
+  }
+  return step.done;
 }
 
 // The annotations of the declaration an operand reads: a name, or a member access.
@@ -322,7 +380,8 @@ function expansion(site: Site, declaration: ts.Node | null): Expansion {
     return { tuple: null, into: [declaration.type], opaque: false };
   }
   if (ts.isTypeParameterDeclaration(declaration)) {
-    return { tuple: null, into: [declaration.constraint], opaque: true };
+    // A mapped type's key ranges over its constraint and no caller instantiates it, so the constraint is the vocabulary.
+    return { tuple: null, into: [declaration.constraint], opaque: !ts.isMappedTypeNode(declaration.parent) };
   }
   if (ts.isFunctionDeclaration(declaration) || ts.isMethodDeclaration(declaration)) {
     return { tuple: null, into: [declaration], opaque: false };
@@ -344,52 +403,208 @@ function* expansionsOf(oracle: SlotOracle, sources: Sources, name: ts.Identifier
   return sites.map((site) => expansion(site, declarationAt(sources, site)));
 }
 
+// A spelling still to read: `property` scopes a type to one of its properties, as `T["p"]` does, and `collect` says
+// whether its literal types re-spell the slot. A property that cannot be found is read whole for its tuples only.
+interface Reach {
+  readonly node: ts.Node;
+  readonly property: string | null;
+  readonly collect: boolean;
+}
+
 interface Read {
   readonly tuples: readonly string[];
   readonly next: readonly ts.Node[];
+  /** The `T["p"]` accesses in the spelling, each read as `T` scoped to `p`. */
+  readonly scoped: readonly { readonly node: ts.Node; readonly property: string }[];
 }
 
+// How a reading treats a name it cannot settle: `slot` gives up, since the slot may then be any tuple's; `links` reads
+// on past it, since a reading that only adds links to a tuple is sound with any part of them.
+type Reading = "slot" | "links";
+
+// The property an indexed access with a string literal index names: `T["p"]` gives `p`.
+function indexedProperty(node: ts.Node): string | null {
+  return ts.isIndexedAccessTypeNode(node) && ts.isLiteralTypeNode(node.indexType) && ts.isStringLiteral(node.indexType.literal)
+    ? node.indexType.literal.text
+    : null;
+}
+
+// The `T["p"]` accesses under `root`, by their object type: their names are read scoped, never whole.
+function scopedAccesses(root: ts.Node): readonly { readonly node: ts.Node; readonly property: string }[] {
+  const found: { readonly node: ts.IndexedAccessTypeNode; readonly property: string }[] = [];
+  const visit = (node: ts.Node): void => {
+    const property = indexedProperty(node);
+    if (property !== null && ts.isIndexedAccessTypeNode(node)) {
+      found.push({ node, property });
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return found.map(({ node, property }) => ({ node: node.objectType, property }));
+}
+
+const isUnder = (node: ts.Node, ancestors: ReadonlySet<ts.Node>): boolean => {
+  for (let at = node; !ts.isSourceFile(at); at = at.parent) {
+    if (ancestors.has(at)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 // The tuples one spelling names and the further spellings it leads to; null when it cannot be read to the end.
-function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node): APIRequestGenerator<Read | null> {
+function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node, reading: Reading): APIRequestGenerator<Read | null> {
   const tuples: string[] = [];
   const next: ts.Node[] = [];
-  for (const name of referencedNames(root)) {
+  const scoped = scopedAccesses(root);
+  const objects = new Set(scoped.map(({ node }) => node));
+  for (const name of referencedNames(root).filter((candidate) => !isUnder(candidate, objects))) {
     const reached = yield* expansionsOf(oracle, sources, name);
-    if (reached === null || reached.some(({ opaque }) => opaque)) {
+    if (reading === "slot" && (reached === null || reached.some(({ opaque }) => opaque))) {
       return null;
     }
-    for (const expanded of reached) {
+    for (const expanded of reached ?? []) {
       if (expanded.tuple !== null) {
         tuples.push(expanded.tuple);
       }
       next.push(...expanded.into.filter((spelling): spelling is ts.Node => spelling !== undefined));
     }
   }
-  return { tuples, next };
+  return { tuples, next, scoped };
 }
 
-// The tuples a slot's spellings reach: a variable reached through `typeof` or by name is a tuple, and aliases, schema
-// values, constraints and function bodies are read through. Null when a type name has no declaration, a type parameter
-// stands in for the vocabulary, or the reading outgrows the limit: in each the slot may be any tuple's.
-function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts.Node[]): APIRequestGenerator<Origins> {
-  const found = new Set<string>();
-  const seen = new Set<ts.Node>();
-  const pending = [...spellings];
-  for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
-    if (seen.has(root)) {
-      continue;
-    }
-    seen.add(root);
-    const read = seen.size > SPELLING_LIMIT ? null : yield* readSpelling(oracle, sources, root);
-    if (read === null) {
+// The members named `property` in an interface or a type literal, and what an interface extends, still scoped to it.
+function memberSteps(members: readonly ts.Node[], property: string): readonly Scoped[] {
+  return members.flatMap((member) =>
+    ts.isPropertySignature(member) && member.type !== undefined && propertyName(member.name) === property ? [{ node: member.type, property: null }] : [],
+  );
+}
+
+interface Scoped {
+  readonly node: ts.Node;
+  readonly property: string | null;
+}
+
+// The name a type reference or a heritage entry refers to.
+function referredName(node: ts.Node): ts.Identifier | null {
+  if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
+    return node.typeName;
+  }
+  return ts.isExpressionWithTypeArguments(node) && ts.isIdentifier(node.expression) ? node.expression : null;
+}
+
+// A named type scoped to one property: each interface's member of that name and what it extends, each alias's type.
+function* declaredPropertySteps(oracle: SlotOracle, sources: Sources, name: ts.Identifier, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+  const sites = yield* answered(oracle.declarationsOf(siteOf(name)));
+  const steps: Scoped[] = [];
+  for (const declaration of sites.map((site) => declarationAt(sources, site))) {
+    if (declaration !== null && ts.isInterfaceDeclaration(declaration)) {
+      const bases = (declaration.heritageClauses ?? []).flatMap((clause) => clause.types.map((type) => ({ node: type, property })));
+      steps.push(...memberSteps(declaration.members, property), ...bases);
+    } else if (declaration !== null && ts.isTypeAliasDeclaration(declaration)) {
+      steps.push({ node: declaration.type, property });
+    } else {
       return null;
     }
-    for (const tuple of read.tuples) {
-      found.add(tuple);
-    }
-    pending.push(...read.next);
   }
-  return found;
+  return sites.length === 0 ? null : steps;
+}
+
+// One step of reading a type scoped to one property; null when the type is not one a property can be found in.
+function* propertyStep(oracle: SlotOracle, sources: Sources, node: ts.Node, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+  if (ts.isParenthesizedTypeNode(node)) {
+    return [{ node: node.type, property }];
+  }
+  if (ts.isUnionTypeNode(node) || ts.isIntersectionTypeNode(node)) {
+    return node.types.map((type) => ({ node: type, property }));
+  }
+  if (ts.isTypeLiteralNode(node)) {
+    return memberSteps(node.members, property);
+  }
+  const name = referredName(node);
+  return name === null ? null : yield* declaredPropertySteps(oracle, sources, name, property);
+}
+
+// Every string literal type a spelling writes, by site key; a `T["p"]` access is read scoped, so its literals are not
+// the spelling's own.
+function collectLiteralTypes(root: ts.Node, into: Map<string, string>): void {
+  const visit = (node: ts.Node): void => {
+    if (indexedProperty(node) !== null) {
+      return;
+    }
+    if (ts.isLiteralTypeNode(node) && ts.isStringLiteral(node.literal)) {
+      into.set(siteKey(siteOf(node.literal)), node.literal.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+}
+
+// What a reach scoped to `property` leads to; a type the property cannot be found in is read whole, for its tuples only.
+function* scopedReaches(oracle: SlotOracle, sources: Sources, reach: Reach, property: string): APIRequestGenerator<readonly Reach[]> {
+  const steps = yield* propertyStep(oracle, sources, reach.node, property);
+  return steps === null ? [{ node: reach.node, property: null, collect: false }] : steps.map((step) => ({ ...step, collect: reach.collect }));
+}
+
+// Whether `reach` is new, recording it.
+function firstVisit(seen: Map<ts.Node, Set<string>>, reach: Reach): boolean {
+  const key = `${reach.property ?? ""}:${String(reach.collect)}`;
+  const held = seen.get(reach.node) ?? new Set<string>();
+  if (held.has(key)) {
+    return false;
+  }
+  held.add(key);
+  seen.set(reach.node, held);
+  return true;
+}
+
+// The tuples a slot's spellings reach, and the literal types written on the way: a variable reached through `typeof` or
+// by name is a tuple, and aliases, schema values, constraints and function bodies are read through. `T["p"]` reads only
+// `T`'s property `p`, so a sibling property's literals never re-spell the slot. Null when a type name has no
+// declaration, a type parameter stands in for the vocabulary, or the reading outgrows the limit: in each the slot may be
+// any tuple's.
+function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts.Node[], reading: Reading = "slot"): APIRequestGenerator<Origins> {
+  const into: Spelled & { readonly tuples: Set<string>; readonly literals: Map<string, string> } = { tuples: new Set(), literals: new Map() };
+  const seen = new Map<ts.Node, Set<string>>();
+  const pending: Reach[] = spellings.map((node) => ({ node, property: null, collect: true }));
+  let visits = 0;
+  for (let reach = pending.pop(); reach !== undefined; reach = pending.pop()) {
+    if (!firstVisit(seen, reach)) {
+      continue;
+    }
+    visits += 1;
+    const next = visits > SPELLING_LIMIT ? null : yield* readReach(oracle, sources, { reach, reading }, into);
+    if (next === null) {
+      return null;
+    }
+    pending.push(...next);
+  }
+  return into;
+}
+
+// Read one reach into `into`: the reaches it leads to, or null when the slot reading gives up.
+function* readReach(
+  oracle: SlotOracle,
+  sources: Sources,
+  { reach, reading }: { readonly reach: Reach; readonly reading: Reading },
+  into: { readonly tuples: Set<string>; readonly literals: Map<string, string> },
+): APIRequestGenerator<readonly Reach[] | null> {
+  const { node, property, collect } = reach;
+  if (property !== null) {
+    return yield* scopedReaches(oracle, sources, reach, property);
+  }
+  const read = yield* readSpelling(oracle, sources, node, reading);
+  if (read === null) {
+    return null;
+  }
+  for (const tuple of read.tuples) {
+    into.tuples.add(tuple);
+  }
+  if (collect) {
+    collectLiteralTypes(node, into.literals);
+  }
+  return [...read.next.map((next) => ({ node: next, property: null, collect })), ...read.scoped.map((scoped) => ({ ...scoped, collect }))];
 }
 
 function* declaredAt(oracle: SlotOracle, sources: Sources, node: ts.Node, role: LiteralRole | "record-key"): APIRequestGenerator<Declared> {
@@ -412,10 +627,11 @@ function* declaredAt(oracle: SlotOracle, sources: Sources, node: ts.Node, role: 
   }
 }
 
-/** The tuples the type a tuple declared at `name` satisfies is spelled from, so `["a"] as const satisfies readonly P[]`
- *  reaches the tuples `P` derives from and theirs in turn. Empty for a tuple with no `satisfies`, or one that cannot be
- *  read to the end. Spelled from is not subset of: a `keyof` or an indexed access reaches tuples it never holds. */
-export function* satisfiedOrigins(oracle: SlotOracle, sources: Sources, name: Site): APIRequestGenerator<ReadonlySet<string>> {
+/** What the type a tuple declared at `name` satisfies is spelled from, so `["a"] as const satisfies readonly P[]`
+ *  reaches the tuples `P` derives from and theirs in turn, and the literal types `P` writes, which re-spell the
+ *  tuple's members. Empty for a tuple with no `satisfies`, or one that cannot be read to the end. Spelled from is not
+ *  subset of: a `keyof` or an indexed access reaches tuples it never holds. */
+export function* satisfiedOrigins(oracle: SlotOracle, sources: Sources, name: Site): APIRequestGenerator<Spelled> {
   const declaration = declarationAt(sources, name);
   const spellings: ts.TypeNode[] = [];
   let node = declaration !== null && ts.isVariableDeclaration(declaration) ? declaration.initializer : undefined;
@@ -425,8 +641,8 @@ export function* satisfiedOrigins(oracle: SlotOracle, sources: Sources, name: Si
     }
     node = node.expression;
   }
-  const origins = spellings.length === 0 ? null : yield* originsOf(oracle, sources, spellings);
-  return origins ?? new Set();
+  const origins = spellings.length === 0 ? null : yield* originsOf(oracle, sources, spellings, "links");
+  return origins ?? NOTHING_SPELLED;
 }
 
 /** The tuples the slot of the literal or key at `site` derives from. */
@@ -434,4 +650,253 @@ export function* slotOrigins(oracle: SlotOracle, sources: Sources, site: Site, r
   const node = nameAt(sources.get(site.file), site.position);
   const spellings = node === undefined ? null : yield* declaredAt(oracle, sources, node, role);
   return spellings === null ? null : yield* originsOf(oracle, sources, spellings);
+}
+
+/** The slot a non-literal value at `site` flows into: a name, or the property a member access at `site` names, read
+ *  into an argument, a property, a return or a binding, or used as the key of an element access. */
+export function* valueSlotOrigins(oracle: SlotOracle, sources: Sources, site: Site): APIRequestGenerator<Origins> {
+  const node = nameAt(sources.get(site.file), site.position);
+  if (node === undefined) {
+    return null;
+  }
+  const value = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
+  const { parent } = value;
+  const spellings =
+    ts.isElementAccessExpression(parent) && parent.argumentExpression === value
+      ? yield* operandSpellings(oracle, sources, parent.expression)
+      : yield* receivingSpellings(oracle, sources, value);
+  return spellings === null ? null : yield* originsOf(oracle, sources, spellings);
+}
+
+/** The vocabulary of the value a switch at a name or member access reads: what its declaration is annotated with. */
+export function* subjectOrigins(oracle: SlotOracle, sources: Sources, site: Site): APIRequestGenerator<Origins> {
+  const node = nameAt(sources.get(site.file), site.position);
+  if (node === undefined) {
+    return null;
+  }
+  const operand = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
+  const spellings = yield* operandSpellings(oracle, sources, operand);
+  return spellings === null ? null : yield* originsOf(oracle, sources, spellings);
+}
+
+/** The property signature a string literal type at `site` annotates, through a union of literals (`kind: "a" | "b"`):
+ *  the site and text of its name. */
+export function respelledProperty(sources: Sources, site: Site): { readonly site: Site; readonly name: string } | null {
+  let at = nameAt(sources.get(site.file), site.position)?.parent;
+  if (at === undefined || !ts.isLiteralTypeNode(at)) {
+    return null;
+  }
+  while (ts.isUnionTypeNode(at.parent) || ts.isParenthesizedTypeNode(at.parent)) {
+    at = at.parent;
+  }
+  const { parent } = at;
+  return ts.isPropertySignature(parent) && parent.type === at && ts.isIdentifier(parent.name) ? { site: siteOf(parent.name), name: parent.name.text } : null;
+}
+
+/** A switch on a name or a member access whose clause hands the switched value on: the string labels of the clause and
+ *  the ones that fall into it, and each place the clause body reads the same value, by the site of its last name. */
+export interface PassThrough {
+  readonly labels: readonly string[];
+  readonly value: Site;
+  /** The switch subject, by the site of its last name. */
+  readonly subject: Site;
+}
+
+const isNamePath = (node: ts.Expression): boolean => ts.isIdentifier(node) || (ts.isPropertyAccessExpression(node) && isNamePath(node.expression));
+
+// Reads in `body` spelled `text` that hand the whole value on, not the object of a deeper access.
+function sameValueReads(body: readonly ts.Statement[], text: string): readonly Site[] {
+  const found: Site[] = [];
+  const visit = (node: ts.Node): void => {
+    if ((ts.isIdentifier(node) || ts.isPropertyAccessExpression(node)) && isNamePath(node) && node.getText() === text) {
+      const { parent } = node;
+      const deeper = (ts.isPropertyAccessExpression(parent) || ts.isElementAccessExpression(parent)) && parent.expression === node;
+      if (!deeper) {
+        found.push(siteOf(ts.isPropertyAccessExpression(node) ? node.name : node));
+      }
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  for (const statement of body) {
+    visit(statement);
+  }
+  return found;
+}
+
+/** The clauses of the switch at `site` that hand the switched value on, each with the labels that narrow it there. */
+export function switchPassThroughs(sources: Sources, site: Site): readonly PassThrough[] {
+  const node = nameAt(sources.get(site.file), site.position);
+  if (node === undefined || !ts.isSwitchStatement(node)) {
+    return [];
+  }
+  let subject: ts.Expression = node.expression;
+  while (ts.isParenthesizedExpression(subject)) {
+    subject = subject.expression;
+  }
+  if (!isNamePath(subject)) {
+    return [];
+  }
+  const text = subject.getText();
+  const subjectSite = siteOf(ts.isPropertyAccessExpression(subject) ? subject.name : subject);
+  const found: PassThrough[] = [];
+  let labels: string[] = [];
+  for (const clause of node.caseBlock.clauses) {
+    if (ts.isDefaultClause(clause)) {
+      labels = [];
+      continue;
+    }
+    if (ts.isStringLiteral(clause.expression)) {
+      labels.push(clause.expression.text);
+    }
+    if (clause.statements.length > 0) {
+      const narrowed = labels;
+      found.push(...sameValueReads(clause.statements, text).map((value) => ({ labels: narrowed, value, subject: subjectSite })));
+      labels = [];
+    }
+  }
+  return found;
+}
+
+// Type names every lib declares that select keys: `Pick<T, K>` and `Omit<T, K>` take the keys second, and
+// `Exclude<keyof T, K>` and `Extract<keyof T, K>` filter a key set by them.
+const KEY_SELECTORS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
+const KEY_FILTERS: ReadonlySet<string> = new Set(["Exclude", "Extract"]);
+
+/** Whether a type name is one of the lib key selections {@link keyListTuples} reads. */
+export const isKeyTypeName = (name: string): boolean => KEY_SELECTORS.has(name) || KEY_FILTERS.has(name);
+
+const isKeyof = (node: ts.TypeNode | undefined): boolean => node !== undefined && ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.KeyOfKeyword;
+
+// A lib type reference: no declaration of its name lies in the production sources. An engine may report a lib
+// declaration or none at all, so only a production declaration rules the name out.
+function* isLibReference(oracle: SlotOracle, name: ts.Identifier): APIRequestGenerator<boolean> {
+  const sites = yield* answered(oracle.declarationsOf(siteOf(name)));
+  return sites.every((site) => !isProductionFile(site.file));
+}
+
+// The key set a key position spells, reduced to the type nodes that name its keys.
+function* keyNodes(oracle: SlotOracle, node: ts.TypeNode): APIRequestGenerator<readonly ts.TypeNode[]> {
+  if (ts.isUnionTypeNode(node)) {
+    return node.types;
+  }
+  if (ts.isParenthesizedTypeNode(node)) {
+    return [node.type];
+  }
+  if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName) && KEY_FILTERS.has(node.typeName.text) && (yield* isLibReference(oracle, node.typeName))) {
+    const [from, by] = node.typeArguments ?? [];
+    const kept = isKeyof(from) ? by : from;
+    return kept === undefined ? [] : [kept];
+  }
+  return [];
+}
+
+// The tuples `(typeof T)[number]` reads: each variable `T` resolves to.
+function* queriedTuples(oracle: SlotOracle, sources: Sources, name: ts.Identifier): APIRequestGenerator<readonly string[]> {
+  const tuples: string[] = [];
+  for (const site of yield* answered(oracle.declarationsOf(siteOf(name)))) {
+    const declaration = declarationAt(sources, site);
+    if (declaration !== null && ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name)) {
+      tuples.push(`${site.file}:${declaration.name.text}`);
+    }
+  }
+  return tuples;
+}
+
+// The type nodes of the aliases a type name resolves to.
+function* aliasedTypes(oracle: SlotOracle, sources: Sources, name: ts.Identifier): APIRequestGenerator<readonly ts.TypeNode[]> {
+  const aliases: ts.TypeNode[] = [];
+  for (const site of yield* answered(oracle.declarationsOf(siteOf(name)))) {
+    const declaration = declarationAt(sources, site);
+    if (declaration !== null && ts.isTypeAliasDeclaration(declaration)) {
+      aliases.push(declaration.type);
+    }
+  }
+  return aliases;
+}
+
+function unparenthesized(node: ts.TypeNode): ts.TypeNode {
+  let at = node;
+  while (ts.isParenthesizedTypeNode(at)) {
+    at = at.type;
+  }
+  return at;
+}
+
+// One key-position node: the tuples `(typeof T)[number]` names, added to `tuples`, or the nodes it reads through.
+function* keyStep(oracle: SlotOracle, sources: Sources, node: ts.TypeNode, tuples: Set<string>): APIRequestGenerator<readonly ts.TypeNode[]> {
+  const queried = ts.isIndexedAccessTypeNode(node) ? unparenthesized(node.objectType) : undefined;
+  if (queried !== undefined && ts.isTypeQueryNode(queried) && ts.isIdentifier(queried.exprName)) {
+    for (const tuple of yield* queriedTuples(oracle, sources, queried.exprName)) {
+      tuples.add(tuple);
+    }
+    return [];
+  }
+  if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName) && !KEY_FILTERS.has(node.typeName.text)) {
+    return yield* aliasedTypes(oracle, sources, node.typeName);
+  }
+  return yield* keyNodes(oracle, node);
+}
+
+// The tuples a key position names: `(typeof T)[number]`, an alias of one, a union of them and a filter of them.
+function* keyTuples(oracle: SlotOracle, sources: Sources, start: ts.TypeNode): APIRequestGenerator<ReadonlySet<string>> {
+  const tuples = new Set<string>();
+  const seen = new Set<ts.Node>();
+  const pending: ts.TypeNode[] = [start];
+  for (let node = pending.pop(); node !== undefined && seen.size <= SPELLING_LIMIT; node = pending.pop()) {
+    if (!seen.has(node)) {
+      seen.add(node);
+      pending.push(...(yield* keyStep(oracle, sources, node, tuples)));
+    }
+  }
+  return tuples;
+}
+
+/** The tuples a lib key selection whose type name sits at `site` uses as keys: the `K` of `Pick<T, K>` or
+ *  `Omit<T, K>`, or of `Exclude<keyof T, K>`. Such a tuple names property keys of a type, never a value. */
+export function* keyListTuples(oracle: SlotOracle, sources: Sources, site: Site): APIRequestGenerator<ReadonlySet<string>> {
+  const name = nameAt(sources.get(site.file), site.position);
+  const reference = name?.parent;
+  if (name === undefined || !ts.isIdentifier(name) || reference === undefined || !ts.isTypeReferenceNode(reference) || !(yield* isLibReference(oracle, name))) {
+    return NOTHING_SPELLED.tuples;
+  }
+  const [first, key] = reference.typeArguments ?? [];
+  const selects = KEY_SELECTORS.has(name.text);
+  // `Pick<T, Exclude<keyof T, K>>` is read at its `Exclude`, which is a key filter of its own.
+  const filtered = selects && key !== undefined && ts.isTypeReferenceNode(key) && isKeyof(key.typeArguments?.[0]);
+  if (key === undefined || filtered || !(selects || isKeyof(first))) {
+    return NOTHING_SPELLED.tuples;
+  }
+  return yield* keyTuples(oracle, sources, key);
+}
+
+// A parameter type that holds raw outside input: `string` or `unknown`, optionally with `undefined` or `null`.
+const RAW_INPUT: ReadonlySet<ts.SyntaxKind> = new Set([ts.SyntaxKind.StringKeyword, ts.SyntaxKind.UnknownKeyword]);
+const ABSENT: ReadonlySet<ts.SyntaxKind> = new Set([ts.SyntaxKind.UndefinedKeyword, ts.SyntaxKind.NullKeyword, ts.SyntaxKind.LiteralType]);
+
+function isRawInput(type: ts.TypeNode | undefined): boolean {
+  if (type === undefined) {
+    return false;
+  }
+  const members = ts.isUnionTypeNode(type) ? type.types : [type];
+  return members.some((member) => RAW_INPUT.has(member.kind)) && members.every((member) => RAW_INPUT.has(member.kind) || ABSENT.has(member.kind));
+}
+
+/** The tuples a type guard at `site` (`(value: string): value is T`) narrows a raw string or unknown parameter into:
+ *  outside input can then produce any of their members. */
+export function* predicateTuples(oracle: SlotOracle, sources: Sources, site: Site): APIRequestGenerator<ReadonlySet<string>> {
+  const predicate = nameAt(sources.get(site.file), site.position)?.parent;
+  if (predicate === undefined || !ts.isTypePredicateNode(predicate) || predicate.type === undefined || predicate.assertsModifier !== undefined) {
+    return NOTHING_SPELLED.tuples;
+  }
+  const guarded = predicate.parameterName;
+  const signature = predicate.parent;
+  const parameter = ts.isFunctionLike(signature)
+    ? signature.parameters.find((candidate) => ts.isIdentifier(candidate.name) && ts.isIdentifier(guarded) && candidate.name.text === guarded.text)
+    : undefined;
+  if (!isRawInput(parameter?.type)) {
+    return NOTHING_SPELLED.tuples;
+  }
+  const origins = yield* originsOf(oracle, sources, [predicate.type]);
+  return origins?.tuples ?? NOTHING_SPELLED.tuples;
 }

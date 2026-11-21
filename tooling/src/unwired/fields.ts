@@ -7,6 +7,7 @@ import {
   isArrowFunction,
   isCallExpression,
   isIdentifier,
+  isMappedTypeNode,
   isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
@@ -15,6 +16,7 @@ import {
   isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isStringLiteral,
+  isTypeOperatorNode,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
@@ -119,6 +121,12 @@ const FIELD_LIMITS: readonly string[] = [
   "A value spread or copied into an object that is then serialized is not followed to that serialization.",
   "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts, or by slot path (Home.member, Home.fn() return, Home.fn(n) parameter) where the SDK spells a contract type inline; a renamed home or a slot under another path is missed.",
   "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
+  "A key of a `base.extend({ key })` literal that the base schema's shape also holds is the base key: its reads and writes count for the base. A key only the extend adds is no field of its own.",
+  "A schema whose parsed value production types by another declaration, through a parse function's return type or a refine predicate and with no `satisfies z.ZodType<T>` link, keeps its own keys: the reads land on the other declaration's members, so the keys report unreferenced.",
+  "A schema that only validates a value production reads through another type, such as a dependency's message type or a payload handed on whole to a provider, keeps keys no production code names: they report unreferenced.",
+  "A local type for a value a library or the platform reads (a syntax-tree node, a canvas, a module augmentation) reports the members only the library reads.",
+  "A twin interface restated beside its home (a module-local copy with the home's name and members) splits reads from writes: the home reports what only the twin reads.",
+  "A value a library hands back to the tree, such as a persisted store's state read through an untyped merge, is not followed: its members report never-read.",
   "The literal stage matches a dead row's member name as a whole word in every tracked file and cannot tell two fields of one name apart: any code, string, data-key, other-file or test type hit outside the row's own known sites (its declarations and every production site the scan recorded, by exact offset) moves the row to ask. Comment, TSDoc, doc and data-value hits are stale mentions and keep it dead. A never-written row lists its write-position hits as candidate writers. Gitignored and generated-but-untracked files are not searched.",
   "A promise is a backticked Home.member under any of the home's names, a distinctive bare member that one scanned home declares (a schema and its type twin or alias count as one home), a settings field itself, or a field a flow from a settings field fills; a settings field of the same name that no flow connects sorts the row as ask.",
 ];
@@ -231,7 +239,14 @@ function checkedType(call: Node): Node | null {
     checked = parent.type;
   }
   const [subject] = checked !== undefined && isTypeReferenceNode(checked) ? (checked.typeArguments ?? []) : [];
-  return subject !== undefined && isTypeReferenceNode(subject) ? subject.typeName : null;
+  const mirror = subject === undefined ? undefined : (keyedOver(subject) ?? subject);
+  return mirror !== undefined && isTypeReferenceNode(mirror) ? mirror.typeName : null;
+}
+
+// The type a mapped type re-keys, `{ [K in keyof T]?: T[K] }`: a schema checked against it mirrors `T`'s members.
+function keyedOver(node: Node): Node | undefined {
+  const constraint = isMappedTypeNode(node) ? node.typeParameter.constraint : undefined;
+  return constraint !== undefined && isTypeOperatorNode(constraint) && constraint.operator === SyntaxKind.KeyOfKeyword ? constraint.type : undefined;
 }
 
 // The checked type of a schema, or of the `z.union([...])` or `z.discriminatedUnion(key, [...])` it is an option of.
@@ -243,12 +258,15 @@ function mirrorOf(call: Node): { readonly mirror: Node | null; readonly option: 
   return isOption ? { mirror: checkedType(union), option: true } : { mirror: checkedType(call), option: false };
 }
 
+const namedKeys = (shape: ObjectLiteralExpression): readonly NamedKey[] =>
+  shape.properties.flatMap((property) =>
+    isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)) ? [property as NamedKey] : [],
+  );
+
 function keysOfShape(shape: ObjectLiteralExpression): readonly SchemaKey[] {
   const home = schemaHome(shape);
   const { mirror, option } = mirrorOf(shape.parent);
-  const named = shape.properties.flatMap((property) =>
-    isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)) ? [property as NamedKey] : [],
-  );
+  const named = namedKeys(shape);
   const names = named.map((node) => node.name.text);
   return named.map((node) => ({ node, home, mirror, option, names }));
 }
@@ -297,6 +315,67 @@ function schemaKeys(world: NativeWorld): readonly SchemaKey[] {
       node.forEachChild(visit);
     };
     file.forEachChild(visit);
+  }
+  return found;
+}
+
+const ZOD_EXTEND = "extend";
+const ZOD_SHAPE = "shape";
+
+// A key of a `base.extend({ ... })` literal, with the schema it extends. An extended schema checked against a type of
+// its own (`satisfies z.ZodType<Other>`) is another shape, so its keys mirror that type and re-declare nothing.
+interface ExtendKey {
+  readonly node: NamedKey;
+  readonly base: Node;
+}
+
+function extendKeys(world: NativeWorld): readonly ExtendKey[] {
+  const found: ExtendKey[] = [];
+  for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file))) {
+    const visit = (node: Node): void => {
+      const [shape] = isCallExpression(node) ? node.arguments : [];
+      const callee = isCallExpression(node) ? node.expression : undefined;
+      if (
+        callee !== undefined &&
+        isPropertyAccessExpression(callee) &&
+        callee.name.text === ZOD_EXTEND &&
+        shape !== undefined &&
+        isObjectLiteralExpression(shape) &&
+        checkedType(node) === null
+      ) {
+        found.push(...namedKeys(shape).map((key) => ({ node: key, base: callee.expression })));
+      }
+      node.forEachChild(visit);
+    };
+    file.forEachChild(visit);
+  }
+  return found;
+}
+
+// The base key an extend key re-declares: the extended schema's `shape` property of the same name, if it has one.
+function* overriddenKey(checker: Checker, key: ExtendKey): APIRequestGenerator<NativeSymbol | undefined> {
+  const type = yield* checker.getTypeAtLocation.gen(key.base);
+  const shape = yield* checker.getPropertyOfType.gen(type, ZOD_SHAPE);
+  const shapeType = shape === undefined ? undefined : yield* checker.getTypeOfSymbol.gen(shape);
+  return shapeType === undefined ? undefined : yield* checker.getPropertyOfType.gen(shapeType, key.node.name.text);
+}
+
+// Each base key's declaration keys to the keys of the extend keys that re-declare it. An unchecked override is the same
+// wire field under a stricter schema, as the server's role codecs re-declare a contract key, so its reads and writes are
+// the base's.
+function overrides(world: NativeWorld): ReadonlyMap<string, readonly string[]> {
+  const keys = extendKeys(world);
+  const own = world.symbolsAt(keys.map(({ node }) => node.name));
+  const bases = world.batch(keys.map((key) => overriddenKey(world.checker, key)));
+  const found = new Map<string, string[]>();
+  for (const [at, base] of bases.entries()) {
+    const symbol = own[at];
+    if (base === undefined || symbol === undefined) {
+      continue;
+    }
+    for (const baseKey of declarationKeys(base)) {
+      found.set(baseKey, [...(found.get(baseKey) ?? []), ...declarationKeys(symbol)]);
+    }
   }
   return found;
 }
@@ -374,7 +453,12 @@ export function fieldDeclarations(world: NativeWorld, includeCallables = false):
     };
     return [field];
   });
-  return uniquelyKeyed([...fromTypes, ...fromSchemas]);
+  const overridden = overrides(world);
+  const withOverrides = [...fromTypes, ...fromSchemas].map((field) => ({
+    ...field,
+    keys: [...field.keys, ...field.keys.flatMap((key) => overridden.get(key) ?? [])],
+  }));
+  return uniquelyKeyed(withOverrides);
 }
 
 // Union options name one key under one home, and each is its own field with its own sites. Declarations walk in source
