@@ -4,7 +4,6 @@
 import type { Expression, Identifier, Node, ObjectLiteralExpression, StringLiteral } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
-  isAsExpression,
   isBinaryExpression,
   isCaseBlock,
   isCaseClause,
@@ -33,7 +32,7 @@ import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
-import { nativeOracle, serviceOracle } from "./union-oracles.ts";
+import { isNativeConstAssertion, nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins, SlotOracle, Spelled } from "./union-origins.ts";
 import {
   constantDepth,
@@ -98,7 +97,8 @@ const UNION_LIMITS: readonly string[] = [
   "A narrowed value handed on builds the labels that narrow it only in a `switch` on a name or a member access read again in the clause, and only for a label production builds in the switched value's own vocabulary; an `if` narrowing builds nothing.",
   "A read by name (`POSTURES.arbiter`) of an entry of an `as const satisfies Record<Tuple, …>` literal builds the member its key names; a read of a `Record` annotated with a type, or through a computed key, builds nothing.",
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's, and a value typed by one that production hands into the other's slot builds nothing there.",
-  'A literal whose contextual type is a type parameter (`Object.freeze({ source: "checkout" })`, a generic row helper) holds nothing, so it builds nothing.',
+  "A call that infers its own type parameter from a literal types the slot by the literal alone, so the slot is read from the declared parameter with that type parameter at its constraint: an object literal's property through the constraint's property, and a callback's returned value through the call's own slot when the callee returns the type parameter or a list of it. A constraint with no literal type (`<N extends string>(name: N)`) builds nothing.",
+  'A literal whose declared slot is still a type parameter (`Object.freeze({ source: "checkout" })`, a generic row helper) holds nothing, so it builds nothing.',
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, sorts as parsed instead.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
@@ -170,9 +170,6 @@ function unwrap(node: Expression): Expression {
   return current;
 }
 
-const isConstAssertion = (node: Expression): node is Expression & { readonly expression: Expression } =>
-  isAsExpression(node) && isTypeReferenceNode(node.type) && isIdentifier(node.type.typeName) && node.type.typeName.text === "const";
-
 interface ConstArray {
   readonly name: Identifier;
   readonly elements: readonly Expression[];
@@ -184,7 +181,7 @@ function constArrayOf(node: Node): ConstArray | null {
     return null;
   }
   const value = unwrap(node.initializer);
-  const array = isConstAssertion(value) ? unwrap(value.expression) : null;
+  const array = isNativeConstAssertion(value) ? unwrap(value.expression) : null;
   if (array === null || !isArrayLiteralExpression(array) || array.elements.length === 0) {
     return null;
   }
@@ -269,10 +266,11 @@ interface Found {
   readonly site: Site;
 }
 
-// The literal's slot: the other operand of an equality, the switch expression of a `case`, else its contextual type.
-function* slotHolds(world: NativeWorld, node: StringLiteral): APIRequestGenerator<boolean> {
+// The literal's slot: the other operand of an equality, the switch expression of a `case`, else its contextual type. A
+// `??`, `||` or `&&` operand is no comparison: it hands the literal on, so its contextual type is the slot.
+function* slotHolds(world: NativeWorld, node: StringLiteral, role: LiteralRole): APIRequestGenerator<boolean> {
   const { parent } = node;
-  if (isBinaryExpression(parent)) {
+  if (role === "compare" && isBinaryExpression(parent)) {
     return yield* holdsText(yield* world.checker.getTypeAtLocation.gen(parent.left === node ? parent.right : parent.left), node.text);
   }
   const block = parent.parent;
@@ -334,7 +332,7 @@ function literalSites(world: NativeWorld, sources: Sources, local: readonly Tupl
     }
   });
   const holds = world.batch([
-    ...values.map(({ node, role }) => (role === "type" || role === "module" ? holdsText(undefined, node.text) : slotHolds(world, node))),
+    ...values.map(({ node, role }) => (role === "type" || role === "module" ? holdsText(undefined, node.text) : slotHolds(world, node, role))),
     ...keys.map(({ node, literal }) => isRecordKey(world, literal, node.text)),
   ]);
   const found: (Omit<LiteralSite, "origins"> & { readonly nested: boolean })[] = [
