@@ -1,5 +1,7 @@
 // `pnpm unwired params`: optional parameters and optional props no production call or JSX element supplies, and
 // parameters every production call passes the same literal. A callable whose value escapes is never judged.
+// A prop belongs to its declaration, not to one callable: a production construction anywhere that resolves to it, such
+// as a sibling callee's argument or a spread a pipeline adds, supplies it for every callable whose parameter carries it.
 import type { Expression, Identifier, Node, ParameterDeclaration } from "@typescript/native/ast";
 import {
   isArrowFunction,
@@ -15,9 +17,10 @@ import {
   isVariableDeclaration,
 } from "@typescript/native/ast";
 import type { NodeHandle } from "@typescript/native/sync";
-import { SymbolFlags } from "@typescript/native/sync";
+import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import ts from "typescript";
 import type { CallShape, Site } from "./classify.ts";
-import { callAt, isProductionFile, Sources, siteKey, valueUseAt } from "./classify.ts";
+import { callAt, isProductionFile, nameAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
 import { declarationKeys, hasFlag, homeFiles, NativeWorld } from "./native.ts";
@@ -66,17 +69,28 @@ const PARAM_LIMITS: readonly string[] = [
   "Engine one does not see a component reached through a dynamic import namespace (lazy(() => import(...).then((m) => m.X))); engine two does, so such a row lands as a disagreement, never a finding.",
   "Two callables of one name in different files are told apart by symbol; a same-named wrapper does not count its inner function's calls.",
   "A value supplied only from a JSON or scenario file is not a supply; a reference in a type position is neither a call nor an escape.",
+  "A prop any production construction of its declaration sets is supplied for every callable that takes it, so a callable whose own callers never set a shared prop keeps its default path unreported.",
+  "Two declarations of one concept are separate homes: a prop supplied only through a restated options type reports on the other; judge it with the shapes scan.",
+  "A parameter typed by a single literal is never same-literal: its type, not its callers, fixes the value, as in a structural view of a platform method.",
 ];
 
 // The minimum calls before an identical literal says more than "it has one caller".
 const SAME_LITERAL_CALLS = 2;
 
+interface Prop {
+  readonly name: string;
+  /** The declaration keys of the property symbol, so a construction anywhere that resolves to it supplies it. */
+  readonly keys: readonly string[];
+}
+
 interface Parameter {
   readonly name: string;
   readonly optional: boolean;
   readonly rest: boolean;
+  /** Its declared type admits one literal, so every call passes that literal whatever its caller wants. */
+  readonly unit: boolean;
   /** Optional properties of its type that production declares. */
-  readonly props: readonly string[];
+  readonly props: readonly Prop[];
 }
 
 interface Callable {
@@ -154,17 +168,19 @@ function callables(world: NativeWorld): readonly Callable[] {
   const facts = world.batch(
     found.map(function* ({ name, parameters }) {
       const symbol = yield* checker.getSymbolAtLocation.gen(name);
-      const props: string[][] = [];
+      const props: Prop[][] = [];
+      const units: boolean[] = [];
       for (const parameter of parameters) {
-        const type = yield* checker.getTypeAtLocation.gen(parameter);
-        const members = yield* checker.getPropertiesOfType.gen(yield* checker.getNonNullableType.gen(type));
+        const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(parameter));
+        const members = yield* checker.getPropertiesOfType.gen(type);
+        units.push(hasFlag(type.flags, TypeFlags.Literal));
         props.push(
           members
             .filter((member) => hasFlag(member.flags, SymbolFlags.Optional) && member.declarations.some((handle) => declaredInProduction(world, handle)))
-            .map((member) => member.name),
+            .map((member) => ({ name: member.name, keys: declarationKeys(member) })),
         );
       }
-      return { symbol, props };
+      return { symbol, props, units };
     }),
   );
   return found.map(({ name, home, reach, parameters }, at) => {
@@ -181,6 +197,7 @@ function callables(world: NativeWorld): readonly Callable[] {
         name: parameterName(parameter, index),
         optional: parameter.questionToken !== undefined || parameter.initializer !== undefined,
         rest: parameter.dotDotDotToken !== undefined,
+        unit: fact?.units[index] ?? false,
         props: fact?.props[index] ?? [],
       })),
     };
@@ -227,7 +244,35 @@ function sameLiteral(calls: readonly CallShape[], index: number): string | null 
   return calls.length >= SAME_LITERAL_CALLS && literals.size === 1 && only !== undefined ? only : null;
 }
 
-function judge(callable: Callable, calls: Calls): readonly UnwiredParam[] {
+// Whether the name at `position` gives a property its value in an object literal or a JSX element. A store through an
+// access (`options.x ??= fallback`) is a callee filling its own default, never a supply.
+function constructsAt(source: ts.SourceFile, position: number): boolean {
+  const node = nameAt(source, position);
+  const parent = node?.parent;
+  return (
+    parent !== undefined && (ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent) || ts.isJsxAttribute(parent)) && parent.name === node
+  );
+}
+
+// Whether production constructs a prop anywhere through its declaration, read from engine one's property index.
+type Constructed = (prop: Prop) => boolean;
+
+function constructedIn(index: ReferenceIndex, sources: Sources): Constructed {
+  const sites = new Map<string, boolean>();
+  const constructs = (site: Site): boolean => {
+    const key = siteKey(site);
+    const known = sites.get(key);
+    if (known !== undefined) {
+      return known;
+    }
+    const found = isProductionFile(site.file) && constructsAt(sources.get(site.file), site.position);
+    sites.set(key, found);
+    return found;
+  };
+  return (prop) => prop.keys.some((key) => (index.get(key) ?? []).some(constructs));
+}
+
+function judge(callable: Callable, calls: Calls, constructed: Constructed): readonly UnwiredParam[] {
   if (calls.escapes > 0 || calls.production.length === 0) {
     return [];
   }
@@ -250,11 +295,11 @@ function judge(callable: Callable, calls: Calls): readonly UnwiredParam[] {
     if (parameter.optional && !calls.production.some((call) => passes(call, index))) {
       return [finding(parameter.name, "unsupplied", null, calls.tests.filter((call) => passes(call, index)).length)];
     }
-    const literal = sameLiteral(calls.production, index);
+    const literal = parameter.unit ? null : sameLiteral(calls.production, index);
     const same = literal === null ? [] : [finding(parameter.name, "same-literal", literal, 0)];
     const props = parameter.props
-      .filter((prop) => !calls.production.some((call) => setsProp(call, index, prop)))
-      .map((prop) => finding(`${parameter.name}.${prop}`, "unsupplied-prop", null, calls.tests.filter((call) => setsProp(call, index, prop)).length));
+      .filter((prop) => !(calls.production.some((call) => setsProp(call, index, prop.name)) || constructed(prop)))
+      .map((prop) => finding(`${parameter.name}.${prop.name}`, "unsupplied-prop", null, calls.tests.filter((call) => setsProp(call, index, prop.name)).length));
     return [...same, ...props];
   });
 }
@@ -276,7 +321,7 @@ function engineOne(
   configs: readonly string[],
   lists: ReadonlyMap<string, WorldFiles>,
   log: (line: string) => void,
-): ReadonlyMap<string, Tallied> {
+): { readonly tally: ReadonlyMap<string, Tallied>; readonly index: ReferenceIndex } {
   const tally = new Map<string, Tallied>();
   const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
@@ -300,7 +345,7 @@ function engineOne(
       addSites(entry, index);
     }
   }
-  return tally;
+  return { tally, index };
 }
 
 /** Run both engines over the worlds of `root` for unsupplied and constant parameters. */
@@ -309,9 +354,10 @@ export function scanParams(options: ScanOptions): ParamsReport {
   const sources = new Sources(options.root);
   const configs = [...worlds, ...testWorlds];
   const lists = NativeWorld.fileLists(options.root, configs);
-  const tally = engineOne(options.root, configs, lists, options.log);
+  const { tally, index } = engineOne(options.root, configs, lists, options.log);
+  const constructed = constructedIn(index, sources);
   const judged = [...tally.values()].flatMap(({ callable, sites }) => {
-    const findings = judge(callable, callsOf(sources, callable, sites.values()));
+    const findings = judge(callable, callsOf(sources, callable, sites.values()), constructed);
     return findings.length === 0 ? [] : [{ callable, findings }];
   });
   const second = serviceReferences(
@@ -323,7 +369,7 @@ export function scanParams(options: ScanOptions): ParamsReport {
   const findings: UnwiredParam[] = [];
   const disagreements: string[] = [];
   for (const { callable, findings: first } of judged) {
-    const confirmed = new Set(judge(callable, callsOf(sources, callable, second.get(siteKey(callable.site)) ?? [])).map((finding) => finding.key));
+    const confirmed = new Set(judge(callable, callsOf(sources, callable, second.get(siteKey(callable.site)) ?? []), constructed).map((finding) => finding.key));
     for (const finding of first) {
       if (confirmed.has(finding.key)) {
         findings.push(finding);
