@@ -1,7 +1,7 @@
 // The merge behind `pnpm unwired coverage`: every input is an istanbul map keyed by absolute path; the Node suite's map
 // is the universe of functions and branches, and a hit in any input marks the entry at the same start position executed.
-// A hit that lands on no universe entry is counted as unmatched, never added, so a transform's extra nodes (the React
-// Compiler's memo branches in a browser bundle) cannot report as code nothing ran.
+// A hit that lands on no universe entry is counted as unmatched, never added, so a transform's extra nodes cannot report
+// as code nothing ran.
 import { readFileSync } from "node:fs";
 import { basename, relative, sep } from "node:path";
 import { z } from "zod";
@@ -216,6 +216,25 @@ interface Projection {
 }
 
 const SAMPLE_LIMIT = 20;
+const RATE_SCALE = 1000;
+
+/** A suite's projection with the share of its hits of each kind that found a universe entry. */
+interface SuiteProjection extends Readonly<Projection> {
+  /** Null when the suite hit no function, or no branch arm, of a file the universe holds. */
+  readonly functionMatchRate: number | null;
+  readonly armMatchRate: number | null;
+}
+
+const matchRate = (matched: number, unmatched: number): number | null =>
+  matched + unmatched === 0 ? null : Math.round((matched / (matched + unmatched)) * RATE_SCALE) / RATE_SCALE;
+
+function withRates(projection: Projection): SuiteProjection {
+  return {
+    ...projection,
+    functionMatchRate: matchRate(projection.matchedFunctions, projection.unmatchedFunctions),
+    armMatchRate: matchRate(projection.matchedArms, projection.unmatchedArms),
+  };
+}
 
 function note(projection: Projection, kind: "unmatchedFunctions" | "unmatchedArms", entry: string): void {
   if (projection[kind] < SAMPLE_LIMIT) {
@@ -310,8 +329,8 @@ export interface MergedCoverage {
   readonly seen: ReadonlySet<string>;
   readonly unexecuted: readonly UnexecutedFile[];
   readonly totals: CoverageTotals;
-  /** Per later suite, its hits that found the universe entry at the same start position, and those that found none. */
-  readonly projections: Readonly<Partial<Record<CoverageSuite, Projection>>>;
+  /** Per later suite, its hits that found a universe entry, those that found none, and the matched share of each kind. */
+  readonly projections: Readonly<Partial<Record<CoverageSuite, SuiteProjection>>>;
 }
 
 /**
@@ -340,7 +359,14 @@ export function mergeCoverage(root: string, inputs: readonly CoverageInput[], re
       }
     }
   }
-  return { seen: new Set(files.keys()), ...summarize(files), projections };
+  const rated: Partial<Record<CoverageSuite, SuiteProjection>> = {};
+  for (const suite of COVERAGE_SUITES) {
+    const projection = projections[suite];
+    if (projection !== undefined) {
+      rated[suite] = withRates(projection);
+    }
+  }
+  return { seen: new Set(files.keys()), ...summarize(files), projections: rated };
 }
 
 function summarize(files: ReadonlyMap<string, MergedFile>): Pick<MergedCoverage, "unexecuted" | "totals"> {
