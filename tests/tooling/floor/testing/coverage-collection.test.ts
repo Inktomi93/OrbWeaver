@@ -1,7 +1,7 @@
 // The hit segments every coverage input reduces to: an offset carries its innermost range's count, and two inputs sum.
 import { expect, test } from "@orb/testkit/tooling";
 import type { FunctionCoverage } from "../../../../tooling/src/floor/testing/coverage-collection.ts";
-import { addHits, flattenHits } from "../../../../tooling/src/floor/testing/coverage-collection.ts";
+import { addHits, browserCoverageFixtures, flattenHits } from "../../../../tooling/src/floor/testing/coverage-collection.ts";
 
 const fn = (ranges: readonly (readonly [number, number, number])[]): FunctionCoverage => ({
   functionName: "",
@@ -57,4 +57,10 @@ test("an offset only one input covers keeps that input's count", () => {
     { startOffset: 0, endOffset: 10, count: 1 },
     { startOffset: 10, endOffset: 20, count: 0 },
   ]);
+});
+
+test("with no run folder the browser fixtures add nothing to a Playwright base", () => {
+  expect(Object.keys(browserCoverageFixtures(undefined))).toEqual([]);
+  // Control: a run folder registers the worker sink and the per-test recorder.
+  expect(Object.keys(browserCoverageFixtures("/run")).toSorted()).toEqual(["browserCoverage", "browserCoverageSink"]);
 });

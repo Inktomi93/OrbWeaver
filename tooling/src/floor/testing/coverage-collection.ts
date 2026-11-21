@@ -120,6 +120,8 @@ export function addHits(a: HitSegments, b: HitSegments): HitSegments {
 export const browserHitsFileSchema = z
   .object({
     specs: z.array(z.string()).readonly(),
+    /** One line per page whose coverage could not be started or taken, so a lost page is counted, never silent. */
+    lost: z.array(z.string()).readonly(),
     scripts: z.array(z.object({ url: z.string(), source: z.string(), segments: z.array(coverageRangeSchema).readonly() }).readonly()).readonly(),
   })
   .readonly();
@@ -142,6 +144,7 @@ class BrowserHitsSink {
   readonly #dir: string;
   readonly #hits = new Map<string, HitSegments>();
   readonly #specs = new Set<string>();
+  readonly #lost: string[] = [];
 
   constructor(dir: string) {
     this.#dir = dir;
@@ -166,9 +169,14 @@ class BrowserHitsSink {
     this.#specs.add(relative(process.cwd(), file));
   }
 
+  noteLost(file: string, error: unknown): void {
+    this.#lost.push(`${relative(process.cwd(), file)}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   flush(workerIndex: number): void {
     const body: BrowserHitsFile = {
       specs: [...this.#specs].sort(),
+      lost: this.#lost,
       scripts: [...this.#hits].map(([url, segments]) => ({ url, source: sourceFileName(url), segments })),
     };
     writeFileSync(join(this.#dir, COVERAGE_LAYOUT.browser, `${String(process.pid)}-${String(workerIndex)}.json`), JSON.stringify(body));
@@ -213,47 +221,70 @@ interface BrowserCoverageWorkerFixtures {
 type BaseTestArgs = PlaywrightTestArgs & PlaywrightTestOptions;
 type BaseWorkerArgs = PlaywrightWorkerArgs & PlaywrightWorkerOptions;
 
+// A page that closed or crashed mid-test cannot be read; the run counts it and the test keeps its own verdict.
+async function recordPages(sessions: ReadonlyMap<Page, Promise<CDPSession>>, sink: BrowserHitsSink, file: string): Promise<void> {
+  for (const [page, session] of sessions) {
+    try {
+      if (!page.isClosed()) {
+        await takePage(await session, sink);
+      }
+    } catch (error) {
+      sink.noteLost(file, error);
+    }
+  }
+}
+
 /**
- * The fixtures a Playwright base extends with, so every test on it records Chromium coverage under the command.
+ * The fixtures that record Chromium coverage into `dir`, or none when there is no run folder.
  *
  * @remarks The test fixture depends on `context`, never `page`: a base that overrides `page` keeps its own
- * timing, and a case that never opens a page gets none. A page the test closes itself is not recorded.
+ * timing, and a case that never opens a page gets none. Its teardown never fails a test: a page it cannot read is a
+ * `lost` line in the worker's hits file.
  */
+export function browserCoverageFixtures(
+  dir: string | undefined,
+): Fixtures<BrowserCoverageFixtures, BrowserCoverageWorkerFixtures, BaseTestArgs, BaseWorkerArgs> {
+  if (dir === undefined) {
+    return {};
+  }
+  return {
+    browserCoverageSink: [
+      // Playwright reads a fixture's dependencies from its first parameter, and an empty pattern trips Biome's noEmptyPattern.
+      async ({ browserName: _browser }, use, workerInfo): Promise<void> => {
+        const sink = new BrowserHitsSink(dir);
+        await use(sink);
+        sink.flush(workerInfo.workerIndex);
+      },
+      { scope: "worker" },
+    ],
+    browserCoverage: [
+      async ({ context, browserName, browserCoverageSink }, use, testInfo): Promise<void> => {
+        // Profiler coverage is a Chromium protocol domain; the WebKit project runs without it.
+        if (browserName !== "chromium") {
+          await use(undefined);
+          return;
+        }
+        const sessions = new Map<Page, Promise<CDPSession>>();
+        const track = (page: Page): void => {
+          const started = startPage(page);
+          // Observed here so a page that closes before its session opens rejects into the lost list, not the test.
+          started.catch(() => undefined);
+          sessions.set(page, started);
+        };
+        for (const page of context.pages()) {
+          track(page);
+        }
+        context.on("page", track);
+        await use(undefined);
+        context.off("page", track);
+        await recordPages(sessions, browserCoverageSink, testInfo.file);
+        browserCoverageSink.noteSpec(testInfo.file);
+      },
+      { auto: true },
+    ],
+  };
+}
+
+/** The fixtures every Playwright base extends with: empty unless this process runs under `pnpm unwired coverage`. */
 export const BROWSER_COVERAGE_FIXTURES: Fixtures<BrowserCoverageFixtures, BrowserCoverageWorkerFixtures, BaseTestArgs, BaseWorkerArgs> =
-  coverageDirectory() === undefined
-    ? {}
-    : {
-        browserCoverageSink: [
-          // Playwright reads a fixture's dependencies from its first parameter, and an empty pattern trips Biome's noEmptyPattern.
-          async ({ browserName: _browser }, use, workerInfo) => {
-            const sink = new BrowserHitsSink(coverageDirectory() ?? "");
-            await use(sink);
-            sink.flush(workerInfo.workerIndex);
-          },
-          { scope: "worker" },
-        ],
-        browserCoverage: [
-          async ({ context, browserName, browserCoverageSink }, use, testInfo) => {
-            // Profiler coverage is a Chromium protocol domain; the WebKit project runs without it.
-            if (browserName !== "chromium") {
-              await use(undefined);
-              return;
-            }
-            const sessions = new Map<Page, Promise<CDPSession>>();
-            const track = (page: Page): void => {
-              sessions.set(page, startPage(page));
-            };
-            context.pages().forEach(track);
-            context.on("page", track);
-            await use(undefined);
-            context.off("page", track);
-            for (const [page, session] of sessions) {
-              if (!page.isClosed()) {
-                await takePage(await session, browserCoverageSink);
-              }
-            }
-            browserCoverageSink.noteSpec(testInfo.file);
-          },
-          { auto: true },
-        ],
-      };
+  browserCoverageFixtures(coverageDirectory());

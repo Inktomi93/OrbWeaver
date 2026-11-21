@@ -1,7 +1,7 @@
 // `pnpm unwired coverage` merges its inputs over the Node suite's map: an entry any input executed is executed, only
 // production source is listed, and a harness process's hits never count.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { join } from "node:path";
 import process from "node:process";
@@ -9,10 +9,11 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { transformWithOxc } from "vite";
+import { z } from "zod";
 import type { CoverageRange } from "../../../tooling/src/floor/testing/coverage-collection.ts";
 import { COVERAGE_LAYOUT, flattenHits, sourceFileName } from "../../../tooling/src/floor/testing/coverage-collection.ts";
 import { convertBrowserRun, convertNodeRun, istanbulOf } from "../../../tooling/src/unwired/coverage-convert.ts";
-import { isProductionSource, mergeCoverage } from "../../../tooling/src/unwired/coverage-merge.ts";
+import { isProductionSource, istanbulMapSchema, mergeCoverage } from "../../../tooling/src/unwired/coverage-merge.ts";
 
 const SOURCE = "packages/demo/src/pick.ts";
 const TEXT = [
@@ -148,7 +149,7 @@ test("a browser chunk's hits land on the Node suite's entries through its inline
   ]);
   writeFileSync(
     join(runDir, COVERAGE_LAYOUT.browser, "1-0.json"),
-    JSON.stringify({ specs: ["tests/demo/pick.ct.tsx"], scripts: [{ url, source: sourceFileName(url), segments }] }),
+    JSON.stringify({ specs: ["tests/demo/pick.ct.tsx"], lost: [], scripts: [{ url, source: sourceFileName(url), segments }] }),
   );
   const browser = await convertBrowserRun(runDir);
   expect(browser.specs).toEqual(["tests/demo/pick.ct.tsx"]);
@@ -201,5 +202,57 @@ test("a compiled copy lands on its source function by name and line, or as the o
       { name: "(anonymous_3)", line: 3 },
     ]);
     expect(merged.projections.ct).toMatchObject({ matchedFunctions: 2, unmatchedFunctions: 1 });
+  });
+});
+
+// A real vitest json entry, counts zeroed, and the source it was recorded from.
+const recorded = z
+  .object({ source: z.string(), entry: z.record(z.string(), z.unknown()) })
+  .parse(JSON.parse(readFileSync(join(import.meta.dirname, "_vitest-universe.json"), "utf8")));
+
+test("server code an e2e run executed lands on a real vitest universe whose columns drift", { timeout: 30_000 }, async ({ plantedTree }) => {
+  // A recorded vitest entry: two anonymous functions share line 7, and vitest's mapped-back columns differ from the
+  // type-stripped text Node runs, so no start position agrees for them.
+  const rel = "packages/demo/src/session-policy.ts";
+  const root = await plantedTree({ [rel]: recorded.source });
+  const path = join(root, rel);
+  const node = istanbulMapSchema.parse({ [path]: { ...recorded.entry, path } });
+  const code = stripTypeScriptTypes(recorded.source, { mode: "strip" });
+  const e2e = await istanbulOf(pathToFileURL(path).href, code, [{ startOffset: 0, endOffset: code.length, count: 1 }]);
+  // Control: the drift is real, so exact positions alone would leave hits unmatched.
+  const vitestAt = new Set(Object.values(node[path]?.fnMap ?? {}).map((fn) => `${String(fn.decl.start.line)}:${String(fn.decl.start.column)}`));
+  expect(
+    Object.values(e2e[path]?.fnMap ?? {}).filter((fn) => !vitestAt.has(`${String(fn.decl.start.line)}:${String(fn.decl.start.column)}`)).length,
+  ).toBeGreaterThan(0);
+  const merged = mergeCoverage(root, [
+    { suite: "node", map: node },
+    { suite: "e2e", map: e2e },
+  ]);
+  expect(merged.unexecuted.flatMap((entry) => entry.functions)).toEqual([]);
+  expect(merged.projections.e2e).toMatchObject({ unmatchedFunctions: 0, unmatchedArms: 0 });
+});
+
+test("a moved named function lands by the line its range starts on when its declared line moved too", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    const range = (line: number, column: number): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+      start: { line, column },
+      end: { line, column: column + 1 },
+    });
+    const one = (decl: readonly [number, number], loc: readonly [number, number], hit: number): Awaited<ReturnType<typeof istanbulOf>> => ({
+      [path]: { path, fnMap: { "0": { name: "Stack", decl: range(...decl), loc: range(...loc) } }, f: { "0": hit }, branchMap: {}, b: {} },
+    });
+    // The Node copy declares `Stack` on line 17; the compiled copy names line 16 and starts its range on line 17.
+    const merged = mergeCoverage(root, [
+      { suite: "node", map: one([17, 16], [88, 29], 0) },
+      { suite: "ct", map: one([16, 0], [17, 7], 1) },
+    ]);
+    expect(merged.unexecuted).toEqual([]);
+    // Control: a copy whose lines match neither stays unmatched and the function stays unexecuted.
+    const apart = mergeCoverage(root, [
+      { suite: "node", map: one([17, 16], [88, 29], 0) },
+      { suite: "ct", map: one([30, 0], [31, 7], 1) },
+    ]);
+    expect(apart.unexecuted.flatMap((entry) => entry.functions)).toEqual([{ name: "Stack", line: 17 }]);
   });
 });

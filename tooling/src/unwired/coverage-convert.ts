@@ -41,14 +41,16 @@ export async function istanbulOf(url: string, code: string, segments: HitSegment
 /** The browser inputs of one suite: every worker's hits summed per script, then mapped to sources by the inline map. */
 export async function convertBrowserRun(
   runDir: string,
-): Promise<{ readonly map: IstanbulMap; readonly specs: readonly string[]; readonly unmapped: readonly string[] }> {
+): Promise<{ readonly map: IstanbulMap; readonly specs: readonly string[]; readonly unmapped: readonly string[]; readonly lost: readonly string[] }> {
   const hits = new Map<string, { readonly source: string; segments: HitSegments }>();
   const specs = new Set<string>();
+  const lost: string[] = [];
   for (const raw of readJsonFiles(join(runDir, COVERAGE_LAYOUT.browser))) {
     const worker = browserHitsFileSchema.parse(raw);
     for (const spec of worker.specs) {
       specs.add(spec);
     }
+    lost.push(...worker.lost);
     for (const script of worker.scripts) {
       const held = hits.get(script.url);
       hits.set(script.url, { source: script.source, segments: held === undefined ? script.segments : addHits(held.segments, script.segments) });
@@ -68,7 +70,7 @@ export async function convertBrowserRun(
       unmapped.push(url);
     }
   }
-  return { map, specs: [...specs].sort(), unmapped: unmapped.sort() };
+  return { map, specs: [...specs].sort(), unmapped: unmapped.sort(), lost };
 }
 
 /**

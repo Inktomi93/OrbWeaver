@@ -8,10 +8,11 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { execNicedSync, spawnNicedTranscript } from "../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../floor/process/process-env.ts";
+import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "../floor/process/run-marker.ts";
 import { COVERAGE_DIR_ENV } from "../floor/testing/coverage-collection.ts";
 import { convertBrowserRun, convertNodeRun } from "./coverage-convert.ts";
 import type { CoverageInput, CoverageSuite } from "./coverage-merge.ts";
-import { COVERAGE_SUITES, istanbulMapSchema, mergeCoverage } from "./coverage-merge.ts";
+import { COVERAGE_SUITES, diskHead, isProductionSource, istanbulMapSchema, mergeCoverage, PRODUCTION_COVERAGE_SCOPE } from "./coverage-merge.ts";
 
 const DEFAULT_OUT = "reports/unwired/coverage.json";
 const RUN_DIR = "reports/unwired/coverage-run";
@@ -28,8 +29,8 @@ const KIB = 1024;
 const COVERAGE_LIMITS: readonly string[] = [
   "A CT or e2e spec whose `test` comes straight from @playwright/test records no browser coverage; the report lists every such spec that ran.",
   "Only Chromium pages are recorded, and a page a test closes itself is not; workers and service workers are not recorded.",
-  "The Node suite's coverage scope excludes index.ts files, so one appears only when a browser or server run reached it.",
-  "A browser or server hit lands on the Node suite's entry with the same start position, else a function lands by its name and line, or as the one anonymous function on its line; a hit that finds none is counted per suite, not added.",
+  "A production file no input listed is in unseenFiles, never counted as executed; a run with the Node suite lists every one.",
+  "A browser or server hit lands on the Node suite's entry with the same start position, else on the same-named function of its line, else on the entry with the same place among its line's anonymous functions or same-type branches when both maps hold the same number there; a hit that finds none is counted per suite, not added.",
   "The React Compiler rewrites a browser component's branches, so most browser branch hits land on compiler-made branches and are dropped: a client .tsx branch arm reported unexecuted may have run in CT or e2e. Read the per-suite matched arm count first.",
   "Code the e2e harness alone runs is dropped with its whole process; a CT's in-worker server responder is never recorded.",
 ];
@@ -105,16 +106,23 @@ function treeRssBytes(rootPid: number): number | null {
   return total;
 }
 
-/** Samples this process and all its descendants until stopped; the peak is one run's whole footprint. */
+/**
+ * Samples this process and all its descendants until stopped; the peak is one run's whole footprint.
+ *
+ * @remarks `stop` samples once more before it returns: a synchronous step such as the merge blocks the interval, but
+ * still holds what it built when it returns.
+ */
 function sampleTreePeak(): { readonly stop: () => number | null } {
   let peak = treeRssBytes(process.pid);
-  const timer = setInterval(() => {
+  const sample = (): void => {
     const now = treeRssBytes(process.pid);
     peak = now === null || peak === null ? null : Math.max(peak, now);
-  }, SAMPLE_MS);
+  };
+  const timer = setInterval(sample, SAMPLE_MS);
   return {
     stop: (): number | null => {
       clearInterval(timer);
+      sample();
       return peak;
     },
   };
@@ -131,7 +139,16 @@ interface SuiteRun {
 function suiteCommand(suite: CoverageSuite, paths: readonly string[], runDir: string): readonly string[] {
   switch (suite) {
     case "node":
-      return ["test:coverage", ...paths, "--coverage.reporter=json", `--coverage.reportsDirectory=${join(runDir, NODE_ISTANBUL)}`];
+      // The command owns the scope: a CLI include or exclude replaces vitest.config.ts's lists, whose index.ts exclude
+      // would drop files with code from the universe.
+      return [
+        "test:coverage",
+        ...paths,
+        "--coverage.reporter=json",
+        `--coverage.reportsDirectory=${join(runDir, NODE_ISTANBUL)}`,
+        `--coverage.include=${PRODUCTION_COVERAGE_SCOPE.include}`,
+        ...PRODUCTION_COVERAGE_SCOPE.exclude.map((glob) => `--coverage.exclude=${glob}`),
+      ];
     case "ct":
       return ["test:ct", ...paths];
     case "e2e":
@@ -153,14 +170,17 @@ async function runSuite(plan: SuitePlan, suite: CoverageSuite, paths: readonly s
   log(`coverage: ${suite}: pnpm ${args.join(" ")}`);
   const started = performance.now();
   const sampler = sampleTreePeak();
+  // Playwright's browsers and vite's children leave the process group, so a timeout or Ctrl-C sweeps by run marker.
+  const marker = mintRunMarker();
   const result = await spawnNicedTranscript("pnpm", args, {
     cwd: root,
-    env: inheritedProcessEnv(Object.fromEntries([[COVERAGE_DIR_ENV, suiteDir]])),
+    env: inheritedProcessEnv({ ...runMarkerEnv(marker), ...Object.fromEntries([[COVERAGE_DIR_ENV, suiteDir]]) }),
     timeoutMs: SUITE_TIMEOUT_MS,
+    teardown: runMarkerTranscriptTeardown(marker),
     onChunk: (chunk) => {
       process.stderr.write(chunk);
     },
-  });
+  }).finally(() => joinRunMarkerSweep(marker));
   writeFileSync(join(runDir, `${suite}.log`), result.transcript);
   return {
     suite,
@@ -194,18 +214,18 @@ async function suiteInput(
   root: string,
   runDir: string,
   suite: CoverageSuite,
-): Promise<{ readonly input: CoverageInput; readonly unmapped: readonly string[] }> {
+): Promise<{ readonly input: CoverageInput; readonly unmapped: readonly string[]; readonly lost: readonly string[] }> {
   if (suite === "node") {
     const raw: unknown = JSON.parse(readFileSync(join(runDir, NODE_ISTANBUL, "coverage-final.json"), "utf8"));
-    return { input: { suite, map: istanbulMapSchema.parse(raw) }, unmapped: [] };
+    return { input: { suite, map: istanbulMapSchema.parse(raw) }, unmapped: [], lost: [] };
   }
   const suiteDir = join(runDir, suite);
-  const browser = existsSync(join(suiteDir, "browser")) ? await convertBrowserRun(suiteDir) : { map: {}, unmapped: [] };
+  const browser = existsSync(join(suiteDir, "browser")) ? await convertBrowserRun(suiteDir) : { map: {}, unmapped: [], lost: [] };
   const server = existsSync(join(suiteDir, "node")) ? await convertNodeRun(root, suiteDir) : {};
   const map = { ...browser.map, ...server };
   // Kept beside the run so a reader can check what a browser or server file's hits were before projection.
   writeFileSync(join(runDir, `${suite}-istanbul.json`), JSON.stringify(map));
-  return { input: { suite, map }, unmapped: browser.unmapped };
+  return { input: { suite, map }, unmapped: browser.unmapped, lost: browser.lost };
 }
 
 /** Runs the chosen suites in order, merges their coverage and writes the report. */
@@ -221,13 +241,19 @@ export async function runCoverage(argv: readonly string[], log: (line: string) =
   const sampler = sampleTreePeak();
   const inputs: CoverageInput[] = [];
   const unmapped: string[] = [];
+  const lostPages: string[] = [];
   for (const suite of args.suites) {
-    const { input, unmapped: missed } = await suiteInput(args.root, runDir, suite);
-    inputs.push(input);
-    unmapped.push(...missed);
+    const converted = await suiteInput(args.root, runDir, suite);
+    inputs.push(converted.input);
+    unmapped.push(...converted.unmapped);
+    lostPages.push(...converted.lost);
   }
   const merged = mergeCoverage(args.root, inputs);
   const mergePeakRssBytes = sampler.stop();
+  const readHead = diskHead(args.root);
+  const unseenFiles = execNicedSync("git", ["ls-files", "--", "packages/*/src/**"], { cwd: args.root })
+    .split("\n")
+    .filter((rel) => rel !== "" && isProductionSource(rel, readHead) && !merged.seen.has(rel));
   const uncollected = Object.fromEntries(
     args.suites.flatMap((suite) => (suite === "node" ? [] : [[suite, uncollectedSpecs(args.root, suite, args.paths[suite])] as const])),
   );
@@ -235,7 +261,7 @@ export async function runCoverage(argv: readonly string[], log: (line: string) =
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(
     out,
-    `${JSON.stringify({ suites: runs, mergePeakRssBytes, totals: merged.totals, projections: merged.projections, uncollectedSpecs: uncollected, unmappedScripts: unmapped, limits: COVERAGE_LIMITS, files: merged.unexecuted }, null, 1)}\n`,
+    `${JSON.stringify({ suites: runs, mergePeakRssBytes, totals: merged.totals, projections: merged.projections, unseenFiles, uncollectedSpecs: uncollected, lostPages, unmappedScripts: unmapped, limits: COVERAGE_LIMITS, files: merged.unexecuted }, null, 1)}\n`,
   );
   for (const run of runs) {
     log(
