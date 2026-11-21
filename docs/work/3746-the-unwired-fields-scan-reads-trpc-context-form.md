@@ -19,7 +19,7 @@ These rows bury the real dead fields the judgement items need.
 
 ## Done when
 
-Each class has a red-first fixture in tests/tooling/unwired and a scanner fix; outside-input schema keys report in their own bucket, never as judged rows; packages/contracts/src/plugin and packages/plugin-sdk sit in deliberate with the published-API reason; the orchestrator reruns the scans and every remaining row in the classes is checked.
+Each class has a red-first fixture in tests/tooling/unwired and a scanner fix: reads through a tRPC procedure's ctx, TanStack form field-path writes, reads through a narrowed message type or a narrowed union member, a discriminant read by a switch, a persisted store shape read whole, automation facts read from CEL, composition-root destructuring, and payloads a schema-driven renderer reads by key; outside-input schema keys report in their own bucket, never as judged rows; packages/contracts/src/plugin and packages/plugin-sdk sit in deliberate with the published-API reason; the orchestrator reruns the scans and every remaining row in the classes is checked.
 
 ## Evidence
 
