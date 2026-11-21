@@ -1,8 +1,9 @@
 // `pnpm unwired codes` lists each code of a contracts code vocabulary with its throws, its wire crossing and its client
-// branches. A vocabulary is one of codes when production throws a member or a tRPC answer carries it; a code nothing
-// throws, and a crossing code only a generic toast meets, are reported. A switch label and a comparison with the member's
-// constant are handlers, a fault thrown through a class the transport does not carry needs none, and a tuple no error and
-// no answer carries is never read as codes.
+// branches. A vocabulary holds codes when production hands a member to the code parameter domainReason reads, or when a
+// refusal field of a tRPC answer or a Hono refusal body carries it: the `ok: false` arm of a result, a nullable coded
+// notice, or a body sent with a 4xx status. A code nothing throws, and a crossing code only a generic toast meets, are
+// reported. Controls: a member riding an error's detail object, a fault thrown through a class the transport does not
+// carry, and a vocabulary typing a success answer or a 200 body are never codes.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanCodes } from "../../../tooling/src/unwired/index.ts";
 import { LIB } from "./_planted.ts";
@@ -11,7 +12,8 @@ const WORLD = "packages/server/tsconfig.json";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "../contracts/src", "../client/src"] }),
-  // A planted tree has no node_modules: the procedure builder is the one tRPC surface the scan knows a send by.
+  // A planted tree has no node_modules: the procedure builder and the route context are the library surfaces the scan
+  // knows a send by.
   "node_modules/@trpc/server/package.json": JSON.stringify({ name: "@trpc/server", types: "index.d.ts" }),
   "node_modules/@trpc/server/index.d.ts": [
     "export interface Procedure<T> {",
@@ -22,31 +24,44 @@ const TREE = {
     "}",
     "export declare const publicProcedure: ProcedureBuilder;",
   ].join("\n"),
+  "node_modules/hono/package.json": JSON.stringify({ name: "hono", types: "index.d.ts" }),
+  "node_modules/hono/index.d.ts": ["export interface Context {", "  json<T>(body: T, status?: number): { readonly body: T };", "}"].join("\n"),
   "packages/contracts/src/codes.ts": [
     "// Thrown codes: the client keys on `scroll_unreadable`, toasts `scroll_invalid`, and nothing throws `scroll_retired`.",
     'export const IMPORT_REFUSALS = ["scroll_unreadable", "scroll_invalid", "scroll_retired"] as const;',
     "export type ImportRefusal = (typeof IMPORT_REFUSALS)[number];",
-    "// A fault only the server sees: thrown through a class the transport does not carry, and no client code names it.",
+    "// A fault thrown through a class the transport does not carry: no code.",
     'export const VAULT_FAULTS = ["vault_locked"] as const;',
     "export type VaultFault = (typeof VAULT_FAULTS)[number];",
-    "// Returned refusals: a procedure answers with a notice typed by the tuple, and the client branches on `share_oidc` only.",
+    "// Returned in a notice that may be null; the client branches on `share_oidc` only.",
     'export const SHARE_REFUSALS = ["share_oidc", "share_single_user"] as const;',
     "export type ShareRefusal = (typeof SHARE_REFUSALS)[number];",
     "export interface ShareNotice {",
     "  readonly code: ShareRefusal;",
     "  readonly message: string;",
+    "  readonly hint?: string;",
     "}",
     "export const OP_CODES = {",
     '  notFound: "op_not_found",',
     '  labelEmpty: "op_label_empty",',
     "} as const;",
     "export type OpCode = (typeof OP_CODES)[keyof typeof OP_CODES];",
-    "// No code vocabulary: production builds a member, but no error and no answer carries it.",
+    "// A success answer and a route body sent with 200 carry it: no code.",
     'export const MODES = ["on", "off"] as const;',
     "export type Mode = (typeof MODES)[number];",
+    "// Rides an error detail object only: no code.",
+    'export const EFFORT_LEVELS = ["low", "high"] as const;',
+    "export type Effort = (typeof EFFORT_LEVELS)[number];",
+    "// Returned on the `ok: false` arm of a result.",
+    'export const LEND_REFUSALS = ["lend_busy"] as const;',
+    "export type LendRefusal = (typeof LEND_REFUSALS)[number];",
+    "export type LendResult = { readonly ok: true; readonly id: string } | { readonly ok: false; readonly code: LendRefusal };",
+    "// Sent in an HTTP refusal body with a 4xx status.",
+    'export const ZIP_REFUSALS = ["zip_empty", "zip_too_large"] as const;',
+    "export type ZipRefusal = (typeof ZIP_REFUSALS)[number];",
   ].join("\n"),
   "packages/server/src/errors.ts": [
-    'import type { ImportRefusal, OpCode, VaultFault } from "../../contracts/src/codes.ts";',
+    'import type { Effort, ImportRefusal, OpCode, VaultFault } from "../../contracts/src/codes.ts";',
     "export class DomainOperationError extends Error {",
     "  readonly code: string;",
     "  constructor(code: string, message: string) {",
@@ -54,14 +69,22 @@ const TREE = {
     "    this.code = code;",
     "  }",
     "}",
+    'const reasonOf = (code: string): string => "import_".concat(code);',
     "export class ImportRefusalError extends DomainOperationError {",
     "  constructor(code: ImportRefusal) {",
-    '    super(code, "The scroll was refused.");',
+    '    super(reasonOf(code), "The scroll was refused.");',
     "  }",
     "}",
     "export class OpError extends DomainOperationError {",
     "  constructor(code: OpCode) {",
     '    super(code, "The operation was refused.");',
+    "  }",
+    "}",
+    "export class SlowError extends DomainOperationError {",
+    "  readonly effort: Effort;",
+    "  constructor(detail: { readonly effort: Effort }) {",
+    '    super("slow", "The model was too slow.");',
+    "    this.effort = detail.effort;",
     "  }",
     "}",
     "export class VaultError extends Error {",
@@ -81,8 +104,8 @@ const TREE = {
   "packages/server/src/verbs.ts": [
     'import { OP_CODES } from "../../contracts/src/codes.ts";',
     'import type { Mode } from "../../contracts/src/codes.ts";',
-    'import { ImportRefusalError, OpError, VaultError } from "./errors.ts";',
-    "export function readCard(text: string): string {",
+    'import { ImportRefusalError, OpError, SlowError, VaultError } from "./errors.ts";',
+    "export function readScroll(text: string): string {",
     '  if (text === "") {',
     '    throw new ImportRefusalError("scroll_unreadable");',
     "  }",
@@ -102,18 +125,36 @@ const TREE = {
     '    throw new VaultError("vault_locked");',
     "  }",
     "}",
+    "export function think(slow: boolean): void {",
+    "  if (slow) {",
+    '    throw new SlowError({ effort: "high" });',
+    "  }",
+    "}",
     'export const mode: Mode = "on";',
   ].join("\n"),
   "packages/server/src/router.ts": [
     'import { publicProcedure } from "@trpc/server";',
-    'import type { ShareNotice } from "../../contracts/src/codes.ts";',
+    'import type { LendResult, Mode, ShareNotice } from "../../contracts/src/codes.ts";',
     "export const shareRouter = {",
-    '  oidc: publicProcedure.query((): ShareNotice => ({ code: "share_oidc", message: "Sign in through your provider." })),',
-    '  single: publicProcedure.query(async (): Promise<ShareNotice> => ({ code: "share_single_user", message: "This box has one user." })),',
+    '  oidc: publicProcedure.query((): { readonly refusal: ShareNotice | null } => ({ refusal: { code: "share_oidc", message: "Sign in through your provider." } })),',
+    '  single: publicProcedure.query(async (): Promise<{ readonly refusal: ShareNotice | null }> => ({ refusal: { code: "share_single_user", message: "This box has one user." } })),',
+    '  lend: publicProcedure.query((): LendResult => ({ ok: false, code: "lend_busy" })),',
+    '  mode: publicProcedure.query((): { readonly mode: Mode } => ({ mode: "off" })),',
     "};",
   ].join("\n"),
+  "packages/server/src/upload.ts": [
+    'import type { Context } from "hono";',
+    'import type { Mode, ZipRefusal } from "../../contracts/src/codes.ts";',
+    "export function refuseZip(c: Context, big: boolean): unknown {",
+    '  const body: { readonly error: string; readonly reason: ZipRefusal } = { error: "The zip was refused.", reason: big ? "zip_too_large" : "zip_empty" };',
+    "  return c.json(body, 413);",
+    "}",
+    "export function modeBody(c: Context, mode: Mode): unknown {",
+    "  return c.json({ mode }, 200);",
+    "}",
+  ].join("\n"),
   "packages/client/src/notice.ts": [
-    'import type { ImportRefusal, ShareRefusal } from "../../contracts/src/codes.ts";',
+    'import type { ImportRefusal, ShareRefusal, ZipRefusal } from "../../contracts/src/codes.ts";',
     'import { OP_CODES } from "../../contracts/src/codes.ts";',
     "export const toast = (line: string): string => line;",
     "export function importCopy(code: ImportRefusal): string {",
@@ -134,12 +175,13 @@ const TREE = {
     "  }",
     "}",
     "export const isMissing = (reason: string): boolean => reason === OP_CODES.notFound;",
+    'export const zipCopy = (reason: ZipRefusal): string => (reason === "zip_empty" ? "The zip is empty." : toast("The zip was refused."));',
   ].join("\n"),
 };
 
 const HOME = "packages/contracts/src/codes.ts";
 
-test("the codes scan reports a code nothing throws and a crossing code no client branch names, and passes a switch, a constant comparison and a server-only fault", {
+test("the codes scan reports a code nothing throws and a crossing code no client branch names, reads a code only from the code parameter or a refusal field, and passes a switch and a constant comparison", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
@@ -147,8 +189,10 @@ test("the codes scan reports a code nothing throws and a crossing code no client
   expect(report.unwired.map(({ kind, home, member, line }) => ({ kind, home, member, line }))).toEqual([
     { kind: "unhandled", home: "IMPORT_REFUSALS", member: "scroll_invalid", line: 2 },
     { kind: "unthrown", home: "IMPORT_REFUSALS", member: "scroll_retired", line: 2 },
-    { kind: "unthrown", home: "OP_CODES", member: "op_label_empty", line: 16 },
+    { kind: "unhandled", home: "LEND_REFUSALS", member: "lend_busy", line: 27 },
+    { kind: "unthrown", home: "OP_CODES", member: "op_label_empty", line: 17 },
     { kind: "unhandled", home: "SHARE_REFUSALS", member: "share_single_user", line: 8 },
+    { kind: "unhandled", home: "ZIP_REFUSALS", member: "zip_too_large", line: 31 },
   ]);
   expect(report.codes.map(({ member, throws, builds, crosses, handlers }) => ({ member, throws, builds, crosses, handlers }))).toEqual([
     {
@@ -160,6 +204,7 @@ test("the codes scan reports a code nothing throws and a crossing code no client
     },
     { member: "scroll_invalid", throws: ["packages/server/src/verbs.ts:9"], builds: [], crosses: ["reason", "client"], handlers: [] },
     { member: "scroll_retired", throws: [], builds: [], crosses: ["client"], handlers: [] },
+    { member: "lend_busy", throws: [], builds: ["packages/server/src/router.ts:6"], crosses: ["answer"], handlers: [] },
     {
       member: "op_not_found",
       throws: ["packages/server/src/verbs.ts:15"],
@@ -176,13 +221,21 @@ test("the codes scan reports a code nothing throws and a crossing code no client
       handlers: ["packages/client/src/notice.ts:15"],
     },
     { member: "share_single_user", throws: [], builds: ["packages/server/src/router.ts:5"], crosses: ["answer", "client"], handlers: [] },
-    { member: "vault_locked", throws: ["packages/server/src/verbs.ts:21"], builds: [], crosses: [], handlers: [] },
+    {
+      member: "zip_empty",
+      throws: [],
+      builds: ["packages/server/src/upload.ts:4"],
+      crosses: ["answer", "client"],
+      handlers: ["packages/client/src/notice.ts:22"],
+    },
+    { member: "zip_too_large", throws: [], builds: ["packages/server/src/upload.ts:4"], crosses: ["answer", "client"], handlers: [] },
   ]);
   expect(report.vocabularies).toEqual([
     { key: `${HOME}:IMPORT_REFUSALS`, channels: ["thrown"], sends: [] },
+    { key: `${HOME}:LEND_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:6"] },
     { key: `${HOME}:OP_CODES`, channels: ["thrown"], sends: [] },
     { key: `${HOME}:SHARE_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:4", "packages/server/src/router.ts:5"] },
-    { key: `${HOME}:VAULT_FAULTS`, channels: ["thrown"], sends: [] },
+    { key: `${HOME}:ZIP_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/upload.ts:5"] },
   ]);
-  expect(report.scanned).toBe(5);
+  expect(report.scanned).toBe(8);
 });
