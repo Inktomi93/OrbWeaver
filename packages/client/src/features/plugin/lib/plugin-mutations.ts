@@ -17,6 +17,7 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { PLUGIN_COMMAND_RUN_FAILED } from "./plugin-command-copy.ts";
 import { URL_FETCH_FAILED } from "./plugin-copy.ts";
 import { PLUGIN_MODEL_SAVE_FAILED } from "./plugin-model-copy.ts";
 
@@ -301,7 +302,7 @@ export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["
 export const useInvokeUiCommand = createEntityMutation<inferInput<Trpc["plugin"]["invokeUiCommand"]>, inferOutput<Trpc["plugin"]["invokeUiCommand"]>>({
   options: (trpc) => trpc.plugin.invokeUiCommand.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.getSurfaceState.queryFilter()],
-  errorToast: serverReason("That plugin command couldn't run."),
+  errorToast: serverReason(PLUGIN_COMMAND_RUN_FAILED),
 });
 
 /** Run one inline snippet as the caller in one chat. Reconciles nothing — a snippet is transient and

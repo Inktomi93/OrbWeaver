@@ -30,7 +30,7 @@ import { CommitFooter, DialogFailure, DismissDialog, MutedLine, QueryBoundary } 
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
-import { CHAT_ATTACH_SCRIPTS_COMMIT_NAME, CHAT_ATTACH_SCRIPTS_FAILURE, chatAttachItemName } from "../lib/chat-attach-names.ts";
+import { CHAT_ATTACH_SCRIPTS_COMMIT_NAME, CHAT_ATTACH_SCRIPTS_FAILURE, CHAT_SCRIPT_FILTER_NAME, chatAttachItemName } from "../lib/chat-attach-names.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
 const PICKER_SKELETON_ROWS = 3;
@@ -138,7 +138,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
     <Stack gap="field">
       <Row align="center" gap="tight">
         <Icon ink="muted" icon={Search} size="sm" />
-        <Input aria-label="Filter your scripts" onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
+        <Input aria-label={CHAT_SCRIPT_FILTER_NAME} onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
       </Row>
       {matches.length === 0 ? <MutedLine announce={true}>No scripts match that filter.</MutedLine> : null}
       <Stack gap="tight">

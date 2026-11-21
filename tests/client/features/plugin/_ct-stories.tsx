@@ -1,11 +1,11 @@
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows } from "@orb/client/data";
-import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
+import { openPluginCommandArgs, pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { CtClientProviders, CtNoticeControl, CtShellRoom } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId; readonly surfaceId: string }): ReactElement {
   const sections = useSectionRegistry();
@@ -25,6 +25,22 @@ function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId
 
 /** The production shell with one room open, so the top bar and You sheet read their real plugin commands. */
 export function PluginRoomShellStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtShellRoom chatId={chatId} />
+    </CtClientProviders>
+  );
+}
+
+/** The production shell with the argument form open for a command no installed plugin registers, as one uninstalled while the form is open. */
+export function PluginArgsUnregisteredStory({
+  chatId,
+  subject,
+}: {
+  readonly chatId: ChatId;
+  readonly subject: Parameters<typeof openPluginCommandArgs>[0];
+}): ReactElement {
+  useState(() => openPluginCommandArgs(subject));
   return (
     <CtClientProviders>
       <CtShellRoom chatId={chatId} />

@@ -33,6 +33,12 @@ export function placedItemLabel(item: { readonly shownName: string; readonly lab
 /** The argument dialog's body before a command is chosen. */
 export const PLUGIN_NO_COMMAND_SELECTED_TEXT = "No command selected.";
 
+/** A command run that was refused or failed, in the argument dialog and in the toast of a surface with no dialog. */
+export const PLUGIN_COMMAND_RUN_FAILED = "That plugin command couldn't run.";
+
+/** What a failed resolve tells the person. The runner is the one place the slash line, the palette and the argument form reach it. */
+export const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name. Open Jump to… to see what you have.";
+
 /** The heading the plugin command rows render under in the palette. */
 export const PLUGIN_COMMANDS_HEADING = "Plugin commands";
 
