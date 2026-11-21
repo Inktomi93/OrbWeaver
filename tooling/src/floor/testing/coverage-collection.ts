@@ -140,7 +140,8 @@ function publish(path: string, text: string): void {
   renameSync(scratch, path);
 }
 
-class BrowserHitsSink {
+/** One worker's summed hits, flushed to its own hits file when the worker ends. */
+export class BrowserHitsSink {
   readonly #dir: string;
   readonly #hits = new Map<string, HitSegments>();
   readonly #specs = new Set<string>();
@@ -221,8 +222,13 @@ interface BrowserCoverageWorkerFixtures {
 type BaseTestArgs = PlaywrightTestArgs & PlaywrightTestOptions;
 type BaseWorkerArgs = PlaywrightWorkerArgs & PlaywrightWorkerOptions;
 
-// A page that closed or crashed mid-test cannot be read; the run counts it and the test keeps its own verdict.
-async function recordPages(sessions: ReadonlyMap<Page, Promise<CDPSession>>, sink: BrowserHitsSink, file: string): Promise<void> {
+/**
+ * Takes each open page's coverage into the sink after a test.
+ *
+ * @remarks A page that closed or crashed mid-test cannot be read; it becomes a `lost` line, never a throw, so the
+ * test keeps its own verdict.
+ */
+export async function recordPages(sessions: ReadonlyMap<Pick<Page, "isClosed">, Promise<CDPSession>>, sink: BrowserHitsSink, file: string): Promise<void> {
   for (const [page, session] of sessions) {
     try {
       if (!page.isClosed()) {

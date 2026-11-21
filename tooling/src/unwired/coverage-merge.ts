@@ -231,11 +231,25 @@ function atOrdinal<T>(list: readonly T[] | undefined, ordinal: LineOrdinal | und
 
 // The React Compiler re-emits a component, so a browser copy of a named function can start at the `function` keyword
 // and carry the body's line in its `loc`; a name on its declared line or its `loc` line is still one function.
-function movedFunction(into: MergedFile, fn: IstanbulFile["fnMap"][string], ordinal: LineOrdinal | undefined): MergedFunction | undefined {
-  if (ANONYMOUS.test(fn.name)) {
-    return into.byLoc.get(at(fn.loc)) ?? atOrdinal(into.anonymous.get(anonymousLine(fn.loc)), ordinal);
+function movedNamed(into: MergedFile, fn: IstanbulFile["fnMap"][string]): MergedFunction | undefined {
+  const exact = into.functions.get(at(fn.decl));
+  return (
+    (exact?.name === fn.name ? exact : undefined) ??
+    into.named.get(namedKey(fn.name, fn.decl.start.line)) ??
+    into.named.get(namedKey(fn.name, fn.loc.start.line))
+  );
+}
+
+// The React Compiler can hand one arrow another's declared point, or a range start equal to another's, so neither key
+// is safe alone: when both find a function and they differ, the hit is unmatched rather than put on the wrong one.
+function movedAnonymous(into: MergedFile, fn: IstanbulFile["fnMap"][string], ordinal: LineOrdinal | undefined): MergedFunction | undefined {
+  const byDecl = into.functions.get(at(fn.decl));
+  const byLoc = into.byLoc.get(at(fn.loc));
+  const exact = byDecl !== undefined && ANONYMOUS.test(byDecl.name) ? byDecl : undefined;
+  if (exact !== undefined && byLoc !== undefined) {
+    return exact === byLoc ? exact : undefined;
   }
-  return into.named.get(namedKey(fn.name, fn.decl.start.line)) ?? into.named.get(namedKey(fn.name, fn.loc.start.line));
+  return exact ?? byLoc ?? atOrdinal(into.anonymous.get(anonymousLine(fn.loc)), ordinal);
 }
 
 // Each projector marks the universe entries this input hit and tallies the hits that found none.
@@ -245,7 +259,7 @@ function projectFunctions(into: MergedFile, file: IstanbulFile, rel: string, pro
     if ((file.f[id] ?? 0) === 0) {
       continue;
     }
-    const target = into.functions.get(at(fn.decl)) ?? movedFunction(into, fn, ordinals.get(id));
+    const target = ANONYMOUS.test(fn.name) ? movedAnonymous(into, fn, ordinals.get(id)) : movedNamed(into, fn);
     if (target === undefined) {
       note(projection, "unmatchedFunctions", `${rel} function ${fn.name} at ${at(fn.decl)}`);
     } else {

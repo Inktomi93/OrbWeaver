@@ -11,7 +11,7 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { transformWithOxc } from "vite";
 import { z } from "zod";
 import type { CoverageRange } from "../../../tooling/src/floor/testing/coverage-collection.ts";
-import { COVERAGE_LAYOUT, flattenHits, sourceFileName } from "../../../tooling/src/floor/testing/coverage-collection.ts";
+import { BrowserHitsSink, COVERAGE_LAYOUT, flattenHits, recordPages, sourceFileName } from "../../../tooling/src/floor/testing/coverage-collection.ts";
 import { convertBrowserRun, convertNodeRun, istanbulOf } from "../../../tooling/src/unwired/coverage-convert.ts";
 import { isProductionSource, istanbulMapSchema, mergeCoverage } from "../../../tooling/src/unwired/coverage-merge.ts";
 
@@ -255,4 +255,132 @@ test("a moved named function lands by the line its range starts on when its decl
     ]);
     expect(apart.unexecuted.flatMap((entry) => entry.functions)).toEqual([{ name: "Stack", line: 17 }]);
   });
+});
+
+// The universe of a line with two anonymous functions, as vitest records it.
+function twoArrows(path: string): Awaited<ReturnType<typeof istanbulOf>> {
+  const r = (l: number, c: number, c2: number): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+    start: { line: l, column: c },
+    end: { line: l, column: c2 },
+  });
+  return {
+    [path]: {
+      path,
+      fnMap: {
+        "0": { name: "(anonymous_14)", decl: r(7, 87, 88), loc: r(7, 109, 120) },
+        "1": { name: "(anonymous_15)", decl: r(7, 120, 121), loc: r(7, 136, 153) },
+      },
+      f: { "0": 0, "1": 0 },
+      branchMap: {},
+      b: {},
+    },
+  };
+}
+
+test("a compiled copy whose declared point and range start name two different functions lands on neither", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    const r = (c: number, c2: number): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+      start: { line: 7, column: c },
+      end: { line: 7, column: c2 },
+    });
+    const copy = (decl: readonly [number, number], loc: readonly [number, number]): Awaited<ReturnType<typeof istanbulOf>> => ({
+      [path]: { path, fnMap: { "0": { name: "(anonymous_14)", decl: r(...decl), loc: r(...loc) } }, f: { "0": 1 }, branchMap: {}, b: {} },
+    });
+    const both = [
+      { name: "(anonymous_14)", line: 7 },
+      { name: "(anonymous_15)", line: 7 },
+    ];
+    // The React Compiler gives the second arrow of a ternary the first arrow's declared point.
+    const stolenDecl = mergeCoverage(root, [
+      { suite: "node", map: twoArrows(path) },
+      { suite: "ct", map: copy([87, 88], [136, 150]) },
+    ]);
+    expect(stolenDecl.unexecuted.flatMap((entry) => entry.functions)).toEqual(both);
+    expect(stolenDecl.projections.ct).toMatchObject({ matchedFunctions: 0, unmatchedFunctions: 1 });
+    // The reverse: the declared point is right and the range start is the other function's.
+    const stolenLoc = mergeCoverage(root, [
+      { suite: "node", map: twoArrows(path) },
+      { suite: "ct", map: copy([120, 121], [109, 115]) },
+    ]);
+    expect(stolenLoc.unexecuted.flatMap((entry) => entry.functions)).toEqual(both);
+    // A declared point that names no function leaves the range start to place the hit, with no line count to agree on.
+    const movedDecl = mergeCoverage(root, [
+      { suite: "node", map: twoArrows(path) },
+      { suite: "ct", map: copy([100, 101], [136, 150]) },
+    ]);
+    expect(movedDecl.unexecuted.flatMap((entry) => entry.functions)).toEqual([{ name: "(anonymous_14)", line: 7 }]);
+    // Control: when both keys name one function, the hit lands on it.
+    const agreed = mergeCoverage(root, [
+      { suite: "node", map: twoArrows(path) },
+      { suite: "ct", map: copy([120, 121], [136, 150]) },
+    ]);
+    expect(agreed.unexecuted.flatMap((entry) => entry.functions)).toEqual([{ name: "(anonymous_14)", line: 7 }]);
+  });
+});
+
+test("a moved branch lands by its place among its line's branches of its type, only with the same arm count", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    const at = (c: number): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+      start: { line: 2, column: c },
+      end: { line: 2, column: c + 5 },
+    });
+    // Each branch is [column, hits per arm].
+    const branches = (shape: readonly (readonly [number, readonly number[]])[]): Awaited<ReturnType<typeof istanbulOf>> =>
+      istanbulMapSchema.parse({
+        [path]: {
+          path,
+          fnMap: {},
+          f: {},
+          branchMap: Object.fromEntries(
+            shape.map(([column, hits], index) => [String(index), { type: "binary-expr", loc: at(column), locations: hits.map(() => at(column)) }]),
+          ),
+          b: Object.fromEntries(shape.map(([, hits], index) => [String(index), [...hits]])),
+        },
+      });
+    const universe = branches([
+      [10, [0, 0]],
+      [30, [0, 0, 0]],
+    ]);
+    // Every column moved; the last operand of the second branch ran.
+    const moved = mergeCoverage(root, [
+      { suite: "node", map: universe },
+      {
+        suite: "ct",
+        map: branches([
+          [12, [0, 0]],
+          [35, [0, 0, 1]],
+        ]),
+      },
+    ]);
+    expect(moved.unexecuted.flatMap((entry) => entry.branches).map((branch) => branch.arm)).toEqual([0, 0, 1, 1]);
+    expect(moved.projections.ct).toMatchObject({ matchedArms: 1, unmatchedArms: 0 });
+    // A copy with another arm count at that place is another construct: its hit stays unmatched.
+    const reshaped = mergeCoverage(root, [
+      { suite: "node", map: universe },
+      {
+        suite: "ct",
+        map: branches([
+          [12, [0, 0]],
+          [35, [0, 1]],
+        ]),
+      },
+    ]);
+    expect(reshaped.projections.ct).toMatchObject({ matchedArms: 0, unmatchedArms: 1 });
+  });
+});
+
+test("a page whose coverage cannot be read is a lost line in the run, not a failed test", ({ scratch }) => {
+  const runDir = join(scratch, "run");
+  const sink = new BrowserHitsSink(runDir);
+  const closedMidTest = Promise.reject(new Error("Target page, context or browser has been closed"));
+  return recordPages(new Map([[{ isClosed: (): boolean => false }, closedMidTest]]), sink, join(process.cwd(), "tests/demo/pick.ct.tsx"))
+    .then(() => {
+      sink.flush(0);
+      return convertBrowserRun(runDir);
+    })
+    .then((browser) => {
+      expect(browser.lost).toEqual(["tests/demo/pick.ct.tsx: Target page, context or browser has been closed"]);
+    });
 });
