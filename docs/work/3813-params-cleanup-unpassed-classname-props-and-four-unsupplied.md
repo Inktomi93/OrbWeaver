@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-The params review (reports/unwired/params-judge.md) found parameters no production caller supplies: className on EmptyState, WebWeave, BackgroundVideo, CrossfadeImage, Scatter and Table, which UI-Primitives-and-Reuse.md says a component takes only when a caller passes it layout; DiscoveryService.cooccurringKeywords limit; definedClassTokens tokenize in packages/client/src/lib/motion-dead-class-flagger.ts; CredentialsService.markRevokedByUser params.reason, which only feeds the audit text.
+The params review (reports/unwired/params-judge.md) found parameters no production caller supplies: className on EmptyState, WebWeave, BackgroundVideo, CrossfadeImage, Scatter and Table, which UI-Primitives-and-Reuse.md says a component takes only when a caller passes it layout; DiscoveryService.cooccurringKeywords limit; definedClassTokens tokenize in packages/client/src/lib/motion-dead-class-flagger.ts; CredentialsService.markRevokedByUser params.reason, which only feeds the audit text. Also usePromptMacroSuggestions options in packages/client/src/data/use-prompt-macro-suggestions.ts: its plugins:false branch served a client imagery template editor nobody plans, so the option goes and the server-side imagery macros stay.
 
 ## Why
 
