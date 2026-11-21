@@ -1,6 +1,6 @@
 // Which tuples a string literal's slot takes its vocabulary from, read off what its declaration spells: a type annotation,
 // or the schema value a type is inferred from. Types cannot say: a one-member union, an `Exclude` and a re-spelled
-// subset all hold the same literals as the tuple. Each engine answers only the three symbol queries.
+// subset all hold the same literals as the tuple. Each engine answers only the checker queries of `SlotOracle`.
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, Sources } from "./classify.ts";
@@ -39,6 +39,14 @@ export interface SlotOracle {
   readonly parameterOf: (argument: Site) => Answer<Site | null>;
   /** The declarations of property `name` in the contextual type of the object literal starting at `object`. */
   readonly propertiesOf: (object: Site, name: string) => Answer<readonly Site[]>;
+  /** Whether the call argument starting at `argument` binds a parameter typed by one of the callee's own type
+   *  parameters, inferred at this call, whose constraint holds no literal type: the parameter's type is then the
+   *  argument's own, a vocabulary of none of the tuples. */
+  readonly infersFromArgument: (argument: Site) => Answer<boolean>;
+  /** The declarations of property `name` in the slot the object literal starting at `object` fills inside a call
+   *  argument, read from the callee's declared parameter type with its own type parameters at their constraints:
+   *  what {@link SlotOracle.propertiesOf} answers when the call did not infer the type from the object itself. */
+  readonly uninferredPropertiesOf: (object: Site, name: string) => Answer<readonly Site[]>;
 }
 
 // What a slot's declaration spells: type annotations, or the value expression a schema-inferred property is written from.
@@ -64,7 +72,9 @@ export function settled<T>(generator: APIRequestGenerator<T>): T {
 
 const siteOf = (node: ts.Node): Site => ({ file: node.getSourceFile().fileName, position: node.getStart() });
 
-const isConstAssertion = (type: ts.TypeNode): boolean => ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName) && type.typeName.text === "const";
+/** `as const`'s type, in the TypeScript 6 AST. */
+export const isConstAssertion = (type: ts.TypeNode): boolean =>
+  ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName) && type.typeName.text === "const";
 
 const PASSING_OPERATORS: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.BarBarToken,
@@ -124,15 +134,21 @@ function propertyName(name: ts.PropertyName): string | null {
   return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null;
 }
 
+const declaresWithin = (sites: readonly Site[], node: ts.Node): boolean =>
+  sites.length > 0 && sites.every((site) => site.file === node.getSourceFile().fileName && site.position >= node.getStart() && site.position < node.getEnd());
+
 // The spellings of the declarations of property `name` in the object's contextual type; undefined when it has none to
-// read, so the object's own slot decides.
+// read, so the object's own slot decides. A property the object itself declares is a type a generic call inferred from
+// the object, so the callee's declared parameter is the slot when it has the property.
 function* propertySpellings(
   oracle: SlotOracle,
   sources: Sources,
   name: string | null,
   object: ts.ObjectLiteralExpression,
 ): APIRequestGenerator<Declared | undefined> {
-  const sites = name === null ? [] : yield* answered(oracle.propertiesOf(siteOf(object), name));
+  const contextual = name === null ? [] : yield* answered(oracle.propertiesOf(siteOf(object), name));
+  const uninferred = name !== null && declaresWithin(contextual, object) ? yield* answered(oracle.uninferredPropertiesOf(siteOf(object), name)) : [];
+  const sites = uninferred.length > 0 ? uninferred : contextual;
   const spellings: ts.Node[] = [];
   for (const site of sites) {
     const declaration = declarationAt(sources, site);
@@ -147,7 +163,11 @@ function* propertySpellings(
   return spellings.length === 0 ? undefined : spellings;
 }
 
+// A parameter the call types by the argument itself spells no vocabulary: the argument builds nothing there.
 function* parameterSpellings(oracle: SlotOracle, sources: Sources, argument: ts.Node): APIRequestGenerator<Declared> {
+  if (yield* answered(oracle.infersFromArgument(siteOf(argument)))) {
+    return [];
+  }
   const site = yield* answered(oracle.parameterOf(siteOf(argument)));
   const type = annotationOf(site === null ? null : declarationAt(sources, site));
   return type === undefined ? null : [type];

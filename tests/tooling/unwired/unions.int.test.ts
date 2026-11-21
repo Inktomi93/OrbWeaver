@@ -536,3 +536,144 @@ test("the unions scan credits no member through a sibling property's literal typ
   expect(found).toEqual(["unbuilt KINDS.legacy", "unbuilt PHASES.done", "unbuilt SPAN_KINDS.dice"]);
   expect(report.disagreements).toEqual([]);
 });
+
+// A literal handed whole into its slot through a `??` fallback builds the member there, even when the callee is
+// overloaded: `unexpected` reaches the constructor's `kind` only as the right operand. `stale` is the twin: the same
+// fallback into a plain `string` slot builds nothing, so it still reports.
+const FALLBACK_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/refused.ts": [
+    'const KINDS = ["signedOut", "redirected", "unexpected", "stale"] as const;',
+    "type Kind = (typeof KINDS)[number];",
+    "class Refused {",
+    "  readonly kind: Kind;",
+    '  constructor(kind: Exclude<Kind, "redirected">, note: string);',
+    '  constructor(kind: Extract<Kind, "redirected">, note: string, to: string);',
+    "  constructor(kind: Kind, note: string) {",
+    '    this.kind = note === "" ? kind : kind;',
+    "  }",
+    "}",
+    'const KIND_OF: ReadonlyMap<number, Exclude<Kind, "redirected" | "unexpected" | "stale">> = new Map();',
+    'export const refuse = (status: number): Refused => new Refused(KIND_OF.get(status) ?? "unexpected", "n");',
+    'export const signedOut = (): Refused => new Refused("signedOut", "n");',
+    'export const redirected = (): Refused => new Refused("redirected", "n", "u");',
+    'export const note = (text: string | undefined): string => text ?? "stale";',
+  ].join("\n"),
+};
+
+test("the unions scan builds a member a `??` fallback hands into its slot, and not one it hands into a string slot", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(FALLBACK_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt KINDS.stale"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// A generic call infers its type parameter from the literal itself, so the slot the checker reports is the literal's
+// own type. The vocabulary is the type parameter's constraint: `book` lands in `Knob.entity` through `define`'s
+// constraint, and a library column whose name parameter extends `string` holds no tuple, so it builds neither
+// `iteration` nor `card`. `quick` and `shelf` are controls: a constraint spelled from the tuple builds the one, and a
+// descriptor typed by its own type parameter the other.
+const INFERRED_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  // A library, outside the production sources, as drizzle is in the real tree.
+  "packages/a/lib/db.ts": "export declare function integer<TName extends string>(name: TName): { readonly name: TName };",
+  "packages/a/src/presets.ts": [
+    'const ENTITY_KINDS = ["book", "card", "shelf"] as const;',
+    "type EntityKind = (typeof ENTITY_KINDS)[number];",
+    'interface Knob { readonly kind: "entityRef"; readonly entity: EntityKind; readonly label: string }',
+    "type KnobSchema = Readonly<Record<string, Knob>>;",
+    "interface Def<T extends KnobSchema = KnobSchema> { readonly name: string; readonly knobs: T }",
+    "const define = <T extends KnobSchema>(def: Def<T>): Def<T> => def;",
+    'export const PRESET = define({ name: "p", knobs: { bookId: { kind: "entityRef", entity: "book", label: "Book" } } });',
+    // The descriptor's own type parameter types the property, so the slot is read no further and rules no tuple out.
+    'interface RefKnob<E extends EntityKind = EntityKind> { readonly kind: "ref"; readonly entity: E }',
+    "const defineRefs = <const T extends Readonly<Record<string, RefKnob>>>(knobs: T): T => knobs;",
+    'export const REFS = defineRefs({ shelfId: { kind: "ref", entity: "shelf" } });',
+  ].join("\n"),
+  "packages/a/src/modes.ts": [
+    'import { integer } from "../lib/db.ts";',
+    'const MODES = ["full", "iteration", "quick"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "export const take = (mode: Mode): Mode => mode;",
+    "export const pick = <const M extends Mode>(mode: M): M => mode;",
+    'export const built = [take("full"), pick("quick")];',
+    'export const columns = [integer("iteration"), integer("card")];',
+  ].join("\n"),
+};
+
+test("the unions scan reads a slot a generic call infers from the literal through the type parameter's constraint", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(INFERRED_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(found).toEqual(["unbuilt ENTITY_KINDS.card", "unbuilt MODES.iteration"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// A module-private constant spread into rows a `.map` callback returns, and the whole array `satisfies` the row type
+// written from a schema: `breakpoint` reaches `turns.format` there. `control` is the twin: only a callback whose callee
+// returns a count carries it, so nothing builds it.
+const MAPPED_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/rows.ts": [
+    'const FORMATS = ["control", "breakpoint"] as const;',
+    "type Format = (typeof FORMATS)[number];",
+    "interface Turns { readonly format?: Format; readonly on: boolean }",
+    'interface Row { readonly provider: "x" | "y"; readonly turns: Turns }',
+    'const EXPLICIT = { format: "breakpoint", on: true } as const;',
+    "export const ROWS = [",
+    '  ...(["x", "y"] as const).map((provider) => ({ provider, turns: EXPLICIT }) as const),',
+    "] as const satisfies readonly Row[];",
+    // The twin: this callee returns no list of the callback's type parameter, so the callback's value reaches no slot.
+    'const HIDDEN = { format: "control", on: false } as const;',
+    "const count = <U>(make: () => U): number => (make() === undefined ? 0 : 1);",
+    "export const counted = count(() => ({ turns: HIDDEN }));",
+  ].join("\n"),
+};
+
+test("the unions scan follows a constant a mapped row carries into the slot the array satisfies", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(MAPPED_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt FORMATS.control"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// Two rows the unions judge confirmed as true findings, in their shapes: a member only a `Record` annotated with the
+// tuple's type keys (`opening`), and a member no manifest row lists while a second vocabulary spells the same text
+// (`dynamic`). Neither is built, and each keeps its key.
+const TRUE_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/turns.ts": [
+    'const TURN_KINDS = ["send", "swipe", "opening"] as const;',
+    "export type TurnKind = (typeof TURN_KINDS)[number];",
+    "export interface Turn { readonly kind: TurnKind }",
+    "export const OPENS_TAIL: Readonly<Record<TurnKind, boolean>> = { send: false, swipe: true, opening: true };",
+    'export const turns: readonly Turn[] = [{ kind: "send" }, { kind: "swipe" }];',
+  ].join("\n"),
+  "packages/a/src/cascade.ts": [
+    'const CASCADE_SOURCES = ["client-global", "dynamic", "inline"] as const;',
+    "type CascadeSource = (typeof CASCADE_SOURCES)[number];",
+    "interface Cascade { readonly selector: string; readonly sources: readonly CascadeSource[] }",
+    'export const ROWS: readonly Cascade[] = [{ selector: "a", sources: ["client-global"] }, { selector: "b", sources: ["inline"] }];',
+    'export const OBSERVED = ["dynamic", "inline"] as const;',
+    "export const observe = (source: (typeof OBSERVED)[number]): string => source;",
+    'export const seen = [observe("dynamic"), observe("inline")];',
+  ].join("\n"),
+};
+
+test("the unions scan still reports the members the judge confirmed unbuilt: a Record-keyed-only member and one only a second vocabulary builds", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(TRUE_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member, keys }) => ({ kind, home, member, keys }))).toEqual([
+    { kind: "unbuilt", home: "CASCADE_SOURCES", member: "dynamic", keys: [] },
+    { kind: "unbuilt", home: "TURN_KINDS", member: "opening", keys: ["packages/a/src/turns.ts:4"] },
+  ]);
+  expect(report.disagreements).toEqual([]);
+});
