@@ -109,9 +109,10 @@ const entryMetadataWriteSchema = jsonObjectSchema.superRefine((val, ctx): void =
  *  throw, so a file serde's row policy and a card parse can each answer it as a refusal of that file. */
 export const narrowedEntryMetadataSchema = entryMetadataWriteSchema.nullable().transform((raw): EntryMetadata | null => narrowEntryMetadata(raw));
 
+// An entry's `content` may be empty: a new entry starts with none, and an entry with no text is never sent to the model.
 export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
-  content: z.string().min(1).max(CONTENT_MAX),
+  content: z.string().max(CONTENT_MAX),
   /** Keyword triggers — fires the entry when scope=`keyword`. Each key is matched case-insensitively
    *  whole-word against the scan-depth window of recent messages. */
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
@@ -122,7 +123,7 @@ export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 export const updateEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX).optional(),
   description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
-  content: z.string().min(1).max(CONTENT_MAX).optional(),
+  content: z.string().max(CONTENT_MAX).optional(),
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
   enabled: z.boolean().optional(),
   priority: z.int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),

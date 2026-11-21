@@ -44,7 +44,7 @@ import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { CueReplay, DeliveredCue, HistoryMacroNames } from "../contract/results.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { applyPromptHistoryRegex } from "./history-regex.ts";
-import { frameInjection, spliceInChatInjections } from "./injections.ts";
+import { frameInjection, sentInChatInjections, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
 import type { SquashRow } from "./role-squash.ts";
@@ -161,6 +161,9 @@ interface ShapeOutput {
    *  history fit trims the oldest rows first, so it places the marker again at the head of the rows it keeps
    *  (`substrate/wire-history` keepNewChatMarkerAtHead). */
   newChatMarker: { readonly content: string; readonly mergeSeparator: string | null } | null;
+  /** The injections the splice placed, in the order the prompt places them, with the content each sent. The turn records
+   *  these as what it sent. A row whose content is empty never reaches the prompt and is left out. */
+  sentInjections: ChatInjection[];
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
     multiCharacter: boolean;
@@ -704,6 +707,9 @@ export function shape(input: ShapeInput): ShapeOutput {
     breakpointDecision: breakpoint.decision,
     cue: delivery.cue,
     newChatMarker: marker === undefined ? null : { content: marker.content, mergeSeparator: merges ? MERGE_SEPARATOR : null },
+    sentInjections: sentInChatInjections(input.injections ?? [], { historyLength: withTail.length, allowAssistantPrefill: input.assistantPrefill === true })
+      .map((injection) => ({ ...injection, content: resolveContent(injection.content) }))
+      .filter((injection) => injection.content.trim().length > 0),
     stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };
 }

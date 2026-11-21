@@ -6,7 +6,12 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { test as corpusTest, expect } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
-import { WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD, WORLD_INFO_ENTRY_TITLE_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import {
+  WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD,
+  WORLD_INFO_ENTRY_CONTENT_NAME,
+  WORLD_INFO_ENTRY_TITLE_NAME,
+  WORLD_INFO_NEW_ENTRY_NAME,
+} from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -76,6 +81,20 @@ test("two personas in opposite states are found by their stable names, and a fli
   await expect(heldSwitch).toHaveAttribute("aria-checked", "false");
   await heldSwitch.click();
   await expect.poll(() => trpc.lastInput("worldInfo.attachToPersona")).toMatchObject({ bookId, personaId: held.id });
+});
+
+test("New entry saves a title and no content, and its editor opens with the content empty", async ({ corpus, root, mount, page }) => {
+  const world = corpus.worldInfoLibrary;
+  if (world === undefined) {
+    throw new Error("World Info cases require the corpus library");
+  }
+  const caller = await root.internalCallerFor(root.ownerId);
+  const bookId = world.ids.libraryBookId;
+  const trpc = await routeTrpc(page, serveCorpusProcedures(caller, [...PROCEDURES, "worldInfo.createEntry", "worldInfo.getEntry"]));
+  const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId, context: false });
+  await component.getByRole("button", { name: WORLD_INFO_NEW_ENTRY_NAME, exact: true }).first().click();
+  await expect.poll(() => trpc.lastInput("worldInfo.createEntry")).toMatchObject({ bookId, input: { title: WORLD_INFO_NEW_ENTRY_NAME, content: "" } });
+  await expect(component.getByRole("textbox", { name: WORLD_INFO_ENTRY_CONTENT_NAME, exact: true })).toHaveValue("");
 });
 
 for (const device of [

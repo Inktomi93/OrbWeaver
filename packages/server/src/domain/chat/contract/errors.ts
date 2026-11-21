@@ -12,6 +12,7 @@
 
 import {
   CHAT_NOT_HOST_OP_CODE,
+  EMPTY_GENERATION_OP_CODE,
   MEMORY_ITEM_STALE_OP_CODE,
   MESSAGE_MACRO_BUDGET_OP_CODE,
   MESSAGE_TOO_LONG_OP_CODE,
@@ -133,7 +134,7 @@ export const CHAT_OP_CODES = {
    *  reply: the engine writes nothing (no variant, no stats delta, no selection flip), so a swipe leaves the
    *  slot's PREVIOUS variant selected instead of hiding real prose behind an invisible one. Not a membership
    *  leak — the caller already ran the turn. Distinct from `compaction_empty` (the marker generation's twin). */
-  emptyGeneration: "empty_generation",
+  emptyGeneration: EMPTY_GENERATION_OP_CODE,
   /** `setSeededGreeting` targeted a slot that is not a character-voiced ASSISTANT row — only a seeded
    *  greeting has card alternates to step among. Host-only surface (the caller already sees the canon), so a
    *  coded refusal leaks nothing. */

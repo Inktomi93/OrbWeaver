@@ -47,6 +47,12 @@ function detailValue(error: unknown, key: string): unknown {
   return typeof detail === "object" && detail !== null && key in detail ? (detail as Record<string, unknown>)[key] : null;
 }
 
+/** One string fact a coded refusal states on `data.detail`, else `null`. */
+export function trpcErrorDetailString(error: unknown, key: string): string | null {
+  const value = detailValue(error, key);
+  return typeof value === "string" ? value : null;
+}
+
 /** One numeric fact a coded refusal states on `data.detail`, else `null`. */
 export function trpcErrorDetailNumber(error: unknown, key: string): number | null {
   const value = detailValue(error, key);

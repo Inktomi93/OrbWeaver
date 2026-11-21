@@ -17,20 +17,10 @@ import type { ChatBusDeps } from "#data";
 import { peekQueryData, roomRosterOptions, seedPresetId, useChatBusDeps, useTRPC } from "#data";
 import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, rethrowUnlessTrpcFailure, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
-import {
-  isLanding,
-  openConfigTo,
-  openNewChatPicker,
-  requestRegexRow,
-  revealContextPanel,
-  selectPreset,
-  setActiveSection,
-  setChatContextSectionOpen,
-  setPresetEditorView,
-  useActiveChatHandle,
-} from "#state";
+import { isLanding, openConfigTo, openNewChatPicker, requestRegexRow, revealContextPanel, setChatContextSectionOpen, useActiveChatHandle } from "#state";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
+import { openPresetParams } from "../lib/open-params.ts";
 import { REGEX_STOP_OPEN_ROOM_NAME, REGEX_STOP_OPEN_SCRIPT_NAME } from "../lib/regex-stop-copy.ts";
 import { OPEN_CONNECTIONS_NAME } from "../lib/send-failure-copy.ts";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
@@ -99,18 +89,9 @@ function openScriptRow(scriptId: RegexScriptId): NotifyAction {
   };
 }
 
-// A setting the model dropped is the preset's: the door opens that preset on its Params view, where the Capability card
-// says what the connected model honors. The Params view is named by its id in the preset editor's view tuple.
-const PARAMS_VIEW = "params";
+// A setting the model dropped is the preset's: the door opens that preset on its Params view.
 function openParams(presetId: PresetId): NotifyAction {
-  return {
-    label: OPEN_PARAMS_NAME,
-    onClick: (): void => {
-      selectPreset(presetId);
-      setPresetEditorView(PARAMS_VIEW);
-      setActiveSection("presets");
-    },
-  };
+  return { label: OPEN_PARAMS_NAME, onClick: (): void => openPresetParams(presetId) };
 }
 
 // The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may

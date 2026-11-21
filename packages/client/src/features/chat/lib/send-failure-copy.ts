@@ -4,6 +4,15 @@
 
 export const SEND_FAILED_TITLE = "Couldn't send your message.";
 
+/** The lead of a failed reply no message of this client's own sent: the empty-Enter reply and the composer's Generate reply. */
+export const REPLY_NOT_WRITTEN_LEAD = "Couldn't write the reply.";
+
+/** The lead of a swipe that failed. */
+export const SWIPE_FAILED_LEAD = "Couldn't generate that swipe.";
+
+/** The lead of a summoned member who could not speak. */
+export const SUMMON_FAILED_LEAD = "Couldn't summon that member to speak.";
+
 /** The reply-failure line's lead: the message is in the room, the reply is not. */
 export const REPLY_FAILED_LEAD = "Your message is saved, but the reply failed.";
 

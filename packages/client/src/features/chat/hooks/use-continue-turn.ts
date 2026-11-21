@@ -21,18 +21,22 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast, viewerTimeZone } from "#lib";
+import { isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
+import { REPLY_FAILURE_LINE, recordReplyFailure, recordTurnFailure } from "../lib/reply-failure.ts";
+import { REPLY_NOT_WRITTEN_LEAD } from "../lib/send-failure-copy.ts";
+
+const CONTINUE_FAILED_LEAD = "Couldn't continue the reply.";
 
 const useContinueTurnMutation = createEntityMutation<inferInput<Trpc["chat"]["continueTurn"]>, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't continue the reply."),
+  errorToast: (error) => turnMutationToast(error, CONTINUE_FAILED_LEAD),
 });
 
 const useGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["generate"]>, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't generate a reply."),
+  errorToast: (error) => turnMutationToast(error, REPLY_NOT_WRITTEN_LEAD),
 });
 
 export interface UseContinueTurnResult {
@@ -50,15 +54,21 @@ interface GenerateSettle {
   readonly onSuccess: () => void;
 }
 
-/** `failureShownInline` names the line that states a generate failure while that line is up, so no toast repeats it. */
-export function useContinueTurn(failureShownInline?: string): UseContinueTurnResult {
+/** The composer's reply-failure line states a failure of either action, so no toast repeats it. */
+export function useContinueTurn(): UseContinueTurnResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const mutation = useContinueTurnMutation({ trpc, invalidation });
-  const generate = useGenerateMutation({ trpc, invalidation, failureShownInline });
+  const mutation = useContinueTurnMutation({ trpc, invalidation, failureShownInline: REPLY_FAILURE_LINE });
+  const generate = useGenerateMutation({ trpc, invalidation, failureShownInline: REPLY_FAILURE_LINE });
   return {
-    continueTurn: (chatId, messageId): void => mutation.mutate({ chatId, messageId, timeZone: viewerTimeZone() }),
-    generateReply: (chatId, settle): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }, settle),
+    continueTurn: (chatId, messageId): void =>
+      mutation.mutate({ chatId, messageId, timeZone: viewerTimeZone() }, { onError: (error): void => recordTurnFailure(chatId, error, CONTINUE_FAILED_LEAD) }),
+    // A reply failing here is retried by the same call, so the line offers Retry.
+    generateReply: (chatId, settle): void =>
+      generate.mutate(
+        { chatId, timeZone: viewerTimeZone() },
+        settle ?? { onError: (error): void => (isSilencedTurnAbort(error) ? undefined : recordReplyFailure(chatId, error, { lead: REPLY_NOT_WRITTEN_LEAD })) },
+      ),
     isPending: mutation.isPending || generate.isPending,
   };
 }

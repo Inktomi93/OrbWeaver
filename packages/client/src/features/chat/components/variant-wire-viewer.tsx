@@ -49,7 +49,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId, trpcErrorCode } from "#lib";
+import { sentInjectionLabel, testId, trpcErrorCode } from "#lib";
 import { WIRE_AUTHORED_TEXT_HEADING, WIRE_NO_PROMPT_TITLE, WIRE_STATIC_PREFIX_HEADING } from "../lib/chat-surface-names.ts";
 import { VARIANT_WIRE_GONE_TITLE, VARIANT_WIRE_READ } from "../lib/message-action-names.ts";
 
@@ -87,7 +87,8 @@ function WireSection({ heading, gloss, text }: { readonly heading: string; reado
   );
 }
 
-/** The in-history injections the turn spliced (`afterHistory`) — role + depth + the bytes, one line each.
+/** The in-history injections the turn spliced (`afterHistory`) — the preset's, the chat's and the world info seated beside
+ *  them, in the order the prompt placed them: where each came from, its role and depth, and the bytes, one line each.
  *  Renders nothing when the turn spliced none (an absent section, not an empty shell). */
 function InjectionsSection({ prompt }: { readonly prompt: VariantWireView["prompt"] }): ReactElement | null {
   if (prompt === null || prompt.afterHistory.length === 0) {
@@ -95,7 +96,11 @@ function InjectionsSection({ prompt }: { readonly prompt: VariantWireView["promp
   }
   return (
     <Section heading={<Text voice="kicker">{`In-history injections (${prompt.afterHistory.length})`}</Text>}>
-      <LogViewer lines={prompt.afterHistory.map((i) => `[${i.role} @ depth ${i.depth}] ${i.content}`)} maxHeight="scrollSm" what="in-history injections" />
+      <LogViewer
+        lines={prompt.afterHistory.map((i) => `[${sentInjectionLabel(i)} · ${i.role} @ depth ${i.depth}] ${i.content}`)}
+        maxHeight="scrollSm"
+        what="in-history injections"
+      />
     </Section>
   );
 }

@@ -20,6 +20,7 @@ const REFUSAL_ROWS = [
     content: "",
     rawFinishReason: "tool_calls",
     detail: "answered with tool calls and no story text",
+    cause: "tool_calls",
     remedy: "nothing was written",
     normalizedFinishReason: "tool",
   },
@@ -29,6 +30,7 @@ const REFUSAL_ROWS = [
     content: "",
     rawFinishReason: "stop",
     detail: "returned no text",
+    cause: "no_text",
     remedy: "nothing was written",
     normalizedFinishReason: "stop",
   },
@@ -38,6 +40,7 @@ const REFUSAL_ROWS = [
     content: "\n\n  \n",
     rawFinishReason: "stop",
     detail: "returned no text",
+    cause: "no_text",
     remedy: "nothing was written",
     normalizedFinishReason: "stop",
   },
@@ -47,6 +50,7 @@ const REFUSAL_ROWS = [
     content: "",
     rawFinishReason: "length",
     detail: "output limit of 4096 tokens",
+    cause: "output_limit",
     remedy: "raise the preset's max output tokens",
     normalizedFinishReason: "length",
   },
@@ -86,6 +90,8 @@ test.for(REFUSAL_ROWS)("native $label refuses without changing selected canon an
   await expect(operation).rejects.toMatchObject({ code: CHAT_OP_CODES.emptyGeneration });
   await expect(operation).rejects.toThrow(row.detail);
   await expect(operation).rejects.toThrow(row.remedy);
+  // The cause rides the refusal's detail, so a client names it and its fix without reading the sentence.
+  await expect(operation).rejects.toMatchObject({ detail: row.cause === "output_limit" ? { cause: row.cause, maxOutputTokens: 4096 } : { cause: row.cause } });
   expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).toEqual(beforeCanon);
   expect(await h.root.db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(beforeVariants);
   expect(events.filter((event) => event.type === "turnAborted")).toMatchObject([{ reason: "error" }]);
