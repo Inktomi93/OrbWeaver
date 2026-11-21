@@ -91,7 +91,6 @@ export type {
   ChatWarning,
   ChatWarningCode,
   DurableChatBusEvent,
-  EmptyGenerationCause,
   LiveOnlyChatBusEvent,
   LiveOnlyChatEventType,
   MemoryRecallPhase,
