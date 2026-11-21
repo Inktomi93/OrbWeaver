@@ -12,7 +12,7 @@ import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
-import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
+import type { AuthorsNoteEdge, EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, PromptSectionId, UserIntent } from "#preset";
@@ -92,7 +92,8 @@ interface AssembleWorldEntryFields {
   enabled: boolean;
   /** When true, the entry bypasses the per-turn WI token budget (must-have lore). Absent ⇒ false. */
   ignoreBudget?: boolean;
-  /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
+  /** The seat this entry renders at (ST worldInfoBefore/After, the Author's Note and example-message edges).
+   *  Defaults `before`. A seat the turn lacks leaves the entry at its default placement. */
   position: EntryPosition;
   /** How `keys` compile for the keyword scan — `regex` = the keys ARE patterns (a Character-Card-V3
    *  `use_regex` entry, resolved off the stored metadata). Absent ⇒ `literal` (every key escaped). */
@@ -123,6 +124,9 @@ export interface ChatInjection {
    *  the room author's note, the game state block). Display-only provenance for the host budget breakdown:
    *  never rendered into the prompt, never a wire input. */
   originLabel?: string;
+  /** World-info lore that sits at this end of the chat's own injections (its Author's Note), until the splice or
+   *  the context build seats it beside the injection that ends there and clears this. Never on a view or a wire. */
+  noteEdge?: AuthorsNoteEdge;
 }
 
 // The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
@@ -796,6 +800,12 @@ export interface AssembleContext {
    *  in the prompt order. Absent ⇒ nothing fired at that anchor. */
   worldInfoBeforeDynamic?: string;
   worldInfoAfterDynamic?: string;
+  /** Pre-rendered WI for the top and bottom seats of the example-messages section: always-scope lore rides the
+   *  section's own text, keyword-fired lore rides the per-turn half at the section's place. Absent ⇒ none. */
+  exampleMessagesTop?: string;
+  exampleMessagesBottom?: string;
+  exampleMessagesTopDynamic?: string;
+  exampleMessagesBottomDynamic?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
   /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/character/chat scope

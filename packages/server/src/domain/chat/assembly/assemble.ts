@@ -22,7 +22,7 @@
 // to the preset's `postProcess` block) after the section/injection walk, before the caller's cache split —
 // the transform is idempotent and only reorders whitespace, so it never busts the static-cache prefix.
 
-import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, ChatInjection } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, AssemblySource, ChatInjection } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, mintPromptSectionId, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
@@ -137,7 +137,7 @@ interface BuildEnv {
    *  (only the render knows which bytes are whose) and read back by the budget walk, so the Preview tab can
    *  say what EACH member in the room costs instead of one opaque "cards" total. Empty for every other
    *  section: they have exactly one contributor. */
-  readonly memberBlocks: Map<string, readonly { name: string; text: string }[]>;
+  readonly memberBlocks: Map<string, readonly { name: string; text: string; source?: AssemblySource }[]>;
   /** The preset's `postProcess` block — the SAME config the two joined system halves are transformed with, so
    *  a system-half budget slice can be priced on the bytes that are actually SENT (see {@link pushSlices}). */
   readonly postProcess: PostProcessConfig | undefined;
@@ -521,7 +521,36 @@ function renderServerMarker(section: TemplatedMarkerSection, marker: ServerMarke
   return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, env.render);
 }
 
-function renderMarker(section: MarkerSection, env: BuildEnv): string {
+/** The budget label of world info seated at the example-messages section: the section's own bytes are the card's. */
+const EXAMPLE_MESSAGES_LORE_LABEL = "world info (example messages)";
+
+/** The example-messages section: the card's examples with the lore seated at the section's top and bottom. A
+ *  system-half section carries the always-scope lore in its text and leaves keyword-fired lore to the per-turn half
+ *  beside it ({@link pushSeatedKeywordLore}); an after-history section is one message and carries both. A preset
+ *  that renders the section gives the lore its seat even for a card with no examples. */
+function renderDialogueExamples(section: TemplatedMarkerSection, env: BuildEnv, delivery: SliceDelivery): string {
+  const { ctx } = env;
+  const examples =
+    ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
+      ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render)
+      : "";
+  const lore = (fixed: string | undefined, perTurn: string | undefined): string =>
+    [fixed, delivery === "in-chat" ? perTurn : undefined].filter((part) => part !== undefined && part.trim().length > 0).join("\n");
+  const top = lore(ctx.exampleMessagesTop, ctx.exampleMessagesTopDynamic);
+  const bottom = lore(ctx.exampleMessagesBottom, ctx.exampleMessagesBottomDynamic);
+  if (top.length === 0 && bottom.length === 0) {
+    return examples;
+  }
+  const blocks = [
+    { name: EXAMPLE_MESSAGES_LORE_LABEL, text: top, source: "world-info" as const },
+    { name: ctx.character.name, text: examples },
+    { name: EXAMPLE_MESSAGES_LORE_LABEL, text: bottom, source: "world-info" as const },
+  ].filter((block) => block.text.trim().length > 0);
+  env.memberBlocks.set(section.id, blocks);
+  return blocks.map((block) => block.text.trim()).join("\n\n");
+}
+
+function renderMarker(section: MarkerSection, env: BuildEnv, delivery: SliceDelivery): string {
   const { ctx, trace } = env;
   switch (section.marker) {
     case "main_prompt":
@@ -549,9 +578,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
         ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render)
         : "";
     case "dialogue_examples":
-      return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
-        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render)
-        : "";
+      return renderDialogueExamples(section, env, delivery);
     case "persona":
       return renderPersonaMarker(section, env);
     case "compact_summary":
@@ -569,9 +596,9 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
   }
 }
 
-function renderSection(section: PromptSection, env: BuildEnv): string {
+function renderSection(section: PromptSection, env: BuildEnv, delivery: SliceDelivery): string {
   // Literal blocks are USER-authored → active persona; markers route per-marker (dual-persona inside).
-  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona, env.render) : renderMarker(section, env);
+  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona, env.render) : renderMarker(section, env, delivery);
 }
 
 function coSpeakerFieldSources(field: MemberField, ctx: AssembleContext): string[] {
@@ -618,7 +645,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "scenario":
       return [templateFor(section, ctx), ctx.character.scenario ?? "", ctx.roomOverrides?.scenario ?? "", ...coSpeakerFieldSources("scenario", ctx)];
     case "dialogue_examples":
-      return [templateFor(section, ctx), ctx.character.exampleMessages ?? ""];
+      return [templateFor(section, ctx), ctx.character.exampleMessages ?? "", ctx.exampleMessagesTop ?? "", ctx.exampleMessagesBottom ?? ""];
   }
 }
 
@@ -761,7 +788,7 @@ interface WalkAccum {
 /** Deliver an after-history (`in_chat`) section: render → push to the injection bucket at `depth`. The
  *  splice (SHAPE) frames it; content here is macro-resolved only. */
 function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, acc: WalkAccum): void {
-  const rendered = renderSection(section, env).trim();
+  const rendered = renderSection(section, env, "in-chat").trim();
   if (rendered.length === 0) {
     return;
   }
@@ -845,7 +872,7 @@ function pushSlices(args: {
     return;
   }
   for (const block of blocks) {
-    acc.slices.push({ source, label: block.name, text: deliveredSliceText(block.text.trim(), delivery, env), sectionId: section.id });
+    acc.slices.push({ source: block.source ?? source, label: block.name, text: deliveredSliceText(block.text.trim(), delivery, env), sectionId: section.id });
   }
 }
 
@@ -858,19 +885,37 @@ function scanStaticBusters(section: PromptSection, ctx: AssembleContext, busters
   }
 }
 
-/** Keyword-fired lore anchored at a world-info marker joins the per-turn half at the marker's place in the
- *  prompt order, so it sits among the other per-turn sections where the preset author put the anchor. */
-function pushAnchoredKeywordLore(section: PromptSection, env: BuildEnv, acc: WalkAccum): void {
-  if (section.type !== "marker" || (section.marker !== "world_info_before" && section.marker !== "world_info_after")) {
-    return;
+/** The keyword-fired lore the per-turn half carries at a section's place, before (`pre`) or after (`post`) the
+ *  section's own bytes: the world-info anchors' lore, and the example-messages section's top and bottom lore. */
+function seatedKeywordLore(section: PromptSection, ctx: AssembleContext, phase: "pre" | "post"): string {
+  if (section.type !== "marker") {
+    return "";
   }
-  const lore = (section.marker === "world_info_before" ? env.ctx.worldInfoBeforeDynamic : env.ctx.worldInfoAfterDynamic)?.trim() ?? "";
+  const { marker } = section;
+  if (phase === "post") {
+    return marker === "dialogue_examples" ? (ctx.exampleMessagesBottomDynamic ?? "") : "";
+  }
+  if (marker === "world_info_before") {
+    return ctx.worldInfoBeforeDynamic ?? "";
+  }
+  if (marker === "world_info_after") {
+    return ctx.worldInfoAfterDynamic ?? "";
+  }
+  return marker === "dialogue_examples" ? (ctx.exampleMessagesTopDynamic ?? "") : "";
+}
+
+/** Keyword-fired lore seated at a section joins the per-turn half at the section's place in the prompt order, so
+ *  it sits among the other per-turn sections where the preset author put the seat. */
+function pushSeatedKeywordLore(section: PromptSection, env: BuildEnv, acc: WalkAccum, phase: "pre" | "post"): void {
+  const lore = seatedKeywordLore(section, env.ctx, phase).trim();
   if (lore.length === 0) {
     return;
   }
   acc.dynamicParts.push(lore);
   env.trace.dynamicSections.push(section.id);
-  pushSlices({ section, rendered: lore, env, acc, delivery: "system-half" });
+  // The lore is world info whichever section carries it; an example-messages section's own bytes are cards.
+  const label = section.type === "marker" && section.marker === "dialogue_examples" ? EXAMPLE_MESSAGES_LORE_LABEL : sectionLabel(section, env.ctx);
+  acc.slices.push({ source: "world-info", label, text: deliveredSliceText(lore, "system-half", env), sectionId: section.id });
 }
 
 /** Deliver ONE section: after-history injection (depth !== null) OR system-block (static/dynamic). */
@@ -880,18 +925,18 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
     pushAfterHistory(section, depth, env, acc);
     return;
   }
-  pushAnchoredKeywordLore(section, env, acc);
+  pushSeatedKeywordLore(section, env, acc, "pre");
   const dynamic = isSectionDynamic(section);
   if (!dynamic) {
     scanStaticBusters(section, env.ctx, acc.cacheBusters, env.render.registry);
   }
-  const rendered = renderSection(section, env).trim();
-  if (rendered.length === 0) {
-    return;
+  const rendered = renderSection(section, env, "system-half").trim();
+  if (rendered.length > 0) {
+    (dynamic ? acc.dynamicParts : acc.staticParts).push(rendered);
+    (dynamic ? env.trace.dynamicSections : env.trace.staticSections).push(section.id);
+    pushSlices({ section, rendered, env, acc, delivery: "system-half" });
   }
-  (dynamic ? acc.dynamicParts : acc.staticParts).push(rendered);
-  (dynamic ? env.trace.dynamicSections : env.trace.staticSections).push(section.id);
-  pushSlices({ section, rendered, env, acc, delivery: "system-half" });
+  pushSeatedKeywordLore(section, env, acc, "post");
 }
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),

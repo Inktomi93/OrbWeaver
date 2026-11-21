@@ -1,6 +1,6 @@
 // A world book keeps each entry's SillyTavern prompt slot through an import here and the SillyTavern export: the exported
 // file places every entry where SillyTavern placed the original, read through a port of SillyTavern's own placement.
-// The import report names each entry whose slot has no seat here.
+// An Author's Note or example-message slot imports into its seat; the import report names only the entries whose slot has no seat here.
 // @subject packages/server/src/primitives/serde/world-info/index.ts
 // @subject packages/server/src/primitives/serde/card/index.ts
 // @subject packages/kit/src/world-info/index.ts
@@ -30,6 +30,9 @@ const STORED_ENTRIES = Object.entries(ST_WORLD_INFO_POSITION).map(([slot, positi
   ...(position === ST_WORLD_INFO_POSITION.atDepth ? AT_DEPTH : {}),
   ...(position === ST_WORLD_INFO_POSITION.outlet ? { outletName: OUTLET } : {}),
 }));
+
+// The slots that import into a seat of their own, which the report does not name.
+const SEATED_SLOTS = ["anTop", "anBottom", "emTop", "emBottom"] as const;
 
 const stEntrySchema = z.looseObject({ comment: z.string() });
 const stWorldSchema = z.object({ entries: z.record(z.string(), stEntrySchema) });
@@ -72,11 +75,26 @@ test("every entry of a SillyTavern world lands in the same SillyTavern slot afte
   expect(new Set(Object.values(original)).size).toBe(STORED_ENTRIES.length);
   expect(Object.values(original)).not.toContain("nowhere");
 
-  // The import names each entry whose slot has no seat here, by slot.
+  // The import names each entry whose slot has no seat here, by slot, and no entry that took a seat.
   const report = await readFile(present(result.reportPath), "utf8");
   const line = present(report.split("\n").find((text) => text.includes(`\`${BOOK}\``)));
   for (const slot of ST_SEATLESS_POSITIONS) {
     expect(line, slot).toContain(`\`${slot}\` (1 entry)`);
   }
+  for (const slot of SEATED_SLOTS) {
+    expect(line, slot).not.toContain(`\`${slot}\``);
+  }
   expect(line).not.toContain("`atDepth`");
+
+  // Each seat holds the entry that came from its slot.
+  const caller = await root.internalCallerFor(root.ownerId);
+  const book = present((await caller.worldInfo.listBooks()).find((row) => row.name === BOOK));
+  const seats = Object.fromEntries((await caller.worldInfo.listEntries({ bookId: book.id })).map((entry) => [entry.title, entry.metadata?.["position"]]));
+  expect(seats).toMatchObject({
+    anTop: "authors_note_top",
+    anBottom: "authors_note_bottom",
+    emTop: "example_messages_top",
+    emBottom: "example_messages_bottom",
+  });
+  expect(seats["outlet"]).toBeUndefined();
 });

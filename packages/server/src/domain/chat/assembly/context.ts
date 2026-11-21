@@ -32,8 +32,8 @@ import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
-import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
+import type { AuthorsNotePosition, EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
+import { AUTHORS_NOTE_EDGE, buildKeywordHaystack, isAuthorsNotePosition, matchEntryKeys } from "@orb/kit/world-info";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { MacroRenderEnv, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
@@ -42,7 +42,7 @@ import type { RegexPassOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { RegexNoticeEpisode } from "../contract/results.ts";
-import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
+import { BEFORE_HISTORY_DEPTH, renderInjection, seatAuthorsNoteLore } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
 import { hasActiveMarker } from "./sections.ts";
 import { loadWorldInfoPool } from "./world-info/pool.ts";
@@ -77,10 +77,14 @@ function onMacroWarn(logger: Logger): (msg: string, err?: unknown) => void {
   return (msg, err) => getLog(logger).warn({ err, macroWarn: msg }, "chat: macro budget/eval trip (D53)");
 }
 
-/** Where a world-info entry sits in the system region: the before/after anchor it follows, in the static half
+/** A seat whose lore is text joined to a section: the before and after anchors and the example-messages edges. The
+ *  Author's Note seats are not text: their lore is an injection that rides the note's register. */
+type TextSeat = Exclude<EntryPosition, AuthorsNotePosition>;
+
+/** Where a world-info entry sits when its text seat is on this turn: the seat it names, in the static half
  *  (an always-scope entry) or the per-turn half (a keyword-fired one). */
 interface WiBucket {
-  readonly anchor: EntryPosition;
+  readonly position: TextSeat;
   readonly half: "static" | "dynamic";
 }
 
@@ -167,6 +171,8 @@ interface WiConversionArgs {
   readonly lastUserMessage: string | undefined;
   readonly hasBeforeAnchor: boolean;
   readonly hasAfterAnchor: boolean;
+  /** The preset renders its example-messages section this turn (the walk's own `hasActiveMarker` question). */
+  readonly hasExampleMessages: boolean;
   /** The per-turn user-macro registry (WAVE MU) and turn PRNG the WI entry-content + wiFormat renders resolve
    *  against (carried on the args bundle so `convertWorldInfo` stays under the 4-param cap). */
   readonly render: MacroRenderEnv;
@@ -184,21 +190,28 @@ interface WiConvEnv {
   readonly matchedKeys: MatchedKey[];
 }
 
-/** Which anchor a system-half WI entry follows, or null when the preset renders no such anchor this turn (the
- *  entry then keeps its default half: in_static for always-scope, the in_prompt suffix for keyword). */
+/** Whether the turn renders each text seat. A `Record`, so a seat added to the position tuple fails `tsc` until it says. */
+const TEXT_SEAT_PRESENT: Record<TextSeat, (args: WiConversionArgs) => boolean> = {
+  before: (args) => args.hasBeforeAnchor,
+  after: (args) => args.hasAfterAnchor,
+  ["example_messages_top"]: (args) => args.hasExampleMessages,
+  ["example_messages_bottom"]: (args) => args.hasExampleMessages,
+};
+
+/** Which text seat a system-half WI entry joins, or null when the turn renders no such seat (the entry then
+ *  keeps its default half: in_static for always-scope, the in_prompt suffix for keyword). An Author's Note seat
+ *  is no text seat: it is seated after the budget pass. */
 function resolveBucket(entry: AssembleWorldEntry, args: WiConversionArgs, half: WiBucket["half"]): WiBucket | null {
-  if (entry.position === "before" && args.hasBeforeAnchor) {
-    return { anchor: "before", half };
+  const { position } = entry;
+  if (isAuthorsNotePosition(position)) {
+    return null;
   }
-  if (entry.position === "after" && args.hasAfterAnchor) {
-    return { anchor: "after", half };
-  }
-  return null;
+  return TEXT_SEAT_PRESENT[position](args) ? { position, half } : null;
 }
 
-/** Position-routes a rendered WI entry: depth-inject → in_chat; always-scope → its anchor in the static half
- *  (or in_static); keyword (fired) → its anchor in the per-turn half (or the in_prompt suffix), the anchor
- *  SillyTavern places it at. The cache cost of per-turn lore at an anchor is the author's choice. */
+/** Position-routes a rendered WI entry: depth-inject → in_chat; always-scope → its seat in the static half
+ *  (or in_static); keyword (fired) → its seat in the per-turn half (or the in_prompt suffix), the seat
+ *  SillyTavern places it at. The cache cost of per-turn lore at a seat is the author's choice. */
 function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConversionArgs): InjectionCandidate {
   const meta = {
     tokens: estimateTokens(content),
@@ -217,11 +230,13 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
     };
     return { injection, ...meta, bucket: null };
   }
+  // An at-depth entry leaves the system half, so a seat it names is moot.
+  const noteSeat = isAuthorsNotePosition(entry.position) ? { noteEdge: AUTHORS_NOTE_EDGE[entry.position] } : {};
   if (entry.scope === "always") {
-    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info" };
+    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info", ...noteSeat };
     return { injection, ...meta, bucket: resolveBucket(entry, args, "static") };
   }
-  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info" };
+  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info", ...noteSeat };
   return { injection, ...meta, bucket: resolveBucket(entry, args, "dynamic") };
 }
 
@@ -529,28 +544,51 @@ function buildBaseContext(
   return base;
 }
 
-/** Routes budget-kept candidates: anchor-bucket WI → its half's before/after parts; everything else → the
+/** Routes budget-kept candidates: text-seat WI → its half's parts for the seat; everything else → the
  *  injection list (system-block positions framed once, in_chat left unframed for the SHAPE splice). */
 function routeKept(
   kept: readonly InjectionCandidate[],
   prose: ProseOverrides,
 ): {
   chatInjections: ChatInjection[];
-  anchored: Record<WiBucket["half"], Record<EntryPosition, string[]>>;
+  anchored: Record<WiBucket["half"], Record<TextSeat, string[]>>;
 } {
   const chatInjections: ChatInjection[] = [];
-  const anchored: Record<WiBucket["half"], Record<EntryPosition, string[]>> = {
-    static: { before: [], after: [] },
-    dynamic: { before: [], after: [] },
-  };
+  const seatParts = (): Record<TextSeat, string[]> => ({ before: [], after: [], ["example_messages_top"]: [], ["example_messages_bottom"]: [] });
+  const anchored: Record<WiBucket["half"], Record<TextSeat, string[]>> = { static: seatParts(), dynamic: seatParts() };
   for (const c of kept) {
-    if (c.bucket === null) {
-      chatInjections.push(frameSystemInjection(c.injection, prose));
-    } else {
-      anchored[c.bucket.half][c.bucket.anchor].push(c.injection.content);
+    if (c.bucket !== null) {
+      anchored[c.bucket.half][c.bucket.position].push(c.injection.content);
     }
   }
+  // Seated after the budget pass: a chat injection never drops, so the seat cannot vanish between the pass and here.
+  const injections = kept.flatMap((c) => (c.bucket === null ? [c.injection] : []));
+  for (const injection of seatAuthorsNoteLore(injections, null)) {
+    chatInjections.push(frameSystemInjection(injection, prose));
+  }
   return { chatInjections, anchored };
+}
+
+/** Each example-messages seat's context field, by the half its lore rides. */
+const EXAMPLE_MESSAGE_FIELDS = [
+  { half: "static", position: "example_messages_top", field: "exampleMessagesTop" },
+  { half: "static", position: "example_messages_bottom", field: "exampleMessagesBottom" },
+  { half: "dynamic", position: "example_messages_top", field: "exampleMessagesTopDynamic" },
+  { half: "dynamic", position: "example_messages_bottom", field: "exampleMessagesBottomDynamic" },
+] as const;
+
+/** The example-messages lore as context fields; a seat with no lore leaves its field absent. */
+function exampleMessageFields(
+  anchored: Record<WiBucket["half"], Record<TextSeat, readonly string[]>>,
+): Partial<Pick<AssembleContext, (typeof EXAMPLE_MESSAGE_FIELDS)[number]["field"]>> {
+  const fields: Partial<Pick<AssembleContext, (typeof EXAMPLE_MESSAGE_FIELDS)[number]["field"]>> = {};
+  for (const { half, position, field } of EXAMPLE_MESSAGE_FIELDS) {
+    const parts = anchored[half][position];
+    if (parts.length > 0) {
+      fields[field] = parts.join("\n");
+    }
+  }
+  return fields;
 }
 
 /** The guided steer's delivery depth when the action config declares none (G10): the tail — exactly where
@@ -966,6 +1004,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   // identity (a fragment that happens to match a WI keyword still wakes the entry, as it always did).
   const guidedSteerText = input.guided === undefined ? undefined : composeSteerInput(input.guided.rewriteToggles, input.guided.input ?? "", prose);
 
+  const generationType = input.generationType ?? "normal";
   const wi = convertWorldInfo(
     pool,
     base,
@@ -995,8 +1034,9 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // is where it always went. The plain markers carry `trigger` (ST sets
       // `injection_trigger` on every prompt-manager entry — the missing field was a parity gap), and this is
       // the reader that gap left with nothing to read.
-      hasBeforeAnchor: hasActiveMarker(input.promptConfig, "world_info_before", input.generationType ?? "normal"),
-      hasAfterAnchor: hasActiveMarker(input.promptConfig, "world_info_after", input.generationType ?? "normal"),
+      hasBeforeAnchor: hasActiveMarker(input.promptConfig, "world_info_before", generationType),
+      hasAfterAnchor: hasActiveMarker(input.promptConfig, "world_info_after", generationType),
+      hasExampleMessages: hasActiveMarker(input.promptConfig, "dialogue_examples", generationType),
       render,
     },
     buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, random: input.prng, registry: input.macroRegistry }),
@@ -1038,6 +1078,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     worldInfoAfter: anchored.static.after.join("\n"),
     ...(anchored.dynamic.before.length > 0 ? { worldInfoBeforeDynamic: anchored.dynamic.before.join("\n") } : {}),
     ...(anchored.dynamic.after.length > 0 ? { worldInfoAfterDynamic: anchored.dynamic.after.join("\n") } : {}),
+    ...exampleMessageFields(anchored),
     ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
@@ -1054,7 +1095,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       worldInfoDynamicEntries: kept.flatMap((candidate) =>
         candidate.worldEntry === undefined || candidate.bucket?.half !== "dynamic"
           ? []
-          : [{ id: candidate.worldEntry.id, title: candidate.worldEntry.title, position: candidate.bucket.anchor }],
+          : [{ id: candidate.worldEntry.id, title: candidate.worldEntry.title, position: candidate.bucket.position }],
       ),
     },
   };

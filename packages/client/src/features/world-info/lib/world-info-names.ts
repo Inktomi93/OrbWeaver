@@ -1,6 +1,8 @@
 // The accessible names the World Info collection and entry editor print. A zero-import leaf, so a spec's node side reads
 // them without loading the component graph.
 
+import type { EntryPosition } from "@orb/kit/world-info";
+
 /** The books library's create action. */
 export const WORLD_INFO_NEW_BOOK_NAME = "New book";
 
@@ -36,6 +38,20 @@ export const WORLD_INFO_ENTRY_NOTE_NAME = "Note";
 export const WORLD_INFO_ENTRY_DEPTH_NAME = "Depth";
 export const WORLD_INFO_ENTRY_ROLE_NAME = "Role";
 export const WORLD_INFO_ENTRY_PLACEMENT_NAME = "Placement";
+
+/** The entry editor's placement choices, one per seat. A `Record`, so a seat added to the position tuple fails `tsc` until it is named. */
+export const WORLD_INFO_POSITION_LABELS: Record<EntryPosition, string> = {
+  before: "Before the character definitions",
+  after: "After the character definitions",
+  ["authors_note_top"]: "Top of the Author's Note",
+  ["authors_note_bottom"]: "Bottom of the Author's Note",
+  ["example_messages_top"]: "Top of the example messages",
+  ["example_messages_bottom"]: "Bottom of the example messages",
+};
+
+/** What the placement choice does and what an entry does when its seat is missing from a turn. */
+export const WORLD_INFO_PLACEMENT_HINT =
+  "Before and after need the preset's world-info sections. The Author's Note is the chat's Injections: top joins above the first one, bottom below the last. The example messages need the preset's example-messages section. When a turn has no such seat, the entry goes in the system prompt like any other entry.";
 
 /** The book details dialog's description field. */
 export const WORLD_INFO_BOOK_DESCRIPTION_NAME = "Description";

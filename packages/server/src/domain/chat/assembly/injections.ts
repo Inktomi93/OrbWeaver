@@ -10,6 +10,7 @@
 // thread it gets the shipped frames byte-for-byte.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -99,6 +100,7 @@ function resolveSpliceRole(
   };
 }
 
+/** The `order` an injection without one takes. */
 const DEFAULT_INJECTION_ORDER = 100;
 
 /** The splice order. Primary: depth desc (deepest splices first). Then the new-chat marker: it is always the first
@@ -117,6 +119,76 @@ function spliceOrder(a: { readonly inj: ChatInjection; readonly depth: number },
     (a.inj.order ?? DEFAULT_INJECTION_ORDER) - (b.inj.order ?? DEFAULT_INJECTION_ORDER) ||
     tailRank(a) - tailRank(b)
   );
+}
+
+/** What the splice knows about the history it splices into: the inputs of an injection's effective depth. */
+export interface SplicePlacement {
+  readonly historyLength: number;
+  /** `true` keeps an assistant injection at depth 0 (the trailing-assistant prefill); otherwise it floors to depth 1. */
+  readonly allowAssistantPrefill: boolean;
+}
+
+/** The depth the splice places an injection at: its authored depth, floored for an assistant note at depth 0
+ *  (a trailing assistant message is a response prefill) and clamped to the history length. The one home of the
+ *  clamp, so the splice and the Author's Note seats cannot disagree. */
+export function effectiveSpliceDepth(inj: ChatInjection, placement: SplicePlacement): number {
+  const floor = inj.role === "assistant" && !placement.allowAssistantPrefill ? 1 : 0;
+  return Math.min(Math.max(inj.depth, floor), placement.historyLength);
+}
+
+/** Which of two chat injections the prompt places first: the system block's positions in prompt order, then `in_chat`
+ *  rows as the splice orders them. Two `in_chat` rows are unranked without a placement, and so is any pair that
+ *  shares a system-block position, which keeps list order. */
+function notePromptOrder(a: ChatInjection, b: ChatInjection, placement: SplicePlacement | null): number {
+  const byPosition = CHAT_INJECTION_POSITIONS.indexOf(a.position) - CHAT_INJECTION_POSITIONS.indexOf(b.position);
+  if (byPosition !== 0 || a.position !== "in_chat" || placement === null) {
+    return byPosition;
+  }
+  return spliceOrder({ inj: a, depth: effectiveSpliceDepth(a, placement) }, { inj: b, depth: effectiveSpliceDepth(b, placement) });
+}
+
+/**
+ * Seats Author's Note lore (injections stamped with a {@link ChatInjection.noteEdge}) beside the chat's own
+ * injections: the `user`-origin rows, which are the chat's Author's Note. Top lore sits above the injection the prompt
+ * places first and bottom lore below the one it places last, at that injection's position, depth, role and order.
+ * A chat with no such injection has no note, so its lore keeps its default placement.
+ *
+ * The prompt order of two `in_chat` rows depends on the history the splice clamps their depths to, so `placement`
+ * is null until the splice. Without it, an edge whose injection is an `in_chat` row stays unseated, as an
+ * `in_chat` row of its own, for the splice to seat; every other edge seats at once. Each seated row keeps its
+ * place in the list beside its injection, so equal depth and order keep the lore adjacent through the stable sort.
+ */
+export function seatAuthorsNoteLore(injections: readonly ChatInjection[], placement: SplicePlacement | null): ChatInjection[] {
+  const notes = injections.filter((inj) => inj.origin === "user");
+  const unstamped = (lore: ChatInjection): ChatInjection => {
+    const { noteEdge: _edge, ...rest } = lore;
+    return rest;
+  };
+  const ranked = notes.toSorted((a, b) => notePromptOrder(a, b, placement));
+  const first = ranked.at(0);
+  const last = ranked.at(-1);
+  if (first === undefined || last === undefined) {
+    return injections.map((inj) => (inj.noteEdge === undefined ? inj : unstamped(inj)));
+  }
+  const seatable = { top: placement !== null || first.position !== "in_chat", bottom: placement !== null || last.position !== "in_chat" };
+  const seated = (edge: "top" | "bottom", note: ChatInjection): ChatInjection[] =>
+    seatable[edge]
+      ? injections
+          .filter((inj) => inj.noteEdge === edge)
+          .map((lore) => ({
+            ...unstamped(lore),
+            position: note.position,
+            depth: note.depth,
+            role: note.role,
+            ...(note.order === undefined ? {} : { order: note.order }),
+          }))
+      : [];
+  return injections.flatMap((inj) => {
+    if (inj.noteEdge !== undefined) {
+      return seatable[inj.noteEdge] ? [] : [{ ...inj, position: "in_chat" }];
+    }
+    return [...(inj === first ? seated("top", inj) : []), inj, ...(inj === last ? seated("bottom", inj) : [])];
+  });
 }
 
 /**
@@ -169,19 +241,15 @@ export function spliceInChatInjections<T extends { role: MessageRole; content: s
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
-  const inChat = injections.filter((i) => i.position === "in_chat");
+  const placement: SplicePlacement = { historyLength: history.length, allowAssistantPrefill: opts.allowAssistantPrefill === true };
+  const inChat = seatAuthorsNoteLore(injections, placement).filter((i) => i.position === "in_chat");
   if (inChat.length === 0) {
     return [...history];
   }
   // Clamp depths to the original history length before the sort+splice walk (not per-splice): two
   // over-deep injections then behave exactly like two equal-depth in-range ones (array order = output
   // order). A per-splice clamp against the growing result would reverse their relative order.
-  const clamped = inChat.map((inj) => {
-    // assistant @ depth 0 is a trailing assistant message = response prefill. On the default wire it is
-    // normalized to depth 1; `allowAssistantPrefill` keeps it at depth 0.
-    const floor = inj.role === "assistant" && opts.allowAssistantPrefill !== true ? 1 : 0;
-    return { inj, depth: Math.min(Math.max(inj.depth, floor), history.length) };
-  });
+  const clamped = inChat.map((inj) => ({ inj, depth: effectiveSpliceDepth(inj, placement) }));
   const sorted = clamped.sort(spliceOrder);
   // squashSystemMessages: collapse consecutive same-depth system runs before the frame loop, so each run
   // delivers ONE note row (merge-before-convert) rather than several. Off ⇒ untouched.
