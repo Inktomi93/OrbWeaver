@@ -328,28 +328,45 @@ function tokenProvenanceOf(e: Pick<TurnEconomicsInput, "tokensIn" | "tokensOut" 
   return e.tokenProvenance ?? (has(e.tokensIn) || has(e.tokensOut) ? "measured" : "unrecorded");
 }
 
+const TOKEN_SAMPLE_PREFIXES = ["", "daily", "model"] as const;
+type TokenSamplePrefix = (typeof TOKEN_SAMPLE_PREFIXES)[number];
+/** The token-sample stats columns of every grain, measured and estimated. */
+type TokenSampleDelta = Partial<Pick<StatsDelta, Extract<keyof StatsDelta, `${string}${"Measured" | "Estimated"}Samples`>>>;
+/** One grain's sample columns for one provenance, each side a delta that adds `sign` to its column. */
+type TokenSampleColumns = (sign: number) => { readonly tokensIn: TokenSampleDelta; readonly tokensOut: TokenSampleDelta };
+// Spelled as literal keys of a delta, so the compiler checks every column name.
+const TOKEN_SAMPLE_COLUMNS: Readonly<Record<TokenSamplePrefix, Readonly<Record<Exclude<TokenProvenance, "unrecorded">, TokenSampleColumns>>>> = {
+  "": {
+    measured: (sign) => ({ tokensIn: { tokensInMeasuredSamples: sign }, tokensOut: { tokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { tokensInEstimatedSamples: sign }, tokensOut: { tokensOutEstimatedSamples: sign } }),
+  },
+  daily: {
+    measured: (sign) => ({ tokensIn: { dailyTokensInMeasuredSamples: sign }, tokensOut: { dailyTokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { dailyTokensInEstimatedSamples: sign }, tokensOut: { dailyTokensOutEstimatedSamples: sign } }),
+  },
+  model: {
+    measured: (sign) => ({ tokensIn: { modelTokensInMeasuredSamples: sign }, tokensOut: { modelTokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { modelTokensInEstimatedSamples: sign }, tokensOut: { modelTokensOutEstimatedSamples: sign } }),
+  },
+};
+
 function tokenSampleSlice(args: {
-  readonly prefix: "" | "daily" | "model";
+  readonly prefix: TokenSamplePrefix;
   readonly provenance: TokenProvenance;
   readonly tokensIn: number | null | undefined;
   readonly tokensOut: number | null | undefined;
   readonly sign?: number;
-}): Record<string, number> {
+}): TokenSampleDelta {
   const { prefix, provenance, tokensIn, tokensOut, sign = 1 } = args;
   if (provenance === "unrecorded") {
     return {};
   }
-  const suffix = provenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
-  const field = (axis: "TokensIn" | "TokensOut"): string =>
-    `${prefix}${prefix === "" ? (axis[0]?.toLowerCase() ?? "") : (axis[0] ?? "")}${axis.slice(1)}${suffix}`;
-  return {
-    ...(has(tokensIn) ? { [field("TokensIn")]: sign } : {}),
-    ...(has(tokensOut) ? { [field("TokensOut")]: sign } : {}),
-  };
+  const columns = TOKEN_SAMPLE_COLUMNS[prefix][provenance](sign);
+  return { ...(has(tokensIn) ? columns.tokensIn : {}), ...(has(tokensOut) ? columns.tokensOut : {}) };
 }
 
 /** The decoupled model_stats slice (null model ⇒ `{}` — apply skips the model row). */
-function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<string, number> {
+function modelSliceFor(model: string | null, e: TurnEconomicsInput): Partial<StatsDelta> {
   if (model === null) {
     return {};
   }

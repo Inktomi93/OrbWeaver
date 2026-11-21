@@ -1,9 +1,20 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
 import { relative } from "node:path";
-import type { Expression, Node, SourceFile } from "@typescript/native/ast";
-import { getTouchingPropertyName } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, LanguageService, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
+import {
+  getTouchingPropertyName,
+  isGetAccessorDeclaration,
+  isIdentifier,
+  isMethodDeclaration,
+  isNoSubstitutionTemplateLiteral,
+  isPropertyAssignment,
+  isPropertyDeclaration,
+  isSetAccessorDeclaration,
+  isShorthandPropertyAssignment,
+  isStringLiteral,
+} from "@typescript/native/ast";
+import type { APIRequestGenerator, Checker, LanguageService, Symbol as NativeSymbol, NodeHandle, ReferencedSymbolEntry, Type } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText } from "./worlds.ts";
@@ -219,6 +230,13 @@ export class NativeWorld implements Disposable {
     return this.batch(sites.map((site) => this.#referencesOf(site)));
   }
 
+  /** Find-references at a node, one group per symbol it may mean. */
+  *referencedSymbolsOf(node: Node): APIRequestGenerator<ReferencedSymbolEntry[]> {
+    const source = node.getSourceFile();
+    const position = node.getStart(source) + 1;
+    return yield* this.#languageService.getReferencedSymbolsForNode.gen(getTouchingPropertyName(source, position), position);
+  }
+
   *#referencesOf(site: Site): APIRequestGenerator<Site[]> {
     const file = this.#sourceOf.get(site.file);
     if (file === undefined) {
@@ -277,3 +295,18 @@ export function* propertiesNamed(checker: Checker, type: Type, name: string): AP
 export function declarationKeys(symbol: NativeSymbol): readonly string[] {
   return symbol.declarations.map((handle) => `${handle.path}#${handle.index}`);
 }
+
+/** A name in a property position: an identifier or a plain string key. */
+export type PropertyName = Identifier | StringLiteral | NoSubstitutionTemplateLiteral;
+
+export const isPropertyName = (node: Node): node is PropertyName => isIdentifier(node) || isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
+
+/** Whether `node` is the name a member declares: an object literal key or shorthand, a method, a property or an accessor. */
+export const isNamedMember = (parent: Node, node: Node): boolean =>
+  (isPropertyAssignment(parent) ||
+    isShorthandPropertyAssignment(parent) ||
+    isMethodDeclaration(parent) ||
+    isPropertyDeclaration(parent) ||
+    isGetAccessorDeclaration(parent) ||
+    isSetAccessorDeclaration(parent)) &&
+  parent.name === node;
