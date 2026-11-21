@@ -2,18 +2,14 @@
 // The Rewrite dialog keeps its correction as one of the chat's injections, over the real composed server: the host opens
 // it from the composer's own menu, the kept correction shows in the room's injections list with its remove control,
 // and the same words cannot be kept twice. Its disabled Keep control passes the design audit's inactive-control-legibility rule.
-import { contextToggleLabel, MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
+
+import { contextToggleLabel, INJECTIONS_LABEL, MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { readSurfaceDesignAudit, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import {
-  CHAT_INJECTIONS_SECTION_LABEL,
-  CHAT_REMOVE_INJECTION_NAME,
-  CHAT_REMOVE_INJECTION_TITLE,
-  injectionRowLabel,
-} from "#client/features/chat/lib/chat-settings-names.ts";
+import { CHAT_REMOVE_INJECTION_NAME, CHAT_REMOVE_INJECTION_TITLE, injectionRowLabel } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_CORRECTION_INSTRUCTION_NAME, CHAT_CORRECTION_SAVED_NOTE, CHAT_SAVE_CORRECTION_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -89,7 +85,7 @@ test("a kept correction lands in the injections list once, and leaves through it
   const settings = page.getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.settings, exact: true });
   await settings.click();
   await expect(settings).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTIONS_SECTION_LABEL)}`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(INJECTIONS_LABEL)}`, "u") }).click();
   // A kept correction is an ordinary row: its collapsed face shows the player's words, and its panel holds Remove.
   await expect(page.getByText(CORRECTION, { exact: true })).toBeVisible();
   const ordinal = (await host.chat.listChatInjections({ chatId })).findIndex((row) => row.content === CORRECTION) + 1;

@@ -1,9 +1,12 @@
 // The words for a regex script that did not run: one this browser's display pass stopped, or a host script a server
 // pass did not apply, with why and on which text. The room's notice and the On screen roster both read them, so the
 // two never describe one stop differently. Exhaustive over the contract's two tuples, so a new cause or pass fails
-// `tsc` here until it has words.
+// `tsc` here until it has words. What a reader can do about a stop depends on the control their row holds (the script's own
+// switch, the host, or the script's owner), so every reason takes that control. The switch's name is owned by
+// `regex-section-model.ts`, which the next step reads.
 
 import type { RegexNotAppliedCause, RegexServerPass } from "@orb/contracts/chat";
+import { REGEX_SCRIPT_ENABLED_SETTING } from "./regex-section-model.ts";
 
 /** Why, as a clause after the script's name. */
 function regexNotAppliedCauseWords(cause: RegexNotAppliedCause): string {
@@ -46,19 +49,48 @@ function regexServerPassWords(pass: RegexServerPass): string {
 /** The name a notice gives a script the host's library no longer holds. */
 const REGEX_UNKNOWN_SCRIPT_NAME = "A script no longer in your library";
 
-/** What to do about a stopped or skipped script, the same words wherever one is reported. */
-const REGEX_STOP_NEXT_STEP = "Fix its find pattern in your regex library, or switch it off in This chat under Regex.";
+/** The control a reader has on the row that shows a stop. */
+const REGEX_STOP_CONTROLS = ["switch", "host", "owner"] as const;
+export type RegexStopControl = (typeof REGEX_STOP_CONTROLS)[number];
+
+/** The control a viewer has on a row that shows a stop: the row's own switch where the viewer holds the script, the script's owner for a
+ *  host who does not, and the host for a member who does not. */
+export function regexStopControl(isHost: boolean, holdsScript: boolean): RegexStopControl {
+  if (holdsScript) {
+    return "switch";
+  }
+  return isHost ? "owner" : "host";
+}
+
+/** What the reader can do about a stopped script, by the control their row holds. */
+function regexStopNextStep(control: RegexStopControl): string {
+  switch (control) {
+    case "switch":
+      return `Fix its find pattern in your regex library, or turn off ${REGEX_SCRIPT_ENABLED_SETTING} on its row.`;
+    case "host":
+      return "The host can fix its find pattern or turn it off.";
+    case "owner":
+      return "Only its owner can fix its find pattern or turn it off.";
+    default:
+      return assertNeverControl(control);
+  }
+}
+
+/** What a toast offers: it points at no row, its action opens the script's row. */
+const REGEX_STOP_NOTICE_NEXT_STEP = "Fix its find pattern in your regex library.";
 
 /** The roster's mark on a script this browser stopped, and its reason under the row. The browser tries it again
  *  after a reload, so the reason says that a reload alone does not fix it. */
 export const REGEX_BROWSER_STOPPED_MARK = "Stopped";
-export const REGEX_BROWSER_STOPPED_REASON = `It ran too long on this device, so it is off here until you reload, and then it is tried again. ${REGEX_STOP_NEXT_STEP}`;
+export function regexBrowserStoppedReason(control: RegexStopControl): string {
+  return `It ran too long on this device, so it is off here until you reload, and then it is tried again. ${regexStopNextStep(control)}`;
+}
 
 /** The roster's mark on a script a server pass did not apply, and its reason under the row. */
 export const REGEX_NOT_APPLIED_MARK = "Not applied";
 
-export function regexNotAppliedReason(cause: RegexNotAppliedCause, pass: RegexServerPass): string {
-  return `The server did not apply it: it ${regexNotAppliedCauseWords(cause)} ${regexServerPassWords(pass)}. ${REGEX_STOP_NEXT_STEP}`;
+export function regexNotAppliedReason(cause: RegexNotAppliedCause, pass: RegexServerPass, control: RegexStopControl): string {
+  return `The server did not apply it: it ${regexNotAppliedCauseWords(cause)} ${regexServerPassWords(pass)}. ${regexStopNextStep(control)}`;
 }
 
 /** The step a skipped-script notice offers when it names one script: that script's row in the room's This chat tab. */
@@ -80,12 +112,16 @@ export function regexNotAppliedDescription(
   more: number,
 ): string {
   if (latest === undefined) {
-    return `${more === 1 ? "A script was" : `${String(more)} scripts were`} not applied on the server, so that text went on without ${more === 1 ? "it" : "them"}. ${REGEX_STOP_NEXT_STEP}`;
+    return `${more === 1 ? "A script was" : `${String(more)} scripts were`} not applied on the server, so that text went on without ${more === 1 ? "it" : "them"}. ${REGEX_STOP_NOTICE_NEXT_STEP}`;
   }
   const name = latest.name === null ? REGEX_UNKNOWN_SCRIPT_NAME : `"${latest.name}"`;
   const who = count === 1 ? name : `The latest, ${name},`;
   const rest = more === 0 ? "" : ` ${String(more)} more ${more === 1 ? "script was" : "scripts were"} not applied in the same turns.`;
-  return `${who} ${regexNotAppliedCauseWords(latest.cause)} ${regexServerPassWords(latest.pass)}, so that text went on without it.${rest} ${REGEX_STOP_NEXT_STEP}`;
+  return `${who} ${regexNotAppliedCauseWords(latest.cause)} ${regexServerPassWords(latest.pass)}, so that text went on without it.${rest} ${REGEX_STOP_NOTICE_NEXT_STEP}`;
+}
+
+function assertNeverControl(control: never): never {
+  throw new Error(`regexStopNextStep: unhandled control ${JSON.stringify(control)}`);
 }
 
 function assertNeverCause(cause: never): never {

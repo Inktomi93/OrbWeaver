@@ -1,9 +1,10 @@
 // An autosaved press has no way back, so the This-chat tab asks before authored text leaves, over the real composed server.
+
+import { INJECTIONS_LABEL } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
   CHAT_ADD_INJECTION_NAME,
-  CHAT_INJECTIONS_SECTION_LABEL,
   CHAT_OVERRIDE_SCENARIO_LABEL,
   CHAT_REMOVE_INJECTION_NAME,
   CHAT_REMOVE_INJECTION_TITLE,
@@ -36,7 +37,7 @@ test("Remove injection asks first: Cancel keeps the row, and the verb deletes it
   const { chatId, host } = await hostedRoom(root, page, PROCEDURES);
   const before = (await host.chat.listChatInjections({ chatId })).length;
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
-  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTIONS_SECTION_LABEL)}`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(INJECTIONS_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME, exact: true }).click();
   await expect.poll(async () => (await host.chat.listChatInjections({ chatId })).length).toBe(before + 1);
 

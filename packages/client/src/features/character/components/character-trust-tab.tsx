@@ -89,7 +89,6 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
   const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
   const interactiveLockId = useId();
-  const resolvedStepId = useId();
   // A door that named this tab (the row notice's Trust settings control) lands on the control it means: the ladder.
   const arrivedHere = useRequestedCharacterTrust() === characterId;
   const ladderRef = useRef<HTMLButtonElement | null>(null);
@@ -111,7 +110,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
         <Field
           label={CHARACTER_HTML_TRUST_LABEL}
           description={
-            <Text as="span" voice="reading" data-slot="trust-resolved-step" id={resolvedStepId}>
+            <Text as="span" voice="gloss" data-slot="trust-resolved-step">
               This character's messages render as {HTML_TRUST_STEP_LABELS[resolvedStep]} right now.
             </Text>
           }
@@ -125,7 +124,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
             items={HTML_TRUST_ITEMS}
             value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
             onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
-            aria-describedby={`${resolvedStepId} ${interactiveLockId}`}
+            aria-describedby={interactiveLockId}
             triggerRef={ladderRef}
           />
         </Field>

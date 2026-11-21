@@ -3,12 +3,14 @@
 // @subject packages/client/src/features/chat/components/reasoning-block.tsx
 // A disclosure trigger that holds a row (a field name and its state word, an injection's label and its summary, a reasoning label) keeps that row inside
 // the trigger and the trigger inside the screen at every browser text size on a phone, so the pane never scrolls sideways.
+
+import { INJECTIONS_LABEL } from "@orb/client/lib";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { CHAT_ADD_INJECTION_NAME, CHAT_INJECTIONS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
+import { CHAT_ADD_INJECTION_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 import type { StreamingReplyStory } from "./_ghost-macro-stories.tsx";
 import { GHOST_ROOM_PROCEDURES, soloRoom } from "./ghost-room.fixtures.ts";
@@ -61,7 +63,7 @@ for (const scale of PLATFORM_TEXT_SCALES) {
       await using root = await createCorpusHarness();
       const { chatId } = await hostedRoom(root, page, TAB_PROCEDURES);
       await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId, width: PHONE.width });
-      await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTIONS_SECTION_LABEL)}`, "u") }).click();
+      await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(INJECTIONS_LABEL)}`, "u") }).click();
       await page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME, exact: true }).click();
       // A just-added row has no content, so its trigger carries the badge that says it is not delivered.
       const triggers = page.getByRole("group", { name: "Chat context host", exact: true }).locator(TRIGGER);

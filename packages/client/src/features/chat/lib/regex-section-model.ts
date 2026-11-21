@@ -170,7 +170,8 @@ export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTie
   }
 }
 
-const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
+/** The script row's own switch, which turns the script off in every chat, preset and character. */
+export const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
 const REGEX_TIER_ALLOW_SETTING = "Allow scripts from";
 /** The room's master switch, its visible label and its accessible name. */
 export const REGEX_MASTER_SETTING = "Run regex in this chat";
