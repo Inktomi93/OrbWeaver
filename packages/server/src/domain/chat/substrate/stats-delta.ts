@@ -330,38 +330,39 @@ function tokenProvenanceOf(e: Pick<TurnEconomicsInput, "tokensIn" | "tokensOut" 
 
 const TOKEN_SAMPLE_PREFIXES = ["", "daily", "model"] as const;
 type TokenSamplePrefix = (typeof TOKEN_SAMPLE_PREFIXES)[number];
-const TOKEN_SAMPLE_AXES = ["TokensIn", "TokensOut"] as const;
-type TokenSampleAxis = (typeof TOKEN_SAMPLE_AXES)[number];
-const TOKEN_SAMPLE_SUFFIXES = ["MeasuredSamples", "EstimatedSamples"] as const;
-type TokenSampleSuffix = (typeof TOKEN_SAMPLE_SUFFIXES)[number];
-/** A token-sample stats column: the owner grain lowers the axis's first letter, a prefixed grain keeps it. */
-type TokenSampleKey<P extends TokenSamplePrefix> = P extends ""
-  ? `${Uncapitalize<TokenSampleAxis>}${TokenSampleSuffix}`
-  : `${P}${Capitalize<TokenSampleAxis>}${TokenSampleSuffix}`;
+/** The token-sample stats columns of every grain, measured and estimated. */
+type TokenSampleDelta = Partial<Pick<StatsDelta, Extract<keyof StatsDelta, `${string}${"Measured" | "Estimated"}Samples`>>>;
+/** One grain's sample columns for one provenance, each side a delta that adds `sign` to its column. */
+type TokenSampleColumns = (sign: number) => { readonly tokensIn: TokenSampleDelta; readonly tokensOut: TokenSampleDelta };
+// Spelled as literal keys of a delta, so the compiler checks every column name.
+const TOKEN_SAMPLE_COLUMNS: Readonly<Record<TokenSamplePrefix, Readonly<Record<Exclude<TokenProvenance, "unrecorded">, TokenSampleColumns>>>> = {
+  "": {
+    measured: (sign) => ({ tokensIn: { tokensInMeasuredSamples: sign }, tokensOut: { tokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { tokensInEstimatedSamples: sign }, tokensOut: { tokensOutEstimatedSamples: sign } }),
+  },
+  daily: {
+    measured: (sign) => ({ tokensIn: { dailyTokensInMeasuredSamples: sign }, tokensOut: { dailyTokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { dailyTokensInEstimatedSamples: sign }, tokensOut: { dailyTokensOutEstimatedSamples: sign } }),
+  },
+  model: {
+    measured: (sign) => ({ tokensIn: { modelTokensInMeasuredSamples: sign }, tokensOut: { modelTokensOutMeasuredSamples: sign } }),
+    estimated: (sign) => ({ tokensIn: { modelTokensInEstimatedSamples: sign }, tokensOut: { modelTokensOutEstimatedSamples: sign } }),
+  },
+};
 
-function tokenSampleSlice<P extends TokenSamplePrefix>(args: {
-  readonly prefix: P;
+function tokenSampleSlice(args: {
+  readonly prefix: TokenSamplePrefix;
   readonly provenance: TokenProvenance;
   readonly tokensIn: number | null | undefined;
   readonly tokensOut: number | null | undefined;
   readonly sign?: number;
-}): Partial<Record<TokenSampleKey<P>, number>> {
+}): TokenSampleDelta {
   const { prefix, provenance, tokensIn, tokensOut, sign = 1 } = args;
-  const slice: Partial<Record<TokenSampleKey<P>, number>> = {};
   if (provenance === "unrecorded") {
-    return slice;
+    return {};
   }
-  const suffix: TokenSampleSuffix = provenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
-  // Spelled from runtime parts, which no template literal type follows; `TokenSampleKey` states the same parts.
-  const field = (axis: TokenSampleAxis): TokenSampleKey<P> =>
-    `${prefix}${prefix === "" ? (axis[0]?.toLowerCase() ?? "") : (axis[0] ?? "")}${axis.slice(1)}${suffix}` as TokenSampleKey<P>;
-  if (has(tokensIn)) {
-    slice[field("TokensIn")] = sign;
-  }
-  if (has(tokensOut)) {
-    slice[field("TokensOut")] = sign;
-  }
-  return slice;
+  const columns = TOKEN_SAMPLE_COLUMNS[prefix][provenance](sign);
+  return { ...(has(tokensIn) ? columns.tokensIn : {}), ...(has(tokensOut) ? columns.tokensOut : {}) };
 }
 
 /** The decoupled model_stats slice (null model ⇒ `{}` — apply skips the model row). */

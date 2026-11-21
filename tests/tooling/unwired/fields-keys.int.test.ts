@@ -7,6 +7,8 @@ import { JSX_NAMESPACE, LIB, WORLD } from "./_planted.ts";
 
 type Report = ReturnType<typeof scanFields>;
 
+// A tree with a db package beside the app package, which the one package world does not hold.
+const ROOT_WORLD = "tsconfig.json";
 const scan = (root: string): Report => scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
 const named = (report: Report, file: string): string[] =>
   report.unwired
@@ -65,7 +67,8 @@ test("a generic call's key slot reads the member of the type its argument binds"
 });
 
 // Step six: TanStack Form's paths walk the form data type segment by segment. `setFieldValue` writes `params.seed`,
-// `getFieldValue` reads it, a `Field` reads `title`; `params.dead` and `gone` are named by nobody.
+// `getFieldValue` reads it, a `Field` reads `title`; `params.dead` and `gone` are named by nobody. The default
+// values write `params.fixed`, so a set path taken as a read would leave `params.seed` never written.
 const FORM = {
   [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
   "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
@@ -80,11 +83,11 @@ const FORM = {
   ].join("\n"),
   "packages/a/src/form.tsx": [
     'import { useForm } from "./form-api.ts";',
-    "export interface Values { readonly params: { readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
+    "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
     "export function Editor(): JSX.Element {",
-    "  const form = useForm<Values>({ defaultValues: { params: {} } });",
+    "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",
     "  form.setFieldValue('params.seed', 3);",
-    "  const seed = form.getFieldValue('params.seed');",
+    "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed')];",
     "  return <form.Field name='title'>{seed}</form.Field>;",
     "}",
   ].join("\n"),
@@ -98,20 +101,47 @@ test("a form field path reads or writes each member along its segments", { timeo
   ]);
 });
 
-// A spread of a template-literal-keyed slice writes the target's members its keys name, as `tokenSampleSlice` feeds
-// the stats delta; `idleSamples` no slice key builds.
+// A spread of a value whose type builds its keys, `Partial<Record<keyof Delta, number>>`, writes none of them: the type
+// names every key and the value holds one. `b` and the key only a bodiless builder's type names stay never written,
+// and the builder's own literal key, on a member no declaration backs, is listed as unresolved.
 const BUILT = planted("built.ts", [
-  "type Axis = 'In' | 'Out';",
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template literal type.
-  "type SliceKey<P extends string> = `${P}${Capitalize<Axis>}Samples`;",
-  "declare function slice<P extends 'model' | 'daily'>(prefix: P): Partial<Record<SliceKey<P>, number>>;",
-  "export interface Delta { readonly modelInSamples?: number; readonly modelOutSamples?: number; readonly idleSamples?: number }",
-  "export const delta: Delta = { ...slice('model') };",
-  "export const read = (delta.modelInSamples ?? 0) + (delta.modelOutSamples ?? 0) + (delta.idleSamples ?? 0);",
+  "export interface Delta { readonly a?: number; readonly b?: number; readonly modelInSamples?: number }",
+  "function build(): Partial<Record<keyof Delta, number>> { return { a: 1 }; }",
+  "declare function slice(prefix: 'model'): Partial<Record<'modelInSamples', number>>;",
+  "export const seeded: Delta = { a: 2 };",
+  "export const delta: Delta = { ...build(), ...slice('model') };",
+  "export const read = (delta.a ?? 0) + (delta.b ?? 0) + (delta.modelInSamples ?? 0);",
 ]);
 
-test("a spread of template-literal keys writes the target members they name", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(BUILT)), "built.ts")).toEqual(["Delta.idleSamples never-written"]);
+test("a spread credits only the keys its value was built with", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(BUILT));
+  expect(named(report, "built.ts")).toEqual(["Delta.b never-written", "Delta.modelInSamples never-written"]);
+  expect(report.unresolved).toEqual(["packages/a/src/built.ts:2 a synthetic"]);
+});
+
+// Step three, second half: a Drizzle select row's member has no declaration and reads the column of the table whose
+// column names it holds, so the input copied into `title` is read back; `body` is stored and never selected.
+const ROW = {
+  [ROOT_WORLD]: plantedTsconfig({ lib: LIB, include: ["packages"] }),
+  "packages/db/src/schema/notes.ts": [
+    "declare function sqliteTable<C>(name: string, columns: C): C & { readonly $inferSelect: { [K in Extract<keyof C, string>]: string } };",
+    "declare const text: () => string;",
+    'export const notes = sqliteTable("notes", { title: text(), body: text() });',
+  ].join("\n"),
+  "packages/a/src/notes.ts": [
+    'import { notes } from "../../db/src/schema/notes.ts";',
+    "declare const db: { insert(table: unknown): { values(value: unknown): void } };",
+    "export interface NoteInput { readonly title: string; readonly body: string }",
+    "export function save(input: NoteInput): void { db.insert(notes).values({ title: input.title, body: input.body }); }",
+    "declare const row: typeof notes.$inferSelect;",
+    "export const shown = row.title;",
+  ].join("\n"),
+};
+
+test("a select row's member reads the column its table names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scanFields({ root: await plantedTree(ROW), worlds: [ROOT_WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(named(report, "notes.ts")).toEqual(["NoteInput.body unreferenced"]);
+  expect(report.unresolved).toEqual([]);
 });
 
 // A key no step places is unresolved: an excess key on a closed shape and a read through `any` are listed, never

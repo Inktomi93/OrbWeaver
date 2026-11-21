@@ -1,6 +1,8 @@
 // `pnpm unwired removed-keys` fails a deletion branch only on a site the key resolver places on the shape the key was
 // removed from, or on a key of a loose object that flows into one of our procedures. A same-named field of another
-// shape is someone else's, and a body sent outside the repo is listed as unresolved, never failed on.
+// shape is someone else's, and a body sent outside the repo is listed as unresolved, never failed on. A destination is
+// the resolved callee: a tRPC verb the tRPC packages declare, a TanStack mutation built from a procedure, or a `fetch`
+// whose URL, through a route constant, is a path on our own origin.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
@@ -26,12 +28,34 @@ const AFTER = [
   "export const listInputSchema = z.object({ limit: z.string() });",
 ].join("\n");
 
+// The tRPC packages' procedure verbs and TanStack's mutation, declared where the real ones are, so a call resolves to them.
+const PACKAGES = {
+  "node_modules/@trpc/client/package.json": '{ "name": "@trpc/client", "types": "index.d.ts" }',
+  "node_modules/@trpc/client/index.d.ts": [
+    "export interface MutationProcedure<I> { mutate(input: I): Promise<void>; mutationOptions(): { readonly input?: I } }",
+    "export interface QueryProcedure<I> { queryOptions(input: I): unknown }",
+  ].join("\n"),
+  "node_modules/@tanstack/react-query/package.json": '{ "name": "@tanstack/react-query", "types": "index.d.ts" }',
+  "node_modules/@tanstack/react-query/index.d.ts": [
+    "export interface UseMutationResult<V> { mutate(variables: V): void; mutateAsync(variables: V): Promise<void> }",
+    "export declare function useMutation<V>(options: { readonly input?: V }): UseMutationResult<V>;",
+  ].join("\n"),
+};
+
 // The client's tRPC proxy, typed by procedure as the real one is.
 const TRPC = [
+  'import type { MutationProcedure, QueryProcedure } from "@trpc/client";',
+  "type Loose = Readonly<Record<string, unknown>>;",
   "export declare const trpc: {",
-  "  readonly chat: { readonly send: { mutate(input: { readonly chatId: string; readonly intent?: Readonly<Record<string, unknown>> }): Promise<void> } };",
+  "  readonly chat: {",
+  "    readonly send: MutationProcedure<{ readonly chatId: string; readonly intent?: Loose }>;",
+  "    readonly list: QueryProcedure<Loose>;",
+  "    readonly edit: MutationProcedure<Loose>;",
+  "  };",
   "};",
 ].join("\n");
+// The reason an open slot that reaches none of our procedures or routes is listed with.
+const NO_DESTINATION = "open slot reaching none of our procedures or routes";
 
 const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
   for (const [file, text] of Object.entries(files)) {
@@ -43,7 +67,9 @@ const commit = (repo: string, files: Readonly<Record<string, string>>, message: 
 
 async function deletionBranch(plantedTree: (tree: Record<string, string>) => Promise<string>, senders: Readonly<Record<string, string>>): Promise<string> {
   const repo = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB, include: ["packages", "tests"] }),
+    // The DOM lib declares `fetch`, so a route call resolves to the platform's as the client's does.
+    [WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["packages", "tests"] }),
+    ...PACKAGES,
     "packages/contracts/src/z.ts": ZOD_STUB,
     [CONTRACT]: BEFORE,
     "packages/contracts/src/list.ts": "export interface ListInput { readonly guidedPick?: string }\n",
@@ -133,7 +159,7 @@ test("a body sent to an outside API is unresolved and passes", { timeout: 120_00
   });
   const report = check(repo);
   expect(entry(report, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([
-    "packages/showcase-plugins/src/main.ts:2 open slot sent outside the repo",
+    `packages/showcase-plugins/src/main.ts:2 ${NO_DESTINATION}`,
   ]);
   expect(report.failed).toBe(false);
 });
@@ -159,8 +185,82 @@ test("a loose object handed to one of our procedures is a loose sender and fails
   expect(failing.failed).toBe(true);
   const passing = check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": outside }));
   expect(entry(passing, "guidedPick")?.loose).toEqual([]);
-  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([
-    "tests/e2e/send.spec.ts:3 open slot sent outside the repo",
-  ]);
+  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([`tests/e2e/send.spec.ts:3 ${NO_DESTINATION}`]);
   expect(passing.failed).toBe(false);
+});
+
+// A loose body in each spelling the client sends to our server, one per file, and a same-named method on a store.
+const LOOSE = [
+  "export const loose = (): Record<string, unknown> => {",
+  "  const body: Record<string, unknown> = {};",
+  '  body["guidedPick"] = "g";',
+  "  return body;",
+  "};",
+].join("\n");
+const SENDS = {
+  "packages/client/src/loose.ts": LOOSE,
+  "packages/client/src/route.ts": [
+    'const SEND_ROUTE = "/api/chat/send";',
+    'const ROUTES = { upload: "/api/upload" } as const;',
+    "export async function post(): Promise<void> {",
+    "  const body: Record<string, unknown> = {};",
+    '  body["guidedPick"] = "g";',
+    "  await fetch(SEND_ROUTE, { method: 'POST', body: JSON.stringify(body) });",
+    "  const part: Record<string, unknown> = {};",
+    '  part["guidedPick"] = "g";',
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template literal URL.
+    "  await fetch(`${ROUTES.upload}/part`, { method: 'POST', body: JSON.stringify(part) });",
+    "}",
+  ].join("\n"),
+  "packages/client/src/query.ts": [
+    'import { trpc } from "./trpc.ts";',
+    "export function options(): unknown {",
+    "  const input: Record<string, unknown> = {};",
+    '  input["guidedPick"] = "g";',
+    "  return trpc.chat.list.queryOptions(input);",
+    "}",
+  ].join("\n"),
+  "packages/client/src/mutation.ts": [
+    'import { useMutation } from "@tanstack/react-query";',
+    'import { trpc } from "./trpc.ts";',
+    "export function save(): void {",
+    "  const edit = useMutation(trpc.chat.edit.mutationOptions());",
+    "  const vars: Record<string, unknown> = {};",
+    '  vars["guidedPick"] = "g";',
+    "  edit.mutate(vars);",
+    "}",
+  ].join("\n"),
+  "packages/client/src/store.ts": [
+    "declare const app: { readonly store: { subscribe(state: Readonly<Record<string, unknown>>): void; query(state: Readonly<Record<string, unknown>>): void } };",
+    "export function watch(): void {",
+    "  const state: Record<string, unknown> = {};",
+    '  state["guidedPick"] = "g";',
+    "  app.store.subscribe(state);",
+    "  app.store.query(state);",
+    "}",
+  ].join("\n"),
+};
+
+test("a loose body reaches our server through a route constant, a query's options and a procedure's mutation; a store's same-named method sends nowhere", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const guidedPick = entry(check(await deletionBranch(plantedTree, SENDS)), "guidedPick");
+  expect(guidedPick?.loose.map(({ at, destination }) => `${at} ${destination}`).toSorted()).toEqual([
+    "packages/client/src/mutation.ts:6 trpc chat.edit",
+    "packages/client/src/query.ts:4 trpc chat.list",
+    "packages/client/src/route.ts:5 http /api/chat/send",
+    "packages/client/src/route.ts:8 http /api/upload",
+  ]);
+  expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`).toSorted()).toEqual([
+    `packages/client/src/loose.ts:3 ${NO_DESTINATION}`,
+    `packages/client/src/store.ts:4 ${NO_DESTINATION}`,
+  ]);
+});
+
+test("the check refuses a head other than the checked-out commit, and a working tree that differs from it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {});
+  expect(() => checkRemovedKeys({ root: repo, base: "main", head: "main", worlds: [WORLD] })).toThrow("check out main first");
+  expect(check(repo).failed).toBe(false);
+  writeFileSync(join(repo, "packages/client/src/send.ts"), "export const send = { guidedPick: 'g' };\n");
+  expect(() => check(repo)).toThrow("differs from HEAD");
 });

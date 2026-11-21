@@ -3,9 +3,9 @@
 // sender the resolver places. A sender is a write the resolver places on the shape the key was removed from, or a key
 // of a loose object (`Record<string, unknown>`) that flows into one of our tRPC procedures or our own HTTP routes. A
 // key on another declared member is someone else's field; a key the resolver cannot place is listed, never failed on.
-// The worlds load from the working tree, so `head` must be the checked-out commit.
+// The worlds load from the working tree, so `head` must be the checked-out commit and the tracked files clean.
 
-import type { CallExpression, Expression, Identifier, Node, SourceFile } from "@typescript/native/ast";
+import type { CallExpression, Expression, Identifier, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isAsExpression,
@@ -28,7 +28,7 @@ import {
   isTypeAliasDeclaration,
   isVariableDeclaration,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import ts from "typescript";
 import { execGit } from "../floor/git/git.ts";
@@ -61,15 +61,32 @@ const BLOB_FORMAT = "--batch=@@B %(rest)";
 // Every contract file of a wide deletion fits one batch read.
 const BLOB_BUFFER = 268_435_456;
 
-// A tRPC client call: its callee chain names the procedure, `trpc.chat.send.mutate(input)` sends to `chat.send`.
-const TRPC_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync", "query", "subscribe"]);
-// A `fetch` whose URL is a path on our own origin sends its body to our routes; an absolute URL leaves the repo.
+// The tRPC client's and its TanStack options proxy's verbs that take a procedure's input, as the tRPC packages declare
+// them; `mutationOptions()` takes none, and the input reaches the procedure through the TanStack mutation's `mutate`.
+const TRPC_SENDS: ReadonlySet<string> = new Set([
+  "mutate",
+  "query",
+  "subscribe",
+  "queryOptions",
+  "infiniteQueryOptions",
+  "subscriptionOptions",
+  "queryKey",
+  "infiniteQueryKey",
+  "queryFilter",
+  "infiniteQueryFilter",
+]);
+const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
+const MUTATION_OPTIONS = "mutationOptions";
+const TRPC_PACKAGE = "/node_modules/@trpc/";
+const QUERY_PACKAGE = "/node_modules/@tanstack/";
 const FETCH = "fetch";
 const SERIALIZE = "JSON.stringify";
 const OWN_ROUTE = /^\//u;
 const OUTSIDE_WORLDS = "outside every world";
 // A string with the key's text that sits in no key slot: a plain value, listed for a person.
 const NO_KEY_POSITION = "no key position";
+// An open slot whose value reaches none of our procedures or routes: an outside API's body, or a value never sent.
+const NO_DESTINATION = "open slot reaching none of our procedures or routes";
 
 /** One site in a receiver: the receiver, `file:line` and the line's text. */
 interface Hit {
@@ -250,9 +267,15 @@ function outerOf(node: Node): Node {
   return at;
 }
 
-// The procedure or own route a value is handed to, climbing through literals that carry it: a property value, a
-// shorthand, a spread, an array element, a conditional branch and a JSON serialization. Null for any other end.
-function destinationOf(value: Node): string | null {
+/** Where a loose value's climb ends: the call it is an argument of, and that argument. */
+interface CallEnd {
+  readonly call: CallExpression;
+  readonly argument: Node;
+}
+
+// The call a value is handed to, climbing through literals that carry it: a property value, a shorthand, a spread, an
+// array element, a conditional branch and a JSON serialization. Null for any other end.
+function callEndOf(value: Node): CallEnd | null {
   let at = outerOf(value);
   for (;;) {
     const { parent } = at;
@@ -263,34 +286,93 @@ function destinationOf(value: Node): string | null {
     } else if (isCallExpression(parent) && parent.expression.getText() === SERIALIZE) {
       at = outerOf(parent);
     } else {
-      return isCallExpression(parent) ? callDestination(parent, at) : null;
+      return isCallExpression(parent) ? { call: parent, argument: at } : null;
     }
   }
 }
 
-function callDestination(call: CallExpression, argument: Node): string | null {
-  const callee = call.expression;
-  if (isPropertyAccessExpression(callee) && TRPC_CALLS.has(callee.name.text)) {
-    const chain: string[] = [];
-    let at: Expression = callee.expression;
-    while (isPropertyAccessExpression(at)) {
-      chain.unshift(at.name.text);
-      at = at.expression;
-    }
-    return chain.length === 0 ? null : `trpc ${chain.join(".")}`;
+// The property names from a tRPC proxy's root to the procedure: `trpc.chat.send.mutate` names `chat.send`.
+function procedureOf(callee: PropertyAccessExpression): string | null {
+  const chain: string[] = [];
+  let at: Expression = callee.expression;
+  while (isPropertyAccessExpression(at)) {
+    chain.unshift(at.name.text);
+    at = at.expression;
   }
-  const path = urlPrefix(call.arguments[0]);
-  return isIdentifier(callee) && callee.text === FETCH && call.arguments.indexOf(argument as Expression) > 0 && path !== null && OWN_ROUTE.test(path)
-    ? `http ${path}`
-    : null;
+  return chain.length === 0 ? null : `trpc ${chain.join(".")}`;
 }
 
-// The text a URL argument starts with: a literal's whole text, a template's head.
-function urlPrefix(url: Node | undefined): string | null {
-  if (url !== undefined && (isStringLiteral(url) || isNoSubstitutionTemplateLiteral(url))) {
+const declaredBy = (symbol: NativeSymbol | undefined, packagePath: string): boolean =>
+  symbol !== undefined && symbol.declarations.length > 0 && symbol.declarations.every((handle) => handle.path.includes(packagePath));
+
+// The `mutationOptions()` call a TanStack mutation was built from: `useMutation(options).mutate`, or a variable that
+// holds that `useMutation` result.
+function* mutationSource(world: NativeWorld, receiver: Expression): APIRequestGenerator<CallExpression | null> {
+  let built: Node | undefined = receiver;
+  if (isIdentifier(receiver)) {
+    const symbol = yield* world.checker.getSymbolAtLocation.gen(receiver);
+    const [declaration] = symbol?.declarations ?? [];
+    const node = declaration === undefined || world.fileOf(declaration) === null ? undefined : yield* declaration.resolve.gen();
+    built = node !== undefined && isVariableDeclaration(node) ? node.initializer : undefined;
+  }
+  const options = built !== undefined && isCallExpression(built) ? built.arguments[0] : undefined;
+  return options !== undefined && isCallExpression(options) ? options : null;
+}
+
+// The procedure a tRPC call sends to: an input-taking verb the tRPC proxy declares, or a TanStack `mutate` on a
+// mutation built from a procedure's `mutationOptions()`. A same-named method on any other receiver sends nowhere.
+function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): APIRequestGenerator<string | null> {
+  const { checker } = world;
+  const method = yield* checker.getSymbolAtLocation.gen(callee.name);
+  if (TRPC_SENDS.has(callee.name.text) && declaredBy(method, TRPC_PACKAGE)) {
+    return procedureOf(callee);
+  }
+  if (!(MUTATE_CALLS.has(callee.name.text) && declaredBy(method, QUERY_PACKAGE))) {
+    return null;
+  }
+  const options = yield* mutationSource(world, callee.expression);
+  if (options === null || !isPropertyAccessExpression(options.expression) || options.expression.name.text !== MUTATION_OPTIONS) {
+    return null;
+  }
+  const built = yield* checker.getSymbolAtLocation.gen(options.expression.name);
+  return declaredBy(built, TRPC_PACKAGE) ? procedureOf(options.expression) : null;
+}
+
+// The text a URL argument starts with: a literal's text or a template's head, through a constant whose type is one
+// string literal, as a route table's entry is.
+function* urlPrefix(checker: Checker, url: Expression): APIRequestGenerator<string | null> {
+  if (isStringLiteral(url) || isNoSubstitutionTemplateLiteral(url)) {
     return url.text;
   }
-  return url !== undefined && isTemplateExpression(url) ? url.head.text : null;
+  const lead = isTemplateExpression(url) ? url.templateSpans[0]?.expression : url;
+  if (isTemplateExpression(url) && url.head.text !== "") {
+    return url.head.text;
+  }
+  const type = lead === undefined ? undefined : yield* checker.getTypeAtLocation.gen(lead);
+  return type?.isStringLiteralType() === true ? type.value : null;
+}
+
+// A body `fetch` sends to a path on our own origin, which our routes receive; a URL of any other origin leaves the repo.
+function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
+  const [url] = call.arguments;
+  if (!(isIdentifier(call.expression) && call.expression.text === FETCH && url !== undefined && call.arguments.indexOf(argument as Expression) > 0)) {
+    return null;
+  }
+  const global = yield* world.checker.getSymbolAtLocation.gen(call.expression);
+  if (global === undefined || global.declarations.some((handle) => world.fileOf(handle) !== null)) {
+    return null;
+  }
+  const path = yield* urlPrefix(world.checker, url);
+  return path !== null && OWN_ROUTE.test(path) ? `http ${path}` : null;
+}
+
+// The procedure or own route a call hands its argument to, with the callee resolved.
+function* destinationOf(world: NativeWorld, end: CallEnd | null): APIRequestGenerator<string | null> {
+  if (end === null) {
+    return null;
+  }
+  const callee = end.call.expression;
+  return isPropertyAccessExpression(callee) ? yield* procedureCall(world, callee) : yield* routeCall(world, end);
 }
 
 // The value a loose key is a key of: its object literal, or the receiver of an element or property write.
@@ -326,10 +408,15 @@ function looseDestinations(world: NativeWorld, values: readonly Node[]): readonl
       .shorthandValues(shorthand.map((use) => use.parent))
       .map((symbol, at) => [shorthand[at], symbol === undefined ? [] : declarationKeys(symbol)] as const),
   );
-  return values.map((value, at) => {
+  const ends = values.map((value, at) => {
     const own = keys[at] ?? [];
     const reaching = (uses[at] ?? []).filter((use) => (plainKeys.get(use) ?? shorthandKeys.get(use) ?? []).some((key) => own.includes(key)));
-    const found = [value, ...reaching].map(destinationOf).find((destination) => destination !== null);
+    return [value, ...reaching].map(callEndOf);
+  });
+  const reached = world.batch(ends.flat().map((end) => destinationOf(world, end)));
+  let cursor = 0;
+  return ends.map((each) => {
+    const found = each.map(() => reached[cursor++] ?? null).find((destination) => destination !== null);
     return found ?? null;
   });
 }
@@ -396,7 +483,7 @@ function verdictOf(resolution: KeyResolution | null, placed: boolean, loose: str
     return { kind: "other" };
   }
   if (resolution.outcome === "open") {
-    return loose === null ? { kind: "unresolved", reason: "open slot sent outside the repo" } : { kind: "loose", destination: loose };
+    return loose === null ? { kind: "unresolved", reason: NO_DESTINATION } : { kind: "loose", destination: loose };
   }
   return { kind: "unresolved", reason: resolution.reason };
 }
@@ -497,6 +584,9 @@ export function checkRemovedKeys(options: RemovedKeysOptions): RemovedKeysReport
   const { root, base, head } = options;
   if (execGit(root, ["rev-parse", head]).trim() !== execGit(root, ["rev-parse", "HEAD"]).trim()) {
     throw new Error(`removed-keys resolves senders in the checked-out tree: check out ${head} first`);
+  }
+  if (execGit(root, ["status", "--porcelain"]).trim() !== "") {
+    throw new Error("removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first");
   }
   const receiverFiles = RECEIVERS.map(
     (receiver) =>

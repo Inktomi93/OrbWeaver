@@ -41,7 +41,7 @@ Each scan ships fixtures for a found case and a false-positive control. Each del
 
 ## Deleted keys
 
-A deleted tRPC input key strips silently under `z.object`. A sweep of every landed deletion found no live sender of a deleted key. `pnpm unwired` removed-keys now fails a deletion branch when the key resolver places a client, plugin or e2e write on the shape the key was removed from, or finds the key in a loose object handed to one of our tRPC procedures or own routes. A same-named field of another shape passes, and a site the resolver cannot place, including a body sent outside the repo, is listed as unresolved.
+A deleted tRPC input key strips silently under `z.object`. A sweep of every landed deletion found no live sender of a deleted key. `pnpm unwired` removed-keys now fails a deletion branch when the key resolver places a client, plugin or e2e write on the shape the key was removed from, or finds the key in a loose object handed to one of our tRPC procedures or own routes. A destination is a resolved callee. It is a tRPC verb the tRPC packages declare, or a TanStack mutation built from a procedure's `mutationOptions()`. It is also the platform `fetch` with a URL on our own origin, read through a route constant. A same-named field of another shape passes, and a site the resolver cannot place, including a body sent outside the repo, is listed as unresolved. The check runs only on a clean checkout of the head.
 
 ## Engine disagreements
 

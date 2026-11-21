@@ -114,7 +114,7 @@ export interface FieldsReport {
 
 /** What the fields scan cannot see, printed with every run. */
 const FIELD_LIMITS: readonly string[] = [
-  "A computed key built from runtime strings types as string, so it reads or writes no named field; a builder typed with a template-literal key type writes the target members its keys name where it is spread.",
+  "A computed key built from runtime strings types as string, so it reads or writes no named field. A spread of a value whose type builds its keys, such as Record<keyof X, V> or a template-literal key type, writes none of them: only a literal key that built the value names a written member, and a literal key on a member no declaration backs is unresolved.",
   "A string key counts only in a key slot the key resolver reads (tooling/src/unwired/key-resolver.ts): a computed literal key, a slot declared keyof X, a generic call slot keyof T bound by an argument, or a TanStack Form path walked segment by segment. A template-literal form path (a path with an interpolated index) and a field list typed string[] (MiniSearch's own options) name no member.",
   "A key the resolver cannot place is listed in unresolved with its reason (untyped, absent, synthetic, no-holder, path) and credits no field by its name.",
   "A type-position read (Registry[K]) is no read; a registry entry needs a value read by name.",

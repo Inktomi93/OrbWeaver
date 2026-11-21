@@ -208,8 +208,6 @@ interface Reflected {
   readonly reads: readonly NativeSymbol[];
   readonly links: readonly Link[];
   readonly flows: readonly Flow[];
-  /** The target members a spread writes for value keys no declaration backs. */
-  readonly writes: readonly string[];
 }
 
 // The properties a reflection reads, and the links a spread into a typed literal makes instead. A spread member
@@ -218,27 +216,24 @@ function* reflected(world: NativeWorld, { value, target, names }: ReflectedShape
   const { checker } = world;
   const properties = yield* reflectedProperties(checker, value, names);
   if (target === undefined) {
-    return { reads: properties, links: [], flows: [], writes: [] };
+    return { reads: properties, links: [], flows: [] };
   }
   const named = yield* all(...properties.map((property) => propertiesNamed(checker, target, property.name)));
   const reads: NativeSymbol[] = [];
   const links: Link[] = [];
   const flows: Flow[] = [];
-  const writes: string[] = [];
   for (const [at, property] of properties.entries()) {
     const into = (named[at] ?? []).filter((member) => member !== undefined);
     if (into.some((member) => member.declarations.every((handle) => world.fileOf(handle) === null))) {
       reads.push(property);
-    } else if (property.declarations.length === 0) {
-      // A key a mapped or template-literal type builds has no declaration to carry a write from: the spread itself
-      // writes the target's member of that name, as the compiler assigns it.
-      writes.push(...keysOf(into));
-    } else if (into.length > 0) {
+      // A key a mapped or template-literal type builds has no declaration, so the spread links and writes nothing for
+      // it: its type names the key, not the value. The literal key that built the value is the write.
+    } else if (property.declarations.length > 0 && into.length > 0) {
       links.push({ from: keysOf(into), to: declarationKeys(property) });
       flows.push({ source: declarationKeys(property), sink: keysOf(into) });
     }
   }
-  return { reads, links, flows, writes };
+  return { reads, links, flows };
 }
 
 // Each distinct shape once, so a library props type spread at many sites lists its properties a single time.
@@ -846,19 +841,14 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const open = openFacts(world, home, [...openKeys, ...openSpreads(world, kept)], literalReads);
   sends.push(...open.sends);
   credits.push(...open.reads, ...nestedReads(world, kept));
-  const reflectedFacts = reflectionFacts(world, kept, reads);
+  const reflectedFacts = reflectionFacts(kept, reads);
   credits.push(...reflectedFacts.credits);
   links.push(...reflectedFacts.links);
   flows.push(...reflectedFacts.flows);
-  const spreadWrites = new Map(reflectedFacts.writes.map((site) => [siteKey(site), "write" as const]));
-  for (const key of spreadWrites.keys()) {
-    written.add(key);
-  }
   const keyWrites = resolutions.flatMap(({ resolution, node }) => (isObjectLiteralKey(node) ? [{ key: node, members: keysOfResolution(resolution) }] : []));
-  const keyed = new Map([
-    ...spreadWrites,
-    ...resolutions.flatMap(({ resolution }) => (resolution.slotRole === null ? [] : [[siteKey(resolution.site), resolution.slotRole] as const])),
-  ]);
+  const keyed = new Map(
+    resolutions.flatMap(({ resolution }) => (resolution.slotRole === null ? [] : [[siteKey(resolution.site), resolution.slotRole] as const])),
+  );
   const unresolved = resolutions.flatMap(({ resolution }) =>
     resolution.outcome === "unresolved" ? [{ site: resolution.site, name: resolution.name, reason: resolution.reason }] : [],
   );
@@ -878,31 +868,23 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   };
 }
 
-// What the reflections credit: each read, each spread write of a key no declaration backs, and their links and flows.
+// What the reflections credit: each read, and their links and flows.
 function reflectionFacts(
-  world: NativeWorld,
   kept: readonly (Reflection & { readonly site: Site })[],
   reads: readonly Reflected[],
-): Pick<PropertyFacts, "credits" | "links" | "flows"> & { readonly writes: readonly Site[] } {
+): Pick<PropertyFacts, "credits" | "links" | "flows"> {
   const credits: PropertyFacts["credits"][number][] = [];
   const links: Link[] = [];
   const flows: Flow[] = [];
-  const writes: Site[] = [];
   for (const [at, reflection] of kept.entries()) {
-    const { reads: symbols, links: spread, flows: carried, writes: written } = reads[at] ?? { reads: [], links: [], flows: [], writes: [] };
+    const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
     if (reflection.sent === null) {
       credits.push({ site: reflection.site, keys: keysOf(symbols) });
-    }
-    if (written.length > 0) {
-      // The spread token is the write's site, apart from the value expression a read is credited at.
-      const site = world.siteOf(reflection.value.parent);
-      credits.push({ site, keys: written });
-      writes.push(site);
     }
     links.push(...spread);
     flows.push(...carried);
   }
-  return { credits, links, flows, writes };
+  return { credits, links, flows };
 }
 
 // The sites of the resolved names that store into their member.
