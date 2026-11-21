@@ -10,12 +10,14 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { buildUrl } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
-import type { StageRow } from "../contract/stage.ts";
+import { connectOrb } from "../../floor/http/stage-trpc.ts";
+import type { EnsureStageOps, StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
+import { resolveStageConnectionSeed, seedStageConnection } from "./stage-connection.ts";
 import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
 import { stageAskFromArgs } from "./stage-wait.ts";
 
@@ -106,19 +108,28 @@ function registerLiveProvenance(opts: Args): void {
 }
 
 /** Boot or reuse this run's stage and point the run at it. A `local` stage is also the multi-human fixture
- *  for the run, so `--contexts`/`--as` log in against it unless the caller named another fixture. */
-function bindIsolatedStage(opts: Args): StageRow {
+ *  for the run, so `--contexts`/`--as` log in against it unless the caller named another fixture. A
+ *  `--stage-connection` key resolves before the boot, so a missing one refuses without a rebuild. */
+async function bindIsolatedStage(opts: Args, ops: EnsureStageOps | undefined): Promise<StageRow> {
   const auth = opts.stageAuth;
-  const stage = ensureStage(stageAskFromArgs(opts));
+  const connection = opts.stageConnection === null ? null : resolveStageConnectionSeed(opts.stageConnection);
+  const stage = ensureStage(stageAskFromArgs(opts), ops);
+  const server = `http://127.0.0.1:${String(stage.serverPort)}`;
   opts.base = stageRowBaseUrl(stage);
   if (auth === "local") {
-    opts.fixtureServer ??= `http://127.0.0.1:${String(stage.serverPort)}`;
+    opts.fixtureServer ??= server;
     opts.fixtureBase ??= opts.base;
+  }
+  if (connection !== null) {
+    const seeded = await seedStageConnection(connectOrb(server), connection);
+    print(`[snap-stage] chat runs on "${seeded.label}" (${seeded.providerId} ${seeded.model})`);
   }
   return stage;
 }
 
-export function configureStage(opts: Args): number | null {
+/** Point the run at its stage, or answer a stage control flag. `ops` is {@link ensureStage}'s injected box-facing half;
+ *  every caller but a test takes the real one. */
+export async function configureStage(opts: Args, ops?: EnsureStageOps): Promise<number | null> {
   const control = stageControlResult(opts);
   if (control !== null) {
     return control;
@@ -126,7 +137,7 @@ export function configureStage(opts: Args): number | null {
   if (opts.isolated) {
     // the caught stage failure is recorded in the run's stage provenance as unavailable with the message, printed as STAGE ERROR, and returned as EXIT.toolError, which cli.ts and session-daemon.ts return as the exit code. Ends if configureStage's return stops being used as the exit.
     try {
-      const stage = bindIsolatedStage(opts);
+      const stage = await bindIsolatedStage(opts, ops);
       registerSnapStageProvenance({
         mode: "isolated",
         state: "bound",

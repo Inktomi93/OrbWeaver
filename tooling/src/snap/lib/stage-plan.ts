@@ -125,6 +125,7 @@ export function bandAccess(opts: {
   readonly targetSha: string;
   readonly dirty: boolean;
   readonly fresh: boolean;
+  readonly seedsConnection: boolean;
   readonly bandBound: boolean;
   readonly healthy: boolean;
   readonly auth?: StageAuthMode;
@@ -136,10 +137,13 @@ export function bandAccess(opts: {
     return "take-over";
   }
   // `--dirty` would rsync OUR working tree into THEIR stage dir; `--fresh` and a sha change would tear
-  // their stack down. Only an untouched same-commit reuse is safe across checkouts.
-  const wouldMutateTheirStage = opts.dirty || opts.fresh;
+  // their stack down; `--stage-connection` would write a key, a connection and a chat binding into their db.
+  // Only an untouched same-commit reuse is safe across checkouts, and never of a stage a connection was seeded into:
+  // its chat runs on the seeding owner's key.
+  const wouldMutateTheirStage = opts.dirty || opts.fresh || opts.seedsConnection;
+  const theirsOnly = opts.row.connectionSeeded === true;
   const sameStage = opts.row.sha === opts.targetSha && stageRowAuth(opts.row) === (opts.auth ?? "single-user");
-  if (!wouldMutateTheirStage && sameStage && opts.healthy) {
+  if (!(wouldMutateTheirStage || theirsOnly) && sameStage && opts.healthy) {
     return "shared-reuse";
   }
   return "refuse";

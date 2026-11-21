@@ -67,6 +67,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--ref",
   "--stage-auth",
   "--stage-db",
+  "--stage-connection",
   "--session",
   "--session-daemon",
   "--session-close",

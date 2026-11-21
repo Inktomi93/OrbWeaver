@@ -16,7 +16,8 @@
 
 import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
-import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import type { EnsureStageOps, StageAllocation, StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import type { StageConnectionKeyName } from "../../../../tooling/src/snap/contract/stage-connection.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   allocateStageBand,
@@ -34,6 +35,10 @@ import {
   stageSweepVerdict,
 } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { StageBusyError } from "../../../../tooling/src/snap/lib/stage-wait-plan.ts";
+import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
+import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
+import { stageAskFromArgs } from "../../../../tooling/src/snap/ops/stage-wait.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OTHER_SHA = "f".repeat(40);
@@ -79,7 +84,7 @@ function views(placed: readonly { readonly row: StageRow; readonly over?: Partia
   });
 }
 
-const ALLOC = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, limits: LIMITS, nowMs: NOW };
+const ALLOC = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, seedsConnection: false, limits: LIMITS, nowMs: NOW };
 
 // ── limits (owner fork F5) ────────────────────────────────────────────────────────────────────────────
 
@@ -225,6 +230,82 @@ test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band 
   // …but NOT when we would mutate their tree: `--dirty` rsyncs into it and `--fresh` tears it down.
   expect(allocateStageBand({ ...ALLOC, dirty: true, views: views([{ row: theirs }]) }).kind).toBe("free");
   expect(allocateStageBand({ ...ALLOC, fresh: true, views: views([{ row: theirs }]) }).kind).toBe("free");
+  // …nor when we would seed a connection: the key, the connection and the chat binding would land in their db.
+  expect(allocateStageBand({ ...ALLOC, seedsConnection: true, views: views([{ row: theirs }]) }).kind).toBe("free");
+});
+
+test("a run that seeds a connection gets its own band, never a sibling's warm stage at its commit", () => {
+  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  const theirs = row(0, { checkout: LANE_CHECKOUT });
+  const verdicts: StageAllocation[] = [];
+  const ops: EnsureStageOps = {
+    repoRoot: (): string => MAIN_CHECKOUT,
+    resolveRef: (): string => SHA,
+    markerRoot: (): string => MAIN_CHECKOUT,
+    // The census is planted and the allocator is the real one, judging the ask ensureStage built from the parsed argv.
+    // It then refuses as a full table does, so the verdict is read before anything boots or writes the table.
+    acquireStageBand: (input) => {
+      verdicts.push(allocateStageBand({ ...input, nowMs: NOW, views: views([{ row: theirs }]), limits: LIMITS }));
+      throw new StageBusyError("planted census: the verdict is the observable");
+    },
+    armStageKeeper: (_home, armed) => armed,
+  };
+  for (const argv of [
+    ["/", "--isolated"],
+    ["/", "--stage-connection", seeding],
+  ]) {
+    const parsed = parseSnapArgs(argv);
+    expect(parsed.errors).toEqual([]);
+    expect(() => ensureStage(stageAskFromArgs(parsed), ops)).toThrow(StageBusyError);
+  }
+  // The positive control first: the same run without the flag shares the sibling's stage.
+  expect(verdicts).toEqual([
+    { kind: "shared-reuse", band: 0, row: theirs },
+    { kind: "free", band: 1 },
+  ]);
+});
+
+test("a stage a connection was seeded into is reused only by the checkout that seeded it", () => {
+  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  // Each run's ask goes through ensureStage into the real allocator over a planted census; the planted census then
+  // refuses as a full table does, so nothing boots. A run handed a free band records the claim row it would write.
+  const run = (checkout: string, argv: string[], census: readonly StageBandView[]): { verdict: StageAllocation; claim: StageRow | null } => {
+    const seen: { verdict: StageAllocation; claim: StageRow | null }[] = [];
+    const ops: EnsureStageOps = {
+      repoRoot: (): string => checkout,
+      resolveRef: (): string => SHA,
+      markerRoot: (): string => checkout,
+      acquireStageBand: (input) => {
+        const verdict = allocateStageBand({ ...input, nowMs: NOW, views: census, limits: LIMITS });
+        seen.push({ verdict, claim: verdict.kind === "free" ? input.claim(verdict.band) : null });
+        throw new StageBusyError("planted census: the verdict is the observable");
+      },
+      armStageKeeper: (_home, armed) => armed,
+    };
+    const parsed = parseSnapArgs(argv);
+    expect(parsed.errors).toEqual([]);
+    expect(() => ensureStage(stageAskFromArgs(parsed), ops)).toThrow(StageBusyError);
+    const [only] = seen;
+    if (only === undefined) {
+      throw new Error("ensureStage never asked the allocator");
+    }
+    return only;
+  };
+  const claimOf = (argv: string[]): StageRow => {
+    const { claim } = run(LANE_CHECKOUT, argv, views([]));
+    if (claim === null) {
+      throw new Error("an empty table handed out no free band");
+    }
+    return claim;
+  };
+  const plain = claimOf(["/", "--isolated"]);
+  const seeded = claimOf(["/", "--stage-connection", seeding]);
+  const sibling = (stage: StageRow): StageAllocation => run(MAIN_CHECKOUT, ["/", "--isolated"], views([{ row: stage }])).verdict;
+  // The positive control first: a sibling's plain run shares a plain stage at the commit.
+  expect(sibling(plain)).toEqual({ kind: "shared-reuse", band: 0, row: plain });
+  expect(sibling(seeded)).toEqual({ kind: "free", band: 1 });
+  // The checkout that seeded it still reuses its own stage.
+  expect(run(LANE_CHECKOUT, ["/", "--isolated"], views([{ row: seeded }])).verdict).toEqual({ kind: "ours", band: 0, row: seeded });
 });
 
 test("with every band occupied, the LOWEST STRANDED row is reaped on acquire", () => {

@@ -4,15 +4,19 @@ import { cacheMinTokensOf } from "@orb/contracts/inference";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { warn } from "../../floor/cli/log.ts";
+import type { OrbApi } from "../../floor/http/stage-trpc.ts";
+import { connectOrb } from "../../floor/http/stage-trpc.ts";
+import type { EnvFile } from "../../floor/process/operator-keys.ts";
+import { operatorKey, readMainEnv } from "../../floor/process/operator-keys.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { RoomRun } from "../contract/plan.ts";
-import type { CacheCase, CacheRoute, CaseOutcome, EnvFile, OrbApi, RouteRefusal, RouteSpec } from "../contract/types.ts";
+import type { CacheCase, CacheRoute, CaseOutcome, RouteRefusal, RouteSpec } from "../contract/types.ts";
 import { parseCacheCheckArgs } from "../lib/argv.ts";
 import { roomRuns } from "../lib/fixture.ts";
 import { missingCredential, ROUTE_SPECS } from "../lib/routes.ts";
 import { CACHE_READ_FLOOR, formatOutcome, formatSpend, judgeCase, runVerdict } from "../lib/verdict.ts";
-import { connectOrb, PROBE_PREFIX, ProbeRows, runRoom } from "./drive.ts";
-import { bootStage, probeKey, readMainEnv } from "./stage.ts";
+import { PROBE_PREFIX, ProbeRows, runRoom } from "./drive.ts";
+import { bootStage } from "./stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
@@ -101,7 +105,7 @@ async function runRoute(
   const outcomes: CaseOutcome[] = [];
   const replyCosts: (number | null)[] = [];
   try {
-    const prep = await prepareRoute(api, spec, probeKey(spec.credentialEnv, ctx.mainEnv), rows);
+    const prep = await prepareRoute(api, spec, operatorKey(spec.credentialEnv, ctx.mainEnv), rows);
     for (const roomRun of roomRuns(cases)) {
       const judged =
         prep.kind === "ready"

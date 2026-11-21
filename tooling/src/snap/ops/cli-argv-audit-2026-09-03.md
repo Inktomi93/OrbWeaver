@@ -265,6 +265,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--session-ttl` | `V,L` duration | boot/session admin policy | outer | no alias | owned | KEEP |
 | `--shot-of` | `V,L` selector | capture; element screenshot | checkpoint | canonical; legacy screenshot refused | owned | KEEP |
 | `--stream-settle` | `V,L` seconds | call settle policy; fixed streaming-surface settle | checkpoint | not requests capture | owned | KEEP; old `--sse` refuses by name |
+| `--stage-connection` | `V,L` local or a key name | boot WHERE; bind the stage owner's chat role to the local engine or to a connection seeded from a repository env key | outer | implies isolated; never shares a sibling's stage and refuses `--base`; the value is a name, never a key, and argv masks any other value | owned | KEEP |
 | `--stage-db` | `V,L` db path | boot WHERE; clone a database file, its -wal/-shm and the assets beside it into a rebuilt stage | outer | implies isolated and fresh; `--stage-auth local` seeds the fixture humans into the clone | owned | KEEP |
 | `--stage-down` | `B` | admin; stop stage | exclusive | `--force` and `--stage-owner` modifiers | owned | KEEP |
 | `--stage-keeper` | `V,L` band index | internal band idle-timer process (#1163 arm b); polls one row and tears its stage down through the `--stage-down` path | internal only; spawned by `ensureStage`, refused beside any other mode | no public synonym | internal | KEEP internal |

@@ -3,8 +3,6 @@
 
 import type { ProviderGenerationId } from "@orb/contracts/inference";
 import type { MessageId } from "@orb/kit/ids";
-import type { AppRouter } from "@orb/server/transport/trpc";
-import type { TRPCClient } from "@trpc/client";
 
 /** The provider routes a real orb turn can take to a Claude model. */
 export const CACHE_ROUTES = ["direct", "openrouter", "agent-sdk"] as const;
@@ -117,12 +115,6 @@ export interface RouteRefusal {
   readonly verdict: Extract<CaseVerdict, "SKIPPED" | "ERROR">;
   readonly reason: string;
 }
-
-/** A parsed env file; a key the file does not set reads undefined. */
-export type EnvFile = Readonly<Record<string, string | undefined>>;
-
-/** The typed client the check drives orb through. */
-export type OrbApi = TRPCClient<AppRouter>;
 
 /** One case's result inside a room: what it measured, or why it could not. */
 export type RoomCaseResult = { readonly case: CacheCase; readonly run: CaseRun } | { readonly case: CacheCase; readonly error: string };

@@ -290,8 +290,12 @@ pnpm snap / --stage-db reports/container-clone/db/orbweaver.db --stage-auth loca
 
 Keep `db/` and `assets/` side by side: the stage copies the assets from beside the db, so avatars and art render.
 Drop `--stage-auth local` to sign in as the container's owner alone. Saved provider keys, sessions and password
-hashes are dropped from the clone, so a model call fails there by design. Only an explicit brief for a thin-db
-control run uses the dev-db copy.
+hashes are dropped from the clone by design. For a live turn, add `--stage-connection <local|NAME>`: it binds the
+stage owner's chat role to the box's local engine, or to Sonnet 5 on a credential seeded from the repository env key
+`NAME` (`OPENROUTER_PROBE_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_PROBE_KEY`, `ANTHROPIC_API_KEY`). Pass the
+key's name, never its value. snap reads the value from your environment or the main checkout's env file and prints
+only the name. Pick the connection by the live model policy. Only an explicit brief for a thin-db control run uses the
+dev-db copy.
 
 ## §9 Refusals are answers; shared-stack manners
 

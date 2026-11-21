@@ -142,7 +142,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     return EXIT.toolError;
   }
   const bootArgs: Args = opts;
-  const stageExit = configureStage(bootArgs);
+  const stageExit = await configureStage(bootArgs);
   if (stageExit !== null) {
     return stageExit;
   }
