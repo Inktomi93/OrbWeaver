@@ -129,10 +129,10 @@ const isReference = (type: ts.Type): type is ts.TypeReference =>
 
 // A generic the default library declares (arrays, iterables, generators, promises, sets, maps): each one's type
 // parameters, in order, are the element types it carries, so an `AsyncGenerator<A>` fed into an `AsyncIterable<B>`
-// flows `A` into `B`. Two user generics pair their arguments only when they are one generic.
+// flows `A` into `B`. A package's augmentation (`@total-typescript/ts-reset` merges into `Array`) leaves it the
+// library's generic. Two user generics pair their arguments only when they are one generic.
 function isLibraryGeneric({ isLibrary }: LinkContext, type: ts.TypeReference): boolean {
-  const declarations = type.target.getSymbol()?.declarations ?? [];
-  return declarations.length > 0 && declarations.every((declaration) => isLibrary(declaration.getSourceFile()));
+  return (type.target.getSymbol()?.declarations ?? []).some((declaration) => isLibrary(declaration.getSourceFile()));
 }
 
 function elementPairs(context: LinkContext, slot: ts.Type, value: ts.Type): readonly (readonly [ts.Type, ts.Type])[] {
