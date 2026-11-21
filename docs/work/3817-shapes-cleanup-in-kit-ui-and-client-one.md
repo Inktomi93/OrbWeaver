@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-The shapes review (reports/unwired/shapes-judge.md, true findings) found repeated shapes: the half-open character range spelled Span, OpaqueRange, TextRange, ReadSpan and HiddenRun in packages/kit (HiddenRun's doc calls it a byte range but its producers use string indices); TailRow in composer-tail-line.ts restating the private WaitCountRow of packages/contracts/src/chat/metadata.ts; SCROLL_EDGE_EPSILON_PX re-exported through the scroll-area door instead of @orb/ui/lib; BoundColorFieldProps renaming BoundFieldShellProps; and contracts re-publishing kit's ParticipantRole, ParticipantKind and MessageKind.
+The shapes review (reports/unwired/shapes-judge.md, true findings) found repeated shapes: the half-open character range spelled Span, OpaqueRange, TextRange, ReadSpan and HiddenRun in packages/kit (HiddenRun's doc calls it a byte range but its producers use string indices); TailRow in composer-tail-line.ts restating the private WaitCountRow of packages/contracts/src/chat/metadata.ts; SCROLL_EDGE_EPSILON_PX re-exported through the scroll-area door instead of @orb/ui/lib; BoundColorFieldProps renaming BoundFieldShellProps; and contracts re-publishing kit's ParticipantRole, ParticipantKind and MessageKind. The ports review (reports/unwired/ports-judge.md) adds ParamsDeckProps in packages/client/src/features/preset/components/params-deck.tsx, which restates ParamsLimitsProps member for member and only forwards them to ParamsLimits.
 
 ## Why
 
