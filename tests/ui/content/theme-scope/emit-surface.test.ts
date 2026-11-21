@@ -3,7 +3,7 @@
 
 import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { TOKENS, TONE_HOST_VAR, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { TOKENS, TONE_HOST_VAR, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneAwayVar, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import type { ThemeScopeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
@@ -26,13 +26,14 @@ const FULL_OVERRIDE = {
   borderColor: "oklch(0.7 0.1 330)",
 } as const satisfies Required<ThemeScopeTokens>;
 
-/** The custom properties the generated token surface names: every served token, every per-tone knob and literal, and the tone host. */
+/** The custom properties the generated token surface names: every served token, every per-tone knob, step end and literal, and the tone host. */
 function generatedVars(): ReadonlySet<string> {
   const colored = TONES.filter((tone) => tone !== "neutral");
   return new Set([
     ...Object.values(TOKENS).map((token) => token.cssVar),
     TONE_HOST_VAR,
     ...colored.flatMap((tone) => TONE_MIX_KNOBS.map((knob) => toneKnobVar(tone, knob))),
+    ...colored.map((tone) => toneAwayVar(tone)),
     ...colored.flatMap((tone) => TONE_ROLES.map((role) => toneLiteralVar(tone, role))),
   ]);
 }

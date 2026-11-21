@@ -52,7 +52,6 @@ import {
   inactiveOpacityVars,
   paintedAccentFill,
   primaryLiteralResets,
-  primaryToneMix,
   primaryToneVars,
   seedInactiveOpacityVars,
   seedToneScheme,
@@ -150,8 +149,6 @@ export interface ClampedTheme {
   readonly bubbleScopes: BubbleScopes;
   /** Opaque pixel this scope's authored background paints over its ambient; judging/context only. */
   readonly resolvedBackground?: string;
-  /** Set when no one ink covers the primary fill and its solid steps, so the solve raised the step knobs (D336). */
-  readonly toneFallback?: ToneFallback;
   /** Set when the scope's form-control edge could not hold both D159 bounds (the 3:1 floor wins over the focus-ring ceiling), or when an accent-only scope's ring cannot sit above the outer carried edge. */
   readonly inputBorderFallback?: InputBorderFallback;
 }
@@ -169,13 +166,6 @@ export interface ScopeAmbient extends AmbientScope {
   readonly palette?: AmbientPalette | undefined;
   /** This solve is a box's own palette, so its background is the fill, not a nested card's. */
   readonly asBox?: boolean;
-}
-
-/** The D336 primary fallback a scope took: the fill it paints and the hover and active percents the solve raised to. */
-export interface ToneFallback {
-  readonly accent: string;
-  readonly hover: number;
-  readonly active: number;
 }
 
 /** The fallback stack each pickable font resolves to; the shipped face takes its token's own stack. */
@@ -380,8 +370,6 @@ interface AccentEmission {
   readonly foreground: string;
   /** The fill's opaque pixel, the primary tone's base for the D336 knob solve. */
   readonly painted: Oklch;
-  /** Whether one ink covers the fill and its solid steps at the default knobs (`accentInk`). */
-  readonly coversSteps: boolean;
 }
 
 /**
@@ -421,18 +409,17 @@ function accentEmissionOn(picked: string | undefined, ambient: string | undefine
   if (scheme === null) {
     return picked === undefined
       ? undefined
-      : { fill: picked, foreground: `oklch(from ${picked} ${derivedForegroundLightness(accent)} 0 h / 1)`, painted: accent, coversSteps: true };
+      : { fill: picked, foreground: `oklch(from ${picked} ${derivedForegroundLightness(accent)} 0 h / 1)`, painted: accent };
   }
   const paint = paintedAccentFill(scheme, accent);
   const fill = paint.authored ? source : serializeOpaqueOklch(paint.fill);
   const ink = accentInk(scheme, paint.fill);
-  return { fill, foreground: `oklch(from ${fill} ${ink.lightness} 0 h / 1)`, painted: paint.fill, coversSteps: ink.coversSteps };
+  return { fill, foreground: `oklch(from ${fill} ${ink.lightness} 0 h / 1)`, painted: paint.fill };
 }
 
 interface AccentAndTones {
   readonly accent: AccentEmission | undefined;
   readonly toneVars: Readonly<Record<string, string>>;
-  readonly fallback: ToneFallback | undefined;
   /** The outer edge an accent-only scope could not hold its ring above (D159); a carried scope reports its own edge instead. */
   readonly inputBorderFallback?: InputBorderFallback;
 }
@@ -454,15 +441,13 @@ function accentAndTonesOn(
   }
   if (carried === null) {
     const accent = accentEmissionOn(picked, ambientAccent, null);
-    return { accent, toneVars: accent === undefined ? {} : primaryLiteralResets(), fallback: undefined };
+    return { accent, toneVars: accent === undefined ? {} : primaryLiteralResets() };
   }
   const scheme = carriedToneScheme(carried);
   const accent = accentEmissionOn(picked, ambientAccent, scheme);
   const sources = carriedToneSources(scheme, accent?.painted ?? null);
   const mix = solveCarriedToneMix(scheme, sources);
   const literals = carriedToneLiterals(scheme, sources);
-  const primary = primaryToneMix(mix);
-  const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
   return {
     accent,
     toneVars: {
@@ -471,7 +456,6 @@ function accentAndTonesOn(
       ...toneHostReset(),
       ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
     },
-    fallback,
   };
 }
 
@@ -484,7 +468,6 @@ interface PrimarySolve {
   readonly sources: readonly CarriedTone[];
   readonly mix: CarriedToneMix;
   readonly literals: ReturnType<typeof carriedToneLiterals>;
-  readonly fallback: ToneFallback | undefined;
 }
 
 function primarySolveOn(picked: string, scheme: CarriedToneScheme): PrimarySolve | undefined {
@@ -497,14 +480,7 @@ function primarySolveOn(picked: string, scheme: CarriedToneScheme): PrimarySolve
     scheme,
     sources.filter(({ tone }) => tone === "primary"),
   );
-  const steps = primaryToneMix(mix);
-  return {
-    accent,
-    sources,
-    mix,
-    literals: carriedToneLiterals(scheme, sources),
-    fallback: accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active },
-  };
+  return { accent, sources, mix, literals: carriedToneLiterals(scheme, sources) };
 }
 
 /**
@@ -516,9 +492,9 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
   const scheme = carriedToneScheme(ambient);
   const solve = primarySolveOn(picked, scheme);
   if (solve === undefined) {
-    return { accent: undefined, toneVars: primaryLiteralResets(), fallback: undefined };
+    return { accent: undefined, toneVars: primaryLiteralResets() };
   }
-  const { accent, sources, mix, literals, fallback } = solve;
+  const { accent, sources, mix, literals } = solve;
   // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
   const ring = nestedRingOn(ambient, accent.painted);
   return {
@@ -528,7 +504,6 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
       ...ring.vars,
       ...inactiveOpacityVars({ scheme, tones: sources, mix, literals }),
     },
-    fallback,
     ...(ring.fallback === undefined ? {} : { inputBorderFallback: ring.fallback }),
   };
 }
@@ -541,13 +516,12 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
 function seedAccentOn(picked: string, scheme: CarriedToneScheme): AccentAndTones {
   const solve = primarySolveOn(picked, scheme);
   if (solve === undefined) {
-    return { accent: undefined, toneVars: primaryLiteralResets(), fallback: undefined };
+    return { accent: undefined, toneVars: primaryLiteralResets() };
   }
-  const { accent, sources, mix, literals, fallback } = solve;
+  const { accent, sources, mix, literals } = solve;
   return {
     accent,
     toneVars: { ...primaryToneVars(mix, literals), ...seedInactiveOpacityVars({ scheme, tones: sources, mix, literals }) },
-    fallback,
   };
 }
 
@@ -691,7 +665,7 @@ export function clampThemeTokens(
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(picked, ambientAccent, carried, accentAmbient);
+  const { accent, toneVars, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(picked, ambientAccent, carried, accentAmbient);
   put(THEME_OVERRIDE_COLOR_VARS.accent, accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark
@@ -752,7 +726,7 @@ export function clampThemeTokens(
     ...(colorScheme === null ? {} : { colorScheme }),
     ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),
-    ...carriedContextOn(carriedBase, fallback),
+    ...(carriedBase === null ? {} : { resolvedBackground: serializeOpaqueOklch(carriedBase) }),
     ...edgeFallbackOn(surface?.inputBorderFallback, nestedEdgeFallback),
   };
 }
@@ -773,12 +747,4 @@ function proseInksOf(t: ThemeScopeTokens, ambient: ProseInks, carried: CarriedPa
 function edgeFallbackOn(carried: InputBorderFallback | undefined, nested: InputBorderFallback | undefined): Pick<ClampedTheme, "inputBorderFallback"> {
   const fallback = carried ?? nested;
   return fallback === undefined ? {} : { inputBorderFallback: fallback };
-}
-
-/** The carried scope's context axes: its resolved base pixel and the D336 fallback it took, each only when present. */
-function carriedContextOn(carriedBase: ParsedOklch | null, fallback: ToneFallback | undefined): Pick<ClampedTheme, "resolvedBackground" | "toneFallback"> {
-  return {
-    ...(carriedBase === null ? {} : { resolvedBackground: serializeOpaqueOklch(carriedBase) }),
-    ...(fallback === undefined ? {} : { toneFallback: fallback }),
-  };
 }

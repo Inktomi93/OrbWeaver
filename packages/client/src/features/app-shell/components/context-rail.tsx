@@ -239,29 +239,25 @@ export function ContextHeaderTabs({
     );
   }
   return (
-    <Row
-      data-slot="context-tab-strip"
-      data-overflow-start={overflow.start}
-      data-overflow-end={overflow.end}
-      className="relative"
-      minWidth="shrinks"
-      self="stretch"
-      grow={true}
-    >
-      <TabsList
-        ref={trackRef}
-        activateOnFocus={false}
-        aria-label={ariaLabel}
-        track="strip"
-        className="shell-context-tab-strip shell-overflow-track min-inline-0"
-        fill={true}
-        rule="none"
-      >
-        {tabs.map((tab) => (
-          <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} activeRef={activeTabRef} />
-        ))}
-        <TabsIndicator />
-      </TabsList>
+    <Row data-slot="context-tab-strip" data-overflow-start={overflow.start} data-overflow-end={overflow.end} minWidth="shrinks" self="stretch" grow={true}>
+      {/* The marks sit on the scroll port's own edges: beside the overflow control, never over it. */}
+      <Row className="relative" minWidth="shrinks" self="stretch" grow={true}>
+        <TabsList
+          ref={trackRef}
+          activateOnFocus={false}
+          aria-label={ariaLabel}
+          track="strip"
+          className="shell-context-tab-strip shell-overflow-track min-inline-0"
+          fill={true}
+          rule="none"
+        >
+          {tabs.map((tab) => (
+            <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} activeRef={activeTabRef} />
+          ))}
+          <TabsIndicator />
+        </TabsList>
+        <OverflowMarks overflow={overflow} fill="sidebar" />
+      </Row>
       {overflow.start || overflow.end ? (
         <Row className="shrink-0" paddingInlineEnd="field">
           <Menu>
@@ -291,7 +287,6 @@ export function ContextHeaderTabs({
           </Menu>
         </Row>
       ) : null}
-      <OverflowMarks overflow={overflow} fill="sidebar" />
     </Row>
   );
 }

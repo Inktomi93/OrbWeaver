@@ -676,6 +676,11 @@ export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {
   return ["--tone-mix", tone, knob].join("-");
 }
 
+/** A tone's own end point for its solid steps: `black` or `white`, read before the palette polarity's. */
+export function toneAwayVar(tone: Tone): string {
+  return ["--tone-away", tone].join("-");
+}
+
 /** A carried scope's literal colour for one colored tone's role (`carriedLiteralRoles`), read by the `[data-tone]` block before its mix. */
 export function toneLiteralVar(tone: Exclude<Tone, "neutral">, role: ToneRole): string {
   return ["--tone", tone, role].join("-");

@@ -99,6 +99,12 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--tone-mix-info-active",
   "--tone-mix-neutral-hover",
   "--tone-mix-neutral-active",
+  // The end a colored tone's solid steps move toward (`toneAwayVar`): `black` or `white` where the tone's ink sits on the palette polarity's end, else `initial` for the polarity's own.
+  "--tone-away-primary",
+  "--tone-away-destructive",
+  "--tone-away-warning",
+  "--tone-away-success",
+  "--tone-away-info",
   // A colored tone's literal roles (`toneLiteralVar`): solved on the tone's hue for a carried palette, `initial` where
   // the scope falls back to the mix, so the `[data-tone]` blocks keep each status hue on a mid-lightness page.
   "--tone-primary-text",

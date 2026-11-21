@@ -6,6 +6,7 @@ import {
   carriedLiteralRoles,
   paintedDistance,
   roleFloorMisses,
+  STEP_ENDS,
   TONE_HOSTS,
   TONE_HUE_ADJACENT_DEGREES,
   TONE_TINT_SEPARATION,
@@ -14,7 +15,7 @@ import {
 } from "@orb/kit/theme-derivation";
 import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneAwayVar, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
@@ -79,6 +80,19 @@ export function emittedInk(spelling: string | undefined, hue = 0): Oklch {
     throw new Error(`not an opaque emitted ink: ${spelling}`);
   }
   return color;
+}
+
+/** The primary a scope painted, read back from its emitted variables: its fill, its ink, and the end its solid steps move toward. */
+function emittedPrimary(vars: Readonly<Record<string, string>>): CarriedTone {
+  const away = STEP_ENDS.find((end) => end === vars[toneAwayVar("primary")]);
+  return {
+    tone: "primary",
+    source: {
+      base: parsed(vars[TOKENS["color.primary"].cssVar] ?? ""),
+      foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]),
+      ...(away === undefined ? {} : { away }),
+    },
+  };
 }
 
 /** The mix one tone reads from a scope's emitted variables: its own step knob when set, else the scope's knob. */
@@ -188,9 +202,7 @@ function clampedScope(background: string, tokens: { readonly accent?: string }, 
 export function emittedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): EmittedScope {
   const { vars } = clampedScope(background, tokens, ambientAccent);
   const scheme = schemeOf(background);
-  const fill = vars[TOKENS["color.primary"].cssVar];
-  const primary: CarriedTone[] =
-    fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) } }];
+  const primary: CarriedTone[] = vars[TOKENS["color.primary"].cssVar] === undefined ? [] : [emittedPrimary(vars)];
   return { scheme, vars, tones: [...carriedToneSources(scheme, null), ...primary] };
 }
 
@@ -203,11 +215,7 @@ export function nestedAccentScope(background: string, accent: string): EmittedSc
   const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, { palette: "carried" });
   const vars = { ...outer.vars, ...nested.vars };
   const scheme = schemeOf(background);
-  const primary: CarriedTone = {
-    tone: "primary",
-    source: { base: parsed(vars[TOKENS["color.primary"].cssVar] ?? ""), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) },
-  };
-  return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
+  return { scheme, vars, tones: [...carriedToneSources(scheme, null), emittedPrimary(vars)] };
 }
 
 /**
@@ -220,11 +228,7 @@ export function seedAccentScope(background: string, accent: string): EmittedScop
     throw new Error(`${background} is not a seed palette's page`);
   }
   const { vars } = clampThemeTokens({ accent }, background, undefined, { palette: "seed" });
-  const primary: CarriedTone = {
-    tone: "primary",
-    source: { base: parsed(vars[TOKENS["color.primary"].cssVar] ?? ""), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) },
-  };
-  return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
+  return { scheme, vars, tones: [...carriedToneSources(scheme, null), emittedPrimary(vars)] };
 }
 
 /** Every D336 floor the emitted scope misses, and every tint closer than the separation to the page or to a non-adjacent tone's tint. */

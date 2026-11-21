@@ -134,6 +134,13 @@ function toneKnobVar(tone: string, knob: string): string {
   return [TONE_KNOB_PREFIX, tone, knob].join("-");
 }
 
+/** A tone's own end point for its solid steps, `--tone-away-<tone>`; the generated `toneAwayVar` spells the same name. Unset, a step mixes toward the palette polarity's end. */
+const TONE_AWAY_PREFIX = "--tone-away";
+
+function toneAwayVar(tone: string): string {
+  return [TONE_AWAY_PREFIX, tone].join("-");
+}
+
 /** The knobs of the colored steps that mix away from the page ink: the solid steps, which each tone owns. */
 function stepKnobs(model: ToneModel): readonly string[] {
   const steps = model.roles.flatMap(({ derived: { colored } }) =>
@@ -145,8 +152,10 @@ function stepKnobs(model: ToneModel): readonly string[] {
 /** A colored solid step reads its tone's own knob, so a clamp can raise one tone's steps and leave the others. */
 function mixCss(origin: string, step: MixStep, tone?: string): string {
   const knob = aliasTail(step.mix, TONE_MIX_GROUP);
-  const amount = tone !== undefined && step.toward === "away" ? `var(${toneKnobVar(tone, knob)})` : `var(--${TONE_MIX_GROUP}-${knob})`;
-  return `color-mix(in oklab, ${origin} ${amount}, ${MIX_TARGET_CSS[step.toward]})`;
+  const owned = tone !== undefined && step.toward === "away";
+  const amount = owned ? `var(${toneKnobVar(tone, knob)})` : `var(--${TONE_MIX_GROUP}-${knob})`;
+  const target = owned ? `var(${toneAwayVar(tone)}, ${MIX_TARGET_CSS.away})` : MIX_TARGET_CSS[step.toward];
+  return `color-mix(in oklab, ${origin} ${amount}, ${target})`;
 }
 
 /**
@@ -158,6 +167,7 @@ export function toneRootDefaults(model: ToneModel): readonly string[] {
     .filter((tone) => tone !== NEUTRAL_TONE)
     .flatMap((tone) => [
       ...stepKnobs(model).map((knob) => `${toneKnobVar(tone, knob)}: var(--${TONE_MIX_GROUP}-${knob});`),
+      ...(stepKnobs(model).length === 0 ? [] : [`${toneAwayVar(tone)}: initial;`]),
       ...model.roles.filter((role) => model.literalRoles.has(role.name)).map((role) => `${toneLiteralVar(tone, role.name)}: initial;`),
     ]);
 }
@@ -228,6 +238,11 @@ export function renderToneTs(model: ToneModel): readonly string[] {
     "/** A tone's own override of a scope knob, read first by that tone's colored steps. */",
     "export function toneKnobVar(tone: Tone, knob: ToneMixKnob): string {",
     `  return [${JSON.stringify(TONE_KNOB_PREFIX)}, tone, knob].join("-");`,
+    "}",
+    "",
+    "/** A tone's own end point for its solid steps: `black` or `white`, read before the palette polarity's. */",
+    "export function toneAwayVar(tone: Tone): string {",
+    `  return [${JSON.stringify(TONE_AWAY_PREFIX)}, tone].join("-");`,
     "}",
     "",
     "/** A carried scope's literal colour for one colored tone's role (`carriedLiteralRoles`), read by the `[data-tone]` block before its mix. */",

@@ -1,7 +1,7 @@
 // D336 tone knobs and literal roles for a carried background. The `[data-tone]` blocks read `--tone-mix-*` and each
 // colored tone's `--tone-<tone>-<role>` literal from the cascade, so a scope that paints its own palette emits both
 // beside its colours; the root leaves every literal invalid, and the knob defaults clear every seed floor, which the token build proves.
-import type { CarriedToneHost, Oklch, SolidInk, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
+import type { CarriedToneHost, Oklch, SolidInk, StepEnd, ToneColors, ToneMixGroup, TonePalette, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
   accentFillLightness,
   carriedLiteralRoles,
@@ -17,7 +17,7 @@ import {
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
 import type { Tone, ToneMixKnob, ToneRole } from "#tokens";
-import { TOKEN_POLARITY_ARMS, TOKENS, TONE_HOST_VAR, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "#tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_HOST_VAR, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneAwayVar, toneKnobVar, toneLiteralVar } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette } from "./derive-vars.ts";
@@ -89,9 +89,9 @@ function intentTone(tone: IntentTone, polarity: Polarity): ToneColors {
   return INTENT_TONES[polarity][tone];
 }
 
-/** The hover and active steps a solid takes under this scheme at the default knobs. */
-function solidSteps(scheme: CarriedToneScheme, fill: Oklch): readonly Oklch[] {
-  const roles = toneRoleColors(scheme, { base: fill, foreground: fill }, TONE_MIX_DEFAULTS);
+/** The hover and active steps a solid takes under this scheme at the default knobs, toward `away` when the solid sets its own end. */
+function solidSteps(scheme: CarriedToneScheme, fill: Oklch, away?: StepEnd): readonly Oklch[] {
+  const roles = toneRoleColors(scheme, { base: fill, foreground: fill, ...(away === undefined ? {} : { away }) }, TONE_MIX_DEFAULTS);
   return [roles["solid-hover"], roles["solid-active"]];
 }
 
@@ -121,16 +121,36 @@ export function paintedAccentFill(scheme: CarriedToneScheme, accent: ParsedOklch
   return { fill: srgbToOklch(pixel), authored: accent.alpha >= 1 && accent.inGamut !== false };
 }
 
-/** The ink paired with an accent fill: one ink over the fill and its solid steps where one exists, else the fill's
- *  own ink, and the solve raises the step knobs until it clears them too. */
-export function accentInk(scheme: CarriedToneScheme, fill: Oklch): SolidInk {
-  return solidInkLightness(fill, solidSteps(scheme, fill));
+/** An accent fill's ink, and the end its solid steps move toward when that is not the palette polarity's. */
+export interface AccentInk extends SolidInk {
+  readonly away?: StepEnd;
+}
+
+/**
+ * The ink paired with an accent fill: one ink over the fill and its solid steps where one exists. A fill whose ink sits on
+ * the palette polarity's end (a lifted navy on a dark page takes white ink, and the dark page's steps lighten) cannot step
+ * toward it without losing the ink's contrast, so its steps move toward the other end and the one ink covers them. Only when
+ * neither end leaves one ink does the fill keep its own ink, and the solve raises the step knobs until it clears them too.
+ */
+export function accentInk(scheme: CarriedToneScheme, fill: Oklch): AccentInk {
+  const ink = solidInkLightness(fill, solidSteps(scheme, fill));
+  if (ink.coversSteps) {
+    return ink;
+  }
+  const away = scheme.palette.polarity === "light" ? "white" : "black";
+  const turned = solidInkLightness(fill, solidSteps(scheme, fill, away));
+  return turned.coversSteps ? { ...turned, away } : ink;
 }
 
 /** One tone a carried scope paints, by name. */
 export interface CarriedTone {
   readonly tone: Tone;
   readonly source: ToneSource;
+}
+
+function primarySource(scheme: CarriedToneScheme, fill: Oklch): ToneColors {
+  const ink = accentInk(scheme, fill);
+  return { base: fill, foreground: { l: ink.lightness, c: 0, h: fill.h }, ...(ink.away === undefined ? {} : { away: ink.away }) };
 }
 
 /** A carried scope's tones: neutral on its ramp, the intent arms at its polarity, and the primary it paints, when known. */
@@ -140,9 +160,7 @@ export function carriedToneSources(scheme: CarriedToneScheme, primaryFill: Oklch
       return [{ tone, source: "neutral" }];
     }
     if (tone === "primary") {
-      return primaryFill === null
-        ? []
-        : [{ tone, source: { base: primaryFill, foreground: { l: accentInk(scheme, primaryFill).lightness, c: 0, h: primaryFill.h } } }];
+      return primaryFill === null ? [] : [{ tone, source: primarySource(scheme, primaryFill) }];
     }
     return [{ tone, source: intentTone(tone, scheme.palette.polarity) }];
   });
@@ -152,6 +170,8 @@ export function carriedToneSources(scheme: CarriedToneScheme, primaryFill: Oklch
 export interface CarriedToneMix {
   readonly scope: Readonly<Record<ToneMixKnob, number>>;
   readonly raised: Readonly<Partial<Record<Tone, Readonly<Partial<Record<ToneMixKnob, number>>>>>>;
+  /** The tones whose solid steps move toward their own end, not the palette polarity's. */
+  readonly away: Readonly<Partial<Record<Tone, StepEnd>>>;
 }
 
 /**
@@ -175,11 +195,14 @@ export function solveCarriedToneMix(scheme: CarriedToneScheme, tones: readonly C
       return steps.length === 0 ? [] : [[tone, Object.fromEntries(steps.map((knob) => [knob, own[knob]]))]];
     }),
   );
-  return { scope, raised };
+  const away = Object.fromEntries(
+    tones.flatMap(({ tone, source }) => (source === "neutral" || source.away === undefined ? [] : [[tone, source.away] as const])),
+  );
+  return { scope, raised, away };
 }
 
 /** The mix the primary's roles read: the scope's knobs with the primary's raised steps over them. */
-export function primaryToneMix(mix: CarriedToneMix): Readonly<Record<ToneMixKnob, number>> {
+function primaryToneMix(mix: CarriedToneMix): Readonly<Record<ToneMixKnob, number>> {
   return { ...mix.scope, ...mix.raised.primary };
 }
 
@@ -195,7 +218,8 @@ export function toneMixVars(mix: CarriedToneMix): Readonly<Record<string, string
       return [toneKnobVar(tone, knob), `${raised ?? mix.scope[knob]}%`] as const;
     }),
   );
-  return Object.fromEntries([...scope, ...perTone]);
+  const ends = COLORED_TONES.map((tone) => [toneAwayVar(tone), mix.away[tone] ?? MIX_FALLBACK] as const);
+  return Object.fromEntries([...scope, ...perTone, ...ends]);
 }
 
 /** The literal role colours a carried scope solved for each colored tone it judges (D336); a tone it cannot judge has none. */
@@ -239,6 +263,7 @@ export function primaryToneVars(mix: CarriedToneMix, literals: CarriedToneLitera
   const steps = primaryToneMix(mix);
   return Object.fromEntries([
     ...STEP_KNOBS.map((knob) => [toneKnobVar("primary", knob), `${steps[knob]}%`] as const),
+    [toneAwayVar("primary"), mix.away.primary ?? MIX_FALLBACK] as const,
     ...toneLiteralEntries("primary", literals),
   ]);
 }
@@ -277,7 +302,7 @@ export function inactiveOpacityVars({ scheme, tones, mix, literals }: CarriedIna
  */
 export function seedInactiveOpacityVars({ scheme, tones, mix, literals }: CarriedInactiveInks): Readonly<Record<string, string>> {
   const primary = new Map([...literals].filter(([tone]) => tone === "primary"));
-  return inactiveOpacityVars({ scheme, tones, mix: { scope: TONE_MIX_DEFAULTS, raised: mix.raised }, literals: primary });
+  return inactiveOpacityVars({ scheme, tones, mix: { scope: TONE_MIX_DEFAULTS, raised: mix.raised, away: mix.away }, literals: primary });
 }
 
 /**
