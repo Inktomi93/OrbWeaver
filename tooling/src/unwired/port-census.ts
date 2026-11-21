@@ -35,7 +35,19 @@ import { forgottenDoorExports } from "./forgotten-exports.ts";
 import type { PlanContext } from "./port-plan.ts";
 import { collapse, doorExportTargets, planMember } from "./port-plan.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, RulingKeys, TargetKind } from "./port-targets.ts";
-import { clustered, conceptOf, crossDomainKind, crossDomainNote, importBarredBy, keyOf, legOf, lineOf, placementOfKey, SPLIT_RULING } from "./port-targets.ts";
+import {
+  clustered,
+  conceptOf,
+  crossDomainKind,
+  crossDomainNote,
+  importBarredBy,
+  keyOf,
+  legOf,
+  lineOf,
+  placementOfKey,
+  SPLIT_RULING,
+  sharedHomeOf,
+} from "./port-targets.ts";
 import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
 
 interface WorldCount {
@@ -755,18 +767,34 @@ interface Owned {
   readonly note: string;
 }
 
-// A linked copy neither file may import is a restatement a dependency rule requires (D160's seeder slice).
+// A linked copy neither file may import. D160's shape is a required restatement: a server domain declares the type it
+// needs in its own contract/, and the composition root injects the other side's value. Any other mutually barred pair
+// is review work, with the shared home both files may import named as the place to declare the shape once.
 function ruledByDependencyRule(entry: ForgottenExport, copies: Copies): Owned | null {
   for (const key of copies.linkedKeys) {
-    const [mine, theirs] = [importBarredBy(entry.file, fileOfKey(key)), importBarredBy(fileOfKey(key), entry.file)];
-    if (mine !== null && theirs !== null) {
-      const why = mine.comment === undefined ? "" : `: ${mine.comment}`;
-      const note = `each side declares its own, as dependency-cruiser ${mine.name ?? "(unnamed)"} bars this file from ${fileOfKey(key)}${why}; ${theirs.name ?? "(unnamed)"} bars the reverse`;
-      return { kind: "ruled", owner: null, ownerAt: null, note };
+    const judged = mutuallyBarred(entry.file, fileOfKey(key));
+    if (judged !== null) {
+      return judged;
     }
   }
   return null;
 }
+
+function mutuallyBarred(file: string, copy: string): Owned | null {
+  const [mine, theirs] = [importBarredBy(file, copy), importBarredBy(copy, file)];
+  if (mine === null || theirs === null) {
+    return null;
+  }
+  const barred = `dependency-cruiser ${mine.name ?? "(unnamed)"} bars this file from ${copy}; ${theirs.name ?? "(unnamed)"} bars the reverse`;
+  const home = isDomainContract(file) || isDomainContract(copy) ? null : sharedHomeOf(file, copy);
+  if (home !== null) {
+    return { kind: "review", owner: home, ownerAt: home, note: `${barred}; both may import ${home}: name the shape there and derive both` };
+  }
+  const why = mine.comment === undefined ? "" : `: ${mine.comment}`;
+  return { kind: "ruled", owner: null, ownerAt: null, note: `each side declares its own, as ${barred}${why}` };
+}
+
+const isDomainContract = (file: string): boolean => isContractFile(`/${file}`) && (placementOf(`/${file}`)?.domain ?? null) !== null;
 
 // A linked copy in a lower tier the declaration may import owns the shape.
 function lowerTierOwner(entry: ForgottenExport, copies: Copies): Owned | null {

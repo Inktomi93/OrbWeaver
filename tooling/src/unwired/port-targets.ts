@@ -350,8 +350,16 @@ function barsEdge(rule: EdgeRule, from: string, to: string): boolean {
 }
 
 /** The forbidden rule in `.dependency-cruiser.ts` that refuses `from` a type-only import of `to` (both repository
- *  paths), or null. The census asks it of a declaration and its linked copy: a copy neither file may import is a
- *  restatement the rule requires. */
+ *  paths), or null. The census asks it of a declaration and its linked copy, and of each shared home. */
 export function importBarredBy(from: string, to: string): ForbiddenRule | null {
   return FORBIDDEN.filter(isEdgeRule).find((rule) => barsEdge(rule, from, to)) ?? null;
+}
+
+// The homes AGENTS.md names for a shape more than one package needs: kit for a pure primitive, contracts for a shape
+// that crosses a boundary. Lowest tier first.
+const SHARED_HOMES = ["packages/kit/src/", "packages/contracts/src/"] as const;
+
+/** The lowest shared home both files may import, as a directory, or null when neither may import any. */
+export function sharedHomeOf(a: string, b: string): string | null {
+  return SHARED_HOMES.find((home) => importBarredBy(a, `${home}index.ts`) === null && importBarredBy(b, `${home}index.ts`) === null) ?? null;
 }

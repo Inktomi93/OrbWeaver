@@ -431,6 +431,34 @@ test("the ports review's true findings still report as work", { timeout: 120_000
   expect(imports.map(({ kind, members }) => ({ kind, members }))).toEqual([{ kind: "move-to-contracts", members: ["ActiveWorkloadRow"] }]);
 });
 
+// ui and contracts may not import each other, but both may import kit, so the copy is a kit-home finding, not a ruling.
+const SHARED_HOME_TREE = {
+  "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB }),
+  "packages/ui/src/primitives/spans/spans.ts": [
+    "export interface UiSpan { readonly start: number; readonly end: number; }",
+    "export declare function paintSpans(spans: readonly UiSpan[]): void;",
+  ].join("\n"),
+  "packages/contracts/src/text/index.ts": [
+    "export interface TextSpan { readonly start: number; readonly end: number; }",
+    "export declare const SPANS: readonly TextSpan[];",
+  ].join("\n"),
+  "packages/client/src/lib/paint.ts": [
+    'import { paintSpans } from "../../../ui/src/primitives/spans/spans.ts";',
+    'import { SPANS } from "../../../contracts/src/text/index.ts";',
+    "export function paint(): void { paintSpans(SPANS); }",
+  ].join("\n"),
+};
+
+test("a linked copy two packages may not share stays review when both may import a shared home", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(SHARED_HOME_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, "packages/ui/src/primitives/spans/spans.ts", "UiSpan")).toMatchObject({
+    kind: "review",
+    owner: "packages/kit/src/",
+    note: expect.stringContaining("both may import packages/kit/src/"),
+  });
+});
+
 const CLIENT = "packages/client/src/features/preset";
 const JSX_TREE = {
   "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB, jsx: "preserve" }),
