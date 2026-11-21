@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-21
 priority: P1
 area: chat
+lane: wt/agent-aec8c86f55b5b291c
 plan: chat-html-and-presets
 ---
 
