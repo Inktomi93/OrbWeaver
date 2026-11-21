@@ -70,6 +70,7 @@ const PARAM_LIMITS: readonly string[] = [
   "Two callables of one name in different files are told apart by symbol; a same-named wrapper does not count its inner function's calls.",
   "A value supplied only from a JSON or scenario file is not a supply; a reference in a type position is neither a call nor an escape.",
   "A prop any production construction of its declaration sets is supplied for every callable that takes it, so a callable whose own callers never set a shared prop keeps its default path unreported.",
+  "A construction supplies a prop only when its literal reaches a call argument or is a JSX attribute, and its value does not read the same prop: a literal stored in a local or a constant and later handed to a sibling callee by name is not seen as that sibling's supply.",
   "Two declarations of one concept are separate homes: a prop supplied only through a restated options type reports on the other; judge it with the shapes scan.",
   "A parameter typed by a single literal is never same-literal: its type, not its callers, fixes the value, as in a structural view of a platform method.",
 ];
@@ -244,32 +245,75 @@ function sameLiteral(calls: readonly CallShape[], index: number): string | null 
   return calls.length >= SAME_LITERAL_CALLS && literals.size === 1 && only !== undefined ? only : null;
 }
 
-// Whether the name at `position` gives a property its value in an object literal or a JSX element. A store through an
-// access (`options.x ??= fallback`) is a callee filling its own default, never a supply.
-function constructsAt(source: ts.SourceFile, position: number): boolean {
-  const node = nameAt(source, position);
-  const parent = node?.parent;
-  return (
-    parent !== undefined && (ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent) || ts.isJsxAttribute(parent)) && parent.name === node
-  );
+// The literal a construction sits in reaches a call or `new` argument, through nested literals, spreads, parentheses,
+// assertions and conditional branches. A literal stored in a local or a module constant supplies nothing by itself:
+// a callee's own default fill (`const filled = { ...options, color: options.color ?? "red" }`) is such a store, and a
+// constant handed on by name already supplies every prop through its identifier argument.
+function reachesCall(literal: ts.Expression): boolean {
+  let at: ts.Expression = literal;
+  for (;;) {
+    const { parent } = at;
+    if (ts.isParenthesizedExpression(parent) || ts.isAsExpression(parent) || ts.isSatisfiesExpression(parent) || ts.isNonNullExpression(parent)) {
+      at = parent;
+    } else if (ts.isConditionalExpression(parent) && parent.condition !== at) {
+      at = parent;
+    } else if ((ts.isSpreadAssignment(parent) || ts.isPropertyAssignment(parent)) && ts.isObjectLiteralExpression(parent.parent)) {
+      at = parent.parent;
+    } else {
+      return (ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.arguments?.includes(at) === true;
+    }
+  }
 }
 
-// Whether production constructs a prop anywhere through its declaration, read from engine one's property index.
+interface Construction {
+  readonly file: string;
+  /** The span of the value the construction gives, so a read of the same prop inside it marks a relay. */
+  readonly start: number;
+  readonly end: number;
+}
+
+// The construction whose key is the name at `site`: an object literal key whose literal reaches a call, or a JSX
+// attribute. A store through an access (`options.x ??= fallback`) is a callee filling its own default, never a supply.
+function constructionAt(source: ts.SourceFile, site: Site): Construction | null {
+  const node = nameAt(source, site.position);
+  const parent = node?.parent;
+  if (parent === undefined || node === undefined) {
+    return null;
+  }
+  if (ts.isJsxAttribute(parent) && parent.name === node) {
+    return { file: site.file, start: parent.initializer?.getStart(source) ?? parent.end, end: parent.end };
+  }
+  if ((ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent)) && parent.name === node && reachesCall(parent.parent)) {
+    const value = ts.isPropertyAssignment(parent) ? parent.initializer : parent.name;
+    return { file: site.file, start: value.getStart(source), end: value.end };
+  }
+  return null;
+}
+
+// Whether production supplies a prop anywhere through its declaration, read from engine one's property index. A
+// construction whose value reads the same declaration (`inner({ ...options, tone: options.tone ?? "flat" })`) only
+// relays the value it was given, so it supplies nothing.
 type Constructed = (prop: Prop) => boolean;
 
 function constructedIn(index: ReferenceIndex, sources: Sources): Constructed {
-  const sites = new Map<string, boolean>();
-  const constructs = (site: Site): boolean => {
+  const constructions = new Map<string, Construction | null>();
+  const construction = (site: Site): Construction | null => {
     const key = siteKey(site);
-    const known = sites.get(key);
-    if (known !== undefined) {
-      return known;
+    if (!constructions.has(key)) {
+      constructions.set(key, isProductionFile(site.file) ? constructionAt(sources.get(site.file), site) : null);
     }
-    const found = isProductionFile(site.file) && constructsAt(sources.get(site.file), site.position);
-    sites.set(key, found);
-    return found;
+    return constructions.get(key) ?? null;
   };
-  return (prop) => prop.keys.some((key) => (index.get(key) ?? []).some(constructs));
+  return (prop) => {
+    const sites = prop.keys.flatMap((key) => index.get(key) ?? []);
+    // A shorthand's value span is its own key, which the index also holds: only another site is a read.
+    const relays = (made: Construction, own: Site): boolean =>
+      sites.some((read) => siteKey(read) !== siteKey(own) && read.file === made.file && read.position >= made.start && read.position < made.end);
+    return sites.some((site) => {
+      const made = construction(site);
+      return made !== null && !relays(made, site);
+    });
+  };
 }
 
 function judge(callable: Callable, calls: Calls, constructed: Constructed): readonly UnwiredParam[] {

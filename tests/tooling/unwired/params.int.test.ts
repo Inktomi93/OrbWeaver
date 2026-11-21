@@ -197,6 +197,41 @@ const SUPPLY_TREE = {
     "  return list.matches;",
     "}",
   ].join("\n"),
+  // A callee filling its own default, a relay of the prop's own value and a constant nothing passes supply nothing; a
+  // constant passed by name to its callable does.
+  "packages/a/src/self-default.ts": [
+    "export interface ColorOpts {",
+    "  readonly color?: string;",
+    "  readonly size?: number;",
+    "}",
+    "export function paint(options: ColorOpts): string {",
+    '  const filled: ColorOpts = { ...options, color: options.color ?? "red" };',
+    '  return (filled.color ?? "") + String(options.size ?? 0);',
+    "}",
+    "export interface ToneOpts {",
+    "  readonly tone?: string;",
+    "  readonly size?: number;",
+    "}",
+    "function inner(options: ToneOpts): string {",
+    '  return (options.tone ?? "") + String(options.size ?? 0);',
+    "}",
+    "export function shade(options: ToneOpts): string {",
+    '  return inner({ ...options, tone: options.tone ?? "flat" });',
+    "}",
+    "export interface ModeOpts {",
+    "  readonly mode?: string;",
+    "  readonly size?: number;",
+    "}",
+    'export const PRESET: ModeOpts = { mode: "fast" };',
+    'export const LOUD: ModeOpts = { mode: "loud" };',
+    "export function run(options: ModeOpts): string {",
+    '  return (options.mode ?? "slow") + String(options.size ?? 0);',
+    "}",
+    "export function go(options: ModeOpts): string {",
+    '  return (options.mode ?? "slow") + String(options.size ?? 0);',
+    "}",
+    "export const out = [paint({}), paint({ size: 1 }), shade({ size: 1 }), run({ size: 2 }), run({}), go(LOUD), go({ size: 1 }), PRESET.mode];",
+  ].join("\n"),
   // Findings the review judged true: a comment or a doc link naming the prop supplies nothing, and a same-named
   // field another type carries is a different declaration.
   "packages/a/src/true-findings.ts": [
@@ -245,6 +280,9 @@ test("the params scan credits spread, shared-type and callee-body supplies and k
   expect.soft(inFile("shared-args")).toEqual(["unsupplied-prop displayScripts(args.passLength)", "unsupplied-prop everywhereTasks(read.staleAfter)"]);
   expect.soft(inFile("shared-hook-options")).toEqual(["unsupplied fadeX(options)"]);
   expect.soft(inFile("callee-body")).toEqual(["unsupplied-prop completeCommand(response.retried)"]);
+  expect
+    .soft(inFile("self-default"))
+    .toEqual(["unsupplied-prop paint(options.color)", "unsupplied-prop run(options.mode)", "unsupplied-prop shade(options.tone)"]);
   expect.soft(inFile("platform-view")).toEqual(["same-literal Bus.emit(event)"]);
   expect
     .soft(inFile("true-findings"))
