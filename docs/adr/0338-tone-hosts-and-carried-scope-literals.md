@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-05
+updated: 2026-11-20
 ---
 
 # Tone washes mix over a host surface, and a carried scope emits literal tone colours
@@ -25,7 +25,7 @@ Carried scopes. A carried scope emits each colored tone's `text`, `text-on-tint`
 - A tone the scope cannot judge declares `initial`, so the role falls back to its mix. So does the primary of a scope that paints its own accent over a base no seed paints. Over a seed it solves its primary on the seed's hosts and emits literals.
 - A scope that paints its own accent and no background over a carried scope solves that primary on the outer palette: its fill, its ink, its literals and its solid steps. Every other tone keeps the outer solve. The scope learns that its ambient is carried from the scope above it, never from global state.
 
-For that fallback the clamp still lowers the `text`, `text-on-tint`, `tint` and `tint-active` amounts on the scope's page, and it raises the neutral solid steps, nearest each default. Every tone the clamp judges paints its tints and their inks as literals judged on every host, so the knobs reach only a tone it cannot judge. Colored solid steps rise per tone, `--tone-mix-<tone>-hover` and `-active`, so one tone's fallback never flattens another's. All are emitted on the scope. The knob solve aims at the D202 derivation ratio and settles for the floor. The scope emits the primary pixel it judged. Its ink covers the fill and both steps where one ink can; else it is the fill's own ink at the polarity that leaves the steps the most contrast, and the raised steps close the gap. One fill always admits an ink above the floor, so no further fallback exists. One numeric twin in `@orb/kit/theme-derivation` serves the build, the clamp and the tests.
+For that fallback the clamp still lowers the `text`, `text-on-tint`, `tint` and `tint-active` amounts on the scope's page, and it raises the neutral solid steps, nearest each default. Every tone the clamp judges paints its tints and their inks as literals judged on every host, so the knobs reach only a tone it cannot judge. Colored solid steps rise per tone, `--tone-mix-<tone>-hover` and `-active`, so one tone's fallback never flattens another's. All are emitted on the scope. The knob solve aims at the D202 derivation ratio and settles for the floor. The scope emits the primary pixel it judged. Its ink covers the fill and both steps where one ink can. A step moves away from the page ink, so a fill whose ink sits on that end (a navy lifted over a dark page takes white ink, and the dark page lightens its steps) turns its steps toward the other end: the scope emits `--tone-away-<tone>`, `black` or `white`, and `initial` for the polarity's own, so the steps keep their default depth and the ink keeps its contrast. Only where neither end leaves one ink is it the fill's own ink at the polarity that leaves the steps the most contrast, and the raised steps close the gap. One fill always admits an ink above the floor, so the solve reports no fallback. One numeric twin in `@orb/kit/theme-derivation` serves the build, the clamp and the tests.
 
 Homes: `packages/ui/tokens.build.ts` and `packages/ui/tokens.tones.ts` (the `tone-host-*` utilities), `packages/ui/src/content/theme-scope/` (the clamp knobs and literals), `@orb/kit/theme-derivation` (`TONE_HOSTS` and the numeric twin).
 

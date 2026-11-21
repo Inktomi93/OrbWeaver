@@ -1440,10 +1440,19 @@ export function solveFocusRing({ ring, edge, card }: FocusRingInputs): Oklch | n
   return best.ratio > edgeRatio ? best.color : null;
 }
 
+/** The end point a solid step mixes toward, in place of the palette polarity's own: `black` or `white`. */
+export const STEP_ENDS = ["black", "white"] as const;
+export type StepEnd = (typeof STEP_ENDS)[number];
+
 /** A colored tone's two authored colours: the intent base and its `-foreground` token, at the palette's polarity. */
 export interface ToneColors {
   readonly base: Oklch;
   readonly foreground: Oklch;
+  /**
+   * The end point this tone's solid steps move toward. Absent, they move toward the palette polarity's own (`away`, `light-dark(black, white)`).
+   * A solid whose ink sits on that end point is the one that sets it: a step toward its own ink would lose the contrast the ink needs.
+   */
+  readonly away?: StepEnd;
 }
 
 /** The neutral tone has no colours of its own: it binds the palette's ramp. */
@@ -1470,7 +1479,7 @@ export function mixOklab(origin: Oklch, percent: number, toward: Oklch): Oklch {
 const BLACK: Oklch = { l: 0, c: 0, h: 0 };
 const WHITE: Oklch = { l: 1, c: 0, h: 0 };
 
-function mixTarget<Host extends string>(target: ToneMixTarget, palette: TonePalette<Host>): Oklch {
+function mixTarget<Host extends string>(target: ToneMixTarget, palette: TonePalette<Host>, away?: StepEnd): Oklch {
   switch (target) {
     case "foreground":
       return palette.foreground;
@@ -1479,7 +1488,7 @@ function mixTarget<Host extends string>(target: ToneMixTarget, palette: TonePale
     case "host":
       return palette.host;
     case "away":
-      return palette.polarity === "light" ? BLACK : WHITE;
+      return (away ?? (palette.polarity === "light" ? "black" : "white")) === "black" ? BLACK : WHITE;
     default: {
       const exhaustive: never = target;
       throw new Error(`unknown tone mix target ${String(exhaustive)}`);
@@ -1518,7 +1527,7 @@ function roleColor<Role extends string, Knob extends string, Host extends string
   if (recipe.colored === "base-foreground") {
     return tone.foreground;
   }
-  return mixStep(tone.base, recipe.colored, palette, mix);
+  return mixOklab(tone.base, mix[recipe.colored.mix], mixTarget(recipe.colored.toward, palette, tone.away));
 }
 
 /** Every role of one tone, evaluated the way the generated `[data-tone]` block spells it. */

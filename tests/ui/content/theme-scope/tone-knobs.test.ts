@@ -6,11 +6,11 @@ import { AA_NORMAL_RATIO, oklchToSrgb, quantized, rampDeltas, rampSurface, srgbT
 import { ACCEPTED_BASES, HEARTH_ACCENT, MID_GREY } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneRole } from "@orb/ui/tokens";
-import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, toneAwayVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
-import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
+import { carriedToneScheme, carriedToneSources, MIX_FALLBACK } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { keepsHue } from "./contrast-cases.ts";
 import {
   emittedInk,
@@ -56,17 +56,18 @@ test("on a mid-grey page every colored tone's text, text on its tint, tint and s
   expect(emittedMisses(MID_GREY, {}, HEARTH_ACCENT)).toEqual([]);
 });
 
-test("a fallback raises only the tone that needs it: primary's steps rise while destructive keeps the default", () => {
+test("a dark accent turns only the primary's solid steps, and they keep their default depth", () => {
   const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", accent: "oklch(0.3 0.1 260)" });
-  const primary = emittedMix(vars, "primary");
-  const destructive = emittedMix(vars, "destructive");
-  expect(primary.hover).toBeGreaterThan(TONE_MIX_DEFAULTS.hover);
-  expect(primary.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
-  expect(destructive.hover).toBe(TONE_MIX_DEFAULTS.hover);
-  expect(destructive.active).toBe(TONE_MIX_DEFAULTS.active);
+  expect(vars[toneAwayVar("primary")]).toBe("black");
+  expect(vars[toneAwayVar("destructive")]).toBe(MIX_FALLBACK);
+  for (const tone of ["primary", "destructive"] as const) {
+    const mix = emittedMix(vars, tone);
+    expect(mix.hover, tone).toBe(TONE_MIX_DEFAULTS.hover);
+    expect(mix.active, tone).toBe(TONE_MIX_DEFAULTS.active);
+  }
 });
 
-test("a picked accent whose fill and solid steps share no ink still clears its hover and active floors", () => {
+test("a picked accent whose ink sits on the page polarity's end still clears its hover and active floors", () => {
   expect(emittedMisses("oklch(0.5 0 0)", { accent: "oklch(0.53 0.2 30)" })).toEqual([]);
 });
 
@@ -113,7 +114,7 @@ test(
   SWEEP_TIMEOUT_MS,
 );
 
-/** A dark accent no one ink covers with its solid steps, and a saturated one past the gamut. */
+/** A dark accent whose solid steps turn toward the other end, and a saturated one past the gamut. */
 const NESTED_ACCENTS = ["oklch(0.3 0.1 260)", "oklch(0.55 0.37 300)"] as const;
 
 test(

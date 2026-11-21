@@ -486,30 +486,35 @@
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
     --tone-mix-primary-hover: var(--tone-mix-hover);
     --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-away-primary: initial;
     --tone-primary-text: initial;
     --tone-primary-text-on-tint: initial;
     --tone-primary-tint: initial;
     --tone-primary-tint-active: initial;
     --tone-mix-destructive-hover: var(--tone-mix-hover);
     --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-away-destructive: initial;
     --tone-destructive-text: initial;
     --tone-destructive-text-on-tint: initial;
     --tone-destructive-tint: initial;
     --tone-destructive-tint-active: initial;
     --tone-mix-warning-hover: var(--tone-mix-hover);
     --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-away-warning: initial;
     --tone-warning-text: initial;
     --tone-warning-text-on-tint: initial;
     --tone-warning-tint: initial;
     --tone-warning-tint-active: initial;
     --tone-mix-success-hover: var(--tone-mix-hover);
     --tone-mix-success-active: var(--tone-mix-active);
+    --tone-away-success: initial;
     --tone-success-text: initial;
     --tone-success-text-on-tint: initial;
     --tone-success-tint: initial;
     --tone-success-tint-active: initial;
     --tone-mix-info-hover: var(--tone-mix-hover);
     --tone-mix-info-active: var(--tone-mix-active);
+    --tone-away-info: initial;
     --tone-info-text: initial;
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
@@ -598,30 +603,35 @@
     --tone-mix-edge: 30%;
     --tone-mix-primary-hover: var(--tone-mix-hover);
     --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-away-primary: initial;
     --tone-primary-text: initial;
     --tone-primary-text-on-tint: initial;
     --tone-primary-tint: initial;
     --tone-primary-tint-active: initial;
     --tone-mix-destructive-hover: var(--tone-mix-hover);
     --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-away-destructive: initial;
     --tone-destructive-text: initial;
     --tone-destructive-text-on-tint: initial;
     --tone-destructive-tint: initial;
     --tone-destructive-tint-active: initial;
     --tone-mix-warning-hover: var(--tone-mix-hover);
     --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-away-warning: initial;
     --tone-warning-text: initial;
     --tone-warning-text-on-tint: initial;
     --tone-warning-tint: initial;
     --tone-warning-tint-active: initial;
     --tone-mix-success-hover: var(--tone-mix-hover);
     --tone-mix-success-active: var(--tone-mix-active);
+    --tone-away-success: initial;
     --tone-success-text: initial;
     --tone-success-text-on-tint: initial;
     --tone-success-tint: initial;
     --tone-success-tint-active: initial;
     --tone-mix-info-hover: var(--tone-mix-hover);
     --tone-mix-info-active: var(--tone-mix-active);
+    --tone-away-info: initial;
     --tone-info-text: initial;
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
@@ -692,30 +702,35 @@
     --tone-mix-edge: 30%;
     --tone-mix-primary-hover: var(--tone-mix-hover);
     --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-away-primary: initial;
     --tone-primary-text: initial;
     --tone-primary-text-on-tint: initial;
     --tone-primary-tint: initial;
     --tone-primary-tint-active: initial;
     --tone-mix-destructive-hover: var(--tone-mix-hover);
     --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-away-destructive: initial;
     --tone-destructive-text: initial;
     --tone-destructive-text-on-tint: initial;
     --tone-destructive-tint: initial;
     --tone-destructive-tint-active: initial;
     --tone-mix-warning-hover: var(--tone-mix-hover);
     --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-away-warning: initial;
     --tone-warning-text: initial;
     --tone-warning-text-on-tint: initial;
     --tone-warning-tint: initial;
     --tone-warning-tint-active: initial;
     --tone-mix-success-hover: var(--tone-mix-hover);
     --tone-mix-success-active: var(--tone-mix-active);
+    --tone-away-success: initial;
     --tone-success-text: initial;
     --tone-success-text-on-tint: initial;
     --tone-success-tint: initial;
     --tone-success-tint-active: initial;
     --tone-mix-info-hover: var(--tone-mix-hover);
     --tone-mix-info-active: var(--tone-mix-active);
+    --tone-away-info: initial;
     --tone-info-text: initial;
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
@@ -786,30 +801,35 @@
     --tone-mix-edge: 30%;
     --tone-mix-primary-hover: var(--tone-mix-hover);
     --tone-mix-primary-active: var(--tone-mix-active);
+    --tone-away-primary: initial;
     --tone-primary-text: initial;
     --tone-primary-text-on-tint: initial;
     --tone-primary-tint: initial;
     --tone-primary-tint-active: initial;
     --tone-mix-destructive-hover: var(--tone-mix-hover);
     --tone-mix-destructive-active: var(--tone-mix-active);
+    --tone-away-destructive: initial;
     --tone-destructive-text: initial;
     --tone-destructive-text-on-tint: initial;
     --tone-destructive-tint: initial;
     --tone-destructive-tint-active: initial;
     --tone-mix-warning-hover: var(--tone-mix-hover);
     --tone-mix-warning-active: var(--tone-mix-active);
+    --tone-away-warning: initial;
     --tone-warning-text: initial;
     --tone-warning-text-on-tint: initial;
     --tone-warning-tint: initial;
     --tone-warning-tint-active: initial;
     --tone-mix-success-hover: var(--tone-mix-hover);
     --tone-mix-success-active: var(--tone-mix-active);
+    --tone-away-success: initial;
     --tone-success-text: initial;
     --tone-success-text-on-tint: initial;
     --tone-success-tint: initial;
     --tone-success-tint-active: initial;
     --tone-mix-info-hover: var(--tone-mix-hover);
     --tone-mix-info-active: var(--tone-mix-active);
+    --tone-away-info: initial;
     --tone-info-text: initial;
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
@@ -820,8 +840,8 @@
 
   [data-tone="primary"] {
     --color-tone-solid: var(--color-primary);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-hover), var(--tone-away-primary, light-dark(black, white)));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-active), var(--tone-away-primary, light-dark(black, white)));
     --color-tone-text: var(--tone-primary-text, color-mix(in oklab, var(--color-primary) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-primary-text-on-tint, color-mix(in oklab, var(--color-primary) var(--tone-mix-text-on-tint), var(--color-foreground)));
     --color-tone-tint: var(--tone-primary-tint, color-mix(in oklab, var(--color-primary) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
@@ -844,8 +864,8 @@
 
   [data-tone="destructive"] {
     --color-tone-solid: var(--color-destructive);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-hover), var(--tone-away-destructive, light-dark(black, white)));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-active), var(--tone-away-destructive, light-dark(black, white)));
     --color-tone-text: var(--tone-destructive-text, color-mix(in oklab, var(--color-destructive) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-destructive-text-on-tint, color-mix(in oklab, var(--color-destructive) var(--tone-mix-text-on-tint), var(--color-foreground)));
     --color-tone-tint: var(--tone-destructive-tint, color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
@@ -856,8 +876,8 @@
 
   [data-tone="warning"] {
     --color-tone-solid: var(--color-warning);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-hover), var(--tone-away-warning, light-dark(black, white)));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-active), var(--tone-away-warning, light-dark(black, white)));
     --color-tone-text: var(--tone-warning-text, color-mix(in oklab, var(--color-warning) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-warning-text-on-tint, color-mix(in oklab, var(--color-warning) var(--tone-mix-text-on-tint), var(--color-foreground)));
     --color-tone-tint: var(--tone-warning-tint, color-mix(in oklab, var(--color-warning) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
@@ -868,8 +888,8 @@
 
   [data-tone="success"] {
     --color-tone-solid: var(--color-success);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-success) var(--tone-mix-success-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-success-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-success) var(--tone-mix-success-hover), var(--tone-away-success, light-dark(black, white)));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-success-active), var(--tone-away-success, light-dark(black, white)));
     --color-tone-text: var(--tone-success-text, color-mix(in oklab, var(--color-success) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-success-text-on-tint, color-mix(in oklab, var(--color-success) var(--tone-mix-text-on-tint), var(--color-foreground)));
     --color-tone-tint: var(--tone-success-tint, color-mix(in oklab, var(--color-success) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
@@ -880,8 +900,8 @@
 
   [data-tone="info"] {
     --color-tone-solid: var(--color-info);
-    --color-tone-solid-hover: color-mix(in oklab, var(--color-info) var(--tone-mix-info-hover), light-dark(black, white));
-    --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-info-active), light-dark(black, white));
+    --color-tone-solid-hover: color-mix(in oklab, var(--color-info) var(--tone-mix-info-hover), var(--tone-away-info, light-dark(black, white)));
+    --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-info-active), var(--tone-away-info, light-dark(black, white)));
     --color-tone-text: var(--tone-info-text, color-mix(in oklab, var(--color-info) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-info-text-on-tint, color-mix(in oklab, var(--color-info) var(--tone-mix-text-on-tint), var(--color-foreground)));
     --color-tone-tint: var(--tone-info-tint, color-mix(in oklab, var(--color-info) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
