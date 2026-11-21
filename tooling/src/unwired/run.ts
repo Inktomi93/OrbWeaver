@@ -1,12 +1,14 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines, and each writes one report under reports/unwired/;
-// `removed-keys` reads git only and exits 1 while a deletion branch's removed contract key keeps a sender.
+// `removed-keys` reads git only and exits 1 while a deletion branch's removed contract key keeps a sender; `coverage`
+// runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
+import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -27,7 +29,8 @@ const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>]`;
+const COVERAGE_VERB = "coverage";
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -250,7 +253,11 @@ const logLimits = (limits: readonly string[]): void => {
   log(["limits: what this scan cannot see", ...limits.map((limit) => `- ${limit}`)].join("\n"));
 };
 
-export function runUnwired(argv: readonly string[]): number {
+export function runUnwired(argv: readonly string[]): number | Promise<number> {
+  // `coverage` runs the test suites, so it owns its own flags and runs asynchronously.
+  if (argv[0] === COVERAGE_VERB) {
+    return runCoverage(argv.slice(1), log);
+  }
   const args = parseArgs(argv);
   if (args.verb === "removed-keys") {
     return runRemovedKeys(args);

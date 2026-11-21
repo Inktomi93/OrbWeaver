@@ -5,6 +5,7 @@ import type { SeededIds } from "@orb/testkit/iso";
 import { SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceRunConfig, SurfaceWalkOptions } from "@orb/testkit/node/helpers";
 import { attachNativeFile, readSurfaceRunConfig, surfaceArtifactModes } from "@orb/testkit/node/helpers";
+import { BROWSER_COVERAGE_FIXTURES } from "@orb/tooling/floor/testing/coverage-collection";
 import { test as base, expect } from "@playwright/test";
 import { authenticateBrowserContext, browserActorRequestHeaders } from "./browser-actors.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
@@ -33,7 +34,7 @@ interface SurfaceWalkWorkerFixtures {
 }
 
 /** A fresh page receives observers before its first navigation; dataset preparation never drives the browser. */
-export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, SurfaceWalkWorkerFixtures>({
+export const test = base.extend(BROWSER_COVERAGE_FIXTURES).extend<SurfaceWalkOptions & SurfaceWalkFixtures, SurfaceWalkWorkerFixtures>({
   runIds: [
     async ({}, use, worker) => {
       // Each worker mints from its own band, so a worker Playwright restarts after a failure never repeats a name an
