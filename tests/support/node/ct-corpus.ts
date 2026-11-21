@@ -92,7 +92,10 @@ export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
       ownership.defer(async () => {
         accepting = false;
         try {
-          await page.unroute(pattern, handler);
+          // A spec that closes its own page has no route left to lift, and unroute on a closed page throws.
+          if (!page.isClosed()) {
+            await page.unroute(pattern, handler);
+          }
         } finally {
           await Promise.all(pending);
         }
