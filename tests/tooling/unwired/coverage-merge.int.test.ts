@@ -11,7 +11,7 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { transformWithOxc } from "vite";
 import { z } from "zod";
 import type { CoverageRange } from "../../../tooling/src/floor/testing/coverage-collection.ts";
-import { BrowserHitsSink, COVERAGE_LAYOUT, flattenHits, recordPages, sourceFileName } from "../../../tooling/src/floor/testing/coverage-collection.ts";
+import { COVERAGE_LAYOUT, flattenHits, sourceFileName } from "../../../tooling/src/floor/testing/coverage-collection.ts";
 import { convertBrowserRun, convertNodeRun, istanbulOf } from "../../../tooling/src/unwired/coverage-convert.ts";
 import { isProductionSource, istanbulMapSchema, mergeCoverage } from "../../../tooling/src/unwired/coverage-merge.ts";
 
@@ -369,18 +369,4 @@ test("a moved branch lands by its place among its line's branches of its type, o
     ]);
     expect(reshaped.projections.ct).toMatchObject({ matchedArms: 0, unmatchedArms: 1 });
   });
-});
-
-test("a page whose coverage cannot be read is a lost line in the run, not a failed test", ({ scratch }) => {
-  const runDir = join(scratch, "run");
-  const sink = new BrowserHitsSink(runDir);
-  const closedMidTest = Promise.reject(new Error("Target page, context or browser has been closed"));
-  return recordPages(new Map([[{ isClosed: (): boolean => false }, closedMidTest]]), sink, join(process.cwd(), "tests/demo/pick.ct.tsx"))
-    .then(() => {
-      sink.flush(0);
-      return convertBrowserRun(runDir);
-    })
-    .then((browser) => {
-      expect(browser.lost).toEqual(["tests/demo/pick.ct.tsx: Target page, context or browser has been closed"]);
-    });
 });

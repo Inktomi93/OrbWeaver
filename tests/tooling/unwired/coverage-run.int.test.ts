@@ -11,10 +11,10 @@ import { runCoverage } from "../../../tooling/src/unwired/coverage.ts";
 import { PRODUCTION_COVERAGE_SCOPE } from "../../../tooling/src/unwired/coverage-merge.ts";
 
 // Enough functions that parsing and merging the suite's map raises this process's memory well past where it started.
-const FUNCTIONS = 200_000;
+const FUNCTIONS = 400_000;
 const MIB = 1024 * 1024;
-// A quarter or less of what the merge of that map adds on this runner.
-const MERGE_GROWTH_BYTES = 100 * MIB;
+// Well under what merging that map adds, and well over what the process grows by before the merge starts.
+const MERGE_GROWTH_BYTES = 150 * MIB;
 
 // The stand-in suite: it records its argv, leaves a helper running in its own process group, and writes a vitest json
 // map that lists only `a.ts`.
@@ -64,6 +64,7 @@ test("one run hands vitest the scope, lists unseen files, reaps the suite's help
   expect(runFixtureGit(root, ["init", "--quiet"]).status).toBe(0);
   expect(runFixtureGit(root, ["add", "--all"]).status).toBe(0);
   const lines: string[] = [];
+  const startRss = process.memoryUsage.rss();
   const code = await runCoverage([`--root=${root}`, "--suites=node", "--node=tests/demo.test.ts", "--out=report.json"], (line) => lines.push(line));
   expect(code).toBe(0);
   const argv = z.array(z.string()).parse(JSON.parse(readFileSync(join(root, "argv.json"), "utf8")));
@@ -77,7 +78,7 @@ test("one run hands vitest the scope, lists unseen files, reaps the suite's help
   expect(report.unseenFiles).toEqual(["packages/demo/src/index.ts"]);
   // The helper left the suite's process group, so only the run-marker sweep can reach it.
   expect(alive(Number(readFileSync(join(root, "helper.pid"), "utf8")))).toBe(false);
-  // The merge is synchronous, so only a sample taken after it returns sees what it built: parsing the planted map
-  // grows this process by far more than the suite's own peak, which a sample from before the merge would repeat.
-  expect(report.mergePeakRssBytes).toBeGreaterThan((report.suites[0]?.peakRssBytes ?? 0) + MERGE_GROWTH_BYTES);
+  // The merge is synchronous, so only a sample taken after it returns sees what it built; a sample from before the
+  // merge sits near this process's memory at the start of the run.
+  expect(report.mergePeakRssBytes).toBeGreaterThan(startRss + MERGE_GROWTH_BYTES);
 });
