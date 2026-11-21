@@ -25,6 +25,7 @@ const FIXED_FIND = "^a+!$";
 const MEMBER_PASSWORD = "stopped-member-password";
 // How long a notice that would be raised has to show itself: well past a toast's own mount.
 const NOTICE_WINDOW_MS = 1000;
+const TALL_PAGE_HEIGHT = 4000;
 const STEADY = { name: "Steady", findRegex: "STEADYMARK", replaceString: "steady" } as const;
 test.use({ viewport: { width: 1280, height: 1000 }, isMobile: false, hasTouch: false });
 
@@ -112,6 +113,8 @@ test("a script whose row is on screen when the Worker stops it raises no notice 
   await using cleanup = new AsyncDisposableStack();
   const { chatId } = await soloRoom(root);
   const owner = await root.internalCallerFor(root.ownerId);
+  // The story's page does not scroll, so the whole tab has to fit for the roster row to be in view.
+  await page.setViewportSize({ width: 1280, height: TALL_PAGE_HEIGHT });
   // The script starts as its fixed form, so nothing stops until the reader has the roster open.
   const runaway = await owner.regex.createScript({ input: { ...RUNAWAY, findRegex: FIXED_FIND, targets: ["AI_OUTPUT", "USER_INPUT"], passes: ["display"] } });
   await owner.regex.attachGlobal({ scriptId: runaway.id });
@@ -133,6 +136,9 @@ test("a script whose row is on screen when the Worker stops it raises no notice 
   await expect(row.getByText(RUNAWAY.replaceString, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /^Regex/u }).click();
   await expect(rosterRow(page, RUNAWAY.name)).toHaveCount(1);
+  // The reader has the row in view, which is what makes its mark enough.
+  await rosterRow(page, RUNAWAY.name).scrollIntoViewIfNeeded();
+  await expect(rosterRow(page, RUNAWAY.name)).toBeInViewport({ ratio: 1 });
 
   // The author breaks the pattern again in their library: the page runs it, and the Worker stops it.
   await owner.regex.updateScript({ scriptId: runaway.id, input: { findRegex: RUNAWAY.findRegex } });

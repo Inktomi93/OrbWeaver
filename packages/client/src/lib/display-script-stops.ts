@@ -7,7 +7,7 @@
 // Only a browser stop keeps a script out of this browser's runs: a server pass is a different pass with its own
 // deadline.
 //
-// A STOP A ROW SHOWS RAISES NO NOTICE. A script whose row is on screen (`showStopRow`) reads its stop inline, and a
+// A STOP A ROW SHOWS RAISES NO NOTICE. A script whose row is in view (`showStopRow`) reads its stop inline, and a
 // toast beside it says the same thing twice. The notice's next step belongs to the room, which can name the reader's
 // control and open the script's row, so the room lends it through `bindStopNoticeDoor`; with no room bound the notice
 // states the stop alone.
@@ -58,7 +58,7 @@ export function bindStopNoticeDoor(door: StopNoticeDoor): () => void {
 
 const shownRows = new Map<string, number>();
 
-/** Record that a row for this script is on screen, where a stop on it reads inline; the returned function removes it. */
+/** Record that a row for this script is in view, where a stop on it reads inline; the returned function removes it. */
 export function showStopRow(script: Pick<StopSubject, "id" | "findRegex">): () => void {
   const key = displayScriptStopKey(script);
   shownRows.set(key, (shownRows.get(key) ?? 0) + 1);
@@ -72,7 +72,7 @@ export function showStopRow(script: Pick<StopSubject, "id" | "findRegex">): () =
   };
 }
 
-/** Whether a row for this script is on screen. */
+/** Whether a row for this script is in view. */
 export function isStopRowShown(script: Pick<StopSubject, "id" | "findRegex">): boolean {
   return shownRows.has(displayScriptStopKey(script));
 }

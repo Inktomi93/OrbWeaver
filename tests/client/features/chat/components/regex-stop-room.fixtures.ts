@@ -2,7 +2,16 @@ import type { ChatWarning, RegexNotAppliedCause, RegexServerPass } from "@orb/co
 import { REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  ROOM_PROCEDURES,
+  routeAuthConfig,
+  routeOrbSocket,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import type { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 
@@ -85,4 +94,48 @@ export async function serveHostedRoom(
     "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
     "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
   });
+}
+
+// More reconnects than a case waits through before its report; each one is a dropped connection.
+const RECONNECTS_UNTIL_REPORT = 1000;
+
+/** The room's socket, which reports `scriptId` as skipped only once `report()` is called, and then sends a warning with its own
+ *  notice (`SENTINEL`): that notice showing means the report before it was handled. */
+export async function routeReportOnDemand(
+  page: Page,
+  chatId: ChatId,
+  scriptId: RegexScriptId,
+): Promise<{ readonly served: () => Promise<void>; readonly report: () => void }> {
+  let reported = false;
+  const frames: readonly StreamFrame[] = [
+    warning(chatId, scriptId, HISTORY, FIRST_SEQ),
+    { channel: "chat", chatId, seq: FIRST_SEQ + 1, event: { type: "warning", chatId, ...SENTINEL } },
+  ];
+  const socket = await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "chat", chatId }],
+    dropConnectionCount: RECONNECTS_UNTIL_REPORT,
+    frames: (): Promise<readonly StreamFrame[]> => Promise.resolve(reported ? frames : []),
+  });
+  return {
+    served: () => socket.served(),
+    report: (): void => {
+      reported = true;
+    },
+  };
+}
+
+/** Whether any row of the script, in a tier group or the roster, has some of its box inside the window: a collapsed pane is translated out of it. */
+export function rowIsInView(page: Page, name: string): Promise<boolean> {
+  const size = page.viewportSize();
+  if (size === null) {
+    throw new Error("The page has no viewport to measure against");
+  }
+  return sectionRow(page, name).evaluateAll(
+    (rows, { width, height }) =>
+      rows.some((row) => {
+        const box = row.getBoundingClientRect();
+        return box.bottom > 0 && box.top < height && box.right > 0 && box.left < width;
+      }),
+    size,
+  );
 }
