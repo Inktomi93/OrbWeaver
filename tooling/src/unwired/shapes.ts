@@ -16,9 +16,11 @@ import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { nameAt } from "./classify.ts";
+import type { DistinctRegistry } from "./distinct-lookalikes.ts";
+import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ServiceWorld } from "./language-service.ts";
-import { hasFlag, NativeWorld } from "./native.ts";
-import type { ScanOptions } from "./scan.ts";
+import { declarationKeys, hasFlag, NativeWorld } from "./native.ts";
+import type { DeliberateSide, ScanOptions } from "./scan.ts";
 import { scanWorlds, sortDeliberate } from "./scan.ts";
 import { isProduction } from "./worlds.ts";
 
@@ -39,7 +41,8 @@ interface UnwiredShape {
   readonly kind: ShapeKind;
   /** Where `member` lives (`file:line` for a type, the file of each hop for a chain); `external` outside the tree. */
   readonly at: readonly string[];
-  /** A synonym in a domain's `contract/params.ts` or `contract/results.ts`, the per-verb names Core-0 §4 keeps. */
+  /** A verb's `…Params` in a domain's `contract/params.ts` or `…Result` in its `contract/results.ts` (both sides of a
+   *  restated pair), the per-verb names Core-0 §4 keeps. */
   readonly perVerb: boolean;
 }
 
@@ -47,6 +50,8 @@ export interface ShapesReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredShape[];
   readonly deliberate: readonly (UnwiredShape & { readonly reason: string })[];
+  /** Restated pairs `tooling/src/unwired/distinct-lookalikes.ts` judges two concepts: no review work. */
+  readonly distinct: readonly UnwiredShape[];
   /** Findings engine one made that engine two's checker does not reproduce. */
   readonly disagreements: readonly string[];
   readonly limits: readonly string[];
@@ -65,7 +70,14 @@ const SHAPE_LIMITS: readonly string[] = [
 // Below two members a matching shape is a coincidence, `{ id }` across a dozen verbs.
 const MIN_MEMBERS = 2;
 const MAX_HOPS = 16;
-const PER_VERB = /^packages\/server\/src\/domain\/[^/]+\/contract\/(?:params|results)\.ts$/u;
+// Core-0 §4's per-verb homes: a domain contract's params.ts holds every verb's *Params and its results.ts every verb's
+// *Result. The law names them by file and type name; no checker fact marks a verb.
+const PER_VERB_HOMES = [
+  { name: /.Params$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/params\.ts$/u },
+  { name: /.Result$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/results\.ts$/u },
+] as const;
+const isPerVerb = (side: Declared): boolean => PER_VERB_HOMES.some((home) => home.name.test(nameOf(side.node)) && home.file.test(side.site.file));
+const PER_VERB_REASON = "docs/law/Core-0-Architecture-and-Structure.md §4: every verb keeps its own *Params and *Result";
 // Type operators whose result is computed from a schema or a value, so the type is the schema's own shape.
 const INFERRED = new Set(["z.infer", "z.input", "z.output", "ReturnType", "Awaited", "Parameters", "InferSelectModel", "InferInsertModel"]);
 
@@ -141,7 +153,7 @@ function declared(world: NativeWorld): readonly Declared[] {
 // The declared type of a named object type and its member names, or null for anything that is not a plain object.
 // Members a library declares do not count toward the minimum: two props types that each wrap a different library
 // component with the same props, plus one member of their own, match by the library's shape, not by one concept.
-function* shapeOf(world: NativeWorld, node: Named): APIRequestGenerator<{ readonly type: Type; readonly names: readonly string[] } | null> {
+function* shapeOf(world: NativeWorld, node: Named): APIRequestGenerator<Shape | null> {
   const { checker } = world;
   const symbol = yield* checker.getSymbolAtLocation.gen(node.name);
   if (symbol === undefined) {
@@ -153,8 +165,23 @@ function* shapeOf(world: NativeWorld, node: Named): APIRequestGenerator<{ readon
   }
   const properties = yield* checker.getPropertiesOfType.gen(type);
   const own = properties.filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
-  return own.length < MIN_MEMBERS ? null : { type, names: properties.map((property) => property.name).sort() };
+  const sorted = properties.toSorted((a, b) => a.name.localeCompare(b.name));
+  return own.length < MIN_MEMBERS
+    ? null
+    : { type, names: sorted.map((property) => property.name), sources: sorted.map((property) => declarationKeys(property).toSorted().join(",")) };
 }
+
+interface Shape {
+  readonly type: Type;
+  readonly names: readonly string[];
+  /** Each property's declaration keys, in `names` order; empty for a property the checker made with no declaration. */
+  readonly sources: readonly string[];
+}
+
+// Two types whose every property resolves to the same declarations are two views of one source, as an
+// `Awaited<ReturnType<typeof f>>` of a declared return type or two `Pick`s of one base, not two homes. A group holds one
+// property-name set, so a side that adds a member of its own differs in that member's declarations and stays a candidate.
+const oneSource = (a: Shape, b: Shape): boolean => a.sources.every((source, index) => source !== "" && source === b.sources[index]);
 
 interface Pair {
   readonly key: string;
@@ -167,6 +194,7 @@ interface Pair {
 const nameOf = (node: Named): string => node.name.text;
 // A declaration's text after its own name, so a twin of the same name in another file is not read as naming it.
 const bodyOf = (node: Named): string => node.getText().slice(node.name.end - node.getStart(node.getSourceFile()));
+const sideKey = (side: Declared): string => `${side.site.file}:${nameOf(side.node)}`;
 // One declaration naming the other derives from it, not a second home.
 const linked = (a: Declared, b: Declared): boolean =>
   new RegExp(`\\b${nameOf(b.node)}\\b`, "u").test(bodyOf(a.node)) || new RegExp(`\\b${nameOf(a.node)}\\b`, "u").test(bodyOf(b.node));
@@ -174,33 +202,34 @@ const linked = (a: Declared, b: Declared): boolean =>
 function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair[] {
   const homes = types.filter((type) => type.form === "literal" || type.form === "inferred");
   const shapes = world.batch(homes.map(({ node }) => shapeOf(world, node)));
-  const groups = new Map<string, { readonly declared: Declared; readonly type: Type }[]>();
+  const groups = new Map<string, { readonly declared: Declared; readonly shape: Shape }[]>();
   for (const [index, shape] of shapes.entries()) {
     const home = homes[index];
     if (shape !== null && home !== undefined) {
       const key = shape.names.join(",");
-      groups.set(key, [...(groups.get(key) ?? []), { declared: home, type: shape.type }]);
+      groups.set(key, [...(groups.get(key) ?? []), { declared: home, shape }]);
     }
   }
   const candidates = [...groups.entries()].flatMap(([key, group]) =>
     group.flatMap((a, index) =>
       group
         .slice(index + 1)
-        .filter((b) => a.declared.site.file !== b.declared.site.file && !linked(a.declared, b.declared))
-        .map((b) => ({ a, b, names: key.split(",") })),
+        .filter((b) => a.declared.site.file !== b.declared.site.file && !linked(a.declared, b.declared) && !oneSource(a.shape, b.shape))
+        // One orientation per pair, so two worlds that list the files in opposite order key the same pair.
+        .map((b) => ({ ...(sideKey(a.declared) <= sideKey(b.declared) ? { a, b } : { a: b, b: a }), names: key.split(",") })),
     ),
   );
   const { checker } = world;
   const equal = world.batch(
     candidates.map(function* ({ a, b }) {
-      return (yield* checker.isTypeAssignableTo.gen(a.type, b.type)) && (yield* checker.isTypeAssignableTo.gen(b.type, a.type));
+      return (yield* checker.isTypeAssignableTo.gen(a.shape.type, b.shape.type)) && (yield* checker.isTypeAssignableTo.gen(b.shape.type, a.shape.type));
     }),
   );
   return candidates.flatMap(({ a, b, names: members }, index) =>
     equal[index] === true
       ? [
           {
-            key: [a.declared, b.declared].map((side) => `${side.site.file}:${nameOf(side.node)}`).join("="),
+            key: [a.declared, b.declared].map(sideKey).join("="),
             world: world.config,
             first: a.declared,
             second: b.declared,
@@ -221,14 +250,42 @@ type Synonym = Declared & { readonly node: TypeAliasDeclaration & { readonly typ
 
 const isSynonym = (type: Declared): type is Synonym => type.form === "synonym" && isTypeAliasDeclaration(type.node) && isTypeReferenceNode(type.node.type);
 
-// A synonym's target: its file, or `external` for a library type.
+// Whether the module that declares `node` exports it, under any name. An alias the checker cannot place counts as
+// exported, so a resolution gap keeps its row.
+function* exportedByModule(world: NativeWorld, node: Named): APIRequestGenerator<boolean> {
+  const { checker } = world;
+  const own = yield* checker.getSymbolAtLocation.gen(node.name);
+  const module = yield* checker.getSymbolAtLocation.gen(node.getSourceFile());
+  if (own === undefined || module === undefined) {
+    return true;
+  }
+  const key = declarationKeys(own).join(",");
+  for (const symbol of yield* checker.getExportsOfModule.gen(module)) {
+    const target = hasFlag(symbol.flags, SymbolFlags.Alias) ? yield* checker.getAliasedSymbol.gen(symbol) : symbol;
+    if (declarationKeys(target).join(",") === key) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// A synonym's target: its file, or `external` for a library type. A library type has no home in the tree, so an alias
+// its own file keeps private is a local spelling of it, not a second home; an exported one gives the tree a second name.
 function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Located[] {
   const aliases = types.filter(isSynonym);
   const targets = world.symbolsAt(aliases.map(({ node }) => node.type.typeName));
-  return aliases.flatMap(({ node, site, line }, index): Located[] => {
+  const external = aliases.map((_, index) => {
+    const handle = targets[index]?.declarations[0];
+    return handle !== undefined && world.fileOf(handle) === null;
+  });
+  const local = aliases.filter((_, index) => external[index] === true);
+  const answers = world.batch(local.map(({ node }) => exportedByModule(world, node)));
+  const localExported = new Map(local.map((alias, index) => [alias, answers[index]] as const));
+  return aliases.flatMap((alias, index): Located[] => {
+    const { node, site, line } = alias;
     const target = targets[index];
     const handle = target?.declarations[0];
-    if (target === undefined || handle === undefined) {
+    if (target === undefined || handle === undefined || localExported.get(alias) === false) {
       return [];
     }
     const finding: UnwiredShape = {
@@ -239,7 +296,7 @@ function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Loca
       member: target.name,
       kind: "synonym",
       at: [world.fileOf(handle) ?? "external"],
-      perVerb: PER_VERB.test(site.file),
+      perVerb: isPerVerb(alias),
     };
     return [{ finding, site }];
   });
@@ -356,11 +413,43 @@ const restatement = ({ key, first, second }: Pair): UnwiredShape => ({
   member: nameOf(second.node),
   kind: "restated",
   at: [`${second.site.file}:${second.line}`],
-  perVerb: false,
+  perVerb: isPerVerb(first) && isPerVerb(second),
 });
 
-/** Run both engines over the package worlds of `root` for second homes, synonyms and re-export chains. */
-export function scanShapes(options: ScanOptions): ShapesReport {
+// The file and name of each side of a restated pair, so a deliberate entry or the distinct registry naming either
+// side covers the pair.
+const sidesOf = ({ first, second }: Pair): readonly [DeliberateSide, DeliberateSide] => [
+  { file: first.site.file, home: nameOf(first.node), member: nameOf(second.node) },
+  { file: second.site.file, home: nameOf(second.node), member: nameOf(first.node) },
+];
+
+// The deliberate list first, then Core-0 §4's per-verb names, then the judged look-alikes; the rest is unwired.
+function bucket(
+  findings: readonly UnwiredShape[],
+  options: ScanOptions,
+  sides: ReadonlyMap<string, readonly [DeliberateSide, DeliberateSide]>,
+  registry: DistinctRegistry,
+): Pick<ShapesReport, "unwired" | "deliberate" | "distinct"> {
+  const sorted = sortDeliberate(findings, options.deliberate, (finding) => sides.get(finding.key) ?? [finding]);
+  const deliberate = [...sorted.deliberate];
+  const unwired: UnwiredShape[] = [];
+  const distinct: UnwiredShape[] = [];
+  for (const finding of sorted.unwired) {
+    const pair = sides.get(finding.key);
+    if (finding.perVerb) {
+      deliberate.push({ ...finding, reason: PER_VERB_REASON });
+    } else if (pair !== undefined && isDistinctPair(registry, `${pair[0].file}#${pair[0].home}`, `${pair[1].file}#${pair[1].home}`)) {
+      distinct.push(finding);
+    } else {
+      unwired.push(finding);
+    }
+  }
+  return { unwired, deliberate, distinct };
+}
+
+/** Run both engines over the package worlds of `root` for second homes, synonyms and re-export chains; a test passes
+ *  its own distinct registry. */
+export function scanShapes(options: ScanOptions, distinct: DistinctRegistry = DISTINCT_LOOKALIKES): ShapesReport {
   const { worlds } = scanWorlds(options);
   const pairs = new Map<string, Pair>();
   const named = new Map<string, Located & { readonly world: string }>();
@@ -394,5 +483,6 @@ export function scanShapes(options: ScanOptions): ShapesReport {
     }
     options.log(`${config}: engine two checked ${checks.length} findings`);
   }
-  return { scanned, ...sortDeliberate(findings, options.deliberate), disagreements, limits: SHAPE_LIMITS };
+  const sides = new Map([...pairs.values()].map((pair) => [pair.key, sidesOf(pair)] as const));
+  return { scanned, ...bucket(findings, options, sides, distinct), disagreements, limits: SHAPE_LIMITS };
 }

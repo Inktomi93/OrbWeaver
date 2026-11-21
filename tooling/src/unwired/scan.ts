@@ -102,15 +102,27 @@ export function scanWorlds(options: ScanOptions): { readonly worlds: readonly st
   return { worlds: options.worlds ?? packageWorlds(options.root), testWorlds: options.testWorlds ?? TEST_WORLDS };
 }
 
-/** Split findings into the unwired and the ones the deliberate list excuses, each of those with its reason. */
-export function sortDeliberate<Finding extends { readonly file: string; readonly home: string; readonly member: string }>(
+/** A file, home and member the deliberate list is asked about. */
+export interface DeliberateSide {
+  readonly file: string;
+  readonly home: string;
+  readonly member: string;
+}
+
+/** Split findings into the unwired and the ones the deliberate list excuses, each of those with its reason. A finding
+ *  that stands for several declarations, as a restated pair does, names each through `sides`; any excused side
+ *  excuses it. */
+export function sortDeliberate<Finding extends DeliberateSide>(
   findings: readonly Finding[],
   entries: readonly DeliberateEntry[],
+  sides: (finding: Finding) => readonly DeliberateSide[] = (finding) => [finding],
 ): { readonly unwired: readonly Finding[]; readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
   const unwired: Finding[] = [];
   const deliberate: (Finding & { readonly reason: string })[] = [];
   for (const finding of findings) {
-    const reason = deliberateEntry(entries, finding.file, finding.home, finding.member)?.reason;
+    const reason = sides(finding)
+      .map((side) => deliberateEntry(entries, side.file, side.home, side.member)?.reason)
+      .find((found) => found !== undefined);
     if (reason === undefined) {
       unwired.push(finding);
     } else {
