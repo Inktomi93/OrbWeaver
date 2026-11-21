@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Intent colors derive tone roles, and primitives share one tone, variant and size vocabulary
@@ -19,7 +19,7 @@ Roles. Every tone has the roles `solid`, `solid-hover`, `solid-active`, `text`, 
 | Role | Value |
 | - | - |
 | `solid` | `B` |
-| `solid-hover`, `solid-active` | `color-mix(in oklab, B 90% or 80%, light-dark(black, white))`, away from the page ink |
+| `solid-hover`, `solid-active` | `color-mix(in oklab, B 90% or 80%, light-dark(black, white))`, away from the page ink (D338) |
 | `text` | `color-mix(in oklab, B 80%, var(--color-foreground))` |
 | `text-on-tint` | `color-mix(in oklab, B 62%, var(--color-foreground))` |
 | `tint`, `tint-active` | `color-mix(in oklab, B 14% or 22%, H)` |

@@ -53,7 +53,7 @@ interface GalleryAddPickerProps {
 export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInstead }: GalleryAddPickerProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const add = useAddToGallery({ trpc, invalidation });
+  const add = useAddToGallery({ trpc, invalidation, failureShownInline: open ? "the gallery add picker's alert line" : undefined });
   const [isOwned, setIsOwned] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const ownedRef = useRef(false);

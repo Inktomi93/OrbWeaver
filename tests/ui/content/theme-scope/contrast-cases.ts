@@ -123,3 +123,16 @@ export const TONE_MARK_ACCENTS = ["info", "warning"] as const;
 
 /** The selected-row story's title: test-authored row text, read by the story and the case that judges its contrast. */
 export const SELECTED_ROW_TITLE = "Witness row";
+
+const NAVY = "oklch(0.3 0.1 260)";
+const PALE_YELLOW = "oklch(0.88 0.15 95)";
+
+/**
+ * Accents whose ink sits on the end the palette's solid steps move toward: a navy on a dark page, which takes white ink under
+ * lightening steps, and a pale yellow on a light one, which takes dark ink under darkening steps.
+ */
+export const ACCENT_STEP_CASES = [
+  { name: "navy on a dark custom page", props: { accent: NAVY, background: "oklch(0.158 0.006 60)" } },
+  { name: "navy over the dark seed", props: { accent: NAVY, theme: "mocha" as const } },
+  { name: "pale yellow on a light custom page", props: { accent: PALE_YELLOW, background: "oklch(0.98 0.004 75)" } },
+] as const;

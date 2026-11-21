@@ -95,7 +95,7 @@ const PLAIN_REASONS = [
   // No seated character's policy covers the row, so it renders at the fail-closed floor.
   "unattributed",
 ] as const;
-export type PlainReason = (typeof PLAIN_REASONS)[number];
+type PlainReason = (typeof PLAIN_REASONS)[number];
 
 /** Where the viewer can turn rich content on for this row, or that they cannot. */
 const PLAIN_REMEDIES = [
@@ -138,7 +138,7 @@ interface PlainCharacter {
   readonly characterName: string | undefined;
 }
 
-export interface PlainVerdict {
+interface PlainVerdict {
   readonly reason: PlainReason;
   readonly remedy: PlainRemedy;
   readonly characters: readonly PlainCharacter[];
@@ -215,7 +215,7 @@ function assertNeverReason(reason: never): never {
 
 /** Which setting holds a `tierA` row plain and where this viewer can change it. A character is named only when its
  *  own setting, or the default it inherits, is the cause. */
-export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolean): PlainVerdict {
+function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolean): PlainVerdict {
   const reason = plainReason(subject);
   const named = reason === "character" || reason === "install";
   return {
@@ -246,11 +246,11 @@ export type HeldKind = (typeof HELD_KINDS)[number];
 /** Which setting holds external media out of a framed card or styled reply: the install's, the character's own, or
  *  none, because no seated character's policy covers the row and the frame takes the floor. */
 const FRAMED_MEDIA_REASONS = ["install-media", "character-media", "unattributed-media"] as const;
-export type FramedMediaReason = (typeof FRAMED_MEDIA_REASONS)[number];
+type FramedMediaReason = (typeof FRAMED_MEDIA_REASONS)[number];
 
 /** Which consent holds a framed card's or styled reply's own scripts off, as the notice names it. */
 const FRAMED_SCRIPT_REASONS = ["install-scripts", "character-scripts", "viewer-scripts", "unattributed-scripts"] as const;
-export type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
+type FramedScriptReason = (typeof FRAMED_SCRIPT_REASONS)[number];
 
 /** Why one kind is held back. A plain row's own scripts and media can share its styling's cause, because the step or
  *  author that holds the styling holds them too. */

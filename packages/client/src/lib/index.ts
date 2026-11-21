@@ -319,14 +319,10 @@ export type {
 export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type {
-  FramedHoldReads,
-  FramedMediaReason,
-  FramedScriptReason,
   FrameTrustFacts,
   HeldCards,
   HeldKind,
   PlainContentNeeds,
-  PlainReason,
   PlainRemedy,
   PlainReplyReason,
   PlainSubject,
@@ -343,7 +339,6 @@ export {
   PLAIN_REPLY_REASON,
   resolveFramedHolds,
   resolvePlainHolds,
-  resolvePlainVerdict,
   resolveRowRenderPolicy,
 } from "./render-trust.ts";
 export { isFinalRefusal, readTextWithin, refusalOfAnswer, refusalOr, refuseOversizeFiles, requestRefusalOf } from "./request-refused.ts";
@@ -395,7 +390,7 @@ export type { TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessControlName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
-export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
+export { recordInputBorderFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
 export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";

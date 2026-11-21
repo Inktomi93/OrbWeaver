@@ -2,6 +2,7 @@
 // and a refused attach says so in the picker once.
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
 import type { TrpcRoutes } from "@orb/testkit/ct";
 import { absenceWindow, holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -20,6 +21,7 @@ import {
   CHAT_BOOK_PICKER_READ,
   CHAT_DOCUMENT_PICKER_READ,
   CHAT_DOCUMENT_SEARCH_NAME,
+  CHAT_SCRIPT_FILTER_NAME,
   chatAttachItemName,
 } from "#client/features/chat/lib/chat-attach-names.ts";
 import { CHAT_DOCUMENTS_SECTION_LABEL, CHAT_WORLD_BOOKS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
@@ -28,6 +30,7 @@ import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 // A dialog that does close has finished its exit transition inside this span.
 const DIALOG_EXIT_WINDOW_MS = 800;
+const DOCUMENT_NAME = "Lantern notes";
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
 
 const TAB_PROCEDURES = [
@@ -189,4 +192,56 @@ test("the script picker's commit attaches every ticked script in the order ticke
   await expect(dialog).toHaveCount(0);
   const attached = (await host.regex.listForChat({ chatId })).map((script) => script.id);
   expect(attached.filter((id) => id === first.id || id === second.id)).toEqual([first.id, second.id]);
+});
+
+test("a refused document attach keeps the typed search in the open picker and says the refusal there", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  await host.databank.createFromText({ name: DOCUMENT_NAME, text: "The lantern illuminates the charts." });
+  await openTab(root, page, host, {
+    ...serveCorpusProcedures(host, ["databank.list"]),
+    ...serveCorpusProcedures(host, ["databank.attachToChat"], () => trpcError()),
+  });
+  await corpusMedia();
+  const toastMounts = await watchToastMounts(page);
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_DOCUMENTS_SECTION_LABEL)}`, "u") }).click();
+  await page.getByRole("button", { name: CHAT_ADD_FROM_BANK_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const search = dialog.getByRole("textbox", { name: CHAT_DOCUMENT_SEARCH_NAME, exact: true });
+  await search.fill("Lantern");
+  await dialog.getByRole("button", { name: new RegExp(`^Add ${RegExp.escape(DOCUMENT_NAME)}`, "u") }).click();
+
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  expect(await toastMounts()).toBe(0);
+  await expect(search).toHaveValue("Lantern");
+});
+
+test("a refused script attach keeps the typed filter and the ticked script in the open picker", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const script = await host.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: "Kept script", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
+  });
+  await openTab(root, page, host, {
+    ...serveCorpusProcedures(host, ["regex.listScripts", "regex.listGlobal"]),
+    ...serveCorpusProcedures(host, ["regex.attachToChat"], () => trpcError()),
+  });
+  await corpusMedia();
+  const toastMounts = await watchToastMounts(page);
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const filter = dialog.getByRole("textbox", { name: CHAT_SCRIPT_FILTER_NAME, exact: true });
+  await filter.fill("Kept");
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true }).click();
+  await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
+
+  await expect(dialog.getByText(CHAT_ATTACH_SCRIPTS_FAILURE, { exact: true })).toBeVisible();
+  expect(await toastMounts()).toBe(0);
+  await expect(filter).toHaveValue("Kept");
+  await expect(dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true })).toBeChecked();
 });

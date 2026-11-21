@@ -34,7 +34,7 @@ import {
   useSuspenseQuery,
   useTRPC,
 } from "#data";
-import { ACCOUNT_HANDLE_FIELD_NAME, DIALOG_VERBS, notify, testId, timeLib, trpcErrorReason } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, testId, timeLib, trpcErrorReason } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -156,7 +156,8 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch(() => notify.error("Couldn't create the invite."));
+          // The save's failure is already said, inline or by its own toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         }}
       >
         <Stack gap="block">

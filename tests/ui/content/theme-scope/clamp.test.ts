@@ -2,7 +2,17 @@ import { AA_NORMAL_RATIO, carriedLiteralRoles, carriedReadingHosts, oklchToSrgb,
 import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import {
+  SEED_THEME_VALUE_SETS,
+  TOKENS,
+  TONE_MIX_DEFAULTS,
+  TONE_MIX_KNOBS,
+  TONE_ROLE_RECIPES,
+  TONES,
+  toneAwayVar,
+  toneKnobVar,
+  toneLiteralVar,
+} from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
@@ -81,20 +91,27 @@ test("an accent-only scope over a carried palette emits its primary and the inac
       TOKENS["color.primary-foreground"].cssVar,
       ...primaryLiterals,
       ...primarySteps.map((knob) => toneKnobVar("primary", knob)),
+      toneAwayVar("primary"),
       TOKENS["opacity.disabled"].cssVar,
     ].toSorted(),
   );
   expect(primaryLiterals.filter((name) => toOklch(vars[name] ?? "") === null)).toEqual([]);
 });
 
-test("a carried scope paints the primary it judged, and reports when the solid steps needed the fallback", () => {
+test("a carried scope paints the primary it judged, and turns its solid steps toward the end its ink does not sit on", () => {
   const inherited = clampThemeTokens({ background: DARK_BASE }, undefined, HEARTH_ACCENT);
   expect(inherited.vars[TOKENS["color.primary"].cssVar]).toBe(HEARTH_ACCENT);
-  expect(inherited.toneFallback).toBeUndefined();
-  // Corrected up to clear the dark card, this fill lands where no one ink covers it and both solid steps.
-  const shared = clampThemeTokens({ background: DARK_BASE, accent: "oklch(0.3 0.1 260)" });
-  expect(shared.toneFallback?.accent).toBe(shared.vars[TOKENS["color.primary"].cssVar]);
-  expect(shared.toneFallback?.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
+  expect(inherited.vars[toneAwayVar("primary")]).toBe(MIX_FALLBACK);
+  // Lifted to clear the dark card, a navy takes white ink, which the dark page's lightening steps would wash out: its steps darken.
+  const navy = clampThemeTokens({ background: DARK_BASE, accent: "oklch(0.3 0.1 260)" });
+  expect(navy.vars[toneAwayVar("primary")]).toBe("black");
+  expect(navy.vars[toneAwayVar("destructive")]).toBe(MIX_FALLBACK);
+  // A pale yellow on a light page takes dark ink, which the light page's darkening steps would wash out: its steps lighten.
+  const yellow = clampThemeTokens({ background: "oklch(0.98 0.004 75)", accent: "oklch(0.88 0.15 95)" });
+  expect(yellow.vars[toneAwayVar("primary")]).toBe("white");
+  for (const { vars } of [navy, yellow]) {
+    expect(emittedKnobs(vars)).toEqual(expect.objectContaining({ hover: TONE_MIX_DEFAULTS.hover, active: TONE_MIX_DEFAULTS.active }));
+  }
 });
 
 test("an ink-only scope over a seed base is judged on that base's reading hosts, and moves only as far as they need", () => {

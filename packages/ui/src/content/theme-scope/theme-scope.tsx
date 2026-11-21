@@ -4,7 +4,7 @@ import type { VariantProps } from "tailwind-variants";
 import { AmbientScopeContext } from "#lib";
 import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
-import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
+import { InputBorderFallbackReporterContext } from "./input-border-fallback.ts";
 import { themeScopeVariants } from "./variants.ts";
 
 /** The shell spacing tiers a scope can stamp; `tiers.css` re-scopes the spacing tokens under each. */
@@ -78,28 +78,10 @@ export function ThemeScope({ tokens, children, box, className, density, ambientB
   const accentAmbient = ambientAccent ?? inheritedAccent;
   const scopeAmbient = use(AmbientScopeContext);
   const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, { palette: ambient?.palette, ...scopeAmbient });
-  const reportFallback = use(ToneFallbackReporterContext);
   const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
-  // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once. A
+  // The edge fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once. A
   // replayed effect repeats with equal deps, so the last report is held beside them.
-  const reportedTone = useRef<string | null>(null);
   const reportedEdge = useRef<string | null>(null);
-  const fallbackAccent = clamped.toneFallback?.accent;
-  const fallbackHover = clamped.toneFallback?.hover;
-  const fallbackActive = clamped.toneFallback?.active;
-  useEffect(() => {
-    const report = `${fallbackAccent}|${fallbackHover}|${fallbackActive}`;
-    if (
-      reportFallback !== null &&
-      fallbackAccent !== undefined &&
-      fallbackHover !== undefined &&
-      fallbackActive !== undefined &&
-      reportedTone.current !== report
-    ) {
-      reportedTone.current = report;
-      reportFallback({ accent: fallbackAccent, hover: fallbackHover, active: fallbackActive });
-    }
-  }, [reportFallback, fallbackAccent, fallbackHover, fallbackActive]);
   const fallbackEdge = clamped.inputBorderFallback?.edge;
   const fallbackFloorMet = clamped.inputBorderFallback?.floorMet;
   useEffect(() => {

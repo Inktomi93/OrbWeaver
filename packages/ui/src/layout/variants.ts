@@ -269,10 +269,11 @@ const DIVIDER_RULE = [
 ] as const;
 
 // A run of decorative fill, cut off at one edge into the ground: the cue that a scrolled strip hides more past that
-// edge. `fadeFrom` is the fill the strip sits on, so the fade dissolves into it.
+// edge. `fadeFrom` is the fill the strip sits on, so the fade dissolves into it. The fill holds opaque through the first three
+// quarters of its run, so a mark centred in the run (a chevron one glyph wide in a gutter) never has a strip label under it.
 const FADE = {
-  start: "bg-linear-to-r via-60% to-transparent",
-  end: "bg-linear-to-l via-60% to-transparent",
+  start: "bg-linear-to-r from-75% to-transparent",
+  end: "bg-linear-to-l from-75% to-transparent",
 } as const;
 const FADE_FROM = { raised: "from-surface-raised", sidebar: "from-sidebar" } as const;
 

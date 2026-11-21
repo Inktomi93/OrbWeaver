@@ -11,10 +11,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { peekQueryData, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, trpcErrorMessage } from "#lib";
 import type { ComposerDraftSnapshot } from "#state";
 import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replaceComposerDraft, useActiveChatId, useComposerDraftRevision } from "#state";
-import { pluginUndoName, sharedPluginNames } from "../lib/plugin-command-copy.ts";
+import { PLUGIN_COMMAND_RUN_FAILED, PLUGIN_COMMAND_UNKNOWN, pluginUndoName, sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
@@ -22,7 +22,7 @@ interface PluginCommandRunner {
   readonly isPending: boolean;
   readonly run: (
     request: PluginCommandRunRequest,
-    onSettled?: (succeeded: boolean) => void,
+    onSettled?: (succeeded: boolean, failure?: string) => void,
     onReplaced?: (before: ComposerDraftSnapshot, after: ComposerDraftSnapshot) => void,
   ) => void;
 }
@@ -66,10 +66,6 @@ export function useSharedPluginNames(): ReadonlySet<string> {
   return sharedPluginNames(usePluginCommands(true));
 }
 
-/** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the palette say
- *  the same sentence — the runner below is the ONE place either surface can reach it. */
-const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name. Open Jump to… to see what you have.";
-
 /** The ONE runner: resolve `(slug, name)` against the caller's own commands, invoke it, apply the host-mediated
  *  outcome. An unresolved pair is a house toast, never a silent no-op — a slash line that vanishes teaches a
  *  person that the feature is broken.
@@ -77,12 +73,16 @@ const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name. Open Jump to… 
  *  It carries BOTH the raw `args` remainder (a command's own opaque grammar — the U5 shape) AND the #791 typed
  *  `values` bag the surfaces collected against the command's declared args (`{}` for a command that declared
  *  none). The server re-validates `values` against the resident command's specs, so a mistyped/missing/off-enum
- *  value is refused there too. */
-export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunner {
+ *  value is refused there too.
+ *
+ *  A surface that stays on screen while a run fails passes `failureShownInline`, the line that says it, and gets
+ *  `onSettled(false, failure)` instead of the toast for a refused or unresolvable run: `failure` is the server's own
+ *  sentence (a guest's refusal reads "plugin action failed: …"), or the unresolved-command sentence. */
+export function usePluginCommandRunner(chatId: ChatId | null, failureShownInline?: string): PluginCommandRunner {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const invalidation = useInvalidation();
-  const invoke = useInvokeUiCommand({ trpc, invalidation });
+  const invoke = useInvokeUiCommand({ trpc, invalidation, failureShownInline });
   const runningCommandCount = useIsMutating({ mutationKey: trpc.plugin.invokeUiCommand.mutationKey() });
   const commands = usePluginCommands(true);
   // No manual memoization — the React Compiler runs full-compile on this tree and already caches this closure
@@ -90,8 +90,11 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
   const run: PluginCommandRunner["run"] = (request, onSettled, onReplaced): void => {
     const command = commands.find((candidate) => candidate.slug === request.slug && candidate.name === request.name);
     if (command === undefined || (command.composerDraft === true) !== (request.composerDraft !== undefined)) {
-      notify.error(PLUGIN_COMMAND_UNKNOWN);
-      onSettled?.(false);
+      // A surface that says every failed run inline passes its line, so the toast does not repeat it.
+      if (failureShownInline === undefined) {
+        notify.error(PLUGIN_COMMAND_UNKNOWN);
+      }
+      onSettled?.(false, PLUGIN_COMMAND_UNKNOWN);
       return;
     }
     // The mutation's error toast owns the visible failure. Keep a collecting surface open with its values,
@@ -124,7 +127,7 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
         onSettled?.(true);
       })
       .catch((error: unknown): void => {
-        onSettled?.(false);
+        onSettled?.(false, trpcErrorMessage(error) ?? PLUGIN_COMMAND_RUN_FAILED);
         globalThis.reportError(error);
       });
   };
