@@ -51,6 +51,8 @@ import {
   regexTierKicker,
   regexTierLever,
 } from "../lib/regex-section-model.ts";
+import type { RegexStopControl } from "../lib/regex-stop-copy.ts";
+import { regexStopControl } from "../lib/regex-stop-copy.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 import { RegexStopReason } from "./regex-stop-mark.tsx";
 
@@ -104,6 +106,7 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
           {rows.map((row, index) => (
             <RosterItem key={row.script.id} requested={row.script.id === requestedRow}>
               <DisplayScriptRow
+                isHost={isHost}
                 isYours={ownedIds.has(row.script.id)}
                 offReason={row.off === undefined || row.from === REGEX_VIEWER_SOURCE ? null : regexRosterOffReason(row.off, regexTierLever(row.from, names))}
                 qualifier={qualifiers[index]}
@@ -184,6 +187,7 @@ function sourceWords(from: RegexDisplaySource, isHost: boolean, names: ReadonlyM
  *  and any stop with its reason; for the viewer's own script, the library switch. The source line answers why the
  *  screen looks as it does, so it never shares a line with the pattern, which is the part that may truncate. */
 function DisplayScriptRow({
+  isHost,
   isYours,
   offReason,
   qualifier,
@@ -191,6 +195,7 @@ function DisplayScriptRow({
   source,
   stop,
 }: {
+  readonly isHost: boolean;
   readonly isYours: boolean;
   /** The room switch that holds this script off screen, in words, or `null` when none does. */
   readonly offReason: string | null;
@@ -240,7 +245,7 @@ function DisplayScriptRow({
             ),
           }
         : {})}
-      detail={<RowDetail offReason={offReason} pattern={pattern} stop={stop} />}
+      detail={<RowDetail control={regexStopControl(isHost, isYours)} offReason={offReason} pattern={pattern} stop={stop} />}
       subtitle={source}
       subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitleWrap={true}
@@ -261,10 +266,12 @@ function RowMarks(): ReactElement {
 /** Under the source: the pattern on one truncating line, then the room switch holding it off and a stop's reason, in
  *  full. */
 function RowDetail({
+  control,
   offReason,
   pattern,
   stop,
 }: {
+  readonly control: RegexStopControl;
   readonly offReason: string | null;
   readonly pattern: string;
   readonly stop: StoppedDisplayScript | undefined;
@@ -279,7 +286,7 @@ function RowDetail({
           {offReason}
         </Text>
       )}
-      {stop === undefined ? null : <RegexStopReason stop={stop} />}
+      {stop === undefined ? null : <RegexStopReason control={control} stop={stop} />}
     </>
   );
 }

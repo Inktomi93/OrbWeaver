@@ -237,6 +237,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
+export { INJECTIONS_LABEL } from "./injections-label.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
 export {
   ITEM_ATTACH_SETTING,

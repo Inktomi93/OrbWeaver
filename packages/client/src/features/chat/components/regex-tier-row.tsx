@@ -45,6 +45,7 @@ import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { useDisplayScriptStop } from "../hooks/use-display-text.ts";
 import { REGEX_OFF_MARK, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { regexStopControl } from "../lib/regex-stop-copy.ts";
 import { RegexStopReason } from "./regex-stop-mark.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
@@ -125,7 +126,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
         </Text>
       }
       markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
-      {...(stop === undefined ? {} : { detail: <RegexStopReason stop={stop} /> })}
+      {...(stop === undefined ? {} : { detail: <RegexStopReason control={regexStopControl(isHost, !notYours)} stop={stop} /> })}
       subtitle={patternOf(script.findRegex)}
       subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitlePlacement="inline"

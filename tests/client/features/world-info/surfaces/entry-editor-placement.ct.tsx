@@ -1,10 +1,10 @@
 // The entry editor's Placement choice offers every seat, says what a missing seat does, and saves the one picked.
+import { INJECTIONS_LABEL } from "@orb/client/lib";
 import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { CHAT_INJECTIONS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
 import { WORLD_INFO_ENTRY_PLACEMENT_NAME, WORLD_INFO_PLACEMENT_HINT, WORLD_INFO_POSITION_LABELS } from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
@@ -46,11 +46,9 @@ test("the Placement choice offers every seat by its name, explains a missing sea
   const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId: world.reads.entry.output.worldBookId, entryId, context: false });
   // The missing-seat rule is printed text under the field, not a tooltip a touch screen cannot open.
   await expect(component.locator('[data-slot="field-description"]').filter({ hasText: WORLD_INFO_PLACEMENT_HINT })).toBeVisible();
-  // The Author's Note seats carry the name the rest of the app gives that seat (D116).
-  for (const seat of ["authors_note_top", "authors_note_bottom"] as const) {
-    expect(WORLD_INFO_POSITION_LABELS[seat]).toContain(CHAT_INJECTIONS_SECTION_LABEL);
-  }
   await component.getByRole("combobox", { name: WORLD_INFO_ENTRY_PLACEMENT_NAME, exact: true }).click();
+  // The two Author's Note seats read as the app's Injections list (D116).
+  await expect(page.getByRole("option", { name: INJECTIONS_LABEL })).toHaveCount(2);
   for (const position of ENTRY_POSITIONS) {
     await expect(page.getByRole("option", { name: WORLD_INFO_POSITION_LABELS[position], exact: true })).toBeVisible();
   }

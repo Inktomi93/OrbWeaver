@@ -52,12 +52,12 @@ import type { ReactElement, ReactNode } from "react";
 import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
+import { INJECTIONS_LABEL } from "#lib";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import {
   CHAT_DOCUMENTS_SECTION_LABEL,
   CHAT_FORKS_SECTION_LABEL,
   CHAT_GROUP_BEHAVIOR_NAME,
-  CHAT_INJECTIONS_SECTION_LABEL,
   CHAT_WORLD_BOOKS_SECTION_LABEL,
 } from "../lib/chat-settings-names.ts";
 import type { GroupBehaviorScope } from "../lib/roster.ts";
@@ -178,11 +178,7 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   return (
-    <DisclosureSection
-      defaultOpen={CLOSED_BY_DEFAULT}
-      kicker={<HeadingWithCount count={data?.length ?? 0} label={CHAT_INJECTIONS_SECTION_LABEL} />}
-      sectionId="injections"
-    >
+    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<HeadingWithCount count={data?.length ?? 0} label={INJECTIONS_LABEL} />} sectionId="injections">
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}

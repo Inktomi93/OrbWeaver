@@ -2,7 +2,6 @@
 // spec's node side reads them without loading the component graph.
 
 /** The This-chat tab's counted sections, each a disclosure whose name is the label and then its count. */
-export const CHAT_INJECTIONS_SECTION_LABEL = "Injections";
 export const CHAT_DOCUMENTS_SECTION_LABEL = "Documents";
 export const CHAT_WORLD_BOOKS_SECTION_LABEL = "World books";
 export const CHAT_FORKS_SECTION_LABEL = "Forks";

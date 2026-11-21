@@ -164,7 +164,17 @@ test("a skipped host script raises one named notice that a replay does not repea
   await expect(row).toHaveCount(1);
   await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
   // The reason is on screen under the row, not only spoken.
-  await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass), { exact: true })).toBeVisible();
+  await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass, "switch"), { exact: true })).toBeVisible();
+  // The toast points at no row, so it names no switch.
+  await expect(
+    noticeToast(
+      page,
+      regexNotAppliedNotice([
+        { name: null, ...UNKNOWN },
+        { name: SLOW.name, ...HISTORY },
+      ]),
+    ),
+  ).not.toContainText(REGEX_SCRIPT_ENABLED_SETTING);
 });
 
 test("a stopped script's long name stays whole beside its mark at phone width", async ({ corpus, mount, page }) => {
@@ -303,9 +313,9 @@ test("a stopped script only the prompt passes run is marked, with its reason, on
   await expect(row).toHaveCount(1);
   await expect(rosterRow(page, PROMPT_ONLY.name)).toHaveCount(0);
   await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
-  await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass), { exact: true })).toBeVisible();
+  await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass, "switch"), { exact: true })).toBeVisible();
   // The reason sends the reader to a control that is on this row: the script's own switch, which is off everywhere.
-  expect(regexNotAppliedReason(HISTORY.cause, HISTORY.pass)).toContain(REGEX_SCRIPT_ENABLED_SETTING);
+  await expect(row.locator('[data-slot="regex-stop-reason"]')).toContainText(REGEX_SCRIPT_ENABLED_SETTING);
   await expect(row.getByRole("switch", { name: new RegExp(`^${REGEX_SCRIPT_ENABLED_SETTING}`, "u") })).toBeVisible();
 });
 
