@@ -19,7 +19,7 @@ Two shapes for one card format drift apart; one home per concept is house law.
 
 ## Done when
 
-Import normalizes V2 and Pygmalion cards into the card schema's shape and reads every field through the schema, tolerant per field so one bad field never refuses a card; RawCard is gone; the import and export round-trip tests pass unchanged; the schema's fields leave the fields report.
+Import normalizes V2 and Pygmalion cards into the card schema's shape and reads every field through the schema, tolerant per field so one bad field never refuses a card; the card's book entries and SillyTavern regex script fields (StRegexScriptFields) are read on import through the same shapes export writes; RawCard and every import-side copy are gone; the import and export round-trip tests pass unchanged; these schemas' fields leave the fields report.
 
 ## Evidence
 
