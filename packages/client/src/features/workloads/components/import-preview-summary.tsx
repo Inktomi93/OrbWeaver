@@ -7,17 +7,24 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
-import { Text } from "@orb/ui/text";
+import { ScrollArea } from "@orb/ui/scroll-area";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { RETRY_NAME } from "#lib";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import type { StExportPreviewState } from "../hooks/use-st-export-preview.ts";
-import { IMPORT_PREVIEW_HIDE_NAMES, IMPORT_PREVIEW_REPORT_NAME, IMPORT_PREVIEW_SHOW_NAMES, importPreviewProfileLabel } from "../lib/import-library-names.ts";
+import {
+  IMPORT_PREVIEW_HIDE_NAMES,
+  IMPORT_PREVIEW_NAMES_REGION,
+  IMPORT_PREVIEW_REPORT_NAME,
+  IMPORT_PREVIEW_SHOW_NAMES,
+  importPreviewProfileLabel,
+} from "../lib/import-library-names.ts";
 import { counted, KIND_NOUNS, previewKindLine, previewPresetDetailLines, previewProfiles } from "../lib/portability-model.ts";
 import type { PreviewLine, PreviewReasonGroup } from "../lib/st-export-model.ts";
 import { stExportKindLines, stExportLeftGroups, stExportNameLines } from "../lib/st-export-model.ts";
-import { ST_EXPORT_PREVIEW_FAILED, ST_EXPORT_READING, ST_EXPORT_REPORT_NAME, ST_EXPORT_RUNNING } from "../lib/st-export-names.ts";
+import { ST_EXPORT_GOES_HEADING, ST_EXPORT_PREVIEW_FAILED, ST_EXPORT_READING, ST_EXPORT_REPORT_NAME, ST_EXPORT_RUNNING } from "../lib/st-export-names.ts";
 
 function namesLine(names: readonly string[], total: number): string {
   const unlisted = total - names.length;
@@ -92,42 +99,74 @@ function ScopeNames({
   );
 }
 
-// The shared layout: a line per kind, the reasons entries stay behind, and the names behind a toggle.
+/** One headed run of the preview: its heading names the group that holds the lines under it. */
+function PreviewSection({ heading, children }: { readonly heading: string; readonly children: ReactNode }): ReactElement {
+  const headingId = useId();
+  return (
+    <Stack gap="tight" role="group" aria-labelledby={headingId}>
+      <Heading level={4} voice="label" id={headingId}>
+        {heading}
+      </Heading>
+      {children}
+    </Stack>
+  );
+}
+
+// The shared layout: a line per kind, the reasons entries stay behind, and the names behind a toggle. A preview that
+// names what goes (`linesHeading`) sets it and what stays each under a heading; the names scroll within a bounded region.
 function PreviewLayout({
   label,
   lines,
+  linesHeading,
   skipped,
   names,
 }: {
   readonly label: string;
   readonly lines: readonly PreviewLine[];
+  readonly linesHeading: string | null;
   readonly skipped: { readonly heading: string; readonly groups: readonly PreviewReasonGroup[] } | null;
   readonly names: ReactNode;
 }): ReactElement {
   const [namesOpen, setNamesOpen] = useState(false);
   const namesToggle = namesOpen ? IMPORT_PREVIEW_HIDE_NAMES : IMPORT_PREVIEW_SHOW_NAMES;
+  const kindLines = lines.map(({ key, text }) => (
+    <Text key={key} voice="reading">
+      {text}
+    </Text>
+  ));
+  const reasonLines =
+    skipped === null
+      ? null
+      : skipped.groups.map(({ reason, sources }) => (
+          <Text key={reason} voice="reading" wrap="anywhere">
+            {sources.length === 1 ? reason : `${reason} (${String(sources.length)})`}
+          </Text>
+        ));
   return (
-    <Stack gap="tight" role="group" aria-label={label}>
-      {lines.map(({ key, text }) => (
-        <Text key={key} voice="reading">
-          {text}
-        </Text>
-      ))}
-      {skipped === null ? null : (
+    <Stack gap={linesHeading === null ? "tight" : "field"} role="group" aria-label={label}>
+      {linesHeading === null ? (
         <>
-          <Text voice="reading">{skipped.heading}</Text>
-          {skipped.groups.map(({ reason, sources }) => (
-            <Text key={reason} voice="reading" wrap="anywhere">
-              {sources.length === 1 ? reason : `${reason} (${String(sources.length)})`}
-            </Text>
-          ))}
+          {kindLines}
+          {skipped === null ? null : (
+            <>
+              <Text voice="reading">{skipped.heading}</Text>
+              {reasonLines}
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {lines.length === 0 ? null : <PreviewSection heading={linesHeading}>{kindLines}</PreviewSection>}
+          {skipped === null ? null : <PreviewSection heading={skipped.heading}>{reasonLines}</PreviewSection>}
         </>
       )}
       {lines.length === 0 && skipped === null ? null : (
         <Collapsible open={namesOpen} onOpenChange={setNamesOpen}>
           <CollapsibleTrigger>{namesToggle}</CollapsibleTrigger>
           <CollapsiblePanel>
-            <Stack gap="tight">{names}</Stack>
+            <ScrollArea maxHeight="scrollMd" viewportProps={{ role: "region", "aria-label": IMPORT_PREVIEW_NAMES_REGION }} wrapContent={true}>
+              <Stack gap="tight">{names}</Stack>
+            </ScrollArea>
           </CollapsiblePanel>
         </Collapsible>
       )}
@@ -144,6 +183,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
   return (
     <PreviewLayout
       label={IMPORT_PREVIEW_REPORT_NAME}
+      linesHeading={null}
       lines={kinds.map((kind) => ({ key: kind, text: previewKindLine(kind, preview.kinds[kind]) }))}
       skipped={skipped.total === 0 ? null : { heading: `${counted(skipped.total, ["item", "items"])} would be skipped:`, groups: skipGroups(skipped.items) }}
       names={
@@ -198,6 +238,12 @@ export function ImportPreviewSummary({ state, onRetry }: { readonly state: Impor
     }
     case "failed":
       return <PreviewFailed line={`No preview. ${state.message} You can still import, or try again.`} onRetry={onRetry} />;
+    case "refused":
+      return (
+        <Text voice="reading" tone="destructive" role="status">
+          {state.message}
+        </Text>
+      );
     case "ready":
       return <PreviewReport preview={state.preview} />;
   }
@@ -225,6 +271,7 @@ export function StExportPreviewSummary({ state, onRetry }: { readonly state: StE
       return (
         <PreviewLayout
           label={ST_EXPORT_REPORT_NAME}
+          linesHeading={ST_EXPORT_GOES_HEADING}
           lines={stExportKindLines(report)}
           skipped={left}
           names={

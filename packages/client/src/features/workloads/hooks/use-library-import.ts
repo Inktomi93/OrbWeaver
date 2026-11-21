@@ -29,7 +29,8 @@
 // A `.zip` pick dry-runs through the profile zip door the moment it is staged. A SillyTavern profile zip previews and
 // imports as its folder would, its personas listed from the dry run's answer; a changed answer sends the zip again,
 // because only the server reads inside it. An Orbweaver backup zip is answered with no content and imports through the
-// bundle door, as before.
+// bundle door, as before. A zip the door refuses ends the preview as `refused`: the file cannot be imported, so the
+// preflight offers no import and no retry, only a way to pick another file.
 //
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
@@ -83,9 +84,6 @@ const CONFLICT_RETRY_LIMIT = 30;
 
 /** What the reader is told when the dry run could not start. The status and the server's text stay out of it. */
 function previewFailureMessage(error: unknown): string {
-  if (error instanceof ProfileZipRefusedError) {
-    return IMPORT_ZIP_REFUSAL[error.reason];
-  }
   if (!(error instanceof HttpError)) {
     return IMPORT_PREVIEW_FAILURE.unreachable;
   }
@@ -98,13 +96,15 @@ function previewFailureMessage(error: unknown): string {
   return error.status >= HTTP_SERVER_ERROR ? IMPORT_PREVIEW_FAILURE.serverFailed : IMPORT_PREVIEW_FAILURE.refused;
 }
 
-/** The staged folder's dry run. A pick with no preview sits at `off`; a failed preview leaves the import available. */
+/** The staged pick's dry run. A pick with no preview sits at `off`; a failed preview leaves the import available; a refused
+ *  zip cannot be imported at all, and its `message` is the plain reason. */
 export type ImportPreviewState =
   | typeof NO_PREVIEW
   /** `workloadId` is null while the upload is still being sent. */
   | { readonly status: "reading"; readonly workloadId: WorkloadId | null; readonly progress: WorkloadProgressView; readonly batch: BatchProgress }
   | { readonly status: "ready"; readonly preview: ImportPreview }
-  | { readonly status: "failed"; readonly message: string };
+  | { readonly status: "failed"; readonly message: string }
+  | { readonly status: "refused"; readonly message: string };
 
 type LibraryImportState =
   | { readonly status: "idle" }
@@ -263,11 +263,15 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  const failPreview = (run: PreviewRun, message: string): void => {
-    setPreview(run, { status: "failed", message });
+  const endPreview = (run: PreviewRun, ended: Extract<ImportPreviewState, { readonly status: "failed" | "refused" }>): void => {
+    setPreview(run, ended);
     if (previewRun.current === run) {
       previewRun.current = null;
     }
+  };
+
+  const failPreview = (run: PreviewRun, message: string): void => {
+    endPreview(run, { status: "failed", message });
   };
 
   /** Stop the running dry run so a later pick is not refused as a second running import. */
@@ -386,6 +390,10 @@ export function useLibraryImport(): LibraryImport {
               sendPreviewBatch(run, attempt + 1);
             }
           }, CONFLICT_RETRY_MS);
+          return;
+        }
+        if (error instanceof ProfileZipRefusedError) {
+          endPreview(run, { status: "refused", message: IMPORT_ZIP_REFUSAL[error.reason] });
           return;
         }
         failPreview(run, previewFailureMessage(error));
@@ -626,7 +634,7 @@ export function useLibraryImport(): LibraryImport {
   };
 
   const confirm = (): void => {
-    if (state.status !== "staged" || state.preview.status === "reading") {
+    if (state.status !== "staged" || state.preview.status === "reading" || state.preview.status === "refused") {
       return;
     }
     if (state.folder && state.plan !== null) {

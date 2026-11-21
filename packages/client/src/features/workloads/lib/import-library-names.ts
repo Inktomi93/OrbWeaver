@@ -40,6 +40,14 @@ export const IMPORT_INTRO_LEAD = "Restore a backup, or bring your SillyTavern li
 /** The drop zone for a backup zip or a single card. */
 export const IMPORT_FILE_PICKER_NAME = "Import a backup or card file";
 
+/** The refused zip's one action: leave the preflight and pick again. */
+export const IMPORT_PICK_ANOTHER_NAME = "Pick another file";
+
+/** The preflight's question once its file is refused: the group's name, with nothing left to answer. */
+export function importFileRefusedTitle(name: string): string {
+  return `“${name}” cannot be imported`;
+}
+
 /** The button that clears a finished import for the next one. */
 export const IMPORT_ANOTHER_NAME = "Import another";
 
@@ -49,6 +57,9 @@ export const IMPORT_PREVIEW_REPORT_NAME = "What this import would bring";
 /** The dry-run report's names disclosure, closed and open. */
 export const IMPORT_PREVIEW_SHOW_NAMES = "Show names";
 export const IMPORT_PREVIEW_HIDE_NAMES = "Hide names";
+
+/** The scrolling region that holds a preview's names. */
+export const IMPORT_PREVIEW_NAMES_REGION = "Names in this preview";
 
 /** The label over one profile's names, shown when an upload holds several profiles. */
 export function importPreviewProfileLabel(profile: string): string {
