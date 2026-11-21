@@ -44,9 +44,11 @@ import {
   IMPORT_FOLDER_NAME,
   IMPORT_FOLDER_NOTHING_TITLE,
   IMPORT_INTRO_LEAD,
+  IMPORT_PICK_ANOTHER_NAME,
   IMPORT_PROGRESS_NAME,
   IMPORT_RESULT_NAME,
   importFilePreflightTitle,
+  importFileRefusedTitle,
   importFilesPreflightTitle,
   importFolderPreflightTitle,
 } from "../lib/import-library-names.ts";
@@ -81,8 +83,11 @@ function confirmName(files: readonly File[], plan: TreeImportPlan | null): strin
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
  *  single file it is about to send. */
-function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): string {
+function stagedTitle(files: readonly File[], plan: TreeImportPlan | null, preview: ImportPreviewState): string {
   const first = files[0];
+  if (preview.status === "refused" && first !== undefined) {
+    return importFileRefusedTitle(first.name);
+  }
   if (plan !== null) {
     if (plan.files === 0) {
       return IMPORT_FOLDER_NOTHING_TITLE;
@@ -120,8 +125,10 @@ function ImportPreflight({
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
-  const title = stagedTitle(files, plan);
+  const title = stagedTitle(files, plan, preview);
   const nothingNote = nothingToSendNote(plan, preview);
+  // A refused file has no import to confirm: its reason and the way to pick again are all the preflight holds.
+  const refused = preview.status === "refused";
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
     // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name. A painted Card draws the house ring
@@ -130,38 +137,48 @@ function ImportPreflight({
       <Stack gap="field" padding="field">
         <Text voice="promoted">{title}</Text>
         <ImportPreviewSummary state={preview} onRetry={onRetryPreview} />
-        <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
-        <Stack gap="tight">
-          {/* This folder's own facts (what stays on disk) lead; the policy that holds for every import follows. */}
-          {plan === null
-            ? null
-            : planNotes(plan).map((line) => (
+        {refused ? null : (
+          <>
+            <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
+            <Stack gap="tight">
+              {/* This folder's own facts (what stays on disk) lead; the policy that holds for every import follows. */}
+              {plan === null
+                ? null
+                : planNotes(plan).map((line) => (
+                    <Text key={line} cap="prose" voice="reading">
+                      {line}
+                    </Text>
+                  ))}
+              {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
                 <Text key={line} cap="prose" voice="reading">
                   {line}
                 </Text>
               ))}
-          {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
-            <Text key={line} cap="prose" voice="reading">
-              {line}
-            </Text>
-          ))}
-        </Stack>
-        {nothingNote === null ? null : (
-          <Text id={NOTHING_TO_SEND_ID} cap="prose" voice="reading">
-            {nothingNote}
-          </Text>
+            </Stack>
+            {nothingNote === null ? null : (
+              <Text id={NOTHING_TO_SEND_ID} cap="prose" voice="reading">
+                {nothingNote}
+              </Text>
+            )}
+          </>
         )}
         {/* Pinned to the foot of the pane's scroll, so Import and Cancel stay in reach however tall the review grows. */}
         <Row ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
-          <CommitRow surface="island" onCancel={onCancel}>
-            <Button
-              onClick={onConfirm}
-              disabled={preview.status === "reading" || nothingNote !== null}
-              aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
-            >
-              {confirmName(files, plan)}
-            </Button>
-          </CommitRow>
+          {refused ? (
+            <CommitRow surface="island" cancelLabel={IMPORT_PICK_ANOTHER_NAME} onCancel={onCancel}>
+              {null}
+            </CommitRow>
+          ) : (
+            <CommitRow surface="island" onCancel={onCancel}>
+              <Button
+                onClick={onConfirm}
+                disabled={preview.status === "reading" || nothingNote !== null}
+                aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
+              >
+                {confirmName(files, plan)}
+              </Button>
+            </CommitRow>
+          )}
         </Row>
       </Stack>
     </Card>

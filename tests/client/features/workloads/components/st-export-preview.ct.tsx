@@ -10,15 +10,18 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { SettingsCompositionStory } from "@orb/testkit/browser";
+import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { present } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { IMPORT_PREVIEW_SHOW_NAMES } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_PREVIEW_NAMES_REGION, IMPORT_PREVIEW_SHOW_NAMES } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   ST_EXPORT_DOWNLOAD_NAME,
+  ST_EXPORT_GOES_HEADING,
   ST_EXPORT_LEFT_REASON_NAMES,
   ST_EXPORT_OPEN_NAME,
   ST_EXPORT_PREVIEW_FAILED,
@@ -26,7 +29,9 @@ import {
   ST_EXPORT_RUNNING,
   ST_EXPORT_TITLE,
   ST_IMPORT_DOOR_NAMES,
+  stExportLeftHeading,
 } from "#client/features/workloads/lib/st-export-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
 const FACELESS = "Faceless";
@@ -134,4 +139,83 @@ test("a preview asked while another export runs says so and reads once that expo
   }
   await preflight.getByRole("button", { name: RETRY_NAME, exact: true }).click();
   await expect(preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true })).toBeVisible();
+});
+test("keyboard focus enters the preflight on open and returns to the open button on Cancel", async ({ mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  await openSection(page, root);
+  await routeExport(page, root);
+  await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "backup-export", width: 342, paneInset: true });
+
+  const opener = page.getByRole("button", { name: ST_EXPORT_OPEN_NAME, exact: true });
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  const preflight = page.getByRole("group", { name: ST_EXPORT_TITLE, exact: true });
+  await expect(preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true })).toBeVisible();
+  // The opener unmounted under the key press, so focus is the preflight's or it is on the body.
+  await expect(preflight).toBeFocused();
+
+  await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(preflight).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test("Try again keeps focus in the preflight while it reads again", async ({ mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  await openSection(page, root);
+  await routeExport(page, root, 1);
+  await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "backup-export", width: 342, paneInset: true });
+
+  await page.getByRole("button", { name: ST_EXPORT_OPEN_NAME, exact: true }).click();
+  const preflight = page.getByRole("group", { name: ST_EXPORT_TITLE, exact: true });
+  const retry = preflight.getByRole("button", { name: RETRY_NAME, exact: true });
+  await expect(retry).toBeVisible();
+  await retry.focus();
+  await page.keyboard.press("Enter");
+
+  // The retry button is gone once the read starts, and the read ends in the report; focus is the preflight's throughout.
+  await expect(preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true })).toBeVisible();
+  await expect(retry).toHaveCount(0);
+  await expect(preflight).toBeFocused();
+});
+
+const MANY_CHARACTERS = 40;
+
+test("at phone width the preview sets what goes apart from what stays, and its names scroll in a bounded region", async ({ mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (let index = 0; index < MANY_CHARACTERS; index += 1) {
+    const handle = `traveller-${String(index).padStart(2, "0")}`;
+    await caller.character.create({
+      input: createCharacterSchema.parse({ handle, name: `Traveller number ${String(index)}`, description: "Walks the long road." }),
+    });
+  }
+  await caller.persona.create({ input: createPersonaSchema.parse({ name: FACELESS, description: "No picture." }) });
+  await openSection(page, root);
+  await routeExport(page, root);
+  await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "backup-export", width: 342, paneInset: true });
+
+  await page.getByRole("button", { name: ST_EXPORT_OPEN_NAME, exact: true }).click();
+  const preflight = page.getByRole("group", { name: ST_EXPORT_TITLE, exact: true });
+  const report = preflight.getByRole("group", { name: ST_EXPORT_REPORT_NAME, exact: true });
+  const dryRun = stExportReportSchema.parse(await (await root.http.request(stProfileExportPath(true))).json());
+
+  const goes = report.getByRole("group", { name: ST_EXPORT_GOES_HEADING, exact: true });
+  const stays = report.getByRole("group", { name: stExportLeftHeading(dryRun.left.length), exact: true });
+  await expect(goes.getByRole("heading", { name: ST_EXPORT_GOES_HEADING, exact: true })).toBeVisible();
+  await expect(goes.getByText("Characters: ").and(goes.getByText(`, for ${ST_IMPORT_DOOR_NAMES["character-import"]}`))).toBeVisible();
+  await expect(stays.getByRole("heading")).toBeVisible();
+  const reason = ST_EXPORT_LEFT_REASON_NAMES["persona-without-art"];
+  // What stays is under its own heading and never among what goes.
+  await expect(stays.getByText(reason)).toBeVisible();
+  await expect(goes.getByText(reason)).toHaveCount(0);
+
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES, exact: true }).click();
+  const names = report.getByRole("region", { name: IMPORT_PREVIEW_NAMES_REGION, exact: true });
+  await expect(names.getByText("Characters: ")).toBeVisible();
+  const cap = await resolvedLength(page, `var(${TOKENS["height.scroll-md"].cssVar})`, names);
+  const { client, scroll } = await names.evaluate((region) => ({ client: region.clientHeight, scroll: region.scrollHeight }));
+  // The control: the names run past the cap, so the region is bounded and scrolls rather than fitting by luck.
+  expect(scroll).toBeGreaterThan(cap);
+  expect(client).toBeLessThanOrEqual(cap);
 });

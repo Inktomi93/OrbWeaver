@@ -19,6 +19,9 @@ export const ST_EXPORT_DOWNLOAD_NAME = "Download for SillyTavern";
 /** The group the preview's lines sit in. */
 export const ST_EXPORT_REPORT_NAME = "What the SillyTavern export carries";
 
+/** The heading over the lines the export carries, each with the SillyTavern door that takes it. */
+export const ST_EXPORT_GOES_HEADING = "Goes to SillyTavern";
+
 /** While the dry run reads the library. */
 export const ST_EXPORT_READING = "Reading your library. Nothing is downloaded yet.";
 
@@ -63,5 +66,5 @@ export function stExportKindLine(label: string, files: number, door: string): st
 
 /** The heading over the rows the export leaves behind. */
 export function stExportLeftHeading(count: number): string {
-  return `${String(count)} item${count === 1 ? "" : "s"} would stay here:`;
+  return `${String(count)} item${count === 1 ? "" : "s"} would stay here`;
 }

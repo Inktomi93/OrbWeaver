@@ -12,7 +12,7 @@ import { Download, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CommitRow, SettingCheckboxRow, SettingRowGroup, SettingTrackRow } from "#components";
 import { downloadUrl, testId } from "#lib";
 import { useStExportPreview } from "../hooks/use-st-export-preview.ts";
@@ -30,9 +30,26 @@ import { StExportPreviewSummary } from "./import-preview-summary.tsx";
 const INCLUDE_GROUP_TONE = "quiet";
 
 /** The SillyTavern export: its open button, then the preflight that previews the dry run and confirms the download. The
- *  download appears only beside a preview that read. */
+ *  download appears only beside a preview that read. The open button and the retry unmount as the preflight opens and
+ *  re-reads, so focus is handed on: the preflight takes it while it reads, and the open button takes it back on close. */
 function StExport(): ReactElement {
   const { state, open, close, download } = useStExportPreview();
+  const preflightRef = useRef<HTMLDivElement>(null);
+  const openRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  const isOpen = state.status !== "off";
+  const reading = state.status === "reading";
+  useEffect(() => {
+    if (reading) {
+      preflightRef.current?.focus({ preventScroll: true });
+    }
+  }, [reading]);
+  useEffect(() => {
+    if (!isOpen && wasOpen.current) {
+      openRef.current?.focus();
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen]);
   if (state.status === "off") {
     return (
       <Stack gap="field">
@@ -40,7 +57,7 @@ function StExport(): ReactElement {
           {ST_EXPORT_LEDE}
         </Text>
         <Row justify="start">
-          <Button variant="outline" onClick={open}>
+          <Button variant="outline" onClick={open} ref={openRef}>
             {ST_EXPORT_OPEN_NAME}
           </Button>
         </Row>
@@ -48,7 +65,8 @@ function StExport(): ReactElement {
     );
   }
   return (
-    <Card aria-label={ST_EXPORT_TITLE} padding="none" role="group" shape="row" variant="outline">
+    // Focusable by script, not a tab stop: a screen reader lands on the group's name when the preview opens or reads again.
+    <Card aria-label={ST_EXPORT_TITLE} focusable={true} padding="none" ref={preflightRef} role="group" shape="row" tabIndex={-1} variant="outline">
       <Stack gap="field" padding="field">
         <Text voice="promoted">{ST_EXPORT_TITLE}</Text>
         <StExportPreviewSummary state={state} onRetry={open} />
