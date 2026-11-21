@@ -130,10 +130,14 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 
 ## Code no run executes
 
-3809 is not yet built. It merges V8 coverage from the Node, CT and e2e suites and lists production functions and branches that no run executed.
+`pnpm unwired coverage` (3809) merges V8 coverage from the Node, CT and e2e suites. It writes the production functions and branch paths that no run executed to `reports/unwired/coverage.json`.
 
-- It builds on `pnpm test:coverage` and `@vitest/coverage-v8`, and adds the CT and e2e coverage.
-- One run stays under the memory bar for one run. Suites run one after another, never side by side.
+- The Node suite runs `pnpm test:coverage` with the json reporter. Its istanbul map is the universe of functions and branches.
+- CT and e2e pages record Chromium coverage through the fixtures in `tooling/src/floor/testing/coverage-collection.ts`. Those fixtures sit on the `@orb/testkit/ct-corpus` and e2e corpus and surface bases. A spec that takes `test` straight from `@playwright/test` records nothing, and the report lists it.
+- The e2e servers write `NODE_V8_COVERAGE` dumps. A process that loaded first-party code outside `packages/*/src` is harness, and all of its hits are dropped.
+- Browser and server coverage converts with ast-v8-to-istanbul, the converter `@vitest/coverage-v8` runs. A hit lands on the universe entry at the same start position. Failing that, a named function lands by name and line. An anonymous function lands where its declared point and the start of its whole range agree, or on the one key that finds a function; when the two keys find different functions, the hit stays unmatched. Last, an anonymous function or a branch lands at the same place among its line's anonymous functions or same-type branches, when both maps hold the same number there. Each transform moves columns its own way, but none reorders two functions on one line.
+- The React Compiler rewrites browser branches. Most browser branch hits land on branches the compiler made, so the report counts the matched branch paths for each suite. Read that count before you judge a client `.tsx` branch.
+- Suites run one after another, never side by side. The report records the peak memory of each suite's process tree and of the merge.
 - A branch no run executes is judged like a finding: write a test that runs it through production, close it with a type, or delete it.
 - The report is input to judgement and never a gate.
 

@@ -4,6 +4,7 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { BROWSER_COVERAGE_FIXTURES } from "@orb/tooling/floor/testing/coverage-collection";
 import type { Route } from "@playwright/test";
 import { test as base } from "@playwright/test";
 import type { CorpusPlayback, CorpusWire } from "../iso/corpus.ts";
@@ -23,7 +24,7 @@ export interface CtCorpusOptions {
 }
 
 /** Load only when a maintained component requests the shared corpus, not during runner collection. */
-export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
+export const test = base.extend(BROWSER_COVERAGE_FIXTURES).extend<CorpusFixtures & CtCorpusOptions>({
   corpusDirectory: [undefined, { option: true }],
   corpus: async ({ corpusDirectory }, use) => {
     await use(loadCorpusFixture(corpusDirectory).wire);

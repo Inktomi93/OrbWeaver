@@ -44,6 +44,7 @@ import {
 } from "@orb/testkit/node/helpers";
 import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { COVERAGE_LAYOUT, coverageDirectory } from "@orb/tooling/floor/testing/coverage-collection";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { IssuerTls } from "./oidc-issuer.ts";
 import { ensureIssuerTls, issuerCertPath } from "./oidc-issuer.ts";
@@ -523,7 +524,11 @@ export const OIDC_MODE: ModeProject = {
  */
 export function webServerProcessEnv(mode: ModeProject): Readonly<Record<string, string | undefined>> {
   const unset = Object.fromEntries(Object.keys(process.env).flatMap((key) => (isSecretEnvKey(key) ? [[key, undefined] as const] : [])));
-  return { ...unset, ...mode.webServerEnv };
+  // Under `pnpm unwired coverage` every process the webServer starts dumps its V8 coverage; the merge keeps only the
+  // product's processes, so the supervisor and the client build cost disk, never a false hit.
+  const coverage = coverageDirectory();
+  const v8 = coverage === undefined ? {} : Object.fromEntries([["NODE_V8_COVERAGE", join(coverage, COVERAGE_LAYOUT.node)]]);
+  return { ...unset, ...mode.webServerEnv, ...v8 };
 }
 
 /** Every mode project the config builds a project + webServer for. */
