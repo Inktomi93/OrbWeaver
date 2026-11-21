@@ -495,37 +495,62 @@ test("a component that forwards every prop to a child shares the child's props c
 });
 
 // A value passed to a parameter typed by a bounded type parameter flows into the bound, through any generic in between.
+// The rows, bounds and calls are the chat assembly's own: shape's runSquash forwards the names pass's rows to the squash.
 const ASSEMBLY = `${SERVER}/domain/chat/assembly`;
-const ROW = "{ readonly role: string; readonly content: string; readonly name?: string; }";
+const ROW_MEMBERS = "role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined;";
+const ROW_IMPORTS = [
+  'import type { MessageId } from "../../../../../kit/src/ids/index.ts";',
+  'import type { MessageRole } from "../../../../../kit/src/message-role/index.ts";',
+];
 const BOUND_TREE = {
-  "packages/server/tsconfig.json": plantedTsconfig(),
+  "packages/server/tsconfig.json": plantedTsconfig({ include: ["src", "types"] }),
+  // A package augmenting the default library's arrays, as @total-typescript/ts-reset does: Array and ReadonlyArray
+  // stay the library's generics.
+  "packages/server/types/reset.d.ts": [
+    "interface ReadonlyArray<T> { includes(searchElement: T | (T & {}), fromIndex?: number): boolean; }",
+    "interface Array<T> { includes(searchElement: T | (T & {}), fromIndex?: number): boolean; }",
+  ].join("\n"),
+  "packages/kit/src/ids/index.ts": 'export type MessageId = string & { readonly __brand: "message" };',
+  "packages/kit/src/message-role/index.ts": [
+    'export const MESSAGE_ROLES = ["system", "user", "assistant"] as const;',
+    "export type MessageRole = (typeof MESSAGE_ROLES)[number];",
+  ].join("\n"),
   [`${ASSEMBLY}/role-squash.ts`]: [
-    `export interface SquashRow ${ROW}`,
-    "export declare function squashSameRole<T extends SquashRow>(history: readonly T[]): T[];",
+    ...ROW_IMPORTS,
+    `export interface SquashRow { ${ROW_MEMBERS} }`,
+    "export declare function squashSameRole<T extends SquashRow>(",
+    "  history: readonly T[],",
+    "  opts?: { readonly canonApart: boolean; readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined },",
+    "): T[];",
     "export declare function keepRows<T>(rows: readonly T[]): T[];",
   ].join("\n"),
-  [`${ASSEMBLY}/names.ts`]: [`interface NamedRow ${ROW}`, "export declare function applyNames(): NamedRow[];"].join("\n"),
+  [`${ASSEMBLY}/names.ts`]: [...ROW_IMPORTS, `interface NamedRow { ${ROW_MEMBERS} }`, "export declare function applyNamesBehavior(): NamedRow[];"].join("\n"),
   // The look-alike reaches only an unbounded type parameter, beside the bound's own type: no bound, no flow.
-  [`${ASSEMBLY}/ledger.ts`]: [`export interface LedgerRow ${ROW}`, "export declare function ledgerRows(): LedgerRow[];"].join("\n"),
+  [`${ASSEMBLY}/ledger.ts`]: [...ROW_IMPORTS, `export interface LedgerRow { ${ROW_MEMBERS} }`, "export declare function ledgerRows(): LedgerRow[];"].join("\n"),
   // Two wider rows that merely satisfy the bound: each passes into it, yet neither restates it, so they stay apart.
   [`${ASSEMBLY}/stamped.ts`]: [
-    "export interface StampedRow { readonly role: string; readonly content: string; readonly name?: string; readonly seq: number; }",
+    ...ROW_IMPORTS,
+    `export interface StampedRow { ${ROW_MEMBERS} seq: number; }`,
     "export declare function stampedRows(): StampedRow[];",
   ].join("\n"),
   [`${ASSEMBLY}/numbered.ts`]: [
-    "export interface NumberedRow { readonly role: string; readonly content: string; readonly name?: string; readonly seq: number; }",
+    ...ROW_IMPORTS,
+    `export interface NumberedRow { ${ROW_MEMBERS} seq: number; }`,
     "export declare function numberedRows(): NumberedRow[];",
   ].join("\n"),
   [`${ASSEMBLY}/shape.ts`]: [
+    ...ROW_IMPORTS,
     'import { keepRows, squashSameRole, type SquashRow } from "./role-squash.ts";',
-    'import { applyNames } from "./names.ts";',
+    'import { applyNamesBehavior } from "./names.ts";',
     'import { ledgerRows } from "./ledger.ts";',
     'import { stampedRows } from "./stamped.ts";',
     'import { numberedRows } from "./numbered.ts";',
     "declare const squashed: readonly SquashRow[];",
-    "export function shape(): void {",
-    `  const runSquash = <T extends ${ROW}>(rows: readonly T[]): T[] => squashSameRole(rows);`,
-    "  runSquash(applyNames());",
+    "declare const squash: { readonly canonApart: boolean };",
+    "export function shape(merges: boolean): void {",
+    `  const runSquash = <T extends { ${ROW_MEMBERS} }>(rows: readonly T[]): T[] => (merges ? squashSameRole(rows, squash) : rows.filter((r) => r.content.length > 0));`,
+    "  const namedInput = applyNamesBehavior();",
+    "  runSquash(namedInput);",
     "  keepRows(ledgerRows());",
     "  keepRows(squashed);",
     "  squashSameRole(stampedRows());",
@@ -540,15 +565,15 @@ test("rows passed into a bounded type parameter join its bound, and a look-alike
   const root = await plantedTree(BOUND_TREE);
   const { targets } = portCensus(root, () => undefined);
   expect(typeTarget(targets, `${ASSEMBLY}/role-squash.ts`, "SquashRow")).toMatchObject({
-    note: expect.stringContaining(`copies: ${ASSEMBLY}/names.ts:1 NamedRow`),
+    note: expect.stringContaining(`copies: ${ASSEMBLY}/names.ts:3 NamedRow`),
   });
-  expect(typeTarget(targets, `${ASSEMBLY}/role-squash.ts`, "SquashRow")?.note).toContain(`same shape, no flow: ${ASSEMBLY}/ledger.ts:1 LedgerRow`);
+  expect(typeTarget(targets, `${ASSEMBLY}/role-squash.ts`, "SquashRow")?.note).toContain(`same shape, no flow: ${ASSEMBLY}/ledger.ts:3 LedgerRow`);
   expect(typeTarget(targets, `${ASSEMBLY}/ledger.ts`, "LedgerRow")).toMatchObject({
     kind: "review",
     note: expect.stringContaining("same shape, no flow"),
   });
   expect(typeTarget(targets, `${ASSEMBLY}/stamped.ts`, "StampedRow")).toMatchObject({
     kind: "review",
-    note: expect.stringContaining(`same shape, no flow: ${ASSEMBLY}/numbered.ts:1 NumberedRow`),
+    note: expect.stringContaining(`same shape, no flow: ${ASSEMBLY}/numbered.ts:3 NumberedRow`),
   });
 });
