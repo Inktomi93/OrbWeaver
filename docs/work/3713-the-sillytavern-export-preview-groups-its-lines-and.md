@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-21
 priority: P2
 area: import
+lane: wt/agent-aa6d619f30bafd922
 plan: import-robustness
 ---
 
