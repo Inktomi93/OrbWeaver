@@ -8,10 +8,12 @@ export function displayScriptsStoppedTitle(count: number): string {
   return count === 1 ? "A regex script was stopped" : `${count} regex scripts were stopped`;
 }
 
-export function displayScriptsStoppedDescription(latestName: string, reason: DisplayStopReason, count: number): string {
+/** `fix` is the reader's next step, which only the room can name. */
+export function displayScriptsStoppedDescription(latestName: string, reason: DisplayStopReason, count: number, fix?: string): string {
   const what = reason === "slow" ? "ran too long on a message" : "made too much text from a message";
   const who = count === 1 ? `"${latestName}"` : `The latest, "${latestName}",`;
-  return `${who} ${what}, so messages show without it. It is off on this device until you reload, and then it is tried again: fix its find pattern in your regex library, or switch it off in This chat under Regex.`;
+  const stop = `${who} ${what}, so messages show without it. It is off on this device until you reload, and then it is tried again.`;
+  return fix === undefined ? stop : `${stop} ${fix}`;
 }
 
 export const DISPLAY_SCRIPTS_UNAVAILABLE_TITLE = "Regex scripts cannot run here";

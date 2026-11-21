@@ -5,7 +5,7 @@
 // outlives an edit to the stopped pattern, which the display pass runs again.
 
 import type { UserId } from "@orb/kit/ids";
-import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { absenceWindow, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -23,6 +23,8 @@ const RUNAWAY_TEXT = `${"a".repeat(40)}!`;
 /** The runaway's pattern once its author fixes it: it matches the whole row at once. */
 const FIXED_FIND = "^a+!$";
 const MEMBER_PASSWORD = "stopped-member-password";
+// How long a notice that would be raised has to show itself: well past a toast's own mount.
+const NOTICE_WINDOW_MS = 1000;
 const STEADY = { name: "Steady", findRegex: "STEADYMARK", replaceString: "steady" } as const;
 test.use({ viewport: { width: 1280, height: 1000 }, isMobile: false, hasTouch: false });
 
@@ -103,6 +105,41 @@ test("a display script the Worker stops on a real row is marked stopped until it
   await expect(row.getByText(RUNAWAY.replaceString, { exact: true })).toBeVisible();
   await expect(rosterRow(page, RUNAWAY.name).getByText(FIXED_FIND, { exact: false })).toHaveCount(1);
   await expect(stoppedMark(rosterRow(page, RUNAWAY.name))).toHaveCount(0);
+});
+
+test("a script whose row is on screen when the Worker stops it raises no notice beside the row's own mark", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const { chatId } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  // The script starts as its fixed form, so nothing stops until the reader has the roster open.
+  const runaway = await owner.regex.createScript({ input: { ...RUNAWAY, findRegex: FIXED_FIND, targets: ["AI_OUTPUT", "USER_INPUT"], passes: ["display"] } });
+  await owner.regex.attachGlobal({ scriptId: runaway.id });
+  const newest = (await owner.chat.listMessages({ chatId, limit: 1 })).messages.at(-1);
+  if (newest === undefined) {
+    throw new Error("The corpus room has no message to rewrite");
+  }
+  await owner.chat.editMessage({ chatId, messageId: newest.id, content: RUNAWAY_TEXT, timeZone: UTC });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(owner, PROCEDURES),
+    "stream.attach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
+    "stream.detach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
+  });
+  await forwardUserEvent(page, root, "regexChanged", cleanup);
+  await corpusMedia();
+  await mount<typeof TranscriptBesideTabBusStory>(STORY, { chatId, isHost: (await owner.chat.getChat({ chatId })).viewerIsHost });
+  const row = page.locator(`[data-message-id="${newest.id}"]`);
+  await expect(row.getByText(RUNAWAY.replaceString, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await expect(rosterRow(page, RUNAWAY.name)).toHaveCount(1);
+
+  // The author breaks the pattern again in their library: the page runs it, and the Worker stops it.
+  await owner.regex.updateScript({ scriptId: runaway.id, input: { findRegex: RUNAWAY.findRegex } });
+  await expect(stoppedMark(rosterRow(page, RUNAWAY.name))).toHaveCount(1);
+  await expect(row.getByText(RUNAWAY_TEXT, { exact: true })).toBeVisible();
+  await absenceWindow(page, NOTICE_WINDOW_MS);
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
 });
 
 test("a member's stopped host script points at the host, because the member's rows hold no switch for it", async ({ corpus, mount, page, corpusMedia }) => {

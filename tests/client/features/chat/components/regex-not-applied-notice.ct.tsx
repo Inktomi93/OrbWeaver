@@ -7,26 +7,14 @@
 // That the event reaches only the host is the server's delivery, tested on its side.
 
 import { contextToggleLabel } from "@orb/client/lib";
-import type { ChatWarning, RegexNotAppliedCause, RegexServerPass } from "@orb/contracts/chat";
-import { REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
+import type { RegexNotAppliedCause, RegexServerPass } from "@orb/contracts/chat";
+import { REGEX_NOT_APPLIED_OVERFLOW_CODE } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
-import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import {
-  createShellAmbientReads,
-  noticeToast,
-  ROOM_PROCEDURES,
-  routeAuthConfig,
-  routeOrbSocket,
-  routeTrpc,
-  SECTION_PROCEDURES,
-  serveCorpusProcedures,
-  trpcError,
-} from "@orb/testkit/ct";
+import { noticeToast, routeOrbSocket } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { REGEX_SCRIPT_ENABLED_SETTING } from "#client/features/chat/lib/regex-section-model.ts";
 import {
@@ -39,87 +27,16 @@ import { regexNotAppliedNotice, warningNotice } from "#client/features/chat/lib/
 import { ALERTS_REGION_NAME, TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import { findHostedRoom } from "./hosted-room.fixtures.ts";
+import { FIRST_SEQ, HISTORY, PROMPT_ONLY, rosterRow, rowAnchor, SENTINEL, SLOW, sectionRow, serveHostedRoom, warning } from "./regex-stop-room.fixtures.ts";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
-// Past any sequence the corpus room holds, so the scripted frames land as new live events.
-const FIRST_SEQ = 1_000_000;
-// The This-chat tab's reads, past the room's own set.
-const THIS_CHAT_PROCEDURES = [
-  "chat.getGroupConfig",
-  "chat.listForks",
-  "chat.listChatInjections",
-  "databank.listActiveForChat",
-  "worldInfo.listForChat",
-  "regex.listForChat",
-  "regex.listGlobal",
-  "regex.listScripts",
-  "chat.listEffectiveRegex",
-  "chat.getUserMacroPicks",
-  "chat.getVariablePicks",
-  "automation.listRules",
-] as const;
 // More reconnects than the case waits through before it closes the notice; each one is a dropped connection.
 const RECONNECTS_UNTIL_CLOSED = 1000;
-const SLOW = { name: "Slow history", findRegex: "SLOWMARK", replaceString: "slow" } as const;
-// A script only the prompt passes run: the On screen roster never lists it.
-const PROMPT_ONLY = { name: "Prompt history", findRegex: "PROMPTMARK", replaceString: "prompt" } as const;
-const HISTORY: { readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass } = { cause: "row_deadline", pass: "prompt_history" };
 // The scripts a turn left past the naming cap.
 const OVERFLOW = 3;
-// A warning with its own notice: once it shows, every frame sent before it was handled.
-const SENTINEL: ChatWarning = { code: "provider_refused" };
 const UNKNOWN: { readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass } = { cause: "did_not_compile", pass: "ai_output" };
 const PHONE_WIDTH = 390;
 test.use({ viewport: { width: 1280, height: 1000 }, isMobile: false, hasTouch: false });
-
-function warning(
-  chatId: ChatId,
-  scriptId: RegexScriptId,
-  at: { readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass },
-  seq: number,
-): StreamFrame {
-  return { channel: "chat", chatId, seq, event: { type: "warning", chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, scriptId, ...at } };
-}
-
-/** A row of the Regex section by its script's title, wherever the section draws it: a tier group's or the On screen roster's. */
-function sectionRow(page: Page, name: string): ReturnType<Page["locator"]> {
-  return page
-    .locator('[data-slot="regex-section"] [data-slot="list-row-root"]')
-    .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
-}
-
-/** A roster row, by its script's title. */
-function rosterRow(page: Page, name: string): ReturnType<Page["locator"]> {
-  return page
-    .locator('[data-slot="regex-on-screen"] [data-slot="list-row-root"]')
-    .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
-}
-
-type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
-type Caller = Awaited<ReturnType<Harness["internalCallerFor"]>>;
-type Corpus = Parameters<typeof createShellAmbientReads>[0];
-
-/** Serve the host's room with its This chat reads. */
-async function serveHostedRoom(
-  page: Page,
-  { root, corpus, host, chatId }: { readonly root: Harness; readonly corpus: Corpus; readonly host: Caller; readonly chatId: ChatId },
-): Promise<void> {
-  await seedShellState(page, { activeSection: "chats" });
-  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
-  await routeTrpc(page, {
-    ...createShellAmbientReads(corpus, root.ownerId),
-    ...serveCorpusProcedures(host, [
-      ...SECTION_PROCEDURES,
-      ...ROOM_PROCEDURES,
-      ...THIS_CHAT_PROCEDURES,
-      "notifications.presence",
-      "rpg.getGame",
-      "rpg.listTurnToolCalls",
-    ]),
-    "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
-    "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
-  });
-}
 
 test("a skipped host script raises one named notice that a replay does not repeat, and the roster marks it", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
@@ -131,6 +48,7 @@ test("a skipped host script raises one named notice that a replay does not repea
   const unknownId = root.idSource.typeId(ID_PREFIX.regexScript);
   // The last frame is the one before it again, as a later turn's history pass or a reconnect's replay sends it.
   // The reads first: the socket stub, routed last, answers its own request and passes the rest to them.
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, {
     awaitRooms: [{ channel: "chat", chatId }],
@@ -184,6 +102,7 @@ test("a stopped script's long name stays whole beside its mark at phone width", 
   const long = { name: "Fix narrator quotation marks", findRegex: "LONGMARK", replaceString: "long" } as const;
   const script = await host.regex.createScript({ input: { ...long, targets: ["AI_OUTPUT"], passes: ["display", "prompt"] } });
   await host.regex.attachGlobal({ scriptId: script.id });
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, script.id, HISTORY, FIRST_SEQ)] });
   await page.setViewportSize({ width: PHONE_WIDTH, height: 900 });
@@ -230,6 +149,7 @@ test("scripts past a turn's naming cap join the notice as a count that a replay 
   ];
   let phase = 0;
   // The reads first: the socket stub, routed last, answers its own request and passes the rest to them.
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, {
     awaitRooms: [{ channel: "chat", chatId }],
@@ -267,6 +187,7 @@ test("the notice's action lands on the stopped script's row and leaves the roste
   const chatId = await findHostedRoom(host);
   const slow = await host.regex.createScript({ input: { ...SLOW, targets: ["AI_OUTPUT"], passes: ["display", "prompt"] } });
   await host.regex.attachGlobal({ scriptId: slow.id });
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, slow.id, HISTORY, FIRST_SEQ)] });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
@@ -282,11 +203,11 @@ test("the notice's action lands on the stopped script's row and leaves the roste
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
   const row = rosterRow(page, SLOW.name);
   await expect(row).toBeVisible();
-  await expect(row).toBeInViewport();
-  const item = page
-    .locator('[data-slot="regex-on-screen"] [role="listitem"]')
-    .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(SLOW.name, { exact: true }) });
-  await expect(item).toBeFocused();
+  await expect(row).toBeInViewport({ ratio: 1 });
+  // The script is also a row of its tier, and the roster's row is the one that takes focus.
+  await expect(sectionRow(page, SLOW.name)).toHaveCount(2);
+  await expect(rowAnchor(page, "regex-on-screen", SLOW.name)).toBeFocused();
+  await expect(rowAnchor(page, "regex-tier", SLOW.name)).not.toBeFocused();
 });
 
 test("a stopped script only the prompt passes run is marked, with its reason, on its own tier row where the notice's action lands", async ({
@@ -299,6 +220,7 @@ test("a stopped script only the prompt passes run is marked, with its reason, on
   const chatId = await findHostedRoom(host);
   const script = await host.regex.createScript({ input: { ...PROMPT_ONLY, targets: ["AI_OUTPUT"], passes: ["prompt"] } });
   await host.regex.attachGlobal({ scriptId: script.id });
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, script.id, HISTORY, FIRST_SEQ)] });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
@@ -317,6 +239,43 @@ test("a stopped script only the prompt passes run is marked, with its reason, on
   // The reason sends the reader to a control that is on this row: the script's own switch, which is off everywhere.
   await expect(row.locator('[data-slot="regex-stop-reason"]')).toContainText(REGEX_SCRIPT_ENABLED_SETTING);
   await expect(row.getByRole("switch", { name: new RegExp(`^${REGEX_SCRIPT_ENABLED_SETTING}`, "u") })).toBeVisible();
+  // The action lands on this row, whole in view and focused, as it does on the roster's.
+  await expect(row).toBeInViewport({ ratio: 1 });
+  await expect(rowAnchor(page, "regex-tier", PROMPT_ONLY.name)).toBeFocused();
+});
+
+test("a skipped script whose row is already on screen raises no notice beside it", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const slow = await host.regex.createScript({ input: { ...SLOW, targets: ["AI_OUTPUT"], passes: ["display", "prompt"] } });
+  await host.regex.attachGlobal({ scriptId: slow.id });
+  await seedShellState(page, { activeSection: "chats" });
+  await serveHostedRoom(page, { root, corpus, host, chatId });
+  // The report comes after the reader has opened the Regex section: the first connection serves nothing, and the next one serves
+  // the report and then a warning with its own notice, so that notice showing means the report before it was handled.
+  const frames = [
+    warning(chatId, slow.id, HISTORY, FIRST_SEQ),
+    { channel: "chat", chatId, seq: FIRST_SEQ + 1, event: { type: "warning", chatId, ...SENTINEL } } as const,
+  ];
+  let reported = false;
+  const socket = await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "chat", chatId }],
+    dropConnectionCount: RECONNECTS_UNTIL_CLOSED,
+    frames: (): Promise<readonly StreamFrame[]> => Promise.resolve(reported ? frames : []),
+  });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await socket.served();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  await page.getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.settings, exact: true }).click();
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await expect(rosterRow(page, SLOW.name)).toBeVisible();
+  reported = true;
+
+  await expect(noticeToast(page, warningNotice(SENTINEL))).toBeVisible();
+  // The row marks the stop, so the report was handled; and the notice that would repeat it was never raised.
+  await expect(rosterRow(page, SLOW.name).getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
+  await expect(noticeToast(page, regexNotAppliedNotice([{ name: SLOW.name, ...HISTORY }]))).toHaveCount(0);
 });
 
 test("a notice that names no script in the library offers the tab, not a row", async ({ corpus, mount, page }) => {
@@ -324,6 +283,7 @@ test("a notice that names no script in the library offers the tab, not a row", a
   const host = await root.internalCallerFor(root.ownerId);
   const chatId = await findHostedRoom(host);
   const unknownId = root.idSource.typeId(ID_PREFIX.regexScript);
+  await seedShellState(page, { activeSection: "chats" });
   await serveHostedRoom(page, { root, corpus, host, chatId });
   const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, unknownId, UNKNOWN, FIRST_SEQ)] });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });

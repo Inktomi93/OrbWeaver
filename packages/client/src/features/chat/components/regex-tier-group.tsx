@@ -60,9 +60,21 @@ export interface RegexTierGroupProps {
    *  run order, so `aria-setsize` taken from `rows.length` announced "2 of 2" for the rows that run 6th and
    *  7th. NULL for a member, whose read carries no run order at all. */
   readonly effectiveCount: number | null;
+  /** The scripts the On screen roster draws a row for. A request to land on one goes to the roster's row, not to this group's. */
+  readonly rosterScriptIds: ReadonlySet<RegexScriptId>;
 }
 
-export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, ownedScriptIds, effectiveCount }: RegexTierGroupProps): ReactElement {
+export function RegexTierGroup({
+  chatId,
+  isHost,
+  tier,
+  rows,
+  tiers,
+  labels,
+  ownedScriptIds,
+  effectiveCount,
+  rosterScriptIds,
+}: RegexTierGroupProps): ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isRoomTier = tier.scope === "chat";
   const kicker = regexTierKicker(tier.scope, labels);
@@ -84,6 +96,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
         chatId={chatId}
         effectiveCount={effectiveCount}
         isHost={isHost}
+        landsRequest={!rosterScriptIds.has(row.script.id)}
         list={kicker}
         notYours={isRoomTier && !ownedScriptIds.has(row.script.id)}
         qualifier={qualifiers[index]}

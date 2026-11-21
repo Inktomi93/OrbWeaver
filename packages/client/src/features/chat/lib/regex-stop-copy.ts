@@ -1,5 +1,5 @@
 // The words for a regex script that did not run: one this browser's display pass stopped, or a host script a server
-// pass did not apply, with why and on which text. The room's notice and the On screen roster both read them, so the
+// pass did not apply, with why and on which text. The room's notices and the On screen roster both read them, so the
 // two never describe one stop differently. Exhaustive over the contract's two tuples, so a new cause or pass fails
 // `tsc` here until it has words. What a reader can do about a stop depends on the control their row holds (the script's own
 // switch, the host, or the script's owner), so every reason takes that control. The switch's name is owned by
@@ -63,7 +63,7 @@ export function regexStopControl(isHost: boolean, holdsScript: boolean): RegexSt
 }
 
 /** What the reader can do about a stopped script, by the control their row holds. */
-function regexStopNextStep(control: RegexStopControl): string {
+export function regexStopNextStep(control: RegexStopControl): string {
   switch (control) {
     case "switch":
       return `Fix its find pattern in your regex library, or turn off ${REGEX_SCRIPT_ENABLED_SETTING} on its row.`;

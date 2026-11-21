@@ -46,9 +46,10 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PASS_GLYPHS, REGEX_PASS_LABELS, REGEX_TARGET_GLYPHS, REGEX_TARGET_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
+import { useDropUnheldRegexRowRequest } from "../hooks/use-drop-unheld-regex-row-request.ts";
 import type { RegexRosterOffEntry } from "../lib/regex-section-model.ts";
 import {
   REGEX_DISPLAY_PASS,
@@ -151,6 +152,9 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // because it carries the Attach action, but its switch waits for a script like every other tier's.
   const populated = view.tiers.filter((tier) => regexTierRows(tier, homes).length > 0);
   const groups = view.tiers.filter((tier) => tier.scope === "chat" || populated.includes(tier));
+  const switchedOff = regexSwitchedOffDisplay(view);
+  const rosterScriptIds = new Set([...useDisplayEntries(chatId), ...switchedOff].map((entry) => entry.script.id));
+  useDropUnheldRegexRowRequest([...rosterScriptIds, ...groups.flatMap((tier) => regexTierRows(tier, homes).map((row) => row.script.id))]);
   return (
     <Stack data-slot="regex-section" gap="block">
       <Text voice="gloss">Regex scripts change the text of messages. Use the switches below to choose where each one runs.</Text>
@@ -166,12 +170,13 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
           key={tier.scope}
           labels={labels}
           ownedScriptIds={new Set(owned.map((script) => script.id))}
+          rosterScriptIds={rosterScriptIds}
           rows={regexTierRows(tier, homes)}
           tier={tier}
           tiers={view.tiers}
         />
       ))}
-      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} switchedOff={regexSwitchedOffDisplay(view)} />
+      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} switchedOff={switchedOff} />
     </Stack>
   );
 }
@@ -186,6 +191,8 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
     .map((script): RegexRosterOffEntry => ({ script, from: REGEX_VIEWER_SOURCE, off: "script" }));
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const tier = memberChatTier(scripts);
+  const rosterScriptIds = new Set([...useDisplayEntries(chatId), ...switchedOff].map((entry) => entry.script.id));
+  useDropUnheldRegexRowRequest([...rosterScriptIds, ...scripts.map((script) => script.id)]);
   return (
     <Stack data-slot="regex-section" gap="block">
       <Text voice="gloss">{memberRackGloss(chat.hostDisplayScripts, scripts.length)}</Text>
@@ -199,6 +206,7 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
           isHost={false}
           labels={new Map<RegexTierKey, string>()}
           ownedScriptIds={new Set<RegexScriptId>()}
+          rosterScriptIds={rosterScriptIds}
           rows={tier.rows}
           tier={tier}
           tiers={[tier]}
