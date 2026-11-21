@@ -1,37 +1,16 @@
-// The stage and the keys: boot or reuse snap's isolated stage (orb's real turn path on a private port pair at
-// a pinned commit) and read probe keys from the main checkout's `.env` in process. Nothing here prints a key.
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import process from "node:process";
-import { parseEnv } from "node:util";
+// The stage: boot or reuse snap's isolated stage (orb's real turn path on a private port pair at a pinned
+// commit) with the main checkout's credentials key. Nothing here prints a key.
 import { CREDENTIALS_KEY_ENV } from "@orb/server/foundation/data-layout";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import { execGit } from "../../floor/git/git.ts";
-import { processEnvValue, withProcessEnv } from "../../floor/process/process-env.ts";
-import type { CacheCheckOptions, EnvFile } from "../contract/types.ts";
+import type { EnvFile } from "../../floor/process/operator-keys.ts";
+import { MAIN_ENV_FILE, operatorKey } from "../../floor/process/operator-keys.ts";
+import { withProcessEnv } from "../../floor/process/process-env.ts";
+import type { CacheCheckOptions } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
-const ENV_FILE = ".env";
 const LOOPBACK = "127.0.0.1";
-
-/** The main checkout: the parent of the git common dir, which every linked worktree shares. */
-function mainCheckoutRoot(): string {
-  return dirname(execGit(process.cwd(), ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
-}
-
-/** The main checkout's `.env`, parsed. Empty when the file is absent. */
-export function readMainEnv(): EnvFile {
-  const path = join(mainCheckoutRoot(), ENV_FILE);
-  return existsSync(path) ? parseEnv(readFileSync(path, "utf8")) : {};
-}
-
-/** One probe credential: the process env wins over the main `.env`; an empty value counts as absent. */
-export function probeKey(name: string, mainEnv: EnvFile): string | null {
-  const value = processEnvValue(name) ?? mainEnv[name];
-  return value === undefined || value === "" ? null : value;
-}
 
 /** Boot or reuse the isolated stage for `options` and return its server base URL. A ref git cannot resolve is
  *  misuse, refused before any worktree work; a stage that fails to boot throws (a tool error). */
@@ -42,9 +21,9 @@ export async function bootStage(options: CacheCheckOptions, mainEnv: EnvFile): P
   if (!options.dirty && snap.tryResolveRef(options.ref) === null) {
     throw new UsageError(`--ref: git cannot resolve "${options.ref}" to a commit in this checkout`);
   }
-  const credentialsKey = probeKey(CREDENTIALS_KEY_ENV, mainEnv);
+  const credentialsKey = operatorKey(CREDENTIALS_KEY_ENV, mainEnv);
   if (credentialsKey === null) {
-    throw new Error(`${CREDENTIALS_KEY_ENV} is absent from the main checkout's ${ENV_FILE}; the stage could not store a probe credential`);
+    throw new Error(`${CREDENTIALS_KEY_ENV} is absent from the main checkout's ${MAIN_ENV_FILE}; the stage could not store a probe credential`);
   }
   // A linked worktree has no `.env` for the stage to inherit this from, and without it credential storage is off.
   const row = await withProcessEnv(CREDENTIALS_KEY_ENV, credentialsKey, () =>

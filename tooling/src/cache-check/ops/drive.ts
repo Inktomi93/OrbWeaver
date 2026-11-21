@@ -1,30 +1,21 @@
 // One room on the stage: create its characters and chat, write the shared prefix once, run each case's steps
 // through orb's real chat verbs, and read each provider call's usage off the assistant rows the verbs return.
 // It registers every row it creates for removal.
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { AppRouter } from "@orb/server/transport/trpc";
-import { createTRPCClient, httpLink } from "@trpc/client";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { OrbApi } from "../../floor/http/stage-trpc.ts";
 import type { Measure, ProbeStep, RoomRun, TurnStep } from "../contract/plan.ts";
 import { judgedReplies, plannedReplies } from "../contract/plan.ts";
-import type { CallUsage, CaseRun, OrbApi, RoomCaseResult, RoomResult } from "../contract/types.ts";
+import type { CallUsage, CaseRun, RoomCaseResult, RoomResult } from "../contract/types.ts";
 import { CASE_PLANS, REPLY_MAX_TOKENS, ROOMS } from "../lib/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
-const TRPC_PATH = "/api/trpc";
 /** The newest page of a chat; every probe chat is far shorter. */
 const MESSAGE_PAGE = 100;
 /** Every probe row's name starts with this, so a leftover is recognisable in any stage DB. */
 export const PROBE_PREFIX = "cache-check";
-
-/** The typed client the check drives orb through: plain HTTP, the owner-fallback identity of a loopback call. */
-export function connectOrb(baseUrl: string): OrbApi {
-  // A query goes out as GET, which the mount refuses without the CSRF header even on the owner fallback.
-  return createTRPCClient<AppRouter>({ links: [httpLink({ url: `${baseUrl}${TRPC_PATH}`, headers: { [CSRF_HEADER]: "1" } })] });
-}
 
 /** Undo steps for rows a run created, run newest first. A failed undo is collected, never dropped. */
 export class ProbeRows {

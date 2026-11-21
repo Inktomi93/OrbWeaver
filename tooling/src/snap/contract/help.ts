@@ -168,6 +168,14 @@ Sessions:
                           Implies --isolated and --fresh. With --stage-auth local the fixture owner and
                           member are seeded into the clone. A later plain --isolated run on the same
                           commit reuses the clone and prints a WARNING.
+  --stage-connection <local|NAME>
+                          after the stage is up, bind its owner's chat role to a working connection, the
+                          one step a live turn needs on a clone. local is the box's generation engine; its
+                          host and port join the stage's private-endpoint allowlist when that refuses it.
+                          NAME is a repository env key (OPENROUTER_API_KEY, OPENROUTER_PROBE_KEY,
+                          ANTHROPIC_API_KEY, ANTHROPIC_PROBE_KEY), read from the environment or the main
+                          checkout's .env and stored as the owner's credential for Sonnet 5. Pass the
+                          name, never the key; no output names its value. Implies --isolated.
   --isolated | --dirty    warm isolated stage from HEAD or working tree
   --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)

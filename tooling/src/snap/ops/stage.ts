@@ -351,6 +351,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
     targetSha,
     dirty,
     fresh: opts.fresh,
+    seedsConnection: opts.seedsConnection === true,
     nowMs,
     auth,
     claim: (band) => claimRow({ band, checkout: root, owner, targetSha, dir, nowIso }),

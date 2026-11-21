@@ -6,6 +6,7 @@
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { STAGE_BAND_COUNT } from "../../floor/host/ports.ts";
 import { STAGE_AUTH_MODES } from "../contract/stage.ts";
+import { STAGE_CONNECTION_CHOICES } from "../contract/stage-connection.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -48,6 +49,18 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
     a.stageDb = rest.shift() ?? "";
     a.isolated = true;
     a.fresh = true;
+  },
+  // A stage only: a seeded connection is a row in the owner's db. A refusal never echoes the argument, which may be a
+  // key typed where its name belongs.
+  "--stage-connection": (a, rest) => {
+    const name = rest.shift();
+    a.isolated = true;
+    const known = STAGE_CONNECTION_CHOICES.find((candidate) => candidate === name);
+    if (known === undefined) {
+      a.errors.push(`--stage-connection takes a key name, never a key: one of ${STAGE_CONNECTION_CHOICES.join(" | ")}`);
+      return;
+    }
+    a.stageConnection = known;
   },
   // Queue for a busy table: a detached waiter boots the stage in order and the wait outlives the caller.
   "--stage-wait": (a, rest) => {

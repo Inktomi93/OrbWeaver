@@ -56,7 +56,7 @@ const PROD_STAGE_WAIT_DEPS: StageWaitDeps = {
 };
 
 /** The `ensureStage` ask a run's argv makes, so the foreground and the waiter name one stage. */
-export function stageAskFromArgs(opts: Pick<Args, "ref" | "fresh" | "freshExplicit" | "dirty" | "stageAuth" | "stageDb">): EnsureStageOpts {
+export function stageAskFromArgs(opts: Pick<Args, "ref" | "fresh" | "freshExplicit" | "dirty" | "stageAuth" | "stageDb" | "stageConnection">): EnsureStageOpts {
   return {
     fresh: opts.fresh,
     ...(opts.freshExplicit ? { freshExplicit: true as const } : {}),
@@ -64,6 +64,7 @@ export function stageAskFromArgs(opts: Pick<Args, "ref" | "fresh" | "freshExplic
     ...(opts.dirty ? { dirty: true } : {}),
     ...(opts.ref === null || opts.dirty ? {} : { ref: opts.ref }),
     ...(opts.stageDb === null ? {} : { stageDb: opts.stageDb }),
+    ...(opts.stageConnection === null ? {} : { seedsConnection: true as const }),
   };
 }
 
@@ -101,6 +102,7 @@ function readTicket(value: unknown): StageWaitTicket | null {
       ...(ask["dirty"] === true ? { dirty: true } : {}),
       ...(ask["auth"] === "local" || ask["auth"] === "single-user" ? { auth: ask["auth"] } : {}),
       ...(typeof ask["stageDb"] === "string" ? { stageDb: ask["stageDb"] } : {}),
+      ...(ask["seedsConnection"] === true ? { seedsConnection: true as const } : {}),
     },
   };
 }

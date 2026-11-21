@@ -166,6 +166,7 @@ export function acquireStageBand(input: StageBandAcquireInput): StageBandAcquisi
       targetSha: input.targetSha,
       dirty: input.dirty,
       fresh: input.fresh,
+      seedsConnection: input.seedsConnection,
       limits: stageLimits(),
       nowMs: input.nowMs,
       auth: input.auth,

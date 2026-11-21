@@ -16,6 +16,7 @@ import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/pla
 import type { ProcessGroup } from "../../floor/process/proc-contract.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { DiskSafeOp } from "./disk-safe-argv.ts";
+import type { StageConnectionChoice } from "./stage-connection.ts";
 
 export interface StagePorts {
   readonly server: number;
@@ -393,6 +394,9 @@ export interface EnsureStageOpts {
   readonly auth?: StageAuthMode;
   /** A db file to clone into the rebuilt stage instead of the dev db (`--stage-db`). */
   readonly stageDb?: string;
+  /** The run writes a credential, a connection and a chat binding into the stage's db (`--stage-connection`), so
+   *  like `--dirty` and `--fresh` it never takes a sibling's stage. */
+  readonly seedsConnection?: true;
 }
 
 /** What the band allocator is asked: the table home, who is asking for which commit, and the row-builder for
@@ -404,6 +408,7 @@ export interface StageBandAcquireInput {
   readonly targetSha: string;
   readonly dirty: boolean;
   readonly fresh: boolean;
+  readonly seedsConnection: boolean;
   readonly nowMs: number;
   readonly auth: StageAuthMode;
   readonly claim: (band: number) => StageRow;
@@ -447,6 +452,9 @@ export interface StageArgs {
   /** `--stage-db <path>`: clone this db, its -wal/-shm and the assets/ beside its db/ into the stage. Implies
    *  --isolated and --fresh; with `--stage-auth local` the fixture humans are seeded into the clone. */
   stageDb: string | null;
+  /** `--stage-connection <local|ENV_KEY>`: after the stage is up, bind its owner's chat role to the local engine or to a
+   *  connection whose credential is the named key's value. Implies --isolated. */
+  stageConnection: StageConnectionChoice | null;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
   /** Print the stage's visibility (marker, band port owners, worktree dirs) and exit, ignoring the route. */

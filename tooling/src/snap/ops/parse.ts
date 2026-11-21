@@ -396,6 +396,7 @@ export function parseSnapArgs(
     dirty: false,
     stageAuth: "single-user",
     stageDb: null,
+    stageConnection: null,
     stageDown: false,
     stageStatus: false,
     stageSweep: false,

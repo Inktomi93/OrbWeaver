@@ -54,7 +54,16 @@ function fullTable(claim: StageRow, nowMs: number): readonly StageBandView[] {
 }
 
 function allocateAgainst(claim: StageRow, nowMs: number): ReturnType<typeof allocateStageBand> {
-  return allocateStageBand({ views: fullTable(claim, nowMs), checkout: "/other-owner", targetSha: SHA, dirty: false, fresh: false, limits: LIMITS, nowMs });
+  return allocateStageBand({
+    views: fullTable(claim, nowMs),
+    checkout: "/other-owner",
+    targetSha: SHA,
+    dirty: false,
+    fresh: false,
+    seedsConnection: false,
+    limits: LIMITS,
+    nowMs,
+  });
 }
 
 // The claiming process is proven running by its kernel start ticks, which only Linux provides; a stamp alone, however

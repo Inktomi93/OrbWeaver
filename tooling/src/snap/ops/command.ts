@@ -160,7 +160,7 @@ async function runParsed(opts: Args, argv: readonly string[], browser: SnapBrows
     return sessionAdminExit;
   }
   if (opts.stageStatus || opts.stageDown || opts.stageSweep) {
-    return configureStage(opts) ?? EXIT.clean;
+    return (await configureStage(opts)) ?? EXIT.clean;
   }
   // A queued stage ask resolves BEFORE the run slot opens: the waiter boots the stage, so the stage door below
   // reuses it warm. Not on the session leg, whose daemon boots its own stage.
@@ -200,7 +200,7 @@ async function runParsed(opts: Args, argv: readonly string[], browser: SnapBrows
         print(fileRefusal);
         return EXIT.violations;
       }
-      const stageExit = configureStage(opts);
+      const stageExit = await configureStage(opts);
       if (stageExit !== null) {
         return stageExit;
       }

@@ -194,6 +194,7 @@ export function allocateStageBand(input: {
   readonly targetSha: string;
   readonly dirty: boolean;
   readonly fresh: boolean;
+  readonly seedsConnection: boolean;
   readonly limits: StageLimits;
   readonly nowMs: number;
   readonly auth?: StageAuthMode;
@@ -215,6 +216,7 @@ export function allocateStageBand(input: {
         targetSha: input.targetSha,
         dirty: input.dirty,
         fresh: input.fresh,
+        seedsConnection: input.seedsConnection,
         bandBound: view.bandBound,
         healthy: view.healthy,
         auth,

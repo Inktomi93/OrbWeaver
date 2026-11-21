@@ -6,6 +6,7 @@ import { maskSecretPathSegments, URL_SECRET_PAIR_NAMES, URL_SECRET_PATH_NAMES, U
 import { splitFirstEq, splitPageSuffix, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import type { DiskSafeArgv, DiskSafeOp, DiskSafeUrl, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
+import { STAGE_CONNECTION_CHOICES } from "../contract/stage-connection.ts";
 import { isSensitiveEvidenceName } from "./har-redaction.ts";
 import { privateText } from "./private-values.ts";
 
@@ -184,6 +185,8 @@ const PRIVATE_VALUE_FLAGS: ReadonlyMap<string, ValueMask> = new Map([
   ["--debug-token", maskWhole],
   ["--fill", maskTail(splitSelectorEq)],
   ["--local-storage", maskTail(splitFirstEq)],
+  // A key name is provenance; anything else there may be the key itself, typed where its name belongs.
+  ["--stage-connection", (value): string => (STAGE_CONNECTION_CHOICES.some((choice) => choice === value) ? value : PRIVATE_MASK)],
 ]);
 
 /**

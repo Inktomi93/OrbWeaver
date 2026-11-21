@@ -265,27 +265,29 @@ test("a stage staged from a worktree is visible from main, and vice versa (one s
 });
 
 test("bandAccess leaves OUR OWN marker to the existing staleness rules", () => {
-  const opts = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, bandBound: true, healthy: true };
+  const opts = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, seedsConnection: false, bandBound: true, healthy: true };
   expect(bandAccess({ ...opts, row: null })).toBe("ours");
   expect(bandAccess({ ...opts, row: active({ checkout: MAIN_CHECKOUT }) })).toBe("ours");
 });
 
 test("bandAccess REFUSES rather than killing a live sibling's stage", () => {
   const foreign = active({ checkout: LANE_CHECKOUT });
-  const base = { row: foreign, checkout: MAIN_CHECKOUT, bandBound: true, healthy: true };
+  const base = { row: foreign, checkout: MAIN_CHECKOUT, seedsConnection: false, bandBound: true, healthy: true };
   // A different commit would tear their stack down…
   expect(bandAccess({ ...base, targetSha: "f".repeat(40), dirty: false, fresh: false })).toBe("refuse");
   // …--fresh would too…
   expect(bandAccess({ ...base, targetSha: SHA, dirty: false, fresh: true })).toBe("refuse");
   // …and --dirty would rsync OUR working tree into THEIR stage dir.
   expect(bandAccess({ ...base, targetSha: SHA, dirty: true, fresh: false })).toBe("refuse");
+  // …and seeding a connection would write a key, a connection and a chat binding into THEIR db.
+  expect(bandAccess({ ...base, targetSha: SHA, dirty: false, fresh: false, seedsConnection: true })).toBe("refuse");
   // An unhealthy-but-bound foreign stage is theirs to fix, not ours to rebuild.
   expect(bandAccess({ ...base, healthy: false, targetSha: SHA, dirty: false, fresh: false })).toBe("refuse");
 });
 
 test("bandAccess SHARES a healthy foreign stage at the same commit, and RECLAIMS a dead one", () => {
   const foreign = active({ checkout: LANE_CHECKOUT });
-  const base = { row: foreign, checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false };
+  const base = { row: foreign, checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, seedsConnection: false };
   // Same frozen commit, still serving: point at it read-only rather than fight for the one pair.
   expect(bandAccess({ ...base, bandBound: true, healthy: true })).toBe("shared-reuse");
   // Marker present, band unbound ⇒ a corpse: reclaim it (this is the stale-marker case, not a collision).
@@ -623,6 +625,7 @@ test("bandAccess never shares a sibling's same-sha stage across auth modes", () 
     targetSha: SHA,
     dirty: false,
     fresh: false,
+    seedsConnection: false,
     bandBound: true,
     healthy: true,
   };

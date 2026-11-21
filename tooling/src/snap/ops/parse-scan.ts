@@ -109,7 +109,7 @@ export function scanArgv(argv: readonly string[]): ArgvScan {
     scan.errors.push("--dirty and --ref are mutually exclusive: --dirty serves the working tree; --ref pins a commit");
   }
   if (scan.seen.has("--base")) {
-    for (const stageSource of ["--isolated", "--dirty", "--ref", "--fresh", "--stage-auth", "--stage-db"]) {
+    for (const stageSource of ["--isolated", "--dirty", "--ref", "--fresh", "--stage-auth", "--stage-db", "--stage-connection"]) {
       if (scan.seen.has(stageSource)) {
         scan.errors.push(`--base and ${stageSource} are mutually exclusive: --base selects an existing stack; ${stageSource} boots an isolated stage`);
       }

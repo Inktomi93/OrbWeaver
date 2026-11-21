@@ -157,6 +157,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
     summary:
       "clone a database file (and its -wal/-shm and the assets/ beside its db/) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
   },
+  "--stage-connection": {
+    group: "Where",
+    summary: "bind the stage owner's chat role to the local engine or a connection seeded from a repository env key, named by NAME; implies --isolated",
+  },
   "--stage-owner": { group: "Where", summary: "names the checkout for a checkout-wide or cross-checkout --stage-down" },
   "--band": { group: "Where", summary: "with --stage-down, release only that band of your own stages; refuses a band with a live session" },
   "--stage-wait": {
