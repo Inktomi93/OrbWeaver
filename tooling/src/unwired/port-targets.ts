@@ -2,6 +2,7 @@
 // members that derive from kit types, and how a cross-domain shape is classified against the ledger.
 import { relative } from "node:path";
 import ts from "typescript";
+import dependencyCruiser from "../../../.dependency-cruiser.ts";
 import type { ForeignTypes, PortMember, Restatement } from "../eslint/index.ts";
 import { describeForeignTypes, jointBatchRulingOf, passesDbHandle, placementOf, runtimeTypes } from "../eslint/index.ts";
 
@@ -240,8 +241,9 @@ const fileOfKey = (key: string): string => key.slice(0, key.indexOf(":"));
 export const placementOfKey = (key: string): ReturnType<typeof placementOf> => placementOf(`/${fileOfKey(key)}`);
 
 /** Why a cross-domain copy of a split signature is settled: a signature over contracts data and runtime types stays
- *  with its consumer, and the owner's verb satisfies it at the composition root. */
-export const SPLIT_RULING = "a split signature (contracts data, runtime types from their owners) stays with its consumer";
+ *  with its consumer, and the owner's verb satisfies it at the composition root. D117 rules the reason: contracts is
+ *  isomorphic and cannot name a runtime type such as `AbortSignal`, so the shape homes beside its consumer. */
+export const SPLIT_RULING = "a split signature (contracts data, runtime types from their owners) stays with its consumer (D117)";
 
 /** What a joint-batch ruling may know a handle pass by: the op member, the type naming it and each alias it is typed
  *  by, and the domains the handle crosses between, one of which must be the ruled owner. */
@@ -264,4 +266,100 @@ export function crossDomainNote(kind: TargetKind, foreign: ForeignTypes, keys: R
   const unruled = kind === "db-handle-review" ? "ruling: unruled" : "";
   const ruling = ruled === null ? unruled : `ruling: ${ruled}`;
   return [describeForeignTypes(foreign), ruling].filter((part) => part !== "").join("; ");
+}
+
+type Patterns = string | readonly string[];
+
+interface PathRestriction {
+  readonly path?: Patterns;
+  readonly pathNot?: Patterns;
+}
+
+interface EdgeRestriction extends PathRestriction {
+  readonly dependencyTypesNot?: readonly string[];
+}
+
+// The fields of a `.dependency-cruiser.ts` forbidden rule the census reads; `isEdgeRule` refuses a rule whose
+// restrictions hold any other key.
+interface ForbiddenRule {
+  readonly name?: string;
+  readonly comment?: string;
+  readonly scope?: string;
+  readonly module?: object;
+  readonly from?: PathRestriction;
+  readonly to?: EdgeRestriction;
+}
+
+interface EdgeRule extends ForbiddenRule {
+  readonly from: PathRestriction;
+  readonly to: EdgeRestriction;
+}
+
+const FORBIDDEN: readonly ForbiddenRule[] = dependencyCruiser.forbidden;
+
+// The dependency types a type-only import of a local module carries: a rule whose `dependencyTypesNot` names one of
+// them leaves such an import alone.
+const TYPE_IMPORT: ReadonlySet<string> = new Set(["local", "import", "type-only"]);
+// The restriction keys a rule may hold and still judge a plain import edge; a rule over reachability, cycles,
+// dependents, licenses or other edge facts judges something else.
+const EDGE_FROM_KEYS: ReadonlySet<string> = new Set(["path", "pathNot"]);
+const EDGE_TO_KEYS: ReadonlySet<string> = new Set(["path", "pathNot", "dependencyTypesNot"]);
+const GROUP_REFERENCE = /\$(\d)/gu;
+
+function patternsOf(value: Patterns | undefined): readonly string[] {
+  if (value === undefined) {
+    return [];
+  }
+  return typeof value === "string" ? [value] : value;
+}
+
+function isEdgeRule(rule: ForbiddenRule): rule is EdgeRule {
+  const { from, to } = rule;
+  return (
+    from !== undefined &&
+    to !== undefined &&
+    rule.module === undefined &&
+    rule.scope !== "folder" &&
+    Object.keys(from).every((key) => EDGE_FROM_KEYS.has(key)) &&
+    Object.keys(to).every((key) => EDGE_TO_KEYS.has(key))
+  );
+}
+
+// The capture groups of the first `from.path` pattern `file` matches, for a `to` pattern's `$1`; null when `from`
+// does not match `file`.
+function fromGroups(rule: EdgeRule, file: string): readonly string[] | null {
+  const paths = patternsOf(rule.from.path);
+  const match = paths.length === 0 ? [file] : paths.map((pattern) => new RegExp(pattern).exec(file)).find((found) => found !== null);
+  if (match === undefined || patternsOf(rule.from.pathNot).some((pattern) => new RegExp(pattern).test(file))) {
+    return null;
+  }
+  return [...match];
+}
+
+function barsEdge(rule: EdgeRule, from: string, to: string): boolean {
+  if (rule.to.dependencyTypesNot?.some((type) => TYPE_IMPORT.has(type)) === true) {
+    return false;
+  }
+  const groups = fromGroups(rule, from);
+  if (groups === null) {
+    return false;
+  }
+  const matches = (pattern: string): boolean => new RegExp(pattern.replace(GROUP_REFERENCE, (_, index: string) => groups[Number(index)] ?? "")).test(to);
+  const paths = patternsOf(rule.to.path);
+  return (paths.length === 0 || paths.some(matches)) && !patternsOf(rule.to.pathNot).some(matches);
+}
+
+/** The forbidden rule in `.dependency-cruiser.ts` that refuses `from` a type-only import of `to` (both repository
+ *  paths), or null. The census asks it of a declaration and its linked copy, and of each shared home. */
+export function importBarredBy(from: string, to: string): ForbiddenRule | null {
+  return FORBIDDEN.filter(isEdgeRule).find((rule) => barsEdge(rule, from, to)) ?? null;
+}
+
+// The homes AGENTS.md names for a shape more than one package needs: kit for a pure primitive, contracts for a shape
+// that crosses a boundary. Lowest tier first.
+const SHARED_HOMES = ["packages/kit/src/", "packages/contracts/src/"] as const;
+
+/** The lowest shared home both files may import, as a directory, or null when neither may import any. */
+export function sharedHomeOf(a: string, b: string): string | null {
+  return SHARED_HOMES.find((home) => importBarredBy(a, `${home}index.ts`) === null && importBarredBy(b, `${home}index.ts`) === null) ?? null;
 }

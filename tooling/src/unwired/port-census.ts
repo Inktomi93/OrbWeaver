@@ -1,9 +1,11 @@
 // `pnpm unwired ports`: each hand-restated port member planned against its chain's one owner, each cross-domain import
 // (its shape moves to packages/contracts, Core-0 §4) and each type a door forgot to export. Only a flow, a type
 // reference or an alias makes two shapes one concept; every target lands in the cluster of its concept's owner.
+// A flow is followed into element types, call signatures and JSX props forwarded whole. Of two linked copies, one in a
+// lower tier owns the shape, and a pair neither file may import under a dependency-cruiser rule is a ruled restatement.
 import { dirname, relative } from "node:path";
 import ts from "typescript";
-import type { Flow, PortMember, TypeFlow } from "../eslint/index.ts";
+import type { Flow, PortMember } from "../eslint/index.ts";
 import {
   aliasChain,
   aliased,
@@ -33,7 +35,19 @@ import { forgottenDoorExports } from "./forgotten-exports.ts";
 import type { PlanContext } from "./port-plan.ts";
 import { collapse, doorExportTargets, planMember } from "./port-plan.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, RulingKeys, TargetKind } from "./port-targets.ts";
-import { clustered, conceptOf, crossDomainKind, crossDomainNote, keyOf, legOf, lineOf, placementOfKey, SPLIT_RULING } from "./port-targets.ts";
+import {
+  clustered,
+  conceptOf,
+  crossDomainKind,
+  crossDomainNote,
+  importBarredBy,
+  keyOf,
+  legOf,
+  lineOf,
+  placementOfKey,
+  SPLIT_RULING,
+  sharedHomeOf,
+} from "./port-targets.ts";
 import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
 
 interface WorldCount {
@@ -87,27 +101,119 @@ function namedKey(root: string, type: ts.Type): string | null {
   return isProduction(relative(root, declaration.getSourceFile().fileName)) ? declarationKey(root, declaration) : null;
 }
 
+/** A declaration a handler parameter receives whole from a wider named type: the slice derives from that type. */
+interface Slice {
+  /** The census key of the wider type the slot passes. */
+  readonly owner: string;
+  /** The slice's member names, sorted. */
+  readonly members: readonly string[];
+}
+
 interface LinkContext {
   readonly root: string;
   readonly checker: ts.TypeChecker;
+  /** Whether a file is one of the compiler's default library files. */
+  readonly isLibrary: (source: ts.SourceFile) => boolean;
   readonly links: Links;
+  readonly slices: Map<string, Slice>;
 }
 
-// The named types at each parameter position and the awaited return of two linked members: one concept's data.
-function linkSignatures({ root, checker, links }: LinkContext, port: PortMember, owner: PortMember): void {
-  const [mine] = checker.getTypeAtLocation(port).getNonNullableType().getCallSignatures();
-  const [theirs] = checker.getTypeAtLocation(owner).getNonNullableType().getCallSignatures();
-  if (mine === undefined || theirs === undefined) {
+// How far a type flow is followed into element types, intersection parts and signatures: a port's parameter, its
+// elements, and one level below.
+const TYPE_FLOW_DEPTH = 3;
+
+const isReference = (type: ts.Type): type is ts.TypeReference =>
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeFlags and ObjectFlags are compiler-owned bitfields.
+  (type.flags & ts.TypeFlags.Object) !== 0 && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) !== 0;
+
+// A generic the default library declares (arrays, iterables, generators, promises, sets, maps): each one's type
+// parameters, in order, are the element types it carries, so an `AsyncGenerator<A>` fed into an `AsyncIterable<B>`
+// flows `A` into `B`. Two user generics pair their arguments only when they are one generic.
+function isLibraryGeneric({ isLibrary }: LinkContext, type: ts.TypeReference): boolean {
+  const declarations = type.target.getSymbol()?.declarations ?? [];
+  return declarations.length > 0 && declarations.every((declaration) => isLibrary(declaration.getSourceFile()));
+}
+
+function elementPairs(context: LinkContext, slot: ts.Type, value: ts.Type): readonly (readonly [ts.Type, ts.Type])[] {
+  const { checker } = context;
+  if (!(isReference(slot) && isReference(value))) {
+    return [];
+  }
+  const tuples = checker.isTupleType(slot) && checker.isTupleType(value);
+  if (!(slot.target === value.target || tuples || (isLibraryGeneric(context, slot) && isLibraryGeneric(context, value)))) {
+    return [];
+  }
+  const theirs = checker.getTypeArguments(value);
+  return checker.getTypeArguments(slot).flatMap((argument, index) => {
+    const other = theirs[index];
+    return other === undefined ? [] : [[argument, other] as const];
+  });
+}
+
+const partsOf = (type: ts.Type): readonly ts.Type[] => (type.isIntersection() ? type.types : [type]);
+
+// A handler that accepts `accepted` where its slot passes a wider named type: `accepted` is that type's slice.
+function recordSlice({ root, checker, slices }: LinkContext, received: ts.Type, accepted: ts.Type): void {
+  const slice = namedKey(root, accepted);
+  if (slice === null) {
+    return;
+  }
+  const members = checker.getPropertiesOfType(accepted).map((member) => member.name);
+  for (const part of partsOf(received)) {
+    const owner = namedKey(root, part);
+    const wider = new Set(checker.getPropertiesOfType(part).map((member) => member.name));
+    if (
+      owner !== null &&
+      owner !== slice &&
+      wider.size > members.length &&
+      members.every((name) => wider.has(name)) &&
+      checker.isTypeAssignableTo(part, accepted)
+    ) {
+      slices.set(slice, { owner, members: members.toSorted() });
+    }
+  }
+}
+
+// A value of type `value` flowing into a slot of type `slot` joins their names, then the element types they carry,
+// the named parts of an intersection, and the parameters and awaited returns of their call signatures.
+function joinTypes(context: LinkContext, slot: ts.Type, value: ts.Type, depth = TYPE_FLOW_DEPTH): void {
+  const { root, checker, links } = context;
+  const [bareSlot, bareValue] = [checker.getNonNullableType(slot), checker.getNonNullableType(value)];
+  links.join(namedKey(root, bareSlot), namedKey(root, bareValue));
+  if (depth === 0) {
+    return;
+  }
+  for (const [mine, theirs] of elementPairs(context, bareSlot, bareValue)) {
+    joinTypes(context, mine, theirs, depth - 1);
+  }
+  const [slotParts, valueParts] = [partsOf(bareSlot), partsOf(bareValue)];
+  if (slotParts.length > 1 || valueParts.length > 1) {
+    for (const [mine, theirs] of slotParts.flatMap((part) => valueParts.map((other) => [part, other] as const))) {
+      joinTypes(context, mine, theirs, depth - 1);
+    }
+    return;
+  }
+  joinSignatures(context, bareSlot, bareValue, depth);
+}
+
+// One call signature on each side: each parameter the slot passes into the value's, then the awaited returns.
+function joinSignatures(context: LinkContext, slot: ts.Type, value: ts.Type, depth: number): void {
+  const { checker } = context;
+  const [mine, ...moreMine] = slot.getCallSignatures();
+  const [theirs, ...moreTheirs] = value.getCallSignatures();
+  if (mine === undefined || theirs === undefined || moreMine.length > 0 || moreTheirs.length > 0) {
     return;
   }
   mine.parameters.forEach((parameter, index) => {
     const other = theirs.parameters[index];
     if (other !== undefined) {
-      links.join(namedKey(root, checker.getTypeOfSymbol(parameter)), namedKey(root, checker.getTypeOfSymbol(other)));
+      const [received, accepted] = [checker.getTypeOfSymbol(parameter), checker.getTypeOfSymbol(other)];
+      joinTypes(context, received, accepted, depth - 1);
+      recordSlice(context, checker.getNonNullableType(received), checker.getNonNullableType(accepted));
     }
   });
   const awaited = (signature: ts.Signature): ts.Type => checker.getAwaitedType(signature.getReturnType()) ?? signature.getReturnType();
-  links.join(namedKey(root, awaited(mine)), namedKey(root, awaited(theirs)));
+  joinTypes(context, awaited(mine), awaited(theirs), depth - 1);
 }
 
 function linkMember({ root, checker, links }: LinkContext, member: PortMember): string {
@@ -115,10 +221,6 @@ function linkMember({ root, checker, links }: LinkContext, member: PortMember): 
   const alias = aliasOf(checker, member);
   links.join(key, alias === null ? null : declarationKey(root, alias));
   return key;
-}
-
-function linkTypeFlow(root: string, flow: TypeFlow, links: Links): void {
-  links.join(namedKey(root, flow.slot), namedKey(root, flow.value));
 }
 
 // `type B = A` and `type Op = NonNullable<Owner["m"]>` name one concept with two names.
@@ -129,6 +231,58 @@ function linkAlias({ root, checker, links }: LinkContext, alias: ts.TypeAliasDec
   }
   if (ts.isTypeReferenceNode(alias.type)) {
     links.join(key, namedKey(root, checker.getTypeFromTypeNode(alias.type)));
+  }
+}
+
+// The props member a JSX attribute value forwards: `a={a}` from a destructured prop, or `a={props.a}`.
+function forwardedProp(checker: ts.TypeChecker, value: ts.Expression): ts.Declaration | undefined {
+  const bare = ts.isParenthesizedExpression(value) ? value.expression : value;
+  const node = ts.isIdentifier(bare) ? checker.getSymbolAtLocation(bare)?.declarations?.[0] : bare;
+  return node === undefined ? undefined : readMembers(checker, node)[0]?.declarations?.[0];
+}
+
+// The props declaration an attribute fills and the one its value forwards from, or null for a value the component
+// computes itself.
+function forwardedHolders(checker: ts.TypeChecker, props: ts.Type, attribute: ts.JsxAttribute): { readonly slot: Declared; readonly source: Declared } | null {
+  const slot = checker.getPropertyOfType(props, attribute.name.getText())?.declarations?.[0];
+  const value = attribute.initializer !== undefined && ts.isJsxExpression(attribute.initializer) ? attribute.initializer.expression : undefined;
+  const source = value === undefined ? undefined : forwardedProp(checker, value);
+  const [slotHolder, sourceHolder] = [slot === undefined ? null : holderOf(slot), source === undefined ? null : holderOf(source)];
+  return slotHolder === null || sourceHolder === null ? null : { slot: slotHolder, source: sourceHolder };
+}
+
+// `<Child a={a} b={b} />`: when the members of one props declaration fill every member of the child's props
+// declaration, the component passes its props on whole, member by member, so the two name one concept. A prop the
+// component fills itself, or members drawn from two declarations, join nothing. A spread passes its whole type.
+function linkJsxProps(context: LinkContext, element: ts.JsxOpeningLikeElement): void {
+  const { root, checker, links } = context;
+  const props = checker.getContextualType(element.attributes);
+  if (props === undefined) {
+    return;
+  }
+  const sources = new Set<Declared>();
+  const slots = new Set<Declared>();
+  let forwarded = 0;
+  for (const attribute of element.attributes.properties) {
+    if (ts.isJsxSpreadAttribute(attribute)) {
+      joinTypes(context, props, checker.getTypeAtLocation(attribute.expression));
+      continue;
+    }
+    const holders = forwardedHolders(checker, props, attribute);
+    if (holders === null) {
+      return;
+    }
+    slots.add(holders.slot);
+    sources.add(holders.source);
+    forwarded += 1;
+  }
+  const [slot] = slots;
+  const [source] = sources;
+  if (slot === undefined || source === undefined || slots.size > 1 || sources.size > 1 || slot === source) {
+    return;
+  }
+  if (checker.getPropertiesOfType(checker.getTypeAtLocation(slot.name)).length === forwarded) {
+    links.join(declarationKey(root, slot), declarationKey(root, source));
   }
 }
 
@@ -152,6 +306,8 @@ interface Collected {
   readonly forgotten: Map<string, ForgottenExport>;
   /** An alias's declaration key to the members typed by it, through renames: the op members a type names. */
   readonly typedBy: Map<string, Set<string>>;
+  /** A handler parameter's declaration key to the wider type its slot passes it. */
+  readonly slices: Map<string, Slice>;
 }
 
 function homeOf(checker: ts.TypeChecker, member: PortMember): Home {
@@ -165,7 +321,7 @@ function collectMemberFlow(context: LinkContext, flow: Flow, into: Collected): v
   const members = flowMembers(checker, flow);
   if (members !== null) {
     links.join(linkMember(context, members.port), linkMember(context, members.owner));
-    linkSignatures(context, members.port, members.owner);
+    joinTypes(context, checker.getTypeAtLocation(members.port), checker.getTypeAtLocation(members.owner));
   }
   const found = restatementOf(checker, flow);
   if (found === null) {
@@ -185,8 +341,24 @@ function recordTypedBy(root: string, checker: ts.TypeChecker, member: ts.Propert
   }
 }
 
-function collectFlows(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
-  const context: LinkContext = { root, checker, links: into.links };
+// The flows whose site is `node`: a JSX element's props, then each whole-value and member flow.
+function collectNodeFlows(context: LinkContext, node: ts.Node, into: Collected): void {
+  if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+    linkJsxProps(context, node);
+  }
+  const flows = flowsAt(context.checker, node);
+  for (const flow of flows.types) {
+    joinTypes(context, flow.slot, flow.value);
+  }
+  for (const flow of flows.members) {
+    collectMemberFlow(context, flow, into);
+  }
+}
+
+function collectFlows(root: string, program: ts.Program, source: ts.SourceFile, into: Collected): void {
+  const checker = program.getTypeChecker();
+  const isLibrary = (file: ts.SourceFile): boolean => program.isSourceFileDefaultLibrary(file);
+  const context: LinkContext = { root, checker, isLibrary, links: into.links, slices: into.slices };
   const visit = (node: ts.Node): void => {
     if ((ts.isPropertySignature(node) || ts.isMethodSignature(node)) && isHandTyped(node) && conceptOf(node)?.sweep === true) {
       into.concepts.add(keyOf(root, node));
@@ -197,13 +369,7 @@ function collectFlows(root: string, checker: ts.TypeChecker, source: ts.SourceFi
     if (ts.isPropertySignature(node)) {
       recordTypedBy(root, checker, node, into.typedBy);
     }
-    const flows = flowsAt(checker, node);
-    for (const flow of flows.types) {
-      linkTypeFlow(root, flow, into.links);
-    }
-    for (const flow of flows.members) {
-      collectMemberFlow(context, flow, into);
-    }
+    collectNodeFlows(context, node, into);
     ts.forEachChild(node, visit);
   };
   visit(source);
@@ -516,6 +682,8 @@ function indexMembers(root: string, program: ts.Program): ReadonlyMap<string, In
 // D337's table rules it, or the ledger review does.
 interface Copies {
   readonly linked: readonly string[];
+  /** The census key of each linked copy, in the order of {@link Copies.linked}. */
+  readonly linkedKeys: readonly string[];
   /** Shape-only copies the distinct registry has not judged. */
   readonly open: readonly string[];
   readonly distinct: readonly string[];
@@ -551,15 +719,17 @@ const shapeRefOf = (key: string): string => `${key.slice(0, key.indexOf(":"))}#$
 interface Judgments {
   readonly links: Links;
   readonly typedBy: Collected["typedBy"];
+  readonly slices: Collected["slices"];
   readonly distinct: DistinctRegistry;
 }
 
 function copiesOf(entry: ForgottenExport, { links, distinct }: Judgments): Copies {
-  const sorted: { linked: string[]; open: string[]; distinct: string[] } = { linked: [], open: [], distinct: [] };
+  const sorted: { linked: string[]; linkedKeys: string[]; open: string[]; distinct: string[] } = { linked: [], linkedKeys: [], open: [], distinct: [] };
   entry.copies.forEach((copy, index) => {
     const key = entry.copyKeys[index] ?? "";
     if (links.linked(entry.key, key)) {
       sorted.linked.push(copy);
+      sorted.linkedKeys.push(key);
     } else {
       sorted[isDistinctPair(distinct, shapeRefOf(entry.key), shapeRefOf(key)) ? "distinct" : "open"].push(copy);
     }
@@ -576,27 +746,120 @@ const forgottenRulingKeys = (entry: ForgottenExport, typedBy: Collected["typedBy
   };
 };
 
+// `file:line:Name` split into the name and its `file:line`.
+const splitKey = (key: string): { readonly name: string; readonly at: string } => ({
+  name: key.slice(key.lastIndexOf(":") + 1),
+  at: key.slice(0, key.lastIndexOf(":")),
+});
+
+const fileOfKey = (key: string): string => key.slice(0, key.indexOf(":"));
+
+const rankOfKey = (key: string): number => {
+  const placement = placementOfKey(key);
+  return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
+};
+
+/** A judgment that names the shape's real owner, or settles the restatement, over the forgotten-export kind. */
+interface Owned {
+  readonly kind: TargetKind;
+  readonly owner: string | null;
+  readonly ownerAt: string | null;
+  readonly note: string;
+}
+
+// A linked copy neither file may import. D160's shape is a required restatement: a server domain declares the type it
+// needs in its own contract/, and the composition root injects the other side's value. Any other mutually barred pair
+// is review work, with the shared home both files may import named as the place to declare the shape once.
+function ruledByDependencyRule(entry: ForgottenExport, copies: Copies): Owned | null {
+  for (const key of copies.linkedKeys) {
+    const judged = mutuallyBarred(entry.file, fileOfKey(key));
+    if (judged !== null) {
+      return judged;
+    }
+  }
+  return null;
+}
+
+function mutuallyBarred(file: string, copy: string): Owned | null {
+  const [mine, theirs] = [importBarredBy(file, copy), importBarredBy(copy, file)];
+  if (mine === null || theirs === null) {
+    return null;
+  }
+  const barred = `dependency-cruiser ${mine.name ?? "(unnamed)"} bars this file from ${copy}; ${theirs.name ?? "(unnamed)"} bars the reverse`;
+  const home = isDomainContract(file) || isDomainContract(copy) ? null : sharedHomeOf(file, copy);
+  if (home !== null) {
+    return { kind: "review", owner: home, ownerAt: home, note: `${barred}; both may import ${home}: name the shape there and derive both` };
+  }
+  const why = mine.comment === undefined ? "" : `: ${mine.comment}`;
+  return { kind: "ruled", owner: null, ownerAt: null, note: `each side declares its own, as ${barred}${why}` };
+}
+
+const isDomainContract = (file: string): boolean => isContractFile(`/${file}`) && (placementOf(`/${file}`)?.domain ?? null) !== null;
+
+// A linked copy in a lower tier the declaration may import owns the shape.
+function lowerTierOwner(entry: ForgottenExport, copies: Copies): Owned | null {
+  const [lower] = copies.linkedKeys
+    .filter((key) => rankOfKey(key) < rankOfKey(entry.key) && importBarredBy(entry.file, fileOfKey(key)) === null)
+    .toSorted((a, b) => rankOfKey(a) - rankOfKey(b));
+  if (lower === undefined) {
+    return null;
+  }
+  const { name, at } = splitKey(lower);
+  return { kind: "hand", owner: name, ownerAt: at, note: `${at} ${name} sits in a lower tier and owns the shape: delete this declaration and import it` };
+}
+
+// With no linked copy, a handler parameter its slot feeds from a wider type is that type's slice, whatever it looks like.
+function sliceOwner(entry: ForgottenExport, copies: Copies, kind: TargetKind, slices: Collected["slices"]): Owned | null {
+  const slice = copies.linked.length === 0 && (kind === "review" || kind === "distinct") ? slices.get(entry.key) : undefined;
+  if (slice === undefined) {
+    return null;
+  }
+  const { name, at } = splitKey(slice.owner);
+  const pick = `Pick<${name}, ${slice.members.map((member) => `"${member}"`).join(" | ")}>`;
+  return { kind: "hand", owner: name, ownerAt: at, note: `a slice of ${name}, which its slot passes it: derive ${pick}` };
+}
+
+// Across domains neither the dependency rule nor the lower tier applies: the shape moves to contracts.
+function ownedElsewhere(entry: ForgottenExport, copies: Copies, kind: TargetKind, slices: Collected["slices"]): Owned | null {
+  const local = entry.crossDomain ? null : (ruledByDependencyRule(entry, copies) ?? lowerTierOwner(entry, copies));
+  return local ?? sliceOwner(entry, copies, kind, slices);
+}
+
+interface Judged {
+  readonly copies: Copies;
+  readonly keys: RulingKeys;
+  readonly kind: TargetKind;
+  readonly owned: Owned | null;
+}
+
+function forgottenNote(entry: ForgottenExport, { copies, keys, kind, owned }: Judged): string {
+  const split = owned === null && kind === "ruled" && !passesDbHandle(entry.foreign) ? `${describeForeignTypes(entry.foreign)}; ruling: ${SPLIT_RULING}` : "";
+  const handle = passesDbHandle(entry.foreign) ? crossDomainNote(kind, entry.foreign, keys) : split;
+  return [
+    owned?.note ?? "",
+    copies.linked.length > 0 ? `copies: ${copies.linked.join(", ")}` : "",
+    copies.open.length > 0 ? `same shape, no flow: ${copies.open.join(", ")}` : "",
+    copies.distinct.length > 0 ? `distinct by registry: ${copies.distinct.join(", ")}` : "",
+    handle,
+  ]
+    .filter((part) => part !== "")
+    .join("; ");
+}
+
 // A copy counts as the same concept only when a flow, a type reference or an alias links it to the declaration;
 // a copy that matches only by printed shape goes to review, never into a contracts move.
 function forgottenTargets(found: Iterable<ForgottenExport>, judgments: Judgments): PlannedTarget[] {
   return [...found].map((entry): PlannedTarget => {
     const copies = copiesOf(entry, judgments);
     const keys = forgottenRulingKeys(entry, judgments.typedBy);
-    const kind = forgottenKind(entry, copies, jointBatchRulingOf(keys.names, keys.domains) !== null);
+    const forgotten = forgottenKind(entry, copies, jointBatchRulingOf(keys.names, keys.domains) !== null);
+    const owned = ownedElsewhere(entry, copies, forgotten, judgments.slices);
+    const kind = owned?.kind ?? forgotten;
     const exports =
       kind !== "forgotten-door-export" || entry.doorFile === null || entry.door === null
         ? []
         : [{ file: entry.doorFile, name: entry.name, from: `./${relative(dirname(entry.doorFile), entry.file)}` }];
-    const split = kind === "ruled" && !passesDbHandle(entry.foreign) ? `${describeForeignTypes(entry.foreign)}; ruling: ${SPLIT_RULING}` : "";
-    const handle = passesDbHandle(entry.foreign) ? crossDomainNote(kind, entry.foreign, keys) : split;
-    const note = [
-      copies.linked.length > 0 ? `copies: ${copies.linked.join(", ")}` : "",
-      copies.open.length > 0 ? `same shape, no flow: ${copies.open.join(", ")}` : "",
-      copies.distinct.length > 0 ? `distinct by registry: ${copies.distinct.join(", ")}` : "",
-      handle,
-    ]
-      .filter((part) => part !== "")
-      .join("; ");
+    const note = forgottenNote(entry, { copies, keys, kind, owned });
     return {
       leg: legOf(entry.file),
       kind,
@@ -605,8 +868,8 @@ function forgottenTargets(found: Iterable<ForgottenExport>, judgments: Judgments
       line: entry.line,
       members: [entry.name],
       port: entry.name,
-      owner: entry.door ?? "(no door)",
-      ownerAt: entry.file,
+      owner: owned?.owner ?? entry.door ?? "(no door)",
+      ownerAt: owned?.ownerAt ?? entry.file,
       type: null,
       imports: [],
       exports,
@@ -626,6 +889,7 @@ export function portCensus(root: string, log: (line: string) => void, distinct: 
     crossImports: new Map(),
     forgotten: new Map(),
     typedBy: new Map(),
+    slices: new Map(),
   };
   const worlds: WorldCount[] = [];
   for (const config of packageWorlds(root)) {
@@ -634,7 +898,7 @@ export function portCensus(root: string, log: (line: string) => void, distinct: 
     const checker = program.getTypeChecker();
     const sources = program.getSourceFiles().filter((file) => !file.isDeclarationFile && isProduction(relative(root, file.fileName)));
     for (const source of sources) {
-      collectFlows(root, checker, source, collected);
+      collectFlows(root, program, source, collected);
       collectReads(root, checker, source, collected);
     }
     // Reads first: a service import is planned against every op its domain reads, across all of that domain's files.
@@ -683,7 +947,7 @@ export function portCensus(root: string, log: (line: string) => void, distinct: 
   const placed = collapse(unique).map(clustered);
   // An alias the plan already rewrites needs no forgotten-export target: its copy is the owner it derives from.
   const rewritten = new Set(placed.filter((target) => target.form === "type").map((target) => `${target.file}:${target.line}`));
-  const judgments: Judgments = { links: collected.links, typedBy: collected.typedBy, distinct };
+  const judgments: Judgments = { links: collected.links, typedBy: collected.typedBy, slices: collected.slices, distinct };
   const forgotten = forgottenTargets(collected.forgotten.values(), judgments).filter((target) => !rewritten.has(`${target.file}:${target.line}`));
   const targets = [...placed, ...doorExportTargets(placed), ...[...collected.crossImports.values()].map(clustered), ...forgotten.map(clustered)];
   return { targets: targets.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line), worlds };
