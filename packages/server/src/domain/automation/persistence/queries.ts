@@ -8,7 +8,6 @@
 // `upsertGlobalVariableStatement`, so its key and value checks run here, once, for all of them. A NUL is refused because the driver returns text cut at its first NUL,
 // so a stored NUL would read back as a different string.
 
-import type { GlobalVariableView } from "@orb/contracts/automation";
 import { containsNul, GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES, globalVariableKeySchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { globalVariables } from "@orb/db";
@@ -16,6 +15,7 @@ import type { RowsAffectedStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { GlobalVariableInvalidError } from "../contract/errors.ts";
+import type { GlobalVariableView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 

@@ -2,7 +2,6 @@ import type {
   AutomationAction,
   AutomationCelEnv,
   AutomationEmitSource,
-  AutomationOrigin,
   AutomationRuleTools,
   AutomationRunOutcome,
   AutomationSuggestionKind,
@@ -421,6 +420,13 @@ export interface NotificationRecipientQuery {
 }
 
 // ── the dispatch seam the arm executors plug into ─────────────────────────────────────────────────
+/** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
+ *  NEVER a bus-event field (the D19/D50 allowlist forbids attribution on the public bus). */
+export interface AutomationOrigin {
+  readonly ruleId: AutomationRuleId;
+  readonly automationDepth: number;
+}
+
 /** The per-rule dispatch frame handed to an arm executor: the resolved fact + the built CEL env (for
  *  `{{expr::…}}` + template render) + the write origin (`{ ruleId, childDepth }`) + the injected clock stamp. */
 export interface DispatchFrame {
