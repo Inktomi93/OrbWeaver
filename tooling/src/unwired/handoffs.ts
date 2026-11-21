@@ -94,6 +94,8 @@ interface Handed {
   readonly calls: readonly Node[];
   /** Object literal and JSX spreads, whose value lands in the literal's contextual type. */
   readonly spreads: readonly Node[];
+  /** Array literal spreads, `[...offs]`, whose elements land in the array's contextual element type. */
+  readonly elementSpreads: readonly Node[];
 }
 
 // Only production hand-offs prove a production flow; a test world repeats those of its production files.
@@ -101,10 +103,14 @@ function handedValues(world: NativeWorld, home: ReadonlySet<string>): Handed {
   const values: Node[] = [];
   const calls: Node[] = [];
   const spreads: Node[] = [];
+  const elementSpreads: Node[] = [];
   const visit = (node: Node): void => {
     values.push(...handedAt(node).filter((handed) => !isPlainLiteral(handed)));
     if (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) {
       spreads.push(node);
+    }
+    if (isSpreadElement(node) && isArrayLiteralExpression(node.parent)) {
+      elementSpreads.push(node);
     }
     if (isCallExpression(node) || isNewExpression(node)) {
       calls.push(node);
@@ -114,7 +120,7 @@ function handedValues(world: NativeWorld, home: ReadonlySet<string>): Handed {
   for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file) && home.has(world.siteOf(source).file))) {
     file.forEachChild(visit);
   }
-  return { values, calls, spreads };
+  return { values, calls, spreads, elementSpreads };
 }
 
 function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair | null> {
@@ -124,6 +130,13 @@ function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair
 
 // A spread hands its whole value to the literal it sits in, so the nested members of both types meet as well.
 function* spreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
+  const { expression } = spread as Node & { readonly expression: Expression };
+  const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
+  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0, at: expression };
+}
+
+// An array spread hands the spread array to the literal it sits in: both are arrays, so their elements meet.
+function* elementSpreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
   const { expression } = spread as Node & { readonly expression: Expression };
   const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
   return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0, at: expression };
@@ -261,8 +274,12 @@ export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): { r
   const flows: Flow[] = [];
   const reads: LibraryRead[] = [];
   const seen = new Set<string>();
-  const { values, calls, spreads } = handedValues(world, home);
-  const handed = [...world.batch(values.map((value) => pairAt(world, value))), ...world.batch(spreads.map((spread) => spreadPair(world, spread)))];
+  const { values, calls, spreads, elementSpreads } = handedValues(world, home);
+  const handed = [
+    ...world.batch(values.map((value) => pairAt(world, value))),
+    ...world.batch(spreads.map((spread) => spreadPair(world, spread))),
+    ...world.batch(elementSpreads.map((spread) => elementSpreadPair(world, spread))),
+  ];
   let pending = [...handed.flatMap((pair) => (pair === null ? [] : [pair])), ...world.batch(calls.map((call) => genericPairs(world, call))).flat()];
   while (pending.length > 0) {
     const fresh = new Map(

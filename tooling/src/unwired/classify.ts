@@ -102,10 +102,12 @@ const WRITTEN_BY_NAME: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.JsxAttribute,
 ]);
 
-// A property access or element access that a plain `=` assigns.
+// A property access or element access an assignment stores into: `=`, a compound `+=` or a logical `??=`. The value a
+// compound operator reads on the way is only the store's, so a member that is only ever bumped is never read.
 function accessRole(access: ts.Expression): SyntaxRole {
   const parent = access.parent;
-  return ts.isBinaryExpression(parent) && parent.left === access && parent.operatorToken.kind === ts.SyntaxKind.EqualsToken ? "write" : "read";
+  const kind = ts.isBinaryExpression(parent) && parent.left === access ? parent.operatorToken.kind : undefined;
+  return kind !== undefined && kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment ? "write" : "read";
 }
 
 function roleOf(node: ts.Node | undefined): SyntaxRole {
