@@ -314,3 +314,167 @@ test("the unions scan reads a schema-inferred slot and a generic generated table
   ]);
   expect(report.disagreements).toEqual([]);
 });
+
+// A literal type that re-spells a member builds it once the scan links that type to the tuple: the tuple `satisfies` a
+// type that writes it, or a value typed by it feeds the tuple's slot as an element-access key or an argument. Each
+// tuple keeps one member nothing builds, and `Ev` in the ORIGIN tree above stays the unlinked control.
+const LINKED_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/events.ts": [
+    'type Made = { readonly type: "made"; readonly id: number };',
+    'type Gone = { readonly type: "gone"; readonly id: number };',
+    "type Ev = Made | Gone;",
+    'export const EVENT_TYPES = ["made", "gone"] as const satisfies readonly Ev["type"][];',
+    "export const emit = (event: Ev): Ev => event;",
+    'export const made = emit({ type: "made", id: 1 });',
+  ].join("\n"),
+  "packages/a/src/spans.ts": [
+    'type Span = { readonly kind: "text"; readonly t: string } | { readonly kind: "dice"; readonly n: number };',
+    'const SPAN_KINDS = ["text", "dice", "unused"] as const;',
+    "type SpanKind = (typeof SPAN_KINDS)[number];",
+    "const POLICY: Record<SpanKind, number> = { text: 1, dice: 2, unused: 3 };",
+    "export const policyOf = (span: Span): number => POLICY[span.kind];",
+    'export const spans: readonly Span[] = [{ kind: "text", t: "a" }, { kind: "dice", n: 2 }];',
+  ].join("\n"),
+  "packages/a/src/phases.ts": [
+    'const PHASES = ["recalling", "recalled", "skipped"] as const;',
+    "type Phase = (typeof PHASES)[number];",
+    'type Recall = { readonly type: "recall"; readonly phase: "recalling" } | { readonly type: "recall"; readonly phase: "recalled" };',
+    "const shown: Phase[] = [];",
+    "export const setPhase = (phase: Phase): number => shown.push(phase);",
+    "export const apply = (event: Recall): number => setPhase(event.phase);",
+    'export const opened = (emit: (event: Recall) => void): void => emit({ type: "recall", phase: "recalling" });',
+    'export const closed = (emit: (event: Recall) => void): void => emit({ type: "recall", phase: "recalled" });',
+  ].join("\n"),
+};
+
+test("the unions scan builds a member through a literal type the tuple satisfies or whose value feeds the tuple's slot", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(LINKED_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(found).toEqual(["unbuilt EVENT_TYPES.gone", "unbuilt PHASES.skipped", "unbuilt SPAN_KINDS.unused"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// Production uses a member without a literal in the tuple's slot: a `Record` entry read by name, a switch that hands
+// the narrowed value on, an enumerated subset handed whole into the parent's slot, and a module-private constant whose
+// property or spread reaches the slot. Each tuple keeps one member nothing builds; `LOOSE` is exported, so its literal
+// reaches no readable slot and builds nothing.
+const UNSPELLED_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/floors.ts": [
+    'const STAGES = ["warm", "cold", "idle"] as const;',
+    "type Stage = (typeof STAGES)[number];",
+    "const FLOOR = { warm: 1, cold: 2, idle: 3 } as const satisfies Record<Stage, number>;",
+    'export const floors = [FLOOR.warm, FLOOR["cold"]];',
+  ].join("\n"),
+  "packages/a/src/adjust.ts": [
+    'const CODES = ["a_dropped", "b_dropped", "c_kept"] as const;',
+    "type Code = (typeof CODES)[number];",
+    'const ADJUSTMENTS = ["a_dropped", "b_dropped", "z_never"] as const;',
+    "type Adjustment = (typeof ADJUSTMENTS)[number];",
+    "export const takeCode = (code: Code): Code => code;",
+    'export const codes = [takeCode("a_dropped"), takeCode("b_dropped"), takeCode("c_kept")];',
+    "export function adjust(code: Code): { readonly adjustment: Adjustment } | null {",
+    "  switch (code) {",
+    '    case "a_dropped":',
+    '    case "b_dropped":',
+    "      return { adjustment: code };",
+    "    default:",
+    "      return null;",
+    "  }",
+    "}",
+  ].join("\n"),
+  "packages/a/src/sources.ts": [
+    'const SOURCES = ["global", "theme", "inline", "dead"] as const;',
+    "type Source = (typeof SOURCES)[number];",
+    "interface Expect { readonly sources: readonly Source[] }",
+    'const THEMED = ["theme", "inline"] as const satisfies readonly Source[];',
+    'export const EXPECT: readonly Expect[] = [{ sources: THEMED }, { sources: ["global"] }];',
+  ].join("\n"),
+  "packages/a/src/carriers.ts": [
+    'const PLANES = ["root", "grid", "unused_plane"] as const;',
+    "type Plane = (typeof PLANES)[number];",
+    "interface Carrier { readonly carriers: readonly Plane[]; readonly owner: string }",
+    'const ROOT = { carriers: ["root"] } as const;',
+    'export const CARRIERS: readonly Carrier[] = [{ owner: "a", ...ROOT }];',
+    'const GRID = { carriers: ["grid"] } as const;',
+    "export const gridPlanes: readonly Plane[] = GRID.carriers;",
+    'export const LOOSE = { carriers: ["unused_plane"] } as const;',
+  ].join("\n"),
+};
+
+test("the unions scan builds a member a Record entry read, a switch pass-through, an enumerated subset or a constant's property reaches", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(UNSPELLED_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(found).toEqual(["unbuilt ADJUSTMENTS.z_never", "unbuilt PLANES.unused_plane", "unbuilt SOURCES.dead", "unbuilt STAGES.idle"]);
+  expect(report.enumerated).toEqual(["packages/a/src/sources.ts:THEMED"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// A tuple a lib key selection names lists property keys, never values: it is listed apart and none of its members is
+// judged. `MODES` beside it is a value vocabulary and keeps its unbuilt member.
+const KEYS_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/props.ts": [
+    "interface Props { readonly size: number; readonly tone: string; readonly label: string }",
+    'const LOOK = ["size", "tone"] as const;',
+    "type LookKey = (typeof LOOK)[number];",
+    "export type Rest = Omit<Props, LookKey>;",
+    'const PICKED = ["label", "tone"] as const;',
+    'export type Picked = Pick<Props, Exclude<(typeof PICKED)[number], "tone">>;',
+    'const JSON_FIELDS = ["tone"] as const;',
+    "type JsonField = (typeof JSON_FIELDS)[number];",
+    "export type Stored = Pick<Props, Exclude<keyof Props, JsonField>> & Record<JsonField, string>;",
+    'const MODES = ["x", "y"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'export const mode: Mode = "x";',
+  ].join("\n"),
+};
+
+test("the unions scan lists a tuple a Pick, Omit or keyof filter names as a key list and judges none of its members", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(KEYS_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt MODES.y"]);
+  expect(report.keyLists).toEqual(["packages/a/src/props.ts:JSON_FIELDS", "packages/a/src/props.ts:LOOK", "packages/a/src/props.ts:PICKED"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// A type guard that narrows a raw string into the tuple lets outside input produce any member, so its members sort as
+// parsed. A guard over an in-tree union narrows nothing from outside: `SHAPES` stays unbuilt.
+const GUARD_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/cli.ts": [
+    'const COMMANDS = ["build", "pack"] as const;',
+    "type Command = (typeof COMMANDS)[number];",
+    "function isCommand(value: string | undefined): value is Command {",
+    '  return value === "build" || value === "pack";',
+    "}",
+    "export const run = (argv: string | undefined): Command | null => (isCommand(argv) ? argv : null);",
+    'const SHAPES = ["round", "square"] as const;',
+    "type Shape = (typeof SHAPES)[number];",
+    "type Drawn = { readonly shape: Shape } | { readonly other: true };",
+    'export const isShaped = (node: Drawn): node is { readonly shape: Shape } => "shape" in node;',
+  ].join("\n"),
+};
+
+test("the unions scan sorts a tuple a type guard narrows raw input into as parsed, and not one an in-tree guard narrows", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(GUARD_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual([
+    "parsed COMMANDS.build",
+    "parsed COMMANDS.pack",
+    "unbuilt SHAPES.round",
+    "unbuilt SHAPES.square",
+  ]);
+  expect(report.disagreements).toEqual([]);
+});

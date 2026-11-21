@@ -62,6 +62,23 @@ Engine one links a hand-off through a generic constraint, a spread into a typed 
 - A computed key built from runtime strings, such as a template of `prefix` and `suffix`, types as `string`. No name is known, so no field is read or written.
 - A type-level registry entry reached only through `Registry[K]` in a type position. The scan counts a type position as no read, so the entry needs a value read by name.
 - A read inside a string, such as a JSON scenario file.
+- A schema whose parsed value production types by another declaration through a parse return type or a refine predicate, with no `satisfies z.ZodType<T>` link. The reads land on the other declaration, so the schema keys report unreferenced.
+- A `Registry[K]` type map keyed by a union, such as an id type per kind. The scan reads no member through the map.
+- A key written through a computed name, such as `[key]: value`, or a `z.literal` input key the parse checks and production never reads.
+
+A key an `.extend({ key })` call re-declares is the base schema's key, so its reads and writes count for the base.
+
+## Limits of the unions scan
+
+`UNION_LIMITS` in `tooling/src/unwired/unions.ts` is the one list. These classes stay reported, so judge them by hand:
+
+- A tuple only a file outside every package world enumerates, such as `packages/ui/tokens.build.ts`. Adding those files to a world raises the run past the memory bar.
+- A value typed by one tuple that production hands into another tuple's slot. The tuples are separate vocabularies.
+- A member built only by a literal in an inline `as const` array that production maps.
+- A member a conditional type's branch re-spells.
+- A literal whose contextual type is a type parameter, such as an `Object.freeze` argument or a generic row helper.
+
+A tuple a lib key selection names is a key list. The scan lists key lists apart and judges none of their members.
 
 ## Judging a finding
 

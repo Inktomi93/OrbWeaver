@@ -96,3 +96,34 @@ test("an in check reads the property it names", { timeout: 120_000 }, async ({ p
   const report = scan(await plantedTree(IN_CHECK));
   expect(fieldsOf(report, "frames.ts")).toEqual(["Fault.spare never-read", "Frame.kind never-read"]);
 });
+
+// A server codec re-declares a contract key under a stricter schema with `.extend({ key })`: the override is the same wire
+// field, so a read through it reads the base key. `dropped`, written and never read through either, stays reported.
+const EXTENDED = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": [
+    "export interface Schema<V> { readonly value?: V }",
+    "export interface ObjectSchema<T> { readonly shape: T; extend<U>(more: U): ObjectSchema<Omit<T, keyof U> & U> }",
+    "const objectOf = <T>(shape: T): ObjectSchema<T> => ({ shape, extend: <U>(more: U) => objectOf({ ...shape, ...more }) as never });",
+    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
+    "export const z = { object: <T>(shape: T): ObjectSchema<T> => objectOf(shape), string: (): Schema<string> => ({}) };",
+  ].join("\n"),
+  "packages/a/src/wire.ts": [
+    'import { z } from "./z.ts";',
+    "export const viewSchema = z.object({ role: z.string(), name: z.string(), dropped: z.string() });",
+  ].join("\n"),
+  "packages/a/src/codec.ts": [
+    'import type { Infer } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    'import { viewSchema as wireViewSchema } from "./wire.ts";',
+    "export const viewSchema = wireViewSchema.extend({ role: z.string() });",
+    "type View = Infer<typeof viewSchema>;",
+    'export const made: View = { role: "r", name: "n", dropped: "d" };',
+    "export const shown = (view: View): string => view.role + view.name;",
+  ].join("\n"),
+};
+
+test("a key an extend call re-declares reads and writes as the base schema's key", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(EXTENDED));
+  expect(fieldsOf(report, "wire.ts")).toEqual(["viewSchema.dropped never-read"]);
+});

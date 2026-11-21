@@ -95,7 +95,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", scanParams),
-  unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
+  unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length} keyLists=${report.keyLists.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
 };
 
