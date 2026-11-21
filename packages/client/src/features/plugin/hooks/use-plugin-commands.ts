@@ -77,12 +77,15 @@ const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name. Open Jump to… 
  *  It carries BOTH the raw `args` remainder (a command's own opaque grammar — the U5 shape) AND the #791 typed
  *  `values` bag the surfaces collected against the command's declared args (`{}` for a command that declared
  *  none). The server re-validates `values` against the resident command's specs, so a mistyped/missing/off-enum
- *  value is refused there too. */
-export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunner {
+ *  value is refused there too.
+ *
+ *  A surface that stays on screen while a run fails passes `failureShownInline`, the line that says it, and gets
+ *  `onSettled(false)` instead of the toast for a refused or unresolvable run. */
+export function usePluginCommandRunner(chatId: ChatId | null, failureShownInline?: string): PluginCommandRunner {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const invalidation = useInvalidation();
-  const invoke = useInvokeUiCommand({ trpc, invalidation });
+  const invoke = useInvokeUiCommand({ trpc, invalidation, failureShownInline });
   const runningCommandCount = useIsMutating({ mutationKey: trpc.plugin.invokeUiCommand.mutationKey() });
   const commands = usePluginCommands(true);
   // No manual memoization — the React Compiler runs full-compile on this tree and already caches this closure
@@ -90,7 +93,10 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
   const run: PluginCommandRunner["run"] = (request, onSettled, onReplaced): void => {
     const command = commands.find((candidate) => candidate.slug === request.slug && candidate.name === request.name);
     if (command === undefined || (command.composerDraft === true) !== (request.composerDraft !== undefined)) {
-      notify.error(PLUGIN_COMMAND_UNKNOWN);
+      // A surface that says every failed run inline passes its line, so the toast does not repeat it.
+      if (failureShownInline === undefined) {
+        notify.error(PLUGIN_COMMAND_UNKNOWN);
+      }
       onSettled?.(false);
       return;
     }

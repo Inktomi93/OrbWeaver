@@ -15,7 +15,13 @@ import type { ModalCommit } from "#state";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import type { LandingRefs } from "../components/plugin-command-args-body.tsx";
 import { ArgInput } from "../components/plugin-command-args-body.tsx";
-import { PLUGIN_COMMAND_ARGS_TITLE, PLUGIN_NO_COMMAND_SELECTED_TEXT, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import {
+  PLUGIN_COMMAND_ARGS_TITLE,
+  PLUGIN_COMMAND_RUN_FAILED,
+  PLUGIN_NO_COMMAND_SELECTED_TEXT,
+  pluginCommandActionLabel,
+  pluginCommandAttribution,
+} from "../lib/plugin-command-copy.ts";
 import { usePluginCommandRunner, usePluginCommands } from "./use-plugin-commands.ts";
 
 /** The initial string bag: a declared `default` opens preselected; otherwise booleans start `"false"` (an
@@ -35,10 +41,11 @@ function initialValues(specs: readonly PluginCommandArgSpec[]): Record<string, s
 
 export function usePluginCommandArgsCommit(): ModalCommit {
   const subject = usePluginCommandArgsSubject();
-  const { run } = usePluginCommandRunner(subject?.chatId ?? null);
+  const { run } = usePluginCommandRunner(subject?.chatId ?? null, "the argument form's alert line");
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(subject?.args ?? []));
   const [errors, setErrors] = useState<readonly string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [refused, setRefused] = useState(false);
   const commands = usePluginCommands();
   // Arrival lands on the first argument, so a command's values are typed straight away.
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -60,12 +67,15 @@ export function usePluginCommandArgsCommit(): ModalCommit {
     // The raw `args` remainder is empty on the palette path (the person filled fields, not a `name=value` line);
     // the TYPED bag carries the arguments. The runner re-resolves the command and the server re-validates.
     setErrors([]);
+    setRefused(false);
     setSubmitting(true);
     run({ slug: subject.slug, name: subject.name, args: "", values: coerced.values }, (succeeded): void => {
       setSubmitting(false);
       if (succeeded) {
         closeModal();
         clearPluginCommandArgs();
+      } else {
+        setRefused(true);
       }
     });
   };
@@ -113,6 +123,7 @@ export function usePluginCommandArgsCommit(): ModalCommit {
             />
           ))}
         </Stack>
+        {refused ? <DialogFailure>{PLUGIN_COMMAND_RUN_FAILED}</DialogFailure> : null}
         {errors.length === 0 ? null : (
           <Stack gap="tight">
             {errors.map((message) => (

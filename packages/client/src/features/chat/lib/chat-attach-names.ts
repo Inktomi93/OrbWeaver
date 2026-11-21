@@ -33,6 +33,9 @@ export const CHAT_BANK_EMPTY_TITLE = "Your bank is empty";
 /** The bank picker's search field. */
 export const CHAT_DOCUMENT_SEARCH_NAME = "Search your documents";
 
+/** The script picker's filter field. */
+export const CHAT_SCRIPT_FILTER_NAME = "Filter your scripts";
+
 /** A refused book attach, in the picker and in its toast. */
 export const CHAT_ATTACH_BOOK_FAILURE = "Couldn't attach the world book to this chat.";
 

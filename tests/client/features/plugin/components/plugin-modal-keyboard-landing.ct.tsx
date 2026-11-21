@@ -8,12 +8,22 @@ import { testId } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import type { TrpcRoutes } from "@orb/testkit/ct";
+import {
+  ALERTS_REGION_NAME,
+  createShellAmbientReads,
+  ROOM_PROCEDURES,
+  routeTrpc,
+  SECTION_LABELS,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
-import { humanizeId, PLUGIN_COMMAND_ARGS_TITLE, pluginCommandActionLabel } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { humanizeId, PLUGIN_COMMAND_ARGS_TITLE, PLUGIN_COMMAND_RUN_FAILED, pluginCommandActionLabel } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { dialogBodyAnchor } from "../../../components/_dialog-landing.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
@@ -36,11 +46,26 @@ host.ui.registerCommand({ name: "${DIALOG_COMMAND}", describe: "Open the ledger"
 host.ui.register({ id: "ledger_page", anchor: "page", title: "Ledger page", tier: "static", spec: { kind: "text", value: "The ledger page." } });
 host.ui.register({ id: "ledger_dialog", anchor: "dialog", title: "${DIALOG_TITLE}", tier: "static", spec: { kind: "text", value: "${DIALOG_TEXT}" } });`;
 
+interface RoomOpening {
+  readonly show: (chatId: ChatId) => Promise<unknown>;
+  /** Procedure routes served after the corpus ones, so a case can refuse one. */
+  readonly overrides: TrpcRoutes;
+}
+
 async function openRoomWithGuest(
   page: Page,
   root: Awaited<ReturnType<typeof createCorpusHarness>>,
   corpus: Parameters<typeof createShellAmbientReads>[0],
   show: (chatId: ChatId) => Promise<unknown>,
+): Promise<void> {
+  await openRoomWithRoutes(page, root, corpus, { show, overrides: {} });
+}
+
+async function openRoomWithRoutes(
+  page: Page,
+  root: Awaited<ReturnType<typeof createCorpusHarness>>,
+  corpus: Parameters<typeof createShellAmbientReads>[0],
+  { show, overrides }: RoomOpening,
 ): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.listChats({ limit: 1 })).items[0];
@@ -73,6 +98,7 @@ async function openRoomWithGuest(
       "rpg.getGame",
       "rpg.listTurnToolCalls",
     ]),
+    ...overrides,
   });
   await show(room.id);
   await expect.poll(() => rpc.count("plugin.listCommands")).toBeGreaterThan(0);
@@ -158,4 +184,24 @@ test("the Plugin pages rail button by keyboard lands focus on the page pane when
   await pressByKeyboard(page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.extensions, exact: true }));
 
   await expect(page.getByTestId(testId("extensionsContent"))).toBeFocused();
+});
+
+test("a refused command run keeps the typed argument in the open argument form", async ({ corpus, mount, page }) => {
+  const { command, field } = ARG_COMMANDS[1];
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await seedShellState(page, { activeSection: "chats" });
+  await openRoomWithRoutes(page, root, corpus, {
+    show: (chatId) => mount<typeof PluginRoomShellStory>(STORY, { chatId }),
+    overrides: serveCorpusProcedures(caller, ["plugin.invokeUiCommand"], () => trpcError()),
+  });
+  await pickFromPalette(page, command);
+  const dialog = page.getByRole("dialog", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true });
+  const input = dialog.getByRole("textbox", { name: humanizeId(field), exact: true });
+  await input.fill("Harbour");
+  await input.press("Enter");
+
+  await expect(dialog.getByRole("alert")).toHaveText(PLUGIN_COMMAND_RUN_FAILED);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  await expect(input).toHaveValue("Harbour");
 });

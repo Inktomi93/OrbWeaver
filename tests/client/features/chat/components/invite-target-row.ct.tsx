@@ -3,7 +3,15 @@
 // A handle nobody holds is refused inline, keyed on the refusal code the server sends.
 import type { ChatId } from "@orb/kit/ids";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import {
+  ALERTS_REGION_NAME,
+  ROOM_PROCEDURES,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  SHELL_MOUNT_PROCEDURES,
+  serveCorpusProcedures,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -29,6 +37,8 @@ const READS = [
   "rpg.listTurnToolCalls",
   "invites.listInvites",
 ] as const;
+
+const UNKNOWN_HANDLE = "nobody-holds-this-handle";
 
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -66,7 +76,7 @@ test("the outstanding invite for a person names their handle and its Revoke cont
   await expect(dialog.getByRole("button", { name: nameShape((kind) => inviteRevokeName(kind, "")) })).toHaveCount(2);
 });
 
-test("an invite to a handle nobody holds says so inline, from the server's own refusal code", async ({ mount, page }) => {
+test("an invite to a handle nobody holds says so inline, from the server's own refusal code, and keeps the typed handle", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const chatId = await hostedRoom(root);
   const host = await root.internalCallerFor(root.ownerId);
@@ -78,9 +88,12 @@ test("an invite to a handle nobody holds says so inline, from the server's own r
   await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: INVITE_BY_HANDLE_NAME, exact: true }).click();
-  await dialog.getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME }).fill("nobody-holds-this-handle");
+  const handle = dialog.getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME });
+  await handle.fill(UNKNOWN_HANDLE);
   await dialog.getByRole("button", { name: INVITE_SEND_NAME, exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText(INVITE_TARGET_UNKNOWN_TEXT);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  await expect(handle).toHaveValue(UNKNOWN_HANDLE);
 });
 
 test.describe("on a phone at the browser's enlarged text", () => {
