@@ -131,7 +131,7 @@ export interface SplicePlacement {
 /** The depth the splice places an injection at: its authored depth, floored for an assistant note at depth 0
  *  (a trailing assistant message is a response prefill) and clamped to the history length. The one home of the
  *  clamp, so the splice and the Author's Note seats cannot disagree. */
-export function effectiveSpliceDepth(inj: ChatInjection, placement: SplicePlacement): number {
+function effectiveSpliceDepth(inj: ChatInjection, placement: SplicePlacement): number {
   const floor = inj.role === "assistant" && !placement.allowAssistantPrefill ? 1 : 0;
   return Math.min(Math.max(inj.depth, floor), placement.historyLength);
 }
