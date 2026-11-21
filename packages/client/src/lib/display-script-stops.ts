@@ -6,11 +6,17 @@
 // updated in place as they accumulate (a preset of two hundred slow scripts must not stack two hundred toasts).
 // Only a browser stop keeps a script out of this browser's runs: a server pass is a different pass with its own
 // deadline.
+//
+// A STOP A ROW SHOWS RAISES NO NOTICE. A script whose row is in view (`showStopRow`) reads its stop inline, and a
+// toast beside it says the same thing twice. The notice's next step belongs to the room, which can name the reader's
+// control and open the script's row, so the room lends it through `bindStopNoticeDoor`; with no room bound the notice
+// states the stop alone.
 
 import type { RegexNotAppliedCause, RegexServerPass } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { DisplayStopReason } from "./display-pass-copy.ts";
 import { displayScriptsStoppedDescription, displayScriptsStoppedTitle } from "./display-pass-copy.ts";
+import type { NotifyAction } from "./notify.ts";
 import { notify } from "./notify.ts";
 
 const STOPPED_NOTICE_ID = "display-scripts-stopped";
@@ -30,6 +36,46 @@ export type StoppedDisplayScript = StopSubject &
     | { readonly side: "browser"; readonly reason: DisplayStopReason }
     | { readonly side: "server"; readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass }
   );
+
+/** What a room adds to a browser stop's notice for the script it names. */
+export interface StopNoticeDoor {
+  /** The reader's next step for this script, or `undefined` when the room cannot yet say whose control it is. */
+  readonly fix: (script: StopSubject) => string | undefined;
+  readonly action: (script: StopSubject) => NotifyAction | undefined;
+}
+
+let noticeDoor: StopNoticeDoor | null = null;
+
+/** Lend the mounted room's door to the browser stop notice; the returned function takes it back. */
+export function bindStopNoticeDoor(door: StopNoticeDoor): () => void {
+  noticeDoor = door;
+  return (): void => {
+    if (noticeDoor === door) {
+      noticeDoor = null;
+    }
+  };
+}
+
+const shownRows = new Map<string, number>();
+
+/** Record that a row for this script is in view, where a stop on it reads inline; the returned function removes it. */
+export function showStopRow(script: Pick<StopSubject, "id" | "findRegex">): () => void {
+  const key = displayScriptStopKey(script);
+  shownRows.set(key, (shownRows.get(key) ?? 0) + 1);
+  return (): void => {
+    const rest = (shownRows.get(key) ?? 1) - 1;
+    if (rest === 0) {
+      shownRows.delete(key);
+    } else {
+      shownRows.set(key, rest);
+    }
+  };
+}
+
+/** Whether a row for this script is in view. */
+export function isStopRowShown(script: Pick<StopSubject, "id" | "findRegex">): boolean {
+  return shownRows.has(displayScriptStopKey(script));
+}
 
 const stoppedKeys = new Set<string>();
 let stopped: readonly StoppedDisplayScript[] = [];
@@ -61,8 +107,7 @@ export function displayScriptStopKey(script: Pick<StopSubject, "id" | "findRegex
 /** Stop scripts for the session; a script already stopped stays as it was. */
 export function stopDisplayScripts(scripts: readonly StopSubject[], reason: DisplayStopReason, notice: boolean): void {
   const fresh = scripts.filter((script) => !stoppedKeys.has(displayScriptStopKey(script)));
-  const latest = fresh.at(-1);
-  if (latest === undefined) {
+  if (fresh.length === 0) {
     return;
   }
   for (const script of fresh) {
@@ -75,13 +120,17 @@ export function stopDisplayScripts(scripts: readonly StopSubject[], reason: Disp
   for (const listener of stoppedListeners) {
     listener();
   }
-  if (!notice) {
+  // The notice names the newest stop no row shows; when every row shows its own, the notice would only repeat them.
+  const named = fresh.findLast((script) => !isStopRowShown(script));
+  if (!notice || named === undefined) {
     return;
   }
+  const action = noticeDoor?.action(named);
   notify.warn({
     id: STOPPED_NOTICE_ID,
     title: displayScriptsStoppedTitle(stoppedKeys.size),
-    description: displayScriptsStoppedDescription(latest.name, reason, stoppedKeys.size),
+    description: displayScriptsStoppedDescription(named.name, reason, stoppedKeys.size, noticeDoor?.fix(named)),
+    ...(action === undefined ? {} : { action }),
   });
 }
 

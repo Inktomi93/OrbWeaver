@@ -156,7 +156,7 @@ export type { DialogSubmit } from "./dialog-submit.ts";
 export { DIALOG_PENDING_VERBS, DIALOG_VERBS } from "./dialog-verbs.ts";
 export type { RegexPreviewEntry, RegexPreviewOutcome, RegexPreviewRequest } from "./display-pass-protocol.ts";
 export type { StoppedDisplayScript } from "./display-script-stops.ts";
-export { noteServerStoppedScript } from "./display-script-stops.ts";
+export { bindStopNoticeDoor, isStopRowShown, noteServerStoppedScript, showStopRow } from "./display-script-stops.ts";
 export { displayHoldsStreamedMarkup } from "./display-styled.ts";
 export { downloadJson, downloadTextFile, downloadUrl } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";

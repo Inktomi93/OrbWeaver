@@ -5,7 +5,8 @@
 // before it speaks: the notice names it, and the stop store marks it on the room's roster by id and pattern. An id
 // the library no longer holds is named as such and marks nothing. A turn's scripts past the server's naming cap arrive
 // as one count with no id, so a later turn reports the same count again under a new seq: the notice shows the latest
-// turn's count, never a sum, and a count raises it again only when it is above the last one shown.
+// turn's count, never a sum, and a count raises it again only when it is above the last one shown. A script whose row is
+// on screen reads its stop inline, so its report raises no notice.
 //
 // A turn's drops are said once per PRESET AND CONNECTION PAIR (`turn-warning-cadence.ts`). The turn runs the host's
 // default preset, which only the host's client can read, so a member's pair carries no preset and a member's notice has
@@ -18,7 +19,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import type { ChatBusDeps } from "#data";
 import type { NotifyAction, NotifyNotice } from "#lib";
-import { noteServerStoppedScript } from "#lib";
+import { isStopRowShown, noteServerStoppedScript } from "#lib";
 import { createTurnWarningCadence } from "./turn-warning-cadence.ts";
 import { regexNotAppliedNotice, turnDropsNotice, warningNotice } from "./warning-notice.ts";
 
@@ -82,7 +83,10 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
       noteServerStoppedScript(script, warning.cause, warning.pass);
     }
     skipped.set(warning.scriptId, { name: script?.name ?? null, cause: warning.cause, pass: warning.pass });
-    raiseRegexNotice();
+    // A row on screen shows this stop inline, so a notice beside it would say it twice.
+    if (script === null || !isStopRowShown(script)) {
+      raiseRegexNotice();
+    }
   };
   return {
     onTurnStarted: (chatId, turn): void => cadence.turnStarted(chatId, [deps.presetOf(chatId) ?? "", turn.provider, turn.model].join(PAIR_SEPARATOR)),

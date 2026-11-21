@@ -1,6 +1,6 @@
 // A request to land on one regex script's row in the room's This chat tab, made from outside it (the stopped-script
-// notice). The roster owns its rows: the row that matches takes the request once, scrolls itself into view and takes
-// focus; a roster that holds no such row drops it, so a request never waits for a later mount.
+// notice). The Regex section owns its rows: the row that matches takes the request once, scrolls itself into view and takes
+// focus; a section that draws no such row drops it, so a request never waits for a later mount.
 
 import type { RegexScriptId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store.ts";

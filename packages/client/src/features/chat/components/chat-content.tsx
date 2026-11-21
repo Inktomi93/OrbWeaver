@@ -18,6 +18,7 @@ import { peekQueryData, roomRosterOptions, seedPresetId, useChatBusDeps, useTRPC
 import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, rethrowUnlessTrpcFailure, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
 import { isLanding, openConfigTo, openNewChatPicker, requestRegexRow, revealContextPanel, setChatContextSectionOpen, useActiveChatHandle } from "#state";
+import { useRegexStopNoticeDoor } from "../hooks/use-regex-stop-notice-door.ts";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 import { openPresetParams } from "../lib/open-params.ts";
@@ -137,6 +138,7 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
       scriptOf,
     }),
   );
+  useRegexStopNoticeDoor(isLanding(handle) ? null : handle.id, openScriptRow);
   // `leaveGoneRoom` is a no-op unless the deleted chat IS the active one, so wiring it here is the
   // whole transition: a host delete elsewhere, a husk reap, or the TTL sweep firing against this very tab all
   // land the reader on the landing surface instead of a room whose row is gone (R3 — the verifier's R1-3).

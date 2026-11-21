@@ -46,6 +46,7 @@ import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-
 import { useDisplayScriptStop } from "../hooks/use-display-text.ts";
 import { REGEX_OFF_MARK, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 import { regexStopControl } from "../lib/regex-stop-copy.ts";
+import { RegexRowAnchor } from "./regex-row-anchor.tsx";
 import { RegexStopReason } from "./regex-stop-mark.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
@@ -64,6 +65,8 @@ export interface RegexTierRowProps {
   readonly isHost: boolean;
   /** A chat-tier row the viewer's library does not hold. */
   readonly notYours: boolean;
+  /** Whether this row takes a request to land on its script: false where the On screen roster draws the script's row. */
+  readonly landsRequest: boolean;
   /** The disambiguator this row's action names carry when two rows share a name + stamp (`rowQualifiers`). */
   readonly qualifier: string | undefined;
   /** How many rows run in this room at all (`listEffectiveRegex`'s `effective.length`), the `m` of
@@ -72,7 +75,7 @@ export interface RegexTierRowProps {
   readonly effectiveCount: number | null;
 }
 
-export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
+export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYours, landsRequest, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
@@ -104,34 +107,36 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
 
   const menu = <RowActions chatId={chatId} detach={detach} name={subject} notYours={notYours} scope={scope} scriptId={script.id} />;
   return (
-    <ListRow
-      {...(isHost
-        ? {
-            // The controls are SIBLINGS of the row body (never nested inside it) — the ListRow contract. The
-            // body is not clickable: the row's door is the `⋯`, because "open the library" navigates away
-            // from the room and must be chosen, not stumbled into.
-            actions: (
-              <>
-                {notYours ? null : (
-                  <Switch aria-label={regexScriptEverywhereSwitchName(subject, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
-                )}
-                {menu}
-              </>
-            ),
-          }
-        : {})}
-      leading={
-        <Text as="span" numeric={true} voice="quiet">
-          {rankLabel(row.runsAt, isHost)}
-        </Text>
-      }
-      markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
-      {...(stop === undefined ? {} : { detail: <RegexStopReason control={regexStopControl(isHost, !notYours)} stop={stop} /> })}
-      subtitle={patternOf(script.findRegex)}
-      subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
-      subtitlePlacement="inline"
-      title={name}
-    />
+    <RegexRowAnchor lands={landsRequest} script={script}>
+      <ListRow
+        {...(isHost
+          ? {
+              // The controls are SIBLINGS of the row body (never nested inside it) — the ListRow contract. The
+              // body is not clickable: the row's door is the `⋯`, because "open the library" navigates away
+              // from the room and must be chosen, not stumbled into.
+              actions: (
+                <>
+                  {notYours ? null : (
+                    <Switch aria-label={regexScriptEverywhereSwitchName(subject, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
+                  )}
+                  {menu}
+                </>
+              ),
+            }
+          : {})}
+        leading={
+          <Text as="span" numeric={true} voice="quiet">
+            {rankLabel(row.runsAt, isHost)}
+          </Text>
+        }
+        markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
+        {...(stop === undefined ? {} : { detail: <RegexStopReason control={regexStopControl(isHost, !notYours)} stop={stop} /> })}
+        subtitle={patternOf(script.findRegex)}
+        subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
+        subtitlePlacement="inline"
+        title={name}
+      />
+    </RegexRowAnchor>
   );
 }
 
