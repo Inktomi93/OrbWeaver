@@ -137,7 +137,9 @@ test("two types that only pick one base's members are not two homes", { timeout:
   expect(scanned(root).unwired).toEqual(["restated ImageryRow~LedgerRow"]);
 });
 
-test("perVerb follows a verb's Params or Result name, and restated verb params are deliberate", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("perVerb follows a verb's Params or Result name in its Core-0 §4 home, and restated verb params are deliberate", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
   const root = await plantedTree({
     "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB }),
     "packages/server/src/domain/actor/contract/params.ts": [
@@ -149,13 +151,24 @@ test("perVerb follows a verb's Params or Result name, and restated verb params a
     "packages/server/src/domain/rule/contract/params.ts": "export interface ListRulesParams {\n  userId: string;\n  gameId: string;\n}",
     // The twin: a Params type restated by a context type is not a verb pair.
     "packages/server/src/domain/rule/contract/context.ts": "export interface HandlerContext {\n  userId: string;\n  gameId: string;\n}",
+    // Twins outside the homes Core-0 §4 names: a verb file's Params beside a contract one, and two client Results.
+    "packages/server/src/domain/rule/contract/results.ts": "export interface ExportRuleResult {\n  ruleId: string;\n  bytes: number;\n}",
+    "packages/server/src/domain/rule/verbs/export.ts": "export interface ExportRuleParams {\n  ruleId: string;\n  bytes: number;\n}",
+    "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB }),
+    "packages/client/src/features/search/search.ts": "export interface SearchResult {\n  id: string;\n  label: string;\n}",
+    "packages/client/src/features/list/list.ts": "export interface ListResult {\n  id: string;\n  label: string;\n}",
   });
-  const report = scanShapes({ root, worlds: ["packages/server/tsconfig.json"], testWorlds: [], deliberate: [], log: () => undefined }, []);
+  const report = scanShapes(
+    { root, worlds: ["packages/client/tsconfig.json", "packages/server/tsconfig.json"], testWorlds: [], deliberate: [], log: () => undefined },
+    [],
+  );
   const flags = [...report.unwired, ...report.deliberate].filter(({ kind }) => kind === "synonym").map(({ home, perVerb }) => `${home} ${String(perVerb)}`);
   expect(flags.toSorted()).toEqual(["ReadActorParams true", "StoredActor false"]);
   expect(report.deliberate.map(PAIR).toSorted()).toEqual(["restated ReadGameParams~ListRulesParams", "synonym ReadActorParams~ActorKey"]);
   expect(report.unwired.map(PAIR).toSorted()).toEqual([
+    "restated ExportRuleResult~ExportRuleParams",
     "restated HandlerContext~ListRulesParams",
+    "restated ListResult~SearchResult",
     "restated ReadGameParams~HandlerContext",
     "synonym StoredActor~ActorKey",
   ]);

@@ -41,7 +41,8 @@ interface UnwiredShape {
   readonly kind: ShapeKind;
   /** Where `member` lives (`file:line` for a type, the file of each hop for a chain); `external` outside the tree. */
   readonly at: readonly string[];
-  /** A verb's `…Params` or `…Result` name (both sides of a restated pair), the per-verb names Core-0 §4 keeps. */
+  /** A verb's `…Params` in a domain's `contract/params.ts` or `…Result` in its `contract/results.ts` (both sides of a
+   *  restated pair), the per-verb names Core-0 §4 keeps. */
   readonly perVerb: boolean;
 }
 
@@ -69,8 +70,13 @@ const SHAPE_LIMITS: readonly string[] = [
 // Below two members a matching shape is a coincidence, `{ id }` across a dozen verbs.
 const MIN_MEMBERS = 2;
 const MAX_HOPS = 16;
-// Core-0 §4 names the per-verb homes by their type names (`params.ts`: every verb's *Params); no checker fact marks a verb.
-const PER_VERB = /.(?:Params|Result)$/u;
+// Core-0 §4's per-verb homes: a domain contract's params.ts holds every verb's *Params and its results.ts every verb's
+// *Result. The law names them by file and type name; no checker fact marks a verb.
+const PER_VERB_HOMES = [
+  { name: /.Params$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/params\.ts$/u },
+  { name: /.Result$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/results\.ts$/u },
+] as const;
+const isPerVerb = (side: Declared): boolean => PER_VERB_HOMES.some((home) => home.name.test(nameOf(side.node)) && home.file.test(side.site.file));
 const PER_VERB_REASON = "docs/law/Core-0-Architecture-and-Structure.md §4: every verb keeps its own *Params and *Result";
 // Type operators whose result is computed from a schema or a value, so the type is the schema's own shape.
 const INFERRED = new Set(["z.infer", "z.input", "z.output", "ReturnType", "Awaited", "Parameters", "InferSelectModel", "InferInsertModel"]);
@@ -290,7 +296,7 @@ function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Loca
       member: target.name,
       kind: "synonym",
       at: [world.fileOf(handle) ?? "external"],
-      perVerb: PER_VERB.test(nameOf(node)),
+      perVerb: isPerVerb(alias),
     };
     return [{ finding, site }];
   });
@@ -407,7 +413,7 @@ const restatement = ({ key, first, second }: Pair): UnwiredShape => ({
   member: nameOf(second.node),
   kind: "restated",
   at: [`${second.site.file}:${second.line}`],
-  perVerb: PER_VERB.test(nameOf(first.node)) && PER_VERB.test(nameOf(second.node)),
+  perVerb: isPerVerb(first) && isPerVerb(second),
 });
 
 // The file and name of each side of a restated pair, so a deliberate entry or the distinct registry naming either
