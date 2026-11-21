@@ -4,7 +4,8 @@
 // @subject packages/client/src/features/chat/components/composer-reply-failure-line.tsx
 // @subject packages/client/src/features/chat/hooks/use-send-message.ts
 
-import { CONNECTION_FIXABLE_FAILURE_REASONS, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
+import type { EmptyGenerationCause } from "@orb/contracts/chat";
+import { CONNECTION_FIXABLE_FAILURE_REASONS, EMPTY_GENERATION_CAUSE, EMPTY_GENERATION_OP_CODE, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -29,9 +30,20 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { HOST_CONNECTION_FAILED_COPY, OPEN_CONNECTIONS_NAME, RETRY_REPLY_NAME, SEND_FAILED_TITLE } from "#client/features/chat/lib/send-failure-copy.ts";
+import { COMPOSER_GENERATE_REPLY_NAME, guidedControlName } from "#client/features/chat/lib/composer-menu-names.ts";
+import { VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import {
+  HOST_CONNECTION_FAILED_COPY,
+  OPEN_CONNECTIONS_NAME,
+  REPLY_NOT_WRITTEN_LEAD,
+  RETRY_REPLY_NAME,
+  SEND_FAILED_TITLE,
+  SWIPE_FAILED_LEAD,
+} from "#client/features/chat/lib/send-failure-copy.ts";
+import { OPEN_PARAMS_NAME } from "#client/features/chat/lib/warning-notice.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -63,8 +75,8 @@ interface FailingProvider {
   holdUntil: (open: Promise<void>) => void;
 }
 
-/** The provider edge: every chat completion is refused as `reason`; the room's recall still embeds. */
-function failingProvider(reason: FixableReason): FailingProvider {
+/** The provider edge: every chat completion is answered by `answer`; the room's recall still embeds. */
+function providerAnswering(answer: () => Response): FailingProvider {
   const embeddings = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -78,7 +90,7 @@ function failingProvider(reason: FixableReason): FailingProvider {
       const request = new Request(input, init);
       if (request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions")) {
         await gate;
-        return Response.json({ error: { message: "upstream refusal" } }, { status: refusalStatus(reason) });
+        return answer();
       }
       return await embeddings.execute(request);
     },
@@ -86,6 +98,22 @@ function failingProvider(reason: FixableReason): FailingProvider {
       gate = open;
     },
   };
+}
+
+/** Every chat completion is refused as `reason`. */
+function failingProvider(reason: FixableReason): FailingProvider {
+  return providerAnswering(() => Response.json({ error: { message: "upstream refusal" } }, { status: refusalStatus(reason) }));
+}
+
+/** Every chat completion ends with no prose and this finish reason: a model out of output limit, one that called tools only, or one that said nothing. */
+function emptyProvider(finishReason: "length" | "tool_calls" | "stop"): FailingProvider {
+  const frame = `data: ${JSON.stringify({ choices: [{ delta: { content: "" } }] })}`;
+  return providerAnswering(
+    () =>
+      new Response(`${frame}\n\n${terminalSseLine({ finishReason, usage: { promptTokens: 4, completionTokens: 3 } })}\n\ndata: [DONE]\n\n`, {
+        headers: { "content-type": "text/event-stream" },
+      }),
+  );
 }
 
 /** A room the owner hosts with a character reply, its chat turns bound to the scripted endpoint. */
@@ -143,6 +171,7 @@ async function openRoom(
       "rpg.listTurnToolCalls",
       "chat.send",
       "chat.generate",
+      "chat.swipe",
     ]),
     // The socket below serves this room alone.
     "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId !== chatId ? trpcError({ code: "NOT_FOUND" }) : null),
@@ -265,4 +294,129 @@ test("a member whose send the client never saw land reads the failed-send toast 
   await expect(noticeToast(page, { title: SEND_FAILED_TITLE, description: HOST_CONNECTION_FAILED_COPY })).toBeVisible();
   await expect(page.locator(TOAST)).not.toContainText(shared.hostReason);
   await expect(page.locator(LINE)).toHaveCount(0);
+});
+
+/** The server's own sentence for a failed generate, read by asking for the reply through the same root. */
+async function generateReason(caller: Caller, chatId: ChatId): Promise<string> {
+  const failed = await caller.chat.generate({ chatId, timeZone: UTC_TIME_ZONE }).then(
+    () => null,
+    (error: unknown) => (error instanceof Error ? error.message : null),
+  );
+  if (failed === null) {
+    throw new Error("The scripted provider answer did not fail the generate");
+  }
+  return failed;
+}
+
+/** Press the composer's Generate reply, the control a guided response is also fired from. */
+async function generateReply(page: Page): Promise<void> {
+  // The room's tail line offers an action of the same name for an unanswered message, so the guided cluster is named.
+  await page
+    .locator('[data-slot="composer-guided-cluster"]')
+    .getByRole("button", { name: guidedControlName(COMPOSER_GENERATE_REPLY_NAME, false), exact: true })
+    .click();
+}
+
+// One row per cause the server states for a generation that ended with no prose; a cause added to the contract fails tsc here.
+const EMPTY_KINDS: Record<EmptyGenerationCause, { readonly finishReason: "length" | "tool_calls" | "stop"; readonly paramsDoor: boolean }> = {
+  [EMPTY_GENERATION_CAUSE.outputLimit]: { finishReason: "length", paramsDoor: true },
+  [EMPTY_GENERATION_CAUSE.toolCalls]: { finishReason: "tool_calls", paramsDoor: false },
+  [EMPTY_GENERATION_CAUSE.noText]: { finishReason: "stop", paramsDoor: false },
+};
+
+for (const [cause, kind] of Object.entries(EMPTY_KINDS)) {
+  test(`a Generate reply that ends with ${cause} names the failed action and the server's cause on the composer line, with a toast-free room`, async ({
+    mount,
+    page,
+  }) => {
+    const provider = emptyProvider(kind.finishReason);
+    await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+    const { host, chatId } = await failingRoom(root);
+    const reason = await generateReason(host, chatId);
+    await openRoom(page, root, { viewer: host, chatId, provider, bus: false });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    await generateReply(page);
+
+    const line = page.locator(LINE);
+    await expect(line).toBeVisible();
+    await expect(line).toHaveAttribute("data-reason", EMPTY_GENERATION_OP_CODE);
+    await expect(line).toHaveAttribute("data-cause", cause);
+    await expect(line).toContainText(`${REPLY_NOT_WRITTEN_LEAD} ${reason}`);
+    // Only the output limit is a setting the host changes: the preset's Params. Another reply asks for the same call by its own control.
+    await expect(line.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true })).toHaveCount(kind.paramsDoor ? 1 : 0);
+    await expect(line.getByRole("button", { name: RETRY_REPLY_NAME, exact: true })).toHaveCount(0);
+    await expect(page.locator(TOAST)).toHaveCount(0);
+  });
+}
+
+test("a Generate reply refused by the provider names the action, the provider's reason and the Connections door, and raises no toast", async ({
+  mount,
+  page,
+}) => {
+  const provider = failingProvider(REJECTED_KEY);
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  const { host, chatId } = await failingRoom(root);
+  const reason = await generateReason(host, chatId);
+  await openRoom(page, root, { viewer: host, chatId, provider, bus: false });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await generateReply(page);
+
+  const line = page.locator(LINE);
+  await expect(line).toBeVisible();
+  await expect(line).toHaveAttribute("data-reason", REJECTED_KEY);
+  await expect(line).toContainText(`${REPLY_NOT_WRITTEN_LEAD} ${reason}`);
+  await expect(line.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toBeVisible();
+  await expect(page.locator(TOAST)).toHaveCount(0);
+});
+
+test("a Generate reply the provider rejects as a bad request says why and offers no settings door, because no setting fixes it", async ({ mount, page }) => {
+  const provider = providerAnswering(() => Response.json({ error: { message: "malformed request" } }, { status: 400 }));
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  const { host, chatId } = await failingRoom(root);
+  const reason = await generateReason(host, chatId);
+  await openRoom(page, root, { viewer: host, chatId, provider, bus: false });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await generateReply(page);
+
+  const line = page.locator(LINE);
+  await expect(line).toHaveAttribute("data-reason", new RegExp(`^${PROVIDER_FAILURE_REASON_PREFIX}`, "u"));
+  await expect(line).toContainText(`${REPLY_NOT_WRITTEN_LEAD} ${reason}`);
+  await expect(line.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toHaveCount(0);
+  await expect(line.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true })).toHaveCount(0);
+  await expect(page.locator(TOAST)).toHaveCount(0);
+});
+
+test("a member whose Generate reply ends on the host's output limit reads the cause and is not sent to the host's Params", async ({ corpus, mount, page }) => {
+  const provider = emptyProvider("length");
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  using shared = await memberRoom(root, corpus.memberIdentities?.sharedMember.viewer.userId);
+  const chatId = shared.chatId;
+  await openRoom(page, root, { viewer: shared.member, chatId, provider, bus: false });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await generateReply(page);
+
+  const line = page.locator(LINE);
+  await expect(line).toHaveAttribute("data-cause", EMPTY_GENERATION_CAUSE.outputLimit);
+  await expect(line).toContainText(REPLY_NOT_WRITTEN_LEAD);
+  await expect(line.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true })).toHaveCount(0);
+});
+
+test("a swipe that ends on the output limit says so on the composer line, where the room's other turn failures say theirs, with the Params door", async ({
+  mount,
+  page,
+}) => {
+  const provider = emptyProvider("length");
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  const { host, chatId } = await failingRoom(root);
+  const reason = await generateReason(host, chatId);
+  await openRoom(page, root, { viewer: host, chatId, provider, bus: false });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: VARIANT_GENERATE_NAME, exact: true }).click();
+
+  const line = page.locator(LINE);
+  await expect(line).toBeVisible();
+  await expect(line).toHaveAttribute("data-cause", EMPTY_GENERATION_CAUSE.outputLimit);
+  await expect(line).toContainText(`${SWIPE_FAILED_LEAD} ${reason}`);
+  await expect(line.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true })).toBeVisible();
+  await expect(page.locator(TOAST)).toHaveCount(0);
 });

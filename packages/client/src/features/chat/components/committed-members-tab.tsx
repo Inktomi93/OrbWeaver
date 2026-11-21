@@ -17,7 +17,9 @@ import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } fr
 import { useRosterPresence } from "../hooks/use-roster-presence.ts";
 import type { MemberRowActions } from "../lib/member-rows.ts";
 import { toCharacterRows, toPersonRows } from "../lib/member-rows.ts";
+import { REPLY_FAILURE_LINE, recordTurnFailure } from "../lib/reply-failure.ts";
 import { filterCharacters, resolveIsGroupChat } from "../lib/roster.ts";
+import { SUMMON_FAILED_LEAD } from "../lib/send-failure-copy.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 import { InviteDialog } from "./invite-dialog.tsx";
 import { MemberCardViewer } from "./member-card-viewer.tsx";
@@ -56,7 +58,8 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setSeatKnobs = useSetSeatKnobs({ trpc, invalidation });
-  const forceTurn = useForceCharacterTurn({ trpc, invalidation });
+  // The composer's reply-failure line states a summon that failed, so no toast repeats it.
+  const forceTurn = useForceCharacterTurn({ trpc, invalidation, failureShownInline: REPLY_FAILURE_LINE });
   const removeCharacter = useRemoveCharacterFromChat({ trpc, invalidation });
   const kick = useKickMember({ trpc, invalidation });
   const selfLeave = useSelfLeave({ trpc, invalidation });
@@ -194,7 +197,11 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
               setSeatKnobs.mutate({ chatId, participantId, patch });
             }
           },
-          forceTurn: (characterId): void => forceTurn.mutate({ chatId, characterId, timeZone: viewerTimeZone() }),
+          forceTurn: (characterId): void =>
+            forceTurn.mutate(
+              { chatId, characterId, timeZone: viewerTimeZone() },
+              { onError: (error): void => recordTurnFailure(chatId, error, SUMMON_FAILED_LEAD) },
+            ),
         })}
         onRemoveCharacter={isHost ? (characterId): void => removeCharacter.mutate({ chatId, characterId }) : undefined}
         onViewCharacter={(characterId): void => setViewCardCharacterId(characterId)}

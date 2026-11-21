@@ -7,11 +7,14 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
+import { REPLY_FAILURE_LINE, recordTurnFailure } from "../lib/reply-failure.ts";
+
+const START_FAILED_LEAD = "Couldn't start the reply.";
 
 const useReplyToTailMutation = createEntityMutation<inferInput<Trpc["chat"]["replyToTail"]>, unknown>({
   options: (trpc) => trpc.chat.replyToTail.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't start the reply."),
+  errorToast: (error) => turnMutationToast(error, START_FAILED_LEAD),
 });
 
 export interface ReplyToTail {
@@ -22,6 +25,10 @@ export interface ReplyToTail {
 export function useReplyToTail(chatId: ChatId): ReplyToTail {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const mutation = useReplyToTailMutation({ trpc, invalidation });
-  return { reply: (): void => mutation.mutate({ chatId, timeZone: viewerTimeZone() }), isPending: mutation.isPending };
+  const mutation = useReplyToTailMutation({ trpc, invalidation, failureShownInline: REPLY_FAILURE_LINE });
+  return {
+    reply: (): void =>
+      mutation.mutate({ chatId, timeZone: viewerTimeZone() }, { onError: (error): void => recordTurnFailure(chatId, error, START_FAILED_LEAD) }),
+    isPending: mutation.isPending,
+  };
 }

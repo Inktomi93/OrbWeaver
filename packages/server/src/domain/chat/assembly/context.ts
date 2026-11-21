@@ -279,6 +279,11 @@ function assertNeverAttachment(entry: never): never {
 /** Classifies one enabled WI entry into a budget candidate (null if a keyword entry didn't fire); renders
  *  once via macro → regex(WORLD_INFO) → wiFormat-wrap. */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
+  // An entry the user has not written text for is never sent, whatever its keys or scope: a regex script or a macro
+  // could otherwise turn an empty body into prompt text.
+  if (entry.content.trim().length === 0) {
+    return null;
+  }
   if (entry.scope === "keyword") {
     const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry, env.args.testRegexKey, env.args.logger));
     if (hits.length === 0) {

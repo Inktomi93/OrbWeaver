@@ -394,7 +394,7 @@ const COMPACTION_VERBATIM_TAIL_MAX = 100;
 // response-length knob there, it is the whole output budget. At a small value with a non-`none` effort the
 // model can spend the entire allowance deliberating and emit zero prose, which surfaces as VER-1b's
 // empty-generation refusal rather than as a truncation. The engine now NAMES that case in the error it throws
-// (`emptyGenerationMessage`, `domain/chat/engine/engine.ts`) instead of reporting the generic "no text", so a
+// (`emptyGenerationFailure`, `domain/chat/engine/engine.ts`) instead of reporting the generic "no text", so a
 // host meets the lever rather than a mystery.
 //
 // A reasoning-aware DERIVED reserve (a floor scaled by effort) is the standing candidate fix and is

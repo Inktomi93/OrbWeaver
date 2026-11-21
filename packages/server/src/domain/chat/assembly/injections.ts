@@ -177,6 +177,7 @@ export function seatAuthorsNoteLore(injections: readonly ChatInjection[], placem
           .filter((inj) => inj.noteEdge === edge)
           .map((lore) => ({
             ...unstamped(lore),
+            seatedAt: edge,
             position: note.position,
             depth: note.depth,
             role: note.role,
@@ -189,6 +190,23 @@ export function seatAuthorsNoteLore(injections: readonly ChatInjection[], placem
     }
     return [...(inj === first ? seated("top", inj) : []), inj, ...(inj === last ? seated("bottom", inj) : [])];
   });
+}
+
+/** The `in_chat` injections a splice places, each with its effective depth: the Author's Note lore seated, the depths
+ *  clamped to the history length, and the rows in the order the prompt places them (deepest first). The clamp runs
+ *  before the sort, not per splice: two over-deep injections then behave exactly like two equal-depth in-range ones
+ *  (array order = output order), where a per-splice clamp against the growing result would reverse them. */
+function placedInChatInjections(injections: readonly ChatInjection[], placement: SplicePlacement): { readonly inj: ChatInjection; readonly depth: number }[] {
+  return seatAuthorsNoteLore(injections, placement)
+    .filter((i) => i.position === "in_chat")
+    .map((inj) => ({ inj, depth: effectiveSpliceDepth(inj, placement) }))
+    .sort(spliceOrder);
+}
+
+/** The injections a splice into `placement` places, in the order the prompt places them. This is what a turn records
+ *  as sent: the same function the splice runs, so the record cannot drift from the prompt. */
+export function sentInChatInjections(injections: readonly ChatInjection[], placement: SplicePlacement): ChatInjection[] {
+  return placedInChatInjections(injections, placement).map(({ inj }) => inj);
 }
 
 /**
@@ -241,16 +259,10 @@ export function spliceInChatInjections<T extends { role: MessageRole; content: s
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
-  const placement: SplicePlacement = { historyLength: history.length, allowAssistantPrefill: opts.allowAssistantPrefill === true };
-  const inChat = seatAuthorsNoteLore(injections, placement).filter((i) => i.position === "in_chat");
-  if (inChat.length === 0) {
+  const sorted = placedInChatInjections(injections, { historyLength: history.length, allowAssistantPrefill: opts.allowAssistantPrefill === true });
+  if (sorted.length === 0) {
     return [...history];
   }
-  // Clamp depths to the original history length before the sort+splice walk (not per-splice): two
-  // over-deep injections then behave exactly like two equal-depth in-range ones (array order = output
-  // order). A per-splice clamp against the growing result would reverse their relative order.
-  const clamped = inChat.map((inj) => ({ inj, depth: effectiveSpliceDepth(inj, placement) }));
-  const sorted = clamped.sort(spliceOrder);
   // squashSystemMessages: collapse consecutive same-depth system runs before the frame loop, so each run
   // delivers ONE note row (merge-before-convert) rather than several. Off ⇒ untouched.
   const spliceList = opts.squashSystemMessages === true ? squashSystemNotes(sorted) : sorted;

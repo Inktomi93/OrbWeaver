@@ -36,6 +36,13 @@ import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewe
 import type { ComposerDraftWrite } from "#state";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
+import { REPLY_FAILURE_LINE, recordTurnFailure } from "../lib/reply-failure.ts";
+import { REPLY_NOT_WRITTEN_LEAD } from "../lib/send-failure-copy.ts";
+
+// What each guided action names when it fails, said on the composer line and, if that line is gone, in the toast.
+const GUIDED_SWIPE_FAILED_LEAD = "Couldn't generate that guided swipe.";
+const GUIDED_CONTINUE_FAILED_LEAD = "Couldn't continue with that guidance.";
+const REWRITE_FAILED_LEAD = "Couldn't rewrite that reply.";
 
 type GuidedTurnVars = inferInput<Trpc["chat"]["generate"]>;
 type GuidedSteerInput = NonNullable<GuidedTurnVars["guided"]>;
@@ -49,19 +56,19 @@ interface ActiveImpersonation {
 const useGuidedGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["generate"]>, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't generate a guided response."),
+  errorToast: (error) => turnMutationToast(error, REPLY_NOT_WRITTEN_LEAD),
 });
 
 const useGuidedSwipeMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't generate that guided swipe."),
+  errorToast: (error) => turnMutationToast(error, GUIDED_SWIPE_FAILED_LEAD),
 });
 
 const useGuidedContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["continueTurn"]>, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't continue with that guidance."),
+  errorToast: (error) => turnMutationToast(error, GUIDED_CONTINUE_FAILED_LEAD),
 });
 
 // F1 — Rewrite/Corrections: "fix the last reply per my instruction" lands as a NEW VARIANT of the tail
@@ -72,7 +79,7 @@ const useGuidedContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["
 const useGuidedRewriteMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't rewrite that reply."),
+  errorToast: (error) => turnMutationToast(error, REWRITE_FAILED_LEAD),
 });
 
 // Guided impersonate is NON-PERSISTING + STREAMING (owner ruling): it rides the `chat.impersonateStream`
@@ -131,10 +138,12 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const invalidation = useInvalidation();
   const chatId = opts.chatId;
 
-  const generate = useGuidedGenerateMutation({ trpc, invalidation });
-  const swipe = useGuidedSwipeMutation({ trpc, invalidation });
-  const continueTurn = useGuidedContinueMutation({ trpc, invalidation });
-  const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
+  // The composer's reply-failure line states a failure of any of these, so no toast repeats it.
+  const failureShownInline = REPLY_FAILURE_LINE;
+  const generate = useGuidedGenerateMutation({ trpc, invalidation, failureShownInline });
+  const swipe = useGuidedSwipeMutation({ trpc, invalidation, failureShownInline });
+  const continueTurn = useGuidedContinueMutation({ trpc, invalidation, failureShownInline });
+  const rewrite = useGuidedRewriteMutation({ trpc, invalidation, failureShownInline });
   // The impersonation stream is in flight — idles the cluster (one action at a time) exactly like a pending
   // mutation. Set when the subscription starts, cleared on complete/error.
   // IMP-2 — the live stream's cancel lever: the subscription's own unsubscribe, wrapped so it SETTLES the
@@ -160,14 +169,23 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // it does run). The user-visible toast rides the mutation's own `errorToast` meta, or — for the
   // subscription-driven impersonate, which has no meta seam — `notifyImpersonateFailure`.
   const onFireError = opts.onFireError;
-  const perFire = (firedText: string): { onError: (error: unknown) => void } | undefined => {
-    if (firedText.trim().length === 0) {
+  //
+  // `lead` names the action that failed: given, the failure is also said on the composer's line, steer or no steer.
+  // The impersonate stream passes none, as it states its own failure.
+  const perFire = (firedText: string, lead?: string): { onError: (error: unknown) => void } | undefined => {
+    const steered = firedText.trim().length > 0;
+    if (!steered && lead === undefined) {
       return;
     }
-    pushFiredSteer(firedText);
+    if (steered) {
+      pushFiredSteer(firedText);
+    }
     return {
       onError: (error: unknown): void => {
-        if (!isSilencedTurnAbort(error)) {
+        if (lead !== undefined) {
+          recordTurnFailure(chatId, error, lead);
+        }
+        if (steered && !isSilencedTurnAbort(error)) {
           onFireError?.(firedText);
         }
       },
@@ -279,18 +297,21 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       if (nudgeAfterAssistant) {
         vars = { ...vars, afterAssistant: true };
       }
-      generate.mutate(vars, perFire(input));
+      generate.mutate(vars, perFire(input, REPLY_NOT_WRITTEN_LEAD));
     },
     fireGameSteer: (kind): void => {
-      // No perFire: the steer is a picked KIND, not recoverable composer text — nothing to restore/recall.
-      generate.mutate({ chatId, timeZone: viewerTimeZone(), guided: { action: "response", gameSteer: kind } });
+      // The steer is a picked KIND, not recoverable composer text — nothing to restore/recall, only the failure to state.
+      generate.mutate({ chatId, timeZone: viewerTimeZone(), guided: { action: "response", gameSteer: kind } }, perFire("", REPLY_NOT_WRITTEN_LEAD));
     },
     fireSwipe: (input): void => {
       if (tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("swipe", input);
-      swipe.mutate({ chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) }, perFire(input));
+      swipe.mutate(
+        { chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) },
+        perFire(input, GUIDED_SWIPE_FAILED_LEAD),
+      );
     },
     fireContinue: (input): void => {
       if (tailAssistantMessageId === null) {
@@ -299,7 +320,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       const guided = steerFor("continue", input);
       continueTurn.mutate(
         { chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) },
-        perFire(input),
+        perFire(input, GUIDED_CONTINUE_FAILED_LEAD),
       );
     },
     fireRewrite: (input, toggles = []): void => {
@@ -321,7 +342,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       };
       // `perFire` records the TYPED text into the recovery ring — the picked kinds are chips the modal keeps
       // (D57 state ownership), so there is nothing of them to lose or restore.
-      rewrite.mutate({ chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), guided }, perFire(input));
+      rewrite.mutate({ chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), guided }, perFire(input, REWRITE_FAILED_LEAD));
     },
     fireImpersonate: (input, person, onDrafted): void => {
       const guided = steerFor("impersonate", input, person);

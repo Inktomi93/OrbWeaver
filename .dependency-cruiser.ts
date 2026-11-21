@@ -555,6 +555,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/composer-tail-copy.ts": "waitingForLabel and REPLY_NOW_NAME: the words of the line under the composer",
   "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
+  "packages/client/src/lib/injections-label.ts":
+    "sentInjectionLabel: the name the prompt view gives each injection a turn sent, which its component test reads the lines by",
   "packages/client/src/lib/context-pane-names.ts":
     "the side panes' names, edge controls and exits the shell prints, which the walk opens and dismisses a pane by",
   "packages/client/src/lib/rail-names.ts": "PRIMARY_NAV_NAME and YOU_TAB_LABEL: the rail navigation's name and its You tab",

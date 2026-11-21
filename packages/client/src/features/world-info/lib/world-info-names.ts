@@ -1,7 +1,7 @@
 // The accessible names the World Info collection and entry editor print. A spec's node side reads them through the client's `lib` front door.
 
 import type { EntryPosition } from "@orb/kit/world-info";
-import { INJECTIONS_LABEL } from "#lib";
+import { AUTHORS_NOTE_EDGE_LABELS, INJECTIONS_LABEL } from "#lib";
 
 /** The books library's create action. */
 export const WORLD_INFO_NEW_BOOK_NAME = "New book";
@@ -43,8 +43,8 @@ export const WORLD_INFO_ENTRY_PLACEMENT_NAME = "Placement";
 export const WORLD_INFO_POSITION_LABELS: Record<EntryPosition, string> = {
   before: "Before the character definitions",
   after: "After the character definitions",
-  ["authors_note_top"]: `Top of the ${INJECTIONS_LABEL}`,
-  ["authors_note_bottom"]: `Bottom of the ${INJECTIONS_LABEL}`,
+  ["authors_note_top"]: AUTHORS_NOTE_EDGE_LABELS.top,
+  ["authors_note_bottom"]: AUTHORS_NOTE_EDGE_LABELS.bottom,
   ["example_messages_top"]: "Top of the example messages",
   ["example_messages_bottom"]: "Bottom of the example messages",
 };

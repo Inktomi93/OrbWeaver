@@ -977,7 +977,9 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     attachmentQuality: args.attachmentQuality,
     connection: args.connection,
     chatId: args.chatId,
-    prompt: assembled,
+    // What the turn records as sent: the splice's own placed injections, which carry the chat's injections and the
+    // world info seated beside them, where `assembled.afterHistory` holds only the preset's sections.
+    prompt: { ...assembled, afterHistory: shaped.sentInjections },
     history,
     intent: effectiveIntent,
     kind: args.kind,

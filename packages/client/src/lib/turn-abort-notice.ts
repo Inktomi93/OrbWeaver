@@ -68,9 +68,13 @@ export function isSilencedTurnAbort(error: unknown): boolean {
  *   • anything else → the caller's own verb-specific fallback (a real fault still toasts, unchanged).
  */
 export function turnMutationToast(error: unknown, fallback: string): string | null {
+  return isSilencedTurnAbort(error) ? null : (turnRoomStateCopy(error) ?? fallback);
+}
+
+/** The copy for a turn refused because of the room's state (`locked`, `room_closing`, `host_unavailable`), else `null`.
+ *  The one home of that mapping: the toast and the composer's failure line both read it. */
+export function turnRoomStateCopy(error: unknown): string | null {
   switch (trpcErrorReason(error)) {
-    case TURN_ABORTED_OP_CODE:
-      return null;
     case TURN_LOCKED_OP_CODE:
       return TURN_LOCKED_COPY;
     case TURN_ROOM_CLOSING_OP_CODE:
@@ -78,6 +82,6 @@ export function turnMutationToast(error: unknown, fallback: string): string | nu
     case TURN_HOST_UNAVAILABLE_OP_CODE:
       return TURN_HOST_UNAVAILABLE_COPY;
     default:
-      return fallback;
+      return null;
   }
 }
