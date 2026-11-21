@@ -64,9 +64,11 @@ Engine one links a hand-off through a generic constraint, a spread into a typed 
 - A read inside a string, such as a JSON scenario file.
 - A schema whose parsed value production types by another declaration through a parse return type or a refine predicate, with no `satisfies z.ZodType<T>` link. The reads land on the other declaration, so the schema keys report unreferenced.
 - A `Registry[K]` type map keyed by a union, such as an id type per kind. The scan reads no member through the map.
+- A schema that only validates a value production reads through another type, such as a dependency's message type or a payload handed on whole to a provider. Its keys report unreferenced.
+- A local type for a value a library or the platform reads, such as a syntax-tree node or a canvas. Its members report never-read or unreferenced.
 - A key written through a computed name, such as `[key]: value`, or a `z.literal` input key the parse checks and production never reads.
 
-A key an `.extend({ key })` call re-declares is the base schema's key, so its reads and writes count for the base.
+A key an `.extend({ key })` call re-declares is the base schema's key, so its reads and writes count for the base. A schema checked against a mapped re-keying, `{ [K in keyof T]?: T[K] }`, mirrors `T`.
 
 ## Limits of the unions scan
 

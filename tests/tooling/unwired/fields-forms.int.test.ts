@@ -2,7 +2,7 @@
 // stays reported.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { LIB, WORLD, ZOD_STUB } from "./_planted.ts";
 
 const scan = (root: string): ReturnType<typeof scanFields> => scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
 const fieldsOf = (report: ReturnType<typeof scanFields>, file: string): string[] =>
@@ -126,4 +126,24 @@ const EXTENDED = {
 test("a key an extend call re-declares reads and writes as the base schema's key", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = scan(await plantedTree(EXTENDED));
   expect(fieldsOf(report, "wire.ts")).toEqual(["viewSchema.dropped never-read"]);
+});
+
+// A schema checked against a mapped re-keying of a type, `{ [K in keyof T]?: T[K] }`, mirrors `T`: its keys are `T`'s
+// members. `spare`, which production writes and never reads, stays reported.
+const REKEYED = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": ZOD_STUB,
+  "packages/a/src/meta.ts": [
+    'import type { Checked } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export interface Meta { readonly title: string; readonly spare: string }",
+    "export const metaSchema = z.object({ title: z.string(), spare: z.string() }) satisfies Checked<{ [K in keyof Meta]?: Meta[K] }>;",
+    'export const made: Meta = { title: "t", spare: "s" };',
+    "export const shown = (meta: Meta): string => meta.title;",
+  ].join("\n"),
+};
+
+test("a schema checked against a mapped re-keying of a type mirrors that type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(REKEYED));
+  expect(fieldsOf(report, "meta.ts")).toEqual(["Meta.spare never-read"]);
 });

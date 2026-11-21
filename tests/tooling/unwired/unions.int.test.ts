@@ -321,7 +321,9 @@ test("the unions scan reads a schema-inferred slot and a generic generated table
 const LINKED_TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/events.ts": [
-    'type Made = { readonly type: "made"; readonly id: number };',
+    // A generic member type beside the discriminant: the link reads past its type parameter.
+    "type Brand<T, B extends string> = T & { readonly brand: B };",
+    'interface Made { readonly type: "made"; readonly id: Brand<number, "made-id"> }',
     'type Gone = { readonly type: "gone"; readonly id: number };',
     "type Ev = Made | Gone;",
     'export const EVENT_TYPES = ["made", "gone"] as const satisfies readonly Ev["type"][];',
@@ -395,7 +397,7 @@ const UNSPELLED_TREE = {
     'export const EXPECT: readonly Expect[] = [{ sources: THEMED }, { sources: ["global"] }];',
   ].join("\n"),
   "packages/a/src/carriers.ts": [
-    'const PLANES = ["root", "grid", "unused_plane"] as const;',
+    'const PLANES = ["root", "grid", "shell", "scope", "unused_plane"] as const;',
     "type Plane = (typeof PLANES)[number];",
     "interface Carrier { readonly carriers: readonly Plane[]; readonly owner: string }",
     'const ROOT = { carriers: ["root"] } as const;',
@@ -403,6 +405,13 @@ const UNSPELLED_TREE = {
     'const GRID = { carriers: ["grid"] } as const;',
     "export const gridPlanes: readonly Plane[] = GRID.carriers;",
     'export const LOOSE = { carriers: ["unused_plane"] } as const;',
+    // A mapped type's key types the slot: it ranges over the tuple and no caller instantiates it.
+    "type Pairing = { readonly [P in Plane]: { readonly carriers: readonly [P, ...Plane[]] } }[Plane];",
+    'type Manifest = { readonly [K in "a" | "b" | "c"]: Pairing & { readonly owner: string } };',
+    'const SHELL = { carriers: ["shell"] } as const;',
+    "const SHELL_OWNED = { ...SHELL, x: 1 } as const;",
+    'const SCOPE = { carriers: ["scope"] } as const;',
+    'export const MANIFEST = { a: { owner: "o", ...SHELL_OWNED }, b: { owner: "o", ...SCOPE }, c: { owner: "o", carriers: ["root"] } } as const satisfies Manifest;',
   ].join("\n"),
 };
 

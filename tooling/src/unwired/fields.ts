@@ -7,6 +7,7 @@ import {
   isArrowFunction,
   isCallExpression,
   isIdentifier,
+  isMappedTypeNode,
   isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
@@ -15,6 +16,7 @@ import {
   isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isStringLiteral,
+  isTypeOperatorNode,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
@@ -121,6 +123,8 @@ const FIELD_LIMITS: readonly string[] = [
   "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
   "A key of a `base.extend({ key })` literal that the base schema's shape also holds is the base key: its reads and writes count for the base. A key only the extend adds is no field of its own.",
   "A schema whose parsed value production types by another declaration, through a parse function's return type or a refine predicate and with no `satisfies z.ZodType<T>` link, keeps its own keys: the reads land on the other declaration's members, so the keys report unreferenced.",
+  "A schema that only validates a value production reads through another type, such as a dependency's message type or a payload handed on whole to a provider, keeps keys no production code names: they report unreferenced.",
+  "A local type for a value a library or the platform reads (a syntax-tree node, a canvas, a module augmentation) reports the members only the library reads.",
   "A twin interface restated beside its home (a module-local copy with the home's name and members) splits reads from writes: the home reports what only the twin reads.",
   "A value a library hands back to the tree, such as a persisted store's state read through an untyped merge, is not followed: its members report never-read.",
   "The literal stage matches a dead row's member name as a whole word in every tracked file and cannot tell two fields of one name apart: any code, string, data-key, other-file or test type hit outside the row's own known sites (its declarations and every production site the scan recorded, by exact offset) moves the row to ask. Comment, TSDoc, doc and data-value hits are stale mentions and keep it dead. A never-written row lists its write-position hits as candidate writers. Gitignored and generated-but-untracked files are not searched.",
@@ -235,7 +239,14 @@ function checkedType(call: Node): Node | null {
     checked = parent.type;
   }
   const [subject] = checked !== undefined && isTypeReferenceNode(checked) ? (checked.typeArguments ?? []) : [];
-  return subject !== undefined && isTypeReferenceNode(subject) ? subject.typeName : null;
+  const mirror = subject === undefined ? undefined : (keyedOver(subject) ?? subject);
+  return mirror !== undefined && isTypeReferenceNode(mirror) ? mirror.typeName : null;
+}
+
+// The type a mapped type re-keys, `{ [K in keyof T]?: T[K] }`: a schema checked against it mirrors `T`'s members.
+function keyedOver(node: Node): Node | undefined {
+  const constraint = isMappedTypeNode(node) ? node.typeParameter.constraint : undefined;
+  return constraint !== undefined && isTypeOperatorNode(constraint) && constraint.operator === SyntaxKind.KeyOfKeyword ? constraint.type : undefined;
 }
 
 // The checked type of a schema, or of the `z.union([...])` or `z.discriminatedUnion(key, [...])` it is an option of.

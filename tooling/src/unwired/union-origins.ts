@@ -380,7 +380,8 @@ function expansion(site: Site, declaration: ts.Node | null): Expansion {
     return { tuple: null, into: [declaration.type], opaque: false };
   }
   if (ts.isTypeParameterDeclaration(declaration)) {
-    return { tuple: null, into: [declaration.constraint], opaque: true };
+    // A mapped type's key ranges over its constraint and no caller instantiates it, so the constraint is the vocabulary.
+    return { tuple: null, into: [declaration.constraint], opaque: !ts.isMappedTypeNode(declaration.parent) };
   }
   if (ts.isFunctionDeclaration(declaration) || ts.isMethodDeclaration(declaration)) {
     return { tuple: null, into: [declaration], opaque: false };
@@ -407,16 +408,20 @@ interface Read {
   readonly next: readonly ts.Node[];
 }
 
+// How a reading treats a name it cannot settle: `slot` gives up, since the slot may then be any tuple's; `links` reads
+// on past it, since a reading that only adds links to a tuple is sound with any part of them.
+type Reading = "slot" | "links";
+
 // The tuples one spelling names and the further spellings it leads to; null when it cannot be read to the end.
-function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node): APIRequestGenerator<Read | null> {
+function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node, reading: Reading): APIRequestGenerator<Read | null> {
   const tuples: string[] = [];
   const next: ts.Node[] = [];
   for (const name of referencedNames(root)) {
     const reached = yield* expansionsOf(oracle, sources, name);
-    if (reached === null || reached.some(({ opaque }) => opaque)) {
+    if (reading === "slot" && (reached === null || reached.some(({ opaque }) => opaque))) {
       return null;
     }
-    for (const expanded of reached) {
+    for (const expanded of reached ?? []) {
       if (expanded.tuple !== null) {
         tuples.push(expanded.tuple);
       }
@@ -441,7 +446,7 @@ function collectLiteralTypes(root: ts.Node, into: Map<string, string>): void {
 // by name is a tuple, and aliases, schema values, constraints and function bodies are read through. Null when a type name
 // has no declaration, a type parameter stands in for the vocabulary, or the reading outgrows the limit: in each the slot
 // may be any tuple's.
-function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts.Node[]): APIRequestGenerator<Origins> {
+function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts.Node[], reading: Reading = "slot"): APIRequestGenerator<Origins> {
   const found = new Set<string>();
   const literals = new Map<string, string>();
   const seen = new Set<ts.Node>();
@@ -451,7 +456,7 @@ function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts
       continue;
     }
     seen.add(root);
-    const read = seen.size > SPELLING_LIMIT ? null : yield* readSpelling(oracle, sources, root);
+    const read = seen.size > SPELLING_LIMIT ? null : yield* readSpelling(oracle, sources, root, reading);
     if (read === null) {
       return null;
     }
@@ -498,7 +503,7 @@ export function* satisfiedOrigins(oracle: SlotOracle, sources: Sources, name: Si
     }
     node = node.expression;
   }
-  const origins = spellings.length === 0 ? null : yield* originsOf(oracle, sources, spellings);
+  const origins = spellings.length === 0 ? null : yield* originsOf(oracle, sources, spellings, "links");
   return origins ?? NOTHING_SPELLED;
 }
 
