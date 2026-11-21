@@ -18,6 +18,9 @@ export const CORPUS_SOURCE_OUTCOME_COPY = {
   unavailable: "The source anchor is unavailable. Opened the room without an exact jump.",
 } as const;
 
+/** The quiet mark on a reply the reader stopped, kept as it stood. */
+export const MESSAGE_STOPPED_MARK = "Stopped";
+
 /** The status line's count of the rows paged in so far. */
 export function chatHistoryLoadedLabel(count: number): string {
   return `${String(count)} messages loaded.`;

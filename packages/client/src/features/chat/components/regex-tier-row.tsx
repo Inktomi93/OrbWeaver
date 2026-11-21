@@ -16,6 +16,8 @@
 //     simply `attachedElsewhere`: a GLOBAL-tier row attached at exactly one tier has
 //     `attachedElsewhere === false` and still reaches every room in the box, so keying the warning on that
 //     flag alone would stay silent for the widest-reaching flip on the panel.
+//   • A STOPPED SCRIPT IS MARKED HERE TOO, with its reason under the row (`RegexStopMark`): a script only a prompt pass runs is
+//     not in the On screen roster, so this row is the one the stopped-script notice's action can land on.
 //   • OFF ROWS KEEP FULL CONTRAST (§3 (c)) — the state is a MARK (`OFF`), never a dim. Stacking opacity on a
 //     row whose tier may also be off produced two indistinguishable greys for two different facts.
 //   • A ROW THE HOST DOES NOT OWN (a previous host's chat-tier attachment) draws the mark, no
@@ -38,10 +40,13 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RegexAxesGlyphs, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { StoppedDisplayScript } from "#lib";
 import { notify, ROW_MORE_LEAD, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
+import { useDisplayScriptStop } from "../hooks/use-display-text.ts";
 import { REGEX_OFF_MARK, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { RegexStopMark, RegexStopReason } from "./regex-stop-mark.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
@@ -73,6 +78,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
   const detach = useDetachScriptFromChat({ trpc, invalidation });
   const { script } = row;
+  const stop = useDisplayScriptStop()(script);
   const name = regexScriptTitle(script);
   const subject = rowActionSubject(name, qualifier);
 
@@ -119,7 +125,8 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
           {rankLabel(row.runsAt, isHost)}
         </Text>
       }
-      markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
+      markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} stop={stop} />}
+      {...(stop === undefined ? {} : { detail: <RegexStopReason stop={stop} /> })}
       subtitle={patternOf(script.findRegex)}
       subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitlePlacement="inline"
@@ -155,12 +162,14 @@ function RowMarkers({
   notYours,
   runsAt,
   effectiveCount,
+  stop,
 }: {
   readonly alsoAt: readonly string[];
   readonly enabled: boolean;
   readonly notYours: boolean;
   readonly runsAt: number | null;
   readonly effectiveCount: number | null;
+  readonly stop: StoppedDisplayScript | undefined;
 }): ReactElement {
   return (
     <Row align="center" gap="tight">
@@ -180,6 +189,7 @@ function RowMarkers({
       )}
       {enabled ? null : <InlineToken>{REGEX_OFF_MARK}</InlineToken>}
       {notYours ? <InlineToken>Previous host</InlineToken> : null}
+      {stop === undefined ? null : <RegexStopMark stop={stop} />}
     </Row>
   );
 }

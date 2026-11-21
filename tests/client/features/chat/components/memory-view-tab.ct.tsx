@@ -38,6 +38,11 @@ const STORY = "tests/client/features/chat/components/_memory-view-stories/Memory
 const BLOCK_SIZE = 2;
 const SCENES = 4;
 const RETOLD = "It was told again.";
+// A summary long enough that every part of a row must wrap inside the phone's column: spaced words in the anchor and the
+// text, and one keyword with no break in it.
+const LONG_ANCHOR = "Everything the keeper counted twice before sealing the vault beneath the observatory";
+const LONG_FACTS = "The keeper recounts every ledger entry twice, then walks the lamplit corridor to check the seals, and writes the tally on the slate.";
+const LONG_KEYWORD = "orbitalledgerballastinventorychecklist";
 const PHONE = { width: 390, height: 844 } as const;
 // The host-off door mounts the turn-on confirm, which reads the Utility model's connection.
 const PROCEDURES = [
@@ -60,6 +65,8 @@ interface RoomOptions {
   readonly scenes?: number;
   /** Run the production memory sweep so the room holds summaries. */
   readonly build?: boolean;
+  /** Summaries long enough to wrap at the phone's width, with a keyword that cannot break. */
+  readonly wrapping?: boolean;
 }
 
 /** The scene a summarize request covers: the first scene line after the transcript marker. */
@@ -80,7 +87,11 @@ async function memoryRoom(options: RoomOptions = {}): Promise<ChatRoot & { reado
       }
       const scene = sceneIn(body);
       const facts = `The keeper remembers scene ${scene}.${body.includes(RETOLD) ? ` ${RETOLD}` : ""}`;
-      return summaryReply({ anchor: `The scene ${scene} ledger`, facts, keywords: [`ledger${scene}`] });
+      return summaryReply({
+        anchor: options.wrapping === true ? `The scene ${scene} ledger: ${LONG_ANCHOR}` : `The scene ${scene} ledger`,
+        facts: options.wrapping === true ? `${facts} ${LONG_FACTS}` : facts,
+        keywords: options.wrapping === true ? [`ledger${scene}`, LONG_KEYWORD] : [`ledger${scene}`],
+      });
     },
   });
   const scenes = options.scenes ?? SCENES;
@@ -405,8 +416,8 @@ test("a view that fails to load offers a retry that lists the items", async ({ m
   await expect(rowsOf(page)).toHaveCount(view.items.length);
 });
 
-test("at phone width every row and its strike control stay inside the viewport with no sideways scroll", async ({ mount, page }) => {
-  await using h = await memoryRoom({ group: true });
+test("at phone width a long summary wraps inside its row and every row and its strike control stay inside the viewport", async ({ mount, page }) => {
+  await using h = await memoryRoom({ group: true, wrapping: true });
   const view = await h.caller.chat.memoryView({ chatId: h.chatId });
   await page.setViewportSize(PHONE);
   await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
@@ -420,4 +431,28 @@ test("at phone width every row and its strike control stay inside the viewport w
     expect(box.x + box.width).toBeLessThanOrEqual(PHONE.width);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  // Inside each row nothing reaches past the row's own edge, and the row's own text wrapped, so a row that never needed to wrap proves nothing.
+  for (const item of view.items) {
+    const row = rowFor(page, item).first();
+    const spill = await row.evaluate((node) => {
+      const edge = node.getBoundingClientRect();
+      // An element's own box can sit inside the row while its text runs past it, so each element's content width is read too.
+      return [node, ...node.querySelectorAll("*")]
+        .filter((child) => {
+          const box = child.getBoundingClientRect();
+          return (box.width > 0 && (box.left < edge.left || box.right > edge.right)) || child.scrollWidth > child.clientWidth;
+        })
+        .map((child) => child.textContent.trim().slice(0, 40));
+    });
+    expect(spill).toEqual([]);
+    for (const text of [present(item.topicAnchor), item.text]) {
+      const lines = await row.getByText(text, { exact: true }).evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+      });
+      expect(lines).toBeGreaterThan(1);
+    }
+  }
 });

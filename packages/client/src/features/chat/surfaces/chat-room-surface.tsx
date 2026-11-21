@@ -35,6 +35,7 @@ import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-
 import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankReserve } from "../hooks/use-flank-reserve.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
+import { useNoticeFloor } from "../hooks/use-notice-floor.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
 import { useRoomRead } from "../hooks/use-room-read.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
@@ -114,6 +115,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const composerRegionRef = useRef<HTMLDivElement>(null);
   // The row and the region mount with the chrome, a render or more after the surface.
   useFlankReserve(flankRowRef, threadRef, composerRegionRef, !flank.panelMode && chromeDrawn);
+  useNoticeFloor(composerRegionRef, threadRef, chromeDrawn);
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);

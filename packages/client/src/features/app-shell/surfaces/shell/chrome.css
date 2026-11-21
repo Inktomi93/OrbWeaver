@@ -16,6 +16,20 @@
     padding-inline: max(var(--spacing-inset-section), env(safe-area-inset-left)) max(var(--spacing-inset-section), env(safe-area-inset-right));
   }
 
+  /* On a touch phone the room's header, character bar and first rows start right under the chrome, so a stack hung from the
+   * chrome covers them. While a room is mounted it publishes where its composer begins, and the stack sits above that edge. */
+  @variant pointer-coarse {
+    @variant shell-mobile {
+      :root[data-notice-floor] .shell-toast-viewport {
+        inset-block: auto var(--orb-notice-floor);
+        max-block-size: min(
+          var(--dimension-shell-notice-cap),
+          max(0px, calc(100dvh - var(--orb-notice-chrome-end, var(--dimension-chrome-row)) - var(--orb-notice-floor)))
+        );
+      }
+    }
+  }
+
   .shell-main {
     grid-column: 3;
     grid-row: 1;

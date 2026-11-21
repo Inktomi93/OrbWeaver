@@ -1,6 +1,6 @@
 // Metadata is data-only, outside prose; creation time sits beside the speaker, while showModelIcon credit and actions belong in the reveal cluster.
 // Cache economics follows showTokenCount; TTFT follows showGenerationTimer. Absent data and disabled toggles add no empty metadata row.
-// Never infer an outcome notice from finish reason or edits; only persisted output-cap receipts explain continuation beyond the requested limit.
+// Never infer an outcome notice from finish reason or edits; only persisted receipts speak: the output-cap receipt explains continuation beyond the requested limit, and the stored reader stop marks a reply the reader stopped.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { AppearanceSettings } from "@orb/contracts/settings";
@@ -10,7 +10,8 @@ import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
-import { cacheTokensLabel, canRevealGenerationCost, messageNumberLabel } from "../lib/message-readout.ts";
+import { cacheTokensLabel, canRevealGenerationCost, messageNumberLabel, readerStoppedReply } from "../lib/message-readout.ts";
+import { MESSAGE_STOPPED_MARK } from "../lib/transcript-copy.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 export type MessageMetadataVisibility = Pick<
@@ -75,6 +76,11 @@ function numberDatum(message: MessageView, shown: boolean): readonly ReactElemen
 export function MessageMetadataRow({ message, visibility }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
+
+  // Essential provenance on every chat style, never gated by a metadata toggle: without it a reply cut mid-sentence reads as a failure.
+  if (readerStoppedReply(message)) {
+    items.push(<Fragment key="stopped">{metadatum("message-metadata-stopped", MESSAGE_STOPPED_MARK)}</Fragment>);
+  }
 
   // Essential provenance, not an appearance preference: the persisted output number can exceed the
   // requested cap because the runtime continued the same reply after reaching it. State that distinction

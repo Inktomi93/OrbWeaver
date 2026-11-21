@@ -60,6 +60,8 @@ const THIS_CHAT_PROCEDURES = [
 // More reconnects than the case waits through before it closes the notice; each one is a dropped connection.
 const RECONNECTS_UNTIL_CLOSED = 1000;
 const SLOW = { name: "Slow history", findRegex: "SLOWMARK", replaceString: "slow" } as const;
+// A script only the prompt passes run: the On screen roster never lists it.
+const PROMPT_ONLY = { name: "Prompt history", findRegex: "PROMPTMARK", replaceString: "prompt" } as const;
 const HISTORY: { readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass } = { cause: "row_deadline", pass: "prompt_history" };
 // The scripts a turn left past the naming cap.
 const OVERFLOW = 3;
@@ -75,6 +77,13 @@ function warning(
   seq: number,
 ): StreamFrame {
   return { channel: "chat", chatId, seq, event: { type: "warning", chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, scriptId, ...at } };
+}
+
+/** A row of the Regex section by its script's title, wherever the section draws it: a tier group's or the On screen roster's. */
+function sectionRow(page: Page, name: string): ReturnType<Page["locator"]> {
+  return page
+    .locator('[data-slot="regex-section"] [data-slot="list-row-root"]')
+    .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
 }
 
 /** A roster row, by its script's title. */
@@ -242,6 +251,33 @@ test("the notice's action lands on the stopped script's row and leaves the roste
     .locator('[data-slot="regex-on-screen"] [role="listitem"]')
     .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(SLOW.name, { exact: true }) });
   await expect(item).toBeFocused();
+});
+
+test("a stopped script only the prompt passes run is marked, with its reason, on its own tier row where the notice's action lands", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const script = await host.regex.createScript({ input: { ...PROMPT_ONLY, targets: ["AI_OUTPUT"], passes: ["prompt"] } });
+  await host.regex.attachGlobal({ scriptId: script.id });
+  await serveHostedRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, script.id, HISTORY, FIRST_SEQ)] });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await socket.served();
+
+  const notice = noticeToast(page, regexNotAppliedNotice([{ name: PROMPT_ONLY.name, ...HISTORY }]));
+  await expect(notice).toBeVisible();
+  await notice.getByRole("button", { name: REGEX_STOP_OPEN_SCRIPT_NAME, exact: true }).click();
+
+  // The action opens the Regex section; the script is not an on-screen one, so its tier row is the only row it has.
+  const row = sectionRow(page, PROMPT_ONLY.name);
+  await expect(row).toHaveCount(1);
+  await expect(rosterRow(page, PROMPT_ONLY.name)).toHaveCount(0);
+  await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
+  await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass), { exact: true })).toBeVisible();
 });
 
 test("a notice that names no script in the library offers the tab, not a row", async ({ corpus, mount, page }) => {

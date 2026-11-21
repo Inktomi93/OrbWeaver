@@ -42,7 +42,7 @@ export interface ComputedSlot {
 }
 
 const CHART_SLOTS = ["bar-list", "heatmap", "histogram", "scatter"] as const;
-const METADATA_SLOTS = ["output-cap", "tokens", "cache", "id", "gen-duration", "ttft"] as const;
+const METADATA_SLOTS = ["stopped", "output-cap", "tokens", "cache", "id", "gen-duration", "ttft"] as const;
 
 /** The runtime-built slot names, each with the site that builds it. */
 export const COMPUTED_SLOTS: readonly ComputedSlot[] = [
