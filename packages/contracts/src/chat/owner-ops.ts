@@ -182,9 +182,6 @@ export interface TurnRetrievalEvents {
   readonly onIndexUnavailable: () => void;
 }
 
-/** Publish one `chatsChanged` to one user's bus channel; `chatId` present means the event names the chat. */
-export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
-
 /** Register a prompt transform; idempotent by id, so a re-register replaces the prior one. */
 export type RegisterPromptTransformOp<Signal> = (transform: PromptTransform<Signal>) => void;
 

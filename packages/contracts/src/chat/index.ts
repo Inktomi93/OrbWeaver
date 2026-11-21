@@ -296,7 +296,6 @@ export type {
   IsMemoryEnabledOp,
   MemoryDigestInput,
   PresentCharacterSeat,
-  PublishChatChangedOp,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
   RequestTurnOp,
