@@ -38,6 +38,8 @@ export type AuthorsNotePosition = (typeof AUTHORS_NOTE_POSITIONS)[number];
 /** Which end of the Author's Note each of its seats is. */
 export const AUTHORS_NOTE_EDGE = { ["authors_note_top"]: "top", ["authors_note_bottom"]: "bottom" } as const;
 export type AuthorsNoteEdge = (typeof AUTHORS_NOTE_EDGE)[AuthorsNotePosition];
+/** The two ends of the Author's Note as a tuple, for a schema over {@link AuthorsNoteEdge}. */
+export const AUTHORS_NOTE_EDGES = ["top", "bottom"] as const satisfies readonly AuthorsNoteEdge[];
 
 export function isAuthorsNotePosition(position: EntryPosition): position is AuthorsNotePosition {
   return AUTHORS_NOTE_POSITIONS.some((seat) => seat === position);

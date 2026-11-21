@@ -237,7 +237,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
-export { INJECTIONS_LABEL } from "./injections-label.ts";
+export { AUTHORS_NOTE_EDGE_LABELS, INJECTIONS_LABEL, sentInjectionLabel } from "./injections-label.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
 export {
   ITEM_ATTACH_SETTING,
@@ -397,8 +397,8 @@ export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
-export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
+export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
+export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast, turnRoomStateCopy } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "./use-debounced-value.ts";

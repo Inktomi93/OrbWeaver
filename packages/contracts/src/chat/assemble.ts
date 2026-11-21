@@ -13,7 +13,7 @@ import type { RoomStanding } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { AuthorsNoteEdge, EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
-import { ENTRY_POSITIONS } from "@orb/kit/world-info";
+import { AUTHORS_NOTE_EDGES, ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, PromptSectionId, UserIntent } from "#preset";
 import { promptSectionIdSchema, userIntentViewSchema } from "#preset";
@@ -127,6 +127,9 @@ export interface ChatInjection {
   /** World-info lore that sits at this end of the chat's own injections (its Author's Note), until the splice or
    *  the context build seats it beside the injection that ends there and clears this. Never on a view or a wire. */
   noteEdge?: AuthorsNoteEdge;
+  /** The end of the chat's Author's Note this world-info lore was seated at, set when the seat places it. Lets the
+   *  stored prompt name the seat a row came from. Never on a wire input. */
+  seatedAt?: AuthorsNoteEdge;
 }
 
 // The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
@@ -575,7 +578,9 @@ export interface AssembledPrompt {
 /**
  * The SENT-PROMPT projection of a stored {@link AssembledPrompt} — the `message_variants.promptSnapshot` blob
  * as the host inspector serves it. Deliberately a PROJECTION, not the whole node: the bytes that went on the
- * wire (`static`/`dynamic`/`afterHistory`/`sendHistory`) and nothing else. `trace` is dropped — the Preview
+ * wire (`static`/`dynamic`/`afterHistory`/`sendHistory`) and nothing else. On a stored prompt `afterHistory` is
+ * every `in_chat` injection the turn spliced (the preset's sections, the chat's injections and the world info
+ * seated beside them), in the order the prompt places them. `trace` is dropped — the Preview
  * tab already renders a live `AssembleTrace`, and re-serving a stored one would widen a host-only payload for
  * a readout that already exists.
  *
@@ -596,6 +601,8 @@ export const sentPromptSchema = z
           depth: z.int(),
           role: messageRoleSchema,
           content: z.string(),
+          origin: z.enum(CHAT_INJECTION_ORIGINS).exactOptional(),
+          seatedAt: z.enum(AUTHORS_NOTE_EDGES).exactOptional(),
         })
         .strip(),
     ),
@@ -839,6 +846,7 @@ export const chatInjectionSchema = z.strictObject({
   order: z.number().exactOptional(),
   origin: z.enum(CHAT_INJECTION_ORIGINS).exactOptional(),
   originLabel: z.string().exactOptional(),
+  seatedAt: z.enum(AUTHORS_NOTE_EDGES).exactOptional(),
 }) satisfies z.ZodType<ChatInjection>;
 
 const memoryRecallCandidateSchema = z.strictObject({

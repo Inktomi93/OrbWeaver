@@ -32,8 +32,6 @@ import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpd
 import type { WorldEntry } from "../lib/entry-editor-model.ts";
 import { WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_NEW_ENTRY_NAME, WORLD_INFO_NO_ENTRIES_TITLE, worldInfoNewEntryInName } from "../lib/world-info-names.ts";
 
-const NEW_ENTRY_CONTENT = "New lore.";
-
 export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
   const trpc = useTRPC();
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
@@ -92,10 +90,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   };
 
   const onCreate = (): void => {
-    create.mutate(
-      { bookId, input: { title: WORLD_INFO_NEW_ENTRY_NAME, content: NEW_ENTRY_CONTENT } },
-      { onSuccess: (created): void => selectWorldEntry(created.id) },
-    );
+    create.mutate({ bookId, input: { title: WORLD_INFO_NEW_ENTRY_NAME, content: "" } }, { onSuccess: (created): void => selectWorldEntry(created.id) });
   };
 
   const onBackfill = (): void => {

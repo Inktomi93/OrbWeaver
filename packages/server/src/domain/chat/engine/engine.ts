@@ -34,6 +34,7 @@ import type {
 import {
   buildIdentityNameContext,
   DEFAULT_MESSAGE_KIND,
+  EMPTY_GENERATION_CAUSE,
   HIDDEN_TAG_BROKEN_CODE,
   INLINE_REPLY_ORIGIN,
   VARIANT_METADATA_REASONING_MS_KEY,
@@ -60,6 +61,7 @@ import { statementForOwner } from "@orb/db/wiring-owner";
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import { concealsBrokenHiddenTag } from "@orb/kit/content";
+import type { DomainOperationDetail } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
@@ -1618,7 +1620,8 @@ function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipelin
     },
     "chat: the model produced no prose — turn REFUSED, nothing written (VER-1b empty-generation guard)",
   );
-  throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, emptyGenerationMessage(result));
+  const { message, detail } = emptyGenerationFailure(result);
+  throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, message, detail);
 }
 
 /** `finishReason` is the NORMALIZED tuple (every wire folds its raw `stop_reason` onto it in the runtime), so
@@ -1640,7 +1643,7 @@ const CUT_OFF_FINISH_REASONS: ReadonlySet<NormalizedFinishReason> = new Set<Norm
  * one they cannot. The turn-is-unchanged clause is kept on every arm — it is the reassurance that matters most
  * at the moment of failure, and it was the one genuinely good thing about the old string.
  */
-function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipeline>>): string {
+function emptyGenerationFailure(result: Awaited<ReturnType<typeof runTurnPipeline>>): { readonly message: string; readonly detail: DomainOperationDetail } {
   const unchanged = "nothing was written (the previous reply is unchanged)";
   const finish = result.economics?.finishReason ?? null;
   if (finish === BUDGET_FINISH_REASON) {
@@ -1649,15 +1652,19 @@ function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipelin
     // fix is the preset's, and a user told "no text" has no way to find it.
     const cap = result.economics?.maxOutputTokens;
     const capText = cap === null || cap === undefined ? "its output limit" : `its output limit of ${String(cap)} tokens`;
-    return `the model used ${capText} before writing any of the reply — raise the preset's max output tokens (with reasoning on, that limit covers the model's thinking too), ${unchanged}`;
+    return {
+      message: `the model used ${capText} before writing any of the reply — raise the preset's max output tokens (with reasoning on, that limit covers the model's thinking too), ${unchanged}`,
+      detail:
+        cap === null || cap === undefined ? { cause: EMPTY_GENERATION_CAUSE.outputLimit } : { cause: EMPTY_GENERATION_CAUSE.outputLimit, maxOutputTokens: cap },
+    };
   }
   if (finish === TOOL_FINISH_REASON) {
     // Reached only when RECOVERY did not apply or did not rescue it: the folded path re-runs this turn for its
     // narrative (`recover-narrative.ts`), so this arm now means the model called tools and then declined to
     // narrate TWICE, or that tools rode on a path with no recovery channel.
-    return `the model answered with tool calls and no story text, ${unchanged}`;
+    return { message: `the model answered with tool calls and no story text, ${unchanged}`, detail: { cause: EMPTY_GENERATION_CAUSE.toolCalls } };
   }
-  return `the model returned no text — ${unchanged}`;
+  return { message: `the model returned no text — ${unchanged}`, detail: { cause: EMPTY_GENERATION_CAUSE.noText } };
 }
 
 /** This turn's cascade depth: a human turn is 0; an automation/plugin-initiated turn

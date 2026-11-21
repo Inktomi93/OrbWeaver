@@ -5,6 +5,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { turnMutationToast } from "#lib";
 import { MESSAGE_MOVE_FAILED, MESSAGE_REATTRIBUTE_VOICE_FAILED } from "../lib/message-action-names.ts";
+import { SWIPE_FAILED_LEAD } from "../lib/send-failure-copy.ts";
 
 export const useHideMutation = createEntityMutation<inferInput<Trpc["chat"]["setMessageHidden"]>, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
@@ -95,7 +96,7 @@ export const useEditToolCall = createEntityMutation<inferInput<Trpc["chat"]["edi
 export const useSwipeMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't generate that swipe."),
+  errorToast: (error) => turnMutationToast(error, SWIPE_FAILED_LEAD),
 });
 
 // busDriven: in-place steps emit `messageEdited`; preserved prose emits `variantSelected`. Both invalidate canon —

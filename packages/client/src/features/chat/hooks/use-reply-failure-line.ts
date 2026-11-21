@@ -10,9 +10,6 @@ import { clearReplyFailure, markReplyRetrying, peekReplyFailure, recordReplyFail
 import type { UseContinueTurnResult } from "./use-continue-turn.ts";
 import { useContinueTurn } from "./use-continue-turn.ts";
 
-/** The surface that states a failed retry while it is up, so the generate toast stands down for it. */
-const REPLY_FAILURE_LINE = "the composer's reply-failure line";
-
 export interface ReplyFailureLine {
   readonly continueOnEmpty: UseContinueTurnResult;
   /** The failure to state, or `undefined` while the line stands down. */
@@ -33,16 +30,16 @@ export function useReplyFailureLine(args: { readonly chatId: ChatId; readonly re
     }
   }, [chatId, generating]);
   const failure = recorded !== undefined && !recorded.retrying && !args.refused && !generating ? recorded : undefined;
-  // Declared for as long as a failure is held, the retry included: that is when the retry's failure lands.
-  const continueOnEmpty = useContinueTurn(recorded === undefined ? undefined : REPLY_FAILURE_LINE);
+  const continueOnEmpty = useContinueTurn();
   const retry = (): void => {
+    const lead = peekReplyFailure(chatId)?.lead;
     markReplyRetrying(chatId);
     continueOnEmpty.generateReply(chatId, {
       onError: (error) => {
         if (isSilencedTurnAbort(error)) {
           clearReplyFailure(chatId);
         } else {
-          recordReplyFailure(chatId, error);
+          recordReplyFailure(chatId, error, lead === undefined ? {} : { lead });
         }
       },
       onSuccess: () => clearReplyFailure(chatId),

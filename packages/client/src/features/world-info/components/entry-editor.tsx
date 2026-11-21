@@ -12,8 +12,9 @@
 // frozen FormApi would survive an entry switch and one keystroke could autosave entry A's fields into entry
 // B (the F1 class, D78). Autosave everywhere (D66 A4 / north-star §7): no
 // Save/Discard — the header carries the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where
-// Save used to be. The required title/content (`min(1)`) never spam rejects: the boundary's driver gates on
-// `form.state.isValid`, so a half-typed field simply doesn't autosave until it's valid.
+// Save used to be. The required title (`min(1)`) never spam rejects: the boundary's driver gates on
+// `form.state.isValid`, so a half-typed field simply doesn't autosave until it's valid. Content may be empty: a new
+// entry starts empty, and an entry with no text is not sent to the model.
 //
 // DRAFT MIRROR WIRED (#73, owner-ruled 2026-08-15, HIGH tier — free-prose `content`/`description` plus
 // the keyword-chip list). This AMENDS the §13.4 obligation-5 default ("on an AUTOSAVE form the
@@ -154,7 +155,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         {(field): ReactElement => (
           <field.TextareaField
             label={WORLD_INFO_ENTRY_CONTENT_NAME}
-            description="The lore text spliced into the prompt when this entry fires."
+            description="The lore text spliced into the prompt when this entry fires. An entry with no text is not sent."
             placeholder="What the model should know…"
             rows={6}
           />

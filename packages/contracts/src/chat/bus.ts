@@ -356,6 +356,16 @@ export const TURN_ROOM_CLOSING_OP_CODE = "room_closing" as const;
  *  found. It names no account state: a member is told the host is unavailable, never why. */
 export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
 
+/** The `DomainOperationError.code` of a turn whose generation ended with no prose. The server's
+ *  `CHAT_OP_CODES.emptyGeneration` derives this literal. Its `detail.cause` is one of {@link EMPTY_GENERATION_CAUSE}, so a
+ *  client names the cause, and the setting that fixes it, without reading the message. */
+export const EMPTY_GENERATION_OP_CODE = "empty_generation" as const;
+
+/** Why a generation ended with no prose: the model spent its whole output limit before writing any (on a reasoning wire
+ *  the limit covers its thinking too), it answered with tool calls only, or it returned nothing. */
+export const EMPTY_GENERATION_CAUSE = { outputLimit: "output_limit", toolCalls: "tool_calls", noText: "no_text" } as const;
+export type EmptyGenerationCause = (typeof EMPTY_GENERATION_CAUSE)[keyof typeof EMPTY_GENERATION_CAUSE];
+
 /** The `data.reason` prefix every provider failure rides on a tRPC error, followed by the provider's failure kind
  *  (`provider_auth_failed`). The server's error mapping spells the reason from this constant. */
 export const PROVIDER_FAILURE_REASON_PREFIX = "provider_";

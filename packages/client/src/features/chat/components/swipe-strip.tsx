@@ -32,6 +32,8 @@ import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
+import { REPLY_FAILURE_LINE, recordTurnFailure } from "../lib/reply-failure.ts";
+import { SWIPE_FAILED_LEAD } from "../lib/send-failure-copy.ts";
 
 export interface SwipeStripProps {
   readonly message: MessageView;
@@ -100,7 +102,8 @@ export function SwipeFootRow(props: {
 export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const swipe = useSwipeMutation({ trpc, invalidation });
+  // The composer's reply-failure line states a failed swipe, so no toast repeats it.
+  const swipe = useSwipeMutation({ trpc, invalidation, failureShownInline: REPLY_FAILURE_LINE });
   const selectVariant = useSelectVariantMutation({ trpc, invalidation });
   const history = useVariantHistory(message);
   const historyStatusId = useId();
@@ -140,7 +143,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
       selectVariant.mutate({ chatId, messageId, variantId: nextVariantId, timeZone: viewerTimeZone() });
       return;
     }
-    swipe.mutate({ chatId, messageId, timeZone: viewerTimeZone() });
+    swipe.mutate({ chatId, messageId, timeZone: viewerTimeZone() }, { onError: (error): void => recordTurnFailure(chatId, error, SWIPE_FAILED_LEAD) });
   };
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });

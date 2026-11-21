@@ -2,6 +2,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { turnMutationToast } from "#lib";
+import { SUMMON_FAILED_LEAD } from "../lib/send-failure-copy.ts";
 
 // All four roster mutations are BUS-DRIVEN on the OPEN chat (the mutation-vs-bus rule, invalidation.ts):
 // the roster verbs emit `chatUpdated` (add/mute/talkativeness) — or a turn (`forceCharacterTurn`) — on the
@@ -38,5 +39,5 @@ export const useForceCharacterTurn = createEntityMutation<inferInput<Trpc["chat"
   options: (trpc) => trpc.chat.forceCharacterTurn.mutationOptions(),
   // Bus-driven: summoning a member runs a turn (turnCompleted → chatReads) on the OPEN chat.
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't summon that member to speak."),
+  errorToast: (error) => turnMutationToast(error, SUMMON_FAILED_LEAD),
 });
