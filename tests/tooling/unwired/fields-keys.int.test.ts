@@ -28,6 +28,24 @@ const COMPUTED = planted("computed.ts", [
   "export const total = (box.kept ?? 0) + (box.spare ?? 0) + (box.lost ?? 0);",
 ]);
 
+// A literal that spreads an existing value and overrides one key copies that value: the key is written, but the copy
+// builds no home, so a home whose value only arrives from outside keeps its optional fields wired. A literal that
+// builds the home from scratch is the control: its unwritten optional field reports.
+const copied = (built: readonly string[]): Readonly<Record<string, string>> =>
+  planted("copied.ts", [
+    "export interface Cfg { readonly mode?: string; readonly port?: string }",
+    "declare const raw: unknown;",
+    "const cfg = raw as Cfg;",
+    'export const copy: Cfg = { ...cfg, ["mode"]: "x" };',
+    ...built,
+    "export const shown = (cfg.port ?? '') + (copy.mode ?? '');",
+  ]);
+
+test("a key that overrides a spread copy writes its member but builds no home", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(named(scan(await plantedTree(copied([]))), "copied.ts")).toEqual([]);
+  expect(named(scan(await plantedTree(copied(["export const built: Cfg = { mode: 'y' };"]))), "copied.ts")).toEqual(["Cfg.port never-written"]);
+});
+
 test("a computed string key writes the member find-references places it on", { timeout: 120_000 }, async ({ plantedTree }) => {
   expect(named(scan(await plantedTree(COMPUTED)), "computed.ts")).toEqual(["Box.lost never-written"]);
 });
@@ -116,7 +134,8 @@ const BUILT = planted("built.ts", [
 test("a spread credits only the keys its value was built with", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = scan(await plantedTree(BUILT));
   expect(named(report, "built.ts")).toEqual(["Delta.b never-written", "Delta.modelInSamples never-written"]);
-  expect(report.unresolved).toEqual(["packages/a/src/built.ts:2 a synthetic"]);
+  expect(report.unresolved).toEqual([]);
+  expect(report.unresolvedByReason).toEqual({ synthetic: 1 });
 });
 
 // Step three, second half: a Drizzle select row's member has no declaration and reads the column of the table whose
@@ -144,8 +163,8 @@ test("a select row's member reads the column its table names", { timeout: 120_00
   expect(report.unresolved).toEqual([]);
 });
 
-// A key no step places is unresolved: an excess key on a closed shape and a read through `any` are listed, never
-// matched to the same-named field, and a placed key is not listed.
+// A key no step places is unresolved and credits no field: an excess key on a closed shape and a read through `any` are
+// counted by reason. Only the read whose name spells a reported row's member, in the role that row lacks, is listed.
 const UNPLACED = planted("unplaced.ts", [
   "export interface Shape { readonly kept: string; readonly stray?: string }",
   "export const shape = { kept: 'k', loose: 'l' } as Shape;",
@@ -155,9 +174,7 @@ const UNPLACED = planted("unplaced.ts", [
 
 test("a key no step places reports as unresolved and credits no field", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = scan(await plantedTree(UNPLACED));
-  expect(report.unresolved.filter((entry) => entry.startsWith("packages/a/src/unplaced.ts")).toSorted()).toEqual([
-    "packages/a/src/unplaced.ts:2 loose absent",
-    "packages/a/src/unplaced.ts:4 stray untyped",
-  ]);
+  expect(report.unresolved).toEqual(["packages/a/src/unplaced.ts:4 stray untyped -> Shape.stray"]);
+  expect(report.unresolvedByReason).toEqual({ absent: 1, untyped: 1 });
   expect(named(report, "unplaced.ts")).toEqual(["Shape.stray unreferenced"]);
 });

@@ -17,6 +17,7 @@ import {
   isAsExpression,
   isBinaryExpression,
   isCallExpression,
+  isComputedPropertyName,
   isElementAccessExpression,
   isExpressionWithTypeArguments,
   isForInStatement,
@@ -573,6 +574,8 @@ export interface PropertyReferences {
   readonly filled: ReadonlySet<string>;
   /** The role of every string key outside a property position, by {@link siteKey}: syntax alone types it as no reference. */
   readonly keyed: ReadonlyMap<string, SyntaxRole>;
+  /** The {@link siteKey} of every literal key that overrides a spread copy: a write of its member that builds no home. */
+  readonly overrides: ReadonlySet<string>;
   /** Every key the resolver could not place, with its reason. */
   readonly unresolved: readonly UnresolvedKey[];
   /** Each declaration key's flows: the keys its value is carried into. */
@@ -584,6 +587,26 @@ interface UnresolvedKey {
   readonly site: Site;
   readonly name: string;
   readonly reason: UnresolvedReason;
+  /** For a synthetic key, the in-tree files that declare its holder's other members: the homes its placement could
+   *  credit. Empty for every other reason. */
+  readonly holderFiles: readonly string[];
+}
+
+// Each unplaced key, and for a synthetic one the files declaring its holder's declared members, so a judge can tell a
+// mapped copy of a tree home from a library value such as a string's `length`.
+function unplacedKeys(world: NativeWorld, resolutions: readonly { readonly resolution: KeyResolution }[]): readonly UnresolvedKey[] {
+  const unplaced = resolutions.flatMap(({ resolution }) => (resolution.outcome === "unresolved" ? [resolution] : []));
+  const files = world.batch(
+    unplaced.map(function* (resolution): APIRequestGenerator<readonly string[]> {
+      if (resolution.reason !== "synthetic") {
+        return [];
+      }
+      const properties = yield* all(...resolution.holders.map((holder) => world.checker.getPropertiesOfType.gen(holder)));
+      const declared = properties.flat().flatMap((property) => property.declarations.map((handle) => world.fileOf(handle)));
+      return [...new Set(declared.filter((file) => file !== null))];
+    }),
+  );
+  return unplaced.map(({ site, name, reason }, at) => ({ site, name, reason, holderFiles: files[at] ?? [] }));
 }
 
 /** What a world's files say before any join: each site with the declarations it resolves to, in walk order. */
@@ -598,6 +621,7 @@ export interface PropertyFacts {
   /** The {@link siteKey} of every site where a library writes the members it credits, though its syntax reads. */
   readonly filled: ReadonlySet<string>;
   readonly keyed: ReadonlyMap<string, SyntaxRole>;
+  readonly overrides: ReadonlySet<string>;
   readonly unresolved: readonly UnresolvedKey[];
   readonly derived: DerivedFacts;
 }
@@ -849,9 +873,8 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const keyed = new Map(
     resolutions.flatMap(({ resolution }) => (resolution.slotRole === null ? [] : [[siteKey(resolution.site), resolution.slotRole] as const])),
   );
-  const unresolved = resolutions.flatMap(({ resolution }) =>
-    resolution.outcome === "unresolved" ? [{ site: resolution.site, name: resolution.name, reason: resolution.reason }] : [],
-  );
+  const unresolved = unplacedKeys(world, resolutions);
+  const overrides = new Set(resolutions.flatMap(({ resolution, node }) => (overridesSpread(node) ? [siteKey(resolution.site)] : [])));
   const paged = pagedCursors(world, pagedCalls);
   const filled = new Set(paged.map(({ site }) => siteKey(site)));
   return {
@@ -863,6 +886,7 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     copied: new Set(stored.copied.keys()),
     filled,
     keyed,
+    overrides,
     unresolved,
     derived: derivedFacts(world, bindings, supplies, keyWrites),
   };
@@ -893,6 +917,14 @@ const writtenKeys = (resolutions: readonly { readonly resolution: KeyResolution;
 
 // An object literal's own key or shorthand, which a contextual type gives its member.
 const isObjectLiteralKey = (node: Node): boolean => isNamedMember(node.parent, node) && isObjectLiteralExpression(node.parent.parent);
+
+// A key of an object literal that also spreads a value, plain or computed: `{ ...env, ["k"]: v }` copies `env` and
+// overrides `k`.
+function overridesSpread(node: Node): boolean {
+  const member = isComputedPropertyName(node.parent) ? node.parent.parent : node.parent;
+  const literal = isPropertyAssignment(member) || isShorthandPropertyAssignment(member) ? member.parent : undefined;
+  return literal !== undefined && isObjectLiteralExpression(literal) && literal.properties.some((property) => isSpreadAssignment(property));
+}
 
 // The value an object literal key or shorthand puts in its slot.
 function valueOfKey(key: Node): Node {
@@ -1020,6 +1052,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     copied: new Set(facts.flatMap((part) => [...part.copied])),
     filled: new Set(facts.flatMap((part) => [...part.filled])),
     keyed: new Map(facts.flatMap((part) => [...part.keyed])),
+    overrides: new Set(facts.flatMap((part) => [...part.overrides])),
     unresolved: [...new Map(facts.flatMap((part) => part.unresolved).map((key) => [siteKey(key.site), key])).values()],
     carriesInto: down,
   };

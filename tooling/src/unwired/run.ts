@@ -89,9 +89,9 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
     "reports/unwired/fields.json",
     scanFields,
     (report) =>
-      ` received=${report.received.length} unresolved=${report.unresolved.length} validated=${report.validated.length} acknowledged=${report.acknowledged.length} sent=${Object.entries(
-        report.sentBy,
-      )
+      ` received=${report.received.length} unresolved=${report.unresolved.length} unplaced=${Object.entries(report.unresolvedByReason)
+        .map(([reason, count]) => `${reason}:${count}`)
+        .join(",")} validated=${report.validated.length} acknowledged=${report.acknowledged.length} sent=${Object.entries(report.sentBy)
         .map(([destination, count]) => `${destination}:${count}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
