@@ -121,9 +121,10 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 
 ## Error codes nothing throws or handles
 
-3808 is not yet built. It lists each error and refusal code from the closed code tuples in `packages/contracts` with its throw sites and its client handlers.
+`pnpm unwired codes` lists each error and refusal code from the closed code vocabularies in `packages/contracts` with its throw sites, its wire crossing and its client handlers. `CODE_LIMITS` in `tooling/src/unwired/codes.ts` is the one list of what it cannot see.
 
-- A code with no throw site in production is dead vocabulary.
+- A vocabulary holds codes when production throws a member, or when a field of a tRPC procedure's answer or an HTTP route's JSON body is typed by it.
+- A code with no throw site in production is dead vocabulary. In a returned vocabulary, a code is dead when the unions verdict finds nothing builds it.
 - A code that crosses the wire is handled only when the client branches on that code: a switch case, a comparison or a keyed lookup. A generic error toast is not a handler.
 - A code that only server-internal callers see needs no client handler. The scan marks where each code crosses the wire.
 - The owner rules on the handled rule before the first report is judged.
