@@ -11,7 +11,7 @@ plan: typed-enforcers
 
 ## What
 
-A preset control's facts are split by key spelling across INTENT_CONTROL and CHAT_ONLY_INTENT_FIELDS (packages/contracts/src/preset/index.ts), CAPABILITY_KNOBS and STATED_CONTROL (packages/contracts/src/inference/capability/reads.ts) and ADJUSTED_KNOBS (packages/contracts/src/chat/adjusted-knobs.ts). Samplers derive from SAMPLER_KNOBS, but a new intent field is not forced into the capability or adjusted lists, and the chat-only list defaults a new field to background tasks silently. The connection facts bannedStrings and samplerOrder share the sampler names though they mean the server's spelling.
+A preset control's facts are split by key spelling across INTENT_CONTROL and CHAT_ONLY_INTENT_FIELDS (packages/contracts/src/preset/index.ts), CAPABILITY_KNOBS and STATED_CONTROL (packages/contracts/src/inference/capability/reads.ts) and ADJUSTED_KNOBS (packages/contracts/src/chat/adjusted-knobs.ts). Samplers derive from SAMPLER_KNOBS, but a new intent field is not forced into the capability or adjusted lists, and the chat-only list defaults a new field to background tasks silently. The connection facts bannedStrings and samplerOrder share the sampler names though they mean the server's spelling. The preset intent key carryReasoning (packages/contracts/src/preset/index.ts) is read by the resolve funnel and the engine and gated by the capability, and no preset screen has ever offered it, so only imported presets set it.
 
 ## Why
 
@@ -19,7 +19,7 @@ One concept spelled in several tables drifts; the compiler should refuse a contr
 
 ## Done when
 
-A PRESET_CONTROLS table mapped over every UserIntent field holds a union on kind (sampler, intent with its required capability question and whether a drop is reported, ours) and a required chat or role scope; INTENT_CONTROL, CAPABILITY_KNOBS, STATED_CONTROL, ADJUSTED_KNOBS and the chat-only and role lists derive from it and are deleted as hand lists; the connection fact keys become bannedStringsSpelling and samplerOrderSpelling with a numbered migration for stored declared features and the curated rows; funnel, preset and capability tests pass unchanged; a new intent field without an entry fails tsc.
+A PRESET_CONTROLS table mapped over every UserIntent field holds a union on kind (sampler, intent with its required capability question and whether a drop is reported, ours) and a required chat or role scope; INTENT_CONTROL, CAPABILITY_KNOBS, STATED_CONTROL, ADJUSTED_KNOBS and the chat-only and role lists derive from it and are deleted as hand lists; the connection fact keys become bannedStringsSpelling and samplerOrderSpelling with a numbered migration for stored declared features and the curated rows; funnel, preset and capability tests pass unchanged; a new intent field without an entry fails tsc. Params › Reasoning offers carry reasoning beside thinking display where the capability states it.
 
 ## Evidence
 

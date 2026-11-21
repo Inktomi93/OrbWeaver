@@ -10,7 +10,7 @@ area: rpg
 
 ## What
 
-rpgWeatherSchema (packages/contracts/src/rpg/ambient.ts) carries temperatureC, visibility, wind and description. type and label run the whole scene-field path: a steer clause in prose.ts, the update_scene write field, apply.ts, the reminder and {{rpgSceneState}} line, and the Waystone and scene tab. The other four never get written; description is printed by the reminder but never written. Owner ruling: RPG has no GM; scene fields feed descriptions into the turn to steer the story.
+rpgWeatherSchema (packages/contracts/src/rpg/ambient.ts) carries temperatureC, visibility, wind and description. type and label run the whole scene-field path: a steer clause in prose.ts, the update_scene write field, apply.ts, the reminder and {{rpgSceneState}} line, and the Waystone and scene tab. The other four never get written; description is printed by the reminder but never written. Owner ruling: RPG has no GM; scene fields feed descriptions into the turn to steer the story. weatherLine in packages/server/src/domain/rpg/substrate/reminder.ts reads weather.description, which nothing writes.
 
 ## Why
 
@@ -18,7 +18,7 @@ Fields that no step writes look like weather support that does not exist.
 
 ## Done when
 
-temperatureC and visibility run the whole path: the weather steer clause asks for them when the story states them, update_scene accepts them, apply writes them, the reminder and scene macro print them, the Waystone shows the temperature and the scene tab edits both; wind and description are deleted, stored rows still parse; tests cover the write, the printed line and the edit.
+temperatureC and visibility run the whole path: the weather steer clause asks for them when the story states them, update_scene accepts them, apply writes them, the reminder and scene macro print them, the Waystone shows the temperature and the scene tab edits both; wind and description are deleted, stored rows still parse; tests cover the write, the printed line and the edit. The weatherLine description branch and the comments naming wind and description go with them.
 
 ## Evidence
 
