@@ -85,6 +85,10 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/lib/agent-bridge.ts#setMotionAuditDropTrackingPaused",
       "packages/ui/src/content/lightbox/lightbox.tsx#onOpenChange",
       "packages/ui/src/primitives/reveal-gate/reveal-gate.tsx#onReveal",
+      "packages/client/src/components/sheet-dialog.tsx#onOpenChange",
+      "packages/client/src/features/chat/hooks/use-display-text.ts#see",
+      "packages/client/src/features/credentials/components/connection-image-switch.tsx#onCheckedChange",
+      "packages/ui/src/primitives/list-row/list-row.tsx#onOpenChange",
     ],
     reason: "A bare (boolean) => void callback: each art, dialog and toggle callback answers its own component, no flow.",
   },
@@ -472,13 +476,82 @@ export const DISTINCT_LOOKALIKES = [
   },
   {
     shape: "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    distinctFrom: ["packages/kit/src/chunk/split.ts#Span", "packages/kit/src/content/index.ts#HiddenRun"],
-    reason: "Virtual-window pixel offsets, the chunker's character spans and hidden tag runs: different concepts sharing {start, end}.",
+    distinctFrom: [
+      "packages/kit/src/chunk/split.ts#Span",
+      "packages/kit/src/content/index.ts#HiddenRun",
+      "packages/kit/src/content/index.ts#ReadSpan",
+      "packages/kit/src/content/index.ts#TextRange",
+      "packages/kit/src/speaker-label/index.ts#OpaqueRange",
+    ],
+    reason:
+      "Virtual-window pixel offsets against character ranges in text (chunks, hidden runs, reads, ranges, speaker labels): different concepts sharing {start, end}.",
   },
   {
     shape: "packages/ui/src/stream/shimmer.tsx#StreamShimmerProps",
     distinctFrom: ["packages/ui/src/stream/typing-dots.tsx#TypingDotsProps"],
     reason: "Two stream components with {label, className?}; neither renders the other.",
+  },
+  {
+    shape: "packages/server/src/entry/boot/rehash-plugin-provider-definitions.ts#RehashPluginProviderDefinitionsDeps",
+    distinctFrom: [
+      "packages/server/src/entry/boot/backfill-plugin-provenance.ts#BackfillPluginProvenanceOnBootDeps",
+      "packages/server/src/entry/boot/heal-legacy-background-pins.ts#HealLegacyBackgroundPinsDeps",
+      "packages/server/src/entry/boot/migrate-handoff-offer-vocab.ts#MigrateHandoffOfferVocabDeps",
+      "packages/server/src/entry/boot/migrate-plugin-tool-wire-names.ts#MigratePluginToolWireNamesDeps",
+      "packages/server/src/entry/boot/migrate-prose-slot-vocab.ts#MigrateProseSlotVocabDeps",
+      "packages/server/src/entry/boot/repair-stale-join-seq.ts#RepairStaleJoinSeqDeps",
+    ],
+    reason: "Each boot task owns its {logger, db} deps; one shared shape would be a generic bag, not a concept.",
+  },
+  {
+    shape: "packages/server/src/domain/automation/contract/params.ts#TestRuleParams",
+    distinctFrom: ["packages/contracts/src/automation/index.ts#DeleteRuleParams"],
+    reason: "Each verb owns its params (Core-0 §4): a dry run of a rule and its delete share only the actor and the rule id.",
+  },
+  {
+    shape: "packages/server/src/domain/chat/contract/params.ts#ResolveAuthorRenderPolicyParams",
+    distinctFrom: ["packages/contracts/src/chat/seat-ops.ts#AddCharacterToChatParams"],
+    reason: "Each verb owns its params (Core-0 §4): a render-policy read and a seat write share only the actor, chat and character ids.",
+  },
+  {
+    shape: "packages/server/src/domain/databank/contract/params.ts#BankHealthParams",
+    distinctFrom: ["packages/server/src/domain/refinery/contract/params.ts#RefineryCallParams"],
+    reason: "Each verb owns its params (Core-0 §4) over its own actor base; no value flows between the two domains' verbs.",
+  },
+  {
+    shape: "packages/server/src/domain/databank/contract/params.ts#GlobalAttachParams",
+    distinctFrom: ["packages/server/src/domain/export/contract/params.ts#StDocumentTextParams"],
+    reason: "Each verb owns its params (Core-0 §4) over its own actor base; no value flows between the two domains' verbs.",
+  },
+  {
+    shape: "packages/server/src/domain/assets/contract/params.ts#GetMetadataParams",
+    distinctFrom: ["packages/server/src/domain/export/contract/params.ts#OwnedBlobParams"],
+    reason: "Each verb owns its params (Core-0 §4) over its own actor base; no value flows between the two domains' verbs.",
+  },
+  {
+    shape: "packages/server/src/domain/chat/contract/engine-context.ts#ReserveReceiptEventsOp",
+    distinctFrom: ["packages/kit/src/content/index.ts#bound"],
+    reason: "A receipt-sequence reservation and a text-offset clamp share only the (n) => number signature.",
+  },
+  {
+    shape: "packages/server/src/domain/chat/contract/engine-context.ts#DelayOp",
+    distinctFrom: ["packages/server/src/domain/discovery/substrate/hub-math.ts#Pace"],
+    reason: "The engine's injected wait and the hub's pacing curve share only a signature; different producers, no flow.",
+  },
+  {
+    shape: "packages/client/src/features/discovery/components/corpus-controls.tsx#ParamToggleOption",
+    distinctFrom: ["packages/ui/src/charts/stat-figure/stat-figure.tsx#StatFigureProps"],
+    reason: "A toggle option's {value, label} and a stat figure's display props: one picks a value, the other shows one.",
+  },
+  {
+    shape: "packages/ui/src/art/web-weave/web-weave-math.ts#WeavePoint",
+    distinctFrom: ["packages/client/src/features/app-shell/lib/keyboard-drag-hold.ts#Point"],
+    reason: "The weave art's geometry point and the keyboard drag's pointer offset share only {x, y}.",
+  },
+  {
+    shape: "packages/client/src/features/regex/components/regex-pipeline-panel.tsx#RegexPipelinePanelProps",
+    distinctFrom: ["packages/client/src/features/regex/components/regex-test-panel.tsx#RegexTestPanelProps"],
+    reason: "Two sibling panels the regex editor feeds from its own values; each member is already typed by its owner.",
   },
 ] as const satisfies readonly DistinctLookalike[];
 

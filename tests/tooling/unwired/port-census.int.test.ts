@@ -4,6 +4,7 @@
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
+import { JSX_NAMESPACE, LIB } from "./_planted.ts";
 
 const SERVER = "packages/server/src";
 
@@ -235,4 +236,232 @@ test("the registry holds only pairs with no flow: a registered pair a flow links
   } as const;
   const { targets } = portCensus(root, () => undefined, [{ ...linked, reason: "planted: a wrong judgment over a real flow" }]);
   expect(typeTargets(targets, "PlaceStatement")).toEqual([{ kind: "db-handle-review", note: expect.stringContaining("copies:") }]);
+});
+
+// The flows the census follows to join two declarations into one concept, each beside a look-alike no flow reaches.
+const CONTRACTS = "packages/contracts/src";
+const RECALL_TREE = {
+  "packages/server/tsconfig.json": plantedTsconfig(),
+  // An async-iterable element flow: the export's zip files feed the infra writer's entries.
+  [`${SERVER}/infra/storage/contract.ts`]: [
+    "export interface ZipEntry { readonly path: string; readonly bytes: Uint8Array; }",
+    "export declare function packZip(entries: AsyncIterable<ZipEntry>): void;",
+  ].join("\n"),
+  [`${SERVER}/infra/storage/stage.ts`]: "export interface StagedFile { readonly path: string; readonly bytes: Uint8Array; }",
+  [`${SERVER}/domain/export/contract/st-profile.ts`]: [
+    "export interface StProfileZipFile { readonly path: string; readonly bytes: Uint8Array; }",
+    "export declare function stProfileZip(): AsyncGenerator<StProfileZipFile>;",
+  ].join("\n"),
+  [`${SERVER}/entry/http/export.ts`]: [
+    'import { packZip } from "../../infra/storage/contract.ts";',
+    'import { stProfileZip } from "../../domain/export/contract/st-profile.ts";',
+    "export function exportProfile(): void { packZip(stProfileZip()); }",
+  ].join("\n"),
+  // An array element flow: the plan's rows feed the marker placer's rows.
+  [`${SERVER}/infra/wire/v4.ts`]: [
+    "export interface PlanRow { readonly role: string; readonly toolExchange: boolean; readonly text: string; }",
+    "export interface WirePlan { readonly rows: readonly PlanRow[]; }",
+  ].join("\n"),
+  [`${SERVER}/infra/wire/markers.ts`]: [
+    "export interface CacheMarkerRow { readonly role: string; readonly toolExchange: boolean; readonly text: string; }",
+    "export declare function placeMarkers(input: { readonly rows: readonly CacheMarkerRow[] }): void;",
+  ].join("\n"),
+  [`${SERVER}/infra/wire/history.ts`]: "export interface HistoryTurn { readonly role: string; readonly toolExchange: boolean; readonly text: string; }",
+  [`${SERVER}/infra/wire/chat.ts`]: [
+    'import type { WirePlan } from "./v4.ts";',
+    'import { placeMarkers } from "./markers.ts";',
+    "export function send(plan: WirePlan): void { placeMarkers({ rows: plan.rows }); }",
+  ].join("\n"),
+  // A handler registered into a tool slot receives the slot's wider execution data.
+  [`${CONTRACTS}/tool-use/index.ts`]: [
+    "export interface ToolExecutionData { readonly principal: string; readonly chatId: string; readonly turnId: string; }",
+    "export interface ToolDefinition {",
+    "  readonly name: string;",
+    "  readonly handler: (args: string, exec: ToolExecutionData & { readonly signal: AbortSignal }) => Promise<string>;",
+    "}",
+  ].join("\n"),
+  [`${SERVER}/domain/chat/contract/react-tool.ts`]: [
+    "export interface ReactToolHandlerContext { readonly principal: string; readonly chatId: string; }",
+    "export type ReactToolHandler = (args: string, exec: ReactToolHandlerContext) => Promise<string>;",
+    "export declare function createReactToolHandler(): ReactToolHandler;",
+  ].join("\n"),
+  [`${SERVER}/domain/chat/contract/params.ts`]: "export interface ListForChatParams { readonly principal: string; readonly chatId: string; }",
+  [`${SERVER}/entry/compose/chat-tools.ts`]: [
+    'import type { ToolDefinition } from "../../../../contracts/src/tool-use/index.ts";',
+    'import { createReactToolHandler } from "../../domain/chat/contract/react-tool.ts";',
+    'export function createReactToolDefinition(): ToolDefinition { return { name: "react", handler: createReactToolHandler() }; }',
+  ].join("\n"),
+  // A domain contract restating a primitive the composition root wires into it.
+  [`${SERVER}/primitives/regex/compile-probe.ts`]: [
+    "export interface FindCompileProbe { readonly findRegex: string; readonly flags: string; }",
+    "export declare function createFindCompileProbe(): (patterns: readonly FindCompileProbe[]) => Promise<readonly boolean[]>;",
+  ].join("\n"),
+  [`${SERVER}/domain/regex/contract/portability.ts`]: [
+    "export interface FindCompileProbe { readonly findRegex: string; readonly flags: string; }",
+    "export type ProbeFindCompilesOp = (patterns: readonly FindCompileProbe[]) => Promise<readonly boolean[]>;",
+    "export interface RegexPortabilityContext { readonly probeFindCompiles: ProbeFindCompilesOp; }",
+    "export declare function createRegexService(context: RegexPortabilityContext): void;",
+  ].join("\n"),
+  [`${SERVER}/entry/compose/regex.ts`]: [
+    'import { createFindCompileProbe } from "../../primitives/regex/compile-probe.ts";',
+    'import { createRegexService } from "../../domain/regex/contract/portability.ts";',
+    "export function buildRegex(): void {",
+    "  const probeFindCompiles = createFindCompileProbe();",
+    "  createRegexService({ probeFindCompiles });",
+    "}",
+  ].join("\n"),
+  // The ports review's true findings, which must keep reporting: a private copy of the chat contract's sink a verb builds
+  // and hands on, and a domain taking another domain's pure data row.
+  [`${SERVER}/domain/chat/contract/gather.ts`]: [
+    "export interface SendRegexSink { readonly scripts: readonly string[]; readonly depth: number; }",
+    "export declare function gatherAssembleContext(sink: SendRegexSink): void;",
+  ].join("\n"),
+  [`${SERVER}/domain/chat/verbs/turn.ts`]: [
+    'import { gatherAssembleContext } from "../contract/gather.ts";',
+    "interface SendRegexSink { readonly scripts: readonly string[]; readonly depth: number; }",
+    "export function runTurn(sink: SendRegexSink): void { gatherAssembleContext(sink); }",
+  ].join("\n"),
+  [`${SERVER}/domain/workloads/contract/contribution.ts`]: "export interface ActiveWorkloadRow { readonly kind: string; readonly params: string; }",
+  [`${SERVER}/domain/workloads/index.ts`]: 'export type { ActiveWorkloadRow } from "./contract/contribution.ts";',
+  [`${SERVER}/domain/import/workload-contributions.ts`]: [
+    'import type { ActiveWorkloadRow } from "../workloads/index.ts";',
+    "export type ActiveRows = readonly ActiveWorkloadRow[];",
+  ].join("\n"),
+  // A domain and the content package may not import each other, so each declares the plate shape.
+  "packages/default-content/src/contract/plates.ts": [
+    "export interface SeedBackgroundPlate { readonly slug: string; readonly label: string; }",
+    "export declare const SEED_BACKGROUND_PLATES: readonly SeedBackgroundPlate[];",
+  ].join("\n"),
+  [`${SERVER}/domain/settings/contract/seeder.ts`]: [
+    "export interface SeedPlate { readonly slug: string; readonly label: string; }",
+    "export interface DefaultBackgroundSeederDeps { readonly plates: readonly SeedPlate[]; }",
+    "export declare function createDefaultBackgroundSeeder(deps: DefaultBackgroundSeederDeps): void;",
+  ].join("\n"),
+  [`${SERVER}/entry/compose/settings.ts`]: [
+    'import { SEED_BACKGROUND_PLATES } from "../../../../default-content/src/contract/plates.ts";',
+    'import { createDefaultBackgroundSeeder } from "../../domain/settings/contract/seeder.ts";',
+    "export function seedBackgrounds(): void { createDefaultBackgroundSeeder({ plates: SEED_BACKGROUND_PLATES }); }",
+  ].join("\n"),
+};
+
+type TypeTarget = Pick<PortTarget, "kind" | "owner" | "ownerAt" | "note">;
+
+const typeTarget = (targets: readonly PortTarget[], file: string, name: string): TypeTarget | undefined =>
+  targets
+    .filter((target) => target.form === "type" && target.file === file && target.members[0] === name)
+    .map(({ kind, owner, ownerAt, note }) => ({ kind, owner, ownerAt, note }))[0];
+
+test("an element flow through an array or an async iterable joins its two row shapes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(RECALL_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${SERVER}/infra/wire/v4.ts`, "PlanRow")).toMatchObject({
+    kind: "forgotten-door-export",
+    note: expect.stringContaining(`copies: ${SERVER}/infra/wire/markers.ts:1 CacheMarkerRow`),
+  });
+  // The export's zip file sits a tier above the infra entry it feeds, so the infra shape owns it.
+  expect(typeTarget(targets, `${SERVER}/domain/export/contract/st-profile.ts`, "StProfileZipFile")).toMatchObject({
+    kind: "hand",
+    owner: "ZipEntry",
+    ownerAt: `${SERVER}/infra/storage/contract.ts:1`,
+  });
+  // The look-alikes no element flow reaches stay shape-only review work.
+  expect(typeTarget(targets, `${SERVER}/infra/wire/history.ts`, "HistoryTurn")).toMatchObject({
+    kind: "review",
+    note: expect.stringContaining("same shape, no flow"),
+  });
+  expect(typeTarget(targets, `${SERVER}/infra/storage/stage.ts`, "StagedFile")).toMatchObject({
+    kind: "review",
+    note: expect.stringContaining("same shape, no flow"),
+  });
+});
+
+test("a handler registered into a slot derives its context from the data the slot passes, not from a look-alike", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(RECALL_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${SERVER}/domain/chat/contract/react-tool.ts`, "ReactToolHandlerContext")).toMatchObject({
+    kind: "hand",
+    owner: "ToolExecutionData",
+    ownerAt: `${CONTRACTS}/tool-use/index.ts:1`,
+    note: expect.stringContaining('Pick<ToolExecutionData, "chatId" | "principal">'),
+  });
+  expect(typeTarget(targets, `${SERVER}/domain/chat/contract/params.ts`, "ListForChatParams")).toMatchObject({
+    kind: "review",
+    note: expect.stringContaining("same shape, no flow"),
+  });
+});
+
+test("a domain contract restating a primitive the composition root wires in derives from the primitive", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(RECALL_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${SERVER}/domain/regex/contract/portability.ts`, "FindCompileProbe")).toMatchObject({
+    kind: "hand",
+    owner: "FindCompileProbe",
+    ownerAt: `${SERVER}/primitives/regex/compile-probe.ts:1`,
+  });
+  // The primitive is the owner: it keeps its own door export and is never told to import the domain's copy.
+  expect(typeTarget(targets, `${SERVER}/primitives/regex/compile-probe.ts`, "FindCompileProbe")).toMatchObject({
+    kind: "forgotten-door-export",
+    note: expect.stringContaining(`copies: ${SERVER}/domain/regex/contract/portability.ts:1 FindCompileProbe`),
+  });
+});
+
+test("a linked copy neither side may import under a dependency rule is a ruled restatement", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(RECALL_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${SERVER}/domain/settings/contract/seeder.ts`, "SeedPlate")).toMatchObject({
+    kind: "ruled",
+    note: expect.stringContaining("domain-no-default-content"),
+  });
+  expect(typeTarget(targets, "packages/default-content/src/contract/plates.ts", "SeedBackgroundPlate")).toMatchObject({
+    kind: "ruled",
+    note: expect.stringContaining("default-content-cake"),
+  });
+});
+
+test("the ports review's true findings still report as work", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(RECALL_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${SERVER}/domain/chat/contract/gather.ts`, "SendRegexSink")).toMatchObject({
+    kind: "forgotten-door-export",
+    note: expect.stringContaining(`copies: ${SERVER}/domain/chat/verbs/turn.ts:2 SendRegexSink`),
+  });
+  const imports = targets.filter(({ form, file }) => form === "import" && file === `${SERVER}/domain/import/workload-contributions.ts`);
+  expect(imports.map(({ kind, members }) => ({ kind, members }))).toEqual([{ kind: "move-to-contracts", members: ["ActiveWorkloadRow"] }]);
+});
+
+const CLIENT = "packages/client/src/features/preset";
+const JSX_TREE = {
+  "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB, jsx: "preserve" }),
+  "packages/client/src/jsx.d.ts": JSX_NAMESPACE,
+  [`${CLIENT}/params-limits.tsx`]: [
+    "export interface ParamsLimitsProps { readonly form: string; readonly limit: number; }",
+    "export function ParamsLimits(props: ParamsLimitsProps): JSX.Element { return <div title={props.form} />; }",
+  ].join("\n"),
+  // Forwards every prop it receives: one concept.
+  [`${CLIENT}/params-deck.tsx`]: [
+    'import { ParamsLimits } from "./params-limits.tsx";',
+    "export interface ParamsDeckProps { readonly form: string; readonly limit: number; }",
+    "export function ParamsDeck({ form, limit }: ParamsDeckProps): JSX.Element { return <ParamsLimits form={form} limit={limit} />; }",
+  ].join("\n"),
+  // Forwards one prop and fills the other itself: two components that share a shape, not a concept.
+  [`${CLIENT}/params-preview.tsx`]: [
+    'import { ParamsLimits } from "./params-limits.tsx";',
+    "export interface ParamsPreviewProps { readonly form: string; readonly limit: number; }",
+    "export function ParamsPreview({ form }: ParamsPreviewProps): JSX.Element { return <ParamsLimits form={form} limit={1} />; }",
+  ].join("\n"),
+};
+
+test("a component that forwards every prop to a child shares the child's props concept", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(JSX_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  expect(typeTarget(targets, `${CLIENT}/params-deck.tsx`, "ParamsDeckProps")).toMatchObject({
+    kind: "forgotten-door-export",
+    note: expect.stringContaining(`copies: ${CLIENT}/params-limits.tsx:1 ParamsLimitsProps`),
+  });
+  expect(typeTarget(targets, `${CLIENT}/params-preview.tsx`, "ParamsPreviewProps")).toMatchObject({
+    kind: "review",
+    note: expect.stringContaining("same shape, no flow"),
+  });
 });
