@@ -157,8 +157,8 @@ interface PluginVariablePrecondition {
 type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
 /** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). `position`
- *  is the seat the entry renders at: before or after the character definitions, or the top or bottom of the chat's
- *  Author's Note or of the example messages. A seat a turn lacks leaves the entry in the system prompt. */
+ *  names a seat (before or after the character definitions, the top or bottom of the chat's Author's Note or of the
+ *  example messages), but the host does not read it: the entry lands at the lore writer's default seat. */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
   readonly entryKey: string;

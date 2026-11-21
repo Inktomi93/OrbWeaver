@@ -83,7 +83,7 @@ function inertSuffix(note: ImportBookNote): string {
   const seatless =
     note.seatlessSlots.length === 0
       ? ""
-      : `; placed before the character, since that SillyTavern slot has no seat here (kept for a SillyTavern export): ${note.seatlessSlots.map((s) => `\`${s.slot}\` (${entriesWord(s.entries)})`).join(", ")}`;
+      : `; placed before or after the character, since that SillyTavern slot has no seat here (kept for a SillyTavern export): ${note.seatlessSlots.map((s) => `\`${s.slot}\` (${entriesWord(s.entries)})`).join(", ")}`;
   return `${inert}${seatless}`;
 }
 

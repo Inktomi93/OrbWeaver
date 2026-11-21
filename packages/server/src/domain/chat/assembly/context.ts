@@ -19,7 +19,7 @@ import type {
   SpeakerRef,
   TurnGlobalVariables,
 } from "@orb/contracts/chat";
-import { CHAT_INJECTION_POSITIONS, speakerKey, stripSendPlaceholders } from "@orb/contracts/chat";
+import { speakerKey, stripSendPlaceholders } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -42,7 +42,7 @@ import type { RegexPassOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { RegexNoticeEpisode } from "../contract/results.ts";
-import { BEFORE_HISTORY_DEPTH, DEFAULT_INJECTION_ORDER, renderInjection } from "./injections.ts";
+import { BEFORE_HISTORY_DEPTH, renderInjection, seatAuthorsNoteLore } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
 import { hasActiveMarker } from "./sections.ts";
 import { loadWorldInfoPool } from "./world-info/pool.ts";
@@ -101,9 +101,6 @@ interface InjectionCandidate {
    *  lore fired by name and keys (`keys` is [] for an always-scope entry). */
   worldEntry?: { id: WorldEntryId; title: string; keys: string[] };
   bucket: WiBucket | null;
-  /** Set for an entry at an Author's Note seat: which end of the chat's injections it joins. {@link seatAuthorsNote}
-   *  moves it beside that end after the budget pass; with no chat injection it keeps its default placement. */
-  noteEdge?: "top" | "bottom";
 }
 
 const OPERATOR_PRIORITY = Number.MAX_SAFE_INTEGER;
@@ -236,11 +233,11 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
   // An at-depth entry leaves the system half, so a seat it names is moot.
   const noteSeat = isAuthorsNotePosition(entry.position) ? { noteEdge: AUTHORS_NOTE_EDGE[entry.position] } : {};
   if (entry.scope === "always") {
-    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info" };
-    return { injection, ...meta, ...noteSeat, bucket: resolveBucket(entry, args, "static") };
+    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info", ...noteSeat };
+    return { injection, ...meta, bucket: resolveBucket(entry, args, "static") };
   }
-  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info" };
-  return { injection, ...meta, ...noteSeat, bucket: resolveBucket(entry, args, "dynamic") };
+  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info", ...noteSeat };
+  return { injection, ...meta, bucket: resolveBucket(entry, args, "dynamic") };
 }
 
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
@@ -547,52 +544,6 @@ function buildBaseContext(
   return base;
 }
 
-/** Which of two chat injections the prompt places higher: the system block's positions in prompt order, then
- *  `in_chat` rows by depth (deepest first) and `order` (lower first), as the splice sorts them. Ties keep list
- *  order. The splice clamps a depth past the history to the history's length, where `order` alone decides; this
- *  reads the authored depth. */
-function notePromptOrder(a: ChatInjection, b: ChatInjection): number {
-  const byPosition = CHAT_INJECTION_POSITIONS.indexOf(a.position) - CHAT_INJECTION_POSITIONS.indexOf(b.position);
-  if (byPosition !== 0 || a.position !== "in_chat") {
-    return byPosition;
-  }
-  return b.depth - a.depth || (a.order ?? DEFAULT_INJECTION_ORDER) - (b.order ?? DEFAULT_INJECTION_ORDER);
-}
-
-/** An Author's Note seat's lore rides the register of the chat's own injections (the chat's Author's Note is its
- *  Injections list, `user`-origin). Top lore sits above the injection the prompt places first and bottom lore
- *  below the one it places last, at the register that injection holds: its position, depth, role and order. A
- *  chat with no injection has no note, so the lore keeps its default placement. Run after the budget pass: a
- *  chat injection never drops, so the seat cannot vanish between the pass and here. */
-function seatAuthorsNote(kept: readonly InjectionCandidate[]): InjectionCandidate[] {
-  const isNoteLore = (c: InjectionCandidate): boolean => c.noteEdge !== undefined;
-  const ranked = kept.filter((c) => c.injection.origin === "user").toSorted((a, b) => notePromptOrder(a.injection, b.injection));
-  const first = ranked.at(0);
-  const last = ranked.at(-1);
-  if (first === undefined || last === undefined) {
-    return [...kept];
-  }
-  const seated = (edge: "top" | "bottom", note: InjectionCandidate): InjectionCandidate[] =>
-    kept
-      .filter((c) => c.noteEdge === edge)
-      .map((c) => ({
-        ...c,
-        injection: {
-          ...c.injection,
-          position: note.injection.position,
-          depth: note.injection.depth,
-          role: note.injection.role,
-          ...(note.injection.order === undefined ? {} : { order: note.injection.order }),
-        },
-      }));
-  return kept.flatMap((c) => {
-    if (isNoteLore(c)) {
-      return [];
-    }
-    return [...(c === first ? seated("top", c) : []), c, ...(c === last ? seated("bottom", c) : [])];
-  });
-}
-
 /** Routes budget-kept candidates: text-seat WI → its half's parts for the seat; everything else → the
  *  injection list (system-block positions framed once, in_chat left unframed for the SHAPE splice). */
 function routeKept(
@@ -605,12 +556,15 @@ function routeKept(
   const chatInjections: ChatInjection[] = [];
   const seatParts = (): Record<TextSeat, string[]> => ({ before: [], after: [], ["example_messages_top"]: [], ["example_messages_bottom"]: [] });
   const anchored: Record<WiBucket["half"], Record<TextSeat, string[]>> = { static: seatParts(), dynamic: seatParts() };
-  for (const c of seatAuthorsNote(kept)) {
-    if (c.bucket === null) {
-      chatInjections.push(frameSystemInjection(c.injection, prose));
-    } else {
+  for (const c of kept) {
+    if (c.bucket !== null) {
       anchored[c.bucket.half][c.bucket.position].push(c.injection.content);
     }
+  }
+  // Seated after the budget pass: a chat injection never drops, so the seat cannot vanish between the pass and here.
+  const injections = kept.flatMap((c) => (c.bucket === null ? [c.injection] : []));
+  for (const injection of seatAuthorsNoteLore(injections, null)) {
+    chatInjections.push(frameSystemInjection(injection, prose));
   }
   return { chatInjections, anchored };
 }

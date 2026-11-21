@@ -36,10 +36,8 @@ export type EntryPosition = (typeof ENTRY_POSITIONS)[number];
 export type AuthorsNotePosition = (typeof AUTHORS_NOTE_POSITIONS)[number];
 
 /** Which end of the Author's Note each of its seats is. */
-export const AUTHORS_NOTE_EDGE = { ["authors_note_top"]: "top", ["authors_note_bottom"]: "bottom" } as const satisfies Record<
-  AuthorsNotePosition,
-  "top" | "bottom"
->;
+export const AUTHORS_NOTE_EDGE = { ["authors_note_top"]: "top", ["authors_note_bottom"]: "bottom" } as const;
+export type AuthorsNoteEdge = (typeof AUTHORS_NOTE_EDGE)[AuthorsNotePosition];
 
 export function isAuthorsNotePosition(position: EntryPosition): position is AuthorsNotePosition {
   return AUTHORS_NOTE_POSITIONS.some((seat) => seat === position);
@@ -107,8 +105,8 @@ export function entryPositionOfStSlot(slot: unknown): EntryPosition | null {
   return ENTRY_POSITIONS.find((position) => ST_WORLD_INFO_POSITION[ST_SLOT_OF_ENTRY_POSITION[position]] === slot) ?? null;
 }
 
-/** The SillyTavern slots with no seat here: a named outlet. An entry from one is placed in the before bucket, and its
- *  metadata keeps the slot it came from. */
+/** The SillyTavern slots with no seat here: a named outlet. An entry from one is placed before or after the character,
+ *  as its card's before or after string says, and its metadata keeps the slot it came from. */
 export const ST_SEATLESS_POSITIONS = ["outlet"] as const satisfies readonly StWorldInfoPosition[];
 export type StSeatlessPosition = (typeof ST_SEATLESS_POSITIONS)[number];
 

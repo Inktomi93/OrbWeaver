@@ -104,6 +104,8 @@ interface RoomOptions {
   readonly examples?: string;
   /** Chat injections, in the order they are added; each is an in_chat system row at one shared depth, ordered as listed. */
   readonly injections?: readonly string[];
+  /** Chat injections at their own register, added after {@link RoomOptions.injections}. */
+  readonly notes?: readonly { readonly content: string; readonly depth: number; readonly order: number; readonly role?: "system" | "assistant" }[];
 }
 
 async function room(options: RoomOptions): Promise<Awaited<ReturnType<typeof createChatRoot>>> {
@@ -139,6 +141,9 @@ async function room(options: RoomOptions): Promise<Awaited<ReturnType<typeof cre
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
   for (const [order, content] of (options.injections ?? []).entries()) {
     await h.caller.chat.setChatInjection({ chatId: h.chatId, position: "in_chat", role: "system", depth: 2, order, content });
+  }
+  for (const { content, depth, order, role = "system" } of options.notes ?? []) {
+    await h.caller.chat.setChatInjection({ chatId: h.chatId, position: "in_chat", role, depth, order, content });
   }
   construction.move();
   return h;
@@ -195,6 +200,23 @@ test("both Author's Note seats wrap every chat injection, in the order the promp
     injections: ["NOTE-ONE", "NOTE-TWO"],
   });
   expect(spanOf(await sendAndReadWire(h, "we sail on"), "TOP", "BOTTOM")).toBe("TOP NOTE-ONE NOTE-TWO BOTTOM");
+});
+
+const WRAP_ENTRIES: readonly SeatEntry[] = [
+  { content: "TOP", slot: ST_SLOT["authors_note_top"] },
+  { content: "BOTTOM", slot: ST_SLOT["authors_note_bottom"] },
+];
+
+test("on a history shorter than the notes' depths the seats wrap the notes in the order the splice leaves them", async () => {
+  // The first send's history is one row, so both depths clamp to it and `order` alone ranks the notes: B above A.
+  await using h = await room({
+    entries: WRAP_ENTRIES,
+    notes: [
+      { content: "NOTE-A", depth: 4, order: 100 },
+      { content: "NOTE-B", depth: 2, order: 50 },
+    ],
+  });
+  expect(spanOf(await sendAndReadWire(h, "we sail on"), "TOP", "BOTTOM")).toBe("TOP NOTE-B NOTE-A BOTTOM");
 });
 
 test.for([

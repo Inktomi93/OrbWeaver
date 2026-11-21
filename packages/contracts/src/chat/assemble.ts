@@ -12,7 +12,7 @@ import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
-import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
+import type { AuthorsNoteEdge, EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, PromptSectionId, UserIntent } from "#preset";
@@ -124,6 +124,9 @@ export interface ChatInjection {
    *  the room author's note, the game state block). Display-only provenance for the host budget breakdown:
    *  never rendered into the prompt, never a wire input. */
   originLabel?: string;
+  /** World-info lore that sits at this end of the chat's own injections (its Author's Note), until the splice or
+   *  the context build seats it beside the injection that ends there and clears this. Never on a view or a wire. */
+  noteEdge?: AuthorsNoteEdge;
 }
 
 // The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
