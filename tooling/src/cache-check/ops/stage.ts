@@ -12,9 +12,12 @@ refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
 const LOOPBACK = "127.0.0.1";
 
+type StageOps = Parameters<typeof import("#snap")["ensureStage"]>[1];
+
 /** Boot or reuse the isolated stage for `options` and return its server base URL. A ref git cannot resolve is
- *  misuse, refused before any worktree work; a stage that fails to boot throws (a tool error). */
-export async function bootStage(options: CacheCheckOptions, mainEnv: EnvFile): Promise<string> {
+ *  misuse, refused before any worktree work; a stage that fails to boot throws (a tool error). `ops` is snap's
+ *  injected box-facing half of `ensureStage`; every caller but a test takes the real one. */
+export async function bootStage(options: CacheCheckOptions, mainEnv: EnvFile, ops?: StageOps): Promise<string> {
   // Loaded here, not at module scope: snap's front door pulls in its whole browser graph, and the pure half of
   // this tool (the verdict, the argv, the fixture) must stay importable by its tests without it.
   const snap = await import("#snap");
@@ -27,7 +30,7 @@ export async function bootStage(options: CacheCheckOptions, mainEnv: EnvFile): P
   }
   // A linked worktree has no `.env` for the stage to inherit this from, and without it credential storage is off.
   const row = await withProcessEnv(CREDENTIALS_KEY_ENV, credentialsKey, () =>
-    Promise.resolve(snap.ensureStage({ ref: options.ref, fresh: false, dirty: options.dirty })),
+    Promise.resolve(snap.ensureStage({ ref: options.ref, fresh: false, dirty: options.dirty, seedsConnection: true }, ops)),
   );
   return `http://${LOOPBACK}:${row.serverPort}`;
 }

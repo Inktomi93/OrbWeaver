@@ -129,6 +129,7 @@ function readRow(value: unknown): StageRow | null {
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
     ...readWarming(value["warming"]),
+    ...(value["connectionSeeded"] === true ? { connectionSeeded: true as const } : {}),
     ...readKeeper(value["keeper"]),
   };
 }
@@ -281,6 +282,16 @@ export function markStageWarming(home: string, band: number, since: string): voi
     const row = readRowFor(home, band);
     if (row !== null) {
       writeRow(home, { ...row, warming: { since } });
+    }
+  });
+}
+
+/** A run seeded a connection into the stage, so from here only its owner reuses it. */
+export function markStageConnectionSeeded(home: string, band: number): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, connectionSeeded: true });
     }
   });
 }

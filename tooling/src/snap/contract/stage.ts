@@ -167,6 +167,9 @@ export interface StageRow {
   readonly dead?: StageDeath;
   /** Present from the first missed readiness (server and vite answering) until the warm retry settles or kills it. */
   readonly warming?: StageWarming;
+  /** A run seeded a credential, a connection and a chat binding into this stage's db (`--stage-connection`, cache:check):
+   *  only its owner reuses it, so no other checkout's run drives chat on that key. */
+  readonly connectionSeeded?: true;
   /** The stage's OWN idle timer (#1163 arm b): a detached, niced sleeper bound to this band that tears the
    *  stage down when nothing has used it for the TTL. Absent means no timer is armed — which is a degraded
    *  state, never a protected one: the keeper is NEVER a fence, so a row whose keeper pid is dead stays
@@ -394,8 +397,9 @@ export interface EnsureStageOpts {
   readonly auth?: StageAuthMode;
   /** A db file to clone into the rebuilt stage instead of the dev db (`--stage-db`). */
   readonly stageDb?: string;
-  /** The run writes a credential, a connection and a chat binding into the stage's db (`--stage-connection`), so
-   *  like `--dirty` and `--fresh` it never takes a sibling's stage. */
+  /** The run writes a credential, a connection and a chat binding into the stage's db (`--stage-connection`,
+   *  cache:check), so like `--dirty` and `--fresh` it never takes a sibling's stage, and the row it binds is marked
+   *  {@link StageRow.connectionSeeded}. */
   readonly seedsConnection?: true;
 }
 

@@ -124,6 +124,7 @@ export function claimRow(claim: {
   readonly targetSha: string;
   readonly dir: string;
   readonly nowIso: string;
+  readonly connectionSeeded: boolean;
 }): StageRow {
   const { band, targetSha, dir, nowIso } = claim;
   const ports = stageBandPorts(band);
@@ -142,6 +143,7 @@ export function claimRow(claim: {
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
+    ...(claim.connectionSeeded ? { connectionSeeded: true as const } : {}),
   };
 }
 

@@ -265,6 +265,49 @@ test("a run that seeds a connection gets its own band, never a sibling's warm st
   ]);
 });
 
+test("a stage a connection was seeded into is reused only by the checkout that seeded it", () => {
+  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  // Each run's ask goes through ensureStage into the real allocator over a planted census; the planted census then
+  // refuses as a full table does, so nothing boots. A run handed a free band records the claim row it would write.
+  const run = (checkout: string, argv: string[], census: readonly StageBandView[]): { verdict: StageAllocation; claim: StageRow | null } => {
+    const seen: { verdict: StageAllocation; claim: StageRow | null }[] = [];
+    const ops: EnsureStageOps = {
+      repoRoot: (): string => checkout,
+      resolveRef: (): string => SHA,
+      markerRoot: (): string => checkout,
+      acquireStageBand: (input) => {
+        const verdict = allocateStageBand({ ...input, nowMs: NOW, views: census, limits: LIMITS });
+        seen.push({ verdict, claim: verdict.kind === "free" ? input.claim(verdict.band) : null });
+        throw new StageBusyError("planted census: the verdict is the observable");
+      },
+      armStageKeeper: (_home, armed) => armed,
+    };
+    const parsed = parseSnapArgs(argv);
+    expect(parsed.errors).toEqual([]);
+    expect(() => ensureStage(stageAskFromArgs(parsed), ops)).toThrow(StageBusyError);
+    const [only] = seen;
+    if (only === undefined) {
+      throw new Error("ensureStage never asked the allocator");
+    }
+    return only;
+  };
+  const claimOf = (argv: string[]): StageRow => {
+    const { claim } = run(LANE_CHECKOUT, argv, views([]));
+    if (claim === null) {
+      throw new Error("an empty table handed out no free band");
+    }
+    return claim;
+  };
+  const plain = claimOf(["/", "--isolated"]);
+  const seeded = claimOf(["/", "--stage-connection", seeding]);
+  const sibling = (stage: StageRow): StageAllocation => run(MAIN_CHECKOUT, ["/", "--isolated"], views([{ row: stage }])).verdict;
+  // The positive control first: a sibling's plain run shares a plain stage at the commit.
+  expect(sibling(plain)).toEqual({ kind: "shared-reuse", band: 0, row: plain });
+  expect(sibling(seeded)).toEqual({ kind: "free", band: 1 });
+  // The checkout that seeded it still reuses its own stage.
+  expect(run(LANE_CHECKOUT, ["/", "--isolated"], views([{ row: seeded }])).verdict).toEqual({ kind: "ours", band: 0, row: seeded });
+});
+
 test("with every band occupied, the LOWEST STRANDED row is reaped on acquire", () => {
   const occupied = Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) =>
     band === 7

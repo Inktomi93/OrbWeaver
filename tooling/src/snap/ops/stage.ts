@@ -105,7 +105,7 @@ import { acquireStageBand, claimRow, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef, stageCallerOwner } from "./stage-git.ts";
 import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
-import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
+import { clearRow, markerRoot, markStageConnectionSeeded, readBands, touchRow, writeRow } from "./stage-marker.ts";
 import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import {
@@ -247,6 +247,7 @@ function bootOntoBand(input: {
   readonly fresh: boolean;
   readonly auth: StageAuthMode;
   readonly stageDb: string | undefined;
+  readonly connectionSeeded: boolean;
 }): StageRow {
   const { root, home, band, owner, targetSha, dirty, auth, stageDb } = input;
   const paths = stagePaths(root, targetSha, auth, owner);
@@ -297,10 +298,17 @@ function bootOntoBand(input: {
     sessions: [],
     dbProvenance,
     rsyncs: dirty ? 1 : 0,
+    // Marked as written, so no sibling can be handed the seeded stage between this write and ensureStage's exit.
+    ...(input.connectionSeeded ? { connectionSeeded: true as const } : {}),
   };
   writeRow(home, built);
   print(`[snap-stage] stage ready → ${stageRowBaseUrl(built)}`);
   return built;
+}
+
+function markSeeded(home: string, row: StageRow): StageRow {
+  markStageConnectionSeeded(home, row.band);
+  return { ...row, connectionSeeded: true };
 }
 
 const REAL_ENSURE_STAGE_OPS: EnsureStageOps = { repoRoot, resolveRef, markerRoot, acquireStageBand, armStageKeeper };
@@ -316,7 +324,9 @@ export function ensureStage(opts: EnsureStageOpts, ops: EnsureStageOps = REAL_EN
   // ARM (b) (#1163): every path below yields a LIVE row, and every live row gets the band's own idle
   // timer — armed here, at the ONE exit, so no future arm can forget it. Idempotent: a warm reuse whose
   // keeper is still running spawns nothing (ops/stage-keeper.ts).
-  const row = ops.armStageKeeper(home, resolved.row);
+  const armed = ops.armStageKeeper(home, resolved.row);
+  // A reused stage of our own is marked here; a booted one carries the mark from its claim.
+  const row = opts.seedsConnection === true && armed.connectionSeeded !== true ? markSeeded(home, armed) : armed;
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
   registerStageRunBinding({ row, home, booted: resolved.booted, owner: stageCallerOwner(root) });
@@ -343,6 +353,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
   const auth = opts.auth ?? "single-user";
   const owner = stageCallerOwner(root);
   const dir = stagePaths(root, targetSha, auth, owner).dir;
+  const connectionSeeded = opts.seedsConnection === true;
 
   const { allocation } = ops.acquireStageBand({
     home,
@@ -351,10 +362,10 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
     targetSha,
     dirty,
     fresh: opts.fresh,
-    seedsConnection: opts.seedsConnection === true,
+    seedsConnection: connectionSeeded,
     nowMs,
     auth,
-    claim: (band) => claimRow({ band, checkout: root, owner, targetSha, dir, nowIso }),
+    claim: (band) => claimRow({ band, checkout: root, owner, targetSha, dir, nowIso, connectionSeeded }),
   });
 
   if (allocation.kind === "exhausted") {
@@ -398,8 +409,11 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
       `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh })})`,
     );
     dropStage(root, home, allocation.row);
-    writeRow(home, claimRow({ band: allocation.band, checkout: root, owner, targetSha, dir, nowIso }));
-    return { row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
+    writeRow(home, claimRow({ band: allocation.band, checkout: root, owner, targetSha, dir, nowIso, connectionSeeded }));
+    return {
+      row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb, connectionSeeded }),
+      booted: true,
+    };
   }
   if (allocation.kind === "reap") {
     // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
@@ -421,7 +435,10 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
     // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
     recordStageReap(home, allocation.row, "acquire", nowMs);
   }
-  return { row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
+  return {
+    row: bootOntoBand({ root, home, band: allocation.band, owner, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb, connectionSeeded }),
+    booted: true,
+  };
 }
 
 /** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare

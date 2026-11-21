@@ -77,6 +77,7 @@ test.skipIf(process.platform !== "linux")("a claim still booting is held by the 
     targetSha: SHA,
     dir: `${CHECKOUT}/.cache/snap-stage/0123456789ab`,
     nowIso: new Date(nowMs).toISOString(),
+    connectionSeeded: false,
   });
   // The holder stamps real wall time, which the frozen clock cannot reach; an epoch stamp is stale at any
   // `nowMs`, so only the running claiming process can keep the claim live.
@@ -96,6 +97,7 @@ test("a claim whose holder has no start time is held while the stamp is recent a
     targetSha: SHA,
     dir: `${CHECKOUT}/.cache/snap-stage/0123456789ab`,
     nowIso: new Date(nowMs).toISOString(),
+    connectionSeeded: false,
   });
   const stamped = (stampedAt: string): StageRow => ({ ...booted, holders: [{ pid: process.pid, checkout: CHECKOUT, stampedAt }] });
   expect(allocateAgainst(stamped(new Date(nowMs - MS_PER_MINUTE).toISOString()), nowMs).kind).toBe("exhausted");
