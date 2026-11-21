@@ -52,7 +52,9 @@ export function markSettableWindow(capability: Capability, sendsWindow: boolean,
   if (!sendsWindow && held === undefined && marked === undefined) {
     return capability;
   }
-  const marks = sendsWindow ? { sendsWindow: true, ...(trained === undefined ? {} : { settable: { max: trained } }) } : {};
+  const marks: Partial<Pick<GenerationCapability["context"], "sendsWindow" | "settable">> = sendsWindow
+    ? { sendsWindow: true, ...(trained === undefined ? {} : { settable: { max: trained } }) }
+    : {};
   return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...marks } } };
 }
 

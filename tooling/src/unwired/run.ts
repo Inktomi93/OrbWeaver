@@ -1,6 +1,6 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines, and each writes one report under reports/unwired/;
-// `removed-keys` reads git only and exits 1 while a deletion branch's removed contract key keeps a sender; `coverage`
+// `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -34,7 +34,6 @@ const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--o
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
-const AMBIGUOUS_SAMPLE = 5;
 
 /** What the ports census cannot see, written into its report and printed with every run. */
 const PORT_LIMITS: readonly string[] = [
@@ -93,7 +92,9 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
     "reports/unwired/fields.json",
     scanFields,
     (report) =>
-      ` received=${report.received.length} validated=${report.validated.length} acknowledged=${report.acknowledged.length} sent=${Object.entries(report.sentBy)
+      ` received=${report.received.length} unresolved=${report.unresolved.length} unplaced=${Object.entries(report.unresolvedByReason)
+        .map(([reason, count]) => `${reason}:${count}`)
+        .join(",")} validated=${report.validated.length} acknowledged=${report.acknowledged.length} sent=${Object.entries(report.sentBy)
         .map(([destination, count]) => `${destination}:${count}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
@@ -149,21 +150,24 @@ function parseArgs(argv: readonly string[]): Args {
 }
 
 function runRemovedKeys(args: Args): number {
-  const report = checkRemovedKeys(args.root, args.base, args.head);
-  for (const { key, ambiguous, hits } of report.removed) {
-    // An ambiguous key is a lead for a person, so a short sample stands for its hits.
-    for (const hit of ambiguous ? hits.slice(0, AMBIGUOUS_SAMPLE) : hits) {
-      process.stdout.write(`${ambiguous ? "ambiguous" : "live"}\t${key}\t${hit.receiver}\t${hit.at}\t${hit.text}\n`);
+  const report = checkRemovedKeys({ root: args.root, base: args.base, head: args.head });
+  for (const { key, senders, loose, unresolved, other } of report.removed) {
+    for (const hit of senders) {
+      process.stdout.write(`sender\t${key}\t${hit.receiver}\t${hit.at}\t${hit.text}\n`);
     }
-    if (ambiguous && hits.length > AMBIGUOUS_SAMPLE) {
-      process.stdout.write(`ambiguous\t${key}\t${hits.length - AMBIGUOUS_SAMPLE} more hits\n`);
+    for (const hit of loose) {
+      process.stdout.write(`loose\t${key}\t${hit.receiver}\t${hit.at}\t${hit.destination}\t${hit.text}\n`);
     }
+    for (const hit of unresolved) {
+      process.stdout.write(`unresolved\t${key}\t${hit.receiver}\t${hit.at}\t${hit.reason}\t${hit.text}\n`);
+    }
+    process.stdout.write(`other\t${key}\t${String(other)} sites on another member\n`);
   }
   const scanned = Object.entries(report.scanned)
     .map(([receiver, files]) => `${receiver}:${files}`)
     .join(",");
   log(
-    `${report.base}...${report.head}: removed=${report.removed.length} scanned=${scanned} ${report.failed ? "FAILED: a removed key still has a live sender" : "no live sender"}`,
+    `${report.base}...${report.head}: removed=${report.removed.length} scanned=${scanned} ${report.failed ? "FAILED: a removed key still has a sender" : "no sender"}`,
   );
   return report.failed ? EXIT.violations : EXIT.clean;
 }

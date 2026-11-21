@@ -27,6 +27,7 @@ import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
 import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
 import { FieldSort, homeAliases, homeNames } from "./field-sort.ts";
+import type { UnresolvedReason } from "./key-resolver.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { LiteralEvidence, LiteralStage } from "./literal-hits.ts";
 import { literalStage } from "./literal-hits.ts";
@@ -99,6 +100,12 @@ export interface FieldsReport {
    *  the procedure's whole answer. Reported, never judged. */
   readonly acknowledged: readonly UnwiredField[];
   readonly received: readonly ReceivedField[];
+  /** Keys the resolver could not place whose placement could change a reported row, `file:line name reason -> row`: a
+   *  read or write of a reported member's name in the role that would credit or clear it. Listed for judgement, never
+   *  credited by the name. */
+  readonly unresolved: readonly string[];
+  /** Every key the resolver could not place, by reason, listed or not. */
+  readonly unresolvedByReason: Readonly<Partial<Record<UnresolvedReason, number>>>;
   /** How many reported fields each send destination covers. */
   readonly sentBy: Readonly<Partial<Record<SendDestination, number>>>;
   /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
@@ -111,7 +118,9 @@ export interface FieldsReport {
 
 /** What the fields scan cannot see, printed with every run. */
 const FIELD_LIMITS: readonly string[] = [
-  "A computed key built from runtime strings types as string, so it reads or writes no named field.",
+  "A computed key built from runtime strings types as string, so it reads or writes no named field. A spread of a value whose type builds its keys, such as Record<keyof X, V> or a template-literal key type, writes none of them: only a literal key that built the value names a written member, and a literal key on a member no declaration backs is unresolved.",
+  "A string key counts only in a key slot the key resolver reads (tooling/src/unwired/key-resolver.ts): a computed literal key, a slot declared keyof X, a generic call slot keyof T bound by an argument, or a TanStack Form path walked segment by segment. A template-literal form path (a path with an interpolated index) and a field list typed string[] (MiniSearch's own options) name no member.",
+  "A key the resolver cannot place credits no field by its name. It is counted by reason (untyped, absent, synthetic, no-holder, path), and listed in unresolved only when it spells a reported row's member in the role that row lacks (a read for never-read, a write for never-written, either for unreferenced) on a holder that could be the row's home: any for untyped and no-holder, one whose declared members share the row's file for synthetic, never for absent and path.",
   "A type-position read (Registry[K]) is no read; a registry entry needs a value read by name.",
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible.",
   "JSON.stringify reads every field only where its string is compared, hashed or used as a map key or a *key/*hash binding; elsewhere it is a send with a named destination, and a return or plain binding is 'unclassified'.",
@@ -532,13 +541,21 @@ interface Roles {
   readonly tests: number;
 }
 
+function roleOfSite(sources: Sources, site: Site, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): SyntaxRole {
+  if (filled.has(siteKey(site))) {
+    return "write";
+  }
+  return keyed.get(siteKey(site)) ?? roleAt(sources.get(site.file), site.position);
+}
+
 // `filled`: sites where a library writes the member, such as a paged query filling its cursor, though the syntax reads.
-function rolesOf(sources: Sources, sites: Iterable<Site>, filled: ReadonlySet<string>): Roles {
+// `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none.
+function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;
   for (const site of sites) {
-    const role: SyntaxRole = filled.has(siteKey(site)) ? "write" : roleAt(sources.get(site.file), site.position);
+    const role = roleOfSite(sources, site, { filled, keyed });
     if (role === "type") {
       continue;
     }
@@ -551,6 +568,37 @@ function rolesOf(sources: Sources, sites: Iterable<Site>, filled: ReadonlySet<st
     }
   }
   return { read, write, tests };
+}
+
+// The role that would change a reported row's verdict, by its kind.
+const DECIDING_ROLES: Readonly<Record<FieldKind, readonly SyntaxRole[]>> = {
+  "never-read": ["read"],
+  "never-written": ["write"],
+  unreferenced: ["read", "write"],
+};
+
+// Whether a key with this reason could land on a reported row's home if a step placed it. An absent key's closed holder
+// has no member of that name, and a form path names none; an untyped or holderless key could be any home; a synthetic
+// key could be a home whose file declares its holder's other members.
+const MIGHT_LAND: Readonly<Record<UnresolvedReason, (row: UnwiredField, holderFiles: readonly string[]) => boolean>> = {
+  absent: () => false,
+  path: () => false,
+  untyped: () => true,
+  "no-holder": () => true,
+  synthetic: (row, holderFiles) => holderFiles.includes(row.file),
+};
+
+// The unplaced keys that could change a reported row: the row's member name, in the role its kind lacks, on a holder
+// that could be its home. The name only picks what a person reads next; it credits nothing.
+function deciding(sources: Sources, references: PropertyReferences, rows: readonly UnwiredField[]): readonly string[] {
+  const byName = Map.groupBy(rows, (row) => row.member.split(".").at(-1) ?? row.member);
+  return references.unresolved.flatMap(({ site, name, reason, holderFiles }) => {
+    const role = roleOfSite(sources, site, references);
+    const decided = (byName.get(name) ?? []).filter((row) => DECIDING_ROLES[row.kind].includes(role) && MIGHT_LAND[reason](row, holderFiles));
+    return decided.length === 0
+      ? []
+      : [`${site.file}:${sources.line(site)} ${name} ${reason} -> ${decided.map((row) => `${row.home}.${row.member}`).join(",")}`];
+  });
 }
 
 // `homeWritten`: production writes some field of the home. A home no production code writes gets its value from outside
@@ -778,9 +826,11 @@ export function scanFields(options: ScanOptions): FieldsReport {
   }
   const references = joinFacts(facts);
   tallySites(tally, declared, references);
-  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values(), references.filled) }));
+  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values(), references) }));
+  // A key that overrides a spread copy writes its member, but the home's value still arrives with the copy.
+  const builds = (sites: Iterable<Site>): Site[] => [...sites].filter((site) => !references.overrides.has(siteKey(site)));
   const writtenHomes = new Set(
-    rolled.filter(({ direct }) => rolesOf(sources, direct.values(), references.filled).write.length > 0).map(({ field }) => homeOf(field)),
+    rolled.filter(({ direct }) => rolesOf(sources, builds(direct.values()), references).write.length > 0).map(({ field }) => homeOf(field)),
   );
   const judged = rolled.flatMap(({ field, roles, sends }) => {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
@@ -808,7 +858,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     const audit = rolesOf(
       sources,
       mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference))),
-      references.filled,
+      references,
     );
     const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
     if (lacking.length > 0) {
@@ -865,6 +915,12 @@ export function scanFields(options: ScanOptions): FieldsReport {
     validated: sorted.unwired.filter((row) => ruling(row) === "validated"),
     acknowledged: sorted.unwired.filter((row) => ruling(row) === "acknowledged"),
     received,
+    unresolved: deciding(sources, references, staged.rows),
+    unresolvedByReason: Object.fromEntries(
+      Map.groupBy(references.unresolved, ({ reason }) => reason)
+        .entries()
+        .map(([reason, keys]) => [reason, keys.length]),
+    ),
     sentBy: sentCounts(staged.rows),
     disagreements,
     literalStage: staged.stage,
