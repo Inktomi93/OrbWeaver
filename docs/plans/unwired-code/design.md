@@ -22,9 +22,10 @@ Fix a server bug a scan exposes before judging fields. Judge fields in bulk afte
 | Step | Work | Items |
 | - | - | - |
 | 1 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, 0501, and the possibly dead guards the restoration lanes found |
-| 2 | Judge the first full run of each new scan | the [judgement items](#judgement-items) |
-| 3 | Adjudicate unused exports through the package doors | 0989 |
-| 4 | Hold the domain template with dependency rules | - |
+| 2 | Fix each scan's false-positive classes and judge its run | the [judgement items](#judgement-items) |
+| 3 | Build the new scans on the key resolver and judge their first runs | 3806, 3807, 3808, 3809 |
+| 4 | Adjudicate unused exports through the package doors | 0989 |
+| 5 | Hold the domain template with dependency rules | - |
 
 ## Rejected
 
@@ -85,6 +86,57 @@ A key an `.extend({ key })` call re-declares is the base schema's key, so its re
 
 A tuple a lib key selection names is a key list: `Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>` or `Extract<keyof T, K>`. The scan lists key lists apart and judges none of their members.
 
+## Key resolver
+
+A key resolver in `tooling/src/unwired/` is not yet built (3812). It will be the one place that maps a property read or a string key to the members it names. Every scan that asks "which member does this key reach" calls it, and none keeps its own name match.
+
+It tries these steps in order, and a later step sees only what earlier steps left:
+
+1. The checker's symbol, when it has declarations.
+2. Find-references, for a string-literal key with no symbol: it follows a homomorphic mapped type and an element-access key.
+3. The mapped-template walk, for a symbol with no declarations: a non-homomorphic mapped type creates its properties without declarations.
+4. A contextual `keyof X` type, which names `X`.
+5. A generic call: the target signature's `K extends keyof T` names the parameter whose argument type gives `T`.
+6. A TanStack form path: the form type's first alias type argument is the data type, and the dotted path walks it segment by segment.
+
+A key it cannot place is `unresolved` and reports in its own list. A key that lands in an index signature is `open`. An open object that flows into a tRPC procedure input or one of the server's HTTP routes is a loose sender, so removed-keys checks its keys. Only a body sent outside the repository is exempt.
+
+## Procedures and routes no caller reaches
+
+3806 is not yet built. It lists each tRPC procedure and each HTTP route with no production caller.
+
+- A caller is a call in production code: the client, a plugin through the host bridge, or the server itself. The resolver follows the client's proxy path to the procedure.
+- A procedure that only tests call reports as `test-only`, as the member scan does. A test seam is never kept for its tests alone.
+- A route called from outside the repository sits in an outside-caller table in the scan, with one reason per row. An OIDC callback, a health check and a browser form post are examples.
+- The owner rules on the outside-caller table before the first report is judged.
+
+## Columns nothing reads or writes
+
+3807 is not yet built. It counts, per drizzle column in `packages/db/src/schema/`, its select sites and its write sites in production.
+
+- A select with no column list reads every column only when production reads the row by member. The fields scan already judges those members.
+- Migrations, the baseline and the schema file itself are neither a read nor a write.
+- A column picked by name into a log, a debug route or a bug bundle counts as read. A column that only rides a whole-row dump does not.
+- An export that carries a column to a file counts as a read. The import that fills it counts as a write.
+
+## Error codes nothing throws or handles
+
+3808 is not yet built. It lists each error and refusal code from the closed code tuples in `packages/contracts` with its throw sites and its client handlers.
+
+- A code with no throw site in production is dead vocabulary.
+- A code that crosses the wire is handled only when the client branches on that code: a switch case, a comparison or a keyed lookup. A generic error toast is not a handler.
+- A code that only server-internal callers see needs no client handler. The scan marks where each code crosses the wire.
+- The owner rules on the handled rule before the first report is judged.
+
+## Code no run executes
+
+3809 is not yet built. It merges V8 coverage from the Node, CT and e2e suites and lists production functions and branches that no run executed.
+
+- It builds on `pnpm test:coverage` and `@vitest/coverage-v8`, and adds the CT and e2e coverage.
+- One run stays under the memory bar for one run. Suites run one after another, never side by side.
+- A branch no run executes is judged like a finding: write a test that runs it through production, close it with a type, or delete it.
+- The report is input to judgement and never a gate.
+
 ## Judging a finding
 
 Each item step 2 lists gives every finding of one scan in one domain a class (wire, delete, deliberate with a cited ruling, or unknown) and a decision. A class marked `(read)` was judged from the cited code. The others follow these rules:
@@ -115,7 +167,7 @@ A finding in `packages/contracts/src/plugin/` or `packages/plugin-sdk/` sits und
 
 ### Judgement items
 
-- fields: 1534, 1535, 1536, 1537, 1538, 1539, 1540, 1541, 1542, 1543, 1544, 1545, 1546, 1547, 1548, 1549, 1550, 1551, 1552, 1553, 1554, 1555, 1556, 1557, 1558, 1559, 1560, 1561, 1562, 1563, 1564, 1565, 1566, 1567, 1568, 1569, 1570, 1571, 1572, 1573, 1574, 1575, 1576, 1577, 1578, 1579, 1580, 1581, 1582, 1583, 1584, 1585, 1586, 1587, 1588, 1589, 1590, 1591, 1592
-- params: 1593, 1594, 1595, 1596, 1597, 1598, 1599, 1600, 1601, 1602, 1603, 1604, 1605, 1606, 1607, 1608, 1609, 1610, 1611, 1612, 1613, 1614, 1615, 1616, 1617, 1618, 1619, 1620, 1621, 1622, 1623, 1624, 1625, 1626, 1627, 1628, 1629, 1630, 1631, 1632, 1633
-- unions: 1634, 1635, 1636, 1637, 1638, 1639, 1640, 1641, 1642, 1643, 1644, 1645
-- shapes: 1646, 1647, 1648, 1649, 1650, 1651, 1652, 1653, 1654, 1655, 1656, 1657, 1658, 1659, 1660, 1661, 1662, 1663, 1664, 1665, 1666, 1667, 1668, 1669, 1670, 1671, 1672, 1673, 1674, 1675, 1676, 1677, 1678, 1679, 1680, 1681, 1682, 1683, 1684, 1685, 1686
+- fields: the items the fields review filed under this plan
+- params, unions, shapes and ports: 3811
+- the resolver and the removed-keys check: 3812, 3810
+- new scans: 3806, 3807, 3808, 3809
