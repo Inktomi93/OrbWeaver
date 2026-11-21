@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-21
 priority: P3
 area: contracts
+lane: wt/agent-aac76f4b577281f60
 plan: unwired-code
 ---
 
