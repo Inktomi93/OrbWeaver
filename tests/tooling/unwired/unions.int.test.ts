@@ -487,3 +487,52 @@ test("the unions scan sorts a tuple a type guard narrows raw input into as parse
   ]);
   expect(report.disagreements).toEqual([]);
 });
+
+// The credit rules link only what the slot holds. A literal type of a sibling property is another vocabulary, whether the
+// tuple satisfies an indexed access of the type or a property feeds its slot; and a switch over a value already typed by
+// the tuple hands on nothing production built. Each tuple keeps the member only those forms reach.
+const NARROW_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/kinds.ts": [
+    'export const KINDS = ["live", "legacy"] as const;',
+    "export type Kind = (typeof KINDS)[number];",
+    "export const take = (kind: Kind): Kind => kind;",
+    'export const built = take("live");',
+    "export function route(kind: Kind): Kind {",
+    "  switch (kind) {",
+    '    case "legacy":',
+    "      return take(kind);",
+    "    default:",
+    "      return kind;",
+    "  }",
+    "}",
+  ].join("\n"),
+  "packages/a/src/jobs.ts": [
+    'interface Job { readonly phase: "queued" | "done"; readonly result: "done" | "failed" }',
+    'export const PHASES = ["queued", "done"] as const satisfies readonly Job["phase"][];',
+    "export type Phase = (typeof PHASES)[number];",
+    "export const takePhase = (phase: Phase): Phase => phase;",
+    'export const queued = takePhase("queued");',
+    'export const outcome: Job["result"] = "done";',
+    'export const job: Job = { phase: "queued", result: "done" };',
+  ].join("\n"),
+  "packages/a/src/faces.ts": [
+    'export const SPAN_KINDS = ["text", "dice"] as const;',
+    "export type SpanKind = (typeof SPAN_KINDS)[number];",
+    "export const takeKind = (kind: SpanKind): SpanKind => kind;",
+    'interface Span { readonly kind: "text" | "dice"; readonly face: "dice" | "coin" }',
+    "export const feed = (span: Span): SpanKind => takeKind(span.kind);",
+    'export const t: Span = { kind: "text", face: "coin" };',
+    'export const face: Span["face"] = "dice";',
+  ].join("\n"),
+};
+
+test("the unions scan credits no member through a sibling property's literal types or a switch over the tuple's own type", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(NARROW_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(found).toEqual(["unbuilt KINDS.legacy", "unbuilt PHASES.done", "unbuilt SPAN_KINDS.dice"]);
+  expect(report.disagreements).toEqual([]);
+});

@@ -45,6 +45,7 @@ import {
   satisfiedOrigins,
   settled,
   slotOrigins,
+  subjectOrigins,
   switchPassThroughs,
   valueSlotOrigins,
 } from "./union-origins.ts";
@@ -94,13 +95,13 @@ const UNION_LIMITS: readonly string[] = [
   "A tuple with any element whose type is not one string literal (a spread, a `string`, a union) is skipped whole, so none of its members is judged. An element read from a constant (`CODE.x`) is the member its type names.",
   'A member is built by a literal in its slot, or by a module-private unannotated constant the slot reads: the whole constant, its property (`ROOT.carriers`) or a spread of its object (`{ ...ROOT }`). An exported constant read into a slot (`take(CODE.x)`) builds nothing, nor does a literal in an inline `as const` array production maps (`(["main", "ui"] as const).map(...)`).',
   "A literal builds a member in a slot spelled from the tuple, or in a literal type linked to it: written by the type the tuple `satisfies`, or annotating a property whose value production feeds into the tuple's slot (an argument, a property, a return or an element-access key). A literal type with no such link (a discriminated union arm, a hand-written union, a conditional type's arm) builds nothing, so a member production builds only there reports unbuilt.",
-  "A narrowed value handed on builds the labels that narrow it only in a `switch` on a name or a member access read again in the clause; an `if` narrowing builds nothing.",
-  "A read of a `Record<Tuple, …>` literal's entry by name (`POSTURES.arbiter`) builds the member its key names; a read through a computed key builds nothing.",
+  "A narrowed value handed on builds the labels that narrow it only in a `switch` on a name or a member access read again in the clause, and only for a label production builds in the switched value's own vocabulary; an `if` narrowing builds nothing.",
+  "A read by name (`POSTURES.arbiter`) of an entry of an `as const satisfies Record<Tuple, …>` literal builds the member its key names; a read of a `Record` annotated with a type, or through a computed key, builds nothing.",
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's, and a value typed by one that production hands into the other's slot builds nothing there.",
   'A literal whose contextual type is a type parameter (`Object.freeze({ source: "checkout" })`, a generic row helper) holds nothing, so it builds nothing.',
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, sorts as parsed instead.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
-  "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`) is a key list: listed, never judged.",
+  "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
   "Only package worlds are scanned; a test literal never builds a member, and a file no package world compiles (a package-root build script such as `packages/ui/tokens.build.ts`) is not read, so a tuple only such a file enumerates reports its members.",
 ];
 
@@ -390,8 +391,15 @@ interface WorldFacts {
   readonly first: FirstWalk;
   readonly feeds: readonly Spelled[];
   readonly constructions: readonly Construction[];
+  readonly passThroughs: readonly PassedOn[];
   readonly keyLists: ReadonlySet<string>;
   readonly guarded: ReadonlySet<string>;
+}
+
+/** A switch label handed on into a slot: it builds the member there only when production builds it in `via`, the
+ *  vocabulary of the switched value, since a switch over a value already typed by the tuple produces nothing. */
+interface PassedOn extends Construction {
+  readonly via: Spelled;
 }
 
 interface RespelledProperty {
@@ -446,15 +454,18 @@ function worldFacts(world: NativeWorld, sources: Sources, local: readonly Tuple[
   });
   const passed = first.switches.flatMap((site) => switchPassThroughs(sources, site));
   const passedOrigins = world.batch(passed.map(({ value }) => valueSlotOrigins(oracle, sources, value)));
+  const subjects = world.batch(passed.map(({ subject }) => subjectOrigins(oracle, sources, subject)));
+  const passThroughs: PassedOn[] = [];
   for (const [at, { labels }] of passed.entries()) {
     const origins = passedOrigins[at];
-    if (origins !== undefined && origins !== null) {
-      constructions.push(...labels.filter((label) => texts.has(label)).map((text) => ({ text, origins })));
+    const via = subjects[at];
+    if (origins !== undefined && origins !== null && via !== undefined && via !== null) {
+      passThroughs.push(...labels.filter((label) => texts.has(label)).map((text) => ({ text, origins, via })));
     }
   }
   const keyLists = new Set(world.batch(first.selections.map((site) => keyListTuples(oracle, sources, site))).flatMap((keys) => [...keys]));
   const guarded = new Set(world.batch(first.guards.map((site) => predicateTuples(oracle, sources, site))).flatMap((keys) => [...keys]));
-  return { first, feeds, constructions, keyLists, guarded };
+  return { first, feeds, constructions, passThroughs, keyLists, guarded };
 }
 
 function enumerates(sources: Sources, sites: Iterable<Site>): boolean {
@@ -530,6 +541,7 @@ interface FirstPass {
   readonly literals: readonly LiteralSite[];
   readonly feeds: readonly Spelled[];
   readonly constructions: readonly Construction[];
+  readonly passThroughs: readonly PassedOn[];
   readonly keyLists: ReadonlySet<string>;
   readonly guarded: ReadonlySet<string>;
 }
@@ -538,6 +550,7 @@ interface Joined {
   readonly literals: Map<string, LiteralSite>;
   readonly feeds: Spelled[];
   readonly constructions: Construction[];
+  readonly passThroughs: PassedOn[];
   readonly keyLists: Set<string>;
   readonly guarded: Set<string>;
 }
@@ -550,6 +563,7 @@ function mergeFacts(facts: WorldFacts, into: Joined): void {
   }
   into.feeds.push(...facts.feeds);
   into.constructions.push(...facts.constructions);
+  into.passThroughs.push(...facts.passThroughs);
   for (const key of facts.keyLists) {
     into.keyLists.add(key);
   }
@@ -563,13 +577,14 @@ function engineOne(options: ScanOptions, worlds: readonly string[], lists: Reado
   const literals = new Map<string, LiteralSite>();
   const feeds: Spelled[] = [];
   const constructions: Construction[] = [];
+  const passThroughs: PassedOn[] = [];
   const keyLists = new Set<string>();
   const guarded = new Set<string>();
   const homes = homeFiles(worlds, lists);
   for (const config of worlds) {
     using world = NativeWorld.open(options.root, config);
     const local = tuples(world);
-    mergeFacts(worldFacts(world, sources, local), { literals, feeds, constructions, keyLists, guarded });
+    mergeFacts(worldFacts(world, sources, local), { literals, feeds, constructions, passThroughs, keyLists, guarded });
     const index = valueIndex(world, homes.get(config));
     const oracle = nativeOracle(world);
     const satisfied = world.batch(local.map((tuple) => satisfiedOrigins(oracle, sources, tuple.site)));
@@ -582,7 +597,7 @@ function engineOne(options: ScanOptions, worlds: readonly string[], lists: Reado
     }
     options.log(`${config}: ${local.length} tuples`);
   }
-  return { tuples: found, literals: [...literals.values()], feeds, constructions, keyLists, guarded };
+  return { tuples: found, literals: [...literals.values()], feeds, constructions, passThroughs, keyLists, guarded };
 }
 
 // Each tuple's parents: the tuples its `satisfies` spelling reaches that hold every one of its members. The member test
@@ -654,11 +669,20 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const enumerated = entries.filter(({ tuple }) => lineage(tuple).some((key) => ownEnumerated.has(key))).map(({ tuple }) => tuple.key);
   const keyLists = [...first.keyLists].filter((key) => first.tuples.has(key) && !enumerated.includes(key)).sort();
   const judged = entries.map(({ tuple }) => tuple).filter((tuple) => !(enumerated.includes(tuple.key) || keyLists.includes(tuple.key)));
-  const built = builtInto([
+  const produced = [
     ...first.literals.filter((site) => site.role === "construct" && site.holds),
     ...first.constructions,
     ...enumeratedSubsets(first, ownEnumerated, subsets),
-  ]);
+  ];
+  const producedBuilt = builtInto(produced);
+  // A switch label handed on builds the member only when production already builds it in the switched value's vocabulary.
+  const viaVocabulary = (via: Spelled, text: string): Vocabulary => {
+    const keys = [...via.tuples].flatMap((key) => [key, ...(subsets.get(key) ?? [])]);
+    const spelled = [...via.literals].filter(([, literal]) => literal === text).map(([site]) => site);
+    return { lineage: keys, respelled: new Set([...spelled, ...keys.flatMap((key) => [...(respelled.get(key)?.get(text) ?? [])])]) };
+  };
+  const passedOn = first.passThroughs.filter(({ text, via }) => buildsMember(producedBuilt, viaVocabulary(via, text), text));
+  const built = builtInto([...produced, ...passedOn]);
   const candidates = judged.flatMap((tuple) =>
     tuple.members.filter((member) => !buildsMember(built, vocabulary(tuple, member.text), member.text)).map((member) => ({ tuple, member })),
   );

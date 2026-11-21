@@ -403,20 +403,63 @@ function* expansionsOf(oracle: SlotOracle, sources: Sources, name: ts.Identifier
   return sites.map((site) => expansion(site, declarationAt(sources, site)));
 }
 
+// A spelling still to read: `property` scopes a type to one of its properties, as `T["p"]` does, and `collect` says
+// whether its literal types re-spell the slot. A property that cannot be found is read whole for its tuples only.
+interface Reach {
+  readonly node: ts.Node;
+  readonly property: string | null;
+  readonly collect: boolean;
+}
+
 interface Read {
   readonly tuples: readonly string[];
   readonly next: readonly ts.Node[];
+  /** The `T["p"]` accesses in the spelling, each read as `T` scoped to `p`. */
+  readonly scoped: readonly { readonly node: ts.Node; readonly property: string }[];
 }
 
 // How a reading treats a name it cannot settle: `slot` gives up, since the slot may then be any tuple's; `links` reads
 // on past it, since a reading that only adds links to a tuple is sound with any part of them.
 type Reading = "slot" | "links";
 
+// The property an indexed access with a string literal index names: `T["p"]` gives `p`.
+function indexedProperty(node: ts.Node): string | null {
+  return ts.isIndexedAccessTypeNode(node) && ts.isLiteralTypeNode(node.indexType) && ts.isStringLiteral(node.indexType.literal)
+    ? node.indexType.literal.text
+    : null;
+}
+
+// The `T["p"]` accesses under `root`, by their object type: their names are read scoped, never whole.
+function scopedAccesses(root: ts.Node): readonly { readonly node: ts.Node; readonly property: string }[] {
+  const found: { readonly node: ts.IndexedAccessTypeNode; readonly property: string }[] = [];
+  const visit = (node: ts.Node): void => {
+    const property = indexedProperty(node);
+    if (property !== null && ts.isIndexedAccessTypeNode(node)) {
+      found.push({ node, property });
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return found.map(({ node, property }) => ({ node: node.objectType, property }));
+}
+
+const isUnder = (node: ts.Node, ancestors: ReadonlySet<ts.Node>): boolean => {
+  for (let at = node; !ts.isSourceFile(at); at = at.parent) {
+    if (ancestors.has(at)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 // The tuples one spelling names and the further spellings it leads to; null when it cannot be read to the end.
 function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node, reading: Reading): APIRequestGenerator<Read | null> {
   const tuples: string[] = [];
   const next: ts.Node[] = [];
-  for (const name of referencedNames(root)) {
+  const scoped = scopedAccesses(root);
+  const objects = new Set(scoped.map(({ node }) => node));
+  for (const name of referencedNames(root).filter((candidate) => !isUnder(candidate, objects))) {
     const reached = yield* expansionsOf(oracle, sources, name);
     if (reading === "slot" && (reached === null || reached.some(({ opaque }) => opaque))) {
       return null;
@@ -428,12 +471,68 @@ function* readSpelling(oracle: SlotOracle, sources: Sources, root: ts.Node, read
       next.push(...expanded.into.filter((spelling): spelling is ts.Node => spelling !== undefined));
     }
   }
-  return { tuples, next };
+  return { tuples, next, scoped };
 }
 
-// Every string literal type a spelling writes, by site key.
+// The members named `property` in an interface or a type literal, and what an interface extends, still scoped to it.
+function memberSteps(members: readonly ts.Node[], property: string): readonly Scoped[] {
+  return members.flatMap((member) =>
+    ts.isPropertySignature(member) && member.type !== undefined && propertyName(member.name) === property ? [{ node: member.type, property: null }] : [],
+  );
+}
+
+interface Scoped {
+  readonly node: ts.Node;
+  readonly property: string | null;
+}
+
+// The name a type reference or a heritage entry refers to.
+function referredName(node: ts.Node): ts.Identifier | null {
+  if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
+    return node.typeName;
+  }
+  return ts.isExpressionWithTypeArguments(node) && ts.isIdentifier(node.expression) ? node.expression : null;
+}
+
+// A named type scoped to one property: each interface's member of that name and what it extends, each alias's type.
+function* declaredPropertySteps(oracle: SlotOracle, sources: Sources, name: ts.Identifier, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+  const sites = yield* answered(oracle.declarationsOf(siteOf(name)));
+  const steps: Scoped[] = [];
+  for (const declaration of sites.map((site) => declarationAt(sources, site))) {
+    if (declaration !== null && ts.isInterfaceDeclaration(declaration)) {
+      const bases = (declaration.heritageClauses ?? []).flatMap((clause) => clause.types.map((type) => ({ node: type, property })));
+      steps.push(...memberSteps(declaration.members, property), ...bases);
+    } else if (declaration !== null && ts.isTypeAliasDeclaration(declaration)) {
+      steps.push({ node: declaration.type, property });
+    } else {
+      return null;
+    }
+  }
+  return sites.length === 0 ? null : steps;
+}
+
+// One step of reading a type scoped to one property; null when the type is not one a property can be found in.
+function* propertyStep(oracle: SlotOracle, sources: Sources, node: ts.Node, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+  if (ts.isParenthesizedTypeNode(node)) {
+    return [{ node: node.type, property }];
+  }
+  if (ts.isUnionTypeNode(node) || ts.isIntersectionTypeNode(node)) {
+    return node.types.map((type) => ({ node: type, property }));
+  }
+  if (ts.isTypeLiteralNode(node)) {
+    return memberSteps(node.members, property);
+  }
+  const name = referredName(node);
+  return name === null ? null : yield* declaredPropertySteps(oracle, sources, name, property);
+}
+
+// Every string literal type a spelling writes, by site key; a `T["p"]` access is read scoped, so its literals are not
+// the spelling's own.
 function collectLiteralTypes(root: ts.Node, into: Map<string, string>): void {
   const visit = (node: ts.Node): void => {
+    if (indexedProperty(node) !== null) {
+      return;
+    }
     if (ts.isLiteralTypeNode(node) && ts.isStringLiteral(node.literal)) {
       into.set(siteKey(siteOf(node.literal)), node.literal.text);
     }
@@ -442,31 +541,70 @@ function collectLiteralTypes(root: ts.Node, into: Map<string, string>): void {
   visit(root);
 }
 
+// What a reach scoped to `property` leads to; a type the property cannot be found in is read whole, for its tuples only.
+function* scopedReaches(oracle: SlotOracle, sources: Sources, reach: Reach, property: string): APIRequestGenerator<readonly Reach[]> {
+  const steps = yield* propertyStep(oracle, sources, reach.node, property);
+  return steps === null ? [{ node: reach.node, property: null, collect: false }] : steps.map((step) => ({ ...step, collect: reach.collect }));
+}
+
+// Whether `reach` is new, recording it.
+function firstVisit(seen: Map<ts.Node, Set<string>>, reach: Reach): boolean {
+  const key = `${reach.property ?? ""}:${String(reach.collect)}`;
+  const held = seen.get(reach.node) ?? new Set<string>();
+  if (held.has(key)) {
+    return false;
+  }
+  held.add(key);
+  seen.set(reach.node, held);
+  return true;
+}
+
 // The tuples a slot's spellings reach, and the literal types written on the way: a variable reached through `typeof` or
-// by name is a tuple, and aliases, schema values, constraints and function bodies are read through. Null when a type name
-// has no declaration, a type parameter stands in for the vocabulary, or the reading outgrows the limit: in each the slot
-// may be any tuple's.
+// by name is a tuple, and aliases, schema values, constraints and function bodies are read through. `T["p"]` reads only
+// `T`'s property `p`, so a sibling property's literals never re-spell the slot. Null when a type name has no
+// declaration, a type parameter stands in for the vocabulary, or the reading outgrows the limit: in each the slot may be
+// any tuple's.
 function* originsOf(oracle: SlotOracle, sources: Sources, spellings: readonly ts.Node[], reading: Reading = "slot"): APIRequestGenerator<Origins> {
-  const found = new Set<string>();
-  const literals = new Map<string, string>();
-  const seen = new Set<ts.Node>();
-  const pending = [...spellings];
-  for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
-    if (seen.has(root)) {
+  const into: Spelled & { readonly tuples: Set<string>; readonly literals: Map<string, string> } = { tuples: new Set(), literals: new Map() };
+  const seen = new Map<ts.Node, Set<string>>();
+  const pending: Reach[] = spellings.map((node) => ({ node, property: null, collect: true }));
+  let visits = 0;
+  for (let reach = pending.pop(); reach !== undefined; reach = pending.pop()) {
+    if (!firstVisit(seen, reach)) {
       continue;
     }
-    seen.add(root);
-    const read = seen.size > SPELLING_LIMIT ? null : yield* readSpelling(oracle, sources, root, reading);
-    if (read === null) {
+    visits += 1;
+    const next = visits > SPELLING_LIMIT ? null : yield* readReach(oracle, sources, { reach, reading }, into);
+    if (next === null) {
       return null;
     }
-    for (const tuple of read.tuples) {
-      found.add(tuple);
-    }
-    collectLiteralTypes(root, literals);
-    pending.push(...read.next);
+    pending.push(...next);
   }
-  return { tuples: found, literals };
+  return into;
+}
+
+// Read one reach into `into`: the reaches it leads to, or null when the slot reading gives up.
+function* readReach(
+  oracle: SlotOracle,
+  sources: Sources,
+  { reach, reading }: { readonly reach: Reach; readonly reading: Reading },
+  into: { readonly tuples: Set<string>; readonly literals: Map<string, string> },
+): APIRequestGenerator<readonly Reach[] | null> {
+  const { node, property, collect } = reach;
+  if (property !== null) {
+    return yield* scopedReaches(oracle, sources, reach, property);
+  }
+  const read = yield* readSpelling(oracle, sources, node, reading);
+  if (read === null) {
+    return null;
+  }
+  for (const tuple of read.tuples) {
+    into.tuples.add(tuple);
+  }
+  if (collect) {
+    collectLiteralTypes(node, into.literals);
+  }
+  return [...read.next.map((next) => ({ node: next, property: null, collect })), ...read.scoped.map((scoped) => ({ ...scoped, collect }))];
 }
 
 function* declaredAt(oracle: SlotOracle, sources: Sources, node: ts.Node, role: LiteralRole | "record-key"): APIRequestGenerator<Declared> {
@@ -530,6 +668,17 @@ export function* valueSlotOrigins(oracle: SlotOracle, sources: Sources, site: Si
   return spellings === null ? null : yield* originsOf(oracle, sources, spellings);
 }
 
+/** The vocabulary of the value a switch at a name or member access reads: what its declaration is annotated with. */
+export function* subjectOrigins(oracle: SlotOracle, sources: Sources, site: Site): APIRequestGenerator<Origins> {
+  const node = nameAt(sources.get(site.file), site.position);
+  if (node === undefined) {
+    return null;
+  }
+  const operand = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
+  const spellings = yield* operandSpellings(oracle, sources, operand);
+  return spellings === null ? null : yield* originsOf(oracle, sources, spellings);
+}
+
 /** The property signature a string literal type at `site` annotates, through a union of literals (`kind: "a" | "b"`):
  *  the site and text of its name. */
 export function respelledProperty(sources: Sources, site: Site): { readonly site: Site; readonly name: string } | null {
@@ -549,6 +698,8 @@ export function respelledProperty(sources: Sources, site: Site): { readonly site
 export interface PassThrough {
   readonly labels: readonly string[];
   readonly value: Site;
+  /** The switch subject, by the site of its last name. */
+  readonly subject: Site;
 }
 
 const isNamePath = (node: ts.Expression): boolean => ts.isIdentifier(node) || (ts.isPropertyAccessExpression(node) && isNamePath(node.expression));
@@ -587,6 +738,7 @@ export function switchPassThroughs(sources: Sources, site: Site): readonly PassT
     return [];
   }
   const text = subject.getText();
+  const subjectSite = siteOf(ts.isPropertyAccessExpression(subject) ? subject.name : subject);
   const found: PassThrough[] = [];
   let labels: string[] = [];
   for (const clause of node.caseBlock.clauses) {
@@ -599,7 +751,7 @@ export function switchPassThroughs(sources: Sources, site: Site): readonly PassT
     }
     if (clause.statements.length > 0) {
       const narrowed = labels;
-      found.push(...sameValueReads(clause.statements, text).map((value) => ({ labels: narrowed, value })));
+      found.push(...sameValueReads(clause.statements, text).map((value) => ({ labels: narrowed, value, subject: subjectSite })));
       labels = [];
     }
   }

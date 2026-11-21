@@ -322,7 +322,8 @@ function schemaKeys(world: NativeWorld): readonly SchemaKey[] {
 const ZOD_EXTEND = "extend";
 const ZOD_SHAPE = "shape";
 
-// A key of a `base.extend({ ... })` literal, with the schema it extends.
+// A key of a `base.extend({ ... })` literal, with the schema it extends. An extended schema checked against a type of
+// its own (`satisfies z.ZodType<Other>`) is another shape, so its keys mirror that type and re-declare nothing.
 interface ExtendKey {
   readonly node: NamedKey;
   readonly base: Node;
@@ -339,7 +340,8 @@ function extendKeys(world: NativeWorld): readonly ExtendKey[] {
         isPropertyAccessExpression(callee) &&
         callee.name.text === ZOD_EXTEND &&
         shape !== undefined &&
-        isObjectLiteralExpression(shape)
+        isObjectLiteralExpression(shape) &&
+        checkedType(node) === null
       ) {
         found.push(...namedKeys(shape).map((key) => ({ node: key, base: callee.expression })));
       }
@@ -358,8 +360,9 @@ function* overriddenKey(checker: Checker, key: ExtendKey): APIRequestGenerator<N
   return shapeType === undefined ? undefined : yield* checker.getPropertyOfType.gen(shapeType, key.node.name.text);
 }
 
-// Each base key's declaration keys to the keys of the extend keys that re-declare it. An override is the same wire field
-// under a stricter schema, as the server's role codecs re-declare a contract key, so its reads and writes are the base's.
+// Each base key's declaration keys to the keys of the extend keys that re-declare it. An unchecked override is the same
+// wire field under a stricter schema, as the server's role codecs re-declare a contract key, so its reads and writes are
+// the base's.
 function overrides(world: NativeWorld): ReadonlyMap<string, readonly string[]> {
   const keys = extendKeys(world);
   const own = world.symbolsAt(keys.map(({ node }) => node.name));

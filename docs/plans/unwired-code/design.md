@@ -79,8 +79,11 @@ A key an `.extend({ key })` call re-declares is the base schema's key, so its re
 - A member built only by a literal in an inline `as const` array that production maps.
 - A member a conditional type's branch re-spells.
 - A literal whose contextual type is a type parameter, such as an `Object.freeze` argument or a generic row helper.
+- A read by name of a `Record<Tuple, …>` entry builds the member only for an `as const satisfies Record<…>` literal. A `Record` annotated with a type builds nothing.
+- A switch label handed on builds the member only when production builds that label in the switched value's own vocabulary.
+- A stale key in a key list, a key the selected type no longer has.
 
-A tuple a lib key selection names is a key list. The scan lists key lists apart and judges none of their members.
+A tuple a lib key selection names is a key list: `Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>` or `Extract<keyof T, K>`. The scan lists key lists apart and judges none of their members.
 
 ## Judging a finding
 

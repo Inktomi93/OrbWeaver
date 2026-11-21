@@ -147,3 +147,46 @@ test("a schema checked against a mapped re-keying of a type mirrors that type's 
   const report = scan(await plantedTree(REKEYED));
   expect(fieldsOf(report, "meta.ts")).toEqual(["Meta.spare never-read"]);
 });
+
+// An extended schema checked against a type of its own is another endpoint's shape: its keys mirror that type, so a read
+// through it never reads the base's key. `Fields.character` is read only through the copy schema's parsed value and
+// stays reported.
+const EXTENDED_OTHER = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": [
+    "export interface Schema<V> { readonly value?: V }",
+    "export interface ObjectSchema<T> { readonly shape: T; extend<U>(more: U): ObjectSchema<Omit<T, keyof U> & U> }",
+    "const objectOf = <T>(shape: T): ObjectSchema<T> => ({ shape, extend: <U>(more: U) => objectOf({ ...shape, ...more }) as never });",
+    "export type Checked<T> = { readonly shape: unknown } & { readonly checked?: T };",
+    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
+    "export const z = { object: <T>(shape: T): ObjectSchema<T> => objectOf(shape), string: (): Schema<string> => ({}) };",
+  ].join("\n"),
+  "packages/a/src/fields.ts": [
+    'import type { Checked } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export interface Fields { readonly applied: string; readonly character: string }",
+    "export const fieldsSchema = z.object({ applied: z.string(), character: z.string() }) satisfies Checked<Fields>;",
+  ].join("\n"),
+  "packages/a/src/copy.ts": [
+    'import type { Checked } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    'import { fieldsSchema } from "./fields.ts";',
+    "export interface Copy { readonly applied: string; readonly character: string }",
+    "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies Checked<Copy>;",
+  ].join("\n"),
+  "packages/a/src/use.ts": [
+    'import type { Copy } from "./copy.ts";',
+    'import type { copySchema } from "./copy.ts";',
+    'import type { Fields } from "./fields.ts";',
+    'import type { Infer } from "./z.ts";',
+    'export const fields: Fields = { applied: "a", character: "c" };',
+    'export const copy: Copy = { applied: "a", character: "c" };',
+    "export const appliedOf = (result: Fields): string => result.applied;",
+    "export const copied = (result: Infer<typeof copySchema>): string => result.applied + result.character;",
+  ].join("\n"),
+};
+
+test("a key of an extended schema checked against its own type does not read the base's key", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(EXTENDED_OTHER));
+  expect(fieldsOf(report, "fields.ts")).toEqual(["Fields.character never-read"]);
+});
