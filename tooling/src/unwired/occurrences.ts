@@ -140,6 +140,9 @@ function isDirectPropertySite(node: Node): boolean {
   return declares && parent.name === node;
 }
 
+// `=`, a compound `+=` and a logical `??=`: each stores into its left side; the value read on the way is only the store's.
+const isAssignment = (kind: SyntaxKind): boolean => kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
+
 // The names `classify.ts` calls writes, known here so a flow can carry writes and reads apart.
 function isWrittenName(node: Node): boolean {
   const { parent } = node;
@@ -152,7 +155,7 @@ function isWrittenName(node: Node): boolean {
     parent.name === node &&
     isBinaryExpression(assigned) &&
     assigned.left === parent &&
-    assigned.operatorToken.kind === SyntaxKind.EqualsToken
+    isAssignment(assigned.operatorToken.kind)
   );
 }
 
@@ -647,6 +650,8 @@ export interface PropertyReferences {
   readonly sends: ReadonlyMap<string, readonly Send[]>;
   /** The {@link siteKey} of every read that only copies a value into a stored column, which no audit may count as a read. */
   readonly copied: ReadonlySet<string>;
+  /** The {@link siteKey} of every site where a library writes the members it credits, though its syntax reads. */
+  readonly filled: ReadonlySet<string>;
   /** Each declaration key's flows: the keys its value is carried into. */
   readonly carriesInto: ReadonlyMap<string, ReadonlySet<string>>;
 }
@@ -660,6 +665,8 @@ export interface PropertyFacts {
   readonly written: ReadonlySet<string>;
   readonly sends: readonly (Send & { readonly keys: readonly string[] })[];
   readonly copied: ReadonlySet<string>;
+  /** The {@link siteKey} of every site where a library writes the members it credits, though its syntax reads. */
+  readonly filled: ReadonlySet<string>;
   readonly derived: DerivedFacts;
 }
 
@@ -792,6 +799,139 @@ function rowColumnReads(
   return new Map(asked.flatMap(({ at }, index) => ((columns[index] ?? []).length === 0 ? [] : [[at, columns[index] ?? []] as const])));
 }
 
+// A mapped property whose keys are not `keyof` one type, as tRPC's `Overwrite<Context, Extra>` builds a procedure's
+// `ctx`, carries no declaration. Its value is the `X[K]` its template returns, through conditional branches and
+// further mapped levels, so it is X's own property of that name. Another name of the receiver gets none of its reads.
+const MAPPED_DEPTH = 4;
+
+function* typeParts(type: Type): APIRequestGenerator<readonly Type[]> {
+  return type.isUnionType() || type.isIntersectionType() ? yield* type.getTypes.gen() : [type];
+}
+
+// The object types a mapped template indexes: `T[K]`, either branch of `K extends keyof W ? W[K] : T[K]`, each part.
+function* indexedSources(template: Type, depth: number): APIRequestGenerator<readonly Type[]> {
+  if (depth > MAPPED_DEPTH) {
+    return [];
+  }
+  if (template.isIndexedAccessType()) {
+    return [yield* template.getObjectType.gen()];
+  }
+  let branches: readonly Type[] = [];
+  if (template.isConditionalType()) {
+    branches = [yield* template.getTrueType.gen(), yield* template.getFalseType.gen()];
+  } else if (template.isUnionType() || template.isIntersectionType()) {
+    branches = yield* template.getTypes.gen();
+  }
+  return (yield* all(...branches.map((branch) => indexedSources(branch, depth + 1)))).flat();
+}
+
+function* mappedOrigins(checker: Checker, type: Type, name: string, depth: number): APIRequestGenerator<readonly NativeSymbol[]> {
+  if (depth > MAPPED_DEPTH) {
+    return [];
+  }
+  const found: NativeSymbol[] = [];
+  for (const part of yield* typeParts(type)) {
+    const property = yield* checker.getPropertyOfType.gen(part, name);
+    if (property !== undefined && property.declarations.length > 0) {
+      found.push(property);
+    } else if (property !== undefined && part.isMappedType()) {
+      const sources = yield* indexedSources(yield* part.getTemplateType.gen(), 0);
+      found.push(...(yield* all(...sources.map((source) => mappedOrigins(checker, source, name, depth + 1)))).flat());
+    }
+  }
+  return found;
+}
+
+// The type that holds a lookup's member: the receiver's, the literal's contextual type, or the looked-up node's.
+function* lookupHolder(checker: Checker, lookup: Lookup): APIRequestGenerator<Type | undefined> {
+  if (lookup.by === "contextual") {
+    return yield* checker.getContextualType.gen(lookup.node);
+  }
+  const receiver = receiverOf(lookup);
+  return receiver === null ? undefined : yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(receiver));
+}
+
+/** The declarations each lookup that resolved to a declaration-less mapped property means, by lookup position. */
+function mappedReads(
+  world: NativeWorld,
+  lookups: readonly Lookup[],
+  symbols: readonly (readonly (NativeSymbol | undefined)[])[],
+): ReadonlyMap<number, readonly string[]> {
+  const asked = lookups.flatMap((lookup, at) =>
+    (symbols[at] ?? []).some((symbol) => symbol !== undefined && symbol.declarations.length === 0) ? [{ at, lookup }] : [],
+  );
+  const origins = world.batch(
+    asked.map(function* ({ lookup }): APIRequestGenerator<readonly NativeSymbol[]> {
+      const holder = yield* lookupHolder(world.checker, lookup);
+      const name = lookup.by === "symbol" ? (lookup.node as PropertyName).text : lookup.name;
+      return holder === undefined ? [] : yield* mappedOrigins(world.checker, holder, name, 0);
+    }),
+  );
+  return new Map(asked.flatMap(({ at }, index) => ((origins[index] ?? []).length === 0 ? [] : [[at, keysOf(origins[index] ?? [])] as const])));
+}
+
+// `TABLE satisfies Record<Task, Def>` on a bound value: the compiler holds each member of the value to the checked
+// type's member of that name, nested members too, so a read of a row's member is a read of `Def`'s. A literal under
+// `satisfies` already links through its contextual type.
+const SATISFIED_DEPTH = 3;
+
+function* satisfiedLinks(checker: Checker, value: Type, checked: Type, depth: number): APIRequestGenerator<readonly Link[]> {
+  if (depth > SATISFIED_DEPTH || value.id === checked.id) {
+    return [];
+  }
+  const properties = (yield* all(...(yield* constituents(value)).map((type) => checker.getPropertiesOfType.gen(type)))).flat();
+  const named = yield* all(...properties.map((property) => propertiesNamed(checker, checked, property.name)));
+  const links: Link[] = [];
+  const pairs: { readonly own: NativeSymbol; readonly into: NativeSymbol }[] = [];
+  for (const [at, property] of properties.entries()) {
+    const into = (named[at] ?? []).filter((member) => member !== undefined);
+    const to = keysOf(into);
+    if (to.length > 0) {
+      links.push({ from: declarationKeys(property), to });
+    }
+    pairs.push(...into.map((member) => ({ own: property, into: member })));
+  }
+  const nested = yield* all(
+    ...pairs.map(function* ({ own, into }): APIRequestGenerator<readonly Link[]> {
+      const [from, to] = yield* all(checker.getTypeOfSymbol.gen(own), checker.getTypeOfSymbol.gen(into));
+      return yield* satisfiedLinks(checker, yield* checker.getNonNullableType.gen(from), yield* checker.getNonNullableType.gen(to), depth + 1);
+    }),
+  );
+  return [...links, ...nested.flat()];
+}
+
+// A `satisfies` whose value is a bound name, through parentheses and assertions such as `as const`.
+function satisfiedNames(node: Node): readonly { readonly value: Node; readonly checked: TypeNode }[] {
+  return isSatisfiesExpression(node) && suppliedName(node.expression) !== null ? [{ value: node.expression, checked: node.type }] : [];
+}
+
+// `trpc.x.list.infiniteQueryOptions(input, { getNextPageParam })`: TanStack Query fills the procedure input's cursor from
+// `getNextPageParam` on every page it fetches, so the call writes that member though no caller names it.
+const PAGED_QUERY = "infiniteQueryOptions";
+const PAGE_CURSOR = "cursor";
+
+// The callee name of a paged-query call, the site its cursor write is credited at.
+function pagedInputs(node: Node): readonly Node[] {
+  return isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === PAGED_QUERY && node.arguments.length > 0
+    ? [node.expression.name]
+    : [];
+}
+
+function pagedCursors(world: NativeWorld, callees: readonly Node[]): readonly { readonly site: Site; readonly keys: readonly string[] }[] {
+  const { checker } = world;
+  const cursors = world.batch(
+    callees.map(function* (callee): APIRequestGenerator<readonly NativeSymbol[]> {
+      const [input] = (callee.parent.parent as CallExpression).arguments;
+      const slot = input === undefined ? undefined : yield* checker.getContextualType.gen(input);
+      return slot === undefined ? [] : yield* mappedOrigins(checker, slot, PAGE_CURSOR, 0);
+    }),
+  );
+  return callees.flatMap((callee, at) => {
+    const keys = keysOf(cursors[at] ?? []);
+    return keys.length === 0 ? [] : [{ site: world.siteOf(callee), keys }];
+  });
+}
+
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
  *  or reflective call credits its value expression's site to each property it reads. */
 export function propertyIndex(world: NativeWorld): ReferenceIndex {
@@ -808,6 +948,8 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const bindings: DerivedBinding[] = [];
   const supplies: Supply[] = [];
   const callees = derivedCallees(world);
+  const satisfied: { readonly value: Node; readonly checked: TypeNode }[] = [];
+  const pagedCalls: Node[] = [];
   const written = new Set<string>();
   const stores: StoreWrite[] = [];
   const definitions: { readonly file: string; readonly start: number; readonly end: number }[] = [];
@@ -846,6 +988,8 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     if (isInterfaceDeclaration(node) && node.heritageClauses !== undefined) {
       extending.push(node);
     }
+    satisfied.push(...satisfiedNames(node));
+    pagedCalls.push(...pagedInputs(node));
   });
   const { checker } = world;
   const found = world.batch(
@@ -878,20 +1022,32 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   );
   const overloaded = world.batch(implementations.flatMap(overloadPairs).map((pair) => overloadLinks(checker, pair)));
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
+  const satisfies = world.batch(
+    satisfied.map(function* ({ value, checked }): APIRequestGenerator<readonly Link[]> {
+      const [own, held] = yield* all(checker.getTypeAtLocation.gen(value), checker.getTypeFromTypeNode.gen(checked));
+      return yield* satisfiedLinks(checker, own, held, 0);
+    }),
+  );
   const handoffs = handoffFlows(world, home);
   const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [...stored.credits, ...handoffs.reads];
-  const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
+  const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat(), ...satisfies.flat()];
   const flows: Flow[] = [...handoffs.flows, ...stored.flows];
   const sends: PropertyFacts["sends"][number][] = [...stored.sends];
+  const mapped = mappedReads(
+    world,
+    lookups,
+    found.map(({ symbols }) => symbols),
+  );
+  const resolved = found.map(({ symbols }, at) => [...keysOf(symbols), ...(mapped.get(at) ?? [])]);
   const rows = rowColumnReads(
     world,
     lookups,
-    found.map(({ symbols }) => keysOf(symbols)),
+    resolved,
     found.map(({ symbols }) => symbols.some((symbol) => symbol !== undefined && symbol.declarations.length === 0)),
   );
   for (const [at, lookup] of lookups.entries()) {
-    const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
-    const keys = rows.get(at) ?? keysOf(symbols);
+    const { own } = found[at] ?? { own: undefined };
+    const keys = rows.get(at) ?? resolved[at] ?? [];
     const column = stored.copied.get(siteKey(lookup.site));
     if (column !== undefined) {
       flows.push({ source: keys, sink: column });
@@ -932,7 +1088,18 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const keyWrites = lookups.flatMap((lookup, at) =>
     lookup.by === "contextual" && lookup.literalKey !== null ? [{ key: lookup.literalKey, members: keysOf(found[at]?.symbols ?? []) }] : [],
   );
-  return { credits, links, flows, written, sends, copied: new Set(stored.copied.keys()), derived: derivedFacts(world, bindings, supplies, keyWrites) };
+  const paged = pagedCursors(world, pagedCalls);
+  const filled = new Set(paged.map(({ site }) => siteKey(site)));
+  return {
+    credits: [...credits, ...paged],
+    links,
+    flows,
+    written: new Set([...written, ...filled]),
+    sends,
+    copied: new Set(stored.copied.keys()),
+    filled,
+    derived: derivedFacts(world, bindings, supplies, keyWrites),
+  };
 }
 
 // The value an object literal key or shorthand puts in its slot.
@@ -1059,6 +1226,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     direct: withCarried(index, carriedAlong(index, down, isWrite)),
     sends,
     copied: new Set(facts.flatMap((part) => [...part.copied])),
+    filled: new Set(facts.flatMap((part) => [...part.filled])),
     carriesInto: down,
   };
 }

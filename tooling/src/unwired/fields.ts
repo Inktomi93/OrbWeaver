@@ -92,6 +92,12 @@ export interface FieldsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredField[];
   readonly deliberate: readonly (UnwiredField & { readonly reason: string })[];
+  /** Schema keys production neither writes nor reads: only a parse of input from outside the tree (a provider response,
+   *  a card file) or a payload handed on whole fills them, so the schema only validates them. Reported, never judged. */
+  readonly validated: readonly UnwiredField[];
+  /** Never-read members of a tRPC mutation's one-member output, such as `{ restarting: true }`: the acknowledgement is
+   *  the procedure's whole answer. Reported, never judged. */
+  readonly acknowledged: readonly UnwiredField[];
   readonly received: readonly ReceivedField[];
   /** How many reported fields each send destination covers. */
   readonly sentBy: Readonly<Partial<Record<SendDestination, number>>>;
@@ -122,8 +128,8 @@ const FIELD_LIMITS: readonly string[] = [
   "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts, or by slot path (Home.member, Home.fn() return, Home.fn(n) parameter) where the SDK spells a contract type inline; a renamed home or a slot under another path is missed.",
   "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
   "A key of a `base.extend({ key })` literal that the base schema's shape also holds is the base key: its reads and writes count for the base. A key only the extend adds is no field of its own.",
-  "A schema whose parsed value production types by another declaration, through a parse function's return type or a refine predicate and with no `satisfies z.ZodType<T>` link, keeps its own keys: the reads land on the other declaration's members, so the keys report unreferenced.",
-  "A schema that only validates a value production reads through another type, such as a dependency's message type or a payload handed on whole to a provider, keeps keys no production code names: they report unreferenced.",
+  "A schema whose parsed value production types by another declaration, through a parse function's return type or a refine predicate and with no `satisfies z.ZodType<T>` link, keeps its own keys: the reads land on the other declaration's members, so the keys report in validated.",
+  "A schema that only validates a value production reads through another type, such as a dependency's message type or a payload handed on whole to a provider, keeps keys no production code names: they report in validated.",
   "A local type for a value a library or the platform reads (a syntax-tree node, a canvas, a module augmentation) reports the members only the library reads.",
   "A twin interface restated beside its home (a module-local copy with the home's name and members) splits reads from writes: the home reports what only the twin reads.",
   "A value a library hands back to the tree, such as a persisted store's state read through an untyped merge, is not followed: its members report never-read.",
@@ -380,6 +386,43 @@ function overrides(world: NativeWorld): ReadonlyMap<string, readonly string[]> {
   return found;
 }
 
+const TRPC_OUTPUT = "output";
+const TRPC_MUTATION = "mutation";
+
+// The schema a `.output(schema)` names on a procedure chain that a later `.mutation(...)` ends: the mutation's answer.
+function mutationOutputs(world: NativeWorld): readonly Node[] {
+  const outputs: Node[] = [];
+  for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file))) {
+    const visit = (node: Node): void => {
+      const [schema] = isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === TRPC_OUTPUT ? node.arguments : [];
+      let at: Node = node;
+      while (schema !== undefined && isPropertyAccessExpression(at.parent) && at.parent.expression === at && isCallExpression(at.parent.parent)) {
+        if (at.parent.name.text === TRPC_MUTATION) {
+          outputs.push(schema);
+          break;
+        }
+        at = at.parent.parent;
+      }
+      node.forEachChild(visit);
+    };
+    file.forEachChild(visit);
+  }
+  return outputs;
+}
+
+// The declaration key of the one key of each one-key mutation output schema, read off the schema's `shape`.
+function acknowledgementKeys(world: NativeWorld): readonly string[] {
+  const { checker } = world;
+  const keys = world.batch(
+    mutationOutputs(world).map(function* (schema): APIRequestGenerator<readonly string[]> {
+      const shape = yield* checker.getPropertyOfType.gen(yield* checker.getTypeAtLocation.gen(schema), ZOD_SHAPE);
+      const members = shape === undefined ? [] : yield* checker.getPropertiesOfType.gen(yield* checker.getTypeOfSymbol.gen(shape));
+      return members.length === 1 ? members.flatMap(declarationKeys) : [];
+    }),
+  );
+  return keys.flat();
+}
+
 // The declaration keys of every named type a production parameter is annotated with.
 function parameterHomes(world: NativeWorld): ReadonlySet<string> {
   const names: Node[] = [];
@@ -489,12 +532,13 @@ interface Roles {
   readonly tests: number;
 }
 
-function rolesOf(sources: Sources, sites: Iterable<Site>): Roles {
+// `filled`: sites where a library writes the member, such as a paged query filling its cursor, though the syntax reads.
+function rolesOf(sources: Sources, sites: Iterable<Site>, filled: ReadonlySet<string>): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;
   for (const site of sites) {
-    const role: SyntaxRole = roleAt(sources.get(site.file), site.position);
+    const role: SyntaxRole = filled.has(siteKey(site)) ? "write" : roleAt(sources.get(site.file), site.position);
     if (role === "type") {
       continue;
     }
@@ -721,17 +765,23 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const lists = NativeWorld.fileLists(options.root, configs);
   const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
+  const acknowledgements = new Set<string>();
   for (const config of configs) {
     const started = performance.now();
     using world = NativeWorld.open(options.root, config);
     const count = tallyWorld(tally, declared, world);
+    for (const key of acknowledgementKeys(world)) {
+      acknowledgements.add(key);
+    }
     facts.push(propertyFacts(world, homes.get(config)));
     options.log(`${config}: ${count} fields in ${seconds(started)}`);
   }
   const references = joinFacts(facts);
   tallySites(tally, declared, references);
-  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
-  const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values()).write.length > 0).map(({ field }) => homeOf(field)));
+  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values(), references.filled) }));
+  const writtenHomes = new Set(
+    rolled.filter(({ direct }) => rolesOf(sources, direct.values(), references.filled).write.length > 0).map(({ field }) => homeOf(field)),
+  );
   const judged = rolled.flatMap(({ field, roles, sends }) => {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind, sends: [...sends.values()] }];
@@ -758,6 +808,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     const audit = rolesOf(
       sources,
       mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference))),
+      references.filled,
     );
     const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
     if (lacking.length > 0) {
@@ -799,9 +850,20 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const stagedAt = performance.now();
   const staged = staging(options.root, sources, findings, control);
   options.log(`literal stage: ${seconds(stagedAt)}`);
+  const acknowledged = new Set(rolled.filter(({ keys }) => [...keys].some((key) => acknowledgements.has(key))).map(({ field }) => field.key));
+  const ruling = (row: UnwiredField): "validated" | "acknowledged" | null => {
+    if (row.origin === "schema" && row.kind === "unreferenced") {
+      return "validated";
+    }
+    return row.kind === "never-read" && acknowledged.has(row.key) ? "acknowledged" : null;
+  };
+  const sorted = sortDeliberate(staged.rows, options.deliberate);
   return {
     scanned: tally.size,
-    ...sortDeliberate(staged.rows, options.deliberate),
+    unwired: sorted.unwired.filter((row) => ruling(row) === null),
+    deliberate: sorted.deliberate,
+    validated: sorted.unwired.filter((row) => ruling(row) === "validated"),
+    acknowledged: sorted.unwired.filter((row) => ruling(row) === "acknowledged"),
     received,
     sentBy: sentCounts(staged.rows),
     disagreements,

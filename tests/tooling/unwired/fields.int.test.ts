@@ -101,7 +101,6 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
   const found = report.unwired.map(({ home, member, kind, origin, tests }) => ({ field: `${home}.${member}`, kind, origin, tests }));
   expect(found.toSorted((a, b) => a.field.localeCompare(b.field))).toEqual([
     { field: "BaseCfg.spare", kind: "never-read", origin: "type", tests: 0 },
-    { field: "HealthSchema.detail", kind: "unreferenced", origin: "schema", tests: 0 },
     { field: "HostView.gone", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Keyed.unkeyed", kind: "never-read", origin: "type", tests: 0 },
     { field: "Row.always", kind: "never-written", origin: "type", tests: 0 },
@@ -113,6 +112,8 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
     { field: "Stranger.title", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Tree.leaf", kind: "unreferenced", origin: "type", tests: 0 },
   ]);
+  // A schema key production neither writes nor reads reports in validated, never as a judged row.
+  expect(report.validated.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["HealthSchema.detail unreferenced"]);
   // The read narrows to the first option; find-references climbs to every option that declares the member.
   expect(report.disagreements).toEqual([{ key: "packages/a/src/outside.ts:HealthSchema.at#2", uses: ["packages/a/src/outside.ts:35"] }]);
 });
@@ -216,7 +217,7 @@ const OPTIONS = {
 test("each union option's key is its own field", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(OPTIONS);
   const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  const keys = report.unwired.flatMap(({ file, key }) => (file.endsWith("options.ts") ? [key.replace("packages/a/src/options.ts:", "")] : []));
+  const keys = report.validated.flatMap(({ file, key }) => (file.endsWith("options.ts") ? [key.replace("packages/a/src/options.ts:", "")] : []));
   expect(keys.toSorted()).toEqual(["Actor.kind", "Actor.kind#2", "Actor.name", "Actor.tag", "Actor.tag#2", "Lone.tag"]);
 });
 
