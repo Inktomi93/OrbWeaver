@@ -31,7 +31,8 @@ const COVERAGE_LIMITS: readonly string[] = [
   "Only Chromium pages are recorded, and a page a test closes itself is not; workers and service workers are not recorded.",
   "A production file no input listed is in unseenFiles, never counted as executed; a run with the Node suite lists every one.",
   "A browser or server hit lands on the Node suite's entry with the same start position, else on the same-named function of its line, else on the entry with the same place among its line's anonymous functions or same-type branches when both maps hold the same number there; a hit that finds none is counted per suite, not added.",
-  "The React Compiler rewrites a browser component's branches, so most browser branch hits land on compiler-made branches and are dropped: a client .tsx branch arm reported unexecuted may have run in CT or e2e. Read the per-suite matched arm count first.",
+  "The client build skips the React Compiler under this command, so browser branches are the source's own and land on the Node suite's: behaviour only the compiler's memoisation produces does not run here, and a CT or e2e pass or failure under this command is no test verdict; the compiled suites stay the verdict.",
+  "Each suite's functionMatchRate and armMatchRate is the share of its hits that found a universe entry; read it before you judge an unexecuted entry in a file that suite ran.",
   "Code the e2e harness alone runs is dropped with its whole process; a CT's in-worker server responder is never recorded.",
   "A page whose coverage cannot be read at a test's end is a lostPages line; no test drives that path, since only a real browser page reaches it.",
   "Specs on the surface base run only under scripts/surface-walk.ts, which the e2e suite's config ignores, so they collect nothing here.",
@@ -277,7 +278,7 @@ export async function runCoverage(argv: readonly string[], log: (line: string) =
     )
       .map(
         ([suite, p]) =>
-          ` ${suite}:matched functions=${String(p.matchedFunctions)}/${String(p.matchedFunctions + p.unmatchedFunctions)} arms=${String(p.matchedArms)}/${String(p.matchedArms + p.unmatchedArms)}`,
+          ` ${suite}:matched functions=${String(p.matchedFunctions)}/${String(p.matchedFunctions + p.unmatchedFunctions)} arms=${String(p.matchedArms)}/${String(p.matchedArms + p.unmatchedArms)} armRate=${String(p.armMatchRate)}`,
       )
       .join("")} mergePeakRss=${mergePeakRssBytes === null ? "unmeasured" : `${String(Math.round(mergePeakRssBytes / KIB / KIB))}MiB`} written to ${out}`,
   );

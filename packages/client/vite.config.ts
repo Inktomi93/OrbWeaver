@@ -41,7 +41,10 @@ const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:878
 // tooling/src/floor/testing/coverage-collection.ts under the same D344 ruling as the ports above. Under it the build
 // carries an inline map with absolute source paths and skips minification: a browser test records each chunk's text
 // through the protocol, so the map must travel inside it, and an unminified chunk maps functions to their own start.
-// The served e2e client refuses .map requests, which is why the map is inline. Unset, the build is the shipped one.
+// The served e2e client refuses .map requests, which is why the map is inline. It also skips the React Compiler pass: the
+// compiler lowers source branches into other shapes and adds memo-cache branches, so a compiled browser branch has no
+// sound source branch to land on. A CT or e2e result under it is therefore no test verdict; the compiled suites stay the
+// verdict. Unset, the build is the shipped one.
 const COVERAGE_BUILD = (process.env["ORB_COVERAGE_DIR"] ?? "") !== "";
 
 const SERVER_PROXY = {
@@ -696,7 +699,7 @@ export default defineConfig(({ mode }) => {
       // same plugin instance, same compiled output, just never compiled twice for the same input. The
       // preset options object is passed to BOTH so a config change is inside the cache key.
       react(),
-      withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
+      ...(COVERAGE_BUILD ? [] : [withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS)]),
       tailwindcss(),
       ...(gallery
         ? [componentGallery()]
