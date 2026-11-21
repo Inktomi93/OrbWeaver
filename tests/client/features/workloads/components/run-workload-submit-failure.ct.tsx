@@ -2,7 +2,8 @@
 // @subject packages/client/src/features/workloads/components/run-workload-dialog.tsx
 
 import { testId } from "@orb/client/lib";
-import { ALERTS_REGION_NAME, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
+import { routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { RunDependencyStory } from "./_run-dependency-stories.tsx";
@@ -30,6 +31,7 @@ test("a refused Run job keeps the typed run time in the open dialog and says the
     ...serveCorpusProcedures(caller, ["workloads.start"], () => trpcError()),
   });
   await routeOrbSocket(page, { awaitAttaches: 0 });
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof RunDependencyStory>(STORY, { reloadName: "Reload reads" });
 
   await page.getByTestId(testId("workloadsRunButton")).click();
@@ -39,6 +41,6 @@ test("a refused Run job keeps the typed run time in the open dialog and says the
   await dialog.getByTestId(testId("runWorkloadSubmit")).click();
 
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  expect(await toastMounts()).toBe(0);
   await expect(runAt).toHaveValue(RUN_AT);
 });

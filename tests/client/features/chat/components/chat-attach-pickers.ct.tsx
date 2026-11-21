@@ -2,8 +2,9 @@
 // and a refused attach says so in the picker once.
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { ALERTS_REGION_NAME, absenceWindow, holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { absenceWindow, holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -202,6 +203,7 @@ test("a refused document attach keeps the typed search in the open picker and sa
     ...serveCorpusProcedures(host, ["databank.attachToChat"], () => trpcError()),
   });
   await corpusMedia();
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_DOCUMENTS_SECTION_LABEL)}`, "u") }).click();
@@ -212,7 +214,7 @@ test("a refused document attach keeps the typed search in the open picker and sa
   await dialog.getByRole("button", { name: new RegExp(`^Add ${RegExp.escape(DOCUMENT_NAME)}`, "u") }).click();
 
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  expect(await toastMounts()).toBe(0);
   await expect(search).toHaveValue("Lantern");
 });
 
@@ -227,6 +229,7 @@ test("a refused script attach keeps the typed filter and the ticked script in th
     ...serveCorpusProcedures(host, ["regex.attachToChat"], () => trpcError()),
   });
   await corpusMedia();
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: /^Regex/u }).click();
@@ -238,7 +241,7 @@ test("a refused script attach keeps the typed filter and the ticked script in th
   await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
 
   await expect(dialog.getByText(CHAT_ATTACH_SCRIPTS_FAILURE, { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  expect(await toastMounts()).toBe(0);
   await expect(filter).toHaveValue("Kept");
   await expect(dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true })).toBeChecked();
 });

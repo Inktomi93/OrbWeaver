@@ -3,10 +3,11 @@
 
 import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import { brandedId } from "@orb/kit/ids";
-import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator } from "@playwright/test";
 import { userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
 import { ADMIN_CREATE_USER_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
@@ -29,9 +30,9 @@ async function seedMember(root: Harness): Promise<void> {
 }
 
 /** The line is the dialog's own alert; the refusal's toast stays off because the dialog declares it shows the failure itself. */
-async function expectRefusedInline(page: Page, dialog: Locator): Promise<void> {
+async function expectRefusedInline(dialog: Locator, toastMounts: () => Promise<number>): Promise<void> {
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  expect(await toastMounts()).toBe(0);
 }
 
 test("a refused Create user keeps the handle and the password in the open dialog", async ({ mount, page }) => {
@@ -41,6 +42,7 @@ test("a refused Create user keeps the handle and the password in the open dialog
     ...serveCorpusProcedures(caller, READS),
     ...serveCorpusProcedures(caller, ["admin.createUser"], () => trpcError()),
   });
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof AdminUsersStory>(USERS_STORY, {});
 
   await page.getByRole("button", { name: ADMIN_CREATE_USER_NAME, exact: true }).click();
@@ -51,7 +53,7 @@ test("a refused Create user keeps the handle and the password in the open dialog
   await password.fill(MEMBER_PASSWORD);
   await dialog.getByRole("button", { name: ADMIN_CREATE_USER_NAME, exact: true }).click();
 
-  await expectRefusedInline(page, dialog);
+  await expectRefusedInline(dialog, toastMounts);
   await expect(handle).toHaveValue("typed-handle");
   await expect(password).toHaveValue(MEMBER_PASSWORD);
 });
@@ -64,6 +66,7 @@ test("a refused Reset password keeps the new password in the open dialog", async
     ...serveCorpusProcedures(caller, READS),
     ...serveCorpusProcedures(caller, ["admin.resetPassword"], () => trpcError()),
   });
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof AdminUsersStory>(USERS_STORY, {});
 
   await page.getByRole("button", { name: userActionsName(MEMBER_HANDLE), exact: true }).click();
@@ -76,7 +79,7 @@ test("a refused Reset password keeps the new password in the open dialog", async
   await password.fill(NEW_PASSWORD);
   await dialog.getByRole("button", { name: "Reset password", exact: true }).click();
 
-  await expectRefusedInline(page, dialog);
+  await expectRefusedInline(dialog, toastMounts);
   await expect(password).toHaveValue(NEW_PASSWORD);
 });
 
@@ -88,6 +91,7 @@ test("a refused Link identity keeps the typed SSO subject in the open dialog", a
     ...serveCorpusProcedures(caller, READS),
     ...serveCorpusProcedures(caller, ["admin.linkSsoIdentity"], () => trpcError()),
   });
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof AdminLinkSsoStory>(LINK_STORY, {});
 
   await page.getByRole("button", { name: `Link ${MEMBER_HANDLE}`, exact: true }).click();
@@ -96,6 +100,6 @@ test("a refused Link identity keeps the typed SSO subject in the open dialog", a
   await subject.fill(SUBJECT);
   await dialog.getByRole("button", { name: "Link identity", exact: true }).click();
 
-  await expectRefusedInline(page, dialog);
+  await expectRefusedInline(dialog, toastMounts);
   await expect(subject).toHaveValue(SUBJECT);
 });

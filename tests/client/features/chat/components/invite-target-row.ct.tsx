@@ -2,16 +2,8 @@
 // An outstanding targeted invite names the handle it is for, in its row and in its Revoke control; a share link names none.
 // A handle nobody holds is refused inline, keyed on the refusal code the server sends.
 import type { ChatId } from "@orb/kit/ids";
-import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
-import {
-  ALERTS_REGION_NAME,
-  ROOM_PROCEDURES,
-  routeAuthConfig,
-  routeTrpc,
-  SECTION_PROCEDURES,
-  SHELL_MOUNT_PROCEDURES,
-  serveCorpusProcedures,
-} from "@orb/testkit/ct";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, toggleStripLayout, watchToastMounts } from "@orb/testkit/browser/spec";
+import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -83,6 +75,7 @@ test("an invite to a handle nobody holds says so inline, from the server's own r
   await seedShellState(page, { activeSection: "chats" });
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(host, [...READS, "invites.createInvite"]));
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
@@ -92,8 +85,8 @@ test("an invite to a handle nobody holds says so inline, from the server's own r
   await handle.fill(UNKNOWN_HANDLE);
   await dialog.getByRole("button", { name: INVITE_SEND_NAME, exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText(INVITE_TARGET_UNKNOWN_TEXT);
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
   await expect(handle).toHaveValue(UNKNOWN_HANDLE);
+  expect(await toastMounts()).toBe(0);
 });
 
 test.describe("on a phone at the browser's enlarged text", () => {

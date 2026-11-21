@@ -45,7 +45,7 @@ export function usePluginCommandArgsCommit(): ModalCommit {
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(subject?.args ?? []));
   const [errors, setErrors] = useState<readonly string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [refused, setRefused] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const commands = usePluginCommands();
   // Arrival lands on the first argument, so a command's values are typed straight away.
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -67,15 +67,15 @@ export function usePluginCommandArgsCommit(): ModalCommit {
     // The raw `args` remainder is empty on the palette path (the person filled fields, not a `name=value` line);
     // the TYPED bag carries the arguments. The runner re-resolves the command and the server re-validates.
     setErrors([]);
-    setRefused(false);
+    setRefusal(null);
     setSubmitting(true);
-    run({ slug: subject.slug, name: subject.name, args: "", values: coerced.values }, (succeeded): void => {
+    run({ slug: subject.slug, name: subject.name, args: "", values: coerced.values }, (succeeded, failure): void => {
       setSubmitting(false);
       if (succeeded) {
         closeModal();
         clearPluginCommandArgs();
       } else {
-        setRefused(true);
+        setRefusal(failure ?? PLUGIN_COMMAND_RUN_FAILED);
       }
     });
   };
@@ -123,7 +123,7 @@ export function usePluginCommandArgsCommit(): ModalCommit {
             />
           ))}
         </Stack>
-        {refused ? <DialogFailure>{PLUGIN_COMMAND_RUN_FAILED}</DialogFailure> : null}
+        {refusal === null ? null : <DialogFailure>{refusal}</DialogFailure>}
         {errors.length === 0 ? null : (
           <Stack gap="tight">
             {errors.map((message) => (

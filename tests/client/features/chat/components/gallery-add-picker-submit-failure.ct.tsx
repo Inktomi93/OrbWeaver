@@ -3,7 +3,8 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { ALERTS_REGION_NAME, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
@@ -30,6 +31,7 @@ test("a refused gallery add keeps the selected image in the open picker and says
     ...serveCorpusProcedures(caller, ["assets.addToGallery"], () => trpcError()),
   });
   await corpusMedia();
+  const toastMounts = await watchToastMounts(page);
   await mount<typeof GalleryActionsStory>(STORY, { characterId: card.id, characterName: card.name, chatId, appearance: appearanceSettingsSchema.parse({}) });
 
   await page.getByRole("button", { name: "Open character gallery", exact: true }).click();
@@ -41,6 +43,6 @@ test("a refused gallery add keeps the selected image in the open picker and says
   await picker.getByRole("button", { name: CHAT_GALLERY_ADD_SELECTED_NAME, exact: true }).click();
 
   await expect(picker.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(0);
+  expect(await toastMounts()).toBe(0);
   await expect(picker.getByText("1 selected", { exact: true })).toBeVisible();
 });
