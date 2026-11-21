@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-21
 priority: P2
 area: tooling
+lane: wt/agent-a5a96ef50f59e7743
 ---
 
 # A snap stage can reach the local model for live-turn review
