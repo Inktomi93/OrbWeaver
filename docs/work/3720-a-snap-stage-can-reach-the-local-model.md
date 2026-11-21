@@ -10,7 +10,7 @@ area: tooling
 
 ## What
 
-A ux-reviewer on a snap stage could not add the local model at 127.0.0.1:8900 because the cloned settings allow only host.docker.internal as a private endpoint, so live-turn surfaces could not be reviewed.
+A snap stage cloned from the container drops saved provider keys by design, and nothing seeds a connection on the stage from the repository env keys, so a reviewer cannot send a live turn. The e2e server already seeds OPENROUTER_API_KEY as the owner's credential (tests/e2e/support/README.md).
 
 ## Why
 
@@ -18,7 +18,7 @@ Notices, the Stopped mark and turn-time states need a live turn to review.
 
 ## Done when
 
-A snap stage allows the box's local model endpoint without an owner settings edit, and the snap-driving skill names how a reviewer starts a live turn.
+A snap stage flag seeds a working connection from a named repository env key through the server's existing seed path, the key never appears in a log, report, screenshot or run.json, the snap-driving skill names the flag, and a tooling test proves the key stays out of the run output.
 
 ## Evidence
 
