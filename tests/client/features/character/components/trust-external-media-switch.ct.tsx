@@ -123,6 +123,21 @@ test("under an install-wide block the switch is not shown, the block says why, a
   expect(await stored()).toBeNull();
 });
 
+test("the ladder's hint is announced once and sits at the hint text size, below its label", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  await using cleanup = new AsyncDisposableStack();
+  const mountShell = (): Promise<unknown> => mount<typeof ShellBusStory>(STORY, {});
+  const { block, ladder } = await openTrust({ corpus, page, root, cleanup, mountShell, installBlocks: false, stored: null, step: "trusted" });
+  const step = HTML_TRUST_STEP_LABELS.trusted;
+  // Positive control: the sentence is in the description at all; the lookahead then refuses a second copy of it.
+  await expect(ladder).toHaveAccessibleDescription(new RegExp(`render as ${step}`));
+  await expect(ladder).toHaveAccessibleDescription(/^(?:(?!render as).)*render as(?:(?!render as).)*$/su);
+  const fontSize = (target: Locator): Promise<number> => target.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+  const hint = block.locator('[data-slot="trust-resolved-step"]');
+  const label = block.locator('[data-slot="field-label"]').first();
+  expect(await fontSize(hint)).toBeLessThan(await fontSize(label));
+});
+
 test("the ladder's hint names the step the character resolves to and follows a pick", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   await using cleanup = new AsyncDisposableStack();

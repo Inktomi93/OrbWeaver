@@ -4,6 +4,7 @@
 // `tsc` here until it has words.
 
 import type { RegexNotAppliedCause, RegexServerPass } from "@orb/contracts/chat";
+import { REGEX_SCRIPT_ENABLED_SETTING } from "./regex-section-model.ts";
 
 /** Why, as a clause after the script's name. */
 function regexNotAppliedCauseWords(cause: RegexNotAppliedCause): string {
@@ -47,7 +48,7 @@ function regexServerPassWords(pass: RegexServerPass): string {
 const REGEX_UNKNOWN_SCRIPT_NAME = "A script no longer in your library";
 
 /** What to do about a stopped or skipped script, the same words wherever one is reported. */
-const REGEX_STOP_NEXT_STEP = "Fix its find pattern in your regex library, or switch it off in This chat under Regex.";
+const REGEX_STOP_NEXT_STEP = `Fix its find pattern in your regex library, or turn off ${REGEX_SCRIPT_ENABLED_SETTING} on its row.`;
 
 /** The roster's mark on a script this browser stopped, and its reason under the row. The browser tries it again
  *  after a reload, so the reason says that a reload alone does not fix it. */

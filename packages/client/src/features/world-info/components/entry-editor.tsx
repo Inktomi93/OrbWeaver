@@ -233,7 +233,9 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
             </Row>
           ) : (
             <form.AppField name="position">
-              {(field): ReactElement => <field.SelectField label={WORLD_INFO_ENTRY_PLACEMENT_NAME} hint={WORLD_INFO_PLACEMENT_HINT} items={POSITION_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SelectField label={WORLD_INFO_ENTRY_PLACEMENT_NAME} description={WORLD_INFO_PLACEMENT_HINT} items={POSITION_ITEMS} />
+              )}
             </form.AppField>
           )
         }

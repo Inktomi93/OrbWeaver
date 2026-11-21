@@ -43,15 +43,15 @@ export const WORLD_INFO_ENTRY_PLACEMENT_NAME = "Placement";
 export const WORLD_INFO_POSITION_LABELS: Record<EntryPosition, string> = {
   before: "Before the character definitions",
   after: "After the character definitions",
-  ["authors_note_top"]: "Top of the Author's Note",
-  ["authors_note_bottom"]: "Bottom of the Author's Note",
+  ["authors_note_top"]: "Top of the Injections",
+  ["authors_note_bottom"]: "Bottom of the Injections",
   ["example_messages_top"]: "Top of the example messages",
   ["example_messages_bottom"]: "Bottom of the example messages",
 };
 
-/** What the placement choice does and what an entry does when its seat is missing from a turn. */
+/** What the placement choice does and what an entry does when its seat is missing from a turn. Printed under the field, never a tooltip. */
 export const WORLD_INFO_PLACEMENT_HINT =
-  "Before and after need the preset's world-info sections. The Author's Note is the chat's Injections: top joins above the first one, bottom below the last. The example messages need the preset's example-messages section. When a turn has no such seat, the entry goes in the system prompt like any other entry.";
+  "Before and after need the preset's world-info sections. Top of the Injections joins above the chat's first injection, bottom below its last. The example messages need the preset's example-messages section. When a turn has no such seat, the entry goes in the system prompt like any other entry.";
 
 /** The book details dialog's description field. */
 export const WORLD_INFO_BOOK_DESCRIPTION_NAME = "Description";

@@ -28,6 +28,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { REGEX_SCRIPT_ENABLED_SETTING } from "#client/features/chat/lib/regex-section-model.ts";
 import {
   REGEX_NOT_APPLIED_MARK,
   REGEX_STOP_OPEN_ROOM_NAME,
@@ -68,6 +69,7 @@ const OVERFLOW = 3;
 // A warning with its own notice: once it shows, every frame sent before it was handled.
 const SENTINEL: ChatWarning = { code: "provider_refused" };
 const UNKNOWN: { readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass } = { cause: "did_not_compile", pass: "ai_output" };
+const PHONE_WIDTH = 390;
 test.use({ viewport: { width: 1280, height: 1000 }, isMobile: false, hasTouch: false });
 
 function warning(
@@ -163,6 +165,30 @@ test("a skipped host script raises one named notice that a replay does not repea
   await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
   // The reason is on screen under the row, not only spoken.
   await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass), { exact: true })).toBeVisible();
+});
+
+test("a stopped script's long name stays whole beside its mark at phone width", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const long = { name: "Fix narrator quotation marks", findRegex: "LONGMARK", replaceString: "long" } as const;
+  const script = await host.regex.createScript({ input: { ...long, targets: ["AI_OUTPUT"], passes: ["display", "prompt"] } });
+  await host.regex.attachGlobal({ scriptId: script.id });
+  await serveHostedRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, script.id, HISTORY, FIRST_SEQ)] });
+  await page.setViewportSize({ width: PHONE_WIDTH, height: 900 });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await socket.served();
+
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  await page.getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.settings, exact: true }).click();
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  const row = rosterRow(page, long.name);
+  await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
+  const title = row.locator('[data-slot="list-row-title"]');
+  // Positive control: the title is drawn, so a zero overflow is not an unmeasured node.
+  expect(await title.evaluate((node) => node.clientWidth)).toBeGreaterThan(0);
+  expect(await title.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(0);
 });
 
 test("scripts past a turn's naming cap join the notice as a count that a replay or a later turn's same count never raises again", async ({
@@ -278,6 +304,9 @@ test("a stopped script only the prompt passes run is marked, with its reason, on
   await expect(rosterRow(page, PROMPT_ONLY.name)).toHaveCount(0);
   await expect(row.getByText(REGEX_NOT_APPLIED_MARK, { exact: true })).toBeVisible();
   await expect(row.getByText(regexNotAppliedReason(HISTORY.cause, HISTORY.pass), { exact: true })).toBeVisible();
+  // The reason sends the reader to a control that is on this row: the script's own switch, which is off everywhere.
+  expect(regexNotAppliedReason(HISTORY.cause, HISTORY.pass)).toContain(REGEX_SCRIPT_ENABLED_SETTING);
+  await expect(row.getByRole("switch", { name: new RegExp(`^${REGEX_SCRIPT_ENABLED_SETTING}`, "u") })).toBeVisible();
 });
 
 test("a notice that names no script in the library offers the tab, not a row", async ({ corpus, mount, page }) => {

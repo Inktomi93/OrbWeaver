@@ -52,7 +52,7 @@ import {
   regexTierLever,
 } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
-import { RegexStopMark, RegexStopReason } from "./regex-stop-mark.tsx";
+import { RegexStopReason } from "./regex-stop-mark.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
 const REGEX_COLLECTION = "regex";
@@ -210,7 +210,7 @@ function DisplayScriptRow({
   return (
     <ListRow
       // Only a row with a mark passes one: an empty markers box still takes its gap from the title line.
-      {...(off || stop !== undefined ? { markers: <RowMarks off={off} stop={stop} /> } : {})}
+      {...(off ? { markers: <RowMarks /> } : {})}
       {...(isYours
         ? {
             actions: (
@@ -249,12 +249,11 @@ function DisplayScriptRow({
   );
 }
 
-/** The title-line marks; a stop's reason is the row's detail, in words. */
-function RowMarks({ off, stop }: { readonly off: boolean; readonly stop: StoppedDisplayScript | undefined }): ReactElement {
+/** The title-line mark of a row that is off; a stop's mark and reason are the row's detail, in words. */
+function RowMarks(): ReactElement {
   return (
     <Row align="center" gap="tight">
-      {off ? <InlineToken>{REGEX_OFF_MARK}</InlineToken> : null}
-      {stop === undefined ? null : <RegexStopMark stop={stop} />}
+      <InlineToken>{REGEX_OFF_MARK}</InlineToken>
     </Row>
   );
 }
