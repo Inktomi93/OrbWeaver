@@ -1,3 +1,10 @@
+/** The server-side projection read while building the CEL environment and by the test-rule verb. Never carries
+ *  `ownerId` — the plane is single-owned, so a view is always the caller's own. */
+export interface GlobalVariableView {
+  readonly key: string;
+  readonly value: string;
+}
+
 const STREAM_AUTHORITIES = ["host-only", "member-visible"] as const;
 /** The `automation.stream` subscriber's authority tier over a chat. The stream is the ONE procedure
  *  projecting by caller authority (the agents host/member filter): a `host-only` subscriber, the host, receives every bus event;

@@ -4,7 +4,6 @@
 // @subject packages/client/src/features/chat/components/composer-reply-failure-line.tsx
 // @subject packages/client/src/features/chat/hooks/use-send-message.ts
 
-import type { EmptyGenerationCause } from "@orb/contracts/chat";
 import { CONNECTION_FIXABLE_FAILURE_REASONS, EMPTY_GENERATION_CAUSE, EMPTY_GENERATION_OP_CODE, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -318,7 +317,10 @@ async function generateReply(page: Page): Promise<void> {
 }
 
 // One row per cause the server states for a generation that ended with no prose; a cause added to the contract fails tsc here.
-const EMPTY_KINDS: Record<EmptyGenerationCause, { readonly finishReason: "length" | "tool_calls" | "stop"; readonly paramsDoor: boolean }> = {
+const EMPTY_KINDS: Record<
+  (typeof EMPTY_GENERATION_CAUSE)[keyof typeof EMPTY_GENERATION_CAUSE],
+  { readonly finishReason: "length" | "tool_calls" | "stop"; readonly paramsDoor: boolean }
+> = {
   [EMPTY_GENERATION_CAUSE.outputLimit]: { finishReason: "length", paramsDoor: true },
   [EMPTY_GENERATION_CAUSE.toolCalls]: { finishReason: "tool_calls", paramsDoor: false },
   [EMPTY_GENERATION_CAUSE.noText]: { finishReason: "stop", paramsDoor: false },

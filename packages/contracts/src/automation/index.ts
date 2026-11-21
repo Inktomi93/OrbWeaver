@@ -1,6 +1,6 @@
 // @orb/contracts/automation — the automation vocabulary: the closed trigger taxonomy + fire-outcome tuple
 // (rider slice, so the `@orb/db` CHECKs can derive them), the global-variable plane, the action union,
-// `LIVE_TRIGGERS`, the `TriggerFact` + CEL-env shapes, `AutomationOrigin`, and the `AutomationBusEvent`
+// `LIVE_TRIGGERS`, the `TriggerFact` + CEL-env shapes and the `AutomationBusEvent`
 // union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
 // are typed-but-refused at `createRule` until their domains land.
 
@@ -185,13 +185,6 @@ export function withoutNul<S extends z.ZodType<string, string>>(schema: S): S {
 
 export const globalVariableKeySchema = withoutNul(z.string().min(1).max(GLOBAL_VARIABLE_KEY_MAX_CHARS));
 
-/** The server-side projection read while building the CEL environment and by the test-rule verb. Never carries
- *  `ownerId` — the plane is single-owned, so a view is always the caller's own. */
-export interface GlobalVariableView {
-  readonly key: string;
-  readonly value: string;
-}
-
 // ── the per-chat rate cap (loop safety) ──────────────────────────────────────────────────────────
 // The per-chat FIRE-RATE ceiling — the loop-safety belt that bounds a runaway automation (a rule that keeps
 // re-firing) from hammering a paid API. It is a FIXED ceiling with no stored override (owner ruling): the
@@ -237,8 +230,7 @@ export const AUTOMATION_OWNER_BUDGET_DEFAULTS = {
 } as const;
 
 /** The owner-global rate-cap read model (`getOwnerBudgets`) — the caller's own ceiling. Carries no
- *  `ownerId`: the plane is single-owned, so a view is always the caller's own (the `GlobalVariableView`
- *  posture). */
+ *  `ownerId`: the plane is single-owned, so a view is always the caller's own. */
 export interface OwnerBudgetView {
   readonly maxFiresPerHour: number;
 }
@@ -910,14 +902,7 @@ const AUTOMATION_RUN_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "suggested", "paus
 export type AutomationRunOutcome = (typeof AUTOMATION_RUN_OUTCOMES)[number];
 const automationRunOutcomeSchema = z.enum(AUTOMATION_RUN_OUTCOMES) satisfies z.ZodType<AutomationRunOutcome>;
 
-// ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
-/** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
- *  NEVER a bus-event field (the D19/D50 allowlist forbids attribution on the public bus). */
-export interface AutomationOrigin {
-  readonly ruleId: AutomationRuleId;
-  readonly automationDepth: number;
-}
-
+// ── the automation bus ──────────────────────────────────────────────────────────────────────────────
 /** Who SURFACED a member-visible bus emission — a rule (the automation lane) OR a plugin (the membrane's
  *  `chat.quick_reply` capability rides the SAME per-chat bus). A discriminated union, NOT a
  *  synthetic rule id: a plugin-surfaced reply has no rule, so the source carries the ACTUAL origin id. Both

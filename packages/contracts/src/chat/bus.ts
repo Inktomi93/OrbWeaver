@@ -364,7 +364,6 @@ export const EMPTY_GENERATION_OP_CODE = "empty_generation" as const;
 /** Why a generation ended with no prose: the model spent its whole output limit before writing any (on a reasoning wire
  *  the limit covers its thinking too), it answered with tool calls only, or it returned nothing. */
 export const EMPTY_GENERATION_CAUSE = { outputLimit: "output_limit", toolCalls: "tool_calls", noText: "no_text" } as const;
-export type EmptyGenerationCause = (typeof EMPTY_GENERATION_CAUSE)[keyof typeof EMPTY_GENERATION_CAUSE];
 
 /** The `data.reason` prefix every provider failure rides on a tRPC error, followed by the provider's failure kind
  *  (`provider_auth_failed`). The server's error mapping spells the reason from this constant. */

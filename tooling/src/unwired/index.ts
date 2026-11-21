@@ -1,7 +1,8 @@
 // The unwired scans and the restated-port matcher: `pnpm unwired` reports members no production code reaches, its
 // `fields`, `params`, `unions` and `shapes` verbs what is dead inside live code, `codes` the error and refusal codes nothing
-// throws or no client branch names, `ports` the port members that hand-restate another member, and `removed-keys` the
-// removed contract keys a sender still names. Never in CI, never a gate.
+// throws or no client branch names, `ports` the port members that hand-restate another member, `removed-keys` the
+// removed contract keys a sender still names, and `coverage` the production code no test run executed. Never in CI,
+// never a gate.
 
 export type { Restatement } from "../eslint/index.ts";
 export { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../eslint/index.ts";

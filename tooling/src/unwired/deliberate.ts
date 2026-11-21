@@ -12,11 +12,22 @@ const SETTLE_SIGNAL = "docs/law/Spine-Testing.md: a suite waits on the composed 
 const PUBLISHED_API = "D266: the published plugin SDK surface; guest plugins outside the tree read and write it";
 const DORMANT_AGENTS = "D60: the design of record for agent principals; the admin view carries an agent's kind and owner for that rebuild";
 const KIND_PER_USE = "D350: the asset list carries every kind an asset is used as";
+const ROSTER_PRESET_OPS =
+  "an op type that `domain/roster-preset` (and for `AddCharacterToChatOp` `domain/rpg`) is injected with names it in its signature, so it stays in `@orb/contracts` rather than a domain `contract/params.ts`";
 
 export const DELIBERATE: readonly DeliberateEntry[] = [
   { directory: "packages/contracts/src/plugin/", reason: PUBLISHED_API },
   { directory: "packages/plugin-sdk/", reason: PUBLISHED_API },
   { file: "packages/contracts/src/automation/index.ts", home: "triggerFactPayloadSchema", member: null, reason: PUBLISHED_API },
+  { file: "packages/contracts/src/automation/index.ts", home: "ListRulesParams", member: null, reason: `ListRulesOp is ${ROSTER_PRESET_OPS}` },
+  { file: "packages/contracts/src/automation/index.ts", home: "DeleteRuleParams", member: null, reason: `DeleteRuleOp is ${ROSTER_PRESET_OPS}` },
+  { file: "packages/contracts/src/chat/seat-ops.ts", home: "AddCharacterToChatParams", member: null, reason: `AddCharacterToChatOp is ${ROSTER_PRESET_OPS}` },
+  {
+    file: "packages/contracts/src/chat/owner-ops.ts",
+    home: "ChatScopedParams",
+    member: null,
+    reason: `the base of SetGroupConfigParams, AddCharacterToChatParams and SetSeatKnobsParams, whose ops are ${ROSTER_PRESET_OPS}`,
+  },
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "kind", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "ownerHandle", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/assets/index.ts", home: "AssetListItem", member: "kinds", reason: KIND_PER_USE },

@@ -56,6 +56,8 @@ interface EmitChatChangedOptions {
 }
 /** Best-effort chat-list fan to every present member, never a turn failure. */
 export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions) => Promise<void>;
+/** Publish one `chatsChanged` to one user's bus channel; `chatId` present means the event names the chat. */
+export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
 /** Runs the already-resolved turn route without accepting request authorization. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
 

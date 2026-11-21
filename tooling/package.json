@@ -87,6 +87,7 @@
     "./floor/process/sync-sleep": "./src/floor/process/sync-sleep.ts",
     "./floor/testing/run-temp-root-setup": "./src/floor/testing/run-temp-root-setup.ts",
     "./floor/testing/stryker-config": "./src/floor/testing/stryker-config.ts",
+    "./floor/testing/coverage-collection": "./src/floor/testing/coverage-collection.ts",
     "./floor/testing/test-kinds": "./src/floor/testing/test-kinds.ts",
     "./floor/testing/test-tags": "./src/floor/testing/test-tags.ts",
     "./floor/testing/test-worlds": "./src/floor/testing/test-worlds.ts",
@@ -130,6 +131,7 @@
     "@playwright/test": "catalog:",
     "@stryker-mutator/api": "catalog:",
     "@typescript/native": "catalog:",
+    "ast-v8-to-istanbul": "catalog:",
     "chrome-devtools-mcp": "catalog:",
     "cross-spawn": "catalog:",
     "fflate": "catalog:",
@@ -137,7 +139,8 @@
     "vitest": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "catalog:"
   },
   "devDependencies": {
     "@jssg/utils": "catalog:",

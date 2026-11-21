@@ -3,6 +3,7 @@
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { BROWSER_COVERAGE_FIXTURES } from "@orb/tooling/floor/testing/coverage-collection";
 import type { Page, TestInfo } from "@playwright/test";
 import { test as base, expect } from "@playwright/test";
 import { z } from "zod";
@@ -37,7 +38,7 @@ async function selectChatStyle(baseURL: string, info: TestInfo): Promise<ThemeCh
   return chatStyle;
 }
 
-export const test = base.extend<CorpusFixtures>({
+export const test = base.extend(BROWSER_COVERAGE_FIXTURES).extend<CorpusFixtures>({
   context: async ({ context, baseURL }, use, info) => {
     if (info.project.metadata["authMode"] === "local" && SELECTED_LOCAL_CORPUS_FIXTURE !== undefined) {
       const owner = SELECTED_LOCAL_CORPUS_FIXTURE.wire.reads["sessions.me"][0]?.output;

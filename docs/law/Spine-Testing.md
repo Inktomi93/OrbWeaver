@@ -142,7 +142,7 @@ Use native Playwright for rendered tests. Vitest browser mode is not part of thi
 
 ### Composition and execution
 
-The gallery uses the application's Vite configuration in `component-test` mode. It retains the React Compiler, StrictMode, styles, assets and early Zod configuration. It owns a loopback server without backend proxies or probes. Never reuse the developer's server or data for a component test. A cold first run must succeed without automatic warm-up navigation or test retries.
+The gallery uses the application's Vite configuration in `component-test` mode. It retains the React Compiler, StrictMode, styles, assets and early Zod configuration. It owns a loopback server without backend proxies or probes. Never reuse the developer's server or data for a component test. A cold first run must succeed without automatic warm-up navigation or test retries. Under `pnpm unwired coverage` the build skips the React Compiler, so browser branch hits are the source's own; a CT or e2e pass or failure under that command is not a test verdict.
 
 Component tests run development React: the CT server sets `NODE_ENV`, and the gallery keeps `import.meta.env.DEV` false so a story mounts the shipped product branches. Production build and E2E qualification remain separate. StrictMode can repeat render and effect setup; preserve correct cleanup rather than disabling it for a failing story. A story seed runs in render, so StrictMode runs it twice; keep it idempotent.
 

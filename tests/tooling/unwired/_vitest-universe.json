@@ -1,0 +1,334 @@
+{
+  "recordedFrom": "pnpm test:coverage --coverage.reporter=json, entry for packages/server/src/domain/admin/verbs/session-policy.ts, counts zeroed",
+  "source": "import type { AdminSessionPolicyDeps } from \"../contract/ops.ts\";\nimport type { AdminSessionWiring } from \"../contract/service.ts\";\n\n/** Admin kicks are per-user, including single-device revokes, so session-less SSO sockets also end. */\nexport function createAdminSessionPort(deps: AdminSessionPolicyDeps): AdminSessionWiring {\n  return {\n    listForUser: async (userId) => (await deps.listForUser(userId)).map((view) => ({ ...view, userId })),\n    revoke: async (sessionId): Promise<void> => {\n      const owner = await deps.revoke(sessionId);\n      if (owner !== null) {\n        deps.evictUserSockets(owner);\n      }\n    },\n    revokeAllForUser: async (userId): Promise<number> => {\n      const revoked = await deps.revokeAllForUser(userId);\n      deps.evictUserSockets(userId);\n      return revoked;\n    },\n    // Privileged verbs batch the unexecuted revoke, then evict only after commit.\n    revokeAllForUserStatement: deps.revokeAllForUserStatement,\n    evictUserSockets: (userId): void => {\n      deps.evictUserSockets(userId);\n    },\n    linkExternalIdStatement: deps.linkExternalIdStatement,\n    settleUnclaimedLink: deps.settleUnclaimedLink,\n    localUserInsertStatement: deps.localUserInsertStatement,\n    isReservedHandle: deps.isReservedHandle,\n  };\n}\n",
+  "entry": {
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 6,
+          "column": 2
+        },
+        "end": {
+          "line": 28,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 7,
+          "column": 24
+        },
+        "end": {
+          "line": 7,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 7,
+          "column": 83
+        },
+        "end": {
+          "line": 7,
+          "column": 103
+        }
+      },
+      "3": {
+        "start": {
+          "line": 9,
+          "column": 20
+        },
+        "end": {
+          "line": 9,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 10,
+          "column": 6
+        },
+        "end": {
+          "line": 12,
+          "column": null
+        }
+      },
+      "5": {
+        "start": {
+          "line": 11,
+          "column": 8
+        },
+        "end": {
+          "line": 11,
+          "column": null
+        }
+      },
+      "6": {
+        "start": {
+          "line": 15,
+          "column": 22
+        },
+        "end": {
+          "line": 15,
+          "column": null
+        }
+      },
+      "7": {
+        "start": {
+          "line": 16,
+          "column": 6
+        },
+        "end": {
+          "line": 16,
+          "column": null
+        }
+      },
+      "8": {
+        "start": {
+          "line": 17,
+          "column": 6
+        },
+        "end": {
+          "line": 17,
+          "column": null
+        }
+      },
+      "9": {
+        "start": {
+          "line": 22,
+          "column": 6
+        },
+        "end": {
+          "line": 22,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "createAdminSessionPort",
+        "decl": {
+          "start": {
+            "line": 5,
+            "column": 16
+          },
+          "end": {
+            "line": 5,
+            "column": 39
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 5,
+            "column": 89
+          },
+          "end": {
+            "line": 29,
+            "column": null
+          }
+        },
+        "line": 5
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 17
+          },
+          "end": {
+            "line": 7,
+            "column": 24
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 24
+          },
+          "end": {
+            "line": 7,
+            "column": null
+          }
+        },
+        "line": 7
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": {
+          "start": {
+            "line": 7,
+            "column": 68
+          },
+          "end": {
+            "line": 7,
+            "column": 73
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 7,
+            "column": 83
+          },
+          "end": {
+            "line": 7,
+            "column": 103
+          }
+        },
+        "line": 7
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": {
+          "start": {
+            "line": 8,
+            "column": 12
+          },
+          "end": {
+            "line": 8,
+            "column": 19
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 8,
+            "column": 48
+          },
+          "end": {
+            "line": 13,
+            "column": null
+          }
+        },
+        "line": 8
+      },
+      "4": {
+        "name": "(anonymous_4)",
+        "decl": {
+          "start": {
+            "line": 14,
+            "column": 22
+          },
+          "end": {
+            "line": 14,
+            "column": 29
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 14,
+            "column": 57
+          },
+          "end": {
+            "line": 18,
+            "column": null
+          }
+        },
+        "line": 14
+      },
+      "5": {
+        "name": "(anonymous_5)",
+        "decl": {
+          "start": {
+            "line": 21,
+            "column": 4
+          },
+          "end": {
+            "line": 21,
+            "column": 23
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 21,
+            "column": 40
+          },
+          "end": {
+            "line": 23,
+            "column": null
+          }
+        },
+        "line": 21
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 6
+          },
+          "end": {
+            "line": 12,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 10,
+              "column": 6
+            },
+            "end": {
+              "line": 12,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 10
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 6,
+      "lastStatement": 10,
+      "seen": {
+        "f:5:16:5:39": 0,
+        "s:6:2:28:Infinity": 0,
+        "f:7:17:7:24": 1,
+        "s:7:24:7:Infinity": 1,
+        "f:7:68:7:73": 2,
+        "s:7:83:7:103": 2,
+        "f:8:12:8:19": 3,
+        "s:9:20:9:Infinity": 3,
+        "b:10:6:12:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:10:6:12:Infinity": 4,
+        "s:11:8:11:Infinity": 5,
+        "f:14:22:14:29": 4,
+        "s:15:22:15:Infinity": 6,
+        "s:16:6:16:Infinity": 7,
+        "s:17:6:17:Infinity": 8,
+        "f:21:4:21:23": 5,
+        "s:22:6:22:Infinity": 9
+      },
+      "fnNames": {}
+    }
+  }
+}

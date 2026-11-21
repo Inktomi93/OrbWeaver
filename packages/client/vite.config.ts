@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { Worker } from "node:worker_threads";
@@ -36,6 +36,16 @@ const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
 const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
 
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
+
+// `pnpm unwired coverage` sets ORB_COVERAGE_DIR, mirrored from `COVERAGE_DIR_ENV` in
+// tooling/src/floor/testing/coverage-collection.ts under the same D344 ruling as the ports above. Under it the build
+// carries an inline map with absolute source paths and skips minification: a browser test records each chunk's text
+// through the protocol, so the map must travel inside it, and an unminified chunk maps functions to their own start.
+// The served e2e client refuses .map requests, which is why the map is inline. It also skips the React Compiler pass: the
+// compiler lowers source branches into other shapes and adds memo-cache branches, so a compiled browser branch has no
+// sound source branch to land on. A CT or e2e result under it is therefore no test verdict; the compiled suites stay the
+// verdict. Unset, the build is the shipped one.
+const COVERAGE_BUILD = (process.env["ORB_COVERAGE_DIR"] ?? "") !== "";
 
 const SERVER_PROXY = {
   // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod
@@ -689,7 +699,7 @@ export default defineConfig(({ mode }) => {
       // same plugin instance, same compiled output, just never compiled twice for the same input. The
       // preset options object is passed to BOTH so a config change is inside the cache key.
       react(),
-      withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
+      ...(COVERAGE_BUILD ? [] : [withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS)]),
       tailwindcss(),
       ...(gallery
         ? [componentGallery()]
@@ -761,6 +771,7 @@ export default defineConfig(({ mode }) => {
       rolldownOptions: {
         ...(gallery ? { input: GALLERY_HTML } : {}),
         output: {
+          ...(COVERAGE_BUILD ? { sourcemapPathTransform: (source: string, mapPath: string): string => resolvePath(dirname(mapPath), source) } : {}),
           codeSplitting: {
             groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
           },
@@ -782,7 +793,8 @@ export default defineConfig(({ mode }) => {
       // No out-of-band symbolication is wired today, so `false` is the KISS root fix; the spa.ts `.map`
       // belt is the defense-in-depth backstop. Reinstate `"hidden"` + a build-step map extraction only if
       // symbolication is ever wired — never leave maps in the served tree.
-      sourcemap: false,
+      sourcemap: COVERAGE_BUILD ? "inline" : false,
+      ...(COVERAGE_BUILD ? { minify: false } : {}),
       // Emit the dependency-license artifact (AGPL hygiene). `{ fileName }` ending in `.json` gets the
       // RAW JSON metadata ({name, version, identifier, text}[]) instead of the `true` form's rendered
       // `.vite/license.md` — the licence set is an input to attribution tooling and audits, not prose to

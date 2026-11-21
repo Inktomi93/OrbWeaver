@@ -1,8 +1,9 @@
 // `pnpm unwired ports`: each hand-restated port member planned against its chain's one owner, each cross-domain import
 // (its shape moves to packages/contracts, Core-0 §4) and each type a door forgot to export. Only a flow, a type
 // reference or an alias makes two shapes one concept; every target lands in the cluster of its concept's owner.
-// A flow is followed into element types, call signatures and JSX props forwarded whole. Of two linked copies, one in a
-// lower tier owns the shape, and a pair neither file may import under a dependency-cruiser rule is a ruled restatement.
+// A flow is followed into element types, call signatures, JSX props forwarded whole, and a generic parameter's bound
+// when the value has the bound's own shape. Of two linked copies, one in a lower tier owns the shape, and a pair
+// neither file may import under a dependency-cruiser rule is a ruled restatement.
 import { dirname, relative } from "node:path";
 import ts from "typescript";
 import type { Flow, PortMember } from "../eslint/index.ts";
@@ -128,10 +129,10 @@ const isReference = (type: ts.Type): type is ts.TypeReference =>
 
 // A generic the default library declares (arrays, iterables, generators, promises, sets, maps): each one's type
 // parameters, in order, are the element types it carries, so an `AsyncGenerator<A>` fed into an `AsyncIterable<B>`
-// flows `A` into `B`. Two user generics pair their arguments only when they are one generic.
+// flows `A` into `B`. A package's augmentation (`@total-typescript/ts-reset` merges into `Array`) leaves it the
+// library's generic. Two user generics pair their arguments only when they are one generic.
 function isLibraryGeneric({ isLibrary }: LinkContext, type: ts.TypeReference): boolean {
-  const declarations = type.target.getSymbol()?.declarations ?? [];
-  return declarations.length > 0 && declarations.every((declaration) => isLibrary(declaration.getSourceFile()));
+  return (type.target.getSymbol()?.declarations ?? []).some((declaration) => isLibrary(declaration.getSourceFile()));
 }
 
 function elementPairs(context: LinkContext, slot: ts.Type, value: ts.Type): readonly (readonly [ts.Type, ts.Type])[] {
@@ -174,12 +175,47 @@ function recordSlice({ root, checker, slices }: LinkContext, received: ts.Type, 
   }
 }
 
+/** A production type parameter's bound: the concept every value of the bound's shape it takes belongs to. */
+interface Bound {
+  /** The census key of the type parameter's declaration. */
+  readonly key: string;
+  readonly constraint: ts.Type;
+}
+
+// A production type parameter with a bound (`T extends SquashRow`, `T extends { … }`) stands for its bound's concept,
+// and a named bound joins it. An unbounded one has no shape to compare a value with, so it names no concept.
+function boundOf({ root, links }: LinkContext, type: ts.Type): Bound | null {
+  const declaration = type.isTypeParameter() ? type.getSymbol()?.declarations?.[0] : undefined;
+  const constraint = type.getConstraint();
+  if (declaration === undefined || !ts.isTypeParameterDeclaration(declaration) || constraint === undefined) {
+    return null;
+  }
+  const file = relative(root, declaration.getSourceFile().fileName);
+  if (!isProduction(file)) {
+    return null;
+  }
+  const key = `${file}:${lineOf(declaration)}:${declaration.name.text}`;
+  links.join(key, namedKey(root, constraint));
+  return { key, constraint };
+}
+
+// Two names one flow joins. Through a bounded type parameter only a value of the bound's own shape joins: a wider row
+// that merely satisfies the bound is its own concept, as is a narrower bound's parameter forwarded into a wider one.
+function joinNames(context: LinkContext, slot: ts.Type, value: ts.Type): void {
+  const { root, checker, links } = context;
+  const [mine, theirs] = [boundOf(context, slot), boundOf(context, value)];
+  const [slotShape, valueShape] = [mine?.constraint ?? slot, theirs?.constraint ?? value];
+  if ((mine === null && theirs === null) || (checker.isTypeAssignableTo(slotShape, valueShape) && checker.isTypeAssignableTo(valueShape, slotShape))) {
+    links.join(mine?.key ?? namedKey(root, slot), theirs?.key ?? namedKey(root, value));
+  }
+}
+
 // A value of type `value` flowing into a slot of type `slot` joins their names, then the element types they carry,
 // the named parts of an intersection, and the parameters and awaited returns of their call signatures.
 function joinTypes(context: LinkContext, slot: ts.Type, value: ts.Type, depth = TYPE_FLOW_DEPTH): void {
-  const { root, checker, links } = context;
+  const { checker } = context;
   const [bareSlot, bareValue] = [checker.getNonNullableType(slot), checker.getNonNullableType(value)];
-  links.join(namedKey(root, bareSlot), namedKey(root, bareValue));
+  joinNames(context, bareSlot, bareValue);
   if (depth === 0) {
     return;
   }
@@ -214,6 +250,36 @@ function joinSignatures(context: LinkContext, slot: ts.Type, value: ts.Type, dep
   });
   const awaited = (signature: ts.Signature): ts.Type => checker.getAwaitedType(signature.getReturnType()) ?? signature.getReturnType();
   joinTypes(context, awaited(mine), awaited(theirs), depth - 1);
+}
+
+// A generic call's contextual slot is the instantiated parameter, which names the argument's own type back: the
+// declared parameter keeps its type parameter, so each argument reaches the bound. A rest parameter takes each
+// argument as an element, and a spread argument whole.
+function joinGenericArguments(context: LinkContext, call: ts.CallExpression | ts.NewExpression): void {
+  const { checker } = context;
+  const resolved = checker.getResolvedSignature(call);
+  const declaration = resolved?.getDeclaration();
+  if (declaration === undefined || ts.isJSDocSignature(declaration)) {
+    return;
+  }
+  const declared = checker.getSignatureFromDeclaration(declaration);
+  if (declared === undefined || declared === resolved) {
+    return;
+  }
+  const last = declared.parameters.length - 1;
+  (call.arguments ?? []).forEach((argument, index) => {
+    const parameter = declared.parameters[Math.min(index, last)];
+    const rest = parameter?.declarations?.some((node) => ts.isParameter(node) && node.dotDotDotToken !== undefined) === true;
+    if (parameter === undefined || (index > last && !rest)) {
+      return;
+    }
+    const type = checker.getTypeOfSymbol(parameter);
+    const slot = rest && !ts.isSpreadElement(argument) ? checker.getIndexTypeOfType(type, ts.IndexKind.Number) : type;
+    const value = ts.isSpreadElement(argument) ? argument.expression : argument;
+    if (slot !== undefined) {
+      joinTypes(context, slot, checker.getTypeAtLocation(value));
+    }
+  });
 }
 
 function linkMember({ root, checker, links }: LinkContext, member: PortMember): string {
@@ -345,6 +411,9 @@ function recordTypedBy(root: string, checker: ts.TypeChecker, member: ts.Propert
 function collectNodeFlows(context: LinkContext, node: ts.Node, into: Collected): void {
   if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
     linkJsxProps(context, node);
+  }
+  if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+    joinGenericArguments(context, node);
   }
   const flows = flowsAt(context.checker, node);
   for (const flow of flows.types) {
