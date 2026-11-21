@@ -328,28 +328,44 @@ function tokenProvenanceOf(e: Pick<TurnEconomicsInput, "tokensIn" | "tokensOut" 
   return e.tokenProvenance ?? (has(e.tokensIn) || has(e.tokensOut) ? "measured" : "unrecorded");
 }
 
-function tokenSampleSlice(args: {
-  readonly prefix: "" | "daily" | "model";
+const TOKEN_SAMPLE_PREFIXES = ["", "daily", "model"] as const;
+type TokenSamplePrefix = (typeof TOKEN_SAMPLE_PREFIXES)[number];
+const TOKEN_SAMPLE_AXES = ["TokensIn", "TokensOut"] as const;
+type TokenSampleAxis = (typeof TOKEN_SAMPLE_AXES)[number];
+const TOKEN_SAMPLE_SUFFIXES = ["MeasuredSamples", "EstimatedSamples"] as const;
+type TokenSampleSuffix = (typeof TOKEN_SAMPLE_SUFFIXES)[number];
+/** A token-sample stats column: the owner grain lowers the axis's first letter, a prefixed grain keeps it. */
+type TokenSampleKey<P extends TokenSamplePrefix> = P extends ""
+  ? `${Uncapitalize<TokenSampleAxis>}${TokenSampleSuffix}`
+  : `${P}${Capitalize<TokenSampleAxis>}${TokenSampleSuffix}`;
+
+function tokenSampleSlice<P extends TokenSamplePrefix>(args: {
+  readonly prefix: P;
   readonly provenance: TokenProvenance;
   readonly tokensIn: number | null | undefined;
   readonly tokensOut: number | null | undefined;
   readonly sign?: number;
-}): Record<string, number> {
+}): Partial<Record<TokenSampleKey<P>, number>> {
   const { prefix, provenance, tokensIn, tokensOut, sign = 1 } = args;
+  const slice: Partial<Record<TokenSampleKey<P>, number>> = {};
   if (provenance === "unrecorded") {
-    return {};
+    return slice;
   }
-  const suffix = provenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
-  const field = (axis: "TokensIn" | "TokensOut"): string =>
-    `${prefix}${prefix === "" ? (axis[0]?.toLowerCase() ?? "") : (axis[0] ?? "")}${axis.slice(1)}${suffix}`;
-  return {
-    ...(has(tokensIn) ? { [field("TokensIn")]: sign } : {}),
-    ...(has(tokensOut) ? { [field("TokensOut")]: sign } : {}),
-  };
+  const suffix: TokenSampleSuffix = provenance === "measured" ? "MeasuredSamples" : "EstimatedSamples";
+  // Spelled from runtime parts, which no template literal type follows; `TokenSampleKey` states the same parts.
+  const field = (axis: TokenSampleAxis): TokenSampleKey<P> =>
+    `${prefix}${prefix === "" ? (axis[0]?.toLowerCase() ?? "") : (axis[0] ?? "")}${axis.slice(1)}${suffix}` as TokenSampleKey<P>;
+  if (has(tokensIn)) {
+    slice[field("TokensIn")] = sign;
+  }
+  if (has(tokensOut)) {
+    slice[field("TokensOut")] = sign;
+  }
+  return slice;
 }
 
 /** The decoupled model_stats slice (null model ⇒ `{}` — apply skips the model row). */
-function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<string, number> {
+function modelSliceFor(model: string | null, e: TurnEconomicsInput): Partial<StatsDelta> {
   if (model === null) {
     return {};
   }

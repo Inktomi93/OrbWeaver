@@ -99,6 +99,9 @@ export interface FieldsReport {
    *  the procedure's whole answer. Reported, never judged. */
   readonly acknowledged: readonly UnwiredField[];
   readonly received: readonly ReceivedField[];
+  /** Keys the resolver could not place on any declared member, `file:line name reason`: each is reported here and never
+   *  matched to a field by its name. */
+  readonly unresolved: readonly string[];
   /** How many reported fields each send destination covers. */
   readonly sentBy: Readonly<Partial<Record<SendDestination, number>>>;
   /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
@@ -111,7 +114,9 @@ export interface FieldsReport {
 
 /** What the fields scan cannot see, printed with every run. */
 const FIELD_LIMITS: readonly string[] = [
-  "A computed key built from runtime strings types as string, so it reads or writes no named field.",
+  "A computed key built from runtime strings types as string, so it reads or writes no named field; a builder typed with a template-literal key type writes the target members its keys name where it is spread.",
+  "A string key counts only in a key slot the key resolver reads (tooling/src/unwired/key-resolver.ts): a computed literal key, a slot declared keyof X, a generic call slot keyof T bound by an argument, or a TanStack Form path walked segment by segment. A template-literal form path (a path with an interpolated index) and a field list typed string[] (MiniSearch's own options) name no member.",
+  "A key the resolver cannot place is listed in unresolved with its reason (untyped, absent, synthetic, no-holder, path) and credits no field by its name.",
   "A type-position read (Registry[K]) is no read; a registry entry needs a value read by name.",
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible.",
   "JSON.stringify reads every field only where its string is compared, hashed or used as a map key or a *key/*hash binding; elsewhere it is a send with a named destination, and a return or plain binding is 'unclassified'.",
@@ -532,13 +537,21 @@ interface Roles {
   readonly tests: number;
 }
 
+function roleOfSite(sources: Sources, site: Site, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): SyntaxRole {
+  if (filled.has(siteKey(site))) {
+    return "write";
+  }
+  return keyed.get(siteKey(site)) ?? roleAt(sources.get(site.file), site.position);
+}
+
 // `filled`: sites where a library writes the member, such as a paged query filling its cursor, though the syntax reads.
-function rolesOf(sources: Sources, sites: Iterable<Site>, filled: ReadonlySet<string>): Roles {
+// `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none.
+function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;
   for (const site of sites) {
-    const role: SyntaxRole = filled.has(siteKey(site)) ? "write" : roleAt(sources.get(site.file), site.position);
+    const role = roleOfSite(sources, site, { filled, keyed });
     if (role === "type") {
       continue;
     }
@@ -778,10 +791,8 @@ export function scanFields(options: ScanOptions): FieldsReport {
   }
   const references = joinFacts(facts);
   tallySites(tally, declared, references);
-  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values(), references.filled) }));
-  const writtenHomes = new Set(
-    rolled.filter(({ direct }) => rolesOf(sources, direct.values(), references.filled).write.length > 0).map(({ field }) => homeOf(field)),
-  );
+  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values(), references) }));
+  const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values(), references).write.length > 0).map(({ field }) => homeOf(field)));
   const judged = rolled.flatMap(({ field, roles, sends }) => {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind, sends: [...sends.values()] }];
@@ -808,7 +819,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     const audit = rolesOf(
       sources,
       mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference))),
-      references.filled,
+      references,
     );
     const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
     if (lacking.length > 0) {
@@ -865,6 +876,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     validated: sorted.unwired.filter((row) => ruling(row) === "validated"),
     acknowledged: sorted.unwired.filter((row) => ruling(row) === "acknowledged"),
     received,
+    unresolved: references.unresolved.map(({ site, name, reason }) => `${site.file}:${sources.line(site)} ${name} ${reason}`),
     sentBy: sentCounts(staged.rows),
     disagreements,
     literalStage: staged.stage,
