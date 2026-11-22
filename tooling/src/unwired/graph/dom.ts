@@ -6,13 +6,15 @@
 // - Every token of every product string is a class write, a superset that only adds writes; a static part a `${`
 //   follows writes every class its last token heads.
 // - A data-* write is a JSX attribute, a quoted or computed object key, `setAttribute` or `toggleAttribute`, or a
-//   `dataset` assignment. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, `getByTestId`, a
-//   `dataset` read, a sheet selector, or a selector or Tailwind data variant any string spells, tests and tooling
-//   included. Only product code writes.
+//   `dataset` assignment, in product code. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, a
+//   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
+//   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
+//   reads a test id: those hooks exist for tests.
+// - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute.
 // - A name or value held away from its site is followed through the checker: its literal type, then its symbol's
 //   declarations (an initializer, a for-of's list, a parameter's callers' arguments). A whole data-* string no site
-//   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason and keeps its name out of
-//   every dead bucket.
+//   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason; a product mention keeps
+//   its name out of every bucket, and a test's keeps a test id out.
 // - A name a sealed library stamps is the library's (SEALED_NAME). A selector name an installed direct dependency's
 //   own code spells is that library's hook (streamdown's `data-streamdown`), found by a literal search of its JS. A
 //   `data-slot` value, a class or an attribute the owner-CSS surface publishes is read by CSS the owner writes, a
@@ -78,10 +80,15 @@ export const DOM_BUCKETS = [
 ] as const;
 export type DomBucket = (typeof DOM_BUCKETS)[number];
 
-/** A mention the checker cannot carry to an attribute site, at `file:line`. */
+/** Which code a site sits in: the product, its tests, or the tooling that drives it. */
+export const WORLDS = ["product", "tests", "tooling"] as const;
+export type World = (typeof WORLDS)[number];
+
+/** A mention the checker cannot carry to an attribute site, at `file:line` in `world`. */
 export interface Unresolved {
   readonly text: string;
   readonly at: string;
+  readonly world: World;
   readonly why: string;
 }
 
@@ -120,6 +127,7 @@ const HTML_ATTRIBUTE = /\s(data-[a-z][\w-]*[a-z0-9])(?:=(["'])(.*?)\2)?/gu;
 const WRITERS: ReadonlySet<string> = new Set(["setAttribute", "toggleAttribute"]);
 const READERS: ReadonlySet<string> = new Set(["getAttribute", "hasAttribute", "removeAttribute", "toggleAttribute", "toHaveAttribute"]);
 const TEST_ID_LOOKUP = "getByTestId";
+const TESTS = "tests/";
 const DATASET = "dataset";
 /** React renders a valueless JSX attribute, and `true`, as the string "true". */
 const PRESENT = "true";
@@ -141,6 +149,9 @@ interface Text {
 // `dataset` site names the property, which maps to the attribute by kebab case.
 interface Site {
   readonly at: string;
+  readonly world: World;
+  /** A computed object key: a claim only when its name resolves to a data-* name, since most keys are no attribute. */
+  readonly key: boolean;
   readonly name: string | Expression;
   readonly dataset: boolean;
   readonly write: boolean;
@@ -171,7 +182,7 @@ export function domPass(root: string, graph: Graph): DomReport {
   }
   hooks.resolve();
   for (const name of selectors.reads) {
-    hooks.reads.add(name);
+    hooks.read(name, undefined, "product");
   }
   return judge(root, selectors, hooks, { files: graph.state.world.files.length, sheets: sheets.length });
 }
@@ -216,19 +227,20 @@ class Hooks {
   readonly classHeads = new Set<string>();
   readonly writes = new Map<string, { readonly at: string; readonly values: Set<string> }>();
   readonly writeHeads = new Set<string>();
-  readonly reads = new Set<string>();
-  readonly readHeads = new Set<string>();
-  readonly valueReads = new Map<string, Set<string>>();
+  /** Each read name, and each name head a template leaves open, with the worlds that read it. */
+  readonly reads = new Map<string, Set<World>>();
+  readonly readHeads = new Map<string, Set<World>>();
+  readonly valueReads = new Map<string, Map<string, Set<World>>>();
   /** Plain `data-testid` values a product file writes, with the first site. */
   readonly testIds = new Map<string, string>();
   readonly unresolved: Unresolved[] = [];
   #followed = 0;
   readonly #state: GraphState;
   readonly #sites: Site[] = [];
-  readonly #selectorTemplates: Expression[] = [];
-  readonly #testIdLookups: Expression[] = [];
+  readonly #selectorTemplates: { readonly node: Expression; readonly world: World }[] = [];
+  readonly #testIdLookups: { readonly node: Expression; readonly world: World }[] = [];
   /** Every whole data-* string in a value position, and every string equal to a plain test id candidate. */
-  readonly #whole: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly at: string }[] = [];
+  readonly #whole: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly at: string; readonly world: World }[] = [];
   readonly #reached = new Set<string>();
 
   constructor(state: GraphState) {
@@ -240,12 +252,17 @@ class Hooks {
   }
 
   walkFile(file: string, source: Node): void {
-    const product = this.#state.product(file);
+    let world: World = "tooling";
+    if (this.#state.product(file)) {
+      world = "product";
+    } else if (file.startsWith(TESTS)) {
+      world = "tests";
+    }
     const visit = (node: Node): void => {
       if (isTypeNode(node) || isInterfaceDeclaration(node) || isTypeAliasDeclaration(node) || isImportDeclaration(node) || isExportDeclaration(node)) {
         return;
       }
-      this.#node(node, file, product);
+      this.#node(node, file, world);
       node.forEachChild(visit);
     };
     visit(source);
@@ -260,59 +277,61 @@ class Hooks {
     }
   }
 
-  #node(node: Node, file: string, product: boolean): void {
+  #node(node: Node, file: string, world: World): void {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-      this.#string(node, file, product);
+      this.#string(node, file, world);
     } else if (isTemplateExpression(node)) {
-      this.#templateParts(node, product);
+      this.#templateParts(node, world);
     } else if (isJsxAttribute(node)) {
       const name = attributeName(node);
-      if (product && name.startsWith(DATA)) {
+      if (world === "product" && name.startsWith(DATA)) {
         this.#jsxWrite(name, node.initializer, file, node);
       }
     } else if (isPropertyAssignment(node)) {
-      this.#key(node.name, node.initializer, file, product);
+      if (world === "product") {
+        this.#key(node.name, node.initializer, file);
+      }
     } else if (isCallExpression(node)) {
-      this.#call(node, file, product);
+      this.#call(node, file, world);
     } else {
-      this.#datasetAccess(node, file, product);
+      this.#datasetAccess(node, file, world);
     }
   }
 
   // A template's static parts are strings of their own; one that spells a selector or a data-* name is followed too.
-  #templateParts(node: TemplateExpression, product: boolean): void {
+  #templateParts(node: TemplateExpression, world: World): void {
     const parts = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
     for (const [index, part] of parts.entries()) {
       const open = index < parts.length - 1;
-      if (product) {
+      if (world === "product") {
         this.#classTokens(part, open);
       }
-      this.#selectorText({ text: part, open });
+      this.#selectorText({ text: part, open }, world);
     }
     if (parts.some((part) => part.includes("[") || part.includes(DATA))) {
-      this.#selectorTemplates.push(node);
+      this.#selectorTemplates.push({ node, world });
     }
   }
 
-  #datasetAccess(node: Node, file: string, product: boolean): void {
+  #datasetAccess(node: Node, file: string, world: World): void {
     if (isPropertyAccessExpression(node) && isDataset(node.expression)) {
-      this.#dataset(node, kebab(node.name.text), file, product);
+      this.#dataset(node, kebab(node.name.text), file, world);
     } else if (isElementAccessExpression(node) && isDataset(node.expression)) {
-      this.#dataset(node, node.argumentExpression, file, product);
+      this.#dataset(node, node.argumentExpression, file, world);
     }
   }
 
-  #string(node: StringLiteral | NoSubstitutionTemplateLiteral, file: string, product: boolean): void {
+  #string(node: StringLiteral | NoSubstitutionTemplateLiteral, file: string, world: World): void {
     const { parent } = node;
     if (isPropertyAssignment(parent) && parent.name === node) {
       return;
     }
-    if (product) {
+    if (world === "product") {
       this.#classTokens(node.text, false);
     }
-    this.#selectorText({ text: node.text, open: false });
+    this.#selectorText({ text: node.text, open: false }, world);
     if (DATA_NAME.test(node.text) || TEST_ID_VALUE.test(node.text)) {
-      this.#whole.push({ node, at: atOf(file, node) });
+      this.#whole.push({ node, at: atOf(file, node), world });
     }
   }
 
@@ -327,26 +346,33 @@ class Hooks {
         this.testIds.set(initializer.text, at);
       }
     } else if (isJsxExpression(initializer) && initializer.expression !== undefined) {
-      this.#sites.push({ at, name, dataset: false, write: true, read: false, value: initializer.expression });
+      this.#sites.push({ at, world: "product", key: false, name, dataset: false, write: true, read: false, value: initializer.expression });
     }
   }
 
   // An object key that names a data-* attribute: quoted (`{ "data-x": v }`) or computed (`{ [ATTR]: v }`).
-  #key(key: Node, initializer: Expression, file: string, product: boolean): void {
-    if (!product) {
-      return;
-    }
+  #key(key: Node, initializer: Expression, file: string): void {
     if (isStringLiteral(key) && key.text.startsWith(DATA)) {
-      this.#sites.push({ at: atOf(file, key), name: key.text, dataset: false, write: true, read: false, value: initializer });
+      this.#sites.push({ at: atOf(file, key), world: "product", key: false, name: key.text, dataset: false, write: true, read: false, value: initializer });
       if (key.text === TEST_ID && isStringLiteral(initializer) && !this.testIds.has(initializer.text)) {
         this.testIds.set(initializer.text, atOf(file, key));
       }
     } else if (isComputedPropertyName(key)) {
-      this.#sites.push({ at: atOf(file, key), name: key.expression, dataset: false, write: true, read: false, value: initializer });
+      this.#sites.push({
+        at: atOf(file, key),
+        world: "product",
+        key: true,
+        name: key.expression,
+        dataset: false,
+        write: true,
+        read: false,
+        value: initializer,
+      });
     }
   }
 
-  #call(node: CallExpression, file: string, product: boolean): void {
+  // An attribute call in any world is followed, so the names it reaches are reached; only the product's writes count.
+  #call(node: CallExpression, file: string, world: World): void {
     const callee = node.expression;
     const method = calleeName(callee);
     const [name, value] = node.arguments;
@@ -355,31 +381,37 @@ class Hooks {
     }
     const at = atOf(file, node);
     if (method === TEST_ID_LOOKUP) {
-      this.reads.add(TEST_ID);
-      this.#testIdLookups.push(name);
+      this.read(TEST_ID, undefined, world);
+      this.#testIdLookups.push({ node: name, world });
       return;
     }
-    const write = product && WRITERS.has(method);
-    const read = READERS.has(method);
-    if (write || read) {
+    if (WRITERS.has(method) || READERS.has(method)) {
       const written = method === "toggleAttribute" ? [""] : (value ?? null);
-      this.#sites.push({ at, name, dataset: false, write, read, value: written });
+      this.#sites.push({
+        at,
+        world,
+        key: false,
+        name,
+        dataset: false,
+        write: world === "product" && WRITERS.has(method),
+        read: READERS.has(method),
+        value: written,
+      });
     }
   }
 
   // `el.dataset.fooBar` or `el.dataset[key]`: an assignment's target writes, any other use reads.
-  #dataset(node: Expression, name: string | Expression, file: string, product: boolean): void {
+  #dataset(node: Expression, name: string | Expression, file: string, world: World): void {
     const { parent } = node;
     const assigned = isBinaryExpression(parent) && parent.left === node && parent.operatorToken.kind === SyntaxKind.EqualsToken;
     const at = atOf(file, node);
     const attribute = typeof name === "string" ? `${DATA}${name}` : name;
+    const dataset = typeof name !== "string";
     if (assigned) {
-      if (product) {
-        this.#sites.push({ at, name: attribute, dataset: typeof name !== "string", write: true, read: false, value: parent.right });
-      }
+      this.#sites.push({ at, world, key: false, name: attribute, dataset, write: world === "product", read: false, value: parent.right });
       return;
     }
-    this.#sites.push({ at, name: attribute, dataset: typeof name !== "string", write: false, read: true, value: null });
+    this.#sites.push({ at, world, key: false, name: attribute, dataset, write: false, read: true, value: null });
   }
 
   #write(name: string, at: string, values: readonly string[]): void {
@@ -405,27 +437,28 @@ class Hooks {
     }
   }
 
-  #selectorText({ text, open }: Text): void {
+  #selectorText({ text, open }: Text, world: World): void {
     for (const match of text.matchAll(SELECTOR_READ)) {
-      this.#read(match[1] ?? "", match[2]);
+      this.read(match[1] ?? "", match[2], world);
     }
     for (const match of text.matchAll(VARIANT_READ)) {
-      this.#read(`${DATA}${match[1] ?? ""}`, match[2]);
+      this.read(`${DATA}${match[1] ?? ""}`, match[2], world);
     }
     for (const match of text.matchAll(BARE_VARIANT_READ)) {
-      this.#read(`${DATA}${match[1] ?? ""}`, undefined);
+      this.read(`${DATA}${match[1] ?? ""}`, undefined, world);
     }
     const head = open ? OPEN_SELECTOR.exec(text)?.[1] : undefined;
     if (head !== undefined) {
-      this.readHeads.add(head);
+      addWorld(this.readHeads, head, world);
     }
   }
 
-  #read(name: string, value: string | undefined): void {
-    this.reads.add(name);
+  /** A read of `name`, and of its `value` when the read spells one, by `world`. */
+  read(name: string, value: string | undefined, world: World): void {
+    addWorld(this.reads, name, world);
     if (value !== undefined) {
-      const values = this.valueReads.get(name) ?? new Set<string>();
-      values.add(value);
+      const values = this.valueReads.get(name) ?? new Map<string, Set<World>>();
+      addWorld(values, value, world);
       this.valueReads.set(name, values);
     }
   }
@@ -434,25 +467,26 @@ class Hooks {
   resolve(): void {
     const { world } = this.#state;
     const asks: Expression[] = [
-      ...this.#selectorTemplates,
-      ...this.#testIdLookups,
+      ...this.#selectorTemplates.map(({ node }) => node),
+      ...this.#testIdLookups.map(({ node }) => node),
       ...this.#sites.flatMap((site) => [...(typeof site.name === "string" ? [] : [site.name]), ...(isExpression(site.value) ? [site.value] : [])]),
     ];
     const answers = world.batch(asks.map((node) => this.#texts(node, 0)));
     const textsOf: Answers = new Map(asks.map((node, at) => [node, answers[at] ?? null]));
     this.#followed = asks.length;
-    for (const node of this.#selectorTemplates) {
+    for (const { node, world: reader } of this.#selectorTemplates) {
       for (const text of textsOf.get(node) ?? []) {
-        this.#selectorText(text);
+        this.#selectorText(text, reader);
       }
     }
-    for (const node of this.#testIdLookups) {
+    for (const { node, world: reader } of this.#testIdLookups) {
       const texts = textsOf.get(node) ?? null;
       if (texts === null) {
-        this.unresolved.push({ text: printed(node), at: atOf(world.fileOfSource(node.getSourceFile()), node), why: "a getByTestId value no hop resolves" });
+        const at = atOf(world.fileOfSource(node.getSourceFile()), node);
+        this.unresolved.push({ text: printed(node), at, world: reader, why: "a getByTestId value no hop resolves" });
       }
       for (const { text } of texts ?? []) {
-        this.#read(TEST_ID, text);
+        this.read(TEST_ID, text, reader);
       }
     }
     for (const site of this.#sites) {
@@ -461,11 +495,15 @@ class Hooks {
     this.#unreached();
   }
 
+  // A site whose name stays wide is listed when it claims an attribute: a computed key claims one only by resolving to
+  // a data-* name, and a write outside the product claims none.
   #site(site: Site, textsOf: Answers): void {
     const names = typeof site.name === "string" ? [{ text: site.name, open: false }] : (textsOf.get(site.name) ?? null);
     if (names === null) {
-      const text = typeof site.name === "string" ? site.name : printed(site.name);
-      this.unresolved.push({ text, at: site.at, why: `an attribute ${site.write ? "write" : "read"} whose name no hop resolves` });
+      if (!site.key && (site.write || site.read)) {
+        const text = typeof site.name === "string" ? site.name : printed(site.name);
+        this.unresolved.push({ text, at: site.at, world: site.world, why: `an attribute ${site.write ? "write" : "read"} whose name no hop resolves` });
+      }
       return;
     }
     const values = writtenValues(site.value, textsOf);
@@ -484,7 +522,7 @@ class Hooks {
         this.writeHeads.add(name);
       }
       if (site.read) {
-        this.readHeads.add(name);
+        addWorld(this.readHeads, name, site.world);
       }
       return;
     }
@@ -492,21 +530,22 @@ class Hooks {
       this.#write(name, site.at, values);
     }
     if (site.read) {
-      this.reads.add(name);
+      this.read(name, undefined, site.world);
     }
   }
 
   // A whole data-* string no site reached names a hook through code the checker cannot follow; a whole string equal to
   // a plain test id may be a lookup's. Each is listed with its holder.
   #unreached(): void {
-    for (const { node, at } of this.#whole) {
+    const testIdReads = this.valueReads.get(TEST_ID);
+    for (const { node, at, world } of this.#whole) {
       if (this.#reached.has(keyOf(this.#state, node))) {
         continue;
       }
       if (DATA_NAME.test(node.text)) {
-        this.unresolved.push({ text: node.text, at, why: holderOf(node) });
-      } else if (this.testIds.has(node.text) && this.testIds.get(node.text) !== at && this.valueReads.get(TEST_ID)?.has(node.text) !== true) {
-        this.unresolved.push({ text: node.text, at, why: `a string equal to a data-testid value: ${holderOf(node)}` });
+        this.unresolved.push({ text: node.text, at, world, why: holderOf(node) });
+      } else if (this.testIds.has(node.text) && this.testIds.get(node.text) !== at && testIdReads?.has(node.text) !== true) {
+        this.unresolved.push({ text: node.text, at, world, why: `a string equal to a data-testid value: ${holderOf(node)}` });
       }
     }
   }
@@ -644,6 +683,12 @@ function writtenValues(value: Site["value"], textsOf: Answers): readonly string[
   return texts === null ? [ANY] : texts.map(({ text, open }) => (open ? ANY : text));
 }
 
+function addWorld(map: Map<string, Set<World>>, key: string, world: World): void {
+  const worlds = map.get(key) ?? new Set<World>();
+  worlds.add(world);
+  map.set(key, worlds);
+}
+
 const isExpression = (value: Site["value"]): value is Expression => value !== null && !Array.isArray(value);
 
 // The union of several answers: null when any is wide, since a wide part can hold any name.
@@ -742,12 +787,32 @@ function ownerCssNames(root: string): ReadonlySet<string> {
 
 const headed = (heads: ReadonlySet<string>, name: string): boolean => [...heads].some((head) => name.startsWith(head));
 
-// What every verdict reads: the sheets, the hooks, the published names and the names judged elsewhere.
+// The worlds that read a name, by the name itself or by a head a template leaves open.
+function readersOf(hooks: Hooks, name: string): ReadonlySet<World> {
+  const worlds = new Set(hooks.reads.get(name));
+  for (const [head, readers] of hooks.readHeads) {
+    if (name.startsWith(head)) {
+      for (const world of readers) {
+        worlds.add(world);
+      }
+    }
+  }
+  return worlds;
+}
+
+// A read outside the product only annotates a row, as the graph's roles do (./state.ts header): a hook only tests or
+// tooling read is still one the product never reads.
+const annotated = (row: string, readers: ReadonlySet<World>): string =>
+  readers.size === 0 ? row : `${row} read by ${WORLDS.filter((world) => readers.has(world)).join(", ")}`;
+
+// What every verdict reads: the sheets, the hooks, the published names and the names judged elsewhere: a product
+// mention no hop resolves keeps a name out of the product's buckets, and a test's too for a test id.
 interface Verdicts {
   readonly selectors: Selectors;
   readonly hooks: Hooks;
   readonly owner: ReadonlySet<string>;
   readonly unresolved: ReadonlySet<string>;
+  readonly unresolvedTestIds: ReadonlySet<string>;
   readonly spelled: ReadonlySet<string>;
   readonly out: { readonly [B in DomBucket]: string[] };
 }
@@ -775,17 +840,19 @@ function judgeAttributes({ selectors, hooks, unresolved, spelled, out }: Verdict
 
 function judgeWrites({ hooks, owner, unresolved, out }: Verdicts): void {
   for (const [name, { at }] of hooks.writes) {
-    if (!(SEALED_NAME.test(name) || hooks.reads.has(name) || headed(hooks.readHeads, name) || unresolved.has(name))) {
-      out[owner.has(name) ? "dom-attr-owner-css-only" : "dom-attr-unread"].push(`${name} ${at}`);
+    const readers = readersOf(hooks, name);
+    if (!(SEALED_NAME.test(name) || readers.has("product") || unresolved.has(name))) {
+      out[owner.has(name) ? "dom-attr-owner-css-only" : "dom-attr-unread"].push(annotated(`${name} ${at}`, readers));
     }
   }
 }
 
-function judgeTestIds({ hooks, unresolved, out }: Verdicts): void {
-  const reads = hooks.valueReads.get(TEST_ID) ?? new Set<string>();
+// A test id is read by the product or its tests; a tooling lookup only annotates it.
+function judgeTestIds({ hooks, unresolvedTestIds, out }: Verdicts): void {
   for (const [value, at] of hooks.testIds) {
-    if (!(reads.has(value) || unresolved.has(value))) {
-      out["dom-value-unread"].push(`${TEST_ID}=${value} ${at}`);
+    const readers = hooks.valueReads.get(TEST_ID)?.get(value) ?? new Set<World>();
+    if (!(readers.has("product") || readers.has("tests") || unresolvedTestIds.has(value))) {
+      out["dom-value-unread"].push(annotated(`${TEST_ID}=${value} ${at}`, readers));
     }
   }
 }
@@ -810,7 +877,8 @@ function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonl
     selectors,
     hooks,
     owner: ownerCssNames(root),
-    unresolved: new Set(hooks.unresolved.map(({ text }) => text)),
+    unresolved: new Set(hooks.unresolved.filter(({ world }) => world === "product").map(({ text }) => text)),
+    unresolvedTestIds: new Set(hooks.unresolved.filter(({ world }) => world !== "tooling").map(({ text }) => text)),
     spelled: dependency.spelled,
     out,
   };

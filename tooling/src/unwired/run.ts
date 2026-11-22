@@ -374,8 +374,8 @@ async function runGraphDom(args: GraphArgs): Promise<number> {
       process.stdout.write(`${bucket}\t${entry}\n`);
     }
   }
-  for (const { text, at, why } of report.unresolved) {
-    process.stdout.write(`unresolved\t${text}\t${at}\t${why}\n`);
+  for (const { text, at, world, why } of report.unresolved) {
+    process.stdout.write(`unresolved\t${world}\t${text}\t${at}\t${why}\n`);
   }
   const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
   log(

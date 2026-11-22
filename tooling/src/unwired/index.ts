@@ -15,8 +15,8 @@ export type { Analysis, Bucket, Finding, MemberBucket } from "./graph/analyse.ts
 export { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 export type { CssBucket, CssReport } from "./graph/css.ts";
 export { CSS_BUCKETS } from "./graph/css.ts";
-export type { DomBucket, DomReport, Unresolved } from "./graph/dom.ts";
-export { DOM_BUCKETS } from "./graph/dom.ts";
+export type { DomBucket, DomReport, Unresolved, World } from "./graph/dom.ts";
+export { DOM_BUCKETS, WORLDS } from "./graph/dom.ts";
 export type { GraphScan, GraphVerification } from "./graph/scan.ts";
 export { cssGraph, domGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 export type { Verdict, Verified } from "./graph/verify.ts";
