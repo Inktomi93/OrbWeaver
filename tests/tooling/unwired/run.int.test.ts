@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 
 const MEMBER_REPORT = "reports/unwired/unwired.json";
 
@@ -13,6 +14,16 @@ test.for([
   const run = await runCli("unwired", [...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(0);
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
+});
+
+// The codes scan has no engine two, so a cross-check request is refused before any world loads; the unions scan, which
+// has one, is the control that takes the flag.
+test.for([
+  { verb: "codes", exit: EXIT.misuse },
+  { verb: "unions", exit: EXIT.clean },
+])("unwired $verb --cross-check exits $exit", async ({ verb, exit }, { runCli, scratch }) => {
+  const run = await runCli("unwired", [verb, "--cross-check", `--root=${scratch}`]);
+  await expect(run).toExitWith(exit);
 });
 
 // `.gitignore` covers only the checkout's own `reports/`, so a scan rooted in a package must not leave a stray there.
