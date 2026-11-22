@@ -90,10 +90,9 @@ function walk(
 }
 
 // The tiers `why` asks in turn: the product's own roots and ruled keeps, the other roots, then the outside files.
-const ROOT_TIERS: readonly (readonly RootKind[])[] = [
-  ["product", "published"],
-  ["operator", "consumer", "trusted"],
-];
+const ROOT_TIERS = [0, 1] as const;
+// Each root kind's tier, by type, so a new kind cannot fall out of `why`.
+const ROOT_TIER: Readonly<Record<RootKind, (typeof ROOT_TIERS)[number]>> = { product: 0, published: 0, operator: 1, consumer: 1, trusted: 1 };
 
 export class GraphQueries {
   readonly #graph: Graph;
@@ -185,10 +184,10 @@ export class GraphQueries {
     const kept = keptByRuling(this.#graph);
     const tiers: readonly ReadonlyMap<GraphKey, string>[] = [
       ...ROOT_TIERS.map(
-        (kinds, at) =>
+        (at) =>
           new Map<GraphKey, string>([
             ...[...modules]
-              .filter(([, reason]) => kinds.includes(reason.kind))
+              .filter(([, reason]) => ROOT_TIER[reason.kind] === at)
               .map(([file, reason]) => [moduleKey(file), `${reason.kind} root: ${reason.why}`] as const),
             ...(at === 0 ? [...kept] : []),
           ]),

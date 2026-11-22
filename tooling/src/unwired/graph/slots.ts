@@ -7,6 +7,8 @@
 //   a table keyed by the member: a key use of it, not a write.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
+// - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
+//   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import {
   isArrayBindingPattern,
@@ -217,7 +219,6 @@ function forwardedWrites(
     state,
     forwarded.map(({ value }) => value),
   );
-  // a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its type selects instead
   const forwards = new Set<number>();
   for (const [y, { x }] of forwarded.entries()) {
     const from = sources[y] ?? [];

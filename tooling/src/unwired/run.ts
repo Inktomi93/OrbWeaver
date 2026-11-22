@@ -20,7 +20,7 @@ import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
-import type { GraphOptions } from "./graph/options.ts";
+import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
@@ -344,6 +344,8 @@ const FLAG_PREFIX = "--";
 // What only a build can do: a run whose graph comes from a dump refuses them.
 const BUILD_FLAGS = ["why", "files", "ablate", "dump"] as const;
 const PROFILE_DIR_SUFFIX = ".profile";
+// The profiles the compiler writes while it builds the graph: a run from a dump builds none.
+const COMPILER_PROFILES: ReadonlySet<ProfileKind> = new Set<ProfileKind>(["cpu", "heap"]);
 
 // A flag's value when it is given bare: `--profile` profiles wall time, `--explain-lost` takes none.
 const BARE_VALUES: ReadonlyMap<string, string> = new Map([
@@ -399,6 +401,9 @@ function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir:
     throw new UsageError(`--from reads a built graph; --${built.join(", --")} act on a build\n${USAGE}`);
   }
   const profile = oneOf(PROFILE_FLAG, single(flags, PROFILE_FLAG), PROFILES);
+  if (from !== null && profile !== null && COMPILER_PROFILES.has(profile)) {
+    throw new UsageError(`--from reads a built graph; --profile=${profile} profiles the compiler's build\n${USAGE}`);
+  }
   return {
     profile: profile === null ? null : { kind: profile, dir: profileDir },
     why: parsed("why", flags.get("why") ?? [], whyTarget),

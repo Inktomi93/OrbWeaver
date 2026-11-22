@@ -83,7 +83,7 @@ const AMBIENT_KINDS: ReadonlySet<SyntaxKind> = new Set([...TYPE_UNITS, ...RUNTIM
 const DATA_ATTRIBUTE = /^data-/u;
 const ARIA_ATTRIBUTE = /^aria-/u;
 // What another world's role does to a member, as its note says it; a write there adds nothing to a product bucket.
-const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
+export const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
   read: "read outside the product: tests or tooling",
   call: "read outside the product: tests or tooling",
   delete: "read outside the product: tests or tooling",

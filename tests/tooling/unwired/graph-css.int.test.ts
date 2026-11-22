@@ -1,7 +1,8 @@
 // The custom-property pass: a property a sheet declares is read by a var() anywhere, by a class Tailwind compiles from
 // a source string, by a variant's query, or by a token reference; one only a script string names is reported apart.
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { cssGraph } from "../../../tooling/src/unwired/index.ts";
+import { cssGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
 import { graphTree, tailwindcss } from "./_planted.ts";
 
 const THEME = "packages/ui/src/styles/theme.css";
@@ -35,7 +36,10 @@ test("each kind of read keeps its property; an unread one and a script-named one
 
 // A member holding a property's name reads the property only where the product reads the member: a send of the holder
 // hands the name to a receiver that never resolves it as a variable.
-test("a held name is read through a read of its holder, never through a send", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a held name is read through a read of its holder, never through a send, in a dump as in a build", { timeout: 120_000 }, async ({
+  plantedTree,
+  scratch,
+}) => {
   const root = await plantedTree(
     graphTree({
       ...tailwindcss(),
@@ -50,8 +54,10 @@ test("a held name is read through a read of its holder, never through a send", {
       ].join("\n"),
     }),
   );
-  const report = await cssGraph(root, () => undefined);
+  const dump = join(scratch, "graph.dump");
+  const report = await cssGraph(root, () => undefined, { ...FRESH_BUILD, dump });
   // the sent name is no read: only the script names it
   expect(report.buckets["css-property-named-in-script-only"]).toEqual([`${THEME}:--held-sent`]);
   expect(report.buckets["css-property-unread"]).toEqual([]);
+  expect((await cssGraph(root, () => undefined, { ...FRESH_BUILD, from: dump })).buckets).toEqual(report.buckets);
 });

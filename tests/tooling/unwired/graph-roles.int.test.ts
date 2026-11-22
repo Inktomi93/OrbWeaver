@@ -2,6 +2,7 @@
 // header): a bump writes and reads only where its value is used, a logical assignment reads and writes, an escape is a
 // send that a flow carries on as a send, and what another world does to a member only annotates it.
 import { expect, test } from "@orb/testkit/tooling";
+import { OUTSIDE_NOTES } from "../../../tooling/src/unwired/graph/analyse.ts";
 import { GRAPH_SOURCE, graphScan, labelsIn, WORLD } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/roles.ts`;
@@ -108,9 +109,9 @@ test("a read or a key use outside the product only annotates a product member", 
     .filter(({ label }) => label.startsWith(`${FILE}:`))
     .map(({ label, note }) => [label.slice(FILE.length + 1), note]);
   expect(notes).toEqual([
-    ["T.a", expect.stringContaining("read outside the product: tests or tooling")],
+    ["T.a", expect.stringContaining(OUTSIDE_NOTES.read)],
     ["T.b", expect.stringMatching(/^written at /u)],
-    ["U.a", expect.stringContaining("named as a key outside the product: tests or tooling")],
+    ["U.a", expect.stringContaining(OUTSIDE_NOTES.key)],
   ]);
 });
 
@@ -128,7 +129,7 @@ test("a member read only by snap counts as read; one read only by another tool s
   const notes = scan.analysis["member-write-only"]
     .filter(({ label }) => label.startsWith(`${FILE}:`))
     .map(({ label, note }) => [label.slice(FILE.length + 1), note]);
-  expect(notes).toEqual([["Shown.other", expect.stringContaining("read outside the product: tests or tooling")]]);
+  expect(notes).toEqual([["Shown.other", expect.stringContaining(OUTSIDE_NOTES.read)]]);
 });
 
 // `__orb` is the dev bridge: our own `declare global` publishes it, so a tooling read through the global is a product
@@ -154,5 +155,5 @@ test("a dev-bridge member read only from tooling through the global counts as re
   const judged = (bucket: "member-sent-only" | "member-write-only"): readonly (readonly [string, string | null])[] =>
     scan.analysis[bucket].filter(({ label }) => label.startsWith(`${FILE}:`)).map(({ label, note }) => [label.slice(FILE.length + 1), note]);
   expect(judged("member-sent-only").map(([label]) => label)).toEqual(["Bridge.bar"]);
-  expect(judged("member-write-only")).toEqual([["Plain.p", expect.stringContaining("read outside the product: tests or tooling")]]);
+  expect(judged("member-write-only")).toEqual([["Plain.p", expect.stringContaining(OUTSIDE_NOTES.read)]]);
 });

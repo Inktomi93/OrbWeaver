@@ -259,3 +259,24 @@ test("a query verb with no name to ask about is refused before any world loads",
   await expect(await runCli("unwired", ["graph-why", `--root=${scratch}`])).toExitWith(EXIT.misuse);
   await expect(await runCli("unwired", ["graph", "base", `--root=${scratch}`])).toExitWith(EXIT.misuse);
 });
+
+// A chain twice as deep as any walk cap the prototype had: the walks run until their seen-set is spent.
+const DEPTH = 12;
+const DEEP = `${GRAPH_SOURCE}/deep.ts`;
+const step = (at: number): string => `f${String(at)}`;
+const DEEP_SOURCE = [
+  `export const ${step(DEPTH)} = (): number => 1;`,
+  ...Array.from({ length: DEPTH }, (_, at) => `const ${step(DEPTH - 1 - at)} = (): number => ${step(DEPTH - at)}();`),
+  `${step(0)}();`,
+].join("\n");
+// f(n) is declared on line DEPTH - n + 1
+const deepLabel = (at: number): string => `${DEEP}:${String(DEPTH - at + 1)} ${step(at)}`;
+
+test("a walk deeper than any fixed cap still reaches its end", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [DEEP]: DEEP_SOURCE }, { entries: [DEEP] }));
+  const ask = async (query: (typeof QUERIES)[number], name: string): Promise<readonly unknown[]> =>
+    (await queryGraph(root, { query, names: [name] }, quiet)).answers.map(shape)[0] ?? [];
+  const steps = Array.from({ length: DEPTH + 1 }, (_, at) => at);
+  expect(await ask("why", step(DEPTH))).toEqual([[DEEP, steps.map(deepLabel)]]);
+  expect(await ask("reach", step(0))).toEqual([[1, DEEP], ...steps.slice(1).map((at) => [at, deepLabel(at)])]);
+});
