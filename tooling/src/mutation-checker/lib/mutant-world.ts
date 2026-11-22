@@ -1,13 +1,16 @@
 // One world on the TypeScript 7.1 API, judging one mutant per layer snapshot. An importer reads a file only through
 // its declaration, so the importers are checked only when the mutant changed the file's declaration emit, and the
-// whole program when that emit, or any transitive importer's source, augments a global or a module.
+// whole program when that emit augments, or the import graph (tooling/src/floor/typescript/import-graph.ts) says the
+// file reaches past its importers.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Location, Mutant, Position } from "@stryker-mutator/api/core";
-import type { Node, StringLiteralLikeNode } from "@typescript/native/ast";
-import { isNoSubstitutionTemplateLiteral, isStringLiteral } from "@typescript/native/ast/is";
 import type { APIRequestGenerator, Diagnostic, Program, Snapshot } from "@typescript/native/sync";
-import { API, all, DiagnosticCategory, formatDiagnostics } from "@typescript/native/sync";
+import { API, all, formatDiagnostics } from "@typescript/native/sync";
+import { isLibrarySource } from "../../brand-names/index.ts";
+import type { Splice } from "../../floor/typescript/import-graph.ts";
+import { addedErrors, augments, errorsOf, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
+import { workspacePackageRoots } from "../../package-effects/index.ts";
 
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
@@ -17,7 +20,7 @@ const CHECKER_OPTION_OVERRIDES = { allowUnreachableCode: true, noUnusedLocals: f
 
 /** What one mutant broke, and every file the judgement read. */
 export interface MutantVerdict {
-  /** The errors of each file whose error count rose over the unmutated world; empty when the mutant compiles. */
+  /** The errors the mutant added over the unmutated world; empty when the mutant compiles. */
   readonly errors: readonly Diagnostic[];
   readonly checked: readonly string[];
 }
@@ -45,27 +48,18 @@ function offsetOf({ lineStarts }: Original, { line, column }: Position): number 
   return start + column;
 }
 
-function mutatedText(file: Original, { start, end }: Location, replacement: string): string {
-  return `${file.text.slice(0, offsetOf(file, start))}${replacement}${file.text.slice(offsetOf(file, end))}`;
-}
-
-// The wire carries a diagnostic's category as a plain number.
-const ERROR_CATEGORY: number = DiagnosticCategory.Error;
-
-const errorsOf = (diagnostics: readonly Diagnostic[]): readonly Diagnostic[] => diagnostics.filter(({ category }) => category === ERROR_CATEGORY);
+const spliceOf = (file: Original, { start, end }: Location, replacement: string): Splice => ({
+  start: offsetOf(file, start),
+  end: offsetOf(file, end),
+  text: replacement,
+});
 
 function* fileErrors(program: Program, file: string): APIRequestGenerator<readonly Diagnostic[]> {
   const [syntactic, semantic] = yield* all(program.getSyntacticDiagnostics.gen(file), program.getSemanticDiagnostics.gen(file));
   return [...errorsOf(syntactic), ...errorsOf(semantic)];
 }
 
-const isModuleSpecifier = (node: Node): node is StringLiteralLikeNode => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
-
-const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
-
-// A declaration that augments a global or another module reaches files that never import it: they read the augmented
-// name through the module they do import. Its readers are not on the import graph, so the whole program is.
-const AUGMENTATION = /^[ \t]*(?:export[ \t]+)?declare[ \t]+(?:global\b|module[ \t]+["'])/mu;
+const DECLARATION_FILE = ".d.ts";
 
 function* declarationOf(program: Program, file: string): APIRequestGenerator<string> {
   const emit = yield* program.getDeclarationEmit.gen([file]);
@@ -75,18 +69,21 @@ function* declarationOf(program: Program, file: string): APIRequestGenerator<str
 /** One world's program in its own TypeScript 7.1 process, with the classic checker's option overrides. */
 export class MutantWorld implements Disposable {
   readonly #api: API;
+  readonly #root: string;
   readonly #layer: Readonly<Record<string, string>>;
   readonly #config: string;
   readonly #base: Snapshot;
   readonly #baseProgram: Program;
   readonly #held: ReadonlySet<string>;
   readonly #originals = new Map<string, Original>();
-  readonly #baseErrors = new Map<string, number>();
+  readonly #baseErrors = new Map<string, readonly Diagnostic[]>();
   readonly #baseDeclarations = new Map<string, string>();
-  #importers: ReadonlyMap<string, ReadonlySet<string>> | undefined;
+  #imports: ImportGraph | undefined;
+  #ownSources: readonly string[] | undefined;
 
-  private constructor(api: API, config: string) {
+  private constructor(api: API, root: string, config: string) {
     this.#api = api;
+    this.#root = root;
     this.#config = config;
     const read = api.readConfigFile(config);
     if (read.error !== undefined) {
@@ -101,7 +98,7 @@ export class MutantWorld implements Disposable {
 
   /** Open `config`, a path relative to `root`, in a new API process. */
   static open(root: string, config: string): MutantWorld {
-    return new MutantWorld(new API({ cwd: root }), resolve(root, config));
+    return new MutantWorld(new API({ cwd: root }), root, resolve(root, config));
   }
 
   #snapshot(files: Readonly<Record<string, string>>): Snapshot {
@@ -139,14 +136,14 @@ export class MutantWorld implements Disposable {
     return read;
   }
 
-  // Counted, not required to be zero: a world that already carries an error still judges a mutant by what it adds.
-  #baseErrorCounts(files: readonly string[]): readonly number[] {
+  // Kept, not required to be empty: a world that already carries an error still judges a mutant by what it adds.
+  #baseErrorsOf(files: readonly string[]): readonly Diagnostic[] {
     const missing = files.filter((file) => !this.#baseErrors.has(file));
     const found = this.#batch(missing.map((file) => fileErrors(this.#baseProgram, file)));
     for (const [at, file] of missing.entries()) {
-      this.#baseErrors.set(file, found[at]?.length ?? 0);
+      this.#baseErrors.set(file, found[at] ?? []);
     }
-    return files.map((file) => this.#baseErrors.get(file) ?? 0);
+    return files.flatMap((file) => this.#baseErrors.get(file) ?? []);
   }
 
   #baseDeclaration(file: string): string {
@@ -159,52 +156,38 @@ export class MutantWorld implements Disposable {
     return declaration;
   }
 
+  // The files an importer or a reader can be: the world's own sources, by the program's answer under isLibrarySource,
+  // so a store-linked dependency stays out and a workspace package linked through node_modules stays in. Built on the
+  // first changed declaration only, as the import graph is.
+  #worldSources(): readonly string[] {
+    if (this.#ownSources !== undefined) {
+      return this.#ownSources;
+    }
+    const names = [...this.#held].filter((name) => !name.endsWith(DECLARATION_FILE));
+    const metadata = this.#batch(names.map((name) => this.#baseProgram.getSourceFileMetadata.gen(name)));
+    const workspace = new Set(workspacePackageRoots(this.#root));
+    this.#ownSources = names.filter((_, at) => {
+      const meta = metadata[at];
+      return meta !== undefined && !isLibrarySource({ external: meta.isFromExternalLibrary, workspacePackage: workspace.has(meta.packageJsonDirectory) });
+    });
+    return this.#ownSources;
+  }
+
   // Built on the first changed declaration only: most runs never need it, and it reads every source file's imports.
-  #importGraph(): ReadonlyMap<string, ReadonlySet<string>> {
-    if (this.#importers !== undefined) {
-      return this.#importers;
+  #importGraph(): ImportGraph {
+    if (this.#imports === undefined) {
+      const program = this.#baseProgram;
+      const sources = this.#batch(this.#worldSources().map((name) => program.getSourceFile.gen(name))).flatMap((source) =>
+        source === undefined ? [] : [source],
+      );
+      this.#imports = ImportGraph.build(program, (requests) => this.#batch(requests), sources);
     }
-    const program = this.#baseProgram;
-    const sources = this.#batch([...this.#held].filter(isWorldSource).map((name) => program.getSourceFile.gen(name)));
-    const edges = sources.flatMap((source) =>
-      source === undefined ? [] : source.imports.filter(isModuleSpecifier).map((specifier) => ({ from: source.fileName, specifier })),
-    );
-    const resolved = this.#batch(edges.map(({ from, specifier }) => program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
-    const importers = new Map<string, Set<string>>();
-    for (const [at, { from }] of edges.entries()) {
-      const target = resolved[at]?.resolvedFileName;
-      if (target !== undefined && target !== from) {
-        importers.set(target, (importers.get(target) ?? new Set()).add(from));
-      }
-    }
-    this.#importers = importers;
-    return importers;
+    return this.#imports;
   }
 
-  #transitiveImporters(file: string): readonly string[] {
-    const graph = this.#importGraph();
-    const seen = new Set([file]);
-    const queue = [file];
-    for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-      for (const importer of graph.get(next) ?? []) {
-        if (!seen.has(importer)) {
-          seen.add(importer);
-          queue.push(importer);
-        }
-      }
-    }
-    seen.delete(file);
-    return [...seen];
-  }
-
-  #otherSources(file: string): readonly string[] {
-    return [...this.#held].filter((name) => name !== file && isWorldSource(name));
-  }
-
-  #errorsIn(program: Program, files: readonly string[]): readonly Diagnostic[] {
-    const bases = this.#baseErrorCounts(files);
+  #errorsIn(program: Program, files: readonly string[], edit: { readonly file: string; readonly splice: Splice }): readonly Diagnostic[] {
     const found = this.#batch(files.map((file) => fileErrors(program, file)));
-    return found.flatMap((errors, at) => (errors.length > (bases[at] ?? 0) ? errors : []));
+    return addedErrors(this.#baseErrorsOf(files), found.flat(), new Map([[edit.file, [edit.splice]]])).map(({ diagnostic }) => diagnostic);
   }
 
   /** Judge one mutant against the unmutated world. */
@@ -214,23 +197,23 @@ export class MutantWorld implements Disposable {
       return { errors: [], checked: [] };
     }
     using held = new DisposableStack();
-    const snapshot = held.adopt(this.#snapshot({ [file]: mutatedText(this.#original(file), location, replacement) }), (made) => made.dispose());
+    const base = this.#original(file);
+    const edit = { file, splice: spliceOf(base, location, replacement) };
+    const snapshot = held.adopt(this.#snapshot({ [file]: spliced(base.text, [edit.splice]) }), (made) => made.dispose());
     const program = this.#programOf(snapshot);
-    const own = this.#errorsIn(program, [file]);
+    const own = this.#errorsIn(program, [file], edit);
     if (own.length > 0) {
       return { errors: own, checked: [file] };
     }
     const [declaration = ""] = this.#batch([declarationOf(program, file)]);
-    const base = this.#baseDeclaration(file);
-    if (declaration === base) {
+    const baseDeclaration = this.#baseDeclaration(file);
+    if (declaration === baseDeclaration) {
       return { errors: [], checked: [file] };
     }
-    const importers = this.#transitiveImporters(file);
-    // An importer that augments carries the mutated file's shape to readers that import neither of them.
-    const augments =
-      AUGMENTATION.test(declaration) || AUGMENTATION.test(base) || importers.some((importer) => AUGMENTATION.test(this.#original(importer).text));
-    const readers = augments ? this.#otherSources(file) : importers;
-    return { errors: this.#errorsIn(program, readers), checked: [file, ...readers] };
+    // An importer that augments carries the mutated file's shape to readers that import neither of them; the graph
+    // widens to the whole program for it, as it does for an emit that augments.
+    const readers = this.#importGraph().readers(file, augments(declaration) || augments(baseDeclaration));
+    return { errors: this.#errorsIn(program, readers, edit), checked: [file, ...readers] };
   }
 
   /** The errors as compiler-formatted text. */

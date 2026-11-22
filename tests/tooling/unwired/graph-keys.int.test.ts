@@ -65,6 +65,24 @@ test("an extended schema twins its extend literal's keys with the type it satisf
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Base.id", "View.hidden"]);
 });
 
+test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Row { readonly name: string; readonly spare: string }",
+      "export interface Fallback { readonly name: string; readonly unused: string }",
+      'const FALLBACK: Fallback = { name: "anon", unused: "x" };',
+      "export const rowSchema = z.strictObject({ name: z.string() }).default(FALLBACK);",
+      "export const nameOf = (row: Row): string => rowSchema.parse(row).name;",
+    ]),
+  });
+  // parse takes unknown, so a hand-off would send Row whole; the default's name is read through the output it fills
+  expect(bare(labelsIn(scan, "member-sent-only", FILE))).toEqual([]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Row.name", "Row.spare"]);
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Fallback.unused"]);
+});
+
 test("a function filling a function slot pairs its parameter with the slot's", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,

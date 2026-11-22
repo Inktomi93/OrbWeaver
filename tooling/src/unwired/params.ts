@@ -71,7 +71,6 @@ const PARAM_LIMITS: readonly string[] = [
   "A callable whose value escapes (handed on, stored in a registry or object, exported through a string-addressed table) is never judged: a call the scan cannot see may supply anything.",
   "A call through a computed name (obj[name](...)) or from outside the tree (a plugin guest, the published SDK, a script) is not seen; a callable only such a caller reaches reports its options unsupplied.",
   "A spread argument or a spread inside an argument object literal supplies every prop; a non-literal argument supplies every prop of its type.",
-  "Engine one does not see a component reached through a dynamic import namespace (lazy(() => import(...).then((m) => m.X))); engine two does, so such a row lands as a disagreement, never a finding.",
   "Two callables of one name in different files are told apart by symbol; a same-named wrapper does not count its inner function's calls.",
   "A value supplied only from a JSON or scenario file is not a supply; a reference in a type position is neither a call nor an escape.",
   "A prop any production construction of its declaration sets is supplied for every callable that takes it, so a callable whose own callers never set a shared prop keeps its default path unreported.",

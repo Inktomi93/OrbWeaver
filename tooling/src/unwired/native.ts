@@ -1,14 +1,17 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
-import { relative } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   getTouchingPropertyName,
   isArrowFunction,
+  isClassDeclaration,
   isFunctionDeclaration,
   isFunctionExpression,
   isGetAccessorDeclaration,
   isIdentifier,
+  isInterfaceDeclaration,
   isMethodDeclaration,
   isNoSubstitutionTemplateLiteral,
   isPropertyAssignment,
@@ -27,9 +30,12 @@ import type {
   ReferencedSymbolEntry,
   SignatureUsage,
   Snapshot,
+  TimingAccumulators,
   Type,
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
+import { z } from "zod";
+import { workspacePackageDirs } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
@@ -42,13 +48,51 @@ export function hasFlag(flags: number, flag: number): boolean {
   return (flags & flag) !== 0;
 }
 
+/** A find-references site. `relative`: it names a base or sibling member find-references groups with the asked member
+ *  by their shared base, so it reads or writes the asked member's value only through a flow between the two types. */
+export interface FoundReference extends Site {
+  readonly relative: boolean;
+}
+
+// A property, accessor or method: the symbols find-references groups by a shared base member.
+const isMember = (symbol: NativeSymbol): boolean => hasFlag(symbol.flags, SymbolFlags.PropertyOrAccessor) || hasFlag(symbol.flags, SymbolFlags.Method);
+
 /** A world's source files, and the root files its config names rather than reaches through imports. */
 export interface WorldFiles {
   readonly held: ReadonlySet<string>;
   readonly roots: ReadonlySet<string>;
 }
 
-const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
+const DECLARATION_FILE = ".d.ts";
+const PACKAGE_MANIFEST = "package.json";
+const PackageManifest = z.looseObject({ name: z.string().optional() });
+const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+
+// The absolute directories of the workspace's own packages; a tree with no workspace manifest has none.
+const workspaceDirs = (root: string): ReadonlySet<string> =>
+  new Set(existsSync(join(root, WORKSPACE_MANIFEST)) ? workspacePackageDirs(root).map((dir) => join(root, dir)) : []);
+
+// Which program files are the tree's own, by the program's answer rather than the path's text: a dependency resolved
+// through a pnpm symlink outside any node_modules directory is still a library, and a workspace package reached through
+// node_modules is still ours (the program flags it external, as it was resolved from node_modules, so the workspace's
+// own package directories answer for it). A declaration file is ours only where `declaration` keeps it.
+function ownSources(api: API, program: Program, own: { readonly workspace: ReadonlySet<string>; readonly keep: (name: string) => boolean }): readonly string[] {
+  const { workspace, keep } = own;
+  const names = program.getSourceFileNames();
+  const kept: string[] = [];
+  for (const start of pageStarts(names.length)) {
+    const page = names.slice(start, start + BATCH);
+    const metadata = api.batch(...page.map((name) => program.getSourceFileMetadata.gen(name)));
+    for (const [at, name] of page.entries()) {
+      const meta = metadata[at];
+      const library = meta === undefined || meta.isDefaultLibrary || (meta.isFromExternalLibrary && !workspace.has(meta.packageJsonDirectory));
+      if (!library && (!name.endsWith(DECLARATION_FILE) || keep(name))) {
+        kept.push(name);
+      }
+    }
+  }
+  return kept;
+}
 
 type Request = APIRequestGenerator extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
 
@@ -81,10 +125,34 @@ function* ask(request: Request): APIRequestGenerator<unknown> {
 
 const pageStarts = (size: number): readonly number[] => Array.from({ length: Math.ceil(size / BATCH) }, (_, page) => page * BATCH);
 
+// The `extends` and `implements` types of every declaration of an interface or class symbol.
+function* heritageOf(owner: NativeSymbol | undefined): APIRequestGenerator<readonly Node[]> {
+  const types: Node[] = [];
+  for (const handle of owner?.declarations ?? []) {
+    const declaration = yield* handle.resolve.gen();
+    if (declaration !== undefined && (isInterfaceDeclaration(declaration) || isClassDeclaration(declaration))) {
+      types.push(...(declaration.heritageClauses ?? []).flatMap((clause) => [...clause.types]));
+    }
+  }
+  return types;
+}
+
+/** What a world's batches cost: rounds to the compiler, distinct requests sent, asks the answer memo served, and the
+ *  wall time spent inside {@link NativeWorld.batch}. */
+export interface WorldStats {
+  readonly batches: number;
+  readonly rounds: number;
+  readonly sent: number;
+  readonly memoHits: number;
+  readonly ms: number;
+}
+
 /** One world's program in its own TypeScript 7.1 process. */
 export class NativeWorld implements Disposable {
   readonly config: string;
   readonly checker: Checker;
+  /** The program, for what the checker does not answer: diagnostics, the files it loads, module resolution. */
+  readonly program: Program;
   readonly #languageService: LanguageService;
   /** Every source file of the program outside node_modules, declaration files excluded. */
   readonly files: readonly SourceFile[];
@@ -93,6 +161,11 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
+  readonly #workspace: ReadonlySet<string>;
+  readonly #packageNames = new Map<string, string | null>();
+  readonly #stats = { batches: 0, rounds: 0, sent: 0, memoHits: 0, ms: 0 };
+  // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
+  #settling = false;
   readonly #snapshot: Snapshot;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
@@ -107,8 +180,10 @@ export class NativeWorld implements Disposable {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
     this.checker = project.checker;
+    this.program = project.program;
     this.#languageService = project.languageService;
-    const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declaration(relative(root, name)));
+    this.#workspace = workspaceDirs(root);
+    const names = ownSources(api, project.program, { workspace: this.#workspace, keep: (name) => declaration(relative(root, name)) });
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
@@ -120,8 +195,22 @@ export class NativeWorld implements Disposable {
   }
 
   /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */
-  static openMerged(root: string, declaration: (file: string) => boolean): NativeWorld {
-    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root }), declaration);
+  static openMerged(root: string, declaration: (file: string) => boolean, timing = false): NativeWorld {
+    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root, collectTiming: timing }), declaration);
+  }
+
+  get stats(): WorldStats {
+    return { ...this.#stats };
+  }
+
+  /** The compiler's own request totals; zero unless the world was opened with timing. */
+  timing(): TimingAccumulators {
+    return this.#api.getTimingInfo().totals;
+  }
+
+  /** The compiler's CPU and heap profilers. */
+  get debug(): API["debug"] {
+    return this.#api.debug;
   }
 
   /** The repository-relative source files and root files of every world, listed in one session rather than one
@@ -130,28 +219,46 @@ export class NativeWorld implements Disposable {
     using api = new API({ cwd: root });
     const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
-    const relatives = (names: readonly string[]): ReadonlySet<string> =>
-      new Set(names.filter((name) => isWorldSource(name) || declarations.has(relative(root, name))).map((name) => relative(root, name)));
+    const keep = (name: string): boolean => declarations.has(relative(root, name));
+    const workspace = workspaceDirs(root);
     return new Map(
       configs.map((config) => {
         const project = snapshot.getConfiguredProject(`${root}/${config}`);
-        return [config, { held: relatives(project?.program.getSourceFileNames() ?? []), roots: relatives(project?.parsedCommandLine.fileNames ?? []) }];
+        const held = new Set(project === undefined ? [] : ownSources(api, project.program, { workspace, keep }).map((name) => relative(root, name)));
+        const roots = new Set((project?.parsedCommandLine.fileNames ?? []).map((name) => relative(root, name)).filter((name) => held.has(name)));
+        return [config, { held, roots }];
       }),
     );
   }
 
-  /** Run request generators in pages of {@link BATCH}, keeping their order. */
+  /** Run request generators in pages of {@link BATCH}, keeping their order.
+   *  @throws When a request generator runs a batch of its own: the outer round's answers would be read around it. */
   batch<T>(requests: readonly APIRequestGenerator<T>[]): T[] {
+    if (this.#settling) {
+      throw new Error("NativeWorld.batch ran inside a request generator: ask through yield, or settle the data before the batch");
+    }
+    const began = performance.now();
     const results: T[] = [];
     for (let start = 0; start < requests.length; start += BATCH) {
       results.push(...this.#settle(requests.slice(start, start + BATCH)));
     }
+    this.#stats.batches += 1;
+    this.#stats.ms += performance.now() - began;
     return results;
   }
 
   // Every query is pure in one snapshot, so each distinct request crosses to the compiler once until releaseAnswers:
   // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
+    this.#settling = true;
+    try {
+      return this.#rounds(generators);
+    } finally {
+      this.#settling = false;
+    }
+  }
+
+  #rounds<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     let waiting: Pending[] = [];
     const run = (generator: APIRequestGenerator, finish: (value: unknown) => void, first: unknown): void => {
@@ -167,6 +274,7 @@ export class NativeWorld implements Disposable {
           waiting.push({ generator, finish, key, request });
           return;
         }
+        this.#stats.memoHits += 1;
         step = generator.next(this.#answers.get(key));
       }
       finish(step.value);
@@ -195,19 +303,18 @@ export class NativeWorld implements Disposable {
       const round = waiting;
       waiting = [];
       const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
-      // The round's answers reach its generators from the round itself, so an answer the memo lets go while the round
-      // is in flight (a release inside a generator step) never reaches a waiting generator as undefined.
-      const landed = new Map<string>();
+      this.#stats.rounds += 1;
+      this.#stats.sent += distinct.length;
+      this.#stats.memoHits += round.length - distinct.length;
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
         for (const [at, [key]] of page.entries()) {
-          landed.set(key, answers[at]);
           this.#answers.set(key, answers[at]);
         }
       }
       for (const { generator, finish, key } of round) {
-        run(generator, finish, landed.get(key));
+        run(generator, finish, this.#answers.get(key));
       }
     }
     return results;
@@ -217,6 +324,9 @@ export class NativeWorld implements Disposable {
    *  compiler's decoded response, and a walk's answers kept for the world's life outgrow the walk's own facts many times
    *  over. The facts a later file needs again live in the callers' id-keyed tables; a repeat ask crosses again. */
   releaseAnswers(): void {
+    if (this.#settling) {
+      throw new Error("NativeWorld.releaseAnswers ran inside a request generator: the round in flight reads its answers back");
+    }
     this.#answers.clear();
   }
 
@@ -264,6 +374,38 @@ export class NativeWorld implements Disposable {
     );
   }
 
+  /** The package a declaration's file was loaded from as an external library, by its manifest's name; null for a file
+   *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
+  *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
+    const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
+    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+  }
+
+  /** For each list of declarations, whether one of them was loaded from the package `name`. */
+  fromPackage(declarations: readonly (readonly NodeHandle[])[], name: string): boolean[] {
+    return this.batch(declarations.map((handles) => this.#anyFrom(handles, name)));
+  }
+
+  *#anyFrom(handles: readonly NodeHandle[], name: string): APIRequestGenerator<boolean> {
+    const packages = yield* all(...handles.map((handle) => this.packageOf(handle)));
+    return packages.includes(name);
+  }
+
+  // A package's name sits on its root manifest; a nested scope manifest (zod's `v4/classic/package.json`, which only
+  // sets the module type) names nothing, so the walk goes up to the first manifest that does.
+  #packageName(directory: string): string | null {
+    const known = this.#packageNames.get(directory);
+    if (known !== undefined) {
+      return known;
+    }
+    const manifest = join(directory, PACKAGE_MANIFEST);
+    const own = existsSync(manifest) ? PackageManifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name : undefined;
+    const parent = dirname(directory);
+    const name = own ?? (parent === directory ? null : this.#packageName(parent));
+    this.#packageNames.set(directory, name);
+    return name;
+  }
+
   /** The repository-relative file a declaration lives in, or null for one outside the world's sources. */
   fileOf(handle: NodeHandle): string | null {
     return this.#fileOfPath.get(handle.path) ?? null;
@@ -286,7 +428,7 @@ export class NativeWorld implements Disposable {
 
   /** The sites TypeScript 7.1 find-references reports for the name at each site, the site itself included. A
    *  reference in a file outside the world's sources (a library or `node_modules`) is not resolved. */
-  referencesAt(sites: readonly Site[]): Site[][] {
+  referencesAt(sites: readonly Site[]): FoundReference[][] {
     return this.batch(sites.map((site) => this.#referencesOf(site)));
   }
 
@@ -302,16 +444,53 @@ export class NativeWorld implements Disposable {
     return yield* this.#languageService.getSignatureUsage.gen(declaration);
   }
 
-  *#referencesOf(site: Site): APIRequestGenerator<Site[]> {
+  *#referencesOf(site: Site): APIRequestGenerator<FoundReference[]> {
     const file = this.#sourceOf.get(site.file);
     if (file === undefined) {
       return [];
     }
     const node = getTouchingPropertyName(file, site.position);
     const groups = yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position);
-    const handles = groups.flatMap((group) => group.references.filter((candidate) => this.fileOf(candidate) !== null));
-    const references = yield* all(...handles.map((handle) => handle.resolve.gen()));
-    return references.flatMap((reference) => (reference === undefined ? [] : [this.siteOf(reference)]));
+    const asked = yield* this.checker.getSymbolAtLocation.gen(node);
+    const found: FoundReference[] = [];
+    for (const group of groups) {
+      const viaRelative = asked !== undefined && isMember(asked) && (yield* this.#isRelative(asked, group.symbol));
+      const handles = group.references.filter((candidate) => this.fileOf(candidate) !== null);
+      const references = yield* all(...handles.map((handle) => handle.resolve.gen()));
+      found.push(...references.flatMap((reference) => (reference === undefined ? [] : [{ ...this.siteOf(reference), relative: viaRelative }])));
+    }
+    return found;
+  }
+
+  // Find-references on a member answers one group per member sharing its root: its own, a base type's, and every
+  // sibling that overrides the same base, as `<p className>` beside a props type that redeclares `className`. A group
+  // is a relative unless its member is the asked one or inherits it; one with no symbol or no declaration is not judged.
+  *#isRelative(asked: NativeSymbol, symbol: NativeSymbol | undefined): APIRequestGenerator<boolean> {
+    if (symbol === undefined || !isMember(symbol) || symbol.declarations.length === 0) {
+      return false;
+    }
+    const own = new Set(declarationKeys(asked));
+    return !(declarationKeys(symbol).some((key) => own.has(key)) || (yield* this.#inherits(symbol, own, new Set())));
+  }
+
+  // Whether `member` overrides the member declared at `own` through its owner's `extends` or `implements` chain. A
+  // library member never inherits a tree member, so only a member the world's sources declare is walked.
+  *#inherits(member: NativeSymbol, own: ReadonlySet<string>, seen: Set<string>): APIRequestGenerator<boolean> {
+    const keys = declarationKeys(member);
+    if (keys.some((key) => seen.has(key)) || member.declarations.every((handle) => this.fileOf(handle) === null)) {
+      return false;
+    }
+    for (const key of keys) {
+      seen.add(key);
+    }
+    const owner = yield* this.checker.getParentOfSymbol.gen(member);
+    for (const heritage of yield* heritageOf(owner)) {
+      const base = yield* this.checker.getPropertyOfType.gen(yield* this.checker.getTypeAtLocation.gen(heritage), member.name);
+      if (base !== undefined && (declarationKeys(base).some((key) => own.has(key)) || (yield* this.#inherits(base, own, seen)))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** A node's site in one of the world's files. */
@@ -324,30 +503,18 @@ export class NativeWorld implements Disposable {
     this.#api.close();
   }
 
-  /** Hand `use` the world's program, or with `edit` the program of a throwaway snapshot where that repository-relative
-   *  file reads the edit's text; the throwaway snapshot is disposed when `use` returns.
+  /** Hand `use` the program of a throwaway snapshot where each absolute file in `files` reads its text; the snapshot is
+   *  disposed when `use` returns.
    *  @remarks Ask the handed program directly, never through {@link NativeWorld.batch}: its answer memo keys a request
    *  without its snapshot, so a throwaway program's question would get the world's own answer back. */
-  withProgram<T>(use: (program: Program) => T, edit?: { readonly file: string; readonly text: string }): T {
-    const path = `${this.#root}/${this.config}`;
-    const programOf = (snapshot: Snapshot): Program => {
-      const project = snapshot.getConfiguredProject(path);
-      if (project === undefined) {
-        throw new Error(`${this.config}: the snapshot holds no project`);
-      }
-      return project.program;
-    };
-    if (edit === undefined) {
-      return use(programOf(this.#snapshot));
+  trial<T>(files: Readonly<Record<string, string>>, use: (program: Program) => T): T {
+    using held = new DisposableStack();
+    const snapshot = held.adopt(this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: true }), (made) => made.dispose());
+    const project = snapshot.getConfiguredProject(`${this.#root}/${this.config}`);
+    if (project === undefined) {
+      throw new Error(`${this.config}: the throwaway snapshot holds no project`);
     }
-    let result: { readonly value: T } | undefined;
-    this.#api.runWithTemporaryFileUpdate(this.#snapshot, `${this.#root}/${edit.file}`, edit.text, (snapshot) => {
-      result = { value: use(programOf(snapshot)) };
-    });
-    if (result === undefined) {
-      throw new Error(`${edit.file}: the temporary update ran no callback`);
-    }
-    return result.value;
+    return use(project.program);
   }
 }
 

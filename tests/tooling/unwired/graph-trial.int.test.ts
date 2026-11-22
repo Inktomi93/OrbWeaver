@@ -12,8 +12,10 @@ const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const SHAPE = `${GRAPH_SOURCE}/shape.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
+const DOOR = `${GRAPH_SOURCE}/door.ts`;
 
-const outcomes = (report: TrialReport): readonly (readonly string[])[] => report.trials.map(({ label, verdict, removed }) => [label, verdict, removed.trim()]);
+const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
+  report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
 
 test("a delete removes a whole interface member, class member or literal method with its comma", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -41,10 +43,10 @@ test("a delete removes a whole interface member, class member or literal method 
   );
   const report = await trialGraph(root, ["member-untouched", "member-write-only"], () => undefined);
   expect(outcomes(report)).toEqual([
-    [`${LIB}:Shape.gone`, "confirmed", "readonly gone?: string;"],
-    [`${LIB}:table.middle`, "confirmed", "middle(): number { return 2; },"],
-    [`${LIB}:table.last`, "confirmed", ", last(): number { return 3; }"],
-    [`${LIB}:Box.written`, "confirmed", "written = 3;"],
+    [`${LIB}:Shape.gone`, "confirmed", `${LIB}: readonly gone?: string;`],
+    [`${LIB}:table.middle`, "confirmed", `${LIB}: middle(): number { return 2; },`],
+    [`${LIB}:table.last`, "confirmed", `${LIB}: , last(): number { return 3; }`],
+    [`${LIB}:Box.written`, "confirmed", `${LIB}: written = 3;`],
   ]);
 });
 
@@ -59,7 +61,63 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
     ),
   );
   const report = await trialGraph(root, ["dead"], () => undefined);
-  expect(outcomes(report)).toEqual([[`${LIB}:orphan`, "confirmed", "/** Nothing calls this. */\nexport function orphan(): number { return 2; }"]]);
+  expect(outcomes(report)).toEqual([[`${LIB}:orphan`, "confirmed", `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
+});
+
+// The delete edits every export site that names the candidate, so neither a local export list nor a re-export in
+// another file is left naming a declaration that no longer exists.
+test.for([
+  {
+    site: "a local export list",
+    files: {
+      [MAIN]: ['import { run } from "./lib.ts";', "run();"].join("\n"),
+      [LIB]: ["function run(): number { return 1; }", "function orphan(): number { return 2; }", "export { run, orphan };"].join("\n"),
+    },
+    removed: [`${LIB}: function orphan(): number { return 2; }`, `${LIB}: , orphan`],
+  },
+  {
+    site: "a re-export in another file",
+    files: {
+      [MAIN]: ['import { run } from "./door.ts";', "run();"].join("\n"),
+      [DOOR]: 'export { orphan, run } from "./lib.ts";',
+      [LIB]: ["export function run(): number { return 1; }", "export function orphan(): number { return 2; }"].join("\n"),
+    },
+    removed: [`${LIB}: export function orphan(): number { return 2; }`, `${DOOR}: orphan,`],
+  },
+])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
+  const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
+  const report = await trialGraph(root, ["dead"], () => undefined);
+  expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, "confirmed", ...removed]]);
+});
+
+test("an import its own file never uses is a binding the delete removes: named-only, not refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [MAIN]: ['import { orphan, run } from "./lib.ts";', "run();"].join("\n"),
+        [LIB]: ["export function run(): number { return 1; }", "export function orphan(): number { return 2; }"].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trialGraph(root, ["dead"], () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
+    [`${LIB}:orphan`, "named-only", [`${MAIN}:1 binding`]],
+  ]);
+});
+
+// A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
+test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
+  const report = await trialGraph(root, ["dead"], () => undefined);
+  expect(
+    report.trials.map(({ label, verdict, removed, note }) => [
+      label,
+      verdict,
+      removed.map(({ text }) => text.trim()),
+      note?.startsWith("the delete edit does not parse"),
+    ]),
+  ).toEqual([[`${MAIN}:spare`, "unresolved", ["spare"], true]]);
 });
 
 const READER_TREE = (lib: string): Record<string, string> => ({

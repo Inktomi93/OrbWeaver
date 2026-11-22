@@ -262,3 +262,46 @@ test("a judged row reports apart with its open item, and an entry for a done ite
   const judged = plantJudged(scanFields(options), "Row.ghost", "Row.dead");
   expect(judgedOutcome(scanFields({ ...options, judged }), "Row.ghost", "Row.dead")).toEqual(judgedExpected("Row.ghost", "Row.dead"));
 });
+
+// The props shape of a primitive: its props type redeclares a member its library base declares and reads it, and no
+// caller sets it, while the library's own calls and a sibling props type write the same name. Find-references groups
+// those writes with the member by their shared base; they build the base's or the sibling's value, so the member
+// stays never-written and no audit disagrees.
+const REDECLARED = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/host.d.ts": [
+    "interface HostAttributes { readonly className?: string; readonly id?: string }",
+    "declare function host(attributes: HostAttributes): string;",
+  ].join("\n"),
+  "packages/a/src/box.ts": [
+    'interface BoxPropsBase extends Omit<HostAttributes, "id"> { readonly label: string; readonly className?: string }',
+    "export type BoxProps = BoxPropsBase & { readonly size?: number };",
+    'export const box = ({ label, className, size }: BoxProps): string => host({ className: label + (className ?? "box") + String(size ?? 0) });',
+    'export const plain = host({ className: "plain" });',
+    'export const shown = box({ label: "l", size: 1 });',
+    "interface Base { readonly tone?: string }",
+    "interface QuietBase extends Base { readonly label: string; readonly tone?: string }",
+    "interface LoudBase extends Base { readonly tone?: string }",
+    "export type Quiet = QuietBase & { readonly size?: number };",
+    "export type Loud = LoudBase & { readonly size?: number };",
+    'export const quiet = ({ label, tone, size }: Quiet): string => label + (tone ?? "plain") + String(size ?? 0);',
+    'export const loud = ({ tone, size }: Loud): string => (tone ?? "loud") + String(size ?? 0);',
+    'export const shownQuiet = quiet({ label: "q", size: 1 });',
+    'export const shownLoud = loud({ tone: "high", size: 2 });',
+    'export const base: Base = { tone: "low" };',
+  ].join("\n"),
+};
+
+test("a write through a base or sibling member never writes the member that redeclares it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(REDECLARED);
+  for (const crossCheck of [false, true]) {
+    const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined, crossCheck });
+    expect(report.disagreements).toEqual([]);
+
+    const planted = report.unwired.filter(({ file }) => file.endsWith("box.ts"));
+    expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted()).toEqual([
+      "BoxPropsBase.className never-written",
+      "QuietBase.tone never-written",
+    ]);
+  }
+});

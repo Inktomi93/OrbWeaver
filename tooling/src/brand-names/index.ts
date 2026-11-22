@@ -1,1 +1,17 @@
-export { BrandTable, type NameMatch } from "../eslint/index.ts";
+export {
+  BRAND_MAKERS,
+  type BrandMatch,
+  BrandTable,
+  type BrandVerdict,
+  brandOfLabel,
+  brandOfPhantomKeys,
+  type Inflow,
+  isLibrarySource,
+  isPhantomKey,
+  type NameMatch,
+  type PhantomKey,
+  type SourceOrigin,
+  sharesBrand,
+  siteBrand,
+  TYPE_ID_BRANDS,
+} from "../eslint/index.ts";

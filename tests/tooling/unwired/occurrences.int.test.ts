@@ -49,6 +49,24 @@ test("a request repeated in one round or a later batch crosses to the compiler o
   sent.mockRestore();
 });
 
+test("a request generator that runs a batch of its own is refused, and the outer batch still settles", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(SPREADS);
+  using world = NativeWorld.open(root, WORLD);
+  const node = world.files[0]?.statements[0] as Node;
+  function* nested(): APIRequestGenerator<Type> {
+    world.batch([world.checker.getTypeAtLocation.gen(node)]);
+    return yield* world.checker.getTypeAtLocation.gen(node);
+  }
+  function* releasing(): APIRequestGenerator<Type> {
+    world.releaseAnswers();
+    return yield* world.checker.getTypeAtLocation.gen(node);
+  }
+  expect(() => world.batch([nested()])).toThrow(/NativeWorld\.batch ran inside a request generator/u);
+  expect(() => world.batch([releasing()])).toThrow(/NativeWorld\.releaseAnswers ran inside a request generator/u);
+  // positive control: the same ask from outside a generator settles once the refusal has unwound
+  expect(world.batch([world.checker.getTypeAtLocation.gen(node)])[0]?.id).toEqual(expect.any(Number));
+});
+
 test("the wider a type, the same number of compiler rounds", { timeout: 120_000 }, async ({ plantedTree }) => {
   const roundsFor = async (members: number): Promise<number> => {
     const names = Array.from({ length: members }, (_, at) => `m${at}: string`).join("; ");

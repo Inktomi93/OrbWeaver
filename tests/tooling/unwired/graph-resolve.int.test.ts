@@ -3,7 +3,11 @@
 // types, statics fill the slot a class value lands in, a lazy import uses its module whole, and an object literal's
 // method finds its own literal.
 import { expect, test } from "@orb/testkit/tooling";
-import { GRAPH_SOURCE, graphScan, labelsIn } from "./_planted.ts";
+import type { Node } from "@typescript/native/ast";
+import { isPropertyAccessExpression } from "@typescript/native/ast";
+import { Resolver } from "../../../tooling/src/unwired/graph/resolve.ts";
+import { NativeWorld } from "../../../tooling/src/unwired/native.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, labelsIn, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/names.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
@@ -97,8 +101,51 @@ test("an object literal's method fills the member of its own literal's slot", { 
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["api.extra"]);
 });
 
+test("a read through a generic keyof walks back to the type the keys came from", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Settings { readonly theme: string; readonly size: number }",
+      // the record's keys are a generic keyof spelled in the callee, not at the read: only keyof T's own target leads the walk to Settings
+      "declare function flagsFor<V>(): Record<keyof V, boolean>;",
+      "export const themed = <T extends Settings>(): boolean => flagsFor<T>().theme;",
+    ]),
+  );
+  expect(scan.lostReads.filter((read) => read.startsWith(FILE))).toEqual([]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Settings.size"]);
+});
+
+test("a zod enum's key is homed at the tuple only when the tuple holds the name read", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      ...source([
+        'import { z } from "zod";',
+        'export const KINDS = ["a", "b"] as const;',
+        "export const kindSchema = z.enum(KINDS);",
+        "export const picked = (): string => kindSchema.enum.a;",
+      ]),
+    }),
+  );
+  using world = NativeWorld.open(root, WORLD);
+  const resolver = new Resolver(world);
+  const file = world.files.find((planted) => world.siteOf(planted).file === FILE);
+  const receiverOf = (node: Node): Node | undefined =>
+    isPropertyAccessExpression(node) && node.getText() === "kindSchema.enum" ? node : node.forEachChild(receiverOf);
+  const receiver = file === undefined ? undefined : receiverOf(file);
+  if (receiver === undefined) {
+    throw new Error("the planted read kindSchema.enum.a is missing");
+  }
+  const [held, absent] = world.batch([resolver.annotationOrigin(receiver, "a"), resolver.annotationOrigin(receiver, "c")]);
+  expect(held?.end).toBe("home");
+  // a name the tuple lacks (a key the tuple dropped) is no key of the enum: the walk ends unresolved
+  expect(absent?.decls).toEqual([]);
+});
+
 // A read of a library's own member (`RegExp.test`, `Array.join`, `Object.fromEntries`) ends at the library's
-// declaration: it is the library's read, never a lost one, however often the walk asks the checker about it.
+// declaration: it is the library's read, never a lost one, however often the walk asks the checker about it. A walk
+// step that ran a batch of its own would read the outer round's answers around it; NativeWorld.batch throws on that, so
+// this walk fails loudly instead of losing the reads.
 test("a library member's read ends at the library, never lost", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,

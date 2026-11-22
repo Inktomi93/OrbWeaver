@@ -1,44 +1,34 @@
-// The delete trial: each candidate of the named buckets is removed in a throwaway snapshot, and every semantic error
-// the removal adds to the files that import it is a reader the graph missed, named by file and line.
+// The delete trial: each candidate of the named buckets is removed in a throwaway snapshot, with every export
+// specifier and re-export that names it, and every error the removal adds to the files that import an edited file,
+// directly or through a chain, is a reader the graph missed, named by file and line.
 //
-// - The checked files are the declaring file and its importers, direct or through a chain: a type reaches a reader
-//   through modules that never import its home. A declaration in a script file or under `declare global` is global, so
-//   the whole program is checked.
-// - An error is new when the base program has no error of its code at the same place; a place after the cut in the
-//   edited file moves back by the cut's length first.
-// - An excess-property error is the object literal that writes the member, and a missing-export error at an import or
-//   export is a binding that only names it. A delete removes those sites with the candidate, so they alone leave it
-//   named-only. An import binding its own file uses is a read: a failed import types its uses without an error.
+// - The import graph, the global and augmentation reach and the same-error key are the shared ones in
+//   tooling/src/floor/typescript/import-graph.ts.
+// - An error inside an import or export declaration only names the candidate, so a delete removes or rewrites that
+//   site with it: a binding. An excess-property error is the object literal that writes the member. Bindings and
+//   writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
+//   failed import types its uses without an error.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
 import { relative } from "node:path";
-import type { Declaration, ImportDeclaration, Node, SourceFile } from "@typescript/native/ast";
+import type { Declaration, Node, SourceFile } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
-  isCallExpression,
   isClassDeclaration,
   isClassExpression,
   isEnumDeclaration,
   isExportAssignment,
   isExportDeclaration,
-  isExternalModuleReference,
-  isFunctionDeclaration,
-  isIdentifier,
+  isExportSpecifier,
   isImportDeclaration,
-  isImportEqualsDeclaration,
   isImportSpecifier,
-  isImportTypeNode,
   isInterfaceDeclaration,
-  isLiteralTypeNode,
-  isModuleDeclaration,
+  isNamedExports,
   isNamespaceImport,
-  isNoSubstitutionTemplateLiteral,
   isObjectLiteralExpression,
   isPrivateIdentifier,
   isSourceFile,
-  isStringLiteral,
-  isTypeAliasDeclaration,
   isTypeLiteralNode,
   isVariableDeclaration,
   isVariableDeclarationList,
@@ -47,14 +37,16 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { Diagnostic } from "@typescript/native/sync";
-import { DiagnosticCategory } from "@typescript/native/sync";
+import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
+import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
+import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
-import { declKeyParts } from "./resolve.ts";
+import { declKeyParts, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
 import { nodeAt } from "./verify.ts";
@@ -89,12 +81,18 @@ export interface TrialError {
   readonly text: string;
 }
 
-/** One candidate's trial: the text the delete removed, the files it checked and the errors it added. */
+/** One span a delete removed, by its repository-relative file. */
+export interface Removal {
+  readonly file: string;
+  readonly text: string;
+}
+
+/** One candidate's trial: what the delete removed, the files it checked and the errors it added. */
 export interface Trial {
   readonly bucket: TrialBucket;
   readonly label: string;
   readonly verdict: TrialVerdict;
-  readonly removed: string;
+  readonly removed: readonly Removal[];
   readonly checked: readonly string[];
   readonly errors: readonly TrialError[];
   readonly note: string | null;
@@ -124,27 +122,15 @@ export interface TrialReport {
 const EXCESS_PROPERTY = 2353;
 const EXCESS_PROPERTY_SUGGESTED = 2561;
 const WRITE_CODES: ReadonlySet<number> = new Set([EXCESS_PROPERTY, EXCESS_PROPERTY_SUGGESTED]);
-// An import or export names a member its module no longer exports, or a module its last export left.
-const NOT_A_MODULE = 2306;
-const NO_EXPORTED_MEMBER = 2305;
-const NO_EXPORTED_MEMBER_DEFAULT = 2614;
-const NO_EXPORTED_MEMBER_SUGGESTED = 2724;
-const BINDING_CODES: ReadonlySet<number> = new Set([NOT_A_MODULE, NO_EXPORTED_MEMBER, NO_EXPORTED_MEMBER_DEFAULT, NO_EXPORTED_MEMBER_SUGGESTED]);
-// A wire diagnostic carries its category as a plain number.
-const ERROR: number = DiagnosticCategory.Error;
 // A trial logs its progress every this many candidates.
 const PROGRESS_EVERY = 50;
-
-interface Cut {
-  readonly pos: number;
-  readonly end: number;
-}
 
 const sameSpan = (a: Node, b: Node): boolean => a.pos === b.pos && a.end === b.end && a.kind === b.kind;
 
 const TRAILING_COMMA = /^\s*,/u;
 
-// The comma-separated list a node sits in: an object literal's properties, an enum's members, a declaration list.
+// The comma-separated list a node sits in: an object literal's properties, an enum's members, a declaration list or an
+// export list.
 function commaList(node: Node): readonly Node[] | undefined {
   const { parent } = node;
   if (isObjectLiteralExpression(parent)) {
@@ -153,143 +139,100 @@ function commaList(node: Node): readonly Node[] | undefined {
   if (isEnumDeclaration(parent)) {
     return parent.members;
   }
+  if (isNamedExports(parent)) {
+    return parent.elements;
+  }
   return isVariableDeclarationList(parent) ? parent.declarations : undefined;
 }
 
-/** The span a delete removes: the whole node with its leading trivia, its statement when it is a declaration list's
- *  only declaration, and in a comma-separated list the comma after it, else the one before it. A type or class member
+const wholeOf = (node: Node): Splice => ({ start: node.pos, end: node.end, text: "" });
+
+/** The span a delete removes: the whole node with its leading trivia, its statement when it is a declaration or export
+ *  list's only entry, and in a comma-separated list the comma after it, else the one before it. A type or class member
  *  holds its own separator. */
-export function deletion(source: SourceFile, node: Node): Cut {
+export function deletion(source: SourceFile, node: Node): Splice {
   const { parent } = node;
   if (isVariableDeclaration(node) && isVariableDeclarationList(parent) && parent.declarations.length === 1 && isVariableStatement(parent.parent)) {
-    return { pos: parent.parent.pos, end: parent.parent.end };
+    return wholeOf(parent.parent);
+  }
+  if (isExportSpecifier(node) && isNamedExports(parent) && parent.elements.length === 1) {
+    return wholeOf(parent.parent);
   }
   const list = commaList(node);
   const at = list?.findIndex((entry) => sameSpan(entry, node)) ?? -1;
   if (list === undefined || at === -1) {
-    return { pos: node.pos, end: node.end };
+    return wholeOf(node);
   }
   const next = list[at + 1];
   if (next !== undefined) {
-    return { pos: node.pos, end: next.pos };
+    return { start: node.pos, end: next.pos, text: "" };
   }
   const comma = TRAILING_COMMA.exec(source.text.slice(node.end))?.[0].length ?? 0;
   const previous = list[at - 1];
-  return previous === undefined ? { pos: node.pos, end: node.end + comma } : { pos: previous.end, end: node.end + comma };
-}
-
-const isStringSpecifier = (node: Node | undefined): node is Node => node !== undefined && (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node));
-
-// Every module specifier a file names: an import or export, an import-equals, an import type and a dynamic import.
-function specifiers(source: SourceFile): readonly Node[] {
-  const out: Node[] = [];
-  const visit = (node: Node): void => {
-    if ((isImportDeclaration(node) || isExportDeclaration(node)) && isStringSpecifier(node.moduleSpecifier)) {
-      out.push(node.moduleSpecifier);
-    } else if (isImportEqualsDeclaration(node) && isExternalModuleReference(node.moduleReference) && isStringSpecifier(node.moduleReference.expression)) {
-      out.push(node.moduleReference.expression);
-    } else if (isImportTypeNode(node) && isLiteralTypeNode(node.argument) && isStringSpecifier(node.argument.literal)) {
-      out.push(node.argument.literal);
-    } else if (isCallExpression(node) && node.expression.kind === SyntaxKind.ImportKeyword && isStringSpecifier(node.arguments[0])) {
-      out.push(node.arguments[0]);
-    }
-    node.forEachChild(visit);
-  };
-  source.forEachChild(visit);
-  return out;
+  return { start: previous === undefined ? node.pos : previous.end, end: node.end + comma, text: "" };
 }
 
 const exported = (declaration: Declaration): boolean => hasFlag(getCombinedModifierFlags(declaration), ModifierFlags.Export);
 
-// A file with no import, export or exported declaration is a script: its declarations are global.
-function isModule(source: SourceFile): boolean {
-  return source.statements.some(
-    (statement) =>
-      isImportDeclaration(statement) ||
-      isImportEqualsDeclaration(statement) ||
-      isExportDeclaration(statement) ||
-      isExportAssignment(statement) ||
-      (isVariableStatement(statement) && statement.declarationList.declarations.some(exported)) ||
-      ((isFunctionDeclaration(statement) ||
-        isClassDeclaration(statement) ||
-        isInterfaceDeclaration(statement) ||
-        isTypeAliasDeclaration(statement) ||
-        isEnumDeclaration(statement) ||
-        isModuleDeclaration(statement)) &&
-        exported(statement)),
-  );
-}
-
-function inGlobalScope(node: Node): boolean {
-  for (let at = node.parent; !isSourceFile(at); at = at.parent) {
-    if (isModuleDeclaration(at) && isIdentifier(at.name) && at.name.text === "global") {
-      return true;
+// The import or export declaration a node sits in.
+function moduleSite(node: Node | undefined): Node | undefined {
+  for (let at = node; at !== undefined && !isSourceFile(at); at = at.parent) {
+    if (isImportDeclaration(at) || isExportDeclaration(at) || isExportAssignment(at)) {
+      return at;
     }
   }
-  return false;
+  return undefined;
 }
 
-/** Which files import which, over every source of the world. */
-class Importers {
-  readonly #by = new Map<string, Set<string>>();
-  readonly #scripts = new Set<string>();
-  readonly #all: readonly string[];
-
-  constructor(world: NativeWorld) {
-    const sites = world.files.flatMap((source) => specifiers(source).map((node) => ({ file: world.fileOfSource(source), node })));
-    const modules = world.symbolsAt(sites.map(({ node }) => node));
-    for (const [at, { file }] of sites.entries()) {
-      const handle = modules[at]?.declarations[0];
-      const target = handle === undefined ? null : world.fileOf(handle);
-      if (target !== null && target !== file) {
-        const importers = this.#by.get(target) ?? new Set<string>();
-        importers.add(file);
-        this.#by.set(target, importers);
-      }
-    }
-    for (const source of world.files.filter((file) => !isModule(file))) {
-      this.#scripts.add(world.fileOfSource(source));
-    }
-    this.#all = world.files.map((source) => world.fileOfSource(source)).sort();
+// The local names an import declaration binds: its default, its namespace and each named specifier.
+function importBindings(statement: Node): readonly Node[] {
+  if (!isImportDeclaration(statement)) {
+    return [];
   }
-
-  /** The files a removal from `file` can break: `file` and every file that imports it through a chain, or every file
-   *  when the declaration is global. */
-  checked(file: string, node: Node): readonly string[] {
-    if (this.#scripts.has(file) || inGlobalScope(node)) {
-      return this.#all;
-    }
-    const seen = new Set([file]);
-    const queue = [file];
-    for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
-      for (const importer of this.#by.get(next) ?? []) {
-        if (!seen.has(importer)) {
-          seen.add(importer);
-          queue.push(importer);
-        }
-      }
-    }
-    return [...seen].sort();
+  const clause = statement.importClause;
+  const bindings = clause?.namedBindings;
+  const own = clause?.name === undefined ? [] : [clause.name];
+  if (bindings === undefined) {
+    return own;
   }
+  return [...own, ...(isNamespaceImport(bindings) ? [bindings.name] : bindings.elements.map(({ name }) => name))];
 }
 
-const errorKey = (code: number, pos: number): string => `${String(code)}@${String(pos)}`;
+// The deepest node that starts at `pos`.
+function touching(source: SourceFile, pos: number): Node | undefined {
+  let found: Node | undefined;
+  const visit = (node: Node): void => {
+    if (node.pos > pos || node.end <= pos) {
+      return;
+    }
+    if (node.getStart(source) === pos) {
+      found = node;
+    }
+    node.forEachChild(visit);
+  };
+  source.forEachChild(visit);
+  return found;
+}
 
 const firstLine = (text: string): string => text.split("\n")[0] ?? text;
+
+// The edits a delete makes, by repository-relative file.
+type Edits = ReadonlyMap<string, readonly Splice[]>;
 
 /** The trial session over one built graph and its world. */
 class Trials {
   readonly #graph: Graph;
   readonly #world: NativeWorld;
   readonly #root: string;
-  readonly #importers: Importers;
-  readonly #base = new Map<string, ReadonlySet<string>>();
+  readonly #imports: ImportGraph;
+  readonly #base = new Map<string, readonly Diagnostic[]>();
+  #resolver: Resolver | null = null;
 
-  constructor(graph: Graph) {
+  constructor(graph: Graph, world: NativeWorld, root: string) {
     this.#graph = graph;
-    this.#world = graph.state.world;
-    this.#root = graph.state.root;
-    this.#importers = new Importers(this.#world);
+    this.#world = world;
+    this.#root = root;
+    this.#imports = ImportGraph.build(world.program, (requests) => world.batch(requests), world.files);
   }
 
   #absolute(file: string): string {
@@ -301,19 +244,19 @@ class Trials {
   }
 
   // The base program's errors on each file, read once per file in one request for every file not yet read.
-  #baseErrors(files: readonly string[]): void {
+  #baseErrors(files: readonly string[]): readonly Diagnostic[] {
     const missing = files.filter((file) => !this.#base.has(file));
-    if (missing.length === 0) {
-      return;
+    if (missing.length > 0) {
+      const found = this.#world.program.getSemanticDiagnostics(missing.map((file) => this.#absolute(file)));
+      const byFile = new Map<string, Diagnostic[]>(missing.map((file) => [file, []]));
+      for (const diagnostic of found) {
+        byFile.get(this.#relative(diagnostic))?.push(diagnostic);
+      }
+      for (const [file, diagnostics] of byFile) {
+        this.#base.set(file, diagnostics);
+      }
     }
-    const found = this.#world.withProgram((program) => program.getSemanticDiagnostics(missing.map((file) => this.#absolute(file))));
-    const byFile = new Map<string, Set<string>>(missing.map((file) => [file, new Set<string>()]));
-    for (const diagnostic of found.filter(({ category }) => category === ERROR)) {
-      byFile.get(this.#relative(diagnostic))?.add(errorKey(diagnostic.code, diagnostic.pos));
-    }
-    for (const [file, keys] of byFile) {
-      this.#base.set(file, keys);
-    }
+    return files.flatMap((file) => this.#base.get(file) ?? []);
   }
 
   #line(file: string, pos: number, diagnostic: Diagnostic): number {
@@ -321,77 +264,108 @@ class Trials {
     return source === undefined ? (diagnostic.startPosition?.line ?? 0) + 1 : source.getLineAndCharacterOfPosition(pos).line + 1;
   }
 
-  run(bucket: TrialBucket, finding: Finding): Trial {
-    const unresolved = (note: string): Trial => ({ bucket, label: finding.label, verdict: "unresolved", removed: "", checked: [], errors: [], note });
+  /** The export specifiers and default exports that name each candidate, in any file, by find-references on its name. */
+  exportSites(nodes: readonly (Node | undefined)[]): readonly (readonly Node[])[] {
+    const world = this.#world;
+    const names = nodes.map((node) => (node === undefined ? undefined : declarationNameOf(node)));
+    const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
+    const handles = groups.map((entries) => entries.flatMap(({ references }) => references).filter((handle) => world.fileOf(handle) !== null));
+    const resolved = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
+    let at = 0;
+    return handles.map((list) => {
+      const found = resolved.slice(at, at + list.length);
+      at += list.length;
+      return found.flatMap((reference): Node[] => {
+        const { parent } = reference ?? {};
+        if (parent !== undefined && isExportSpecifier(parent)) {
+          return [parent];
+        }
+        return parent !== undefined && isExportAssignment(parent) ? [parent] : [];
+      });
+    });
+  }
+
+  run(bucket: TrialBucket, finding: Finding, node: Node | undefined, exportSites: readonly Node[]): Trial {
+    const unresolved = (note: string, cut: readonly Removal[] = []): Trial => ({
+      bucket,
+      label: finding.label,
+      verdict: "unresolved",
+      removed: cut,
+      checked: [],
+      errors: [],
+      note,
+    });
     const { key } = finding;
-    if (key === null || !isDeclKey(key)) {
-      return unresolved("the finding names no declaration");
-    }
-    const { file, pos, end, kind } = declKeyParts(key);
-    const source = this.#world.source(file);
-    const node = source === undefined ? undefined : nodeAt(source, { pos, end, kind });
-    if (source === undefined || node === undefined) {
+    if (key === null || !isDeclKey(key) || node === undefined) {
       return unresolved("no declaration at the finding's span");
     }
-    const cut = deletion(source, node);
-    const removed = source.text.slice(cut.pos, cut.end);
-    const checked = this.#importers.checked(file, node);
-    this.#baseErrors(checked);
-    const edit = { file, text: source.text.slice(0, cut.pos) + source.text.slice(cut.end) };
-    const { syntax, semantic } = this.#world.withProgram(
-      (program) => ({
-        syntax: program.getSyntacticDiagnostics(this.#absolute(file)),
-        semantic: program.getSemanticDiagnostics(checked.map((at) => this.#absolute(at))),
-      }),
-      edit,
+    const edits = this.#edits(key, node, exportSites);
+    const removed = [...edits].flatMap(([file, splices]) =>
+      splices.map(({ start, end }) => ({ file, text: this.#world.source(file)?.text.slice(start, end) ?? "" })),
     );
+    const edited = [...edits.keys()];
+    const checked = [
+      ...new Set([...edited, ...edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)))]),
+    ].sort();
+    const base = this.#baseErrors(checked);
+    const texts = Object.fromEntries(edited.map((file) => [this.#absolute(file), spliced(this.#world.source(file)?.text ?? "", edits.get(file) ?? [])]));
+    const { syntax, added } = this.#world.trial(texts, (program) => ({
+      syntax: program.getSyntacticDiagnostics(edited.map((file) => this.#absolute(file))),
+      added: addedErrors(
+        base,
+        program.getSemanticDiagnostics(checked.map((file) => this.#absolute(file))),
+        new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices])),
+      ),
+    }));
     if (syntax.length > 0) {
-      return { ...unresolved(`the delete edit does not parse: ${firstLine(syntax[0]?.text ?? "")}`), removed, checked };
+      return unresolved(`the delete edit does not parse: ${firstLine(syntax[0]?.text ?? "")}`, removed);
     }
-    const errors = semantic
-      .filter(({ category }) => category === ERROR)
-      .flatMap((diagnostic) => {
-        const at = this.#relative(diagnostic);
-        const old = at === file && diagnostic.pos >= cut.pos ? diagnostic.pos + (cut.end - cut.pos) : diagnostic.pos;
-        if (this.#base.get(at)?.has(errorKey(diagnostic.code, old)) === true) {
-          return [];
-        }
-        return [this.#error(diagnostic, at, old)];
-      });
+    const errors = added.map((error) => this.#error(error));
     return { bucket, label: finding.label, verdict: verdictOf(errors), removed, checked, errors, note: null };
   }
 
-  // A new error at `pos` of `file` in the unedited tree, placed at the reader when an import's own file reads the binding
-  // it breaks.
-  #error(diagnostic: Diagnostic, file: string, pos: number): TrialError {
-    const base = { code: diagnostic.code, text: firstLine(diagnostic.text) };
-    const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
-    if (WRITE_CODES.has(diagnostic.code)) {
-      return { ...base, at, kind: "write" };
+  // The candidate's own span and each export site that names it.
+  #edits(key: DeclKey, node: Node, exportSites: readonly Node[]): Edits {
+    const edits = new Map<string, Splice[]>();
+    const add = (at: string, splice: Splice): void => {
+      const list = edits.get(at) ?? [];
+      if (!list.some(({ start, end }) => start < splice.end && splice.start < end)) {
+        list.push(splice);
+      }
+      edits.set(at, list);
+    };
+    const { file } = declKeyParts(key);
+    add(file, deletion(node.getSourceFile(), node));
+    for (const site of exportSites) {
+      const source = site.getSourceFile();
+      add(this.#world.fileOfSource(source), isExportAssignment(site) ? wholeOf(site) : deletion(source, site));
     }
-    if (!BINDING_CODES.has(diagnostic.code)) {
-      return { ...base, at, kind: "read" };
-    }
-    const reader = this.#bindingReader(file, pos);
-    return reader === undefined
-      ? { ...base, at, kind: "binding" }
-      : { ...base, at: `${file}:${String(this.#line(file, reader.getStart(reader.getSourceFile()), diagnostic))}`, kind: "read" };
+    return edits;
   }
 
-  // The first use, in its own file, of an import binding a missing export or module breaks: the one specifier the error
-  // sits on, else every binding of its import. A re-export binds nothing, so it has none.
-  #bindingReader(file: string, pos: number): Node | undefined {
+  // A new error, placed at the reader when an import's own file reads the binding it breaks.
+  #error({ diagnostic, pos }: AddedError): TrialError {
+    const file = this.#relative(diagnostic);
+    const base = { code: diagnostic.code, text: firstLine(diagnostic.text) };
+    const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
     const source = this.#world.source(file);
-    let at: Node | undefined = source === undefined ? undefined : touching(source, pos);
-    let specifier: Node | undefined;
-    while (at !== undefined && !isImportDeclaration(at) && at.kind !== SyntaxKind.SourceFile) {
-      specifier = isImportSpecifier(at) ? at : specifier;
-      at = at.parent;
+    const site = source === undefined ? undefined : moduleSite(touching(source, pos));
+    if (site === undefined) {
+      return { ...base, at, kind: WRITE_CODES.has(diagnostic.code) ? "write" : "read" };
     }
-    if (source === undefined || at === undefined || !isImportDeclaration(at)) {
-      return undefined;
+    const reader = source === undefined ? undefined : this.#bindingReader(source, site, pos);
+    return reader === undefined
+      ? { ...base, at, kind: "binding" }
+      : { ...base, at: `${file}:${String(this.#line(file, reader.getStart(source), diagnostic))}`, kind: "read" };
+  }
+
+  // The first use, in its own file, of an import binding the delete breaks: the one specifier the error sits on, else
+  // every binding of its import. An export binds nothing in its file, so it has none.
+  #bindingReader(source: SourceFile, statement: Node, pos: number): Node | undefined {
+    let specifier: Node | undefined = touching(source, pos);
+    while (specifier !== undefined && !isImportSpecifier(specifier) && specifier !== statement && !isSourceFile(specifier)) {
+      specifier = specifier.parent;
     }
-    const statement = at;
     const names = specifier !== undefined && isImportSpecifier(specifier) ? [specifier.name] : importBindings(statement);
     const groups = this.#world.batch(names.map((name) => this.#world.referencedSymbolsOf(name)));
     const nodes = this.#world.batch(
@@ -407,14 +381,12 @@ class Trials {
 
   // TypeScript's unused-code diagnostics on the product files against the graph's dead units and private members.
   control(analysis: Analysis): readonly ControlRow[] {
-    const { state } = this.#graph;
-    const product = this.#graph.files.filter((file) => state.product(file) && this.#world.has(file));
-    const unused = this.#world
-      .withProgram((program) => {
-        const files = product.map((file) => this.#absolute(file));
-        return [...program.getSuggestionDiagnostics(files), ...program.getSemanticDiagnostics(files)];
-      })
-      .filter(({ reportsUnnecessary }) => reportsUnnecessary === true);
+    const { facts } = this.#graph;
+    const product = this.#graph.files.filter((file) => isProduction(file) && this.#world.has(file)).map((file) => this.#absolute(file));
+    const { program } = this.#world;
+    const unused = [...program.getSuggestionDiagnostics(product), ...program.getSemanticDiagnostics(product)].filter(
+      ({ reportsUnnecessary }) => reportsUnnecessary === true,
+    );
     const bucketOf = new Map<GraphKey, Bucket>(
       BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key === null ? [] : [[key, bucket] as const]))),
     );
@@ -422,7 +394,7 @@ class Trials {
     const rows = unused.map((diagnostic) => this.#tsRow(diagnostic, graphDead, bucketOf));
     const agreed = new Set(rows.flatMap(({ row, key }) => (row.side === "agree" && key !== undefined ? [key] : [])));
     const graphOnly = [...graphDead].flatMap(([key, bucket]): ControlRow[] => {
-      const info = state.decls.get(key);
+      const info = facts.decls.get(key);
       return agreed.has(key) || info === undefined
         ? []
         : [{ side: "graph-only", at: `${info.file}:${String(info.line)}`, name: info.name, code: null, graph: bucket }];
@@ -436,11 +408,12 @@ class Trials {
     graphDead: ReadonlyMap<DeclKey, Bucket>,
     bucketOf: ReadonlyMap<GraphKey, Bucket>,
   ): { readonly row: ControlRow; readonly key: DeclKey | undefined } {
-    const { state } = this.#graph;
+    const { facts } = this.#graph;
     const file = this.#relative(diagnostic);
     const source = this.#world.source(file);
     const declaration = source === undefined ? undefined : declarationAt(source, diagnostic);
-    const key = declaration === undefined ? undefined : state.resolver.keyOf(declaration);
+    this.#resolver ??= new Resolver(this.#world);
+    const key = declaration === undefined ? undefined : this.#resolver.keyOf(declaration);
     const base = {
       at: `${file}:${String(this.#line(file, diagnostic.pos, diagnostic))}`,
       name: source?.text.slice(diagnostic.pos, diagnostic.end) ?? "",
@@ -449,7 +422,7 @@ class Trials {
     if (key !== undefined && graphDead.has(key)) {
       return { row: { ...base, side: "agree", graph: graphDead.get(key) ?? "" }, key };
     }
-    const info = key === undefined ? undefined : state.decls.get(key);
+    const info = key === undefined ? undefined : facts.decls.get(key);
     if (declaration !== undefined && info !== undefined && judged(declaration, info.top)) {
       return { row: { ...base, side: "ts-only", graph: (key === undefined ? undefined : bucketOf.get(key)) ?? "live" }, key };
     }
@@ -462,21 +435,26 @@ class Trials {
     const out = new Map<DeclKey, Bucket>();
     for (const bucket of ["dead", ...MEMBER_BUCKETS] as const) {
       for (const { key } of analysis[bucket]) {
-        const node = key !== null && isDeclKey(key) ? this.#nodeOf(key) : undefined;
-        if (node !== undefined && isDeclKey(node.key) && (bucket === "dead" ? !exported(node.node as Declaration) : isPrivateMember(node.node))) {
-          out.set(node.key, bucket);
+        const node = key !== null && isDeclKey(key) ? this.nodeOf(key) : undefined;
+        if (key !== null && isDeclKey(key) && node !== undefined && (bucket === "dead" ? !exported(node as Declaration) : isPrivateMember(node))) {
+          out.set(key, bucket);
         }
       }
     }
     return out;
   }
 
-  #nodeOf(key: DeclKey): { readonly key: DeclKey; readonly node: Node } | undefined {
+  /** The declaration a key names, in the world's parse. */
+  nodeOf(key: DeclKey): Node | undefined {
     const parts = declKeyParts(key);
     const source = this.#world.source(parts.file);
-    const node = source === undefined ? undefined : nodeAt(source, parts);
-    return node === undefined ? undefined : { key, node };
+    return source === undefined ? undefined : nodeAt(source, parts);
   }
+}
+
+function* noReferences(): ReturnType<NativeWorld["referencedSymbolsOf"]> {
+  yield* [];
+  return [];
 }
 
 function verdictOf(errors: readonly TrialError[]): TrialVerdict {
@@ -504,33 +482,6 @@ const judged = (node: Node, top: boolean): boolean =>
   isObjectLiteralExpression(node.parent) ||
   isEnumDeclaration(node.parent);
 
-// The local names an import declaration binds: its default, its namespace and each named specifier.
-function importBindings(statement: ImportDeclaration): readonly Node[] {
-  const clause = statement.importClause;
-  const bindings = clause?.namedBindings;
-  const own = clause?.name === undefined ? [] : [clause.name];
-  if (bindings === undefined) {
-    return own;
-  }
-  return [...own, ...(isNamespaceImport(bindings) ? [bindings.name] : bindings.elements.map(({ name }) => name))];
-}
-
-// The deepest node that starts at `pos`.
-function touching(source: SourceFile, pos: number): Node | undefined {
-  let found: Node | undefined;
-  const visit = (node: Node): void => {
-    if (node.pos > pos || node.end <= pos) {
-      return;
-    }
-    if (node.getStart(source) === pos) {
-      found = node;
-    }
-    node.forEachChild(visit);
-  };
-  source.forEachChild(visit);
-  return found;
-}
-
 // The declaration a diagnostic's span covers: the node with that span, or the declaration it names.
 function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undefined {
   let found: Node | undefined;
@@ -550,15 +501,22 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
 }
 
 /** Run the delete trial over every finding of the named buckets, then the unused-diagnostics control. */
-export function runTrials(graph: Graph, analysis: Analysis, buckets: readonly TrialBucket[], log: (line: string) => void): TrialReport {
-  const trials = new Trials(graph);
-  const candidates = [...new Set(buckets)].flatMap((bucket) => analysis[bucket].map((finding) => ({ bucket, finding })));
+export function runTrials(
+  graph: Graph,
+  world: NativeWorld,
+  run: { readonly root: string; readonly analysis: Analysis; readonly buckets: readonly TrialBucket[] },
+  log: (line: string) => void,
+): TrialReport {
+  const trials = new Trials(graph, world, run.root);
+  const candidates = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
+  const nodes = candidates.map(({ finding: { key } }) => (key !== null && isDeclKey(key) ? trials.nodeOf(key) : undefined));
+  const exportSites = trials.exportSites(nodes);
   const results: Trial[] = [];
   for (const [at, { bucket, finding }] of candidates.entries()) {
-    results.push(trials.run(bucket, finding));
+    results.push(trials.run(bucket, finding, nodes[at], exportSites[at] ?? []));
     if ((at + 1) % PROGRESS_EVERY === 0) {
       log(`trial ${String(at + 1)}/${String(candidates.length)}`);
     }
   }
-  return { trials: results, control: trials.control(analysis) };
+  return { trials: results, control: trials.control(run.analysis) };
 }

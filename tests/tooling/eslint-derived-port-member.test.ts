@@ -6,7 +6,10 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { derivedPortMemberRule } from "../../tooling/src/eslint/derived-port.ts";
+import { DRIZZLE_PACKAGE } from "../../tooling/src/eslint/library-source.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 
 const RULE = "orb/derived-port-member";
 const SERVICE = "packages/server/src/domain/sessions/contract/service.ts";
@@ -349,4 +352,41 @@ test("the production config registers derived-port-member as an error on server 
   const expected = lint(planted, SITE, source, derivedPortMemberRule);
   expect(expected).toHaveLength(1);
   expect(lint(planted, SITE, source, registered)).toEqual(expected);
+});
+
+// A cross-domain signature's foreign types are classified by the package the program loaded each from: a store-linked
+// drizzle outside every node_modules directory still hands over a db handle, and a workspace package exporting the same
+// name hands over a runtime type, which leaves the consumer a split signature of its own.
+const LINKED_SERVICE = "packages/server/src/domain/sessions/contract/linked-service.ts";
+const LINKED_SITE = "packages/server/src/domain/admin/contract/linked-probe.ts";
+const LINKED_FINDINGS: Readonly<Record<Link, readonly Reported[]>> = {
+  workspace: [],
+  dependency: [reported({ messageId: "crossDomainDbHandle", data: { restating: "Port.raw", owner: "LinkedService.raw", handles: "SQL" } })],
+};
+
+test.for(LINKS)("a cross-domain op returning SQL from a %s named drizzle-orm", async (link, { plantedTree }) => {
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    { name: DRIZZLE_PACKAGE, files: { "index.d.ts": "export interface SQL {\n  readonly text: string;\n}" } },
+    {
+      [LINKED_SERVICE]: [
+        `import type { SQL } from "${DRIZZLE_PACKAGE}";`,
+        "export interface LinkedService {",
+        "  raw: (id: string) => SQL;",
+        "}",
+        "export declare const linked: LinkedService;",
+      ].join("\n"),
+      [LINKED_SITE]: [
+        'import { linked } from "../../sessions/contract/linked-service.ts";',
+        `import type { SQL } from "${DRIZZLE_PACKAGE}";`,
+        "interface Port {",
+        "  readonly raw: (id: string) => SQL;",
+        "}",
+        "export const port: Port = linked;",
+      ].join("\n"),
+    },
+  );
+  const found = lintLinked(root, LINKED_SITE, { "derived-port-member": derivedPortMemberRule }, { files: [LINKED_SERVICE, LINKED_SITE] });
+  expect(found.map(({ messageId, message }) => ({ messageId, message }))).toEqual(LINKED_FINDINGS[link]);
 });

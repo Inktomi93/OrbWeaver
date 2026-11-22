@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { MutantEdit } from "../../../tooling/src/mutation-checker/index.ts";
 import { MutantWorld } from "../../../tooling/src/mutation-checker/index.ts";
+import type { Link } from "../_library-link.ts";
+import { LINKS, PACKAGE_DIR, plantLinked } from "../_library-link.ts";
 
 const WORLD = "tsconfig.json";
 const LIB = "src/lib.ts";
@@ -84,6 +86,25 @@ test.for(AUGMENTED_WORLDS)("a mutant whose break shows only through $name it aug
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
 });
 
+// A script file's declarations are global: the reader names its constant without importing anything.
+const SCRIPT_TEXT = `const SCRIPT_FLAGS = ${FLAGS_VALUE};`;
+
+test("a mutant in a script file fails on a reader that names its global", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: ["ESNext"] }),
+    [FLAGS]: SCRIPT_TEXT,
+    [READER]: "export const dark = (): boolean => SCRIPT_FLAGS.dark;",
+  });
+  using world = MutantWorld.open(root, WORLD);
+  const column = SCRIPT_TEXT.indexOf(FLAGS_VALUE);
+  const verdict = world.judge({
+    fileName: join(root, FLAGS),
+    replacement: "{}",
+    location: { start: { line: 0, column }, end: { line: 0, column: column + FLAGS_VALUE.length } },
+  });
+  expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
+});
+
 // The mutated file only feeds the augmenting file; the reader imports neither, so only the augmentation's reach finds it.
 const ROUTE = "src/route.ts";
 const ROUTE_VALUE = '{ path: "/a" }';
@@ -112,4 +133,35 @@ test("a mutant outside the world's program passes unread", async ({ plantedTree 
   const root = await plantedTree(TREE);
   using world = MutantWorld.open(root, WORLD);
   expect(world.judge({ ...edit(root, "start + 1", "start.length"), fileName: join(root, "elsewhere.ts") })).toEqual({ errors: [], checked: [] });
+});
+
+// A reader is one of the world's own sources by the program's answer: a workspace package linked through node_modules
+// is read, and a dependency's source the store keeps outside every node_modules directory is not.
+const LINKED_ENTRY = "index.ts";
+const LINKED_USE = "src/uses.ts";
+const LINKED_READ: Readonly<Record<Link, boolean>> = { workspace: true, dependency: false };
+
+test.for(LINKS)("a global augmentation's readers take a %s's source only when it is the tree's own", async (link, { plantedTree }) => {
+  const [global] = AUGMENTED_WORLDS;
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    { name: "linked", types: LINKED_ENTRY, files: { [LINKED_ENTRY]: "export const linked = (flags: OrbFlags): boolean => flags.current.dark;" } },
+    {
+      [WORLD]: plantedTsconfig({ lib: ["ESNext"] }),
+      [FLAGS]: global.flags,
+      [READER]: global.reader,
+      [LINKED_USE]: 'export { linked } from "linked";',
+    },
+  );
+  using world = MutantWorld.open(root, WORLD);
+  const before = global.flags.slice(0, global.flags.indexOf(FLAGS_VALUE)).split("\n");
+  const start = { line: before.length - 1, column: before.at(-1)?.length ?? 0 };
+  const verdict = world.judge({
+    fileName: join(root, FLAGS),
+    replacement: "{}",
+    location: { start, end: { ...start, column: start.column + FLAGS_VALUE.length } },
+  });
+  expect(verdict.checked).toContain(join(root, READER));
+  expect(verdict.checked.includes(join(root, PACKAGE_DIR[link], LINKED_ENTRY))).toBe(LINKED_READ[link]);
 });

@@ -3,18 +3,23 @@
 //
 // A role is kept by world: what product code does to a member decides the product buckets; what tests, tooling and
 // scripts do only annotates them, so a field only a test reads is still unread by the product.
+// - Owner ruling: snap (tooling/src/snap/) drives the product as its user does, so its read of a member is a product
+//   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate.
 import type { Expression } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
+import type { GraphOptions } from "./options.ts";
+import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, Resolver } from "./resolve.ts";
+import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
-import { NO_ROLES, withRoles } from "./roles.ts";
+import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
+import { WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
 export interface MemberRoles {
@@ -23,8 +28,152 @@ export interface MemberRoles {
   write: string | null;
 }
 
+const SNAP_SOURCE = "tooling/src/snap/";
+
+/** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
+export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
+
 /** Directed edges between graph nodes. */
 export type Edges = Map<GraphKey, Set<GraphKey>>;
+/** Edges as the analysis reads them. */
+export type ReadonlyEdges = ReadonlyMap<GraphKey, ReadonlySet<GraphKey>>;
+
+/** An axis's home: an `as const` tuple or a literal-union alias, by its sorted members. */
+export interface UnionHome {
+  readonly members: readonly string[];
+  readonly where: string;
+}
+
+/** A string-literal union of more members than a two-state alias, written inline in a product type position. */
+export interface InlineUnion {
+  readonly members: readonly string[];
+  readonly file: string;
+  readonly line: number;
+  /** The nearest named declaration around it. */
+  readonly context: string;
+}
+
+/** The registry sites the graph reads: a function a rule exempts, or a ruled joint-batch op. */
+export const REGISTRY_KINDS = ["site", "op"] as const;
+export type RegistryKind = (typeof REGISTRY_KINDS)[number];
+
+/** A site an ESLint rule names: a function by its file and name, or a ruled op by its owning domain and name. */
+export interface RegistrySite {
+  readonly kind: RegistryKind;
+  readonly file: string;
+  readonly line: number;
+  /** The file a function site names, or the domain that owns an op. */
+  readonly target: string;
+  readonly name: string;
+}
+
+const LOST_SOURCES = ["named-union", "inline-union", "no-literal-key"] as const;
+
+/**
+ * Where a lost read lands, read off the read's own symbol and its receiver's type, first match wins: a receiver typed
+ * any or unknown, a receiver that is a type parameter, a member bound late from a computed key, an index signature's
+ * member, a member a call inferred through a mapped type (reverse-mapped), a mapped type's member, a member only a
+ * library declares, a union's or intersection's merged member, an instantiated member with no declaration, and the rest.
+ */
+const LOST_SLOTS = [
+  "any-receiver",
+  "type-parameter",
+  "late-bound",
+  "index-signature",
+  "reverse-mapped",
+  "mapped-member",
+  "library-member",
+  "synthetic",
+  "instantiated",
+  "no-declaration",
+] as const;
+export type LostSlot = (typeof LOST_SLOTS)[number];
+
+/** What a lost read's key source walk found: a named literal union (an axis with a home), an inline literal set, or nothing. */
+export interface LostKey {
+  readonly source: (typeof LOST_SOURCES)[number];
+  readonly alias: string | null;
+  readonly members: readonly string[];
+}
+
+/** Why a read was lost: its key's source, the slot it lands in, and the receiver it was read from. */
+export interface LostCause extends LostKey {
+  readonly read: string;
+  /** `file:line`, for a sample a reader can open. */
+  readonly where: string;
+  readonly slot: LostSlot;
+  /** The packages that declare the read's member, joined; null when the tree or nothing declares it. */
+  readonly detail: string | null;
+  /** The receiver's type by its alias or symbol name, then the package or file that declares it. */
+  readonly receiver: string;
+}
+
+/** A read whose walk ended at a library's own declaration: the library owns the member, so the read is not lost. */
+export interface LibraryLanding {
+  readonly where: string;
+  readonly member: string;
+  /** The packages whose declarations ended the walk. */
+  readonly packages: readonly string[];
+}
+
+/** One half of a React state tuple, at the site that holds it. */
+export interface StatePart {
+  readonly decl: DeclKey;
+  readonly part: "value" | "setter";
+  readonly file: string;
+  readonly line: number;
+}
+
+/** A custom-property name a script holds, with the member that holds it and the entry it was read from. */
+export interface CssName {
+  readonly holder: DeclKey;
+  readonly entry: DeclKey | null;
+  readonly name: string;
+}
+
+/** A doc link whose target is declared nowhere. */
+export interface DanglingDoc {
+  readonly file: string;
+  readonly line: number;
+  readonly text: string;
+}
+
+/** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
+export interface GraphFacts {
+  readonly decls: ReadonlyMap<DeclKey, DeclInfo>;
+  readonly run: ReadonlyEdges;
+  readonly typ: ReadonlyEdges;
+  readonly doc: ReadonlyEdges;
+  readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
+  readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
+  readonly door: ReadonlySet<DeclKey>;
+  readonly twins: readonly (readonly [DeclKey, DeclKey])[];
+  readonly stateParts: readonly StatePart[];
+  readonly cssNames: readonly CssName[];
+  readonly pins: readonly DeclKey[];
+  readonly danglingDocs: readonly DanglingDoc[];
+  readonly lostReads: readonly string[];
+  readonly counts: ReadonlyMap<string, number>;
+  /** The largest value each measure reached, such as the deepest level an origin walk found its home on. */
+  readonly peaks: ReadonlyMap<string, number>;
+  readonly roots: Pick<Roots, "modules" | "keepTags">;
+  readonly unionHomes: readonly UnionHome[];
+  readonly inlineUnions: readonly InlineUnion[];
+  readonly registrySites: readonly RegistrySite[];
+  /** Every name the server's source spells, declared or used: what a ruled op can be keyed by. */
+  readonly serverNames: ReadonlySet<string>;
+  /** Each lost read's key source, in {@link GraphFacts.lostReads} order. */
+  readonly lostCauses: readonly LostCause[];
+  /** The bare reads whose walk ended at a library's own declaration. */
+  readonly libraryLandings: readonly LibraryLanding[];
+}
+
+/** What one build runs under: the session's options, its log, and its profile when one is asked for. */
+export interface BuildSession {
+  readonly options: GraphOptions;
+  readonly log: (line: string) => void;
+  readonly profile: GraphProfile | null;
+}
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
 const PRIMITIVE_FLAGS = [
@@ -51,11 +200,13 @@ const addEdge = <K extends GraphKey>(edges: Map<K, Set<K>>, from: K, to: K): voi
 };
 
 /** The graph a build writes and its analysis reads. */
-export class GraphState {
+export class GraphState implements GraphFacts {
   readonly root: string;
   readonly world: NativeWorld;
   readonly resolver: Resolver;
   readonly roots: Roots;
+  readonly session: BuildSession;
+  readonly why: WhyTracker | null;
   readonly decls = new Map<DeclKey, DeclInfo>();
   readonly run: Edges = new Map();
   readonly typ: Edges = new Map();
@@ -67,21 +218,30 @@ export class GraphState {
   readonly door = new Set<DeclKey>();
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
-  readonly stateParts: { readonly decl: DeclKey; readonly part: "value" | "setter"; readonly file: string; readonly line: number }[] = [];
-  readonly cssNames: { readonly holder: DeclKey; readonly entry: DeclKey | null; readonly name: string }[] = [];
+  readonly stateParts: StatePart[] = [];
+  readonly cssNames: CssName[] = [];
   readonly pins: DeclKey[] = [];
-  readonly danglingDocs: { readonly file: string; readonly line: number; readonly text: string }[] = [];
+  readonly danglingDocs: DanglingDoc[] = [];
   readonly lostReads: string[] = [];
   readonly counts = new Map<string, number>();
+  readonly peaks = new Map<string, number>();
+  readonly unionHomes: UnionHome[] = [];
+  readonly inlineUnions: InlineUnion[] = [];
+  readonly registrySites: RegistrySite[] = [];
+  readonly serverNames = new Set<string>();
+  readonly lostCauses: LostCause[] = [];
+  readonly libraryLandings: LibraryLanding[] = [];
   readonly #product = new Map<string, boolean>();
   readonly #origins = new Map<string, OriginWalk>();
   readonly #members = new Map<number, readonly DeclKey[]>();
 
-  constructor(root: string, world: NativeWorld, roots: Roots) {
+  constructor(root: string, world: NativeWorld, roots: Roots, session: BuildSession) {
     this.root = root;
     this.world = world;
-    this.resolver = new Resolver(world);
+    this.resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
     this.roots = roots;
+    this.session = session;
+    this.why = session.options.why.length > 0 ? new WhyTracker(world, session.options.why) : null;
   }
 
   /** Whether a repository-relative file ships in the product. */
@@ -103,8 +263,9 @@ export class GraphState {
   }
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
+    this.why?.note(key, role, file, at);
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
-    if (this.product(file)) {
+    if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
         roles.write = `${file}:${String(at)}`;
@@ -123,6 +284,10 @@ export class GraphState {
 
   count(name: string, by = 1): void {
     this.counts.set(name, (this.counts.get(name) ?? 0) + by);
+  }
+
+  peak(name: string, value: number): void {
+    this.peaks.set(name, Math.max(this.peaks.get(name) ?? value, value));
   }
 
   batch<T>(requests: readonly APIRequestGenerator<T>[]): T[] {
@@ -213,15 +378,19 @@ export class GraphState {
       groups.set(type.id, group);
     }
     const pending = [...groups.values()].map(({ type, names }) => ({ type, names: [...names] }));
-    const walks = this.batch(pending.map(({ type, names }) => this.resolver.originsOf(type, names)));
+    const ask = (): OriginWalk[][] => this.batch(pending.map(({ type, names }) => this.resolver.originsOf(type, names)));
+    const walks = this.session.profile === null ? ask() : this.session.profile.time("origin", ask);
     for (const [at, { type, names }] of pending.entries()) {
       for (const [index, name] of names.entries()) {
-        this.#origins.set(originKey(type, name), walks[at]?.[index] ?? { decls: [], depth: -1, end: "exhausted" });
+        this.#origins.set(originKey(type, name), walks[at]?.[index] ?? EXHAUSTED);
       }
     }
     return asks.map(({ type, name }) => {
-      const walk = this.#origins.get(originKey(type, name)) ?? { decls: [], depth: -1, end: "exhausted" };
+      const walk = this.#origins.get(originKey(type, name)) ?? EXHAUSTED;
       this.count(walk.decls.length > 0 ? "origin recovered" : `origin ${walk.end}`);
+      if (walk.decls.length > 0) {
+        this.peak("origin depth", walk.depth);
+      }
       return walk;
     });
   }
