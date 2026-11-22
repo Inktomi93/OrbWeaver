@@ -272,7 +272,7 @@ test("a judged row reports apart with its open item, and an entry for a done ite
 // every site that reaches the member by type: a contextual literal, a returned literal, an intersection literal, a JSX
 // attribute on the component, an override and an implementation; an import alias and a re-export are never tagged.
 const FAMILY_SOURCE = [
-  "export interface Base { readonly tone?: string }",
+  'import { host, type HostAttributes } from "hostlib"; export interface Base { readonly tone?: string }',
   "export interface Own extends Base { readonly tone?: string }",
   "export interface Other extends Base { readonly tone?: string }",
   "export interface Leaf extends Own { readonly tone?: string }",
@@ -293,9 +293,10 @@ const FAMILY_SOURCE = [
 const FAMILY = {
   "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB, jsx: "preserve" }),
   "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
-  "packages/a/src/host.d.ts": [
-    "interface HostAttributes { readonly className?: string; readonly id?: string }",
-    "declare function host(attributes: HostAttributes): string;",
+  "node_modules/hostlib/package.json": JSON.stringify({ name: "hostlib", types: "index.d.ts" }),
+  "node_modules/hostlib/index.d.ts": [
+    "export interface HostAttributes { readonly className?: string; readonly id?: string }",
+    "export declare function host(attributes: HostAttributes): string;",
   ].join("\n"),
   "packages/a/src/family.ts": FAMILY_SOURCE,
   "packages/a/src/view.tsx": [
@@ -322,7 +323,7 @@ test("engine two tags the sites only a base or sibling member reaches, in both e
     const served = serviceReferences(root, worlds, asked, { log: () => undefined, crossCheck, lists: NativeWorld.fileLists(root, worlds) });
     return asked.map((site) =>
       (served.get(`${site.file}:${site.position}`) ?? [])
-        // The planted declaration file stands in for a library, whose own sites neither engine counts as uses.
+        // A library's own sites are no use to either engine.
         .filter((found) => !found.file.endsWith(".d.ts"))
         .map((found) => `${found.file.replace("packages/a/src/", "")}:${sources.line(found)}${found.relative ? " relative" : ""}`)
         .toSorted(),
@@ -348,4 +349,24 @@ test("engine two tags the sites only a base or sibling member reaches, in both e
   ];
   expect(tagged(false)).toEqual(expected);
   expect(tagged(true)).toEqual(expected);
+});
+
+test("engine two walks an inheriting member a declaration file of the tree's own declares", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const rootSource = 'export interface Root { readonly mark?: string }\nexport const read = (root: Root): string => root.mark ?? "";';
+  const root = await plantedTree({
+    "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
+    "packages/a/src/root.ts": rootSource,
+    "packages/a/src/ambient.d.ts":
+      'import type { Root } from "./root.ts";\ndeclare global {\n  interface AmbientChild extends Root { readonly mark?: string }\n}',
+    "packages/a/src/use.ts": 'export const viaChild = (child: AmbientChild): string => child.mark ?? "";',
+  });
+  const sources = new Sources(root);
+  const worlds = ["packages/a/tsconfig.json"];
+  const asked = { file: "packages/a/src/root.ts", position: rootSource.indexOf("mark") };
+  const served = serviceReferences(root, worlds, [asked], { log: () => undefined, crossCheck: true, lists: NativeWorld.fileLists(root, worlds) });
+  const tags = (served.get(`${asked.file}:${asked.position}`) ?? [])
+    .filter((found) => found.file === "packages/a/src/use.ts")
+    .map((found) => `${sources.line(found)}${found.relative ? " relative" : ""}`);
+  // AmbientChild.mark overrides Root.mark through the ambient file's heritage clause, so the read reaches it by type
+  expect(tags).toEqual(["1"]);
 });

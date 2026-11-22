@@ -13,9 +13,6 @@ import { loadScanWorld, realpath } from "./worlds.ts";
 const isServiceMember = (symbol: ts.Symbol): boolean =>
   hasFlag(symbol.flags, ts.SymbolFlags.PropertyOrAccessor) || hasFlag(symbol.flags, ts.SymbolFlags.Method);
 
-// A declaration file or a dependency: the same files the native engine leaves out of a world's sources.
-const isLibraryFile = (fileName: string): boolean => fileName.includes("/node_modules/") || fileName.endsWith(".d.ts");
-
 /** One world's program behind a TypeScript 6 language service. */
 export class ServiceWorld {
   readonly config: string;
@@ -98,11 +95,18 @@ export class ServiceWorld {
     return !(declarations.some((declaration) => own.has(declaration)) || this.#inherits(symbol, own, new Set()));
   }
 
+  // A library's file as the program loaded it, the native engine's test (`tooling/src/unwired/native.ts`): an external
+  // library or the default lib. A declaration file of the tree's own is ours, and a workspace package resolves to its
+  // real path through the host's `realpath`, so it is never external.
+  #isLibrary(file: ts.SourceFile): boolean {
+    return this.program.isSourceFileFromExternalLibrary(file) || this.program.isSourceFileDefaultLibrary(file);
+  }
+
   // Whether `member` overrides a declaration in `own` through its owner's `extends` or `implements` chain. A library
   // member never inherits a tree member, so only a member the world's sources declare is walked.
   #inherits(member: ts.Symbol, own: ReadonlySet<ts.Declaration>, seen: Set<ts.Symbol>): boolean {
     const declarations = member.declarations ?? [];
-    if (seen.has(member) || declarations.every((declaration) => isLibraryFile(declaration.getSourceFile().fileName))) {
+    if (seen.has(member) || declarations.every((declaration) => this.#isLibrary(declaration.getSourceFile()))) {
       return false;
     }
     seen.add(member);
