@@ -11,6 +11,7 @@
 //   a key and sends no request: it is counted in `keys` and calls nothing. A same-named method declared anywhere else
 //   is a call.
 // - A route is a Hono verb registration under {@link ROUTE_HOMES}. Its path and each request's URL fold through ./urls.ts.
+// - A platform request is one a browser sends: its file's own world loads the DOM library (worlds.ts `browserFiles`).
 // - A route or procedure called from outside the repository sits in {@link OUTSIDE_CALLERS}, one reason per row, and is
 //   printed so the owner can rule on each row.
 import type { CallExpression, Expression, Node, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "@typescript/native/ast";
@@ -31,6 +32,7 @@ import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, isPropertyName } from "../native.ts";
+import { browserFiles } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
@@ -600,7 +602,7 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
   const procedures = procedureInventory(world, homed(PROCEDURE_HOMES));
   const routes = routeInventory(world, homed(ROUTE_HOMES));
   const outside = new Map(OUTSIDE_CALLERS.map((row) => [outsideKey(row), { row, at: [] as string[], calls: 0 }] as const));
-  const requests = requestsOf(world, sources);
+  const requests = requestsOf(world, sources, browserFiles(options.root));
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(tallyProcedures(world, graph.facts.roleSites, procedures), outside), ...judgeRoutes(routes, credits, outside)];
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));

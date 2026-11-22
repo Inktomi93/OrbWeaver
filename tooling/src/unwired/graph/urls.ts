@@ -548,8 +548,40 @@ function* writtenMembers(world: NativeWorld, name: Identifier): APIRequestGenera
   return own === undefined ? [] : [own];
 }
 
-/** Every request the files send: platform request calls, URL member writes, and calls of URL builders. */
-export function requestsOf(world: NativeWorld, files: readonly SourceFile[]): readonly Request[] {
+// The request sites a node is: a URL member write or a platform request call in a browser's file, or a builder call.
+function collectSite(
+  node: Node,
+  platform: boolean,
+  into: {
+    readonly calls: (CallExpression | NewExpression)[];
+    readonly writes: { readonly name: Identifier; readonly value: Expression }[];
+    readonly builderCalls: { readonly call: Node; readonly name: Node }[];
+  },
+  callsBuilder: (name: Identifier) => boolean,
+): void {
+  const written = platform ? urlWrite(node) : null;
+  if (written !== null) {
+    into.writes.push(written);
+  }
+  if (!(isCallExpression(node) || isNewExpression(node))) {
+    return;
+  }
+  const name = nameOf(unwrap(node.expression));
+  if (name === null) {
+    return;
+  }
+  if (platform && REQUEST_NAMES.has(name.text)) {
+    into.calls.push(node);
+  }
+  if (isCallExpression(node) && callsBuilder(name)) {
+    into.builderCalls.push({ call: node, name });
+  }
+}
+
+/** Every request the files send: platform request calls and URL member writes in a file a browser runs, and calls of
+ *  URL builders anywhere. The merged program gives every file the DOM's `fetch` and `Request`, so a server file's
+ *  outbound fetch would otherwise read as a browser's request; `browser` holds the files whose own world loads the DOM. */
+export function requestsOf(world: NativeWorld, files: readonly SourceFile[], browser: ReadonlySet<string>): readonly Request[] {
   const built = builders(world, files);
   const calls: (CallExpression | NewExpression)[] = [];
   const builderCalls: { readonly call: Node; readonly name: Node }[] = [];
@@ -559,22 +591,12 @@ export function requestsOf(world: NativeWorld, files: readonly SourceFile[]): re
     const { file } = world.siteOf(node);
     return [...built.values()].some((builder) => builder.file === file && node.pos >= builder.start && node.end <= builder.end);
   };
-  walkFiles(files, (node) => {
-    const written = urlWrite(node);
-    if (written !== null) {
-      writes.push(written);
-    }
-    if (!(isCallExpression(node) || isNewExpression(node))) {
-      return;
-    }
-    const name = nameOf(unwrap(node.expression));
-    if (name !== null && REQUEST_NAMES.has(name.text)) {
-      calls.push(node);
-    }
-    if (name !== null && isCallExpression(node) && builderNames.has(name.text) && !insideBuilder(node)) {
-      builderCalls.push({ call: node, name });
-    }
-  });
+  for (const source of files) {
+    const platform = browser.has(world.fileOfSource(source));
+    walkFiles([source], (node) => {
+      collectSite(node, platform, { calls, writes, builderCalls }, (name) => builderNames.has(name.text) && !insideBuilder(node));
+    });
+  }
   const builderSymbols = world.symbolsAt(builderCalls.map(({ name }) => name));
   const requests = world.batch([
     ...calls.map((call) => platformCall(world, call)),

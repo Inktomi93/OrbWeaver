@@ -107,13 +107,20 @@ const PROCEDURE_TREE = {
   [`${SNAP}/drive.ts`]: ['import { trpc } from "../../../packages/client/src/trpc.ts";', "export const snapped = trpc.tag.snapped.queryOptions();"].join("\n"),
 };
 
-// A graph tree whose worlds take the DOM lib, with the tooling files in a world of their own as the real tree's are.
+// A graph tree with the real tree's split: the client's world and the tooling world load the DOM library, standing for a
+// browser world, and the server's world does not. The merged program loads the DOM library for every file.
+const SERVER_WORLD = "packages/server/tsconfig.json";
+const TOOLING_WORLD = "tsconfig.tooling.json";
 function surfaceTree(files: Readonly<Record<string, string>>): Record<string, string> {
   const jsx = { jsx: "preserve" } as const;
+  const dom = [...LIB, "DOM"];
   return {
     ...graphTree(files, { jsx: true }),
-    [WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["../*/src"], ...jsx }),
-    "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: [TOOLING] }),
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: WORLD }, { path: SERVER_WORLD }, { path: TOOLING_WORLD }] }),
+    "tsconfig.world-browser.json": plantedTsconfig({ lib: dom, include: [], ...jsx }),
+    [WORLD]: plantedTsconfig({ lib: dom, include: ["../a/src", "../client/src", "../contracts/src"], ...jsx }),
+    [SERVER_WORLD]: plantedTsconfig({ lib: LIB, include: ["src"] }),
+    [TOOLING_WORLD]: plantedTsconfig({ lib: dom, include: [TOOLING] }),
   };
 }
 
@@ -249,7 +256,9 @@ const ROUTE_TREE = {
     "export const fetchedLink = (url: URL): Promise<Response> => window.fetch(url.href);",
     "export const assignedLink = (url: URL): void => window.location.assign(url.href);",
   ].join("\n"),
-  "packages/server/src/infra/serve.ts": [
+  // A server's outbound fetch runs in a world with no DOM library, so it is no browser's request to our routes.
+  "packages/server/src/infra/egress.ts": 'export const egress = (): Promise<Response> => fetch("/api/orphan");\n',
+  "packages/client/src/serve.ts": [
     'import { open } from "fs-lib";',
     'import type { ServeOptions } from "server-lib";',
     'export const read = (): Promise<unknown> => open("/api/orphan");',
