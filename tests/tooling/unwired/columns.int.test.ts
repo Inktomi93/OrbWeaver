@@ -16,7 +16,7 @@ const scan = (root: string): Report => scanColumns({ root, worlds: [ROOT_WORLD],
 const named = (report: Report): string[] => report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted();
 
 const DRIZZLE = [
-  "export interface Column<R extends boolean> { readonly required: R }",
+  "export interface Column<R extends boolean> { readonly required: R; primaryKey(): Column<R> }",
   "export declare const text: () => Column<false>;",
   "export declare const required: () => Column<true>;",
   "type RequiredKeys<C> = { [K in keyof C]: C[K] extends Column<true> ? K : never }[keyof C] & string;",
@@ -27,6 +27,7 @@ const DRIZZLE = [
   "};",
   "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<C>;",
   "export declare function index(name: string): { on(column: unknown): unknown };",
+  "export declare function primaryKey(options: { readonly columns: readonly unknown[] }): unknown;",
   "export declare function eq(left: unknown, right: unknown): unknown;",
   "export declare const db: {",
   "  insert(table: unknown): { values(value: unknown): void };",
@@ -220,6 +221,69 @@ const ROW_VIEW = {
 test("a column read never credits the shape its row is handed to", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = scanFields({ root: await plantedTree(ROW_VIEW), worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
   expect(report.unwired.filter(({ home }) => home === "RunView").map(({ member, kind }) => `${member} ${kind}`)).toEqual(["a unreferenced", "b unreferenced"]);
+});
+
+// A zod parse's output type names the keys it copies out of its argument; a safe parse answers them on `data`.
+const ZOD = {
+  "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+  "node_modules/zod/index.d.ts": [
+    "export interface ZodType<O> {",
+    "  parse(input: unknown): O;",
+    "  safeParse(input: unknown): { readonly success: true; readonly data: O } | { readonly success: false; readonly error: Error };",
+    "}",
+    "export declare function object<S extends Record<string, ZodType<unknown>>>(shape: S): ZodType<{ [K in keyof S]: S[K] extends ZodType<infer V> ? V : never }>;",
+    "export declare function string(): ZodType<string>;",
+  ].join("\n"),
+};
+
+// A zod parse of a selected row reads the columns its output names, whole or spread into the argument: `obs.model` and
+// `tokens` through a spread, `calls.task` through a safe parse. `obs.ttft` is set over the spread, `calls.wire` the
+// schema does not name, and `calls.cost` only reaches a parse no zod schema answers, so all three stay never read.
+const SPREAD_PARSE = tree(
+  [
+    'export const obs = sqliteTable("obs", { model: text(), tokens: text(), ttft: text(), funder: text() });',
+    'export const calls = sqliteTable("calls", { task: text(), cost: text(), wire: text() });',
+  ],
+  [
+    'import * as z from "zod";',
+    'export const save = (): void => { db.insert(schema.obs).values({ model: "m", tokens: "1", ttft: "2", funder: "f" }); db.insert(schema.calls).values({ task: "t", cost: "c", wire: "w" }); };',
+    "const legSchema = z.object({ model: z.string(), tokens: z.string(), ttft: z.string() });",
+    'export const legs = db.select().from(schema.obs).map((row) => ({ leg: legSchema.parse({ ...row, ttft: "0" }), funder: row.funder }));',
+    "const callSchema = z.object({ task: z.string() });",
+    "export const tasks = db.select().from(schema.calls).map((row) => callSchema.safeParse(row).data);",
+    "const local = { parse: (value: unknown): { readonly cost: string } => ({ cost: String(value) }) };",
+    "export const costs = db.select().from(schema.calls).map((row) => local.parse(row));",
+  ],
+  ZOD,
+);
+
+test("a zod parse of a row reads the columns its output names and no other", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(SPREAD_PARSE));
+  expect(named(report)).toEqual(["calls.cost never-read", "calls.wire never-read", "obs.ttft never-read"]);
+});
+
+// A primary key is the row's identity, which an upsert on a natural key never selects: an inline `.primaryKey()` and the
+// columns a `primaryKey({ columns })` lists are reported apart. `pairs.note`, a plain column with the same uses, stays.
+const PRIMARY_KEYS = tree(
+  [
+    'import { primaryKey } from "../drizzle.ts";',
+    'export const stats = sqliteTable("stats", { id: text().primaryKey(), total: text() });',
+    'export const pairs = sqliteTable("pairs", { left: text(), right: text(), note: text() }, (table) => [primaryKey({ columns: [table.left, table.right] })]);',
+  ],
+  [
+    'export const save = (): void => { db.insert(schema.stats).values({ id: "i", total: "t" }); db.insert(schema.pairs).values({ left: "l", right: "r", note: "n" }); };',
+    "export const totals = db.select().from(schema.stats).map((row) => row.total);",
+  ],
+);
+
+test("a primary-key column production never reads is reported apart from the unwired columns", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = scan(await plantedTree(PRIMARY_KEYS));
+  expect(named(report)).toEqual(["pairs.note never-read"]);
+  expect(report.primaryKeys.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted()).toEqual([
+    "pairs.left never-read",
+    "pairs.right never-read",
+    "stats.id never-read",
+  ]);
 });
 
 // The verb's own door with the shipped deliberate list: plugin-kv's raw INSERT is the only writer of `pluginId`,

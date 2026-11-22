@@ -87,10 +87,10 @@ const MEMBERSHIP_READS: ReadonlySet<string> = new Set(["has", "get"]);
 /** What the codes scan cannot see, printed with every run. */
 const CODE_LIMITS: readonly string[] = [
   "A vocabulary is an `as const` string tuple the unions scan reads, or an `as const` object whose every value is a string literal, declared in packages/contracts/src; a code vocabulary declared in a server domain is not read.",
-  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed a fixed number of hand-offs. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
+  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed a fixed number of hand-offs. A member a parameter defaults to (`refusal: Code = CODES.x`) is handed to that parameter. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
   "A member of an object vocabulary is built only by a read of its property (`CODES.x`); a literal that spells its text builds nothing, nor names a branch.",
   "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties to a fixed depth. A coded refusal is an object with one vocabulary field, one required string sentence and nothing else required. A refusal field is (a) the code of a coded refusal on the `false` members of an object union split by a boolean literal discriminant, where no `true` member carries a vocabulary field and no `false` member carries a field a `true` member carries; (b) the code of a coded refusal reached as `O | null`, never an optional or `undefined` one; or (c) the one vocabulary field at the top of a `json` body sent with a status typed by 4xx and 5xx literals only. A subscription's frames are read the same way, and also (d): in one object member of a frame union, the one vocabulary field beside one required string sentence, setting aside the tags typed by one string literal, such as `channel` and `type`. Any other field is no code; a hand-written response is not followed.",
-  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of a `new Set([...])` or a key of a `new Map([...])` whose binding the same file tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
+  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of a `new Set([...])` or a key of a `new Map([...])` whose binding any file, its own or one that imports it, tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
   "A throw is read only in a world that holds the error mapping. A client construction never builds a code.",
   "Engine one only: no TypeScript 6 audit runs, so the report has no disagreements.",
 ];
@@ -370,13 +370,49 @@ function forwardedArguments(sources: Sources, site: Site): readonly Site[] {
   return forwarded;
 }
 
-// Whether each argument binds a parameter that reaches a seed: a seed, or a parameter its function hands on into an
-// argument that binds one, followed MAX_HOPS deep.
-function codeArguments(world: NativeWorld, sources: Sources, seeds: ReadonlySet<string>, asked: readonly Site[]): readonly boolean[] {
+// The parameter a value is the default of, `refusal: Code = CODES.x`, by its name's site; null for any other value. A
+// call that omits the argument hands the default to the parameter.
+function defaultedParameter(sources: Sources, site: Site): Site | null {
+  const source = sources.get(site.file);
+  const start = nameAt(source, site.position);
+  if (start === undefined) {
+    return null;
+  }
+  let node: ts.Node = ts.isPropertyAccessExpression(start.parent) && start.parent.name === start ? start.parent : start;
+  while (handsOn(node)) {
+    node = node.parent;
+  }
+  const { parent } = node;
+  return ts.isParameter(parent) && parent.initializer === node && ts.isIdentifier(parent.name)
+    ? { file: site.file, position: parent.name.getStart(source) }
+    : null;
+}
+
+// The first hop of each parameter the question names itself: the arguments its own function hands it on in.
+function forwardOwned(sources: Sources, seeds: ReadonlySet<string>, owned: readonly Site[], forwards: Map<string, readonly Site[]>): readonly Site[] {
+  return owned.flatMap((parameter) => {
+    if (seeds.has(siteKey(parameter)) || forwards.has(siteKey(parameter))) {
+      return [];
+    }
+    const handed = forwardedArguments(sources, parameter);
+    forwards.set(siteKey(parameter), handed);
+    return handed;
+  });
+}
+
+// Whether each argument binds a parameter that reaches a seed, and whether each owned parameter (one a default fills)
+// reaches one: a seed, or a parameter its function hands on into an argument that binds one, followed MAX_HOPS deep.
+function codeArguments(
+  world: NativeWorld,
+  sources: Sources,
+  seeds: ReadonlySet<string>,
+  question: { readonly asked: readonly Site[]; readonly owned: readonly Site[] },
+): { readonly asked: readonly boolean[]; readonly owned: readonly boolean[] } {
+  const { asked, owned } = question;
   const oracle = nativeOracle(world);
   const bound = new Map<string, string | null>();
   const forwards = new Map<string, readonly Site[]>();
-  let pending = asked;
+  let pending = [...asked, ...forwardOwned(sources, seeds, owned, forwards)];
   for (let hop = 0; hop < MAX_HOPS && pending.length > 0; hop += 1) {
     const fresh = [...new Map(pending.filter((site) => !bound.has(siteKey(site))).map((site) => [siteKey(site), site])).values()];
     const parameters = world.batch(fresh.map((site) => boundParameter(oracle, site)));
@@ -399,10 +435,13 @@ function codeArguments(world: NativeWorld, sources: Sources, seeds: ReadonlySet<
         const next = bound.get(siteKey(argument));
         return next !== undefined && next !== null && reaches(next, new Set([...seen, parameter]));
       }));
-  return asked.map((site) => {
-    const parameter = bound.get(siteKey(site));
-    return parameter !== undefined && parameter !== null && reaches(parameter, new Set());
-  });
+  return {
+    asked: asked.map((site) => {
+      const parameter = bound.get(siteKey(site));
+      return parameter !== undefined && parameter !== null && reaches(parameter, new Set());
+    }),
+    owned: owned.map((parameter) => reaches(siteKey(parameter), new Set())),
+  };
 }
 
 // The value a send hands the client: a resolver's return, awaited, or a body argument.
@@ -627,6 +666,8 @@ interface Gathered {
   readonly framedBy: Map<string, Set<string>>;
   /** The client element accesses into a complete table, by the index's literal set. */
   readonly lookups: Map<string, Site[]>;
+  /** The client member reads a tested Set or Map collects, by site key. */
+  readonly memberships: Set<string>;
   readonly carrierWorlds: string[];
 }
 
@@ -700,16 +741,19 @@ function gatherWorld(open: UnionWorld, into: Gathered): void {
   if (seeds !== null) {
     into.carrierWorlds.push(world.config);
     const argumentsAt = candidates.map((site) => argumentAt(sources, site));
+    const defaultsOf = candidates.map((site) => defaultedParameter(sources, site));
     const asked = argumentsAt.filter((site) => site !== null);
-    const answers = codeArguments(world, sources, seeds, asked);
-    const coded = new Set(asked.filter((_, at) => answers[at] === true).map(siteKey));
+    const owned = defaultsOf.filter((site) => site !== null);
+    const answers = codeArguments(world, sources, seeds, { asked, owned });
+    const coded = new Set([...asked.filter((_, at) => answers.asked[at] === true), ...owned.filter((_, at) => answers.owned[at] === true)].map(siteKey));
     for (const [at, site] of candidates.entries()) {
-      const argument = argumentsAt[at];
-      into.thrown.set(siteKey(site), argument !== null && argument !== undefined && coded.has(siteKey(argument)));
+      const reached = argumentsAt[at] ?? defaultsOf[at] ?? null;
+      into.thrown.set(siteKey(site), reached !== null && coded.has(siteKey(reached)));
     }
   }
   gatherSends(open, into);
   gatherLookups(open, into);
+  gatherMemberships(open, reads, into);
 }
 
 function gatherLookups(open: UnionWorld, into: Gathered): void {
@@ -787,13 +831,13 @@ function gatherSends(open: UnionWorld, into: Gathered): void {
   }
 }
 
-// A member read as an element of `new Set([...])`, or the key of an entry of `new Map([[key, value], ...])`, bound to a
-// name the same file then calls `has` or `get` on.
-function inMembershipCollection(sources: Sources, site: Site): boolean {
+// The binding a member read is collected under: an element of `new Set([...])` or the key of an entry of
+// `new Map([[key, value], ...])`, assigned to a name. Null for any other read.
+function membershipBinding(sources: Sources, site: Site): Site | null {
   const source = sources.get(site.file);
   const start = nameAt(source, site.position);
   if (start === undefined) {
-    return false;
+    return null;
   }
   let node: ts.Node = ts.isPropertyAccessExpression(start.parent) && start.parent.name === start ? start.parent : start;
   while (handsOn(node)) {
@@ -809,30 +853,46 @@ function inMembershipCollection(sources: Sources, site: Site): boolean {
     MEMBERSHIP_COLLECTIONS.has(made.expression.text) &&
     made.arguments?.[0] === list;
   if (!collected) {
-    return false;
+    return null;
   }
   let bound: ts.Node = made;
   while (handsOn(bound)) {
     bound = bound.parent;
   }
   const declaration = bound.parent;
-  if (!(ts.isVariableDeclaration(declaration) && declaration.initializer === bound && ts.isIdentifier(declaration.name))) {
-    return false;
+  return ts.isVariableDeclaration(declaration) && declaration.initializer === bound && ts.isIdentifier(declaration.name)
+    ? { file: site.file, position: declaration.name.getStart(source) }
+    : null;
+}
+
+// A reference to a collection's binding that calls `has` or `get` on it.
+function testsMembership(sources: Sources, site: Site): boolean {
+  const node = nameAt(sources.get(site.file), site.position);
+  const access = node?.parent;
+  return (
+    access !== undefined &&
+    ts.isPropertyAccessExpression(access) &&
+    access.expression === node &&
+    MEMBERSHIP_READS.has(access.name.text) &&
+    ts.isCallExpression(access.parent) &&
+    access.parent.expression === access
+  );
+}
+
+// The client member reads collected into a Set or Map whose binding some file, its own or one that imports it, tests
+// with `has` or `get`.
+function gatherMemberships(open: UnionWorld, reads: readonly Site[], into: Gathered): void {
+  const { world, sources } = open;
+  const collected = reads.flatMap((site) => {
+    const binding = inClient(site.file) && readRoleAt(sources.get(site.file), site.position) === "construct" ? membershipBinding(sources, site) : null;
+    return binding === null ? [] : [{ site, binding }];
+  });
+  const references = world.referencesAt(collected.map(({ binding }) => binding));
+  for (const [at, { site }] of collected.entries()) {
+    if ((references[at] ?? []).some((reference) => testsMembership(sources, reference))) {
+      into.memberships.add(siteKey(site));
+    }
   }
-  const binding = declaration.name.text;
-  let read = false;
-  const visit = (candidate: ts.Node): void => {
-    read ||=
-      ts.isPropertyAccessExpression(candidate) &&
-      ts.isIdentifier(candidate.expression) &&
-      candidate.expression.text === binding &&
-      MEMBERSHIP_READS.has(candidate.name.text) &&
-      ts.isCallExpression(candidate.parent) &&
-      candidate.parent.expression === candidate;
-    ts.forEachChild(candidate, visit);
-  };
-  visit(source);
-  return read;
 }
 
 const sortedSites = (sources: Sources, sites: Iterable<Site>): readonly string[] =>
@@ -853,9 +913,10 @@ interface Lookups {
   readonly refs: (site: Site | null) => readonly Site[];
   readonly thrown: ReadonlyMap<string, boolean>;
   readonly lookups: ReadonlyMap<string, readonly Site[]>;
+  readonly memberships: ReadonlySet<string>;
 }
 
-function judge({ sources, reading, refs, thrown: throwsAt, lookups }: Lookups, vocabulary: Vocabulary, member: CodeMember): Judged {
+function judge({ sources, reading, refs, thrown: throwsAt, lookups, memberships }: Lookups, vocabulary: Vocabulary, member: CodeMember): Judged {
   const { tuple } = vocabulary;
   const literals: readonly LiteralSite[] =
     tuple === null ? [] : reading.literals.filter((literal) => literal.text === member.text && reading.names(literal, tuple));
@@ -871,7 +932,7 @@ function judge({ sources, reading, refs, thrown: throwsAt, lookups }: Lookups, v
   const handlers = [
     ...literals.filter((literal) => BRANCH_ROLES.has(literal.role)).map((literal) => literal.site),
     ...reads.filter(({ role }) => role !== null && BRANCH_ROLES.has(role)).map(({ site }) => site),
-    ...reads.filter(({ site, role }) => role === "construct" && inMembershipCollection(sources, site)).map(({ site }) => site),
+    ...reads.filter(({ site, role }) => role === "construct" && memberships.has(siteKey(site))).map(({ site }) => site),
     ...(lookups.get(memberSet(vocabulary)) ?? []),
   ].filter((site) => inClient(site.file));
   return {
@@ -974,6 +1035,7 @@ export function scanCodes(options: ScanOptions): CodesReport {
     sentBy: new Map(),
     framedBy: new Map(),
     lookups: new Map(),
+    memberships: new Set(),
     carrierWorlds: [],
   };
   const reading = readUnions(options, (open) => gatherWorld(open, gathered));
@@ -983,6 +1045,7 @@ export function scanCodes(options: ScanOptions): CodesReport {
     refs: (site) => (site === null ? [] : [...(gathered.references.get(siteKey(site))?.values() ?? [])]),
     thrown: gathered.thrown,
     lookups: gathered.lookups,
+    memberships: gathered.memberships,
   };
   const judged = [...gathered.vocabularies.values()]
     .sort((a, b) => a.key.localeCompare(b.key))

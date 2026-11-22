@@ -2,8 +2,16 @@
 // with no column list, has members no declaration backs; its member names are exactly its table's column names, the
 // whole set and not one name, which is how such a member finds its column. The key resolver's row-column step, the
 // hand-offs and the sends all place a row member here.
-import type { Node } from "@typescript/native/ast";
-import { isIdentifier, isPropertyAssignment, isVariableDeclaration } from "@typescript/native/ast";
+import type { CallExpression, Node } from "@typescript/native/ast";
+import {
+  isArrayLiteralExpression,
+  isCallExpression,
+  isIdentifier,
+  isObjectLiteralExpression,
+  isPropertyAccessExpression,
+  isPropertyAssignment,
+  isVariableDeclaration,
+} from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import { tableDefinition } from "./boundaries.ts";
@@ -17,6 +25,44 @@ export const DB_SCHEMA = "packages/db/src/schema/";
 export interface SchemaTable {
   readonly binding: string;
   readonly columns: readonly PropertyName[];
+  /** The columns its primary key names: a column built with `.primaryKey()`, or one a `primaryKey({ columns })` lists. */
+  readonly primaryKeys: ReadonlySet<string>;
+}
+
+const PRIMARY_KEY = "primaryKey";
+
+// A column builder chain that calls `.primaryKey()`: `text("id").$type<Id>().primaryKey()`.
+function buildsPrimaryKey(node: Node | undefined): boolean {
+  let at = node;
+  while (at !== undefined && isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
+    if (at.expression.name.text === PRIMARY_KEY) {
+      return true;
+    }
+    at = at.expression.expression;
+  }
+  return false;
+}
+
+// The columns each `primaryKey({ columns: [t.a, t.b] })` in a table's extra callback names.
+function compositeKeys(definition: CallExpression): readonly string[] {
+  const names: string[] = [];
+  const visit = (node: Node): void => {
+    if (isCallExpression(node) && isIdentifier(node.expression) && node.expression.text === PRIMARY_KEY) {
+      const [options] = node.arguments;
+      const listed =
+        options !== undefined && isObjectLiteralExpression(options)
+          ? options.properties.find((property) => isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === "columns")
+          : undefined;
+      const columns = listed !== undefined && isPropertyAssignment(listed) && isArrayLiteralExpression(listed.initializer) ? listed.initializer.elements : [];
+      names.push(...columns.flatMap((column) => (isPropertyAccessExpression(column) ? [column.name.text] : [])));
+    }
+    node.forEachChild(visit);
+  };
+  const extra = definition.arguments[2];
+  if (extra !== undefined) {
+    visit(extra);
+  }
+  return names;
 }
 
 /** Every table defined in the schema files of `world` that `files` admits. */
@@ -27,9 +73,14 @@ export function schemaTables(world: NativeWorld, files: (file: string) => boolea
     if (definition !== null) {
       const { parent } = definition.call;
       const binding = isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : (definition.call.arguments[0]?.getText() ?? "");
+      const assignments = definition.columns.properties.filter(isPropertyAssignment);
       tables.push({
         binding,
-        columns: definition.columns.properties.flatMap((column) => (isPropertyAssignment(column) && isPropertyName(column.name) ? [column.name] : [])),
+        columns: assignments.flatMap((column) => (isPropertyName(column.name) ? [column.name] : [])),
+        primaryKeys: new Set([
+          ...assignments.flatMap((column) => (isPropertyName(column.name) && buildsPrimaryKey(column.initializer) ? [column.name.text] : [])),
+          ...compositeKeys(definition.call),
+        ]),
       });
     }
     node.forEachChild(visit);

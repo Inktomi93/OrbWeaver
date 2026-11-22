@@ -3,9 +3,11 @@
 // declaration, so a select site, a filter and a read of a row's member all count; no column is matched by its name.
 //
 // A select with no column list reads a column only where production reads the row's member, directly or through the
-// shape the row is handed to (./drizzle-rows.ts). A whole-row dump into a log reads nothing; a row serialized into a file,
-// as an export writes it, reads every column it carries. A store of a whole value writes its required members' columns;
-// an optional one counts only where the value's construction sets it. Sites in the schema files are neither read nor
+// shape the row is handed to (./drizzle-rows.ts). A zod parse of the row, `schema.parse({ ...row })`, reads the
+// columns whose names its output carries. A whole-row dump into a log reads nothing; a row serialized into a file, as an
+// export writes it, reads every column it carries. A primary-key column production never reads is listed apart. A store
+// of a whole value writes its required members' columns; an optional one counts only where the value's construction
+// sets it. Sites in the schema files are neither read nor
 // write, and the migrations and the baseline are SQL no program holds.
 import type { Site } from "./classify.ts";
 import { isProductionFile, Sources, siteKey } from "./classify.ts";
@@ -49,6 +51,9 @@ interface UnwiredColumn extends ColumnCount {
 export interface ColumnsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredColumn[];
+  /** Primary-key columns production never reads: the key is the row's identity, which an upsert on a natural key never
+   *  selects. Reported apart, never judged dead. */
+  readonly primaryKeys: readonly UnwiredColumn[];
   readonly deliberate: readonly (UnwiredColumn & { readonly reason: string })[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredColumn>["judged"];
@@ -77,6 +82,8 @@ interface Column {
   readonly site: Site;
   readonly home: string;
   readonly member: string;
+  /** Whether the table's primary key names it. */
+  readonly primaryKey: boolean;
 }
 
 // The columns of the schema files a world homes, each with its declaration keys.
@@ -85,11 +92,18 @@ function columnsOf(world: NativeWorld, home: ReadonlySet<string>): readonly Colu
   const names = tables.flatMap(({ columns }) => columns);
   const symbols = world.symbolsAt(names);
   let next = 0;
-  return tables.flatMap(({ binding, columns }) =>
+  return tables.flatMap(({ binding, columns, primaryKeys }) =>
     columns.map((name): Column => {
       const symbol = symbols[next++];
       const site = world.siteOf(name);
-      return { key: `${site.file}:${binding}.${name.text}`, keys: symbol === undefined ? [] : declarationKeys(symbol), site, home: binding, member: name.text };
+      return {
+        key: `${site.file}:${binding}.${name.text}`,
+        keys: symbol === undefined ? [] : declarationKeys(symbol),
+        site,
+        home: binding,
+        member: name.text,
+        primaryKey: primaryKeys.has(name.text),
+      };
     }),
   );
 }
@@ -136,6 +150,7 @@ export function scanColumns(options: ScanOptions): ColumnsReport {
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const counts: ColumnCount[] = [];
   const findings: UnwiredColumn[] = [];
+  const primaryKeys: UnwiredColumn[] = [];
   for (const column of columns.values()) {
     const roles = columnRoles(sources, references, column);
     const count = { key: column.key, reads: roles.read.length, writes: roles.write.length, tests: roles.tests };
@@ -144,7 +159,8 @@ export function scanColumns(options: ScanOptions): ColumnsReport {
     if (kind !== null) {
       const { site, home, member } = column;
       const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
-      findings.push({ ...count, file: site.file, line: sources.line(site), home, member, kind, sample });
+      const finding = { ...count, file: site.file, line: sources.line(site), home, member, kind, sample };
+      (column.primaryKey && kind === "never-read" ? primaryKeys : findings).push(finding);
     }
   }
   const columnNames = new Set([...columns.values()].map(({ member }) => member));
@@ -156,6 +172,7 @@ export function scanColumns(options: ScanOptions): ColumnsReport {
   return {
     scanned: columns.size,
     ...sortRows(findings, options),
+    primaryKeys,
     disagreements: [],
     columns: counts,
     unresolved,
