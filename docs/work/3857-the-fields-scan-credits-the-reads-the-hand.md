@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: doing
+status: blocked
 updated: 2026-11-22
 priority: P2
 area: tooling
-lane: wt/agent-a4e9784beb9524066
+blocked: on 3882
 plan: unwired-code
 ---
 

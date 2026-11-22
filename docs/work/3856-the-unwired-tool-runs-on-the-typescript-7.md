@@ -4,7 +4,7 @@ status: blocked
 updated: 2026-11-22
 priority: P3
 area: tooling
-blocked: on 3838
+blocked: on 3882
 plan: unwired-code
 ---
 
