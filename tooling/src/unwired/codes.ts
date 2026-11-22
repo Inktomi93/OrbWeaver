@@ -22,10 +22,11 @@ import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/s
 import ts from "typescript";
 import type { LiteralRole, Site, Sources } from "./classify.ts";
 import { isProductionFile, nameAt, readRoleAt, siteKey } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, hasFlag } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
-import { sortDeliberate } from "./scan.ts";
+import { sortRows } from "./scan.ts";
 import { isNativeConstAssertion, nativeOracle } from "./union-oracles.ts";
 import { boundParameter, declaredSites } from "./union-origins.ts";
 import type { LiteralSite, Tuple, UnionReading, UnionWorld } from "./unions.ts";
@@ -144,6 +145,10 @@ export interface CodesReport {
   readonly codes: readonly Code[];
   readonly unwired: readonly CodeFinding[];
   readonly deliberate: readonly (CodeFinding & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<CodeFinding>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<CodeFinding>["staleJudged"];
   readonly disagreements: readonly string[];
   readonly limits: readonly string[];
 }
@@ -907,7 +912,7 @@ export function scanCodes(options: ScanOptions): CodesReport {
     scanned: gathered.vocabularies.size,
     vocabularies,
     codes,
-    ...sortDeliberate(findings, options.deliberate),
+    ...sortRows(findings, options),
     disagreements: [],
     limits: CODE_LIMITS,
   };

@@ -60,10 +60,11 @@ import { all, SymbolFlags } from "@typescript/native/sync";
 import { TRPC_PACKAGE } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { classifyReference, isProductionFile, Sources, siteKey } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
 import { resolveKeys } from "./key-resolver.ts";
 import { declarationKeys, declaredBy, hasFlag, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sortRows } from "./scan.ts";
 
 // --- What the scan reads ------------------------------------------------------------------------------------------
 
@@ -184,6 +185,8 @@ const SURFACE_KINDS = ["uncalled-procedure", "test-only-procedure", "uncalled-ro
 type SurfaceKind = (typeof SURFACE_KINDS)[number];
 
 interface SurfaceFinding {
+  /** The outside-caller table's key for the procedure or route, which the judged list names it by. */
+  readonly key: string;
   readonly kind: SurfaceKind;
   readonly file: string;
   readonly line: number;
@@ -216,6 +219,10 @@ export interface ProceduresReport {
   readonly routes: number;
   readonly unwired: readonly SurfaceFinding[];
   readonly deliberate: readonly (SurfaceFinding & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<SurfaceFinding>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<SurfaceFinding>["staleJudged"];
   /** Engine two has no reading of procedures or routes, so nothing can disagree. */
   readonly disagreements: readonly string[];
   readonly outside: readonly OutsideRow[];
@@ -1126,6 +1133,7 @@ function judgeProcedures({ sources, procedures, tallies }: Inventory, outside: O
       row.calls += tally.production.size;
     } else if (tally.production.size === 0) {
       findings.push({
+        key: procedureKey(procedure),
         kind: tally.test.size > 0 ? "test-only-procedure" : "uncalled-procedure",
         file: procedure.site.file,
         line: sources.line(procedure.site),
@@ -1149,6 +1157,7 @@ function judgeRoutes({ sources, routes }: Inventory, credits: ReadonlyMap<RouteR
       row.calls += credit.production;
     } else if (credit.production === 0) {
       findings.push({
+        key: routeKey(route),
         kind: credit.test > 0 ? "test-only-route" : "uncalled-route",
         file: route.site.file,
         line: sources.line(route.site),
@@ -1168,7 +1177,7 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(inventory, outside), ...judgeRoutes(inventory, credits, outside)];
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));
-  const { unwired, deliberate } = sortDeliberate(sorted, options.deliberate);
+  const { unwired, deliberate, judged, staleJudged } = sortRows(sorted, options);
   const rows = [...outside.values()];
   return {
     scanned: procedures.length + routes.length,
@@ -1176,6 +1185,8 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
     routes: routes.length,
     unwired,
     deliberate,
+    judged,
+    staleJudged,
     disagreements: [],
     outside: rows.filter((row) => row.at.length > 0),
     stale: rows.filter((row) => row.at.length === 0).map((row) => row.row),
@@ -1190,9 +1201,5 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
 export function outsideTable(report: ProceduresReport): string {
   const rows = report.outside.map(({ row, at, calls }) => `outside\t${outsideKey(row)}\t${at.join(",")}\tin-tree calls=${String(calls)}\t${row.reason}`);
   const stale = report.stale.map((row) => `stale outside row\t${outsideKey(row)}\t${row.reason}`);
-  return [
-    ` procedures=${String(report.procedures)} routes=${String(report.routes)} unplaced=${String(report.unplaced.length)} outside=${String(report.outside.length)} stale=${String(report.stale.length)}`,
-    ...rows,
-    ...stale,
-  ].join("\n");
+  return [` procedures=${String(report.procedures)} routes=${String(report.routes)}`, ...rows, ...stale].join("\n");
 }

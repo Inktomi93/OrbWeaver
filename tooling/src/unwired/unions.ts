@@ -27,12 +27,13 @@ import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
 import { isNativeConstAssertion, nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins, SlotOracle, Spelled } from "./union-origins.ts";
 import {
@@ -85,6 +86,10 @@ export interface UnionsReport {
   readonly subsets: Readonly<Record<string, readonly string[]>>;
   readonly unwired: readonly UnwiredUnionMember[];
   readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredUnionMember>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredUnionMember>["staleJudged"];
   /** Members engine one found unbuilt that engine two finds built, or whose tuple engine two finds enumerated. */
   readonly disagreements: readonly string[];
   readonly limits: readonly string[];
@@ -789,7 +794,7 @@ export function scanUnions(options: ScanOptions): UnionsReport {
     enumerated,
     keyLists,
     subsets: Object.fromEntries([...subsets].sort(([a], [b]) => a.localeCompare(b))),
-    ...sortDeliberate(findings, options.deliberate),
+    ...sortRows(findings, options),
     disagreements,
     limits: UNION_LIMITS,
   };

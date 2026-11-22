@@ -1,6 +1,6 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `codes` and `columns`, which run engine one and
-// refuse `--cross-check`, and each writes one report under reports/unwired/;
+// one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
+// engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -14,6 +14,8 @@ import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
+import type { JudgedEntry, StaleJudged } from "./judged.ts";
+import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
 import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
@@ -59,12 +61,13 @@ interface Report {
   readonly scanned: number;
   readonly unwired: readonly Finding[];
   readonly deliberate: readonly Finding[];
+  readonly staleJudged: readonly StaleJudged[];
   readonly disagreements: readonly (string | object)[];
   /** What the scan cannot see, printed after its summary. */
   readonly limits?: readonly string[];
 }
 
-/** A scan verb's report path, and its run with the counts its summary line adds to the shared ones. */
+/** A scan verb's report path, and its run with what its summary line adds to the bucket counts. */
 interface Scan {
   readonly out: string;
   readonly execute: (options: ScanOptions) => { readonly report: Report; readonly counts: string };
@@ -91,7 +94,26 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "columns"]);
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "procedures", "columns"]);
+
+/** Each scan's judged list: the rows a board item owns. */
+const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
+  scan: [],
+  fields: JUDGED_FIELDS,
+  params: [],
+  unions: [],
+  shapes: [],
+  codes: [],
+  procedures: [],
+  columns: [],
+};
+
+// Every list a report writes, by its name, so a new bucket reaches the summary line without a hand-kept count.
+const NOT_A_BUCKET: ReadonlySet<string> = new Set(["limits"]);
+const bucketCounts = (report: Report): string =>
+  Object.entries(report)
+    .flatMap(([name, value]: [string, unknown]) => (Array.isArray(value) && !NOT_A_BUCKET.has(name) ? [`${name}=${String(value.length)}`] : []))
+    .join(" ");
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired),
@@ -99,18 +121,18 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
     "reports/unwired/fields.json",
     scanFields,
     (report) =>
-      ` received=${report.received.length} unresolved=${report.unresolved.length} unplaced=${Object.entries(report.unresolvedByReason)
+      ` unplaced=${Object.entries(report.unresolvedByReason)
         .map(([reason, count]) => `${reason}:${count}`)
-        .join(",")} validated=${report.validated.length} acknowledged=${report.acknowledged.length} sent=${Object.entries(report.sentBy)
+        .join(",")} sent=${Object.entries(report.sentBy)
         .map(([destination, count]) => `${destination}:${count}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", scanParams),
-  unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length} keyLists=${report.keyLists.length}`),
+  unions: scan("reports/unwired/unions.json", scanUnions),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
-  codes: scan("reports/unwired/codes.json", scanCodes, (report) => ` codeVocabularies=${report.vocabularies.length}`),
+  codes: scan("reports/unwired/codes.json", scanCodes),
   procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
-  columns: scan("reports/unwired/columns.json", scanColumns, (report) => ` unresolved=${report.unresolved.length}`),
+  columns: scan("reports/unwired/columns.json", scanColumns),
 };
 
 interface Args {
@@ -311,6 +333,7 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
+    judged: JUDGED[args.verb],
     log,
     crossCheck: args.crossCheck,
   });
@@ -318,9 +341,10 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
-  log(
-    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
-  );
+  for (const entry of report.staleJudged) {
+    process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
+  }
+  log(`scanned=${report.scanned} ${bucketCounts(report)}${counts} written to ${path}`);
   if (report.limits !== undefined) {
     logLimits(report.limits);
   }

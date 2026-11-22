@@ -8,6 +8,8 @@ import type { ReferenceKind, Site } from "./classify.ts";
 import { classifyReference, Sources, siteKey } from "./classify.ts";
 import type { DeliberateEntry } from "./deliberate.ts";
 import { deliberateEntry } from "./deliberate.ts";
+import type { JudgedEntry, JudgedSplit } from "./judged.ts";
+import { sortJudged } from "./judged.ts";
 import { serviceReferences } from "./language-service.ts";
 import { homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
@@ -35,16 +37,20 @@ export interface UnwiredReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredMember[];
   readonly deliberate: readonly (UnwiredMember & { readonly reason: string })[];
+  readonly judged: JudgedSplit<UnwiredMember>["judged"];
+  readonly staleJudged: JudgedSplit<UnwiredMember>["staleJudged"];
   /** Under `--cross-check`, members engine one found unused and the audit found used: a resolution gap to fix. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
 
-/** The options every scan takes: the root, its worlds, the deliberate list and a progress log. */
+/** The options every scan takes: the root, its worlds, the deliberate and judged lists and a progress log. */
 export interface ScanOptions {
   readonly root: string;
   readonly worlds?: readonly string[];
   readonly testWorlds?: readonly string[];
   readonly deliberate: readonly DeliberateEntry[];
+  /** The rows a board item owns, for this scan's report. */
+  readonly judged?: readonly JudgedEntry[];
   readonly log: (line: string) => void;
   /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1, as an audit of engine one. */
   readonly crossCheck?: boolean;
@@ -132,6 +138,16 @@ export function sortDeliberate<Finding extends DeliberateSide>(
   return { unwired, deliberate };
 }
 
+/** {@link sortDeliberate}, then the judged list over what it leaves: every bucket a report without rulings of its own
+ *  writes. */
+export function sortRows<Finding extends DeliberateSide & { readonly key: string }>(
+  findings: readonly Finding[],
+  options: Pick<ScanOptions, "root" | "deliberate" | "judged">,
+): JudgedSplit<Finding> & { readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
+  const { unwired, deliberate } = sortDeliberate(findings, options.deliberate);
+  return { ...sortJudged(unwired, options), deliberate };
+}
+
 interface Tally {
   readonly first: MemberReferences;
   use: number;
@@ -212,5 +228,5 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
     const tests = entry.tests.size;
     findings.push({ key: entry.first.key, file: site.file, line, home, member, kind: kindOf(tests, entry.builder), tests });
   }
-  return { worlds: counted, scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
+  return { worlds: counted, scanned: tally.size, ...sortRows(findings, options), disagreements };
 }

@@ -27,6 +27,8 @@ import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
 import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
 import { FieldSort, homeAliases, homeNames } from "./field-sort.ts";
+import type { JudgedSplit } from "./judged.ts";
+import { sortJudged } from "./judged.ts";
 import type { UnresolvedReason } from "./key-resolver.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { LiteralEvidence, LiteralStage } from "./literal-hits.ts";
@@ -93,6 +95,10 @@ export interface FieldsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredField[];
   readonly deliberate: readonly (UnwiredField & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredField>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredField>["staleJudged"];
   /** Schema keys production neither writes nor reads: only a parse of input from outside the tree (a provider response,
    *  a card file) or a payload handed on whole fills them, so the schema only validates them. Reported, never judged. */
   readonly validated: readonly UnwiredField[];
@@ -910,9 +916,13 @@ export function scanFields(options: ScanOptions): FieldsReport {
     return row.kind === "never-read" && acknowledged.has(row.key) ? "acknowledged" : null;
   };
   const sorted = sortDeliberate(staged.rows, options.deliberate);
+  const split = sortJudged(
+    sorted.unwired.filter((row) => ruling(row) === null),
+    options,
+  );
   return {
     scanned: tally.size,
-    unwired: sorted.unwired.filter((row) => ruling(row) === null),
+    ...split,
     deliberate: sorted.deliberate,
     validated: sorted.unwired.filter((row) => ruling(row) === "validated"),
     acknowledged: sorted.unwired.filter((row) => ruling(row) === "acknowledged"),

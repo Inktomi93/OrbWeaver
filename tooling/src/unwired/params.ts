@@ -21,13 +21,14 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import ts from "typescript";
 import type { CallShape, Site } from "./classify.ts";
 import { callAt, isProductionFile, nameAt, Sources, siteKey, valueUseAt } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
 import { declarationKeys, hasFlag, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
 import { joinFacts, propertyFacts, valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
 import { isProduction } from "./worlds.ts";
 
@@ -56,6 +57,10 @@ export interface ParamsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredParam[];
   readonly deliberate: readonly (UnwiredParam & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredParam>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredParam>["staleJudged"];
   /** Findings engine one made that engine two's references do not reproduce. */
   readonly disagreements: readonly string[];
   readonly limits: readonly string[];
@@ -422,5 +427,5 @@ export function scanParams(options: ScanOptions): ParamsReport {
       }
     }
   }
-  return { scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements, limits: PARAM_LIMITS };
+  return { scanned: tally.size, ...sortRows(findings, options), disagreements, limits: PARAM_LIMITS };
 }
