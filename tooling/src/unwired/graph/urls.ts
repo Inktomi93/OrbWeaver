@@ -2,7 +2,8 @@
 // folds through the checker to segment patterns: literals, templates, constants, unions of literal types and in-tree URL
 // builders. A request is one the platform sends: `fetch`, a navigation, a beacon, an event stream, or a URL member the
 // platform declares, written by assignment, JSX attribute or object key. A call to an in-tree function that returns one
-// of our URLs is a request too.
+// of our URLs is a request only where the call sits in a URL slot ({@link inUrlSlot}): a string that starts with "/" in a
+// toast or a CSS comment is no URL.
 import type {
   CallExpression,
   Expression,
@@ -50,6 +51,7 @@ import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, hasFlag, isFunctionLike, propertiesNamed } from "../native.ts";
 import { isProduction } from "../worlds.ts";
+import { sameNode } from "./roles.ts";
 
 export const ROUTE_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "ALL"] as const;
 /** A request method, or `ALL` for a route that takes every method and for a caller whose method the scan cannot read. */
@@ -548,10 +550,83 @@ function* writtenMembers(world: NativeWorld, name: Identifier): APIRequestGenera
   return own === undefined ? [] : [own];
 }
 
-// The request sites a node is: a URL member write or a platform request call in a browser's file, or a builder call.
+// The packages whose navigation options take a URL as their `to` member.
+const ROUTER_PACKAGES: ReadonlySet<string> = new Set(["@tanstack/react-router", "@tanstack/router-core"]);
+const NAVIGATION_MEMBER = "to";
+// The platform's URL constructor, by the key {@link requestKey} gives its global.
+const URL_CONSTRUCTOR = "URL";
+
+// The expression a value is, through parentheses, assertions and `satisfies`.
+function outermost(node: Node): Node {
+  let at = node;
+  while (isParenthesizedExpression(at.parent) || isAsExpression(at.parent) || isSatisfiesExpression(at.parent) || isNonNullExpression(at.parent)) {
+    at = at.parent;
+  }
+  return at;
+}
+
+// Whether a member a value is written to is a router's navigation target, by the package that declares it.
+function* routerTarget(world: NativeWorld, name: Identifier): APIRequestGenerator<boolean> {
+  if (name.text !== NAVIGATION_MEMBER) {
+    return false;
+  }
+  const members = yield* writtenMembers(world, name);
+  const declarations = members.flatMap((member) => member.declarations);
+  if (declarations.length === 0) {
+    return false;
+  }
+  const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+  return packages.every((owner) => owner !== null && ROUTER_PACKAGES.has(owner));
+}
+
+// The member name a value is written to: a JSX attribute's, an object key's, or an assignment target's.
+function writtenName(at: Node): Identifier | null {
+  const { parent } = at;
+  if (parent.kind === SyntaxKind.JsxExpression && isJsxAttribute(parent.parent) && isIdentifier(parent.parent.name)) {
+    return parent.parent.name;
+  }
+  if (isPropertyAssignment(parent) && sameNode(parent.initializer, at) && isIdentifier(parent.name)) {
+    return parent.name;
+  }
+  const assigned =
+    isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.EqualsToken && sameNode(parent.right, at) && isPropertyAccessExpression(parent.left);
+  return assigned && isIdentifier(parent.left.name) ? parent.left.name : null;
+}
+
+/** Whether a value sits in a URL slot: a platform request's URL argument, the URL constructor's input, an `href`, `src`,
+ *  `action` or `formAction` write, a router's navigation `to`, or an argument of a URL builder whose own call sits in
+ *  one. Callees and members are resolved by declaration; a value stored first is not followed. */
+function* inUrlSlot(world: NativeWorld, value: Node, built: ReadonlyMap<string, Builder>, depth: number): APIRequestGenerator<boolean> {
+  const at = outermost(value);
+  const name = writtenName(at);
+  if (name !== null) {
+    return Object.hasOwn(URL_MEMBERS, name.text) || (yield* routerTarget(world, name));
+  }
+  const call = at.parent;
+  if (!(isCallExpression(call) || isNewExpression(call)) || depth > FOLD_DEPTH) {
+    return false;
+  }
+  const index = (call.arguments ?? []).findIndex((argument) => sameNode(argument, at));
+  const callee = nameOf(unwrap(call.expression));
+  if (index < 0 || callee === null) {
+    return false;
+  }
+  const symbol = yield* unaliased(world, yield* world.checker.getSymbolAtLocation.gen(callee));
+  const key = yield* requestKey(world, symbol);
+  if (key === URL_CONSTRUCTOR) {
+    return index === 0;
+  }
+  const shape = key === null ? undefined : REQUEST_CALLS[key];
+  if (shape !== undefined) {
+    return shape.url === index;
+  }
+  const outer = symbol !== undefined && declarationKeys(symbol).some((declaration) => built.has(declaration));
+  return outer && (yield* inUrlSlot(world, call, built, depth + 1));
+}
+
+// The request sites a node is: a URL member write, a platform request call, or a builder call.
 function collectSite(
   node: Node,
-  platform: boolean,
   into: {
     readonly calls: (CallExpression | NewExpression)[];
     readonly writes: { readonly name: Identifier; readonly value: Expression }[];
@@ -559,7 +634,7 @@ function collectSite(
   },
   callsBuilder: (name: Identifier) => boolean,
 ): void {
-  const written = platform ? urlWrite(node) : null;
+  const written = urlWrite(node);
   if (written !== null) {
     into.writes.push(written);
   }
@@ -570,7 +645,7 @@ function collectSite(
   if (name === null) {
     return;
   }
-  if (platform && REQUEST_NAMES.has(name.text)) {
+  if (REQUEST_NAMES.has(name.text)) {
     into.calls.push(node);
   }
   if (isCallExpression(node) && callsBuilder(name)) {
@@ -578,10 +653,10 @@ function collectSite(
   }
 }
 
-/** Every request the files send: platform request calls and URL member writes in a file a browser runs, and calls of
- *  URL builders anywhere. The merged program gives every file the DOM's `fetch` and `Request`, so a server file's
- *  outbound fetch would otherwise read as a browser's request; `browser` holds the files whose own world loads the DOM. */
-export function requestsOf(world: NativeWorld, files: readonly SourceFile[], browser: ReadonlySet<string>): readonly Request[] {
+/** Every request the files that send to our origin send: platform request calls, URL member writes, and URL builder
+ *  calls in a URL slot. The merged program gives every file the DOM's `fetch` and `Request`, so a server file's
+ *  outbound fetch would otherwise read as a request to our routes; `sends` says which files send ours. */
+export function requestsOf(world: NativeWorld, files: readonly SourceFile[], sends: (file: string) => boolean): readonly Request[] {
   const built = builders(world, files);
   const calls: (CallExpression | NewExpression)[] = [];
   const builderCalls: { readonly call: Node; readonly name: Node }[] = [];
@@ -591,13 +666,13 @@ export function requestsOf(world: NativeWorld, files: readonly SourceFile[], bro
     const { file } = world.siteOf(node);
     return [...built.values()].some((builder) => builder.file === file && node.pos >= builder.start && node.end <= builder.end);
   };
-  for (const source of files) {
-    const platform = browser.has(world.fileOfSource(source));
+  for (const source of files.filter((file) => sends(world.fileOfSource(file)))) {
     walkFiles([source], (node) => {
-      collectSite(node, platform, { calls, writes, builderCalls }, (name) => builderNames.has(name.text) && !insideBuilder(node));
+      collectSite(node, { calls, writes, builderCalls }, (name) => builderNames.has(name.text) && !insideBuilder(node));
     });
   }
   const builderSymbols = world.symbolsAt(builderCalls.map(({ name }) => name));
+  const slotted = world.batch(builderCalls.map(({ call }) => inUrlSlot(world, call, built, 0)));
   const requests = world.batch([
     ...calls.map((call) => platformCall(world, call)),
     ...writes.map(function* ({ name, value }): APIRequestGenerator<Request | null> {
@@ -605,7 +680,7 @@ export function requestsOf(world: NativeWorld, files: readonly SourceFile[], bro
     }),
   ]);
   const viaBuilders = builderCalls.flatMap(({ call }, at): Request[] => {
-    const symbol = builderSymbols[at];
+    const symbol = slotted[at] === true ? builderSymbols[at] : undefined;
     const builder =
       symbol === undefined
         ? undefined

@@ -10,8 +10,9 @@ import { graphTree, LIB, WORLD } from "./_planted.ts";
 
 // Planted source spells its own template literals; the placeholder sign is interpolated so this file has none in a string.
 const DOLLAR = "$";
-// The callers outside the product: tooling, which the knip population walks, and snap, whose calls are the product's.
-const TOOLING = "tooling/src";
+// The callers outside the product: tooling the knip population walks, in a world that loads the DOM as a browser test's
+// does, and snap, whose calls are the product's though its world, as in the real tree, loads no DOM.
+const TOOLING = "tooling/src/browser";
 const SNAP = "tooling/src/snap";
 
 // The tRPC packages, typed the way the real ones are: a router record and both proxies are homomorphic mapped types,
@@ -99,28 +100,30 @@ const PROCEDURE_TREE = {
     "declare const local: Local<AppRouter['_def']['record']>;",
     "export const fetched = local.tag.lookalike.queryKey();",
   ].join("\n"),
-  [`${TOOLING}/probe.ts`]: ['import { trpc } from "../../packages/client/src/trpc.ts";', "export const probed = trpc.tag.probed.queryOptions();"].join("\n"),
+  [`${TOOLING}/probe.ts`]: ['import { trpc } from "../../../packages/client/src/trpc.ts";', "export const probed = trpc.tag.probed.queryOptions();"].join("\n"),
   [`${TOOLING}/prune.ts`]: [
-    'import { trpc } from "../../packages/client/src/trpc.ts";',
+    'import { trpc } from "../../../packages/client/src/trpc.ts";',
     "export const pruned = (): Promise<unknown> => trpc.tag.prune.mutate();",
   ].join("\n"),
   [`${SNAP}/drive.ts`]: ['import { trpc } from "../../../packages/client/src/trpc.ts";', "export const snapped = trpc.tag.snapped.queryOptions();"].join("\n"),
 };
 
-// A graph tree with the real tree's split: the client's world and the tooling world load the DOM library, standing for a
-// browser world, and the server's world does not. The merged program loads the DOM library for every file.
+// A graph tree with the real tree's split: the client's world and the tooling callers' world load the DOM library, and the
+// server's and snap's worlds do not. The merged program loads the DOM library for every file.
 const SERVER_WORLD = "packages/server/tsconfig.json";
 const TOOLING_WORLD = "tsconfig.tooling.json";
+const SNAP_WORLD = "tsconfig.snap.json";
 function surfaceTree(files: Readonly<Record<string, string>>): Record<string, string> {
   const jsx = { jsx: "preserve" } as const;
   const dom = [...LIB, "DOM"];
   return {
     ...graphTree(files, { jsx: true }),
-    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: WORLD }, { path: SERVER_WORLD }, { path: TOOLING_WORLD }] }),
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: WORLD }, { path: SERVER_WORLD }, { path: TOOLING_WORLD }, { path: SNAP_WORLD }] }),
     "tsconfig.world-browser.json": plantedTsconfig({ lib: dom, include: [], ...jsx }),
     [WORLD]: plantedTsconfig({ lib: dom, include: ["../a/src", "../client/src", "../contracts/src"], ...jsx }),
     [SERVER_WORLD]: plantedTsconfig({ lib: LIB, include: ["src"] }),
     [TOOLING_WORLD]: plantedTsconfig({ lib: dom, include: [TOOLING] }),
+    [SNAP_WORLD]: plantedTsconfig({ lib: LIB, include: [SNAP] }),
   };
 }
 
@@ -163,6 +166,9 @@ const HONO = {
     "  use(...handlers: unknown[]): Hono;",
     "}",
   ].join("\n"),
+  // A router's navigation options, declared in the router package as TanStack Router's are.
+  "node_modules/@tanstack/react-router/package.json": '{ "name": "@tanstack/react-router", "types": "index.d.ts" }',
+  "node_modules/@tanstack/react-router/index.d.ts": "export type Navigate = (options: { readonly to: string }) => Promise<void>;",
   // A file-system open and a server adapter's fetch member share the platform's names and request nothing.
   "node_modules/fs-lib/package.json": '{ "name": "fs-lib", "types": "index.d.ts" }',
   "node_modules/fs-lib/index.d.ts": "export declare function open(path: string): Promise<unknown>;",
@@ -201,6 +207,26 @@ const ROUTE_TREE = {
     "export function orphanThumb(): string {",
     '  return orphanUrl() + "?w=1";',
     "}",
+    // A string that starts with "/" is a URL only where it reaches a URL slot: this one is handed to plain text.
+    "export function orphanHint(): string {",
+    '  return "/api/orphan";',
+    "}",
+    "export function describe(text: string): string {",
+    "  return text;",
+    "}",
+    // Builders whose calls reach a router's navigation, the URL constructor, and another builder's parameter.
+    "export function routedPath(): string {",
+    '  return "/api/routed";',
+    "}",
+    "export function constructedUrl(): string {",
+    '  return "/api/constructed";',
+    "}",
+    "export function builtUrl(id: string): string {",
+    `  return \`/api/built/${DOLLAR}{id}\`;`,
+    "}",
+    "export function versioned(url: string): string {",
+    `  return \`/v1${DOLLAR}{url}\`;`,
+    "}",
   ].join("\n"),
   "packages/server/src/entry/http/routes.ts": [
     'import type { Hono } from "hono";',
@@ -217,6 +243,9 @@ const ROUTE_TREE = {
     '  app.get("/api/debug/probe", () => null);',
     '  app.get("/api/opened", () => null);',
     '  app.get("/api/snapped", () => null);',
+    '  app.get("/api/routed", () => null);',
+    '  app.get("/api/constructed", () => null);',
+    '  app.get("/api/built/:id", () => null);',
     `  app.get(\`${DOLLAR}{pattern.prefix}:id${DOLLAR}{pattern.suffix}\`, () => null);`,
     ...PLANTED_ROUTE_ROWS.map((row) => `  app.on(${JSON.stringify(row.method)}, ${JSON.stringify(row.path)}, () => null);`),
     "  app.use(() => null);",
@@ -255,6 +284,12 @@ const ROUTE_TREE = {
     'export const openedLink = (url: URL): Window | null => window.open(url.href, "_blank");',
     "export const fetchedLink = (url: URL): Promise<Response> => window.fetch(url.href);",
     "export const assignedLink = (url: URL): void => window.location.assign(url.href);",
+    'import { builtUrl, constructedUrl, describe, orphanHint, routedPath, versioned } from "../../contracts/src/routes.ts";',
+    'import type { Navigate } from "@tanstack/react-router";',
+    "export const hint = describe(orphanHint());",
+    "export const routed = (navigate: Navigate): Promise<void> => navigate({ to: routedPath() });",
+    'export const constructed = (): URL => new URL(constructedUrl(), "https://app.example");',
+    'export const sized = (): Promise<Response> => fetch(versioned(builtUrl("x")));',
   ].join("\n"),
   // A server's outbound fetch runs in a world with no DOM library, so it is no browser's request to our routes.
   "packages/server/src/infra/egress.ts": 'export const egress = (): Promise<Response> => fetch("/api/orphan");\n',
@@ -274,7 +309,7 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = await scan(await plantedTree(surfaceTree(ROUTE_TREE)));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(13 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(16 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",

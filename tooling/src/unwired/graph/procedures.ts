@@ -11,7 +11,8 @@
 //   a key and sends no request: it is counted in `keys` and calls nothing. A same-named method declared anywhere else
 //   is a call.
 // - A route is a Hono verb registration under {@link ROUTE_HOMES}. Its path and each request's URL fold through ./urls.ts.
-// - A platform request is one a browser sends: its file's own world loads the DOM library (worlds.ts `browserFiles`).
+// - A request to our origin is sent from a file whose own world loads the DOM library (worlds.ts `browserFiles`), or from
+//   snap, which drives the real app over HTTP (owner ruling). A server's outbound fetch is not one.
 // - A route or procedure called from outside the repository sits in {@link OUTSIDE_CALLERS}, one reason per row, and is
 //   printed so the owner can rule on each row.
 import type { CallExpression, Expression, Node, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "@typescript/native/ast";
@@ -38,7 +39,7 @@ import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
 import type { RoleSite } from "./state.ts";
-import { productReader } from "./state.ts";
+import { productReader, SNAP_SOURCE } from "./state.ts";
 import type { CallerPath, Pattern, Request, RouteMethod } from "./urls.ts";
 import { ANY_METHOD, asMethod, callerPath, FOLD_DEPTH, fold, literalsOf, merged, requestsOf, unwrap, walkFiles } from "./urls.ts";
 
@@ -118,7 +119,8 @@ const PROCEDURE_LIMITS: readonly string[] = [
   "A procedure reached through a computed key (trpc[name]) is not placed; a key the resolver cannot place reaches no procedure.",
   "A procedure value read whole (stored, passed on, destructured) counts as called; a queryKey, queryFilter or mutationKey alone does not.",
   "A proxy read the graph's origin walk cannot place is a lost read of the graph (pnpm unwired graph --explain-lost) and reaches no procedure.",
-  "A URL counts only where a platform request takes it, or as the return of an in-tree function a call reaches; a URL handed through a component prop to an element is credited at the builder call, never at the element.",
+  "A URL counts only where a platform request takes it, or where an in-tree URL builder's call sits in a URL slot (a request's URL, the URL constructor, an href, src or action write, a router's to, or another such builder's argument); a builder's value stored in a variable first is followed only by a platform request's fold.",
+  "Only a file whose own world loads the DOM library, or snap, sends requests to our routes; a server's or a Node tool's fetch is outbound.",
   "A URL part the checker gives no literal type is one wildcard segment; a caller whose URL starts with a wildcard is unplaced and listed, never matched.",
   "A URL builder's method is unknown, so its call matches every method of the routes its URL fits.",
   "A request the e2e suite sends through Playwright's request API, and any request a script or the browser sends unprompted, is not seen.",
@@ -602,7 +604,8 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
   const procedures = procedureInventory(world, homed(PROCEDURE_HOMES));
   const routes = routeInventory(world, homed(ROUTE_HOMES));
   const outside = new Map(OUTSIDE_CALLERS.map((row) => [outsideKey(row), { row, at: [] as string[], calls: 0 }] as const));
-  const requests = requestsOf(world, sources, browserFiles(options.root));
+  const browser = browserFiles(options.root);
+  const requests = requestsOf(world, sources, (file) => browser.has(file) || file.startsWith(SNAP_SOURCE));
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(tallyProcedures(world, graph.facts.roleSites, procedures), outside), ...judgeRoutes(routes, credits, outside)];
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));

@@ -35,7 +35,8 @@ export interface RoleSite {
   readonly at: number;
 }
 
-const SNAP_SOURCE = "tooling/src/snap/";
+/** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
+export const SNAP_SOURCE = "tooling/src/snap/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
 export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
