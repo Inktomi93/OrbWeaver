@@ -29,6 +29,7 @@ import type {
   Program,
   ReferencedSymbolEntry,
   SignatureUsage,
+  TimingAccumulators,
   Type,
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
@@ -135,6 +136,16 @@ function* heritageOf(owner: NativeSymbol | undefined): APIRequestGenerator<reado
   return types;
 }
 
+/** What a world's batches cost: rounds to the compiler, distinct requests sent, asks the answer memo served, and the
+ *  wall time spent inside {@link NativeWorld.batch}. */
+export interface WorldStats {
+  readonly batches: number;
+  readonly rounds: number;
+  readonly sent: number;
+  readonly memoHits: number;
+  readonly ms: number;
+}
+
 /** One world's program in its own TypeScript 7.1 process. */
 export class NativeWorld implements Disposable {
   readonly config: string;
@@ -150,6 +161,7 @@ export class NativeWorld implements Disposable {
   readonly #program: Program;
   readonly #workspace: ReadonlySet<string>;
   readonly #packageNames = new Map<string, string | null>();
+  readonly #stats = { batches: 0, rounds: 0, sent: 0, memoHits: 0, ms: 0 };
   // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
   #settling = false;
 
@@ -179,8 +191,22 @@ export class NativeWorld implements Disposable {
   }
 
   /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */
-  static openMerged(root: string, declaration: (file: string) => boolean): NativeWorld {
-    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root }), declaration);
+  static openMerged(root: string, declaration: (file: string) => boolean, timing = false): NativeWorld {
+    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root, collectTiming: timing }), declaration);
+  }
+
+  get stats(): WorldStats {
+    return { ...this.#stats };
+  }
+
+  /** The compiler's own request totals; zero unless the world was opened with timing. */
+  timing(): TimingAccumulators {
+    return this.#api.getTimingInfo().totals;
+  }
+
+  /** The compiler's CPU and heap profilers. */
+  get debug(): API["debug"] {
+    return this.#api.debug;
   }
 
   /** The repository-relative source files and root files of every world, listed in one session rather than one
@@ -207,10 +233,13 @@ export class NativeWorld implements Disposable {
     if (this.#settling) {
       throw new Error("NativeWorld.batch ran inside a request generator: ask through yield, or settle the data before the batch");
     }
+    const began = performance.now();
     const results: T[] = [];
     for (let start = 0; start < requests.length; start += BATCH) {
       results.push(...this.#settle(requests.slice(start, start + BATCH)));
     }
+    this.#stats.batches += 1;
+    this.#stats.ms += performance.now() - began;
     return results;
   }
 
@@ -241,6 +270,7 @@ export class NativeWorld implements Disposable {
           waiting.push({ generator, finish, key, request });
           return;
         }
+        this.#stats.memoHits += 1;
         step = generator.next(this.#answers.get(key));
       }
       finish(step.value);
@@ -269,6 +299,9 @@ export class NativeWorld implements Disposable {
       const round = waiting;
       waiting = [];
       const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
+      this.#stats.rounds += 1;
+      this.#stats.sent += distinct.length;
+      this.#stats.memoHits += round.length - distinct.length;
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));

@@ -10,9 +10,10 @@
 import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import { isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, SyntaxKind } from "@typescript/native/ast";
 import type { Signature } from "@typescript/native/sync";
+import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyLiterals, keyText } from "./sites.ts";
-import type { GraphState } from "./state.ts";
+import type { BuildSession, GraphState } from "./state.ts";
 
 const TAILWIND_VARIANTS = "tailwind-variants";
 
@@ -38,6 +39,23 @@ export interface VariantAxis {
   /** Each value's name, its declaration and whether a consumer selects it. */
   readonly values: readonly { readonly name: string; readonly decl: DeclKey; readonly used: boolean }[];
   readonly dynamic: boolean;
+  /** What made a dynamic axis dynamic: each wide value's syntax kind, or a wide typed value. */
+  readonly causes: readonly string[];
+}
+
+const TYPED_WIDE = "a wide typed value";
+const NO_VALUE = "no value";
+
+// A wide value's cause, and where it sits when it is syntax.
+function causeOf(value: AxisValue): { readonly cause: string; readonly at: string | null } {
+  if (value === undefined) {
+    return { cause: NO_VALUE, at: null };
+  }
+  if (isTyped(value)) {
+    return { cause: TYPED_WIDE, at: null };
+  }
+  const source = value.getSourceFile();
+  return { cause: SyntaxKind[value.kind], at: `${source.fileName}:${String(source.getLineAndCharacterOfPosition(value.pos).line + 1)}` };
 }
 
 const isTyped = (value: AxisValue): value is { readonly typed: readonly string[] | null } => value !== undefined && "typed" in value;
@@ -53,13 +71,23 @@ export function writtenLiterals(value: Node | undefined): readonly string[] | nu
 export class Variants {
   readonly #axes = new Map<DeclKey, { readonly name: string; readonly file: string; readonly values: Map<string, DeclKey> }>();
   readonly #used = new Set<DeclKey>();
-  readonly #dynamic = new Set<DeclKey>();
+  /** Each dynamic axis and the causes of its wide values. */
+  readonly #dynamic = new Map<DeclKey, Set<string>>();
+  readonly #log: (line: string) => void;
+  readonly #traceAxis: string | null;
+  readonly #traceTv: boolean;
   /** Members whose values feed another member, target to sources: a forward. */
   readonly #feeds = new Map<DeclKey, DeclKey[]>();
   /** The literal values written into members that are not axes, which a forward may carry to one. */
   readonly #memberValues = new Map<DeclKey, Set<string>>();
   /** A write can meet an axis before its table is read (the table's file comes later), so uses wait for the end. */
   readonly #pending: (readonly [DeclKey, AxisValue])[] = [];
+
+  constructor({ options, log }: BuildSession) {
+    this.#log = log;
+    this.#traceAxis = tracing(options, "axis")?.prop ?? null;
+    this.#traceTv = tracing(options, "tv") !== undefined;
+  }
 
   /** Whether a declaration is a table's axis now, or may be one once its table is read (an object literal's key). */
   mayBeAxis(key: DeclKey): boolean {
@@ -123,8 +151,9 @@ export class Variants {
       return;
     }
     const literals = isTyped(value) ? value.typed : writtenLiterals(value);
+    this.#traceTake(axis, literals, value);
     if (literals === null) {
-      this.#dynamic.add(key);
+      this.#wide(key, axis, value);
       return;
     }
     for (const literal of literals) {
@@ -135,11 +164,29 @@ export class Variants {
     }
   }
 
+  #traceTake(axis: { readonly name: string; readonly file: string }, literals: readonly string[] | null, value: AxisValue): void {
+    if (axis.name === this.#traceAxis) {
+      this.#log(`trace axis ${axis.name} (${axis.file}) takes ${literals === null ? causeOf(value).cause : literals.join("|")}`);
+    }
+  }
+
+  // A wide value makes its axis dynamic; the cause is kept for the profile and the tv trace.
+  #wide(key: DeclKey, axis: { readonly name: string; readonly file: string }, value: AxisValue): void {
+    const { cause, at } = causeOf(value);
+    this.#dynamic.set(key, (this.#dynamic.get(key) ?? new Set()).add(cause));
+    if (this.#traceTv) {
+      this.#log(`trace tv ${axis.name} (${axis.file}) dynamic: ${cause}${at === null ? "" : ` at ${at}`}`);
+    }
+  }
+
   defer(key: DeclKey, value: AxisValue): void {
     this.#pending.push([key, value]);
   }
 
   feed(target: DeclKey, source: DeclKey): void {
+    if (this.#traceAxis !== null && this.#axes.get(target)?.name === this.#traceAxis) {
+      this.#log(`trace axis ${this.#traceAxis} is fed by ${source}`);
+    }
     if (target !== source) {
       this.#feeds.set(target, [...(this.#feeds.get(target) ?? []), source]);
     }
@@ -165,13 +212,25 @@ export class Variants {
         }
       }
     }
-    return [...this.#axes].map(([key, axis]) => ({
+    const axes = [...this.#axes].map(([key, axis]) => ({
       key,
       name: axis.name,
       file: axis.file,
       values: [...axis.values].map(([name, decl]) => ({ name, decl, used: this.#used.has(decl) })),
       dynamic: this.#dynamic.has(key),
+      causes: [...(this.#dynamic.get(key) ?? [])].sort(),
     }));
+    for (const axis of axes.filter(({ name }) => name === this.#traceAxis)) {
+      this.#log(
+        `trace axis ${axis.name} (${axis.file}) selects ${
+          axis.values
+            .filter(({ used }) => used)
+            .map(({ name }) => name)
+            .join("|") || "nothing"
+        }${axis.dynamic ? ", dynamic" : ""}`,
+      );
+    }
+    return axes;
   }
 
   #valuesOf(key: DeclKey, seen: Set<DeclKey>): ReadonlySet<string> {

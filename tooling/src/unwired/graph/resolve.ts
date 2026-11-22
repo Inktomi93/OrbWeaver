@@ -271,9 +271,12 @@ export class Resolver {
   // Read before any walk, so the origin walk's generators read a settled table; NativeWorld.batch refuses a batch run
   // from inside a generator.
   readonly #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>>;
+  // False under `--ablate=spelling`: no alias's syntax is read for the keys it spells.
+  readonly #spelling: boolean;
 
-  constructor(world: NativeWorld) {
+  constructor(world: NativeWorld, { spelling }: { readonly spelling: boolean } = { spelling: true }) {
     this.#world = world;
+    this.#spelling = spelling;
     this.#rows = this.#rowTables();
   }
 
@@ -434,6 +437,9 @@ export class Resolver {
    * `keyof`, and the root itself), so a literal that types a value (`kind: "a"`) never answers a read of `.a`.
    */
   *readSpelling(starts: readonly NodeHandle[], roots: readonly SpellingRoot[] = []): APIRequestGenerator<Spelled> {
+    if (!this.#spelling) {
+      return NOTHING;
+    }
     const { checker } = this.#world;
     const inline = new Map<string, Set<DeclKey>>();
     const queries: Node[] = [];

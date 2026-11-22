@@ -170,6 +170,9 @@ export class Flows {
   /** Record every member a value holds as escaping, from a product file; a value published through our own global
    *  door also marks its members as the door's. */
   escape(value: Type, door: boolean, file: string, at: number): void {
+    if (this.#state.session.options.ablate.has("escape")) {
+      return;
+    }
     const members = this.deepMembers(value, door);
     this.#state.roleAll(members, "escape", file, at);
     if (door) {

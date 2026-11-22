@@ -63,10 +63,13 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
-  const writes = sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
-    const type = slots.get(spanKey(literal));
-    return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
-  });
+  // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
+  const writes = state.session.options.ablate.has("literal-keys")
+    ? []
+    : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
+        const type = slots.get(spanKey(literal));
+        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+      });
   slotWrites(state, variants, sites, writes);
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];

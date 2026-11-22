@@ -5,7 +5,8 @@
 //   finding is still the graph's claim, and a refuted one is a graph defect to fix.
 // - Find-references joins a union's arms (every `summary` of a `{…} | {…}`): a read counts against a member only where
 //   the checker resolves that occurrence to the member's own declaration, so a narrowed sibling arm's read is not its.
-import type { Node, SourceFile, SyntaxKind } from "@typescript/native/ast";
+import type { Node, SourceFile } from "@typescript/native/ast";
+import { isSourceFile, SyntaxKind } from "@typescript/native/ast";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Finding } from "./analyse.ts";
@@ -23,6 +24,8 @@ export interface Verified {
   readonly verdict: Verdict;
   readonly refs: number;
   readonly reads: readonly string[];
+  /** Under `--trace=verify-chain`: each shown read's syntax kinds from the name up to its file. */
+  readonly chains?: readonly string[];
 }
 
 // How many refuting reads a verdict lists.
@@ -35,7 +38,7 @@ export function evenSample<T>(entries: readonly T[], size: number | null): reado
 }
 
 /** Verify each finding of a member bucket against find-references in `world`. */
-export function verifyFindings(world: NativeWorld, findings: readonly Finding[]): readonly Verified[] {
+export function verifyFindings(world: NativeWorld, findings: readonly Finding[], chains = false): readonly Verified[] {
   const resolver = new Resolver(world);
   const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? nameOf(world, key) : undefined));
   const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
@@ -61,13 +64,24 @@ export function verifyFindings(world: NativeWorld, findings: readonly Finding[])
     const { key } = finding;
     const mine = key !== null && isDeclKey(key) ? own.filter((_, z) => (owners[y + z] ?? []).includes(key)) : [];
     y += own.length;
+    const shown = mine.slice(0, SHOWN_READS);
     return {
       label: finding.label,
       verdict: verdictOf(names[x] !== undefined, mine.length > 0),
       refs: occurrences[x]?.length ?? 0,
-      reads: mine.slice(0, SHOWN_READS).map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(lineOf(node))}`),
+      reads: shown.map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(lineOf(node))}`),
+      ...(chains ? { chains: shown.map(chainOf) } : {}),
     };
   });
+}
+
+// A node's syntax kinds up to its source file, as `Identifier<PropertyAccessExpression<…`.
+function chainOf(node: Node): string {
+  const kinds = [SyntaxKind[node.kind]];
+  for (let at = node; !isSourceFile(at); at = at.parent) {
+    kinds.push(SyntaxKind[at.parent.kind]);
+  }
+  return kinds.join("<");
 }
 
 function verdictOf(resolved: boolean, read: boolean): Verdict {

@@ -35,9 +35,11 @@ import type { RootKind, Roots } from "./roots.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
+import type { BuildSession, GraphFacts } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
+import type { WhyEntry } from "./why.ts";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
@@ -60,7 +62,7 @@ interface UrlSpawn {
 
 /** A built graph: the state, the settled variant tables and the facts liveness needs beyond edges. */
 export interface Graph {
-  readonly state: GraphState;
+  readonly facts: GraphFacts;
   readonly variants: readonly VariantAxis[];
   readonly kept: readonly KeptExport[];
   readonly sdk: SdkSurface;
@@ -87,7 +89,7 @@ function* patternSourceType(checker: Checker, route: PatternRoute): APIRequestGe
 const walkedDeclaration = (file: string): boolean => !file.startsWith(PUBLISHED_SDK);
 
 /** The merged program the graph reads. */
-export const openGraphWorld = (root: string): NativeWorld => NativeWorld.openMerged(root, walkedDeclaration);
+export const openGraphWorld = (root: string, timing = false): NativeWorld => NativeWorld.openMerged(root, walkedDeclaration, timing);
 
 // The declaration kind a key names.
 const kindOf = (key: GraphKey): SyntaxKind | null => (key.startsWith("M:") ? null : Number(key.slice(key.lastIndexOf(".") + 1)));
@@ -101,10 +103,17 @@ interface PendingClass {
   readonly decls: readonly DeclKey[];
 }
 
-/** Build the graph of every judged file in the world, telling `log` how far the walk has come. */
-export function buildGraph(root: string, world: NativeWorld, roots: Roots, log: (line: string) => void): Graph {
-  const builder = new Builder(new GraphState(root, world, roots), log);
-  return builder.build();
+/** A build's graph and the roles its `--why` targets were given on the way. */
+export interface BuiltGraph {
+  readonly graph: Graph;
+  readonly why: readonly WhyEntry[];
+}
+
+/** Build the graph of every judged file in the world under the session's options, logging how far the walk has come. */
+export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
+  const state = new GraphState(root, world, roots, session);
+  const graph = new Builder(state).build();
+  return { graph, why: state.why?.entries(state.decls) ?? [] };
 }
 
 // The walk reports its progress every this many files.
@@ -112,7 +121,7 @@ const PROGRESS_EVERY = 1000;
 
 class Builder {
   readonly #state: GraphState;
-  readonly #variants = new Variants();
+  readonly #variants: Variants;
   readonly #flows: Flows;
   readonly #keys: Keys;
   readonly #classes = new Map<DeclKey, ClassFacts>();
@@ -120,11 +129,9 @@ class Builder {
   readonly #pendingValues: PendingClass[] = [];
   readonly #urlSpawns: UrlSpawn[] = [];
 
-  readonly #log: (line: string) => void;
-
-  constructor(state: GraphState, log: (line: string) => void) {
+  constructor(state: GraphState) {
     this.#state = state;
-    this.#log = log;
+    this.#variants = new Variants(state.session);
     this.#flows = new Flows(this.#state);
     this.#keys = new Keys(this.#state);
   }
@@ -132,23 +139,42 @@ class Builder {
   build(): Graph {
     const state = this.#state;
     const { roots, world } = state;
+    const { files: only } = state.session.options;
     const files = world.files
       .map((source) => world.fileOfSource(source))
-      .filter((file) => roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".");
+      .filter((file) => (roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".") && (only === null || file.startsWith(only)));
+    const { profile } = state.session;
+    const walk = (): void => this.#walk(files);
+    const settle = (): readonly VariantAxis[] => {
+      this.#settleClasses();
+      this.#keys.finish(this.#flows);
+      return this.#variants.finish();
+    };
+    if (profile === null) {
+      walk();
+    } else {
+      profile.time("walk", walk);
+    }
+    const variants = profile === null ? settle() : profile.time("fixpoint", settle);
+    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
+  }
+
+  #walk(files: readonly string[]): void {
+    const state = this.#state;
+    const { world, session } = state;
     const sink = this.#sink();
     for (const [at, file] of files.entries()) {
+      const began = performance.now();
       const source = world.source(file);
       if (source !== undefined) {
         this.#file(collectSites(source, file, state.product(file), sink));
       }
       world.releaseAnswers();
+      session.profile?.file(file, performance.now() - began);
       if ((at + 1) % PROGRESS_EVERY === 0) {
-        this.#log(`walked ${String(at + 1)}/${String(files.length)} files`);
+        session.log(`walked ${String(at + 1)}/${String(files.length)} files`);
       }
     }
-    this.#settleClasses();
-    this.#keys.finish(this.#flows);
-    return { state, variants: this.#variants.finish(), kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
   }
 
   #sink(): WalkSink {
@@ -283,6 +309,9 @@ class Builder {
   // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
+    if (state.session.options.ablate.has("zod-twins")) {
+      return;
+    }
     const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
     const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);

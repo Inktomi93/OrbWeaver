@@ -11,6 +11,7 @@
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
 import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
+import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -18,7 +19,7 @@ import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
-import type { Edges, MemberRoles } from "./state.ts";
+import type { GraphFacts, MemberRoles, ReadonlyEdges } from "./state.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -88,7 +89,7 @@ const readsIn = (roles: ReadonlySet<Role>): boolean => [...READS].some((read) =>
 
 const isAmbient = (file: string): boolean => file.endsWith(".d.ts") && !file.startsWith(PUBLISHED_SDK);
 
-function reach(starts: Iterable<GraphKey>, maps: readonly Edges[]): ReadonlySet<GraphKey> {
+function reach(starts: Iterable<GraphKey>, maps: readonly ReadonlyEdges[]): ReadonlySet<GraphKey> {
   const seen = new Set<GraphKey>();
   const queue: GraphKey[] = [];
   for (const start of starts) {
@@ -158,8 +159,8 @@ class Analyser {
     this.#out.get(bucket)?.push(finding);
   }
 
-  get #state(): Graph["state"] {
-    return this.#graph.state;
+  get #state(): GraphFacts {
+    return this.#graph.facts;
   }
 
   // What a ruling keeps, each with its reason: published or trusted exports, a knip keep tag, a production
@@ -179,7 +180,7 @@ class Analyser {
       }
     }
     for (const pin of state.pins) {
-      if (state.product(state.decls.get(pin)?.file ?? "")) {
+      if (isProduction(state.decls.get(pin)?.file ?? "")) {
         this.#why.set(pin, "compile-time pin (a binding unread on purpose)");
       }
     }
@@ -201,13 +202,13 @@ class Analyser {
       productTyped: reach(product, [run, typ]),
       operator: reach(this.#modules(["operator"]), [run, typ]),
       consumer: reach(this.#modules(["consumer"]), [run, typ]),
-      any: reach(this.#graph.files.filter((file) => !state.product(file)).map(moduleKey), [run, typ]),
+      any: reach(this.#graph.files.filter((file) => !isProduction(file)).map(moduleKey), [run, typ]),
     };
   }
 
   // A named top-level unit the product ships: what liveness judges.
   #judgedUnit(info: DeclInfo): boolean {
-    return info.top && this.#state.product(info.file) && info.name !== UNNAMED && (RUNTIME_UNITS.has(info.kind) || TYPE_UNITS.has(info.kind));
+    return info.top && isProduction(info.file) && info.name !== UNNAMED && (RUNTIME_UNITS.has(info.kind) || TYPE_UNITS.has(info.kind));
   }
 
   #liveness(): void {
@@ -242,7 +243,7 @@ class Analyser {
   #docLinks(): void {
     const state = this.#state;
     const declared = new Set([...state.decls.values()].map(({ name }) => name));
-    for (const { file, line, text } of state.danglingDocs.filter(({ file: at }) => state.product(at))) {
+    for (const { file, line, text } of state.danglingDocs.filter(({ file: at }) => isProduction(at))) {
       this.#push(declared.has(text) ? "doc-link-cross-scope" : "doc-link-stale", { label: `${file}:${String(line)} ${text}`, key: null, note: null });
     }
   }
@@ -252,7 +253,7 @@ class Analyser {
     const liveTyped = reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [state.run, state.typ]);
     const dispatched = dispatchedMembers(state.run, state.decls);
     for (const [key, info] of state.decls) {
-      if (!(MEMBERS.has(info.kind) && state.product(info.file) && liveTyped.has(key)) || info.shapeOnly !== null || this.#published(info)) {
+      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && liveTyped.has(key)) || info.shapeOnly !== null || this.#published(info)) {
         continue;
       }
       const role = roles.get(key);
@@ -288,7 +289,7 @@ class Analyser {
   // React state: a value nothing reads, or a setter nothing calls or hands on, never changes the screen.
   #stateTuples(roles: ReadonlyMap<DeclKey, MemberRoles>): void {
     const state = this.#state;
-    for (const { decl, part, file, line } of state.stateParts.filter(({ file: at }) => state.product(at))) {
+    for (const { decl, part, file, line } of state.stateParts.filter(({ file: at }) => isProduction(at))) {
       const product = roles.get(decl)?.product ?? NO_ROLES;
       const label = `${file}:${String(line)} ${part}`;
       if (part === "value" && !product.has("read")) {
@@ -320,8 +321,7 @@ class Analyser {
 
   // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole.
   #variants(): void {
-    const state = this.#state;
-    for (const axis of this.#graph.variants.filter(({ dynamic, file }) => !dynamic && state.product(file))) {
+    for (const axis of this.#graph.variants.filter(({ dynamic, file }) => !dynamic && isProduction(file))) {
       const unused = axis.values.filter(({ used }) => !used).map(({ name }) => name);
       if (unused.length > 0) {
         const whole = unused.length === axis.values.length;
@@ -381,7 +381,7 @@ function memberBucket(name: string, role: MemberRoles | undefined, reachedOtherw
 
 // A member another declaration fills or calls through (heritage, a typed slot, a platform call) has a run edge in from
 // something other than its own holder.
-function dispatchedMembers(run: Edges, decls: ReadonlyMap<DeclKey, DeclInfo>): ReadonlySet<GraphKey> {
+function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclInfo>): ReadonlySet<GraphKey> {
   const out = new Set<GraphKey>();
   for (const [from, targets] of run) {
     for (const target of targets) {
@@ -400,7 +400,7 @@ function dispatchedMembers(run: Edges, decls: ReadonlyMap<DeclKey, DeclInfo>): R
  * with one role set.
  */
 export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
-  const { state } = graph;
+  const { facts: state } = graph;
   const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
   const { readTo, writeTo } = roleLinks(state);
   const queue = [...roles.keys()];
@@ -419,7 +419,7 @@ export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
 
 // Which members a role carries to: a read or send of a slot member goes to the value member that filled it, a write of
 // the value member to the slot, and a zod twin's halves both ways.
-function roleLinks(state: Graph["state"]): { readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>; readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]> } {
+function roleLinks(state: GraphFacts): { readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>; readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]> } {
   const readTo = new Map<DeclKey, DeclKey[]>();
   const writeTo = new Map<DeclKey, DeclKey[]>();
   const link = (map: Map<DeclKey, DeclKey[]>, from: DeclKey, to: DeclKey): void => {
