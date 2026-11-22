@@ -27,11 +27,13 @@ import {
   isBinaryExpression,
   isBindingElement,
   isCallExpression,
+  isClassDeclaration,
   isConditionalExpression,
   isElementAccessExpression,
   isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
+  isInterfaceDeclaration,
   isJsxAttribute,
   isMethodDeclaration,
   isNewExpression,
@@ -45,9 +47,12 @@ import {
   isReturnStatement,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSourceFile,
   isStringLiteral,
   isTemplateExpression,
   isVariableDeclaration,
+  isVariableDeclarationList,
+  isVariableStatement,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
@@ -782,6 +787,10 @@ interface Request {
   readonly patterns: readonly Pattern[];
 }
 
+// A script file's top level, directly or through a `declare var` statement, is the global scope.
+const globalScope = (owner: Node): boolean =>
+  isSourceFile(owner) || (isVariableDeclarationList(owner) && isVariableStatement(owner.parent) && isSourceFile(owner.parent.parent));
+
 function* requestKey(world: NativeWorld, symbol: NativeSymbol | undefined): APIRequestGenerator<string | null> {
   if (symbol === undefined || !outsideTree(world, symbol)) {
     return null;
@@ -791,8 +800,34 @@ function* requestKey(world: NativeWorld, symbol: NativeSymbol | undefined): APIR
     // A module's export keeps its module in the key, so `open` from a file-system module is never the window's.
     return `${parent.name}.${symbol.name}`;
   }
-  // A member with no owner symbol, such as a mapped type's property, is no global.
-  return hasFlag(symbol.flags, SymbolFlags.Property) || hasFlag(symbol.flags, SymbolFlags.Method) ? null : symbol.name;
+  if (!(hasFlag(symbol.flags, SymbolFlags.Property) || hasFlag(symbol.flags, SymbolFlags.Method))) {
+    return symbol.name;
+  }
+  if (!REQUEST_NAMES.has(symbol.name)) {
+    return null;
+  }
+  return yield* ownerKey(symbol);
+}
+
+// A member read through an intersection, such as `window.open` on `Window & typeof globalThis`, has no owner symbol;
+// its declarations name the owners. A global declaration among them makes it the global's sink, so `window.open`,
+// `self.open` and `globalThis.open` are one sink; a mapped type's property has no owner and is no sink.
+function* ownerKey(symbol: NativeSymbol): APIRequestGenerator<string | null> {
+  const keys: string[] = [];
+  for (const handle of symbol.declarations) {
+    // A handle the program cannot resolve names no owner.
+    const owner = (yield* handle.resolve.gen())?.parent;
+    if (owner === undefined) {
+      continue;
+    }
+    if (globalScope(owner)) {
+      return symbol.name;
+    }
+    if ((isInterfaceDeclaration(owner) || isClassDeclaration(owner)) && owner.name !== undefined) {
+      keys.push(`${owner.name.text}.${symbol.name}`);
+    }
+  }
+  return keys.find((key) => key in REQUEST_CALLS) ?? null;
 }
 
 // A shorthand's own symbol is the member; the value it reads is the variable it names.

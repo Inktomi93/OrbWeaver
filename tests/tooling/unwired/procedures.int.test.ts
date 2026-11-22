@@ -180,6 +180,7 @@ const ROUTE_TREE = {
     '  app.get("/api/debug/dump", () => null);',
     '  app.get("/api/orphan", () => null);',
     '  app.get("/api/debug/probe", () => null);',
+    '  app.get("/api/opened", () => null);',
     `  app.get(\`${DOLLAR}{pattern.prefix}:id${DOLLAR}{pattern.suffix}\`, () => null);`,
     ...PLANTED_ROUTE_ROWS.map((row) => `  app.on(${JSON.stringify(row.method)}, ${JSON.stringify(row.path)}, () => null);`),
     "  app.use(() => null);",
@@ -203,6 +204,11 @@ const ROUTE_TREE = {
     'export const quoted = (body: string): Promise<Response> => fetch("/api/orphan", { "method": "POST", body });',
     // A URL that starts with a substitution is no path on our origin the scan can read, so it is listed.
     `export const based = (base: string): Promise<Response> => fetch(\`${DOLLAR}{base}/api/debug/dump\`);`,
+    // The window's open is one sink however it is reached: a window member, a global, or both at once.
+    'export const opened = (): Window | null => window.open("/api/opened", "_blank");',
+    'export const openedLink = (url: URL): Window | null => window.open(url.href, "_blank");',
+    "export const fetchedLink = (url: URL): Promise<Response> => window.fetch(url.href);",
+    "export const assignedLink = (url: URL): void => window.location.assign(url.href);",
   ].join("\n"),
   "packages/server/src/infra/serve.ts": [
     'import { open } from "fs-lib";',
@@ -219,7 +225,7 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = scan(await plantedTree(ROUTE_TREE));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(9 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(10 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
@@ -231,6 +237,9 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
     { file: "packages/client/src/requests.tsx", line: 4, sink: "src" },
     { file: "packages/client/src/requests.tsx", line: 12, sink: "fetch" },
     { file: "packages/client/src/requests.tsx", line: 15, sink: "fetch" },
+    { file: "packages/client/src/requests.tsx", line: 17, sink: "open" },
+    { file: "packages/client/src/requests.tsx", line: 18, sink: "fetch" },
+    { file: "packages/client/src/requests.tsx", line: 19, sink: "Location.assign" },
   ]);
   // Every planted row is matched, and the one row left unplanted reports as stale beside the procedure rows.
   expect(report.outside.map(({ row }) => row)).toEqual(PLANTED_ROUTE_ROWS);
