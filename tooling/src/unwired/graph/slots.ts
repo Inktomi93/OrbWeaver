@@ -31,7 +31,7 @@ import type { FileSites } from "./sites.ts";
 import { declarationNameOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
-import { isVariantsDeclaration, writtenLiterals } from "./variants.ts";
+import { variantsDeclarations, writtenLiterals } from "./variants.ts";
 
 /** One write into a slot: the slot type, the member name, the value written and where. */
 interface SlotWrite {
@@ -88,10 +88,8 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
 function bagSelections(state: GraphState, variants: Variants, sites: FileSites): void {
   const { checker } = state.world;
   const signatures = state.batch(sites.bagCalls.map(({ call }) => checker.getResolvedSignature.gen(call)));
-  const recipes = sites.bagCalls.filter((_, at) => {
-    const declaration = signatures[at]?.declaration;
-    return declaration !== undefined && isVariantsDeclaration(declaration.path);
-  });
+  const confirmed = variantsDeclarations(state, signatures);
+  const recipes = sites.bagCalls.filter((_, at) => confirmed[at] === true);
   const slots = state.contextualTypes(recipes.map(({ bag }) => bag));
   const bags = state.world.typedAt(recipes, ({ bag }) => bag);
   const members = state.batch(bags.map(({ type }) => checker.getPropertiesOfType.gen(type)));

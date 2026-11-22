@@ -9,14 +9,19 @@
 //   takes its `false` arm, so that arm is live wherever the table is applied.
 import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import { isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, SyntaxKind } from "@typescript/native/ast";
+import type { Signature } from "@typescript/native/sync";
 import type { DeclKey } from "./resolve.ts";
 import { keyLiterals, keyText } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 
-const TAILWIND_VARIANTS = /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?tailwind-variants\//u;
+const TAILWIND_VARIANTS = "tailwind-variants";
 
-/** Whether a resolved signature's declaration is tailwind-variants' own: a `tv()` table or a recipe it returns. */
-export const isVariantsDeclaration = (path: string): boolean => TAILWIND_VARIANTS.test(path);
+/** Whether each resolved signature's declaration is tailwind-variants' own: a `tv()` table or a recipe it returns. */
+export const variantsDeclarations = (state: GraphState, signatures: readonly (Signature | undefined)[]): boolean[] =>
+  state.world.fromPackage(
+    signatures.map((signature) => (signature?.declaration === undefined ? [] : [signature.declaration])),
+    TAILWIND_VARIANTS,
+  );
 const VARIANTS = "variants";
 const DEFAULT_VARIANTS = "defaultVariants";
 const FALSE_ARM = "false";
@@ -65,10 +70,10 @@ export class Variants {
   readTables(state: GraphState, calls: readonly CallExpression[], file: string): void {
     const { checker } = state.world;
     const signatures = state.batch(calls.map((call) => checker.getResolvedSignature.gen(call)));
+    const tables = variantsDeclarations(state, signatures);
     for (const [at, call] of calls.entries()) {
-      const declaration = signatures[at]?.declaration;
       const [options] = call.arguments;
-      if (declaration !== undefined && isVariantsDeclaration(declaration.path) && options !== undefined && isObjectLiteralExpression(options)) {
+      if (tables[at] === true && options !== undefined && isObjectLiteralExpression(options)) {
         this.#readTable(state, options, file);
       }
     }

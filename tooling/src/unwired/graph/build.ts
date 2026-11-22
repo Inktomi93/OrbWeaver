@@ -42,7 +42,7 @@ import { Variants } from "./variants.ts";
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
-const REACT_TYPES = /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?@types\/react\//u;
+const REACT_TYPES = "@types/react";
 const TYPE_DECLARATIONS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
 
 // A declaration a published or trusted file exports, kept by that file's ruling.
@@ -83,8 +83,8 @@ function* patternSourceType(checker: Checker, route: PatternRoute): APIRequestGe
   return type;
 }
 
-// Which declaration files the graph walks: ours, except the published SDK's.
-const walkedDeclaration = (file: string): boolean => file.endsWith(".d.ts") && !file.startsWith(PUBLISHED_SDK) && !file.includes("node_modules/");
+// Which of our declaration files the graph walks: all but the published SDK's (the world keeps no library's).
+const walkedDeclaration = (file: string): boolean => !file.startsWith(PUBLISHED_SDK);
 
 /** The merged program the graph reads. */
 export const openGraphWorld = (root: string): NativeWorld => NativeWorld.openMerged(root, walkedDeclaration);
@@ -299,9 +299,13 @@ class Builder {
     const callees = state.world.symbolsAt(
       sites.hookTuples.map(({ call }) => (isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
     );
+    const reacts = state.world.fromPackage(
+      callees.map((callee) => callee?.declarations ?? []),
+      REACT_TYPES,
+    );
     for (const [x, { elements }] of sites.hookTuples.entries()) {
       const callee = callees[x];
-      if (callee === undefined || !STATE_HOOKS.has(callee.name) || !callee.declarations.some((handle) => REACT_TYPES.test(handle.path))) {
+      if (callee === undefined || !STATE_HOOKS.has(callee.name) || reacts[x] !== true) {
         continue;
       }
       const [value, setter] = elements;

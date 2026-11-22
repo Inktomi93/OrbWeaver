@@ -116,9 +116,9 @@ const LINT_PROPOSALS = [
   "- **`castId` or `as Brand` of a plain `string` operand** (class 1, raw): type-aware and measured. The unsafe-cast rule refuses an `unknown` or `any` operand only; a `string` operand outside a literal, a `typeIdSchema` parse or a home file is the same lie. Needs a homes list for the real trusted seams (route params, row reads) before it can be an error.",
   "- **Widen-then-renarrow** (class 3): not a per-file rule. It needs the widen edge and the cast joined across files, which is what this tool does. A lint rule could catch the in-file case only: a `useState<string>` whose setter takes a brand and whose state is later compared to, or cast to, a brand.",
   "- **`useState<string>` fed a brand** (class 2, client state): held at zero by `orb/no-raw-id`.",
-  "- **Id-named declaration typed `string`** (class 4): held at zero by `orb/no-raw-id` for a declared `string` annotation on an exact, qualifier or alias match, by the same name table as this report. Suffix matches stay report-only: a trailing word guesses (`providerMessageId` is a provider's handle). A destructured or unannotated name takes its source's type, so the source carries the fix.",
+  "- **Id-named declaration typed `string`** (class 4): held at zero by `orb/no-raw-id` for a declared `string` annotation. Both read a declaration's brand from the branded values that flow into it first, and from the name table only where none does; the rule sees the flows in its own file, this report every world's. A name answer is enforced on an exact, qualifier or alias match; suffix matches stay report-only: a trailing word guesses (`providerMessageId` is a provider's handle). A destructured or unannotated name takes its source's type, so the source carries the fix.",
   "- **Widen into a contract or port slot** (class 2, tier 2): the fix is declaring the slot as the brand, so the rule is the declaration check above, not an edge check.",
-  "- **Cross-brand by name** (class 5): heuristic, report-only. The measured cases are already compile errors.",
+  "- **Cross-brand** (class 5): report-only. A cast or comparison of a string some other brand flows into is measured; one read from a name that stands for another brand is heuristic. Two brands compared are already compile errors.",
 ];
 
 // What the scan does not see, so a clean count is not read as a clean tree.
@@ -128,8 +128,9 @@ const BLIND = [
   "A template literal is not read as a widen; a brand interpolated into display text or a cache key is not a defect.",
   "A re-narrow is joined to a widen by the declaration of the name the cast reads. A value passed through a second variable, an array element or a closure is not followed.",
   "`parsed` is a text shape (a `.parse(` call in the operand or its initializer, or a zod hook around the cast), not a proof the parse checks the prefix.",
-  "A brand declared outside the ids module is found only when the checker meets it as an intersection assignable to `Branded<string>`; a hand-rolled brand with another shape is not.",
-  "Id-named declarations are matched by name; `memberId`, `actorId`, a DOM id and a plugin-defined id have no brand and are listed apart.",
+  "A brand is found by its alias declared as a kit `Branded` or `TypeIdOf` with a literal label, or when the checker meets it as an intersection assignable to `Branded<string>`; a hand-rolled brand of another shape is not.",
+  "A library's handle is a plain value read straight from a library's declaration (a name or a property), never a call's result; a declaration the program's own values also fill keeps its name's answer.",
+  "An id-named declaration no branded value is seen to reach is matched by name; `memberId`, `actorId`, a DOM id and a plugin-defined id have no brand and are listed apart. A value that reaches a declaration through a widen this scan does not read (see above) leaves it to the name.",
 ];
 
 const VALUE_WIDTH = 90;
@@ -206,6 +207,23 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
     `## Re-narrow (a brand laundered through a string): ${report.renarrows.filter((site) => site.proof === "slot-widened").length}`,
     "",
     `## Cross-brand: ${report.crossBrand.length} (${report.crossBrand.filter((site) => site.provenance === "measured").length} measured)`,
+    "",
+    `## Type against name: ${report.brandAnswers.disagreements.length} sites disagree; at declarations typed as a brand ${report.brandAnswers.agree} names agree and ${report.brandAnswers.unnamed} name no brand`,
+    "",
+    "Each site where the brand that flows in, or the declared brand, differs from the brand its name stands for. The type's answer is the one every other section uses.",
+    "",
+    ...table(
+      ["site", "kind", "name", "typed", "named"],
+      report.brandAnswers.disagreements
+        .slice(0, TOP)
+        .map((site) => [
+          `${site.file}:${site.line}`,
+          site.kind,
+          site.name,
+          site.typed.join(" | ") || "(library handle)",
+          site.named === null ? "-" : `${site.named.brand} (${site.named.match})`,
+        ]),
+    ),
     "",
     `## Missing: ${report.missing.length} id-named declarations typed string where a brand exists; ${report.generic.reduce((sum, entry) => sum + entry.count, 0)} more have no brand`,
     "",
