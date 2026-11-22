@@ -45,7 +45,7 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 
 ## Engine disagreements
 
-The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. 1715 owns that change and holds the classification, the program sets, the time and memory profile, and the TypeScript 6 retirement order. 1697 owns the write and read forms neither engine follows.
+The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. 3838 owns the open disagreement rows.
 
 ## One pass for the member scan
 
@@ -187,5 +187,7 @@ A finding in `packages/contracts/src/plugin/` or `packages/plugin-sdk/` sits und
 
 - fields: the items the fields review filed under this plan
 - params, unions, shapes and ports: 3811
+- judged rows and engine disagreements: 3837, 3838
+- the scan's memory need: 3673
 - the resolver and the removed-keys check: 3812, 3810
 - new scans: 3806, 3807, 3808, 3809
