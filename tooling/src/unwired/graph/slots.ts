@@ -7,6 +7,7 @@
 //   a table keyed by the member: a key use of it, not a write.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
+// - A key written beside a spread (`{ ...req, accounting }`) also fills the member the spread source's type declares.
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
@@ -21,6 +22,7 @@ import {
   isPropertyAccessExpression,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSpreadAssignment,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
@@ -66,12 +68,14 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
+  const spreadTypes = spreadSlots(state, literals);
   // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
   const writes = state.session.options.ablate.has("literal-keys")
     ? []
     : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
         const type = slots.get(spanKey(literal));
-        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+        const spread = spreadTypes.get(spanKey(literal)) ?? [];
+        return [...(type === undefined ? [] : [type]), ...spread].map((slot) => ({ type: slot, name, value, at: literal.pos, jsx: false }));
       });
   slotWrites(state, variants, sites, writes);
   bagSelections(state, variants, sites);
@@ -87,6 +91,23 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
       return type === undefined ? [] : [{ type, name, value, at: attributes.pos, jsx: true }];
     }),
   );
+}
+
+// The types a literal's spreads copy in: a key written beside `...source` overrides the member the source's type
+// declares, so the literal fills that member whatever slot it is handed to (a generic parameter's included).
+function spreadSlots(state: GraphState, literals: readonly ObjectLiteralExpression[]): ReadonlyMap<string, readonly Type[]> {
+  const spreads = literals.flatMap((literal) =>
+    literal.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ literal, source: property.expression }] : [])),
+  );
+  const types = state.slotTypes(state.world.typesAt(spreads.map(({ source }) => source)));
+  const out = new Map<string, Type[]>();
+  for (const [at, { literal }] of spreads.entries()) {
+    const type = types[at];
+    if (type !== undefined) {
+      out.set(spanKey(literal), [...(out.get(spanKey(literal)) ?? []), type]);
+    }
+  }
+  return out;
 }
 
 // `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's

@@ -105,3 +105,20 @@ test("a mapped type that transforms its members fills a table keyed by them: a k
   expect(labelsIn(scan, "member-write-only", FILE).map((label) => label.split("  ")[0])).toEqual(["Field.value"]);
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual([]);
 });
+
+// A key written beside a spread overrides the member the spread source's type declares, even where the literal's own
+// slot is a generic parameter that names no member; the twin nothing writes stays untouched.
+test("a key written beside a spread writes the member its source declares, through a generic slot", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Req { readonly signal: string; readonly stamp?: number; readonly spare?: number }",
+      "function run<R extends { readonly signal: string }>(args: { readonly req: R }): string {",
+      "  return args.req.signal;",
+      "}",
+      "export const sent = (req: Req): string => req.signal + run({ req: { ...req, stamp: 1 } });",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).map((label) => label.split("  ")[0])).toEqual(["Req.stamp"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Req.spare"]);
+});

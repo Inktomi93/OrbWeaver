@@ -239,7 +239,7 @@ export const UNNAMED = "{…}";
 const UNREAD_ON_PURPOSE = /^_/u;
 
 // An identifier in these positions binds or forwards a name; its use is the later reference, resolved through the alias.
-const forwards = (parent: Node): boolean =>
+export const forwards = (parent: Node): boolean =>
   isImportSpecifier(parent) ||
   isImportClause(parent) ||
   isNamespaceImport(parent) ||
@@ -304,7 +304,7 @@ function shapeOnlyOf(node: Node): ShapeOnly | null {
   return typesOnlyASatisfies(node) ? "satisfies-check" : null;
 }
 
-const isTypePosition = (node: Node): boolean =>
+export const isTypePosition = (node: Node): boolean =>
   (node.kind >= SyntaxKind.FirstTypeNode && node.kind <= SyntaxKind.LastTypeNode) ||
   isInterfaceDeclaration(node) ||
   isTypeAliasDeclaration(node) ||

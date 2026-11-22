@@ -104,7 +104,8 @@ function nameOf(world: NativeWorld, key: DeclKey): Node | undefined {
   return node === undefined ? undefined : declarationNameOf(node);
 }
 
-function nodeAt(source: SourceFile, { pos, end, kind }: { readonly pos: number; readonly end: number; readonly kind: SyntaxKind }): Node | undefined {
+/** The node a declaration key's span and kind name in its source file. */
+export function nodeAt(source: SourceFile, { pos, end, kind }: { readonly pos: number; readonly end: number; readonly kind: SyntaxKind }): Node | undefined {
   let found: Node | undefined;
   const visit = (node: Node): void => {
     if (found !== undefined || node.pos > pos || node.end < end) {

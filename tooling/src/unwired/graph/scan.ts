@@ -3,6 +3,7 @@
 // what the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
+import type { ScanOptions } from "../scan.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -17,6 +18,8 @@ import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
 import type { Ablation, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, tracing } from "./options.ts";
+import type { ParamsReport } from "./params.ts";
+import { paramsPass } from "./params.ts";
 import { readPprof } from "./pprof.ts";
 import type { CompilerProfile, GraphProfileReport, ProfilePhase } from "./profile.ts";
 import { GraphProfile } from "./profile.ts";
@@ -220,4 +223,14 @@ export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FR
  *  dump does not carry, so it takes no `from`. */
 export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<DomReport>> {
   return session(root, log, { ...options, from: null }, ({ world, time }) => time("analyse", () => domPass(root, world())));
+}
+
+/** Build the graph, then judge every product callable's parameters against its calls. The calls come from the merged
+ *  program, which a dump does not carry, so it takes no `from`. */
+export function paramsGraph(
+  rows: Pick<ScanOptions, "root" | "deliberate" | "judged">,
+  log: GraphLog,
+  options: Omit<GraphOptions, "from"> = FRESH_BUILD,
+): Promise<WithSession<ParamsReport>> {
+  return session(rows.root, log, { ...options, from: null }, ({ graph, world, time }) => time("analyse", () => paramsPass(graph, world(), rows)));
 }
