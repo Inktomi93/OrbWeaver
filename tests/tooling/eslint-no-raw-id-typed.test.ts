@@ -1,5 +1,6 @@
-// The typed arms of `orb/no-raw-id`: a field, parameter or variable whose id name stands for a brand but is declared
-// `string`, and a plain-string `useState` fed a brand. The brand table comes from the planted program's own aliases.
+// The typed arms of `orb/no-raw-id`: a field, parameter or variable declared `string` that this file hands a brand, or
+// whose id name stands for a brand when nothing branded or foreign reaches it, and a plain-string `useState` fed a brand.
+// The brand table comes from the planted program's own brands.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -54,6 +55,10 @@ const preamble = (file: string): string => {
   ].join("\n");
 };
 
+// A library the planted file reads a provider's own message handle from.
+const PROVIDER_SDK = "node_modules/provider-sdk/index.d.ts";
+const PROVIDER_SOURCE = "export interface Reply {\n  readonly messageId: string;\n}";
+
 function lint(root: string, source: string): readonly string[] {
   const options: ts.CompilerOptions = {
     strict: true,
@@ -69,6 +74,7 @@ function lint(root: string, source: string): readonly string[] {
   for (const [path, body] of [
     [KIT, KIT_SOURCE],
     [CONTRACT, CONTRACT_SOURCE],
+    [PROVIDER_SDK, PROVIDER_SOURCE],
     [FILE, text],
   ] as const) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -127,8 +133,47 @@ test.for([
   { name: "an unrelated private brand in another module", source: "export interface Row { readonly localProbeId: string }", found: null },
   {
     name: "a file-local branded alias",
-    source: `import type { Branded } from "${kitFromProbe}";\ntype LocalId = Branded<"local">;\nexport interface Row { localId: string }`,
+    source: `import type { Branded } from "${kitFromProbe}";\ntype LocalId = Branded<"LocalId">;\nexport interface Row { localId: string }`,
     found: "LocalId",
+  },
+  // The type's answer: what the file hands an id-named declaration, whatever its name says. A string no id name claims is
+  // brand-flow's to report: a comparator's parameter fed a brand is no id slot. Each absence sits beside an id-named
+  // field the rule does report, so a case that reports nothing at all fails.
+  {
+    name: "a renamed field the file hands a brand is left to brand-flow",
+    source: "export interface Row { readonly room: string; readonly chatId: string }\nexport const row: Row = { room: id, chatId: raw };",
+    found: "`chatId`",
+  },
+  {
+    name: "a renamed parameter a call hands a brand is left to brand-flow",
+    source: "function open(room: string, chatId: string): string {\n  return room + chatId;\n}\nexport const opened = open(id, raw);",
+    found: "`chatId`",
+  },
+  {
+    name: "a lookalike name the file hands another brand",
+    source: `import type { MessageId } from "${kitFromProbe}";\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const row: Row = { messageId: id };`,
+    found: "ChatId",
+  },
+  {
+    name: "a lookalike name that holds a library's own handle",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string; readonly chatId: string }\nexport const row: Row = { messageId: reply.messageId, chatId: raw };`,
+    found: "`chatId`",
+  },
+  // A library read clears a declaration only when library values are all that fill it.
+  {
+    name: "a lookalike name the file fills with a library's handle and its own strings",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const rows: Row[] = [{ messageId: reply.messageId }, { messageId: raw }];`,
+    found: "MessageId",
+  },
+  {
+    name: "a lookalike name the file fills with a library's handle and a literal",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const rows: Row[] = [{ messageId: reply.messageId }, { messageId: "m" }];`,
+    found: "MessageId",
+  },
+  {
+    name: "a renamed field the file hands only strings",
+    source: "export interface Row { readonly room: string; readonly chatId: string }\nexport const row: Row = { room: raw, chatId: raw };",
+    found: "`chatId`",
   },
   { name: "a field typed by an alias of string", source: "type Raw = string;\nexport interface Row { readonly chatId: Raw }", found: "ChatId" },
   // Controls: the shapes the rule must leave alone.

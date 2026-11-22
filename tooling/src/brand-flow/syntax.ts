@@ -79,6 +79,8 @@ export interface Gathered {
   readonly mintCalls: Node[];
   readonly asExpressions: Node[];
   readonly handed: Handed[];
+  /** Literal values handed to a slot: never a brand, but the program's own value where a library's also lands. */
+  readonly literals: Handed[];
   readonly comparisons: Node[];
   readonly declarations: Node[];
   readonly states: StateDeclaration[];
@@ -178,7 +180,9 @@ function noteUses(found: Gathered, node: Node): void {
   if (isAsExpression(node) || isTypeAssertion(node)) {
     found.asExpressions.push(node);
   }
-  found.handed.push(...handedAt(node).filter(({ value }) => !isLiteralValue(value)));
+  for (const handed of handedAt(node)) {
+    (isLiteralValue(handed.value) ? found.literals : found.handed).push(handed);
+  }
   if (isBinaryExpression(node) && COMPARISONS.has(node.operatorToken.kind)) {
     found.comparisons.push(node);
   }
@@ -196,7 +200,7 @@ function noteDeclarations(found: Gathered, node: Node): void {
 
 /** Everything in a file that might mint a brand, widen one or re-narrow one. */
 export function gather(files: readonly SourceFile[]): Gathered {
-  const found: Gathered = { casts: [], mintCalls: [], asExpressions: [], handed: [], comparisons: [], declarations: [], states: [] };
+  const found: Gathered = { casts: [], mintCalls: [], asExpressions: [], handed: [], literals: [], comparisons: [], declarations: [], states: [] };
   const visit = (node: Node): void => {
     noteUses(found, node);
     noteDeclarations(found, node);
