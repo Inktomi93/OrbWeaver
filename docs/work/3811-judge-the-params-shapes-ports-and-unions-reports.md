@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-21
+updated: 2026-11-22
 priority: P3
 area: tooling
 plan: unwired-code
@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-After the fields review, the other unwired reports have had no false-positive pass: params (121 rows, 4 cross-check disagreements, reports/unwired/params.json), shapes (264 rows, reports/unwired/shapes.json, which feeds 3748), ports (last run before this session's scanner fixes) and the 27 unbuilt unions rows.
+After the fields review, every other unwired report needs a judged pass on main after the scanner fixes: params, shapes, ports, the unbuilt unions rows, removed-keys, and the first runs of codes, procedures and columns, plus one --cross-check run of each scan that has engine two. Rows judged by the fields review are tracked by 3837.
 
 ## Why
 
@@ -19,7 +19,7 @@ Cleanup items delete against these reports, so a false-positive class here remov
 
 ## Done when
 
-The orchestrator samples each report as the fields review did, files each false-positive class with a red-first fixture and a scanner fix, boards real findings, and reruns each report clean of the fixed classes.
+The orchestrator judges each report on main, files each false-positive class with a red-first fixture and a scanner fix, boards real findings into the judged list, and reruns each report clean of the fixed classes.
 
 ## Evidence
 

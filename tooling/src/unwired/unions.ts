@@ -28,12 +28,13 @@ import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import type { JudgedSplit } from "./judged.ts";
+import { sortJudged } from "./judged.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
+import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { isNativeConstAssertion, nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins, SlotOracle, Spelled } from "./union-origins.ts";
 import {
@@ -54,9 +55,17 @@ import { isProduction } from "./worlds.ts";
 
 const UNION_KINDS = ["unbuilt", "parsed"] as const;
 /** `unbuilt`: no production literal builds the member into a slot of its union. `parsed`: no production literal
- *  builds it either, but production narrows outside input into its tuple with `z.enum` or a membership test, so a
- *  model's structured output, a file, an env var or a platform name can still produce it. */
+ *  builds it either, but production narrows outside input into its tuple with `z.enum`, a membership test or a type
+ *  guard, so a model's structured output, a file, an env var or a platform name can still produce it. */
 type UnionKind = (typeof UNION_KINDS)[number];
+
+/** How production narrows outside input into a tuple. */
+const NARROWINGS = ["z.enum", "membership test", "type guard"] as const;
+type Narrowing = (typeof NARROWINGS)[number];
+
+const GUARD_NARROWING = "type guard" satisfies Narrowing;
+
+const NARROWING_OF_USE = { parse: "z.enum", test: "membership test" } as const satisfies Record<"parse" | "test", Narrowing>;
 
 interface UnwiredUnionMember {
   readonly key: string;
@@ -75,6 +84,12 @@ interface UnwiredUnionMember {
   readonly keys: readonly string[];
 }
 
+/** A parsed member, with each site that narrows outside input into its tuple or a tuple it is a subset of. */
+interface ParsedUnionMember extends UnwiredUnionMember {
+  /** `<narrowing> file:line`: the place outside input enters the vocabulary. */
+  readonly sources: readonly string[];
+}
+
 export interface UnionsReport {
   readonly scanned: number;
   /** Tuples production enumerates, so no member is judged. */
@@ -84,7 +99,10 @@ export interface UnionsReport {
   readonly keyLists: readonly string[];
   /** Each tuple written `as const satisfies readonly P[]` with the tuples `P` derives from; its members are judged as theirs. */
   readonly subsets: Readonly<Record<string, readonly string[]>>;
+  /** Unbuilt members: no production literal builds them and no outside input is parsed into their tuple. */
   readonly unwired: readonly UnwiredUnionMember[];
+  /** Members only outside input produces, each with the sites that parse the input in. Reported, never judged dead. */
+  readonly parsed: readonly ParsedUnionMember[];
   readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredUnionMember>["judged"];
@@ -105,7 +123,7 @@ const UNION_LIMITS: readonly string[] = [
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's, and a value typed by one that production hands into the other's slot builds nothing there.",
   "A call that infers its own type parameter from a literal types the slot by the literal alone, so the slot is read from the declared parameter with that type parameter at its constraint: an object literal's property through the constraint's property, and a callback's returned value through the call's own slot when the callee returns the type parameter or a list of it. A constraint with no literal type (`<N extends string>(name: N)`) builds nothing.",
   'A literal whose declared slot is still a type parameter (`Object.freeze({ source: "checkout" })`, a generic row helper) holds nothing, so it builds nothing.',
-  "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, sorts as parsed instead.",
+  "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, is reported apart as parsed, with the sites that parse the input in.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
   "Only package worlds are scanned; a test literal never builds a member, and a file no package world compiles (a package-root build script such as `packages/ui/tokens.build.ts`) is not read, so a tuple only such a file enumerates reports its members.",
@@ -400,7 +418,8 @@ interface WorldFacts {
   readonly constructions: readonly Construction[];
   readonly passThroughs: readonly PassedOn[];
   readonly keyLists: ReadonlySet<string>;
-  readonly guarded: ReadonlySet<string>;
+  /** Each tuple a type guard narrows raw input into, with the guards' sites. */
+  readonly guarded: ReadonlyMap<string, readonly Site[]>;
 }
 
 /** A switch label handed on into a slot: it builds the member there only when production builds it in `via`, the
@@ -471,11 +490,18 @@ function worldFacts(world: NativeWorld, sources: Sources, local: readonly Tuple[
     }
   }
   const keyLists = new Set(world.batch(first.selections.map((site) => keyListTuples(oracle, sources, site))).flatMap((keys) => [...keys]));
-  const guarded = new Set(world.batch(first.guards.map((site) => predicateTuples(oracle, sources, site))).flatMap((keys) => [...keys]));
+  const guarded = new Map<string, Site[]>();
+  for (const [at, keys] of world.batch(first.guards.map((site) => predicateTuples(oracle, sources, site))).entries()) {
+    const site = first.guards[at] as Site;
+    for (const key of keys) {
+      guarded.set(key, [...(guarded.get(key) ?? []), site]);
+    }
+  }
   return { first, feeds, constructions, passThroughs, keyLists, guarded };
 }
 
-function enumerates(sources: Sources, sites: Iterable<Site>): boolean {
+/** Whether a production reference hands the tuple on (a spread, a map, an index), so it can build any member. */
+export function enumerates(sources: Sources, sites: Iterable<Site>): boolean {
   for (const site of sites) {
     const use = valueUseAt(sources.get(site.file), site.position);
     if (isProductionFile(site.file) && !(use === "type" || use === "test" || use === "parse")) {
@@ -550,7 +576,7 @@ interface FirstPass {
   readonly constructions: readonly Construction[];
   readonly passThroughs: readonly PassedOn[];
   readonly keyLists: ReadonlySet<string>;
-  readonly guarded: ReadonlySet<string>;
+  readonly guarded: ReadonlyMap<string, readonly Site[]>;
 }
 
 interface Joined {
@@ -559,7 +585,7 @@ interface Joined {
   readonly constructions: Construction[];
   readonly passThroughs: PassedOn[];
   readonly keyLists: Set<string>;
-  readonly guarded: Set<string>;
+  readonly guarded: Map<string, readonly Site[]>;
 }
 
 // One world's facts joined into every world's: a literal site keeps the world whose slot holds its text.
@@ -574,8 +600,8 @@ function mergeFacts(facts: WorldFacts, into: Joined): void {
   for (const key of facts.keyLists) {
     into.keyLists.add(key);
   }
-  for (const key of facts.guarded) {
-    into.guarded.add(key);
+  for (const [key, sites] of facts.guarded) {
+    into.guarded.set(key, [...(into.guarded.get(key) ?? []), ...sites]);
   }
 }
 
@@ -605,7 +631,7 @@ function engineOne(options: ScanOptions, { worlds, lists, sources, visit }: Engi
   const constructions: Construction[] = [];
   const passThroughs: PassedOn[] = [];
   const keyLists = new Set<string>();
-  const guarded = new Set<string>();
+  const guarded = new Map<string, readonly Site[]>();
   const homes = homeFiles(worlds, lists);
   for (const config of worlds) {
     using world = NativeWorld.open(options.root, config);
@@ -766,7 +792,16 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const disagreements: string[] = [];
   // Engine two reads parses off the tuple's references only; a type guard is engine one's own reading of the code.
   const parsedByReference = new Set(entries.filter(({ references }) => parses(sources, references.values())).map(({ tuple }) => tuple.key));
-  const parsed = (key: string): boolean => parsedByReference.has(key) || first.guarded.has(key);
+  const referencesOf = new Map(entries.map(({ tuple, references }) => [tuple.key, [...references.values()]]));
+  // Where outside input enters a tuple: each production z.enum or membership test on its references, and each guard.
+  const narrowings = (key: string): readonly string[] => [
+    ...(referencesOf.get(key) ?? []).flatMap((site) => {
+      const use = isProductionFile(site.file) ? valueUseAt(sources.get(site.file), site.position) : null;
+      return use === "parse" || use === "test" ? [`${NARROWING_OF_USE[use]} ${located(site)}`] : [];
+    }),
+    ...(first.guarded.get(key) ?? []).map((site) => `${GUARD_NARROWING} ${located(site)}`),
+  ];
+  const parsedSources = new Map<string, readonly string[]>();
   for (const { tuple, member } of candidates) {
     const key = `${tuple.key}.${member.text}`;
     const two = referencesTwo.get(siteKey(tuple.site)) ?? [];
@@ -777,9 +812,13 @@ export function scanUnions(options: ScanOptions): UnionsReport {
     }
     const sites = first.literals.filter((site) => site.text === member.text && site.holds && belongsTo(site.origins, members));
     const of = (role: LiteralSite["role"]): readonly string[] => sites.filter((site) => site.role === role).map((site) => located(site.site));
+    const entered = lineage(tuple).flatMap(narrowings);
+    if (entered.length > 0) {
+      parsedSources.set(key, entered);
+    }
     findings.push({
       key,
-      kind: lineage(tuple).some(parsed) ? "parsed" : "unbuilt",
+      kind: entered.length > 0 ? "parsed" : "unbuilt",
       file: tuple.site.file,
       line: member.line,
       home: tuple.name,
@@ -789,12 +828,19 @@ export function scanUnions(options: ScanOptions): UnionsReport {
       keys: of("record-key"),
     });
   }
+  const { unwired, deliberate } = sortDeliberate(findings, options.deliberate);
   return {
     scanned: entries.length,
     enumerated,
     keyLists,
     subsets: Object.fromEntries([...subsets].sort(([a], [b]) => a.localeCompare(b))),
-    ...sortRows(findings, options),
+    // Only an unbuilt member is a row to judge; a parsed one reports apart, so a judged entry never hides it.
+    ...sortJudged(
+      unwired.filter(({ kind }) => kind === "unbuilt"),
+      options,
+    ),
+    parsed: unwired.flatMap((row) => (row.kind === "parsed" ? [{ ...row, sources: parsedSources.get(row.key) ?? [] }] : [])),
+    deliberate,
     disagreements,
     limits: UNION_LIMITS,
   };

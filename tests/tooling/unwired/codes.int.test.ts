@@ -212,10 +212,10 @@ test("a member is a thrown code only where it reaches the carrier's code paramet
 }, async ({ plantedTree }) => {
   const report = await scan(plantedTree, THROWN);
   expect(report.vocabularies).toEqual([
-    { key: `${HOME}:CHAIN_CODES`, channels: ["thrown"], sends: [] },
-    { key: `${HOME}:GATE_CODES`, channels: ["thrown"], sends: [] },
-    { key: `${HOME}:IMPORT_REFUSALS`, channels: ["thrown"], sends: [] },
-    { key: `${HOME}:OP_CODES`, channels: ["thrown"], sends: [] },
+    { key: `${HOME}:CHAIN_CODES`, channels: ["thrown"], sends: [], frames: [] },
+    { key: `${HOME}:GATE_CODES`, channels: ["thrown"], sends: [], frames: [] },
+    { key: `${HOME}:IMPORT_REFUSALS`, channels: ["thrown"], sends: [], frames: [] },
+    { key: `${HOME}:OP_CODES`, channels: ["thrown"], sends: [], frames: [] },
   ]);
   expect(found(report)).toEqual([
     { kind: "unhandled", home: "CHAIN_CODES", member: "chain_far", line: 9 },
@@ -373,9 +373,9 @@ test("a returned vocabulary is a code only on a refusal arm, an explicitly null 
 }, async ({ plantedTree }) => {
   const report = await scan(plantedTree, RETURNED);
   expect(report.vocabularies).toEqual([
-    { key: `${HOME}:LEND_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:4"] },
-    { key: `${HOME}:SHARE_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:8", "packages/server/src/router.ts:9"] },
-    { key: `${HOME}:ZIP_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/upload.ts:5"] },
+    { key: `${HOME}:LEND_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:4"], frames: [] },
+    { key: `${HOME}:SHARE_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/router.ts:8", "packages/server/src/router.ts:9"], frames: [] },
+    { key: `${HOME}:ZIP_REFUSALS`, channels: ["returned"], sends: ["packages/server/src/upload.ts:5"], frames: [] },
   ]);
   expect(found(report)).toEqual([
     { kind: "unhandled", home: "LEND_REFUSALS", member: "lend_busy", line: 2 },
@@ -392,6 +392,75 @@ test("a returned vocabulary is a code only on a refusal arm, an explicitly null 
     { member: "zip_too_large", builds: ["packages/server/src/upload.ts:4"], crosses: ["answer", "client"] },
   ]);
   expect(report.scanned).toBe(17);
+});
+
+// A socket subscription yields frames; a frame member's one vocabulary field beside one required sentence carries a
+// code, setting aside its `channel` and `type` tags. A frame field with no sentence beside it is no code.
+const FRAMED = {
+  ...BASE,
+  "node_modules/@trpc/server/index.d.ts": [
+    "export interface Procedure<T> {",
+    "  readonly answer?: T;",
+    "}",
+    "export interface ProcedureBuilder {",
+    "  subscription<T>(resolver: () => T): Procedure<T>;",
+    "}",
+    "export declare const publicProcedure: ProcedureBuilder;",
+  ].join("\n"),
+  "packages/contracts/src/codes.ts": [
+    'export const ROOM_CODES = ["room_busy", "room_gone", "room_internal"] as const;',
+    "export type RoomCode = (typeof ROOM_CODES)[number];",
+    'export const GRADES = ["grade_a", "grade_b"] as const;',
+    "export type Grade = (typeof GRADES)[number];",
+    'export const PHASES = ["phase_load", "phase_run"] as const;',
+    "export type Phase = (typeof PHASES)[number];",
+    'export type Frame = { readonly channel: "control" } & (',
+    '  | { readonly type: "ready"; readonly id: string }',
+    '  | { readonly type: "failed"; readonly room: { readonly id: string }; readonly code: RoomCode; readonly message: string }',
+    '  | { readonly type: "graded"; readonly grade: Grade; readonly note: string }',
+    '  | { readonly type: "phase"; readonly phase: Phase }',
+    ");",
+  ].join("\n"),
+  "packages/server/src/socket.ts": [
+    'import { publicProcedure } from "@trpc/server";',
+    'import type { Frame, Phase, RoomCode } from "../../contracts/src/codes.ts";',
+    'import { ROOM_CODES } from "../../contracts/src/codes.ts";',
+    "// The socket narrows a classified code onto the vocabulary, so any member can ride the frame.",
+    'const narrow = (raw: string): RoomCode => ROOM_CODES.find((known) => known === raw) ?? "room_internal";',
+    "export const connect = (raw: string, phase: Phase) =>",
+    "  publicProcedure.subscription(async function* (): AsyncGenerator<Frame> {",
+    '    yield { channel: "control", type: "failed", room: { id: raw }, code: narrow(raw), message: "The room stopped." };',
+    '    yield { channel: "control", type: "graded", grade: "grade_a", note: "Good." };',
+    '    yield { channel: "control", type: "phase", phase };',
+    "  });",
+  ].join("\n"),
+  "packages/client/src/room.ts": [
+    'import type { Grade, RoomCode } from "../../contracts/src/codes.ts";',
+    'export const roomCopy = (code: RoomCode): string => (code === "room_busy" ? "The room is busy." : "The room stopped.");',
+    'export const gradeCopy = (grade: Grade): string => (grade === "grade_a" ? "Top." : "Fine.");',
+  ].join("\n"),
+};
+
+test("a code a socket subscription's frame carries beside its sentence reaches the client, and a frame field with no sentence is no code", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const report = await scan(plantedTree, FRAMED);
+  expect(report.vocabularies).toEqual([
+    { key: `${HOME}:GRADES`, channels: ["framed"], sends: [], frames: ["packages/server/src/socket.ts:7"] },
+    { key: `${HOME}:ROOM_CODES`, channels: ["framed"], sends: [], frames: ["packages/server/src/socket.ts:7"] },
+  ]);
+  expect(found(report)).toEqual([
+    { kind: "unthrown", home: "GRADES", member: "grade_b", line: 3 },
+    { kind: "unhandled", home: "ROOM_CODES", member: "room_gone", line: 1 },
+    { kind: "unhandled", home: "ROOM_CODES", member: "room_internal", line: 1 },
+  ]);
+  expect(report.codes.map(({ member, crosses }) => `${member} ${crosses.join(",")}`)).toEqual([
+    "grade_a frame,client",
+    "grade_b frame,client",
+    "room_busy frame,client",
+    "room_gone frame,client",
+    "room_internal frame,client",
+  ]);
 });
 
 const HANDLERS = {
