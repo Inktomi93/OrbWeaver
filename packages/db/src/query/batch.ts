@@ -8,7 +8,7 @@
 // TRANSACTION MODE — why every batch rides `BEGIN DEFERRED`, and why that is NOT a choice made here.
 // A raw `@libsql/client` batch takes a second `TransactionMode` arg (`Sqlite3Client.batch(stmts, mode)`,
 // sqlite3.js:85 — "write" → `BEGIN IMMEDIATE`, "deferred" → `BEGIN DEFERRED`, @libsql/core util.js:3).
-// drizzle 0.45.2 does NOT expose it: `LibSQLDatabase.batch` is declared with ONE parameter
+// drizzle 0.45.4 does NOT expose it: `LibSQLDatabase.batch` is declared with ONE parameter
 // (libsql/driver-core.d.ts:7) and its session calls `this.client.batch(builtQueries)` with no mode
 // (libsql/session.js:45), so libsql's own `mode = "deferred"` default applies to every batch we issue.
 // `Parameters<Db["batch"]>` is therefore a 1-tuple and {@link batchMany} returns the ONLY argument that
