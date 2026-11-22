@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-The fields, params and unions scans still run engine two, the TypeScript 6 language service, on every run, and nineteen files under tooling/src/unwired import the typescript package, some for checker answers (union-oracles.ts, language-service.ts, port-plan.ts) and most for syntax. Once 3838 leaves zero engine disagreements, engine two and --cross-check go, and every unwired file reads through @typescript/native.
+Engine two, the TypeScript 6 language service, and the typescript package still run inside the unwired tool: unions.ts and shapes.ts open a TypeScript 6 language service on every run, classify.ts parses every referenced file a second time with TypeScript 6, worlds.ts loads configs through it, and the ports census (port-census.ts, port-plan.ts, doors.ts, forgotten-exports.ts) shares TypeScript 6 helpers with the ESLint rules. Once 3838 leaves zero engine disagreements, engine two and --cross-check go, and every unwired file reads through @typescript/native, except where the ports census keeps TypeScript 6 with a recorded reason.
 
 ## Why
 
