@@ -2,7 +2,8 @@
 // all. Read-only and never a gate. Every world is scanned over the files it is home to, so no file is counted twice.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { BrandTable } from "../brand-names/index.ts";
+import type { BrandVerdict, Inflow } from "../brand-names/index.ts";
+import { BrandTable, sharesBrand, siteBrand } from "../brand-names/index.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { OptionalInventory } from "../unwired/index.ts";
 import {
@@ -16,11 +17,10 @@ import {
   pluginAuthorWorlds,
   publishedSdkSources,
 } from "../unwired/index.ts";
-import type { CompareCandidate, DeclarationCandidate, WorldRecords } from "./collect.ts";
+import type { BrandedDeclaration, CompareCandidate, DeclarationCandidate, PlainFeed, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";
-import { sharesBrand } from "./facts.ts";
 import { layerOf } from "./slots.ts";
-import type { CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
+import type { BrandDisagreement, CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
 import { joinVocab } from "./vocab.ts";
 
 export interface BrandFlowOptions {
@@ -54,6 +54,9 @@ export interface BrandFlowReport extends OptionalInventory {
   readonly missing: readonly MissingSite[];
   readonly generic: readonly GenericId[];
   readonly crossBrand: readonly CrossBrandSite[];
+  /** The type's answer beside the name table's: at an id-named declaration typed as a brand, how often the name reads
+   *  the brand right or not at all; and every site where the two answers differ. */
+  readonly brandAnswers: { readonly agree: number; readonly unnamed: number; readonly disagreements: readonly BrandDisagreement[] };
   readonly vocabularies: readonly VocabField[];
 }
 
@@ -112,19 +115,100 @@ function renarrowsOf(mints: readonly MintSite[], compares: readonly CompareCandi
   return [...casts, ...compared];
 }
 
-function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTable): { missing: MissingSite[]; generic: GenericId[] } {
+// The brands handed to each declaration, by its site. A test that hands a brand to a production slot is no evidence of
+// what production holds there.
+function inflowOf(widens: readonly WidenSite[]): ReadonlyMap<string, readonly string[]> {
+  const bySite = new Map<string, Set<string>>();
+  for (const { slot, file, brands } of widens) {
+    if (slot.declSite === null || (isProduction(slot.declFile ?? "") && !isProduction(file))) {
+      continue;
+    }
+    const held = bySite.get(slot.declSite) ?? new Set<string>();
+    for (const brand of brands) {
+      held.add(brand);
+    }
+    bySite.set(slot.declSite, held);
+  }
+  return new Map([...bySite].map(([site, held]) => [site, [...held].sort()]));
+}
+
+// The declarations only a library's own value reaches, by site: a production declaration counts only production feeds.
+function libraryHandlesOf(feeds: readonly PlainFeed[]): ReadonlySet<string> {
+  const library = new Set<string>();
+  const own = new Set<string>();
+  for (const { declSite, declFile, file, library: fromLibrary } of feeds) {
+    if (!isProduction(declFile ?? "") || isProduction(file)) {
+      (fromLibrary ? library : own).add(declSite);
+    }
+  }
+  return new Set([...library].filter((site) => !own.has(site)));
+}
+
+const here = ({ file, line, pkg, position }: Where): Where => ({ file, line, pkg, position });
+const OR = " | ";
+
+/** One site's brand, from what flows into it before what it is named, with each disagreement kept. */
+class SiteAnswers {
+  readonly disagreements: BrandDisagreement[] = [];
+  agree = 0;
+  unnamed = 0;
+  readonly #table: BrandTable;
+  readonly #inflow: ReadonlyMap<string, readonly string[]>;
+  readonly #handles: ReadonlySet<string>;
+
+  constructor(table: BrandTable, inflow: ReadonlyMap<string, readonly string[]>, handles: ReadonlySet<string>) {
+    this.#table = table;
+    this.#inflow = inflow;
+    this.#handles = handles;
+  }
+
+  /** The name table's answer alone, for a slot whose own value is the type's answer. */
+  named(name: string): BrandVerdict["named"] {
+    return this.#table.brandOf(name);
+  }
+
+  /** The brand of a plain site whose value comes from the declarations at `sites`. */
+  plain(kind: Exclude<BrandDisagreement["kind"], "branded-declaration">, where: Where, name: string, sites: readonly string[]): BrandVerdict {
+    const brands = [...new Set(sites.flatMap((site) => this.#inflow.get(site) ?? []))].sort();
+    const foreign = sites.length > 0 && sites.every((site) => this.#handles.has(site));
+    const inflow: Inflow | undefined = brands.length === 0 && !foreign ? undefined : { brands, foreign };
+    const verdict = siteBrand(inflow, this.#table.brandOf(name));
+    if (verdict.disagrees) {
+      this.disagreements.push({ ...here(where), kind, name, typed: brands, named: verdict.named });
+    }
+    return verdict;
+  }
+
+  // A declaration typed as a brand: the type is the answer, and the name is only measured against it.
+  branded(declared: BrandedDeclaration): void {
+    const verdict = siteBrand({ brands: declared.brands, foreign: false }, this.#table.brandOf(declared.name));
+    if (verdict.named === null) {
+      this.unnamed += 1;
+    } else if (verdict.disagrees) {
+      this.disagreements.push({ ...here(declared), kind: "branded-declaration", name: declared.name, typed: declared.brands, named: verdict.named });
+    } else {
+      this.agree += 1;
+    }
+  }
+}
+
+function missingOf(declarations: readonly DeclarationCandidate[], answers: SiteAnswers): { missing: MissingSite[]; generic: GenericId[] } {
   const missing: MissingSite[] = [];
   const unmatched = new Map<string, { count: number; packages: Set<string> }>();
   for (const declared of declarations) {
-    const match = table.brandOf(declared.name);
-    if (match === null) {
+    const { brand, match, named } = answers.plain("declaration", declared, declared.name, [declared.site]);
+    // A name a library's own value fills is that library's handle: neither missing a brand nor a generic id.
+    if (brand === null && named !== null) {
+      continue;
+    }
+    if (brand === null || match === null) {
       const entry = unmatched.get(declared.name) ?? { count: 0, packages: new Set<string>() };
       entry.count += 1;
       entry.packages.add(declared.pkg);
       unmatched.set(declared.name, entry);
       continue;
     }
-    if (declared.sandboxBrands.length > 0 && declared.sandboxBrands.every((brand) => sharesBrand([brand], [match.brand]))) {
+    if (declared.sandboxBrands.length > 0 && declared.sandboxBrands.every((sandbox) => sharesBrand([sandbox], brand.split(OR)))) {
       continue;
     }
     const slot = {
@@ -142,10 +226,10 @@ function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTa
       owner: declared.owner,
       declKind: declared.declKind,
       shape: declared.shape,
-      brand: match.brand,
-      match: match.match,
+      brand,
+      match,
       layer: layerOf(slot, declared.file),
-      provenance: "heuristic",
+      provenance: match === "type" ? "measured" : "heuristic",
     });
   }
   const generic = [...unmatched]
@@ -154,24 +238,23 @@ function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTa
   return { missing, generic };
 }
 
-function crossBrandOf(table: BrandTable, mints: readonly MintSite[], widens: readonly WidenSite[], compares: readonly CompareCandidate[]): CrossBrandSite[] {
-  return [...crossWidens(table, widens), ...crossMints(table, mints), ...crossCompares(table, compares)];
+function crossBrandOf(answers: SiteAnswers, mints: readonly MintSite[], widens: readonly WidenSite[], compares: readonly CompareCandidate[]): CrossBrandSite[] {
+  return [...crossWidens(answers, widens), ...crossMints(answers, mints), ...crossCompares(answers, compares)];
 }
 
-const here = ({ file, line, pkg, position }: Where): Where => ({ file, line, pkg, position });
-const OR = " | ";
-
-// A widen edge into a slot whose name stands for a different brand than the value it carries.
-function crossWidens(table: BrandTable, widens: readonly WidenSite[]): CrossBrandSite[] {
+// A widen edge into a slot whose name stands for a different brand than the value it carries. The value's brand is the
+// type's answer for the slot, so this row is the name and the type disagreeing.
+function crossWidens(answers: SiteAnswers, widens: readonly WidenSite[]): CrossBrandSite[] {
   return widens.flatMap((widen): CrossBrandSite[] => {
-    const named = table.brandOf(slotWord(widen.slot.name) ?? "");
+    const named = answers.named(slotWord(widen.slot.name) ?? "");
     const crossed = named !== null && !sharesBrand(widen.brands, [named.brand]);
     return crossed ? [{ ...here(widen), how: "widen-into-named-slot", value: widen.brands.join(OR), slot: widen.slot.name, provenance: "heuristic" }] : [];
   });
 }
 
-// A cast to one brand from a brand, or from a raw string read from a name that stands for another.
-function crossMints(table: BrandTable, mints: readonly MintSite[]): CrossBrandSite[] {
+// A cast to one brand of a value that holds another: a brand, a string some other brand flows into, or a raw string read
+// from a name that stands for another.
+function crossMints(answers: SiteAnswers, mints: readonly MintSite[]): CrossBrandSite[] {
   return mints.flatMap((mint): CrossBrandSite[] => {
     if (mint.via !== "castId" && mint.via !== "as") {
       return [];
@@ -180,27 +263,39 @@ function crossMints(table: BrandTable, mints: readonly MintSite[]): CrossBrandSi
       const crossed = !sharesBrand(mint.from, mint.brand.split(OR));
       return crossed ? [{ ...here(mint), how: "rebrand", value: mint.from.join(OR), slot: mint.brand, provenance: "measured" }] : [];
     }
-    const named = mint.mintClass === "raw" ? table.brandOf(mint.operandName ?? "") : null;
-    const crossed = named !== null && !sharesBrand([named.brand], mint.brand.split(OR));
-    return crossed ? [{ ...here(mint), how: "named-for-other-brand", value: mint.operandName ?? "", slot: mint.brand, provenance: "heuristic" }] : [];
+    return mint.mintClass === "raw" ? crossRawMint(answers, mint) : [];
   });
 }
 
-// Two brands compared, or a brand compared with a string read from a name that stands for another.
-function crossCompares(table: BrandTable, compares: readonly CompareCandidate[]): CrossBrandSite[] {
+// A raw operand's brand is what flows into the declarations it reads, else what its name stands for.
+function crossRawMint(answers: SiteAnswers, mint: MintSite): CrossBrandSite[] {
+  const held = answers.plain("mint-operand", mint, mint.operandName ?? "", mint.roots);
+  if (held.brand === null || sharesBrand(held.brand.split(OR), mint.brand.split(OR))) {
+    return [];
+  }
+  return held.match === "type"
+    ? [{ ...here(mint), how: "fed-other-brand", value: held.brand, slot: mint.brand, provenance: "measured" }]
+    : [{ ...here(mint), how: "named-for-other-brand", value: mint.operandName ?? "", slot: mint.brand, provenance: "heuristic" }];
+}
+
+// Two brands compared, or a brand compared with a string that holds another by what flows into it or by its name.
+function crossCompares(answers: SiteAnswers, compares: readonly CompareCandidate[]): CrossBrandSite[] {
   return compares.flatMap((compare): CrossBrandSite[] => {
-    const named = compare.crossed ? null : table.brandOf(compare.plainName ?? "");
-    const byName = named !== null && !sharesBrand([named.brand], compare.brand.split(OR));
-    if (!(compare.crossed || byName)) {
+    if (compare.crossed) {
+      return [{ ...here(compare), how: "compare", value: compare.plainName ?? compare.brand, slot: compare.brand, provenance: "measured" }];
+    }
+    const held = answers.plain("compare-operand", compare, compare.plainName ?? "", compare.roots);
+    if (held.brand === null || sharesBrand(held.brand.split(OR), compare.brand.split(OR))) {
       return [];
     }
+    const typed = held.match === "type";
     return [
       {
         ...here(compare),
         how: "compare",
-        value: compare.plainName ?? compare.brand,
+        value: typed ? held.brand : (compare.plainName ?? ""),
         slot: compare.brand,
-        provenance: compare.crossed ? "measured" : "heuristic",
+        provenance: typed ? "measured" : "heuristic",
       },
     ];
   });
@@ -257,22 +352,17 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
       return wire !== undefined && widen.brands.every((brand) => sharesBrand([brand], wire)) ? { ...widen, layer: "sandbox-wire" } : widen;
     });
   const compares = worlds.flatMap((world) => world.compares);
-  const { missing, generic } = missingOf(declarations, table);
+  const answers = new SiteAnswers(table, inflowOf(widens), libraryHandlesOf(worlds.flatMap((world) => world.plainFeeds)));
+  const { missing, generic } = missingOf(declarations, answers);
+  const crossBrand = crossBrandOf(answers, mints, widens, compares);
+  for (const declared of worlds.flatMap((world) => world.branded)) {
+    answers.branded(declared);
+  }
   const homed = [...homes.values()].flatMap((files) => [...files]);
   return {
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
     scanned: {
-      files: homed.length,
-      production: homed.filter(isProduction).length,
-      optionalProduction: homed.filter(isOptionalProduction).length,
-      byPackage: count(
-        homed.map((file) =>
-          file
-            .split("/")
-            .slice(0, file.startsWith("packages/") ? 2 : 1)
-            .join("/"),
-        ),
-      ),
+      ...scannedFiles(homed),
       doubleCounted: doubleCounted([
         ...mints.map((site) => `mint ${site.via} ${site.file}:${site.position} ${site.source}`),
         ...widens.map((site) => `widen ${site.file}:${site.position} ${site.slot.name} ${site.brands.join()}`),
@@ -287,8 +377,25 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     sandboxWire,
     missing,
     generic,
-    crossBrand: crossBrandOf(table, mints, widens, compares),
+    crossBrand,
+    brandAnswers: { agree: answers.agree, unnamed: answers.unnamed, disagreements: answers.disagreements },
     ...joinOptionalConstructions(options.root, constructions),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
+  };
+}
+
+function scannedFiles(homed: readonly string[]): Omit<BrandFlowReport["scanned"], "doubleCounted"> {
+  return {
+    files: homed.length,
+    production: homed.filter(isProduction).length,
+    optionalProduction: homed.filter(isOptionalProduction).length,
+    byPackage: count(
+      homed.map((file) =>
+        file
+          .split("/")
+          .slice(0, file.startsWith("packages/") ? 2 : 1)
+          .join("/"),
+      ),
+    ),
   };
 }

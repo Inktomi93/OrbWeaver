@@ -63,9 +63,12 @@ export function assertPackageEffects(manifestPath: string, effectClass: PackageE
   }
 }
 
-/** The directories of the packages `pnpm-workspace.yaml` lists under `root`, relative to it. */
+/** The manifest that lists a pnpm workspace's packages, at the workspace root. */
+export const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+
+/** The directories of the packages {@link WORKSPACE_MANIFEST} lists under `root`, relative to it. */
 export function workspacePackageDirs(root: string): string[] {
-  const { packages } = workspaceSchema.parse(parse(readFileSync(join(root, "pnpm-workspace.yaml"), "utf8")));
+  const { packages } = workspaceSchema.parse(parse(readFileSync(join(root, WORKSPACE_MANIFEST), "utf8")));
   return packages.flatMap((pattern) => globSync(`${pattern}/package.json`, { cwd: root }).map((manifest) => dirname(manifest))).sort();
 }
 
