@@ -7,9 +7,12 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
-import { sqlTableName } from "../../tooling/src/eslint/owned-table.ts";
+import { DRIZZLE_PACKAGE } from "../../tooling/src/eslint/library-source.ts";
+import { ownedTableRule, sqlTableName } from "../../tooling/src/eslint/owned-table.ts";
 import { OWNED_TABLE_RESTRICTIONS } from "../../tooling/src/eslint/security-policy.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -187,4 +190,43 @@ test(
 
 test("the owning home reads its table through the relational door", CASE_TIMEOUT, async () => {
   expect((await counts(home))["orb/settings-kv-owner"]).toBe(0);
+});
+
+// Drizzle's builder and table are drizzle's by the package and the file inside it the program loaded them from: a
+// store-linked drizzle outside every node_modules directory still owns them, and a workspace package declaring the same
+// classes at the same paths does not.
+const LINKED_PROBE = "app/probe.ts";
+const [LINKED_ROW] = OWNED_TABLE_RESTRICTIONS;
+const LINKED_DOORS: Readonly<Record<Link, number>> = { workspace: 0, dependency: 2 };
+
+test.for(LINKS)("the relational door and the table object of a %s named drizzle-orm", CASE_TIMEOUT, async (link, { plantedTree }) => {
+  if (LINKED_ROW === undefined) {
+    throw new Error("OWNED_TABLE_RESTRICTIONS holds no row");
+  }
+  const [table] = LINKED_ROW.tables;
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    {
+      name: DRIZZLE_PACKAGE,
+      files: {
+        "index.d.ts": [
+          'export type { RelationalQueryBuilder } from "./sqlite-core/query-builders/query.js";',
+          'export type { SQLiteTable } from "./sqlite-core/table.js";',
+        ].join("\n"),
+        "sqlite-core/query-builders/query.d.ts": "export declare class RelationalQueryBuilder {\n  findMany(): void;\n}",
+        "sqlite-core/table.d.ts": "export declare class SQLiteTable {\n  readonly name: string;\n}",
+      },
+    },
+    {
+      [LINKED_PROBE]: [
+        `import type { RelationalQueryBuilder, SQLiteTable } from "${DRIZZLE_PACKAGE}";`,
+        `declare const db: { readonly query: { readonly ${table}: RelationalQueryBuilder }; readonly schema: { readonly ${table}: SQLiteTable } };`,
+        `export const builder = db.query.${table};`,
+        `export const owned = db.schema.${table};`,
+      ].join("\n"),
+    },
+  );
+  const found = lintLinked(root, LINKED_PROBE, { [LINKED_ROW.id]: ownedTableRule(LINKED_ROW) });
+  expect(found.map(({ ruleId }) => ruleId)).toEqual(Array.from({ length: LINKED_DOORS[link] }, () => `orb/${LINKED_ROW.id}`));
 });

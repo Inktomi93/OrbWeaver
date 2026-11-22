@@ -104,7 +104,23 @@ import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeO
 import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
 import { viewerVisibilityParameterRule } from "./viewer-visibility.ts";
 
-export { BrandTable, type NameMatch } from "./brand-names.ts";
+export {
+  BRAND_MAKERS,
+  type BrandMatch,
+  BrandTable,
+  type BrandVerdict,
+  brandOfLabel,
+  brandOfPhantomKeys,
+  type Inflow,
+  isLibrarySource,
+  isPhantomKey,
+  type NameMatch,
+  type PhantomKey,
+  type SourceOrigin,
+  sharesBrand,
+  siteBrand,
+  TYPE_ID_BRANDS,
+} from "./brand-names.ts";
 export type { CustomPropertyUses } from "./css/custom-properties.ts";
 export {
   baseUiCustomProperties,
@@ -117,6 +133,7 @@ export {
 } from "./css/custom-properties.ts";
 export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
+export { type LibrarySources, librarySources } from "./library-source.ts";
 export { baseUiDoors } from "./motion.ts";
 export { literalKeys } from "./optional-alternatives.ts";
 export {
@@ -138,13 +155,16 @@ export {
   flowMembers,
   flowsAt,
   homeFileOf,
+  homeSourceOf,
   isContractFile,
   isHandTyped,
   memberLabel,
   type PortMember,
   placementOf,
+  placementOfSource,
   RELATION,
   type Restatement,
+  rankOfSource,
   restatementOf,
   restatementsAt,
   rootAlias,

@@ -8,6 +8,8 @@ import type { Node, StringLiteralLikeNode } from "@typescript/native/ast";
 import { isNoSubstitutionTemplateLiteral, isStringLiteral } from "@typescript/native/ast/is";
 import type { APIRequestGenerator, Diagnostic, Program, Snapshot } from "@typescript/native/sync";
 import { API, all, DiagnosticCategory, formatDiagnostics } from "@typescript/native/sync";
+import { isLibrarySource } from "../../brand-names/index.ts";
+import { workspacePackageRoots } from "../../package-effects/index.ts";
 
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
@@ -61,7 +63,7 @@ function* fileErrors(program: Program, file: string): APIRequestGenerator<readon
 
 const isModuleSpecifier = (node: Node): node is StringLiteralLikeNode => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
 
-const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
+const DECLARATION_FILE = ".d.ts";
 
 // A declaration that augments a global or another module reaches files that never import it: they read the augmented
 // name through the module they do import. Its readers are not on the import graph, so the whole program is.
@@ -75,6 +77,7 @@ function* declarationOf(program: Program, file: string): APIRequestGenerator<str
 /** One world's program in its own TypeScript 7.1 process, with the classic checker's option overrides. */
 export class MutantWorld implements Disposable {
   readonly #api: API;
+  readonly #root: string;
   readonly #layer: Readonly<Record<string, string>>;
   readonly #config: string;
   readonly #base: Snapshot;
@@ -84,9 +87,11 @@ export class MutantWorld implements Disposable {
   readonly #baseErrors = new Map<string, number>();
   readonly #baseDeclarations = new Map<string, string>();
   #importers: ReadonlyMap<string, ReadonlySet<string>> | undefined;
+  #ownSources: readonly string[] | undefined;
 
-  private constructor(api: API, config: string) {
+  private constructor(api: API, root: string, config: string) {
     this.#api = api;
+    this.#root = root;
     this.#config = config;
     const read = api.readConfigFile(config);
     if (read.error !== undefined) {
@@ -101,7 +106,7 @@ export class MutantWorld implements Disposable {
 
   /** Open `config`, a path relative to `root`, in a new API process. */
   static open(root: string, config: string): MutantWorld {
-    return new MutantWorld(new API({ cwd: root }), resolve(root, config));
+    return new MutantWorld(new API({ cwd: root }), root, resolve(root, config));
   }
 
   #snapshot(files: Readonly<Record<string, string>>): Snapshot {
@@ -159,13 +164,30 @@ export class MutantWorld implements Disposable {
     return declaration;
   }
 
+  // The files an importer or a reader can be: the world's own sources, by the program's answer under isLibrarySource,
+  // so a store-linked dependency stays out and a workspace package linked through node_modules stays in. Built on the
+  // first changed declaration only, as the import graph is.
+  #worldSources(): readonly string[] {
+    if (this.#ownSources !== undefined) {
+      return this.#ownSources;
+    }
+    const names = [...this.#held].filter((name) => !name.endsWith(DECLARATION_FILE));
+    const metadata = this.#batch(names.map((name) => this.#baseProgram.getSourceFileMetadata.gen(name)));
+    const workspace = new Set(workspacePackageRoots(this.#root));
+    this.#ownSources = names.filter((_, at) => {
+      const meta = metadata[at];
+      return meta !== undefined && !isLibrarySource({ external: meta.isFromExternalLibrary, workspacePackage: workspace.has(meta.packageJsonDirectory) });
+    });
+    return this.#ownSources;
+  }
+
   // Built on the first changed declaration only: most runs never need it, and it reads every source file's imports.
   #importGraph(): ReadonlyMap<string, ReadonlySet<string>> {
     if (this.#importers !== undefined) {
       return this.#importers;
     }
     const program = this.#baseProgram;
-    const sources = this.#batch([...this.#held].filter(isWorldSource).map((name) => program.getSourceFile.gen(name)));
+    const sources = this.#batch(this.#worldSources().map((name) => program.getSourceFile.gen(name)));
     const edges = sources.flatMap((source) =>
       source === undefined ? [] : source.imports.filter(isModuleSpecifier).map((specifier) => ({ from: source.fileName, specifier })),
     );
@@ -198,7 +220,7 @@ export class MutantWorld implements Disposable {
   }
 
   #otherSources(file: string): readonly string[] {
-    return [...this.#held].filter((name) => name !== file && isWorldSource(name));
+    return this.#worldSources().filter((name) => name !== file);
   }
 
   #errorsIn(program: Program, files: readonly string[]): readonly Diagnostic[] {

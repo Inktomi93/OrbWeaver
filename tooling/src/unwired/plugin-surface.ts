@@ -4,18 +4,27 @@
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-
-const SDK_FILES = [
-  "packages/plugin-sdk/shared.d.ts",
-  "packages/plugin-sdk/main.d.ts",
-  "packages/plugin-sdk/ui.d.ts",
-  "packages/plugin-sdk/frame.d.ts",
-] as const;
+import { z } from "zod";
 
 /** The guest-facing plugin contract the SDK mirrors: the wire types it publishes are declared here. */
 export const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
 /** The published plugin SDK: its declarations are a door this module reads, never walked as code. */
 export const PUBLISHED_SDK = "packages/plugin-sdk/";
+
+// The SDK package ships the files its manifest lists; the declarations among them are what guests compile against.
+const SdkManifest = z.looseObject({ files: z.array(z.string()).readonly() });
+const DECLARATION = ".d.ts";
+
+/** The published SDK's declaration files, repository-relative, as the SDK's own manifest ships them; empty for a tree
+ *  with no SDK package. */
+export function publishedSdkSources(root: string): ReadonlySet<string> {
+  const manifest = join(root, PUBLISHED_SDK, "package.json");
+  if (!existsSync(manifest)) {
+    return new Set();
+  }
+  const { files } = SdkManifest.parse(JSON.parse(readFileSync(manifest, "utf8")));
+  return new Set(files.filter((file) => file.endsWith(DECLARATION)).map((file) => `${PUBLISHED_SDK}${file}`));
+}
 
 // Generic types that hold a value without naming its shape: a slot through them is the slot of their arguments.
 const HOLDERS: ReadonlySet<string> = new Set(["Promise", "PromiseLike", "Array", "ReadonlyArray", "Readonly"]);
@@ -119,7 +128,7 @@ function published(root: string): { readonly members: ReadonlyMap<string, string
     }
     ts.forEachChild(node, declared);
   };
-  for (const file of SDK_FILES.filter((sdk) => existsSync(join(root, sdk)))) {
+  for (const file of publishedSdkSources(root)) {
     const source = parse(root, file);
     declared(source);
     const onMember = (key: string, member: NamedMember): void => {

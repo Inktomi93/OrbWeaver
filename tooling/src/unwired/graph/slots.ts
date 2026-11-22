@@ -7,6 +7,8 @@
 //   a table keyed by the member: a key use of it, not a write.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
+// - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
+//   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import {
   isArrayBindingPattern,
@@ -31,7 +33,7 @@ import type { FileSites } from "./sites.ts";
 import { declarationNameOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
-import { isVariantsDeclaration, writtenLiterals } from "./variants.ts";
+import { variantsDeclarations, writtenLiterals } from "./variants.ts";
 
 /** One write into a slot: the slot type, the member name, the value written and where. */
 interface SlotWrite {
@@ -63,10 +65,13 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
-  const writes = sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
-    const type = slots.get(spanKey(literal));
-    return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
-  });
+  // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
+  const writes = state.session.options.ablate.has("literal-keys")
+    ? []
+    : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
+        const type = slots.get(spanKey(literal));
+        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+      });
   slotWrites(state, variants, sites, writes);
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
@@ -88,10 +93,8 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
 function bagSelections(state: GraphState, variants: Variants, sites: FileSites): void {
   const { checker } = state.world;
   const signatures = state.batch(sites.bagCalls.map(({ call }) => checker.getResolvedSignature.gen(call)));
-  const recipes = sites.bagCalls.filter((_, at) => {
-    const declaration = signatures[at]?.declaration;
-    return declaration !== undefined && isVariantsDeclaration(declaration.path);
-  });
+  const confirmed = variantsDeclarations(state, signatures);
+  const recipes = sites.bagCalls.filter((_, at) => confirmed[at] === true);
   const slots = state.contextualTypes(recipes.map(({ bag }) => bag));
   const bags = state.world.typedAt(recipes, ({ bag }) => bag);
   const members = state.batch(bags.map(({ type }) => checker.getPropertiesOfType.gen(type)));
@@ -216,7 +219,6 @@ function forwardedWrites(
     state,
     forwarded.map(({ value }) => value),
   );
-  // a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its type selects instead
   const forwards = new Set<number>();
   for (const [y, { x }] of forwarded.entries()) {
     const from = sources[y] ?? [];

@@ -2,6 +2,7 @@
 // `orb/derived-port-member` and the `pnpm unwired ports` census both call `restatementsAt`, so they agree.
 // A hop the checker accepts structurally leaves no symbol link, which is why reference searches lose it.
 import ts from "typescript";
+import type { LibrarySources } from "../library-source.ts";
 import type { ForeignTypes } from "./foreign-types.ts";
 import { foreignTypes, isSplitSignature, passesDbHandle } from "./foreign-types.ts";
 import { jointBatchRulingOf } from "./ruled-ops.ts";
@@ -24,9 +25,11 @@ export interface Placement {
   readonly domain: string | null;
 }
 
+/** Where a path in the tree's own package layout lives. A program's file goes through {@link placementOfSource}, which
+ *  first turns away a library's file. */
 export function placementOf(fileName: string): Placement | null {
   const source = SOURCE_PATH.exec(fileName.replaceAll("\\", "/"));
-  if (source === null || fileName.includes("/node_modules/")) {
+  if (source === null) {
     return null;
   }
   const [, pkg = "", rest = ""] = source;
@@ -37,6 +40,10 @@ export function placementOf(fileName: string): Placement | null {
   const tier = SERVER_TIERS.find((name) => name === top) ?? null;
   return { pkg, tier, domain: tier === "domain" ? (area ?? null) : null };
 }
+
+/** Where a program's file lives; null for a library's file, by the program's answer. */
+export const placementOfSource = (sources: LibrarySources, file: ts.SourceFile): Placement | null =>
+  sources.isLibrary(file) ? null : placementOf(file.fileName);
 
 /** A rank for "lower tier": kit, contracts, db and inference, then the server tiers in order. Other packages
  *  (client, ui) rank with kit's consumers and never derive across each other. */
@@ -49,12 +56,12 @@ export function tierRank(placement: Placement): number {
 
 export type PortMember = ts.PropertySignature | ts.MethodSignature;
 
-function isPortMember(node: ts.Node | undefined): node is PortMember {
+function isPortMember(sources: LibrarySources, node: ts.Node | undefined): node is PortMember {
   return (
     node !== undefined &&
     (ts.isPropertySignature(node) || ts.isMethodSignature(node)) &&
     (ts.isInterfaceDeclaration(node.parent) || ts.isTypeLiteralNode(node.parent)) &&
-    placementOf(node.getSourceFile().fileName) !== null
+    placementOfSource(sources, node.getSourceFile()) !== null
   );
 }
 
@@ -119,21 +126,21 @@ function derivedForm(checker: ts.TypeChecker, node: ts.TypeNode | undefined): ts
 }
 
 // The member an `Owner["m"]` (or `Owner["a"]["b"]`) node names, or null.
-function indexedMember(checker: ts.TypeChecker, node: ts.IndexedAccessTypeNode): PortMember | null {
+function indexedMember(sources: LibrarySources, checker: ts.TypeChecker, node: ts.IndexedAccessTypeNode): PortMember | null {
   if (!(ts.isLiteralTypeNode(node.indexType) && ts.isStringLiteral(node.indexType.literal))) {
     return null;
   }
   const target = checker.getPropertyOfType(checker.getTypeFromTypeNode(node.objectType), node.indexType.literal.text)?.declarations?.[0];
-  return isPortMember(target) ? target : null;
+  return isPortMember(sources, target) ? target : null;
 }
 
 /** Follow `Owner["m"]`, `NonNullable<Owner["m"]>` and a local alias of either to the member it names, so a derived
  *  member counts as its owner. Pick and other homomorphic mapped members already carry the original declaration. */
-export function effectiveMember(checker: ts.TypeChecker, member: PortMember): PortMember {
+export function effectiveMember(sources: LibrarySources, checker: ts.TypeChecker, member: PortMember): PortMember {
   let current = member;
   for (let hop = 0; hop < MAX_INDEXED_HOPS; hop++) {
     const type = derivedForm(checker, ts.isPropertySignature(current) ? current.type : undefined);
-    const target = type !== undefined && ts.isIndexedAccessTypeNode(type) ? indexedMember(checker, type) : null;
+    const target = type !== undefined && ts.isIndexedAccessTypeNode(type) ? indexedMember(sources, checker, type) : null;
     if (target === null) {
       return current;
     }
@@ -158,15 +165,15 @@ export function aliasOf(checker: ts.TypeChecker, member: PortMember): ts.TypeAli
 
 /** Every member `node`'s type derives from: each `Owner["m"]` inside it, in `Parameters<…>`, `ReturnType<…>`,
  *  `Awaited<…>` and `Pick<…>` alike, and inside the non-generic aliases it names. */
-export function derivedMembers(checker: ts.TypeChecker, node: ts.Node): ReadonlySet<PortMember> {
+export function derivedMembers(sources: LibrarySources, checker: ts.TypeChecker, node: ts.Node): ReadonlySet<PortMember> {
   const found = new Set<PortMember>();
   const followed = new Set<ts.Node>();
   const visit = (child: ts.Node): void => {
     if (ts.isIndexedAccessTypeNode(child)) {
-      const target = indexedMember(checker, child);
+      const target = indexedMember(sources, checker, child);
       if (target !== null) {
         found.add(target);
-        found.add(effectiveMember(checker, target));
+        found.add(effectiveMember(sources, checker, target));
       }
     }
     const alias = ts.isTypeReferenceNode(child) ? aliasDeclarationOf(checker, child) : null;
@@ -360,12 +367,14 @@ export function rootAlias(checker: ts.TypeChecker, member: PortMember): ts.TypeA
 }
 
 /** The file that owns a member's shape: the alias it is typed by, else its own file. */
-export function homeFileOf(checker: ts.TypeChecker, member: PortMember): string {
-  return (aliasOf(checker, member) ?? member).getSourceFile().fileName;
-}
+export const homeSourceOf = (checker: ts.TypeChecker, member: PortMember): ts.SourceFile => (aliasOf(checker, member) ?? member).getSourceFile();
 
-const rankOfFile = (fileName: string): number => {
-  const placement = placementOf(fileName);
+/** The name of {@link homeSourceOf}'s file. */
+export const homeFileOf = (checker: ts.TypeChecker, member: PortMember): string => homeSourceOf(checker, member).fileName;
+
+/** The rank of a program's file under {@link tierRank}; a library's file and a file outside every package rank last. */
+export const rankOfSource = (sources: LibrarySources, file: ts.SourceFile): number => {
+  const placement = placementOfSource(sources, file);
   return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
 };
 
@@ -378,18 +387,19 @@ function isAliasPair(checker: ts.TypeChecker, port: PortMember, owner: PortMembe
 
 // Does the slot side restate? The hand-typed side restates a named one; else the higher tier; a tie goes to the
 // contract file as the home, since a hook or a service beside it restates the contract.
-function slotRestates(checker: ts.TypeChecker, port: PortMember, owner: PortMember, aliasPair: boolean): boolean {
+function slotRestates(sources: LibrarySources, checker: ts.TypeChecker, { port, owner, aliasPair }: Candidate): boolean {
   if (!(aliasPair || isHandTyped(owner))) {
     return true;
   }
   if (!(aliasPair || isHandTyped(port))) {
     return false;
   }
-  const [portFile, ownerFile] = [homeFileOf(checker, port), homeFileOf(checker, owner)];
-  if (rankOfFile(ownerFile) !== rankOfFile(portFile)) {
-    return rankOfFile(ownerFile) <= rankOfFile(portFile);
+  const [portFile, ownerFile] = [homeSourceOf(checker, port), homeSourceOf(checker, owner)];
+  const [portRank, ownerRank] = [rankOfSource(sources, portFile), rankOfSource(sources, ownerFile)];
+  if (ownerRank !== portRank) {
+    return ownerRank <= portRank;
   }
-  return !(isContractFile(portFile) && !isContractFile(ownerFile));
+  return !(isContractFile(portFile.fileName) && !isContractFile(ownerFile.fileName));
 }
 
 interface Candidate {
@@ -399,31 +409,31 @@ interface Candidate {
 }
 
 /** The two members a flow joins, each seen through its derived forms; null when one already derives from the other. */
-export function flowMembers(checker: ts.TypeChecker, { slot, value }: Pick<Flow, "slot" | "value">): Candidate | null {
+export function flowMembers(sources: LibrarySources, checker: ts.TypeChecker, { slot, value }: Pick<Flow, "slot" | "value">): Candidate | null {
   const slotMember = slot.declarations?.[0];
   const valueMember = memberDeclarationOf(checker, value);
-  if (!(isPortMember(slotMember) && isPortMember(valueMember))) {
+  if (!(isPortMember(sources, slotMember) && isPortMember(sources, valueMember))) {
     return null;
   }
-  const port = effectiveMember(checker, slotMember);
-  const owner = effectiveMember(checker, valueMember);
-  if (port === owner || derivedMembers(checker, port).has(owner) || derivedMembers(checker, owner).has(port)) {
+  const port = effectiveMember(sources, checker, slotMember);
+  const owner = effectiveMember(sources, checker, valueMember);
+  if (port === owner || derivedMembers(sources, checker, port).has(owner) || derivedMembers(sources, checker, owner).has(port)) {
     return null;
   }
   return { port, owner, aliasPair: isAliasPair(checker, port, owner) };
 }
 
 // The cross-domain foreign types of a restating member, or null when both sides share a domain or neither has one.
-function crossDomainForeign(checker: ts.TypeChecker, restating: PortMember, home: PortMember): ForeignTypes | null {
-  const fromDomain = placementOf(homeFileOf(checker, restating))?.domain ?? null;
-  const toDomain = placementOf(homeFileOf(checker, home))?.domain ?? null;
-  return fromDomain !== null && toDomain !== null && fromDomain !== toDomain ? foreignTypes(checker, restating) : null;
+function crossDomainForeign(sources: LibrarySources, checker: ts.TypeChecker, restating: PortMember, home: PortMember): ForeignTypes | null {
+  const fromDomain = placementOfSource(sources, homeSourceOf(checker, restating))?.domain ?? null;
+  const toDomain = placementOfSource(sources, homeSourceOf(checker, home))?.domain ?? null;
+  return fromDomain !== null && toDomain !== null && fromDomain !== toDomain ? foreignTypes(sources, checker, restating) : null;
 }
 
 /** The restatement a member flow carries, or null. */
-export function restatementOf(checker: ts.TypeChecker, flow: Flow): Restatement | null {
+export function restatementOf(sources: LibrarySources, checker: ts.TypeChecker, flow: Flow): Restatement | null {
   const { site, slot, value } = flow;
-  const candidate = flowMembers(checker, flow);
+  const candidate = flowMembers(sources, checker, flow);
   if (candidate === null) {
     return null;
   }
@@ -433,7 +443,7 @@ export function restatementOf(checker: ts.TypeChecker, flow: Flow): Restatement 
   }
   const slotType = nonNullable(checker, checker.getTypeOfSymbolAtLocation(slot, site));
   const valueType = nonNullable(checker, checker.getTypeOfSymbolAtLocation(value, site));
-  const fromSlot = slotRestates(checker, port, owner, aliasPair);
+  const fromSlot = slotRestates(sources, checker, candidate);
   const [restating, home] = fromSlot ? [port, owner] : [owner, port];
   // Judged in the rewrite's direction: the home's whole member type must fit where the restating one stands.
   const relation = fromSlot ? relationOf(checker, slotType, valueType) : relationOf(checker, valueType, slotType);
@@ -445,18 +455,18 @@ export function restatementOf(checker: ts.TypeChecker, flow: Flow): Restatement 
   if (isConceptFreeCallback(restating)) {
     return null;
   }
-  const foreign = crossDomainForeign(checker, restating, home);
+  const foreign = crossDomainForeign(sources, checker, restating, home);
   if (foreign === null) {
     return { site, restating, owner: home, relation, crossDomain: false, foreign, source: owner, ruling: null };
   }
   // Across domains the slot is the consumer's: a split signature there (contracts data plus runtime types) is the
   // consumer's own contract, which the owner's verb satisfies at the composition root.
-  const consumer = foreignTypes(checker, port);
+  const consumer = foreignTypes(sources, checker, port);
   if (isSplitSignature(consumer)) {
     return null;
   }
   const passesHandle = passesDbHandle(foreign) || passesDbHandle(consumer);
-  const domains = [port, owner].map((member) => placementOf(homeFileOf(checker, member))?.domain ?? null);
+  const domains = [port, owner].map((member) => placementOfSource(sources, homeSourceOf(checker, member))?.domain ?? null);
   const ruling = passesHandle ? jointBatchRulingOf([...rulingKeysOf(checker, port), ...rulingKeysOf(checker, owner)], domains) : null;
   return { site, restating, owner: home, relation, crossDomain: true, foreign, source: owner, ruling };
 }
@@ -655,8 +665,8 @@ export function flowsAt(checker: ts.TypeChecker, node: ts.Node): Flows {
 }
 
 /** Every restatement among the member flows of `node`. */
-export function restatementsAt(checker: ts.TypeChecker, node: ts.Node): readonly Restatement[] {
-  return flowsAt(checker, node).members.flatMap((flow) => restatementOf(checker, flow) ?? []);
+export function restatementsAt(sources: LibrarySources, checker: ts.TypeChecker, node: ts.Node): readonly Restatement[] {
+  return flowsAt(checker, node).members.flatMap((flow) => restatementOf(sources, checker, flow) ?? []);
 }
 
 /** `Interface.member` for a message or a report row; a member of a nested type literal names its enclosing declaration. */

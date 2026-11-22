@@ -7,6 +7,21 @@ import { GRAPH_SOURCE, graphScan, labelsIn, REACT_TYPES } from "./_planted.ts";
 const FILE = `${GRAPH_SOURCE}/members.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
 
+// The SDK ships what its manifest lists, so a declaration file the manifest adds publishes its members with no list
+// of SDK files to update; a contract member it does not publish is judged.
+test("a plugin contract member the SDK manifest's declarations publish is read by guests", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const contract = "packages/contracts/src/plugin/thing.ts";
+  const scan = await graphScan(plantedTree, {
+    [contract]: [
+      "export interface PluginThing { readonly shown: string; readonly hidden: string }",
+      'export const thing = (): PluginThing => ({ shown: "s", hidden: "h" });',
+    ].join("\n"),
+    "packages/plugin-sdk/package.json": JSON.stringify({ name: "@orb/plugin-sdk", files: ["extra.d.ts"] }),
+    "packages/plugin-sdk/extra.d.ts": "export interface PluginThing { readonly shown: string }",
+  });
+  expect(labelsIn(scan, "member-write-only", contract)).toEqual(["PluginThing.hidden"]);
+});
+
 test("a state value nothing reads and a setter nothing calls are reported; used ones are not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...REACT_TYPES,

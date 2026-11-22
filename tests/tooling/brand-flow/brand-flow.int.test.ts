@@ -23,6 +23,7 @@ const IDS = [
 ].join("\n");
 
 const FLOW = [
+  'import type { SdkReply } from "provider-sdk";',
   'import type { ChatId, PersonaId } from "../../kit/src/ids/index.ts";',
   'import { castId, typeIdSchema } from "../../kit/src/ids/index.ts";',
   "declare function useState<S>(initial: S): [S, (next: S) => void];",
@@ -87,35 +88,111 @@ const FLOW = [
   "  readonly anchorPersonaId: string;",
   "  readonly memberId: string;",
   "  readonly typed: ChatId;",
+  // the name measured against the type: a brand the name reads right, one it reads as another brand, one no name claims
+  "  readonly ownerChatId: ChatId;",
+  "  readonly personaId: ChatId;",
+  "  readonly widgetId: ChatId;",
+  // a brand only its declaration names, and a lookalike declared through a local generic that is no kit brand
+  "  readonly gadgetId: string;",
+  "  readonly fakeId: string;",
+  "}",
+  // the type over the name: a lookalike the code hands another brand, and a renamed string a persona flows into
+  "export interface Reply {",
+  "  readonly messageId: string;",
+  "}",
+  "export function reply(chat: ChatId): Reply {",
+  "  return { messageId: chat };",
+  "}",
+  "export function renamed(persona: PersonaId): ChatId {",
+  "  const key: string = persona;",
+  "  return castId<ChatId>(key);",
+  "}",
+  // a production slot only a test hands a brand: the test is no evidence of what production holds there
+  "export function openPersona(personaId: string): string {",
+  "  return personaId;",
+  "}",
+  // a library's own handle under a brand's name, alone and beside the program's own values
+  "export interface Echo {",
+  "  readonly messageId: string;",
+  "}",
+  "export function echo(sdk: SdkReply): Echo {",
+  "  return { messageId: sdk.messageId };",
+  "}",
+  "export interface Mixed {",
+  "  readonly messageId: string;",
+  "}",
+  "export function mixed(sdk: SdkReply, raw: string): Mixed[] {",
+  "  return [{ messageId: sdk.messageId }, { messageId: raw }];",
+  "}",
+  "export interface Tagged {",
+  "  readonly messageId: string;",
+  "}",
+  "export function tagged(sdk: SdkReply): Tagged[] {",
+  '  return [{ messageId: sdk.messageId }, { messageId: "m" }];',
   "}",
 ].join("\n");
 
+const GADGET = ['import type { Branded } from "../../kit/src/ids/index.ts";', 'export type GadgetId = Branded<"GadgetId">;'].join("\n");
+const FAKE = ["type Branded<T extends string> = string & { readonly fake: T };", 'export type FakeId = Branded<"FakeId">;'].join("\n");
+const PROBE = [
+  'import type { ChatId } from "../../kit/src/ids/index.ts";',
+  'import { openPersona } from "../src/flow.ts";',
+  "export function probe(chat: ChatId): string {",
+  "  return openPersona(chat);",
+  "}",
+].join("\n");
+const PROVIDER_SDK = "export interface SdkReply {\n  readonly messageId: string;\n}";
+
 const TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "../kit/src"] }),
+  [WORLD]: plantedTsconfig({
+    lib: LIB,
+    include: ["src", "test", "../kit/src"],
+    paths: { "provider-sdk": ["../../node_modules/provider-sdk/index.d.ts"] },
+  }),
   "packages/kit/src/ids/index.ts": IDS,
   "packages/a/src/flow.ts": FLOW,
+  "packages/a/src/gadget.ts": GADGET,
+  "packages/a/src/fake.ts": FAKE,
+  "packages/a/test/probe.ts": PROBE,
+  "node_modules/provider-sdk/index.d.ts": PROVIDER_SDK,
 };
 
 const lineOf = (needle: string): number => FLOW.split("\n").findIndex((line) => line.includes(needle)) + 1;
 
-test("the brand-flow scan reports each class with its slot, and leaves the controls alone", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(TREE);
-  const report = scanBrandFlow({ root, worlds: [WORLD], log: () => undefined });
-  const flow = <T extends { readonly file: string }>(sites: readonly T[]): T[] => sites.filter(({ file }) => file === "packages/a/src/flow.ts");
+// Every site in FLOW where the brand that flows in, or the declared brand, is not the brand the name stands for.
+const BRAND_DISAGREEMENTS = [
+  { line: lineOf("openChatSlot(chatId: string)"), kind: "declaration", name: "chatId", typed: ["PersonaId"], named: "ChatId" },
+  { line: lineOf("readonly messageId: string"), kind: "declaration", name: "messageId", typed: ["ChatId"], named: "MessageId" },
+  { line: lineOf("export interface Echo") + 1, kind: "declaration", name: "messageId", typed: [], named: "MessageId" },
+  { line: lineOf("castId<ChatId>(selected)"), kind: "mint-operand", name: "selected", typed: ["ChatId"], named: null },
+  { line: lineOf("castId<ChatId>(key)"), kind: "mint-operand", name: "key", typed: ["PersonaId"], named: null },
+  { line: lineOf("held === chat"), kind: "compare-operand", name: "held", typed: ["ChatId"], named: null },
+  { line: lineOf("readonly personaId: ChatId"), kind: "branded-declaration", name: "personaId", typed: ["ChatId"], named: "PersonaId" },
+];
 
-  const mints = flow(report.mints).map(({ line, via, mintClass, shape }) => ({ line, via, mintClass, shape }));
-  expect(mints).toEqual([
+const flow = <T extends { readonly file: string }>(sites: readonly T[]): T[] => sites.filter(({ file }) => file === "packages/a/src/flow.ts");
+const scanFlow = async (plantedTree: (files: Record<string, string>) => Promise<string>): Promise<ReturnType<typeof scanBrandFlow>> =>
+  scanBrandFlow({ root: await plantedTree(TREE), worlds: [WORLD], log: () => undefined });
+const SCAN = { timeout: 120_000 };
+
+test("the brand-flow scan reports each mint with its class and shape", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
+  expect(flow(report.mints).map(({ line, via, mintClass, shape }) => ({ line, via, mintClass, shape }))).toEqual([
     { line: lineOf('castId<ChatId>("chat_literal")'), via: "castId", mintClass: "literal", shape: null },
     { line: lineOf("castId<ChatId>(raw)"), via: "castId", mintClass: "raw", shape: "parameter" },
     { line: lineOf('c.req.param("chatId")'), via: "castId", mintClass: "raw", shape: "http-param" },
     { line: lineOf("castId<ChatId>(persona)"), via: "castId", mintClass: "rebrand", shape: null },
     { line: lineOf("castId<ChatId>(selected)"), via: "castId", mintClass: "raw", shape: "variable" },
+    { line: lineOf("castId<ChatId>(key)"), via: "castId", mintClass: "raw", shape: "variable" },
     { line: lineOf("raw as ChatId"), via: "as", mintClass: "raw", shape: "parameter" },
     { line: lineOf('typeIdSchema("chat")'), via: "typeIdSchema", mintClass: "parsed", shape: null },
   ]);
+  expect(report.scanned.doubleCounted).toBe(0);
+});
 
-  const widens = flow(report.widens).map(({ line, slot, layer }) => ({ line, slot: slot.name, layer }));
-  expect(widens).toEqual(
+test("the brand-flow scan reports each widen with its slot and layer, and no brand slot or interpolation", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
+  expect(flow(report.widens).map(({ line, slot, layer }) => ({ line, slot: slot.name, layer }))).toEqual(
     expect.arrayContaining([
       { line: lineOf("seen.set(chat, 1)"), slot: "set(key)", layer: "library" },
       { line: lineOf("port.open(chat)"), slot: "open(chatId)", layer: "port" },
@@ -124,14 +201,20 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
       { line: lineOf('useState<string>("")') + 1, slot: "setSelected (useState<string> setter)", layer: "client-state" },
     ]),
   );
-  // A brand slot and an interpolation are no widen.
   expect(nonEmpty(flow(report.widens)).some(({ line }) => line === lineOf("chat satisfies ChatId") || line === lineOf("return `chat"))).toBe(false);
+});
 
+test("the brand-flow scan joins each re-narrow to its widen", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
   expect(flow(report.renarrows).map(({ line, how, proof }) => ({ line, how, proof }))).toEqual([
     { line: lineOf("castId<ChatId>(selected)"), how: "castId", proof: "slot-widened" },
+    { line: lineOf("castId<ChatId>(key)"), how: "castId", proof: "slot-widened" },
     { line: lineOf("held === chat"), how: "compare", proof: "slot-widened" },
   ]);
+});
 
+test("the brand-flow scan names a missing brand by name, including a brand only its declaration names", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
   expect(
     flow(report.missing)
       .filter(({ owner }) => owner === "Row")
@@ -139,16 +222,57 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
   ).toEqual([
     { name: "chatId", brand: "ChatId", match: "exact" },
     { name: "anchorPersonaId", brand: "PersonaId", match: "suffix" },
+    { name: "gadgetId", brand: "GadgetId", match: "exact" },
   ]);
-  expect(report.generic.map(({ name }) => name)).toContain("memberId");
+  // A lookalike declared through a local generic named `Branded` declares no brand.
+  expect(report.generic.map(({ name }) => name)).toEqual(expect.arrayContaining(["memberId", "fakeId"]));
+  expect(report.generic.map(({ name }) => name)).not.toContain("gadgetId");
+});
 
+test("the brand-flow scan reads a missing brand from what flows in before the name", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
+  const missing = flow(report.missing).map(({ owner, name, brand, match, provenance }) => ({ owner, name, brand, match, provenance }));
+  expect(missing).toEqual(
+    expect.arrayContaining([
+      { owner: "Reply", name: "messageId", brand: "ChatId", match: "type", provenance: "measured" },
+      // Only a test hands this production slot a brand, so its name answers.
+      expect.objectContaining({ name: "personaId", brand: "PersonaId", match: "exact" }),
+    ]),
+  );
+  expect(missing.filter(({ name }) => name === "personaId")).toHaveLength(1);
+});
+
+test("the brand-flow scan clears a library's handle only where library values are all that fill it", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
+  const owners = flow(report.missing)
+    .filter(({ name }) => name === "messageId")
+    .map(({ owner, brand, match }) => ({ owner, brand, match }));
+  expect(owners).toEqual(
+    expect.arrayContaining([
+      { owner: "Mixed", brand: "MessageId", match: "exact" },
+      { owner: "Tagged", brand: "MessageId", match: "exact" },
+    ]),
+  );
+  expect(owners.map(({ owner }) => owner)).not.toContain("Echo");
+});
+
+test("the brand-flow scan reports each cross-brand flow", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
   expect(flow(report.crossBrand).map(({ line, how }) => ({ line, how }))).toEqual(
     expect.arrayContaining([
       { line: lineOf("castId<ChatId>(persona)"), how: "rebrand" },
       { line: lineOf("openChatSlot(persona)"), how: "widen-into-named-slot" },
+      { line: lineOf("castId<ChatId>(key)"), how: "fed-other-brand" },
     ]),
   );
-  expect(report.scanned.doubleCounted).toBe(0);
+});
+
+test("the brand-flow scan lists every site where the type and the name answer differently", SCAN, async ({ plantedTree }) => {
+  const answers = (await scanFlow(plantedTree)).brandAnswers;
+  expect(flow(answers.disagreements).map(({ line, kind, name, typed, named }) => ({ line, kind, name, typed, named: named?.brand ?? null }))).toEqual(
+    BRAND_DISAGREEMENTS,
+  );
+  expect({ agree: answers.agree, unnamed: answers.unnamed }).toEqual({ agree: 1, unnamed: 1 });
 });
 
 // A zod-like input shape in a contract: its `typeIdSchema` field takes `string` on the input side by design, its
