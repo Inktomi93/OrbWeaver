@@ -3,7 +3,7 @@
 // builds it or no client branch names it. Each rule's guards have a twin that must stay out of the report.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanCodes } from "../../../tooling/src/unwired/index.ts";
-import { LIB } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
 
 const WORLD = "packages/server/tsconfig.json";
 const HOME = "packages/contracts/src/codes.ts";
@@ -577,4 +577,14 @@ test("a client branch is a computed or plain key, a tested Set element, a compar
     { member: "run_not_owner", handlers: ["packages/client/src/notice.ts:13"] },
     { member: "run_disabled", handlers: ["packages/client/src/notice.ts:13"] },
   ]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = { root: await plantedTree({ ...THROWN, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
+  const judged = plantJudged(scanCodes(options), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired");
+  expect(judgedOutcome(scanCodes({ ...options, judged }), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired")).toEqual(
+    judgedExpected("OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired"),
+  );
 });

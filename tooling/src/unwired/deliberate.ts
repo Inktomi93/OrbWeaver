@@ -16,6 +16,9 @@ const RAW_KV_INSERT =
   "packages/server/src/domain/plugin/persistence/plugin-kv.ts creates a row only through one raw INSERT … SELECT, so the per-plugin key cap rides the write as a subquery (.claude/rules/db.md, Writes); raw SQL text is no column site";
 const ROSTER_PRESET_OPS =
   "an op type that `domain/roster-preset` (and for `AddCharacterToChatOp` `domain/rpg`) is injected with names it in its signature, so it stays in `@orb/contracts` rather than a domain `contract/params.ts`";
+const STATED_REASON = "D107: a declared field is wired or cites its reason, and this one is where its registry row states that reason";
+const CONTENT_CLASS_PAIR =
+  ".claude/rules/chat.md: the content-class policy table and its dispatch in spanToWirePart are edited together, and `wire` is the table's side of that pair";
 
 export const DELIBERATE: readonly DeliberateEntry[] = [
   { directory: "packages/contracts/src/plugin/", reason: PUBLISHED_API },
@@ -63,6 +66,9 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "key", reason: RAW_KV_INSERT },
   { file: "packages/server/src/entry/compose/services.ts", home: "ServicesResult", member: "settleBackground", reason: SETTLE_SIGNAL },
   { file: "packages/server/src/domain/share/contract/composition.ts", home: "ShareGraph", member: "settle", reason: SETTLE_SIGNAL },
+  { file: "packages/contracts/src/chat/content-classes.ts", home: "ContentClassPolicy", member: "wire", reason: CONTENT_CLASS_PAIR },
+  { file: "packages/client/src/state/device-local-registry.ts", home: "DeviceLocalClassification", member: "why", reason: STATED_REASON },
+  { file: "packages/client/src/state/config-section-partition.ts", home: "UnclaimedSettingsKey", member: "reason", reason: STATED_REASON },
 ];
 
 /** The entry that excuses `member` of `home` in `file`, if any. */

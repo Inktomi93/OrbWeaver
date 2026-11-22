@@ -2,7 +2,7 @@
 // passes the same literal. A callable whose value escapes, a single caller and a spread argument are controls.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanParams } from "../../../tooling/src/unwired/index.ts";
-import { JSX_NAMESPACE, LIB, WORLD } from "./_planted.ts";
+import { JSX_NAMESPACE, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
@@ -288,4 +288,12 @@ test("the params scan credits spread, shared-type and callee-body supplies and k
     .soft(inFile("true-findings"))
     .toEqual(["unsupplied-prop Credentials.markRevokedByUser(params.reason)", "unsupplied-prop ProviderLogger.capability(entry.servedModel)"]);
   expect(report.disagreements).toEqual([]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = { root: await plantedTree({ ...TREE, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
+  const judged = plantJudged(scanParams(options), "greet.prefix", "tag.kind");
+  expect(judgedOutcome(scanParams({ ...options, judged }), "greet.prefix", "tag.kind")).toEqual(judgedExpected("greet.prefix", "tag.kind"));
 });

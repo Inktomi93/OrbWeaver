@@ -4,7 +4,7 @@
 // in a plain string slot and an enumerated tuple are controls.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanUnions } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
 type Report = ReturnType<typeof scanUnions>;
 
@@ -671,4 +671,18 @@ test("the unions scan still reports the members the judge confirmed unbuilt: a R
     { kind: "unbuilt", home: "TURN_KINDS", member: "opening", keys: ["packages/a/src/turns.ts:4"] },
   ]);
   expect(report.disagreements).toEqual([]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = {
+    root: await plantedTree({ ...ORIGIN_TREE, ...JUDGED_WORK }),
+    worlds: [WORLD],
+    testWorlds: [],
+    deliberate: [],
+    log: (): undefined => undefined,
+  };
+  const judged = plantJudged(scanUnions(options), "KINDS_D.dopen", "KINDS_G.gshared");
+  expect(judgedOutcome(scanUnions({ ...options, judged }), "KINDS_D.dopen", "KINDS_G.gshared")).toEqual(judgedExpected("KINDS_D.dopen", "KINDS_G.gshared"));
 });
