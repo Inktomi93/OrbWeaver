@@ -1,19 +1,22 @@
 // Value flows no name shows: a value handed to a slot of a restated type carries its members across. A compiler-checked
 // hand-off makes same-named members one value, so each pair is a flow, from the handed type's members to the slot's.
 // A slot a library declares is read by the library (`mutate(input, settle)` calls `settle.onError`), so a member handed
-// into one is read at the hand-off.
-import type { Expression, Node } from "@typescript/native/ast";
+// into one is read at the hand-off. A zod parse copies each key its output names out of the value handed in, so a Drizzle
+// row handed to one, whole or spread into the argument, is read at the parse for exactly those columns.
+import type { CallExpression, Expression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isArrowFunction,
   isBlock,
   isCallExpression,
+  isIdentifier,
   isJsxExpression,
   isJsxSpreadAttribute,
   isNewExpression,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
   isObjectLiteralExpression,
+  isPropertyAccessExpression,
   isPropertyAssignment,
   isReturnStatement,
   isShorthandPropertyAssignment,
@@ -50,6 +53,11 @@ interface TypePair {
   /** The production node that hands the value over. */
   readonly at: Node;
 }
+
+/** The schema methods that copy a value's keys into their output, and the library that declares them. */
+const PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
+const SAFE_PARSE_DATA = "data";
+const SCHEMA_LIBRARY = "/zod/";
 
 /** A member a library slot receives: the hand-off site reads it. */
 export interface LibraryRead {
@@ -291,13 +299,86 @@ function* compared(world: NativeWorld, pair: TypePair): APIRequestGenerator<Comp
   };
 }
 
+const isParseCall = (node: Node): node is CallExpression =>
+  isCallExpression(node) && isPropertyAccessExpression(node.expression) && PARSE_METHODS.has(node.expression.name.text);
+
+// The types a parse answers with: the parsed value, or a safe parse's `data`.
+function* parsedTypes(world: NativeWorld, call: CallExpression, safe: boolean): APIRequestGenerator<readonly Type[]> {
+  const { checker } = world;
+  const answer = yield* checker.getTypeAtLocation.gen(call);
+  const settled = (yield* checker.getAwaitedType.gen(answer)) ?? answer;
+  if (!safe) {
+    return [settled];
+  }
+  const data = (yield* all(...(yield* constituents(settled)).map((member) => checker.getPropertyOfType.gen(member, SAFE_PARSE_DATA)))).filter(
+    (symbol) => symbol !== undefined,
+  );
+  return data.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(data);
+}
+
+// The values a parse argument hands in: the argument, or each spread of an object literal argument with the keys a later
+// property of the literal sets over it.
+function parsedValues(argument: Node): readonly { readonly node: Node; readonly overridden: ReadonlySet<string> }[] {
+  if (!isObjectLiteralExpression(argument)) {
+    return [{ node: argument, overridden: new Set() }];
+  }
+  const { properties } = argument;
+  return properties.flatMap((property, at) =>
+    isSpreadAssignment(property)
+      ? [
+          {
+            node: property.expression,
+            overridden: new Set(
+              properties
+                .slice(at + 1)
+                .flatMap((later) =>
+                  (isPropertyAssignment(later) || isShorthandPropertyAssignment(later)) && isIdentifier(later.name) ? [later.name.text] : [],
+                ),
+            ),
+          },
+        ]
+      : [],
+  );
+}
+
+// The columns a zod parse reads: each row member, of the argument or of a spread inside an object literal argument,
+// whose name the parsed output carries. A key the schema strips is no read.
+function* parseReads(world: NativeWorld, call: CallExpression): APIRequestGenerator<readonly LibraryRead[]> {
+  const { checker } = world;
+  const [argument] = call.arguments;
+  if (argument === undefined || !isPropertyAccessExpression(call.expression)) {
+    return [];
+  }
+  const outputs = yield* parsedTypes(world, call, call.expression.name.text.startsWith("safe"));
+  const shapes = (yield* all(...outputs.map((output) => objectMembers(world, output)))).flat();
+  const named = new Set((yield* all(...shapes.map((shape) => checker.getPropertiesOfType.gen(shape)))).flat().map((property) => property.name));
+  const keys: string[] = [];
+  for (const { node, overridden } of parsedValues(argument)) {
+    const type = yield* checker.getTypeAtLocation.gen(node);
+    for (const holder of yield* objectMembers(world, type)) {
+      const members = (yield* checker.getPropertiesOfType.gen(holder)).filter(
+        (member) => member.declarations.length === 0 && named.has(member.name) && !overridden.has(member.name),
+      );
+      keys.push(...(yield* all(...members.map((member) => rowColumns(world, holder, member.name)))).flat().flatMap(declarationKeys));
+    }
+  }
+  return keys.length === 0 ? [] : [{ site: world.siteOf(call.expression.name), keys }];
+}
+
+// The production parse calls a zod schema answers.
+function schemaParses(world: NativeWorld, calls: readonly Node[]): readonly CallExpression[] {
+  const parses = calls.filter(isParseCall);
+  const symbols = world.symbolsAt(parses.map((call) => (call.expression as Expression & { readonly name: Node }).name));
+  return parses.filter((_, at) => (symbols[at]?.declarations ?? []).some((handle) => handle.path.includes(SCHEMA_LIBRARY)));
+}
+
 /** Every member flow the production hand-offs of a world make, each distinct pair of types compared once, and each
  *  in-tree member a library slot receives, read at the first hand-off that pairs those types. */
 export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): { readonly flows: readonly Flow[]; readonly reads: readonly LibraryRead[] } {
   const flows: Flow[] = [];
-  const reads: LibraryRead[] = [];
   const seen = new Set<string>();
   const { values, calls, spreads, elementSpreads } = handedValues(world, home);
+  const reads: LibraryRead[] = world.batch(schemaParses(world, calls).map((call) => parseReads(world, call))).flat();
   const handed = [
     ...world.batch(values.map((value) => pairAt(world, value))),
     ...world.batch(spreads.map((spread) => spreadPair(world, spread))),

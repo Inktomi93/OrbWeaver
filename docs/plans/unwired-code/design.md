@@ -120,6 +120,8 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - Migrations, the baseline and the schema files are neither a read nor a write.
 - A column picked by name into a log, a debug route or a bug bundle counts as read. A column that only rides a whole-row dump does not.
 - An export that carries a column to a file counts as a read, a whole row serialized into a file included. The import that fills it counts as a write.
+- A zod `parse` or `safeParse` of a row, whole or spread into an object literal, reads each column whose name the parsed output carries. A key the schema strips, or one a later property of the literal sets over the spread, is no read. A parse no zod schema answers reads nothing.
+- A primary-key column, built with `.primaryKey()` or listed by `primaryKey({ columns })`, that production never reads is listed apart under `primaryKeys`, never as a finding: the key is the row's identity, which an upsert on a natural key never selects.
 - A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it.
 - A row that carries a subset of its table's columns outside a mapped type over the row matches no table. A member of it named as a column is listed as unresolved.
 - A column that only raw SQL writes is listed as deliberate with its reason.
@@ -136,7 +138,7 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - A refusal field is also the one vocabulary field at the top of a body sent with a 4xx or 5xx status.
 - A member in an error's detail object, a success answer's field or a progress member is no code.
 - A code with no throw site in production is dead vocabulary. In a returned vocabulary, a code is dead when no server production site builds it. A client or test construction builds nothing.
-- A code that crosses the wire is handled only when the client branches on that code. A branch is a switch case, a comparison, a plain or computed key, or a `Set` or `Map` element the file tests with `has` or `get`. A lookup by the whole vocabulary into a table with a row for every member is a branch too. A generic error toast is not a handler.
+- A code that crosses the wire is handled only when the client branches on that code. A branch is a switch case, a comparison, a plain or computed key, or a `Set` or `Map` element whose binding a file tests with `has` or `get`. A lookup by the whole vocabulary into a table with a row for every member is a branch too. A generic error toast is not a handler.
 - A code that only server-internal callers see needs no client handler. The scan marks where each code crosses the wire.
 - The owner rules on the handled rule before the first report is judged.
 

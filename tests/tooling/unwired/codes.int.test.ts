@@ -463,6 +463,62 @@ test("a code a socket subscription's frame carries beside its sentence reaches t
   ]);
 });
 
+// A member a constructor parameter defaults to is thrown when the parameter reaches the carrier's code; a default on a
+// parameter that never does is no throw. A member collected into a Set another client file tests with `has` names a
+// branch; a Set nobody tests names none.
+const DEFAULTS_AND_SETS = {
+  ...BASE,
+  "packages/contracts/src/codes.ts": [
+    'export const UPLOAD_CODES = { rejected: "up_rejected", tooBig: "up_too_big" } as const;',
+    "export type UploadCode = (typeof UPLOAD_CODES)[keyof typeof UPLOAD_CODES];",
+    'export const FORM_CODES = { urlBad: "form_url_bad", urlRefused: "form_url_refused", nameEmpty: "form_name_empty" } as const;',
+  ].join("\n"),
+  "packages/server/src/errors.ts": [
+    'import type { UploadCode } from "../../contracts/src/codes.ts";',
+    'import { FORM_CODES, UPLOAD_CODES } from "../../contracts/src/codes.ts";',
+    'import { DomainOperationError } from "./kit-errors.ts";',
+    "export class RejectedError extends DomainOperationError {",
+    "  constructor(message: string, refusal: UploadCode = UPLOAD_CODES.rejected) {",
+    "    super(refusal, message);",
+    "  }",
+    "}",
+    'export const refuse = (): never => { throw new RejectedError("The upload was refused."); };',
+    "export const label = (code: UploadCode = UPLOAD_CODES.tooBig): string => code;",
+    "export function check(step: number): void {",
+    "  if (step === 0) {",
+    '    throw new DomainOperationError(FORM_CODES.urlBad, "Bad URL.");',
+    "  }",
+    "  if (step === 1) {",
+    '    throw new DomainOperationError(FORM_CODES.urlRefused, "Refused URL.");',
+    "  }",
+    '  throw new DomainOperationError(FORM_CODES.nameEmpty, "Name it.");',
+    "}",
+  ].join("\n"),
+  "packages/client/src/url-codes.ts": [
+    'import { FORM_CODES } from "../../contracts/src/codes.ts";',
+    "export const URL_CODES: ReadonlySet<string> = new Set([FORM_CODES.urlBad, FORM_CODES.urlRefused]);",
+    "export const NAME_CODES: ReadonlySet<string> = new Set([FORM_CODES.nameEmpty]);",
+  ].join("\n"),
+  "packages/client/src/form.ts": [
+    'import { NAME_CODES, URL_CODES } from "./url-codes.ts";',
+    "export const onUrl = (reason: string): boolean => URL_CODES.has(reason);",
+    "export const nameCodes = NAME_CODES.size;",
+  ].join("\n"),
+};
+
+test("a parameter default the carrier's code receives is thrown, and a Set another client file tests is a branch", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const report = await scan(plantedTree, DEFAULTS_AND_SETS);
+  expect(found(report)).toEqual([
+    { kind: "unhandled", home: "FORM_CODES", member: "form_name_empty", line: 3 },
+    { kind: "unhandled", home: "UPLOAD_CODES", member: "up_rejected", line: 1 },
+    { kind: "unthrown", home: "UPLOAD_CODES", member: "up_too_big", line: 1 },
+  ]);
+  expect(report.codes.find(({ member }) => member === "up_rejected")?.throws).toEqual(["packages/server/src/errors.ts:5"]);
+  expect(report.codes.find(({ member }) => member === "form_url_bad")?.handlers).toEqual(["packages/client/src/url-codes.ts:2"]);
+});
+
 const HANDLERS = {
   ...BASE,
   "packages/contracts/src/codes.ts": [
