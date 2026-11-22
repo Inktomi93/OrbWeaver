@@ -163,10 +163,14 @@ export async function graphScan(
 export const labelsIn = (scan: GraphScan, bucket: Bucket, file: string): readonly string[] =>
   scan.analysis[bucket].filter(({ label }) => label.startsWith(`${file}:`)).map(({ label }) => label.slice(file.length + 1));
 
-/** A minimal React: the state hooks the graph reads a `[value, setter]` tuple from, at React's own types path. */
+/** A minimal React at React's own types path: the state hook the graph reads a `[value, setter]` tuple from, and the class
+ *  component whose lifecycle methods React calls. */
 export const REACT_TYPES = {
   "node_modules/@types/react/package.json": JSON.stringify({ name: "@types/react", types: "index.d.ts" }),
-  "node_modules/@types/react/index.d.ts": "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+  "node_modules/@types/react/index.d.ts": [
+    "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+    "export declare class Component<P = object> { readonly props: P; render(): unknown; componentDidMount?(): void }",
+  ].join("\n"),
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a

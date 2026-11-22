@@ -147,6 +147,8 @@ export interface GraphFacts {
   readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   readonly door: ReadonlySet<DeclKey>;
+  /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
+  readonly unseenCalls: ReadonlySet<DeclKey>;
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -216,6 +218,7 @@ export class GraphState implements GraphFacts {
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
   readonly door = new Set<DeclKey>();
+  readonly unseenCalls = new Set<DeclKey>();
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];

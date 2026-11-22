@@ -46,6 +46,7 @@ import {
   isBlock,
   isCallExpression,
   isClassDeclaration,
+  isComputedPropertyName,
   isConditionalExpression,
   isConstructorDeclaration,
   isElementAccessExpression,
@@ -397,7 +398,10 @@ export interface ClassFacts {
   readonly key: DeclKey;
   readonly members: Map<string, DeclKey>;
   readonly statics: Map<string, DeclKey>;
-  readonly heritage: readonly ExpressionWithTypeArguments[];
+  /** Every heritage clause's type: the instance types its members may fill. */
+  readonly heritage: readonly Node[];
+  /** The `extends` clause's base: its value side holds the statics its static members may fill. */
+  readonly bases: readonly ExpressionWithTypeArguments[];
 }
 
 /** An object literal's methods and accessors by name, with the declaration holding the literal. */
@@ -500,6 +504,8 @@ export interface WalkSink {
   readonly edge: (map: "run" | "typ", from: GraphKey, to: GraphKey) => void;
   readonly role: (key: DeclKey, role: Role, file: string, at: number) => void;
   readonly pin: (key: DeclKey) => void;
+  /** A member the runtime calls by its well-known name. */
+  readonly unseenCall: (key: DeclKey) => void;
   /** A module a `new URL("./x", import.meta.url)` names, if it is one of the tree's code files. */
   readonly urlModule: (fromFile: string, specifier: string) => string | null;
 }
@@ -508,6 +514,9 @@ const CSS_NAME = /^--[\w-]+$/u;
 const ZOD_TYPE = "ZodType";
 const TV = "tv";
 const URL_CONSTRUCTOR = "URL";
+const WELL_KNOWN_SYMBOLS = "Symbol";
+// Members the runtime calls by name: JSON.stringify's `toJSON`, coercion's `toString` and `valueOf`, `await`'s `then`.
+const RUNTIME_PROTOCOL_NAMES: ReadonlySet<string> = new Set(["toJSON", "toString", "valueOf", "then"]);
 const ARM_SELECTORS: ReadonlySet<string> = new Set(["Extract", "Exclude"]);
 const MEMBER_SELECTORS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
 // A zod object schema's shape literal, through the chain it is built in (`z.strictObject({ … }).describe(…)`).
@@ -790,6 +799,11 @@ class Walker {
     ) {
       const owner = this.#frame.classes.at(-1);
       (hasStatic(node) ? owner?.statics : owner?.members)?.set(name, key);
+      if (owner !== undefined && isRuntimeProtocol(node.name)) {
+        // the runtime calls it by its well-known name: JSON.stringify, coercion, `await`, `using`, for-of
+        this.#sink.edge("run", owner.key, key);
+        this.#sink.unseenCall(key);
+      }
     }
     // a node's parent is a fresh wrapper on every read, so a member finds its literal by the walk's stack
     if ((isMethodDeclaration(node) || isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node)) && isObjectLiteralExpression(node.parent)) {
@@ -798,8 +812,11 @@ class Walker {
   }
 
   #class(node: ClassDeclaration, key: DeclKey): void {
-    const heritage = (node.heritageClauses ?? []).flatMap((clause) => clause.types.filter(isExpressionWithTypeArguments));
-    const facts: ClassFacts = { key, members: new Map(), statics: new Map(), heritage };
+    const clauses = node.heritageClauses ?? [];
+    // an `implements` clause holds type references, an `extends` clause an expression with its type arguments
+    const heritage = clauses.flatMap((clause): readonly Node[] => clause.types);
+    const bases = clauses.flatMap((clause) => (clause.token === SyntaxKind.ExtendsKeyword ? clause.types.filter(isExpressionWithTypeArguments) : []));
+    const facts: ClassFacts = { key, members: new Map(), statics: new Map(), heritage, bases };
     this.#sites.classes.push(facts);
     this.#frame.classes.push(facts);
   }
@@ -1054,6 +1071,16 @@ class Walker {
       isObjectLiteralExpression(literal) && isPropertyAssignment(literal.parent) && sameNode(literal.parent.initializer, literal) ? literal.parent : undefined;
     this.#sites.cssNames.push({ holder: this.#sink.keyOf(parent), entry: entry === undefined ? null : this.#sink.keyOf(entry), name: node.text });
   }
+}
+
+// Names the runtime calls a member by: a well-known symbol (`[Symbol.dispose]`, `[Symbol.iterator]`) or one of
+// RUNTIME_PROTOCOL_NAMES.
+function isRuntimeProtocol(name: Node): boolean {
+  if (isComputedPropertyName(name)) {
+    const { expression } = name;
+    return isPropertyAccessExpression(expression) && isIdentifier(expression.expression) && expression.expression.text === WELL_KNOWN_SYMBOLS;
+  }
+  return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
 }
 
 const isDocNameHolder = (node: Node): boolean =>

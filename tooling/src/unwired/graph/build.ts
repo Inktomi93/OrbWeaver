@@ -191,6 +191,9 @@ class Builder {
       pin: (key): void => {
         state.pins.push(key);
       },
+      unseenCall: (key): void => {
+        state.unseenCalls.add(key);
+      },
       urlModule: (from, specifier): string | null => {
         const target = normalize(join(dirname(from), specifier));
         return CODE_FILE.test(target) && existsSync(join(state.root, target)) ? target : null;
@@ -502,7 +505,7 @@ class Builder {
       this.#classes.set(facts.key, facts);
       if (facts.heritage.length > 0) {
         this.#dispatch(state.world.typesAt(facts.heritage), facts, "instance");
-        this.#dispatch(state.world.typesAt(facts.heritage.map(({ expression }) => expression)), facts, "static");
+        this.#dispatch(state.world.typesAt(facts.bases.map(({ expression }) => expression)), facts, "static");
       }
     }
     const slots = state.contextualTypes(sites.newExpressions);
@@ -530,6 +533,7 @@ class Builder {
       }
       if (others.length === 0 && props[y] !== undefined) {
         state.edge("run", facts.key, key);
+        state.unseenCalls.add(key);
         state.count("platform-called members");
       }
     }

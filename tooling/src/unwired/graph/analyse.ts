@@ -8,6 +8,8 @@
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
+// - A class member is judged once its class is live; a member code we do not see calls (a platform-dispatched override,
+//   a runtime protocol member) is reached, as is one an `extends` or `implements` clause dispatches.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
@@ -353,13 +355,15 @@ class Analyser {
     const liveTyped = reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [state.run, state.typ]);
     const dispatched = dispatchedMembers(state.run, state.decls);
     for (const [key, info] of state.decls) {
-      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && liveTyped.has(key)) || info.shapeOnly !== null || this.#published(info)) {
+      // a class member is judged once its class is live: nothing but a call or a read reaches a method
+      const judged = liveTyped.has(key) || (isClassMember(info, state.decls) && liveTyped.has(info.holder));
+      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && judged) || info.shapeOnly !== null || this.#published(info)) {
         continue;
       }
       const role = roles.get(key);
       // the dev bridge ruling: another world's read through our own global door is a product read
       const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
-      const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key) || state.unseenCalls.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
@@ -493,6 +497,9 @@ function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclI
   }
   return out;
 }
+
+const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): boolean =>
+  isDeclKey(info.holder) && decls.get(info.holder)?.kind === SyntaxKind.ClassDeclaration;
 
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends

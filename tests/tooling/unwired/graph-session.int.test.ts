@@ -29,11 +29,13 @@ const SESSION = [
 const OTHER_SOURCE = 'export interface Note { readonly text: string }\nexport const note: Note = { text: "n" };';
 
 // One planted file per fact a dump carries beyond the use edges and the roles: a function slot's flow, a zod twin, a
-// state tuple's parts and a member published through our own global door that tooling reads.
+// state tuple's parts, a member published through our own global door that tooling reads, and a member the runtime
+// calls by name.
 const FLOW = `${GRAPH_SOURCE}/flow.ts`;
 const TWIN = `${GRAPH_SOURCE}/twin.ts`;
 const STATE = `${GRAPH_SOURCE}/state.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
+const UNSEEN = `${GRAPH_SOURCE}/unseen.ts`;
 const FACTS = {
   ...ZOD_MODULE,
   ...REACT_TYPES,
@@ -66,6 +68,7 @@ const FACTS = {
     "  globalThis.__orb = bridge;",
     "};",
   ].join("\n"),
+  [UNSEEN]: "export class Doc { toJSON(): object { return {}; } spare(): void {} }",
   "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: ["probe.ts"] }),
   "probe.ts": "export const seen = globalThis.__orb?.foo;",
 };
@@ -84,6 +87,7 @@ test("a dumped graph read back analyses to the fresh build's buckets; a dump in 
   expect(bare(labelsIn(fresh, "member-write-only", TWIN))).toEqual(["User.age"]);
   expect(labelsIn(fresh, "state-never-set", STATE)).toEqual(["3 setter"]);
   expect(labelsIn(fresh, "member-sent-only", DOOR)).toEqual(["Bridge.bar"]);
+  expect(labelsIn(fresh, "member-untouched", UNSEEN)).toEqual(["Doc.spare"]);
   const read = await scanGraph(root, quiet, options({ from: dump }));
   expect(read.analysis).toEqual(fresh.analysis);
   expect(read.session.from).toEqual(fresh.session.dumped);
