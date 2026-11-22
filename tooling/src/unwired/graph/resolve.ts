@@ -268,10 +268,13 @@ export class Resolver {
   readonly #related = new Map<string, readonly Type[]>();
   readonly #spelledByAlias = new Map<string, Spelled>();
   readonly #spelledByType = new Map<number, Spelled>();
-  #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>> | undefined;
+  // Read before any walk: a request generator never runs a batch of its own, so the row tables cannot be asked for
+  // lazily from inside the origin walk that needs them.
+  readonly #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>>;
 
   constructor(world: NativeWorld) {
     this.#world = world;
+    this.#rows = this.#rowTables();
   }
 
   /** A walked declaration's key. */
@@ -357,18 +360,19 @@ export class Resolver {
 
   /** The Drizzle row tables: each table's column declarations by name, keyed by the table's sorted column names. */
   rows(): ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>> {
-    if (this.#rows === undefined) {
-      const bySignature = rowColumnsBySignature(this.#world);
-      const columns = [...bySignature.values()].flatMap((table) => [...table.values()].flat());
-      this.handleKeys(columns.flatMap((symbol) => symbol.declarations));
-      this.#rows = new Map(
-        [...bySignature].map(([signature, table]) => [
-          signature,
-          new Map([...table].map(([name, symbols]) => [name, symbols.flatMap((symbol) => symbol.declarations.flatMap((handle) => this.#cachedKey(handle)))])),
-        ]),
-      );
-    }
     return this.#rows;
+  }
+
+  #rowTables(): ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>> {
+    const bySignature = rowColumnsBySignature(this.#world);
+    const columns = [...bySignature.values()].flatMap((table) => [...table.values()].flat());
+    this.handleKeys(columns.flatMap((symbol) => symbol.declarations));
+    return new Map(
+      [...bySignature].map(([signature, table]) => [
+        signature,
+        new Map([...table].map(([name, symbols]) => [name, symbols.flatMap((symbol) => symbol.declarations.flatMap((handle) => this.#cachedKey(handle)))])),
+      ]),
+    );
   }
 
   /**

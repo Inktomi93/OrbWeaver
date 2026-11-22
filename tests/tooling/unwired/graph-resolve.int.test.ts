@@ -96,3 +96,18 @@ test("an object literal's method fills the member of its own literal's slot", { 
   );
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["api.extra"]);
 });
+
+// A read of a library's own member (`RegExp.test`, `Array.join`, `Object.fromEntries`) ends at the library's
+// declaration: it is the library's read, never a lost one, however often the walk asks the checker about it.
+test("a library member's read ends at the library, never lost", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export const matches = (text: string): boolean => /a/u.test(text) && /b/u.test(text);",
+      'export const joined = (parts: readonly string[]): string => parts.join(",") + [...parts].join(";");',
+      "export const table = (pairs: readonly (readonly [string, number])[]): Record<string, number> => Object.fromEntries(pairs);",
+      "export const again = (pairs: readonly (readonly [string, number])[]): Record<string, number> => Object.fromEntries(pairs);",
+    ]),
+  );
+  expect(scan.lostReads.filter((read) => read.startsWith(FILE))).toEqual([]);
+});

@@ -191,15 +191,19 @@ export class NativeWorld implements Disposable {
       const round = waiting;
       waiting = [];
       const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
+      // The round's answers reach its generators from the round itself, so an answer the memo lets go while the round
+      // is in flight (a release inside a generator step) never reaches a waiting generator as undefined.
+      const landed = new Map<string>();
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
         for (const [at, [key]] of page.entries()) {
+          landed.set(key, answers[at]);
           this.#answers.set(key, answers[at]);
         }
       }
       for (const { generator, finish, key } of round) {
-        run(generator, finish, this.#answers.get(key));
+        run(generator, finish, landed.get(key));
       }
     }
     return results;
