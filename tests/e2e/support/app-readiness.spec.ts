@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { waitForAppReady } from "./chat-room.ts";
+import { expect, test } from "./corpus-test.ts";
 
 test("readiness requires settled reads, not the degraded fallback marker", async ({ page }) => {
   await page.setContent(`<html ${APP_READY_ATTR}=""><body>Settled</body></html>`);

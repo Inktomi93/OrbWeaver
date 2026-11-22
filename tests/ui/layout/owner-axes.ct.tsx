@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { OwnerAxesStory } from "./_owner-axes-stories.tsx";
 
 const STORY = "tests/ui/layout/_owner-axes-stories/OwnerAxesStory";

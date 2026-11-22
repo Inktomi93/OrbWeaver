@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { MathStory } from "./_math-stories.tsx";
 
 const STORY = "tests/ui/markdown/_math-stories/MathStory";

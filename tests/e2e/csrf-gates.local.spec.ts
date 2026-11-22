@@ -9,9 +9,9 @@ import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import type { Handle, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { ambientHeaders, importsIdle, loginLocal, ownerActor, rawTrpcCall } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 
 const CSRF = { [CSRF_HEADER]: "1" };

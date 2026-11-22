@@ -1,5 +1,5 @@
 // The owned footer: Cancel and the submit, Enter as the submit, a body fresh on every open and focus back on the opener.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { FormDialogBodyStateStory, FormDialogDismissalStory } from "./_form-dialog-stories.tsx";
 

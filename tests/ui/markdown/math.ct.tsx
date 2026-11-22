@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import { MARKDOWN_RENDER_FAILED_TEXT } from "#ui/markdown/markdown-names.ts";
 import type { MathStory } from "./_math-stories.tsx";
 

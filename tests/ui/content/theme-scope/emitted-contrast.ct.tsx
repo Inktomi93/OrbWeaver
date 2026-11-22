@@ -9,10 +9,10 @@ import {
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MID_GREY, SEED_SCOPES } from "@orb/testkit/iso";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type {
   BoxElementsStory,
   BubbleSeparationStory,

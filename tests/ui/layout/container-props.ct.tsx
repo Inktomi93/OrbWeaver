@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ContainerPropsStory } from "./container-props-stories.tsx";
 
 const NARROW_PX = 300;

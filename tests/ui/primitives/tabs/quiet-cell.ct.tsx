@@ -1,6 +1,7 @@
 // A quiet cell dims only while it rests: its hover ink and its focus ring keep full strength.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { QuietCellStory } from "./_quiet-cell-stories.tsx";
 
 const STORY = "tests/ui/primitives/tabs/_quiet-cell-stories/QuietCellStory";

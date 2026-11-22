@@ -1,5 +1,5 @@
 // The action slot is the parent of the offered action, not a marker that happens to share its markup.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ActionSlotStory } from "./_action-slot-stories.tsx";
 
 const STORY = "tests/ui/primitives/empty-state/_action-slot-stories/ActionSlotStory";

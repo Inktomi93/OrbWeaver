@@ -1,5 +1,5 @@
 // A kicker band's trailing content sits after its rule, keeps the heading in the outline and wraps rather than crushing the rule.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { SectionTrailingStory } from "./_section-trailing-stories.tsx";
 
 const STORY = "tests/ui/layout/_section-trailing-stories/SectionTrailingStory";

@@ -1,9 +1,9 @@
 // A tab list with more tabs than its pane holds, at the largest browser text on a phone, stays inside the pane and scrolls in its own box:
 // the pane does not scroll sideways, the selected tab is shown in the list, and the box that clips the block axis leaves the focus ring its room.
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { EnlargedStripStory } from "./_enlarged-strip-stories.tsx";
 
 const STORY = "tests/ui/primitives/tabs/_enlarged-strip-stories/EnlargedStripStory";

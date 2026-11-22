@@ -1,5 +1,5 @@
 // Detector controls belong here: planted markup proves the declared owner boundary independently of product layout.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { actionGroupGeometry } from "./action-group-geometry.ts";
 
 test("an owned control passes while a visually overlapping sibling cannot borrow its region", async ({ page }) => {

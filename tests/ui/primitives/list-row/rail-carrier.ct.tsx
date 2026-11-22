@@ -1,6 +1,6 @@
 // `rowTint="row"` moves the selection rail from the body to the root: the body's rail reset and the root's rail are
 // spelled in different class vocabularies, and the merger must resolve them or the body draws a second rail.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FullTitleStory, RowTintStory } from "./_rail-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_rail-stories/RowTintStory";

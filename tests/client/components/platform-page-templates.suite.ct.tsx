@@ -5,9 +5,10 @@
 // @subject packages/client/src/components/collection-grid.tsx
 // @subject packages/client/src/components/settings-pane.tsx
 // Each page template holds its tier, its one scroll box and its control floors in every seed, density and pointer class.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { REFINERY_EDIT_SCOPE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type {
   CollectionGridMatrixStory,

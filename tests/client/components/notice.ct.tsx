@@ -3,8 +3,8 @@
 // the actions sit under the text and start where it starts, and the dismiss stays in the box's top corner. A notice that reports
 // a failure is announced; one that does not is no alert.
 import { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { NOTICE_STORY } from "./_notice-labels.ts";
 import type { NoticeStory } from "./_notice-stories.tsx";
 

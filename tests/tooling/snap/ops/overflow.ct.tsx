@@ -12,8 +12,8 @@
 // instrument printed `PASS overflow=0x0` over the defect (receipt: 2026-08-22). The healthy twin in the
 // same story is the false-positive fence.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { OverflowProbe } from "../../../../tooling/src/snap/contract/overflow.ts";
 import { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "../../../../tooling/src/snap/ops/overflow.ts";
 import type { WalkerClippedInflowControlStory } from "../../_ct-stories.tsx";

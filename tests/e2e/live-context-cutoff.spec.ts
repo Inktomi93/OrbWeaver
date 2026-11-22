@@ -20,9 +20,9 @@
 
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createPreset,

@@ -1,6 +1,7 @@
 // @subject packages/client/src/components/reindex-confirm.tsx
 import { connectionSummary, REINDEX_CONFIRM_COPY, ROLE_ROWS_ORDERED } from "@orb/client/lib";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   CORPUS_ALTERNATE_EMBED_MODEL,
   CORPUS_EMBED_MODEL,
@@ -10,7 +11,6 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { VECTOR_WIDTH_FACT_NAME } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 

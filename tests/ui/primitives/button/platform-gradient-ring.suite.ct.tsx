@@ -1,9 +1,9 @@
 // The gradient ring paints its border only: a masked gradient on the `::after` of the CTA and the active tab, under every
 // seed palette. A fallback border painted in its place reads `background-image: none` and no mask.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { GradientRingStory } from "./_gradient-ring-stories.tsx";
 
 const STORY = "tests/ui/primitives/button/_gradient-ring-stories/GradientRingStory";

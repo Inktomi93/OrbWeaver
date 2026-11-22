@@ -3,7 +3,7 @@
 // its text lies inside its box.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { HintBesideLabelStory } from "./_hint-popup-stories.tsx";
 

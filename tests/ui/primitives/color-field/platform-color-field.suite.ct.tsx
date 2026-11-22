@@ -1,6 +1,7 @@
 // ColorField keeps a draft apart from the committed value: only a renderable color commits, clear is explicit, and a stale draft never resurfaces.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { CommittedColorStory } from "./color-field-stories.tsx";
 
 const STORY = "tests/ui/primitives/color-field/color-field-stories/CommittedColorStory";

@@ -2,7 +2,7 @@
 // pressed, and a row wider than its page scrolls the page sideways. The call site passes the controls bare, with no class.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale, sidewaysReach } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ActionsStory } from "./_actions-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_actions-stories/ActionsStory";

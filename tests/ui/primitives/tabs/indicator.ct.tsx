@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { TabsIndicatorStory, TabsRefsStory } from "./_indicator-stories.tsx";
 
 const STORY = "tests/ui/primitives/tabs/_indicator-stories/TabsIndicatorStory";

@@ -1,7 +1,7 @@
 // Two near-duplicate chat pairs that read alike keep their names when an unrelated pair comes or goes.
 import { ID_PREFIX } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import type { DuplicateChatsStory } from "./_duplicate-chats-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_duplicate-chats-stories/DuplicateChatsStory";

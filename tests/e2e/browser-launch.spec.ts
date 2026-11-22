@@ -1,7 +1,7 @@
 import { browserArgsWithAcceleration, readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import { timingCapability } from "@orb/tooling/floor/host/timing-capability";
 import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/corpus-test.ts";
 
 test("the E2E runner requests acceleration without losing browser ownership", async ({ browser, browserName }, info) => {
   test.skip(browserName !== "chromium", "Browser command line and SystemInfo are Chromium protocols");

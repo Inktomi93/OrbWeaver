@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { MessageListFocusRingStory } from "./_focus-ring-stories.tsx";
 
 const ROW = '[data-slot="message-list-row"]';

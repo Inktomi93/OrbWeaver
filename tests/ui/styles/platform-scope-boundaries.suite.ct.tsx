@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { TabsIndicatorStory } from "../primitives/tabs/_indicator-stories.tsx";
 import type { ScopeBoundariesStory } from "./_scope-boundaries-stories.tsx";
 

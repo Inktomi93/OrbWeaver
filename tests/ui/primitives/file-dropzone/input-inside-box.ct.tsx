@@ -2,7 +2,7 @@
 // The covering file input is the zone's whole operable surface, so its box lies inside the zone's box. At the largest browser text in a
 // phone pane the zone wraps and grows, and a box that left it would hide where to drop and what the control is.
 import { boxOf, LAYOUT_SUBPIXEL_PX, setPlatformTextSize } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { NarrowPaneDropzoneStory } from "./_input-inside-box-stories.tsx";
 
 const STORY = "tests/ui/primitives/file-dropzone/_input-inside-box-stories/NarrowPaneDropzoneStory";

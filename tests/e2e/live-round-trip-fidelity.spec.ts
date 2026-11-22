@@ -21,7 +21,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/corpus-test.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createPreset,

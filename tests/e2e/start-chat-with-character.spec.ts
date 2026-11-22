@@ -15,9 +15,9 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { messageRow, openCharacterRoom, sendAndAwaitReply } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
 import { deleteChat, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
 

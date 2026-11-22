@@ -1,7 +1,7 @@
 // @subject packages/client/src/data/suspense-reads.ts
 // A suspending read checks that a QueryBoundary sits above it once the check is required (the dev bootstrap and the
 // surface census require it); a read inside the boundary settles and renders its data.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ReadInsideBoundaryStory, ReadOutsideBoundaryStory } from "./_query-boundary-scope-stories.tsx";
 
 const STORIES = "tests/client/components/_query-boundary-scope-stories";

@@ -2,7 +2,7 @@
 // A single-user deployment's sign-in page has nothing to sign in to, and its one control leaves for the app.
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { routeAuthConfig } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { BACK_TO_APP_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
 import { JOIN_DESTINATION_LABEL, PENDING_AUTH_CONFIG } from "./pending-join-fixtures.ts";

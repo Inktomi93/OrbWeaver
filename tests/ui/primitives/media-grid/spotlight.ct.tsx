@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { MediaGridSpotlightStory } from "./_spotlight-stories.tsx";
 
 const STORY = "tests/ui/primitives/media-grid/_spotlight-stories/MediaGridSpotlightStory";

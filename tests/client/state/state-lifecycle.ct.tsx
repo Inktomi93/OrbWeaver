@@ -1,6 +1,6 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { DrillBackStory, MessageDraftStory, MessageSelectionStory, PresetSelectionStory, SteerRecoveryStory } from "./_state-lifecycle-stories.tsx";
 
 test("edit drafts retain text and footprint across reader unmount, isolate rows and distinguish empty from cancelled", async ({ mount }) => {

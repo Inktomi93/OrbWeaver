@@ -2,8 +2,8 @@
 // paints only its border, so the cell's own fill is the surface its ink sits on.
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { SelectedInkSeedStory, SelectedInkStory } from "./_selected-ink-stories.tsx";
 
 for (const [name, label] of [

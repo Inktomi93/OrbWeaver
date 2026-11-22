@@ -3,7 +3,7 @@
 // each below that. A tap at the input's centre lands on the input, the input and each stepper keep the touch target, and no hit area leaves the
 // field's own box, so a neighbouring field's tap is its own at the narrowest column a stepped field gets: one touch target wide.
 import { hitExtent, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { StackedNumberFieldStory, TwoFieldRowStory } from "./_stacked-stories.tsx";
 
 const STORY = "tests/ui/primitives/number-field/_stacked-stories/StackedNumberFieldStory";

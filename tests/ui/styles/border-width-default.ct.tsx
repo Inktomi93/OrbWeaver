@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { BorderWidthDefaultStory } from "./_border-width-default-stories.tsx";
 
 const STORY = "tests/ui/styles/_border-width-default-stories/BorderWidthDefaultStory";

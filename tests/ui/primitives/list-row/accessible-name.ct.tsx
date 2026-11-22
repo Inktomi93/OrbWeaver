@@ -1,8 +1,8 @@
 // A clickable row is named by its visible title (WCAG 2.5.3) and described by the lines under it. axe's
 // label-content-name-mismatch counts the described lines as label text; this case holds the split itself and attaches the raw scan.
 import { accessibilityScan } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { attachNativeFile } from "@orb/testkit/node/helpers";
-import { expect, test } from "@playwright/test";
 import type { AccessibleNameRowStory } from "./_accessible-name-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_accessible-name-stories/AccessibleNameRowStory";

@@ -1,8 +1,8 @@
 // E2E (FORWARD-HEADER): the /api/_debug token states, and a signed SSO identity as the door's credential.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { actorViaHeader } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { ALL_ADMITTED, debugOutcomes, describeDebugTokenStates, gateRefusalReason, RELAYED } from "./support/debug-gate.ts";
 import { E2E_SSO_GROUPS } from "./support/modes.ts";
 

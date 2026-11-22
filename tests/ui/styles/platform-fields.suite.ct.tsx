@@ -1,8 +1,8 @@
 // iOS Safari zooms the page into a focused field set below 16px and does not always zoom back out, so every shipped
 // text field holds the floor at a coarse pointer. Runs on Chromium and on the opt-in webkit-iphone project.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { FieldFloorStory } from "./_platform-baseline-stories.tsx";
 
 test.use({ hasTouch: true, isMobile: true });

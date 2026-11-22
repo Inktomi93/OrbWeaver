@@ -3,8 +3,8 @@
 import { talkativenessAccessibleName, talkativenessControlName } from "@orb/client/lib";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { accessibilityScan, readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import type { TalkativenessNameStory } from "./_talkativeness-name-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_talkativeness-name-stories/TalkativenessNameStory";

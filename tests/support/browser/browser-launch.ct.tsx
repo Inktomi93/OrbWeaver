@@ -1,6 +1,6 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import { timingCapability } from "@orb/tooling/floor/host/timing-capability";
-import { expect, test } from "@playwright/test";
 
 test("the component runner exposes its actual Chromium acceleration posture", async ({ browser, browserName }, info) => {
   test.skip(browserName !== "chromium", "Browser SystemInfo is a Chromium protocol; other engines do not establish acceleration here");

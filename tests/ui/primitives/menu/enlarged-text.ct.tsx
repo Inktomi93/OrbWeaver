@@ -1,8 +1,8 @@
 // A menu on a phone at the largest browser text: a long label wraps inside its row, a submenu trigger keeps its chevron inside the row,
 // and the popup holds them without scrolling sideways.
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { LongLabelMenuStory } from "./_enlarged-stories.tsx";
 
 const STORY = "tests/ui/primitives/menu/_enlarged-stories/LongLabelMenuStory";

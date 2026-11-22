@@ -16,9 +16,9 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames, openChatRoomCollection, requireSatisfied } from "./support/sse.ts";

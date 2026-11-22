@@ -5,6 +5,7 @@
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, sidewaysReach } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -13,7 +14,6 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { CORPUS_PARAM_NAMES, CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";

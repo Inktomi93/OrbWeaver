@@ -2,8 +2,8 @@
 // painted from the same token, so a token retune never breaks the test and a dead arm always does.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ButtonFinishStory, CardFinishStory, LayoutFinishStory, PartsFinishStory, TextFinishStory } from "./_classname-drain-finish-stories.tsx";
 
 const STORIES = "tests/ui/primitives/_classname-drain-finish-stories";

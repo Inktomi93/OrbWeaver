@@ -5,9 +5,9 @@ import { CLEAR_SEARCH_NAME, CORPUS_MODE_LABELS, NO_MATCHES_TITLE } from "@orb/cl
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "#client/features/stats/lib/analytics-copy.ts";
 

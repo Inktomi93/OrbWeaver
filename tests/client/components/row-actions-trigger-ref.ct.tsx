@@ -1,5 +1,5 @@
 // @subject packages/client/src/components/row-actions-menu.tsx
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { RowActionsTriggerRefStory } from "./_row-actions-trigger-ref-stories.tsx";
 
 test("the trigger ref reaches the real ⋯ button, so a caller can hand focus back to it", async ({ mount, page }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { UtilityFallbackStory } from "./_utility-fallback-stories.tsx";
 
 const STORY = "tests/ui/styles/_utility-fallback-stories/UtilityFallbackStory";

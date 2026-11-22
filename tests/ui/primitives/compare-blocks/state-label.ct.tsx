@@ -4,7 +4,7 @@
 // chip fits before the largest step.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { UndecidedReviewPaneStory } from "./_state-label-stories.tsx";
 
 const STORY = "tests/ui/primitives/compare-blocks/_state-label-stories/UndecidedReviewPaneStory";

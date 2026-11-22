@@ -1,8 +1,8 @@
 // A value cluster that sits under a slider ends where the slider's rail ends once the knob grid folds, and keeps the row's edge above that step.
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { SliderRailEndStory } from "./_rail-end-stories.tsx";
 
 const STORY = "tests/ui/primitives/slider/_rail-end-stories/SliderRailEndStory";

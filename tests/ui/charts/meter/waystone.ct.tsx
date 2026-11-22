@@ -1,6 +1,6 @@
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { WaystoneStory } from "./waystone-stories.tsx";
 
 const STORY = "tests/ui/charts/meter/waystone-stories/WaystoneStory";

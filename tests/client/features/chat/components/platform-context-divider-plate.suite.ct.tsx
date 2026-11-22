@@ -2,8 +2,8 @@
 // plain room. The ink on it clears AA against the plate's painted pixels whichever extreme the photo puts behind it.
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { computedStyle, pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import { CONTEXT_DIVIDER_IN_CONTEXT_TEXT } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ContextDividerStory } from "./_context-divider-stories.tsx";
 

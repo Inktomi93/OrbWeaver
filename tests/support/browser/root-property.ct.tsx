@@ -1,5 +1,5 @@
 // The font-scale drivers write and clear the root channel and step a ladder until a control shows.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { channelName } from "../node/appearance-channel-name.ts";
 import { enlargeUntilVisible, setRootFontScale } from "./root-property.ts";
 

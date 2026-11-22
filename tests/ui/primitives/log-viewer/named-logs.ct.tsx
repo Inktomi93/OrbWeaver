@@ -1,7 +1,8 @@
 // @subject packages/ui/src/primitives/log-viewer/log-viewer.tsx
 // Two logs on one surface are two named regions, each with its own copy control.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { copyActionName } from "@orb/ui/lib";
-import { expect, test } from "@playwright/test";
 import type { NamedLogsStory } from "./_named-logs-stories.tsx";
 
 const STORY = "tests/ui/primitives/log-viewer/_named-logs-stories/NamedLogsStory";
