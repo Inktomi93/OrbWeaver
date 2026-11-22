@@ -15,11 +15,11 @@ Fifteen junction created_at columns are written at insert and never read: charac
 
 ## Why
 
-A stamp no reader, route or screen uses is dead schema. The owner signs off first, because the owner ruling defaults collected data to a product item.
+A stamp no reader, route or screen uses is dead schema. The owner approved the drop: an attach time on a tag, book, regex or persona link is not data anyone looks for, and the linked entities keep their own stamps.
 
 ## Done when
 
-The owner approves the drop, a numbered migration drops each column, the insert sites stop writing them, and the columns scan no longer lists them.
+A numbered migration drops each column, the insert sites stop writing them, and the columns scan no longer lists them.
 
 ## Evidence
 
