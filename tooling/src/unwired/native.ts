@@ -42,6 +42,9 @@ import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts"
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
 
+/** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
+export const DEFAULT_LIBRARY = "(default library)";
+
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript symbol and type flags are compiler-owned bitfields.
@@ -151,6 +154,8 @@ export interface WorldStats {
 export class NativeWorld implements Disposable {
   readonly config: string;
   readonly checker: Checker;
+  /** The program, for what the checker does not answer: diagnostics, the files it loads, module resolution. */
+  readonly program: Program;
   readonly #languageService: LanguageService;
   /** Every source file of the program outside node_modules, declaration files excluded. */
   readonly files: readonly SourceFile[];
@@ -159,7 +164,6 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
-  readonly #program: Program;
   readonly #workspace: ReadonlySet<string>;
   readonly #packageNames = new Map<string, string | null>();
   readonly #stats = { batches: 0, rounds: 0, sent: 0, memoHits: 0, ms: 0 };
@@ -177,8 +181,8 @@ export class NativeWorld implements Disposable {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
     this.checker = project.checker;
+    this.program = project.program;
     this.#languageService = project.languageService;
-    this.#program = project.program;
     this.#workspace = workspaceDirs(root);
     const names = ownSources(api, project.program, { workspace: this.#workspace, keep: (name) => declaration(relative(root, name)) });
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
@@ -374,14 +378,26 @@ export class NativeWorld implements Disposable {
   /** The package a declaration's file was loaded from as an external library, by its manifest's name; null for a file
    *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
-    const meta = yield* this.#program.getSourceFileMetadataByPath.gen(handle.path);
+    const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
     return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
   }
 
   /** Whether a declaration's file is one the compiler supplies, `lib.dom.d.ts` and the rest of the standard library. */
   *isDefaultLibrary(handle: NodeHandle): APIRequestGenerator<boolean> {
-    const meta = yield* this.#program.getSourceFileMetadataByPath.gen(handle.path);
+    const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
     return meta?.isDefaultLibrary === true;
+  }
+
+  /** The package a program file is a library of, by the rule ownSources keeps the tree's own files by: a default library
+   *  (named {@link DEFAULT_LIBRARY}) or an external package outside the workspace. Null for a file of the tree's own. */
+  *libraryOf(fileName: string): APIRequestGenerator<string | null> {
+    const meta = yield* this.program.getSourceFileMetadata.gen(fileName);
+    if (meta?.isDefaultLibrary === true) {
+      return DEFAULT_LIBRARY;
+    }
+    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory)
+      ? (this.#packageName(meta.packageJsonDirectory) ?? meta.packageJsonDirectory)
+      : null;
   }
 
   /** For each list of declarations, whether one of them was loaded from the package `name`. */

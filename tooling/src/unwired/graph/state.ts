@@ -441,25 +441,25 @@ export class GraphState implements GraphFacts {
       return walk;
     });
   }
+}
 
-  /** The literal values a type can hold (a string, number or boolean literal union), or null for a wide type. */
-  *literalValues(type: Type | undefined): APIRequestGenerator<readonly string[] | null> {
-    if (type === undefined) {
+/** The literal values a type can hold (a string, number or boolean literal union), or null for a wide type. */
+export function* literalValues(type: Type | undefined): APIRequestGenerator<readonly string[] | null> {
+  if (type === undefined) {
+    return null;
+  }
+  const out: string[] = [];
+  for (const arm of yield* constituentsOf(type)) {
+    if (hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)) {
+      continue;
+    }
+    if (arm.isStringLiteralType() || arm.isNumberLiteralType() || arm.isBooleanLiteralType()) {
+      out.push(String(arm.value));
+    } else {
       return null;
     }
-    const out: string[] = [];
-    for (const arm of yield* constituentsOf(type)) {
-      if (hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)) {
-        continue;
-      }
-      if (arm.isStringLiteralType() || arm.isNumberLiteralType() || arm.isBooleanLiteralType()) {
-        out.push(String(arm.value));
-      } else {
-        return null;
-      }
-    }
-    return out;
   }
+  return out;
 }
 
 const originKey = (type: Type, name: string): string => `${String(type.id)}:${name}`;

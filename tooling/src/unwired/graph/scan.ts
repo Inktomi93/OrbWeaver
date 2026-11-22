@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
-// find-references check of a member bucket, or the custom-property pass over it. Every result carries what the session
-// ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
+// find-references check of a member bucket, the custom-property pass or the DOM-hook pass over it. Every result carries
+// what the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -9,6 +9,8 @@ import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
+import type { DomReport } from "./dom.ts";
+import { domPass } from "./dom.ts";
 import type { DumpStamp } from "./dump.ts";
 import { readDump, writeDump } from "./dump.ts";
 import type { LostBreakdown } from "./lost.ts";
@@ -212,4 +214,10 @@ export function queryGraph(
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CssReport>> {
   return session(root, log, options, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
+}
+
+/** Build the graph, then report the class and data-* hooks with no partner. The pass reads the program's source, which a
+ *  dump does not carry, so it takes no `from`. */
+export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<DomReport>> {
+  return session(root, log, { ...options, from: null }, ({ world, time }) => time("analyse", () => domPass(root, world())));
 }

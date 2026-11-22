@@ -96,15 +96,58 @@ function solutionWorlds(root: string): readonly string[] {
   });
 }
 
-// The worlds the merged program unites: every solution world {@link WORLDS_APART} does not name.
-const mergedWorlds = (root: string): readonly string[] => solutionWorlds(root).filter((config) => WORLDS_APART[config] === undefined);
+/** The worlds the merged program unites: every solution world {@link WORLDS_APART} does not name. */
+export const mergedWorlds = (root: string): readonly string[] => solutionWorlds(root).filter((config) => WORLDS_APART[config] === undefined);
+
+interface LoadedWorld {
+  readonly config: string;
+  readonly parsed: ts.ParsedCommandLine;
+}
+
+const loadMergedWorlds = (root: string): readonly LoadedWorld[] => mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
+
+// Each world's `types` entries resolved as tsc resolves them for that world, from the world's own folder. The merged
+// config sits at the root, where an entry only a package's node_modules links (the showcase author worlds' plugin SDK)
+// resolves to nothing, so the merged program loads each resolved file as a root file instead. An entry the world itself
+// cannot resolve stays a `types` entry, so the merged program reports the same missing type the world does.
+function worldTypes(root: string, worlds: readonly LoadedWorld[]): { readonly files: readonly string[]; readonly unresolved: readonly string[] } {
+  const files = new Set<string>();
+  const unresolved = new Set<string>();
+  for (const { config, parsed } of worlds) {
+    for (const name of parsed.options.types ?? []) {
+      const found = ts.resolveTypeReferenceDirective(name, join(root, config), parsed.options, ts.sys).resolvedTypeReferenceDirective?.resolvedFileName;
+      if (found === undefined) {
+        unresolved.add(name);
+      } else {
+        files.add(found);
+      }
+    }
+  }
+  return { files: [...files].sort(), unresolved: [...unresolved].sort() };
+}
+
+// The merged program's options on the browser world's: every world's `types` (worldTypes) and `allowJs`, over `files`
+// with `paths`.
+function mergedText(root: string, worlds: readonly LoadedWorld[], files: readonly string[], paths: Readonly<Record<string, string[]>>): string {
+  const types = worldTypes(root, worlds);
+  return JSON.stringify({
+    extends: join(root, MERGED_BASE),
+    // allowJs is written only when a world sets it, so the merged options set nothing a world leaves to its default
+    compilerOptions: {
+      types: types.unresolved,
+      paths,
+      ...(worlds.some(({ parsed }) => parsed.options.allowJs === true) ? { allowJs: true } : {}),
+      noEmit: true,
+    },
+    files: [...new Set([...files, ...types.files])].sort(),
+  });
+}
 
 /** The merged program's config text: every file of every merged world, on the browser world's options with each world's
  *  `types` and `paths` added and the source bridge. A file two worlds name is one file. */
 export function mergedConfigText(root: string): string {
-  const worlds = mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
+  const worlds = loadMergedWorlds(root);
   const files = [...new Set(worlds.flatMap(({ parsed }) => parsed.fileNames))].sort();
-  const types = [...new Set(worlds.flatMap(({ parsed }) => parsed.options.types ?? []))].sort();
   // The first world to map an alias keeps it, as the solution's order names the worlds.
   const paths: Record<string, string[]> = {};
   for (const { config, parsed } of worlds) {
@@ -112,11 +155,14 @@ export function mergedConfigText(root: string): string {
       paths[name] ??= targets;
     }
   }
-  return JSON.stringify({
-    extends: join(root, MERGED_BASE),
-    compilerOptions: { types, paths, allowJs: worlds.some(({ parsed }) => parsed.options.allowJs === true), noEmit: true },
-    files,
-  });
+  return mergedText(root, worlds, files, paths);
+}
+
+/** One world's files and bridged `paths` on the merged program's options: an error the merged program brings to the
+ *  world shows here when the merged options bring it, and not when another world's files or aliases do. */
+export function mergedOptionsConfigText(root: string, config: string): string {
+  const own = loadWorld(root, config);
+  return mergedText(root, loadMergedWorlds(root), own.fileNames, bridgedPaths(root, config, own));
 }
 
 /** The host's realpath; every scan host sets it, so a workspace package keeps its source path. */
