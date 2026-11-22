@@ -18,7 +18,7 @@ import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
-import type { DeclInfo, GraphKey } from "./sites.ts";
+import type { DeclInfo, GraphKey, LocalBinding } from "./sites.ts";
 import { WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
@@ -139,6 +139,15 @@ export interface DanglingDoc {
 }
 
 /** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
+/** A binding as binding-unread and binding-read-only-by-dead judge it: where it sits, what holds it, which
+ *  declarations' code reads it, and whether anything writes it. */
+export interface BindingFact extends LocalBinding {
+  readonly file: string;
+  readonly holder: GraphKey;
+  readonly readers: readonly GraphKey[];
+  readonly written: boolean;
+}
+
 export interface GraphFacts {
   readonly decls: ReadonlyMap<DeclKey, DeclInfo>;
   readonly run: ReadonlyEdges;
@@ -149,6 +158,8 @@ export interface GraphFacts {
   readonly door: ReadonlySet<DeclKey>;
   /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
   readonly unseenCalls: ReadonlySet<DeclKey>;
+  /** Each local binding, parameter and import binding with the declarations whose code reads it. */
+  readonly bindings: readonly BindingFact[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -219,6 +230,7 @@ export class GraphState implements GraphFacts {
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
   readonly door = new Set<DeclKey>();
   readonly unseenCalls = new Set<DeclKey>();
+  readonly bindings: BindingFact[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];

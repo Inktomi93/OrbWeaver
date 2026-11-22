@@ -21,6 +21,7 @@ import type {
   NoSubstitutionTemplateLiteral,
   ObjectBindingPattern,
   ObjectLiteralExpression,
+  ParameterDeclaration,
   PropertyDeclaration,
   PropertySignatureDeclaration,
   SetAccessorDeclaration,
@@ -45,6 +46,7 @@ import {
   isBindingElement,
   isBlock,
   isCallExpression,
+  isCatchClause,
   isClassDeclaration,
   isComputedPropertyName,
   isConditionalExpression,
@@ -114,7 +116,10 @@ import {
   isTypeReferenceNode,
   isUnionTypeNode,
   isVariableDeclaration,
+  isVariableDeclarationList,
+  isVariableStatement,
   ModifierFlags,
+  NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
 import { hasFlag } from "../native.ts";
@@ -238,6 +243,7 @@ export const UNNAMED = "{…}";
 // TypeScript's convention, kept by noUnusedLocals and Biome's noUnusedVariables: a leading underscore marks a binding
 // never read on purpose (a compile-time pin, a disposal held by `using`).
 const UNREAD_ON_PURPOSE = /^_/u;
+const THIS_PARAMETER = "this";
 
 // An identifier in these positions binds or forwards a name; its use is the later reference, resolved through the alias.
 const forwards = (parent: Node): boolean =>
@@ -353,6 +359,22 @@ export interface NameSite {
   /** A value position that hands the named value on (not `new X`, `X.member`, a heritage clause or its own name). */
   readonly handed: boolean;
   readonly roles: readonly Role[];
+  /** The name a declaration, binding, parameter or import introduces: it uses nothing. */
+  readonly declares: boolean;
+}
+
+/** What a binding is: the kinds binding-unread names. */
+const BINDING_KINDS = ["local", "parameter", "import"] as const;
+type BindingKind = (typeof BINDING_KINDS)[number];
+
+/** A local binding, parameter or import binding, by the key its references resolve to. */
+export interface LocalBinding {
+  readonly key: DeclKey;
+  /** The declaration the binding sits in, or its module. */
+  readonly holder: GraphKey;
+  readonly name: string;
+  readonly kind: BindingKind;
+  readonly line: number;
 }
 
 /** A property an object literal writes: the literal, the key's text and the value written, if any. */
@@ -423,6 +445,10 @@ export class FileSites {
   readonly file: string;
   readonly product: boolean;
   readonly names: NameSite[] = [];
+  /** The file's local bindings, parameters and import bindings: what binding-unread judges. */
+  readonly bindings: LocalBinding[] = [];
+  /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
+  readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
   readonly zodTwins: { readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
@@ -701,6 +727,7 @@ class Walker {
   }
 
   visit(node: Node, typePosition: boolean): void {
+    this.#binding(node);
     const pushed = this.#declaration(node);
     this.#docs(node);
     if (isConstructorDeclaration(node)) {
@@ -791,6 +818,22 @@ class Walker {
     }
   }
 
+  // A binding binding-unread judges. Left out, as tsc's noUnusedLocals and noUnusedParameters leave them: a name read
+  // never on purpose, a parameter of a signature with no body, a parameter property, `this`, a `using` declaration, a
+  // catch binding and an object-pattern element whose rest sibling it is omitted from. A top-level variable is a unit
+  // liveness judges.
+  #binding(node: Node): void {
+    if (isExportSpecifier(node) && !isExportDeclarationWithModule(node)) {
+      this.#sites.exportedLocals.add((node.propertyName ?? node.name).text);
+      return;
+    }
+    const found = bindingOf(node, this.#frame.stack.length === 1);
+    if (found !== null && isIdentifier(found.name) && !UNREAD_ON_PURPOSE.test(found.name.text)) {
+      const line = this.#source.getLineAndCharacterOfPosition(found.name.getStart(this.#source)).line + 1;
+      this.#sites.bindings.push({ key: this.#sink.keyOf(node), holder: this.#holder, name: found.name.text, kind: found.kind, line });
+    }
+  }
+
   #member(node: Node, key: DeclKey): void {
     const name = keyText(unitName(node)) ?? UNNAMED;
     if (
@@ -877,8 +920,9 @@ class Walker {
   // spelling of a member read beside `x.k` and `x?.k`.
   #name(node: Node, inType: boolean): void {
     if ((isIdentifier(node) || isPrivateIdentifier(node)) && !forwards(node.parent)) {
-      const silent = inType || declaresName(node);
-      this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node) });
+      const declares = declaresName(node);
+      const silent = inType || declares;
+      this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node), declares });
       if (isShorthandPropertyAssignment(node.parent)) {
         this.#sites.shorthands.push({ node: node.parent, from: this.#holder });
       }
@@ -889,7 +933,7 @@ class Walker {
       isElementAccessExpression(node.parent) &&
       sameNode(node.parent.argumentExpression, node)
     ) {
-      this.#sites.names.push({ node, from: this.#holder, inType: false, handed: false, roles: referenceRoles(node) });
+      this.#sites.names.push({ node, from: this.#holder, inType: false, handed: false, roles: referenceRoles(node), declares: false });
     }
   }
 
@@ -1081,6 +1125,59 @@ function isRuntimeProtocol(name: Node): boolean {
     return isPropertyAccessExpression(expression) && isIdentifier(expression.expression) && expression.expression.text === WELL_KNOWN_SYMBOLS;
   }
   return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
+}
+
+// The binding a node introduces, if binding-unread judges it.
+function bindingOf(node: Node, top: boolean): { readonly name: Node; readonly kind: BindingKind } | null {
+  if (isParameterDeclaration(node)) {
+    return judgedParameter(node) ? { name: node.name, kind: "parameter" } : null;
+  }
+  if (isVariableDeclaration(node)) {
+    return top || heldOrCaught(node) ? null : { name: node.name, kind: "local" };
+  }
+  if (isBindingElement(node)) {
+    return node.name !== undefined && judgedElement(node, top) ? { name: node.name, kind: "local" } : null;
+  }
+  if (isImportSpecifier(node) || isNamespaceImport(node)) {
+    return { name: node.name, kind: "import" };
+  }
+  return isImportClause(node) && node.name !== undefined ? { name: node.name, kind: "import" } : null;
+}
+
+// A parameter of a function with a body, other than a parameter property or `this`.
+function judgedParameter(node: ParameterDeclaration): boolean {
+  const fn = node.parent;
+  if (!("body" in fn) || fn.body === undefined || hasFlag(getCombinedModifierFlags(node), ModifierFlags.ParameterPropertyModifier)) {
+    return false;
+  }
+  return !(isIdentifier(node.name) && node.name.text === THIS_PARAMETER);
+}
+
+// A `using` declaration holds its value for disposal; a catch binding is the error's slot.
+const heldOrCaught = (node: VariableDeclaration): boolean =>
+  isCatchClause(node.parent) || (isVariableDeclarationList(node.parent) && hasFlag(node.parent.flags, NodeFlags.Using));
+
+// A pattern element, other than one a rest sibling omits on purpose or an exported top-level one.
+function judgedElement(node: BindingElement, top: boolean): boolean {
+  const pattern = node.parent;
+  const omitted =
+    node.dotDotDotToken === undefined && isObjectBindingPattern(pattern) && pattern.elements.some((element) => element.dotDotDotToken !== undefined);
+  return !(omitted || (top && exportedStatement(node)));
+}
+
+// `export { a } from "./x"` forwards another module's names; only an export with no module names a local.
+const isExportDeclarationWithModule = (specifier: Node): boolean => {
+  const declaration = specifier.parent.parent;
+  return isExportDeclaration(declaration) && declaration.moduleSpecifier !== undefined;
+};
+
+// A binding element of an exported top-level destructuring (`export const { a } = …`).
+function exportedStatement(node: Node): boolean {
+  let at: Node = node;
+  while (!(isVariableStatement(at) || isSourceFile(at))) {
+    at = at.parent;
+  }
+  return isVariableStatement(at) && (at.modifiers ?? []).some(({ kind }) => kind === SyntaxKind.ExportKeyword);
 }
 
 const isDocNameHolder = (node: Node): boolean =>

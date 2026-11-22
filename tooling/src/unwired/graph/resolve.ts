@@ -174,7 +174,8 @@ const ZOD_ENUM = "enum";
 // `all` takes its requests as arguments; a walk over many names and types can ask more than a call's argument limit.
 const CHUNK = 8192;
 
-function* allOf<T>(gens: readonly APIRequestGenerator<T>[]): APIRequestGenerator<T[]> {
+/** Every request generator's answer, in order, chunked under the batch's argument limit. */
+export function* allOf<T>(gens: readonly APIRequestGenerator<T>[]): APIRequestGenerator<T[]> {
   const out: T[] = [];
   for (let at = 0; at < gens.length; at += CHUNK) {
     out.push(...(yield* all(...gens.slice(at, at + CHUNK))));
@@ -263,12 +264,13 @@ interface LevelHomes {
   spelled: readonly Spelled[];
 }
 
-function addAll<T>(into: Map<string, Set<T>>, name: string, values: Iterable<T>): void {
-  const set = into.get(name) ?? new Set<T>();
+/** Add each value to the set a map keeps under `key`. */
+export function addAll<K, T>(into: Map<K, Set<T>>, key: K, values: Iterable<T>): void {
+  const set = into.get(key) ?? new Set<T>();
   for (const value of values) {
     set.add(value);
   }
-  into.set(name, set);
+  into.set(key, set);
 }
 
 // What one walk has settled so far, and the library declarations each name's branches stopped at.
@@ -943,8 +945,7 @@ export class Resolver {
     seen.add(value);
     const nameNode = receiverName(value);
     if (nameNode === undefined) {
-      const owner = this.keyOf(value);
-      return owner === null ? NO_VALUE_SPELLING : yield* this.#valueSpelling(owner, value, new Set());
+      return yield* this.#valueSpelling(this.keyOf(value), value, new Set());
     }
     const symbol = yield* this.#unaliased(yield* this.#world.checker.getSymbolAtLocation.gen(nameNode));
     const declarations = yield* this.#bindingSources(yield* this.#ownDeclarations(symbol));
@@ -1332,9 +1333,7 @@ function memberValues(node: TypeNode, member: string): readonly TypeNode[] {
     return memberValues(node.type, member);
   }
   if (isTypeLiteralNode(node)) {
-    return node.members.flatMap((signature) =>
-      isPropertySignatureDeclaration(signature) && keyText(signature.name) === member && signature.type !== undefined ? [signature.type] : [],
-    );
+    return node.members.flatMap((signature) => (isPropertySignatureDeclaration(signature) && keyText(signature.name) === member ? [signature.type] : []));
   }
   if (!isTypeReferenceNode(node)) {
     return [];

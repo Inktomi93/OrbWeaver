@@ -10,6 +10,9 @@
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
 // - A class member is judged once its class is live; a member code we do not see calls (a platform-dispatched override,
 //   a runtime protocol member) is reached, as is one an `extends` or `implements` clause dispatches.
+// - A binding (a local, a parameter, an import binding) is unread when no name but its own reads it, judged in every
+//   file as tsc's noUnusedLocals and noUnusedParameters judge it; one whose every reader is code nothing reaches, while
+//   its own holder is reached, is read only by dead code and names that code.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
@@ -43,6 +46,8 @@ export const BUCKETS = [
   "member-untouched",
   "state-never-read",
   "state-never-set",
+  "binding-unread",
+  "binding-read-only-by-dead",
   "registry-stale",
   "union-re-spells-a-home",
   "union-slice-of-a-home",
@@ -195,7 +200,9 @@ class Analyser {
     this.#liveness();
     this.#docLinks();
     const roles = settleRoles(this.#graph);
-    this.#members(roles);
+    const liveTyped = this.#liveTyped();
+    this.#members(roles, liveTyped);
+    this.#bindings(liveTyped);
     this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
@@ -219,6 +226,8 @@ class Analyser {
       "member-untouched": result("member-untouched"),
       "state-never-read": result("state-never-read"),
       "state-never-set": result("state-never-set"),
+      "binding-unread": result("binding-unread"),
+      "binding-read-only-by-dead": result("binding-read-only-by-dead"),
       "registry-stale": result("registry-stale"),
       "union-re-spells-a-home": result("union-re-spells-a-home"),
       "union-slice-of-a-home": result("union-slice-of-a-home"),
@@ -350,9 +359,33 @@ class Analyser {
     }
   }
 
-  #members(roles: ReadonlyMap<DeclKey, MemberRoles>): void {
+  // What the product's roots and the ruled keeps reach through run and type edges: the code a member or a binding's
+  // reader must sit in to count.
+  #liveTyped(): ReadonlySet<GraphKey> {
+    return reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [this.#state.run, this.#state.typ]);
+  }
+
+  // A binding nothing reads, and one whose every reader is code nothing reaches while the binding's own holder is
+  // reached: an import or a local the dead code alone keeps.
+  #bindings(liveTyped: ReadonlySet<GraphKey>): void {
+    for (const binding of this.#state.bindings) {
+      const label = `${binding.file}:${String(binding.line)} ${binding.name}`;
+      if (binding.readers.length === 0) {
+        this.#push("binding-unread", { label, key: binding.key, note: binding.written ? `${binding.kind}, only written` : binding.kind });
+      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && binding.readers.every((reader) => !liveTyped.has(reader))) {
+        const note = `${binding.kind} read only by ${binding.readers.map((reader) => this.#readerLabel(reader)).join(", ")}`;
+        this.#push("binding-read-only-by-dead", { label, key: binding.key, note });
+      }
+    }
+  }
+
+  #readerLabel(reader: GraphKey): string {
+    const info = isDeclKey(reader) ? this.#state.decls.get(reader) : undefined;
+    return info === undefined ? reader : `${info.file}:${String(info.line)} ${info.name}`;
+  }
+
+  #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
-    const liveTyped = reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [state.run, state.typ]);
     const dispatched = dispatchedMembers(state.run, state.decls);
     for (const [key, info] of state.decls) {
       // a class member is judged once its class is live: nothing but a call or a read reaches a method

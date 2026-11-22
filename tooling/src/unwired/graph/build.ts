@@ -22,15 +22,15 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { SignatureKind } from "@typescript/native/sync";
-import { NativeWorld } from "../native.ts";
+import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
+import { hasFlag, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer } from "./resolve.ts";
+import { addAll, allOf, answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
@@ -127,6 +127,8 @@ class Builder {
   readonly #flows: Flows;
   readonly #keys: Keys;
   readonly #classes = new Map<DeclKey, ClassFacts>();
+  // The current file's binding readers, filled by its name and shorthand passes.
+  #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
   readonly #pendingSlots: PendingClass[] = [];
   readonly #pendingValues: PendingClass[] = [];
   readonly #urlSpawns: UrlSpawn[] = [];
@@ -212,6 +214,7 @@ class Builder {
     this.#hookTuples(sites);
     this.#docs(sites);
     this.#shorthands(sites);
+    this.#bindings(sites);
     this.#patterns(sites);
     this.#specifiers(sites);
     this.#classFacts(sites);
@@ -234,6 +237,7 @@ class Builder {
     for (const [at, site] of sites.names.entries()) {
       this.#use(site, resolved[at] ?? [], sites.file);
     }
+    this.#bindingReads(sites, resolved);
     this.#bareReads(sites, symbols, resolved);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(
@@ -249,6 +253,51 @@ class Builder {
     );
     const slots = state.slotTypes(state.batch(classValues.map(({ node }) => state.world.checker.getContextualType.gen(node))));
     this.#pendingValues.push(...classValues.map(({ decls }, at) => ({ slot: slots[at], decls })));
+  }
+
+  // Who reads each of the file's bindings: a name that is not the binding's own and does more than write, in a type
+  // position too. A use of an import resolves past it to what it imports, so a name spelled as one of the file's
+  // imports, or a shorthand that is, asks the checker again for the symbol before its alias is followed.
+  #bindingReads(sites: FileSites, resolved: readonly DeclKey[][]): void {
+    const state = this.#state;
+    const { checker } = state.world;
+    const imported = new Set(sites.bindings.flatMap(({ kind, name }) => (kind === "import" ? [name] : [])));
+    const asked = sites.names.flatMap((site, at) => (!site.declares && imported.has(nameText(site.node)) ? [{ site, at }] : []));
+    const shorthands = sites.shorthands.filter(({ node }) => imported.has(nameText(node.name)));
+    const aliasKeys = state.batch(
+      [
+        ...asked.map(({ site }) => checker.getSymbolAtLocation.gen(site.node)),
+        ...shorthands.map(({ node }) => checker.getShorthandAssignmentValueSymbol.gen(node)),
+      ].map(function* (ask): APIRequestGenerator<readonly DeclKey[]> {
+        const symbol = yield* ask;
+        if (symbol === undefined || !hasFlag(symbol.flags, SymbolFlags.Alias)) {
+          return [];
+        }
+        return (yield* allOf(symbol.declarations.map((handle) => state.resolver.handleKey(handle)))).flatMap((key) => (key === null ? [] : [key]));
+      }),
+    );
+    const aliasOf = new Map(asked.map(({ at }, y) => [at, aliasKeys[y] ?? []]));
+    const { readers, written } = nameReaders(sites.names, (at) => [...(resolved[at] ?? []), ...(aliasOf.get(at) ?? [])]);
+    for (const [y, { from }] of shorthands.entries()) {
+      for (const key of aliasKeys[asked.length + y] ?? []) {
+        addAll(readers, key, [from]);
+      }
+    }
+    this.#fileReaders = { readers, written };
+  }
+
+  // Each binding the file declares, with its readers: a shorthand `{ x }` reads x too, and an export specifier the name.
+  #bindings(sites: FileSites): void {
+    const { readers, written } = this.#fileReaders;
+    for (const binding of sites.bindings) {
+      const exported = binding.kind !== "parameter" && sites.exportedLocals.has(binding.name);
+      this.#state.bindings.push({
+        ...binding,
+        file: sites.file,
+        readers: exported ? [moduleKey(sites.file)] : [...(readers.get(binding.key) ?? [])],
+        written: written.has(binding.key),
+      });
+    }
   }
 
   #use(site: NameSite, decls: readonly DeclKey[], file: string): void {
@@ -431,6 +480,7 @@ class Builder {
       for (const decl of decls[at] ?? []) {
         state.edge("run", from, decl);
         state.role(decl, "read", sites.file, node.pos);
+        addAll(this.#fileReaders.readers, decl, [from]);
       }
     }
     this.#wholeModule(
@@ -625,6 +675,29 @@ class Builder {
         .map((decl) => ({ decl, kind: reason.kind, why: reason.why })),
     );
   }
+}
+
+// Each binding a name site resolves to, as read by the site's declaration, or written when the site only writes.
+function nameReaders(
+  names: readonly NameSite[],
+  declsAt: (at: number) => readonly DeclKey[],
+): { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } {
+  const readers = new Map<DeclKey, Set<GraphKey>>();
+  const written = new Set<DeclKey>();
+  for (const [at, site] of names.entries()) {
+    if (site.declares) {
+      continue;
+    }
+    const reads = site.inType || site.roles.some((role) => role !== "write");
+    for (const decl of declsAt(at)) {
+      if (reads) {
+        addAll(readers, decl, [site.from]);
+      } else {
+        written.add(decl);
+      }
+    }
+  }
+  return { readers, written };
 }
 
 const nameText = (node: Node): string => ("text" in node && typeof node.text === "string" ? node.text : "");

@@ -68,7 +68,7 @@ const FACTS = {
     "  globalThis.__orb = bridge;",
     "};",
   ].join("\n"),
-  [UNSEEN]: "export class Doc { toJSON(): object { return {}; } spare(): void {} }",
+  [UNSEEN]: "export class Doc { toJSON(): object { return {}; } spare(unread: number): void {} }",
   "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: ["probe.ts"] }),
   "probe.ts": "export const seen = globalThis.__orb?.foo;",
 };
@@ -88,6 +88,7 @@ test("a dumped graph read back analyses to the fresh build's buckets; a dump in 
   expect(labelsIn(fresh, "state-never-set", STATE)).toEqual(["3 setter"]);
   expect(labelsIn(fresh, "member-sent-only", DOOR)).toEqual(["Bridge.bar"]);
   expect(labelsIn(fresh, "member-untouched", UNSEEN)).toEqual(["Doc.spare"]);
+  expect(labelsIn(fresh, "binding-unread", UNSEEN)).toEqual(["1 unread"]);
   const read = await scanGraph(root, quiet, options({ from: dump }));
   expect(read.analysis).toEqual(fresh.analysis);
   expect(read.session.from).toEqual(fresh.session.dumped);
