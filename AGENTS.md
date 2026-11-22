@@ -114,8 +114,7 @@ To get green, never add a lint suppression for a real finding, a dep-cruiser exe
 | Who calls X, what breaks if X changes, which tests cover a file | the `codegraph_callers`, `codegraph_impact` and `codegraph_node` MCP tools, or `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
 | A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
 | Which files keep getting fixed or churned | `pnpm hotspots` |
-| Where a name appears and as what (code read, write or call, type, comment, doc, config, generated), by product, test, tooling and docs | `pnpm unwired hits <name...>`, or `--json` for a script |
-| Literal text, config | `rg`; the Bash `grep` differs by harness: a ugrep wrapper that honors ignore files in Claude Code, GNU grep elsewhere. Read law docs in full: a ruling lives in the context around a line |
+| Literal text, config; where a name appears and as what | `pnpm unwired hits <name...>` (`--json` for a script) classifies each hit of a name; `rg` for other text; the Bash `grep` differs by harness: a ugrep wrapper that honors ignore files in Claude Code, GNU grep elsewhere. Read law docs in full: a ruling lives in the context around a line |
 
 - A linked worktree has no CodeGraph index until you build one. Run `bash scripts/worktree-codegraph-index.sh` once before the first query, CLI or MCP. Without an index the CLI answers from main's index, and `.claude/hooks/codegraph-project.mjs` denies the MCP call. With one, the hook routes each MCP call to the worktree's index. The server's watcher re-indexes your edits; `codegraph sync` fails on its lock while the server runs.
 - A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.

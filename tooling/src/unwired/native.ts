@@ -1,6 +1,6 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
-import { relative } from "node:path";
+import { relative, resolve } from "node:path";
 import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   getTouchingPropertyName,
@@ -24,6 +24,7 @@ import type {
   Symbol as NativeSymbol,
   NodeHandle,
   ReferencedSymbolEntry,
+  RetainedSourceFile,
   SignatureUsage,
   Type,
 } from "@typescript/native/sync";
@@ -268,6 +269,12 @@ export class NativeWorld implements Disposable {
   /** The repository-relative file of one of the world's parsed files. */
   fileOfSource(source: SourceFile): string {
     return this.#fileOfPath.get(source.path) ?? relative(this.#root, source.fileName);
+  }
+
+  /** A parse of each repository-relative file on its own, outside the program, in one batch. Each lease is the
+   *  caller's to dispose. */
+  parseAlone(files: readonly string[]): RetainedSourceFile[] {
+    return this.#api.batch(...files.map((file) => this.#api.createSourceFileFromFile.gen(resolve(this.#root, file))));
   }
 
   /** Whether the world holds the repository-relative file. */
