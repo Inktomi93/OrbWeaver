@@ -1,6 +1,7 @@
 // Which tuples a string literal's slot takes its vocabulary from, read off what its declaration spells: a type annotation,
 // or the schema value a type is inferred from. Types cannot say: a one-member union, an `Exclude` and a re-spelled
-// subset all hold the same literals as the tuple. Each engine answers only the checker queries of `SlotOracle`.
+// subset all hold the same literals as the tuple. The per-world reader the codes scan still uses (./unions.ts) asks
+// it; the graph's copy on the 7.1 tree is ./graph/union-slots.ts, and this file goes when codes moves there.
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, Sources } from "./classify.ts";
@@ -64,15 +65,6 @@ export function* declaredSites(oracle: SlotOracle, site: Site): APIRequestGenera
 /** The parameter the call argument starting at `argument` binds, by its name's site. */
 export function* boundParameter(oracle: SlotOracle, argument: Site): APIRequestGenerator<Site | null> {
   return yield* answered(oracle.parameterOf(argument));
-}
-
-/** Run a generator whose engine never issues a request. */
-export function settled<T>(generator: APIRequestGenerator<T>): T {
-  const step = generator.next();
-  if (step.done !== true) {
-    throw new Error("a synchronous engine issued an API request");
-  }
-  return step.value;
 }
 
 const siteOf = (node: ts.Node): Site => ({ file: node.getSourceFile().fileName, position: node.getStart() });

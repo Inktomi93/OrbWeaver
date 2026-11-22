@@ -2,14 +2,23 @@
 // and Record keys that name it, and in its own list, with the site that parses outside input in, a tuple only a z.enum
 // parse or a membership guard builds. A same-text literal
 // in a plain string slot and an enumerated tuple are controls.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanUnions } from "../../../tooling/src/unwired/index.ts";
-import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import { expect, test } from "@orb/testkit/tooling";
+import type { JudgedEntry, UnionsReport } from "../../../tooling/src/unwired/index.ts";
+import { unionsGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, plantJudged } from "./_planted.ts";
 
-type Report = ReturnType<typeof scanUnions>;
+type Report = UnionsReport;
+
+// The unions scan over a graph session of a planted tree.
+async function scanUnions(
+  plantedTree: (tree: Record<string, string>) => Promise<string>,
+  files: Readonly<Record<string, string>>,
+  judged: readonly JudgedEntry[] = [],
+): Promise<Report> {
+  return await unionsGraph(await plantedTree(graphTree(files)), { deliberate: [], judged }, () => undefined);
+}
 
 const TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/mode.ts": [
     'export const MODES = ["on", "off", "auto"] as const;',
     "export type Mode = (typeof MODES)[number];",
@@ -46,8 +55,7 @@ const TREE = {
 test("the unions scan reports an unbuilt member with its dead branch, check and key, marks a parsed vocabulary apart, and skips an enumerated tuple", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, TREE);
   expect(report.unwired.map(({ kind, home, member, cases, checks, keys }) => ({ kind, home, member, cases, checks, keys }))).toEqual([
     {
       kind: "unbuilt",
@@ -65,14 +73,12 @@ test("the unions scan reports an unbuilt member with its dead branch, check and 
     { home: "TONES", member: "cold", checks: [], sources: ["z.enum packages/a/src/tone.ts:4"] },
   ]);
   expect(report.enumerated).toEqual(["packages/a/src/mode.ts:SIZES"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A tuple element read from a constant is the member its type names: `CODE.clamped` is `knob_clamped`, which nothing
 // builds, and `CODE.dropped` is `knob_dropped`, which a literal builds in the tuple's slot. `LOOSE` is the control: an
 // element typed `string` names no member, so the tuple stays out and its `loose` is never judged.
 const CONSTANT_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/codes.ts": 'export const CODE = { dropped: "knob_dropped", clamped: "knob_clamped", spare: "knob_spare" } as const;',
   "packages/a/src/kinds.ts": [
     'import { CODE } from "./codes.ts";',
@@ -93,20 +99,17 @@ const CONSTANT_TREE = {
 test("the unions scan reads a tuple element built from a constant as the literal its type names, and still skips a tuple with a string-typed element", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(CONSTANT_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, CONSTANT_TREE);
   expect(report.unwired.map(({ kind, home, member, file, line }) => ({ kind, home, member, file, line }))).toEqual([
     { kind: "unbuilt", home: "KINDS", member: "knob_clamped", file: "packages/a/src/kinds.ts", line: 4 },
   ]);
   expect(report.scanned).toBe(1);
-  expect(report.disagreements).toEqual([]);
 });
 
 // Construction evidence belongs to the vocabulary whose slot it lands in. `KINDS_A` and `KINDS_B` share the text
 // `shared`; only `KINDS_B`'s slot is ever built with it. The remaining tuples are controls that must clear: a slot
 // that unions two vocabularies builds `dual` in both, and a slot derived from one tuple builds its own member.
 const SHARED_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/shared.ts": [
     'export const KINDS_A = ["alpha", "shared"] as const;',
     "export type KindA = (typeof KINDS_A)[number];",
@@ -136,16 +139,13 @@ const SHARED_TREE = {
 test("the unions scan keeps construction evidence with its own vocabulary: a shared text built only in another tuple's slot stays unbuilt", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(SHARED_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, SHARED_TREE);
   expect(report.unwired.map(({ kind, home, member }) => ({ kind, home, member }))).toEqual([{ kind: "unbuilt", home: "KINDS_A", member: "shared" }]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A slot belongs to a tuple by what its declaration spells, never by which literals its type happens to hold: a
 // one-member union, a discriminated union and an independent subset tuple all hold a tuple's texts without being it.
 const ORIGIN_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/derived.ts": [
     'export const KINDS_V = ["v1", "v2", "v3"] as const;',
     "export type KindV = (typeof KINDS_V)[number];",
@@ -201,8 +201,7 @@ const ORIGIN_TREE = {
 test("the unions scan reads a slot's tuple from its declaration, so derived slots clear and foreign ones do not", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(ORIGIN_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, ORIGIN_TREE);
   const found = report.unwired
     .map(({ home, member, checks, keys }) => ({ home, member, checks, keys }))
     .toSorted((a, b) => `${a.home}.${a.member}`.localeCompare(`${b.home}.${b.member}`));
@@ -215,14 +214,12 @@ test("the unions scan reads a slot's tuple from its declaration, so derived slot
     { home: "KINDS_V", member: "v3", checks: [], keys: [] },
     { home: "KINDS_W", member: "w2", checks: [], keys: [] },
   ]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // Slots whose type is not an annotation on the tuple, copied from the real tree. A construction through one of them
 // builds the member, so the scan must not call it unbuilt: a schema-inferred property (`z.infer` of a `z.object`
 // written from `z.enum(TUPLE)`), and a generated table whose `satisfies` type is generic over the tuples.
 const SCHEMA_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   // A library, outside the production sources, as zod is in the real tree.
   "packages/a/lib/zod.ts": [
     "export interface ZodType<T> { readonly output?: T; optional(): ZodType<T | undefined>; nullable(): ZodType<T | null> }",
@@ -301,21 +298,18 @@ const SCHEMA_TREE = {
 test("the unions scan reads a schema-inferred slot and a generic generated table through to the tuples they are written from", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(SCHEMA_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, SCHEMA_TREE);
   const listed = (rows: Report["unwired"]): string[] => rows.map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   // between-tools, penalties and dry are built through the schema; ROLES.solid and HOSTS.card through the table; alpha
   // and fresh through an indexed access on an inferred type; denied and unsupported through one on an interface.
   expect(listed(report.unwired)).toEqual(["CAUSES.tooled", "HOSTS.background", "MODES.deep", "ROLES.solid-hover", "ROLES.tint"]);
   expect(listed(report.parsed)).toEqual(["OFF_MODES.disabled", "PROVENANCES.request", "SERVERS.beta", "STAGES.xtc"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A literal type that re-spells a member builds it once the scan links that type to the tuple: the tuple `satisfies` a
 // type that writes it, or a value typed by it feeds the tuple's slot as an element-access key or an argument. Each
 // tuple keeps one member nothing builds, and `Ev` in the ORIGIN tree above stays the unlinked control.
 const LINKED_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/events.ts": [
     // A generic member type beside the discriminant: the link reads past its type parameter.
     "type Brand<T, B extends string> = T & { readonly brand: B };",
@@ -349,11 +343,9 @@ const LINKED_TREE = {
 test("the unions scan builds a member through a literal type the tuple satisfies or whose value feeds the tuple's slot", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(LINKED_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, LINKED_TREE);
   const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   expect(found).toEqual(["unbuilt EVENT_TYPES.gone", "unbuilt PHASES.skipped", "unbuilt SPAN_KINDS.unused"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // Production uses a member without a literal in the tuple's slot: a `Record` entry read by name, a switch that hands
@@ -361,7 +353,6 @@ test("the unions scan builds a member through a literal type the tuple satisfies
 // property or spread reaches the slot. Each tuple keeps one member nothing builds; `LOOSE` is exported, so its literal
 // reaches no readable slot and builds nothing.
 const UNSPELLED_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/floors.ts": [
     'const STAGES = ["warm", "cold", "idle"] as const;',
     "type Stage = (typeof STAGES)[number];",
@@ -414,18 +405,15 @@ const UNSPELLED_TREE = {
 test("the unions scan builds a member a Record entry read, a switch pass-through, an enumerated subset or a constant's property reaches", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(UNSPELLED_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, UNSPELLED_TREE);
   const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   expect(found).toEqual(["unbuilt ADJUSTMENTS.z_never", "unbuilt PLANES.unused_plane", "unbuilt SOURCES.dead", "unbuilt STAGES.idle"]);
   expect(report.enumerated).toEqual(["packages/a/src/sources.ts:THEMED"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A tuple a lib key selection names lists property keys, never values: it is listed apart and none of its members is
 // judged. `MODES` beside it is a value vocabulary and keeps its unbuilt member.
 const KEYS_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/props.ts": [
     "interface Props { readonly size: number; readonly tone: string; readonly label: string }",
     'const LOOK = ["size", "tone"] as const;',
@@ -445,17 +433,14 @@ const KEYS_TREE = {
 test("the unions scan lists a tuple a Pick, Omit or keyof filter names as a key list and judges none of its members", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(KEYS_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, KEYS_TREE);
   expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt MODES.y"]);
   expect(report.keyLists).toEqual(["packages/a/src/props.ts:JSON_FIELDS", "packages/a/src/props.ts:LOOK", "packages/a/src/props.ts:PICKED"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A type guard that narrows a raw string into the tuple lets outside input produce any member, so its members sort as
 // parsed. A guard over an in-tree union narrows nothing from outside: `SHAPES` stays unbuilt.
 const GUARD_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/cli.ts": [
     'const COMMANDS = ["build", "pack"] as const;',
     "type Command = (typeof COMMANDS)[number];",
@@ -473,21 +458,18 @@ const GUARD_TREE = {
 test("the unions scan sorts a tuple a type guard narrows raw input into as parsed, and not one an in-tree guard narrows", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(GUARD_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, GUARD_TREE);
   expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt SHAPES.round", "unbuilt SHAPES.square"]);
   expect(report.parsed.map(({ home, member, sources }) => `${home}.${member} ${sources.join(",")}`)).toEqual([
     "COMMANDS.build type guard packages/a/src/cli.ts:3",
     "COMMANDS.pack type guard packages/a/src/cli.ts:3",
   ]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // The credit rules link only what the slot holds. A literal type of a sibling property is another vocabulary, whether the
 // tuple satisfies an indexed access of the type or a property feeds its slot; and a switch over a value already typed by
 // the tuple hands on nothing production built. Each tuple keeps the member only those forms reach.
 const NARROW_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/kinds.ts": [
     'export const KINDS = ["live", "legacy"] as const;',
     "export type Kind = (typeof KINDS)[number];",
@@ -525,18 +507,15 @@ const NARROW_TREE = {
 test("the unions scan credits no member through a sibling property's literal types or a switch over the tuple's own type", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(NARROW_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, NARROW_TREE);
   const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   expect(found).toEqual(["unbuilt KINDS.legacy", "unbuilt PHASES.done", "unbuilt SPAN_KINDS.dice"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A literal handed whole into its slot through a `??` fallback builds the member there, even when the callee is
 // overloaded: `unexpected` reaches the constructor's `kind` only as the right operand. `stale` is the twin: the same
 // fallback into a plain `string` slot builds nothing, so it still reports.
 const FALLBACK_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/refused.ts": [
     'const KINDS = ["signedOut", "redirected", "unexpected", "stale"] as const;',
     "type Kind = (typeof KINDS)[number];",
@@ -559,10 +538,8 @@ const FALLBACK_TREE = {
 test("the unions scan builds a member a `??` fallback hands into its slot, and not one it hands into a string slot", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(FALLBACK_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, FALLBACK_TREE);
   expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt KINDS.stale"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A generic call infers its type parameter from the literal itself, so the slot the checker reports is the literal's
@@ -571,7 +548,6 @@ test("the unions scan builds a member a `??` fallback hands into its slot, and n
 // `iteration` nor `card`. `quick` and `shelf` are controls: a constraint spelled from the tuple builds the one, and a
 // descriptor typed by its own type parameter the other.
 const INFERRED_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   // A library, outside the production sources, as drizzle is in the real tree.
   "packages/a/lib/db.ts": "export declare function integer<TName extends string>(name: TName): { readonly name: TName };",
   "packages/a/src/presets.ts": [
@@ -601,18 +577,15 @@ const INFERRED_TREE = {
 test("the unions scan reads a slot a generic call infers from the literal through the type parameter's constraint", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(INFERRED_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, INFERRED_TREE);
   const found = report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   expect(found).toEqual(["unbuilt ENTITY_KINDS.card", "unbuilt MODES.iteration"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A module-private constant spread into rows a `.map` callback returns, and the whole array `satisfies` the row type
 // written from a schema: `breakpoint` reaches `turns.format` there. `control` is the twin: only a callback whose callee
 // returns a count carries it, so nothing builds it.
 const MAPPED_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/rows.ts": [
     'const FORMATS = ["control", "breakpoint"] as const;',
     "type Format = (typeof FORMATS)[number];",
@@ -632,17 +605,14 @@ const MAPPED_TREE = {
 test("the unions scan follows a constant a mapped row carries into the slot the array satisfies", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(MAPPED_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, MAPPED_TREE);
   expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt FORMATS.control"]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // Two rows the unions judge confirmed as true findings, in their shapes: a member only a `Record` annotated with the
 // tuple's type keys (`opening`), and a member no manifest row lists while a second vocabulary spells the same text
 // (`dynamic`). Neither is built, and each keeps its key.
 const TRUE_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/turns.ts": [
     'const TURN_KINDS = ["send", "swipe", "opening"] as const;',
     "export type TurnKind = (typeof TURN_KINDS)[number];",
@@ -664,25 +634,19 @@ const TRUE_TREE = {
 test("the unions scan still reports the members the judge confirmed unbuilt: a Record-keyed-only member and one only a second vocabulary builds", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const root = await plantedTree(TRUE_TREE);
-  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanUnions(plantedTree, TRUE_TREE);
   expect(report.unwired.map(({ kind, home, member, keys }) => ({ kind, home, member, keys }))).toEqual([
     { kind: "unbuilt", home: "CASCADE_SOURCES", member: "dynamic", keys: [] },
     { kind: "unbuilt", home: "TURN_KINDS", member: "opening", keys: ["packages/a/src/turns.ts:4"] },
   ]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const options = {
-    root: await plantedTree({ ...ORIGIN_TREE, ...JUDGED_WORK }),
-    worlds: [WORLD],
-    testWorlds: [],
-    deliberate: [],
-    log: (): undefined => undefined,
-  };
-  const judged = plantJudged(scanUnions(options), "KINDS_D.dopen", "KINDS_G.gshared");
-  expect(judgedOutcome(scanUnions({ ...options, judged }), "KINDS_D.dopen", "KINDS_G.gshared")).toEqual(judgedExpected("KINDS_D.dopen", "KINDS_G.gshared"));
+  const files = { ...ORIGIN_TREE, ...JUDGED_WORK };
+  const judged = plantJudged(await scanUnions(plantedTree, files), "KINDS_D.dopen", "KINDS_G.gshared");
+  expect(judgedOutcome(await scanUnions(plantedTree, files, judged), "KINDS_D.dopen", "KINDS_G.gshared")).toEqual(
+    judgedExpected("KINDS_D.dopen", "KINDS_G.gshared"),
+  );
 });

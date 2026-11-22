@@ -1,5 +1,5 @@
-// The two engines' answers to the symbol questions a slot's origin asks: the TypeScript 7.1 checker batches them, the
-// TypeScript 6 checker answers at once. Both report declaration names as sites and read nothing but the checker.
+// The TypeScript 7.1 checker's answers to the symbol questions a slot's origin asks, for the per-world reading the codes
+// scan still uses (./unions.ts). It reports declaration names as sites and reads nothing but the checker.
 import type { ArrayLiteralExpression, CallExpression, Expression, NewExpression, Node, PropertyName, SourceFile } from "@typescript/native/ast";
 import {
   getNameOfDeclaration,
@@ -19,14 +19,10 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import ts from "typescript";
 import type { Site } from "./classify.ts";
-import { nameAt } from "./classify.ts";
-import type { ServiceWorld } from "./language-service.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, hasFlag, propertiesNamed } from "./native.ts";
 import type { SlotOracle } from "./union-origins.ts";
-import { isConstAssertion } from "./union-origins.ts";
 
 // The outermost node starting at `position` that `accept` takes.
 function findNative(file: SourceFile, position: number, accept: (node: Node) => boolean): Node | undefined {
@@ -45,30 +41,9 @@ function findNative(file: SourceFile, position: number, accept: (node: Node) => 
   return found;
 }
 
-function findService(file: ts.SourceFile, position: number, accept: (node: ts.Node) => boolean): ts.Node | undefined {
-  let found: ts.Node | undefined;
-  const visit = (node: ts.Node): void => {
-    if (found !== undefined || position < node.getStart(file) || position >= node.getEnd()) {
-      return;
-    }
-    if (node.getStart(file) === position && accept(node)) {
-      found = node;
-    } else {
-      ts.forEachChild(node, visit);
-    }
-  };
-  visit(file);
-  return found;
-}
-
 const isNativeArgument = (node: Node): boolean => {
   const { parent } = node;
   return (isCallExpression(parent) || isNewExpression(parent)) && (parent.arguments?.some((argument) => argument === node) ?? false);
-};
-
-const isServiceArgument = (node: ts.Node): boolean => {
-  const { parent } = node;
-  return (ts.isCallExpression(parent) || ts.isNewExpression(parent)) && (parent.arguments?.some((argument) => argument === node) ?? false);
 };
 
 function* targetOf(checker: Checker, symbol: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
@@ -85,7 +60,7 @@ function* nativeSites(world: NativeWorld, symbol: NativeSymbol | undefined): API
 }
 
 // Types no string literal belongs to. A type parameter constrained to them takes a literal argument's own type, so the
-// argument lands in no vocabulary but its own. The two engines read the same flags from their own enums.
+// argument lands in no vocabulary but its own.
 const LITERAL_FREE_NATIVE: readonly TypeFlags[] = [
   TypeFlags.String,
   TypeFlags.Number,
@@ -98,24 +73,10 @@ const LITERAL_FREE_NATIVE: readonly TypeFlags[] = [
   TypeFlags.Null,
   TypeFlags.Undefined,
 ];
-const LITERAL_FREE_SERVICE: readonly ts.TypeFlags[] = [
-  ts.TypeFlags.String,
-  ts.TypeFlags.Number,
-  ts.TypeFlags.BigInt,
-  ts.TypeFlags.Boolean,
-  ts.TypeFlags.BooleanLiteral,
-  ts.TypeFlags.NumberLiteral,
-  ts.TypeFlags.BigIntLiteral,
-  ts.TypeFlags.ESSymbol,
-  ts.TypeFlags.Null,
-  ts.TypeFlags.Undefined,
-];
 
 const isLiteralFree = (flags: number, free: readonly number[]): boolean => free.some((flag) => hasFlag(flags, flag));
 
 const nativeKey = (name: PropertyName): string | null => (isIdentifier(name) || isStringLiteral(name) ? name.text : null);
-
-const serviceKey = (name: ts.PropertyName): string | null => (ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null);
 
 // The call a node is an argument of, and its index.
 interface Argument<Call> {
@@ -128,15 +89,6 @@ function nativeArgumentOf(node: Node): Argument<CallExpression | NewExpression> 
   const index =
     (isCallExpression(parent) || isNewExpression(parent)) && parent.arguments !== undefined ? parent.arguments.findIndex((argument) => argument === node) : -1;
   return index < 0 || !(isCallExpression(parent) || isNewExpression(parent)) ? undefined : { call: parent, index };
-}
-
-function serviceArgumentOf(node: ts.Node): Argument<ts.CallExpression | ts.NewExpression> | undefined {
-  const { parent } = node;
-  const index =
-    (ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.arguments !== undefined
-      ? parent.arguments.findIndex((argument) => argument === node)
-      : -1;
-  return index < 0 || !(ts.isCallExpression(parent) || ts.isNewExpression(parent)) ? undefined : { call: parent, index };
 }
 
 /** `x as const`, in the native AST. */
@@ -166,18 +118,6 @@ function* nativeUninferred(
   return signature === undefined || own.length === 0 || bound === undefined
     ? undefined
     : { type: yield* world.checker.getTypeOfSymbol.gen(bound), signature, own };
-}
-
-function serviceUninferred(
-  world: ServiceWorld,
-  { call, index }: Argument<ts.CallExpression | ts.NewExpression>,
-): Uninferred<ts.Type, ts.Signature> | undefined {
-  const declaration = call.typeArguments === undefined ? world.checker.getResolvedSignature(call)?.getDeclaration() : undefined;
-  const signature = declaration === undefined || ts.isJSDocSignature(declaration) ? undefined : world.checker.getSignatureFromDeclaration(declaration);
-  const own = signature?.getTypeParameters() ?? [];
-  const parameters = signature?.getParameters() ?? [];
-  const bound = parameters[Math.min(index, parameters.length - 1)];
-  return signature === undefined || own.length === 0 || bound === undefined ? undefined : { type: world.checker.getTypeOfSymbol(bound), signature, own };
 }
 
 // The declared slot an object literal fills: the types its property path is read from, outermost property first.
@@ -227,53 +167,11 @@ function* nativeCallbackSlot(world: NativeWorld, callback: Node, path: readonly 
   return { types: listed ? yield* nativeElementTypes(world.checker, [context]) : [context], path };
 }
 
-function serviceDeclaredSlot(world: ServiceWorld, node: ts.Node, path: readonly string[]): DeclaredSlot<ts.Type> | undefined {
-  const { parent } = node;
-  if (ts.isParenthesizedExpression(parent) || (ts.isAsExpression(parent) && isConstAssertion(parent.type))) {
-    return serviceDeclaredSlot(world, parent, path);
-  }
-  if (ts.isPropertyAssignment(parent) && parent.initializer === node && ts.isObjectLiteralExpression(parent.parent)) {
-    const key = serviceKey(parent.name);
-    return key === null ? undefined : serviceDeclaredSlot(world, parent.parent, [key, ...path]);
-  }
-  if (ts.isArrowFunction(parent) && parent.body === node) {
-    return serviceCallbackSlot(world, parent, path);
-  }
-  const argument = serviceArgumentOf(node);
-  const declared = argument === undefined ? undefined : serviceUninferred(world, argument);
-  return declared === undefined ? undefined : { types: [declared.type], path };
-}
-
-function serviceCallbackSlot(world: ServiceWorld, callback: ts.Node, path: readonly string[]): DeclaredSlot<ts.Type> | undefined {
-  const argument = serviceArgumentOf(callback);
-  const declared = argument === undefined ? undefined : serviceUninferred(world, argument);
-  if (argument === undefined || declared === undefined) {
-    return undefined;
-  }
-  const returned = declared.type
-    .getCallSignatures()
-    .map((signature) => signature.getReturnType())
-    .find((type) => type.isTypeParameter() && declared.own.includes(type));
-  const result = declared.signature.getReturnType();
-  const listed = returned !== undefined && serviceElementTypes(world.checker, [result]).includes(returned);
-  const holder = listed ? serviceSpreadInto(argument.call) : undefined;
-  const context = returned === undefined || !(listed || result === returned) ? undefined : world.checker.getContextualType(holder ?? argument.call);
-  if (context === undefined) {
-    return undefined;
-  }
-  return { types: listed ? serviceElementTypes(world.checker, [context]) : [context], path };
-}
-
 // The array literal a list is spread into (`[...rows.map(...)]`): its contextual type is the list's, since a spread
 // element's expression has none of its own.
 function spreadInto(node: Node): ArrayLiteralExpression | undefined {
   const { parent } = node;
   return isSpreadElement(parent) && isArrayLiteralExpression(parent.parent) ? parent.parent : undefined;
-}
-
-function serviceSpreadInto(node: ts.Node): ts.ArrayLiteralExpression | undefined {
-  const { parent } = node;
-  return ts.isSpreadElement(parent) && ts.isArrayLiteralExpression(parent.parent) ? parent.parent : undefined;
 }
 
 // The element types of list types: each number index signature's value.
@@ -284,15 +182,6 @@ function* nativeElementTypes(checker: Checker, types: readonly Type[]): APIReque
     elements.push(...indexes.filter((info) => hasFlag(info.keyType.flags, TypeFlags.Number)).map((info) => info.valueType));
   }
   return elements;
-}
-
-function serviceElementTypes(checker: ts.TypeChecker, types: readonly ts.Type[]): readonly ts.Type[] {
-  return serviceSettled(types).flatMap((type) =>
-    checker
-      .getIndexInfosOfType(type)
-      .filter((info) => hasFlag(info.keyType.flags, ts.TypeFlags.Number))
-      .map((info) => info.type),
-  );
 }
 
 // Each type read as the object types a property is found on: a type parameter as its constraint, a union as its members.
@@ -313,19 +202,6 @@ function* nativeSettled(checker: Checker, types: readonly Type[]): APIRequestGen
     }
   }
   return settled;
-}
-
-function serviceSettled(types: readonly ts.Type[]): readonly ts.Type[] {
-  return types.flatMap((type): readonly ts.Type[] => {
-    if (type.isUnion()) {
-      return serviceSettled(type.types);
-    }
-    if (type.isTypeParameter()) {
-      const constraint = type.getConstraint();
-      return constraint === undefined ? [] : serviceSettled([constraint]);
-    }
-    return [type];
-  });
 }
 
 /** Engine one's answers, from the TypeScript 7.1 checker. */
@@ -401,74 +277,4 @@ function* nativePropertyTypes(checker: Checker, types: readonly Type[], name: st
     }
   }
   return next;
-}
-
-function servicePropertyTypes(checker: ts.TypeChecker, types: readonly ts.Type[], name: string): readonly ts.Type[] {
-  return serviceSettled(types).flatMap((type) => {
-    const property = checker.getPropertyOfType(type, name);
-    if (property === undefined) {
-      return checker
-        .getIndexInfosOfType(type)
-        .filter((info) => hasFlag(info.keyType.flags, ts.TypeFlags.String))
-        .map((info) => info.type);
-    }
-    return [checker.getTypeOfSymbol(property)];
-  });
-}
-
-/** Engine two's answers, from the TypeScript 6 checker. */
-export function serviceOracle(world: ServiceWorld): SlotOracle {
-  const sitesOf = (symbol: ts.Symbol | undefined): readonly Site[] =>
-    (symbol?.declarations ?? []).map((declaration) => world.siteOf(ts.getNameOfDeclaration(declaration) ?? declaration));
-  const declarationsOf = (name: Site): readonly Site[] => {
-    const source = world.source(name.file);
-    const node = source === undefined ? undefined : nameAt(source, name.position);
-    const symbol = node === undefined ? undefined : world.checker.getSymbolAtLocation(node);
-    return sitesOf(symbol !== undefined && hasFlag(symbol.flags, ts.SymbolFlags.Alias) ? world.checker.getAliasedSymbol(symbol) : symbol);
-  };
-  const parameterOf = (argument: Site): Site | null => {
-    const source = world.source(argument.file);
-    const node = source === undefined ? undefined : findService(source, argument.position, isServiceArgument);
-    const call = node?.parent;
-    if (node === undefined || call === undefined || !(ts.isCallExpression(call) || ts.isNewExpression(call))) {
-      return null;
-    }
-    const parameters = world.checker.getResolvedSignature(call)?.getParameters() ?? [];
-    const bound = parameters[Math.min(call.arguments?.findIndex((candidate) => candidate === node) ?? 0, parameters.length - 1)];
-    return sitesOf(bound)[0] ?? null;
-  };
-  const propertiesOf = (object: Site, name: string): readonly Site[] => {
-    const source = world.source(object.file);
-    const node = source === undefined ? undefined : findService(source, object.position, ts.isObjectLiteralExpression);
-    const type = node === undefined || !ts.isObjectLiteralExpression(node) ? undefined : world.checker.getContextualType(node);
-    if (type === undefined) {
-      return [];
-    }
-    return (type.isUnion() ? type.types : [type]).flatMap((member) => sitesOf(member.getProperty(name)));
-  };
-  const infersFromArgument = (argument: Site): boolean => {
-    const source = world.source(argument.file);
-    const node = source === undefined ? undefined : findService(source, argument.position, isServiceArgument);
-    const call = node?.parent;
-    if (node === undefined || call === undefined || !(ts.isCallExpression(call) || ts.isNewExpression(call))) {
-      return false;
-    }
-    const declared = serviceUninferred(world, { call, index: call.arguments?.findIndex((candidate) => candidate === node) ?? 0 });
-    if (declared === undefined || !declared.type.isTypeParameter() || !declared.own.includes(declared.type)) {
-      return false;
-    }
-    const constraint = declared.type.getConstraint();
-    return serviceSettled(constraint === undefined ? [] : [constraint]).every((member) => isLiteralFree(member.flags, LITERAL_FREE_SERVICE));
-  };
-  const uninferredPropertiesOf = (object: Site, name: string): readonly Site[] => {
-    const source = world.source(object.file);
-    const node = source === undefined ? undefined : findService(source, object.position, ts.isObjectLiteralExpression);
-    const slot = node === undefined ? undefined : serviceDeclaredSlot(world, node, []);
-    if (slot === undefined) {
-      return [];
-    }
-    const types = slot.path.reduce<readonly ts.Type[]>((reached, step) => servicePropertyTypes(world.checker, reached, step), slot.types);
-    return serviceSettled(types).flatMap((type) => sitesOf(world.checker.getPropertyOfType(type, name)));
-  };
-  return { declarationsOf, parameterOf, propertiesOf, infersFromArgument, uninferredPropertiesOf };
 }

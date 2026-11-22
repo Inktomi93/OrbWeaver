@@ -60,11 +60,12 @@ import { all, SymbolFlags } from "@typescript/native/sync";
 import { TRPC_PACKAGE } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { classifyReference, isProductionFile, Sources, siteKey } from "./classify.ts";
+import { sortRows } from "./deliberate.ts";
 import type { JudgedSplit } from "./judged.ts";
 import { resolveKeys } from "./key-resolver.ts";
 import { declarationKeys, declaredBy, hasFlag, homeFiles, isFunctionLike, isPropertyName, NativeWorld } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sortRows } from "./scan.ts";
+import { scanWorlds } from "./scan.ts";
 
 // --- What the scan reads ------------------------------------------------------------------------------------------
 

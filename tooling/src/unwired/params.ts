@@ -21,6 +21,7 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import ts from "typescript";
 import type { CallShape, Site } from "./classify.ts";
 import { callAt, isProductionFile, nameAt, Sources, siteKey, valueUseAt } from "./classify.ts";
+import { sortRows } from "./deliberate.ts";
 import type { JudgedSplit } from "./judged.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
@@ -28,7 +29,7 @@ import { declarationKeys, hasFlag, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
 import { joinFacts, propertyFacts, valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
+import { scanWorlds, sitesOf } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
 import { isProduction } from "./worlds.ts";
 

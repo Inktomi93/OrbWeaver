@@ -11,6 +11,7 @@
 // write, and the migrations and the baseline are SQL no program holds.
 import type { Site } from "./classify.ts";
 import { isProductionFile, Sources, siteKey } from "./classify.ts";
+import { sortRows } from "./deliberate.ts";
 import { DB_SCHEMA, schemaTables } from "./drizzle-rows.ts";
 import type { Roles } from "./fields.ts";
 import { rolesOf } from "./fields.ts";
@@ -19,7 +20,7 @@ import { declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, PropertyReferences } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
+import { scanWorlds, sitesOf } from "./scan.ts";
 
 const COLUMN_KINDS = ["never-read", "never-written", "unreferenced"] as const;
 /** `never-read`: production writes it and never reads it. `never-written`: production reads it and never writes it, so

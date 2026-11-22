@@ -22,11 +22,11 @@ import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/s
 import ts from "typescript";
 import type { LiteralRole, Site, Sources } from "./classify.ts";
 import { isProductionFile, nameAt, readRoleAt, siteKey } from "./classify.ts";
+import { sortRows } from "./deliberate.ts";
 import type { JudgedSplit } from "./judged.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, hasFlag } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
-import { sortRows } from "./scan.ts";
 import { isNativeConstAssertion, nativeOracle } from "./union-oracles.ts";
 import { boundParameter, declaredSites } from "./union-origins.ts";
 import type { LiteralSite, Tuple, UnionReading, UnionWorld } from "./unions.ts";
