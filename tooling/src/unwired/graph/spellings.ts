@@ -1,5 +1,5 @@
 // The spellings the graph checks beside its edges: each axis's homes and its inline re-spellings, the sites an ESLint
-// rule exempts by name, and the key a lost read's receiver was keyed by.
+// rule exempts by name.
 //
 // - An axis's home is an `as const` string tuple or a string-literal union alias. An inline union of more members than
 //   a one-off two-state alias is an axis (Spine-TypeScript-and-Patterns §7.5): it re-spells a home with its member
@@ -13,14 +13,10 @@ import type { Node, UnionTypeNode } from "@typescript/native/ast";
 import { isExpressionWithTypeArguments, isTypeAliasDeclaration, isTypeReferenceNode } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import { constituentsOf } from "./resolve.ts";
 import type { FileSites } from "./sites.ts";
 import { isDeclKey, keyText } from "./sites.ts";
-import type { GraphFacts, GraphState, LostCause, RegistryKind } from "./state.ts";
+import type { GraphState, RegistryKind } from "./state.ts";
 import { REGISTRY_KINDS } from "./state.ts";
-
-/** A lost read whose key no literal union spells. */
-export const NO_KEY: Omit<LostCause, "read"> = { source: "no-literal-key", alias: null, members: [] };
 
 // The keys each registry kind is spelled with, target then name.
 const REGISTRY_KEYS: Readonly<Record<RegistryKind, readonly [string, string]>> = { site: ["path", "name"], op: ["owner", "op"] };
@@ -114,99 +110,4 @@ function registrySites(state: GraphState, sites: FileSites): void {
     }
     state.registrySites.push({ kind, file: sites.file, line: sites.lineOf(literal), target, name });
   }
-}
-
-/** The lost reads by where their key came from. An inline set another declaration spells as a home is a re-spelled
- *  axis; a read that ended at a library's own declaration is counted apart, never lost. */
-export interface LostBreakdown {
-  readonly total: number;
-  readonly bySource: Readonly<Record<LostCause["source"], number>>;
-  readonly unions: readonly { readonly alias: string | null; readonly members: readonly string[]; readonly reads: number; readonly homes: readonly string[] }[];
-  readonly libraryLanded: number;
-}
-
-const LIBRARY_END = "origin library";
-
-/** The lost reads of a graph by their key's source, each key set with its reads and the homes that spell it. */
-export function explainLost(facts: GraphFacts): LostBreakdown {
-  const homes = Map.groupBy(facts.unionHomes, ({ members }) => members.join("|"));
-  const sets = Map.groupBy(
-    facts.lostCauses.filter(({ source }) => source !== "no-literal-key"),
-    ({ alias, members }) => `${alias ?? ""}#${members.join("|")}`,
-  );
-  const count = (source: LostCause["source"]): number => facts.lostCauses.filter((cause) => cause.source === source).length;
-  return {
-    total: facts.lostCauses.length,
-    bySource: { "named-union": count("named-union"), "inline-union": count("inline-union"), "no-literal-key": count("no-literal-key") },
-    unions: [...sets.values()]
-      .flatMap((reads) => {
-        const [first] = reads;
-        return first === undefined
-          ? []
-          : [{ alias: first.alias, members: first.members, reads: reads.length, homes: (homes.get(first.members.join("|")) ?? []).map(({ where }) => where) }];
-      })
-      .sort((a, b) => b.reads - a.reads || a.members.join().localeCompare(b.members.join())),
-    libraryLanded: facts.counts.get(LIBRARY_END) ?? 0,
-  };
-}
-
-/** The literal union each name is one of, walking the receiver's type once for every name asked of it, through the
- *  relations a key can come from; a name ends where a level holds it, the walk when no new type is left. */
-export function* keySources(state: GraphState, start: Type, names: readonly string[]): APIRequestGenerator<ReadonlyMap<string, Omit<LostCause, "read">>> {
-  const found = new Map<string, Omit<LostCause, "read">>();
-  const seen = new Set<number>([start.id]);
-  let level: readonly Type[] = [start];
-  while (level.length > 0 && found.size < names.length) {
-    yield* keysOnLevel(level, names, found);
-    const next = yield* all(...level.map((type) => keyRelations(state, type)));
-    level = next.flat().filter((type) => {
-      const fresh = !seen.has(type.id);
-      seen.add(type.id);
-      return fresh;
-    });
-  }
-  return found;
-}
-
-// Each name a literal union on this level holds, not yet found on a nearer level.
-function* keysOnLevel(level: readonly Type[], names: readonly string[], found: Map<string, Omit<LostCause, "read">>): APIRequestGenerator<void> {
-  for (const type of level.filter((candidate) => candidate.isUnionType() || candidate.isStringLiteralType())) {
-    const members = yield* literalMembers(type);
-    const holds = members === null ? [] : names.filter((name) => !found.has(name) && members.includes(name));
-    const alias = holds.length > 0 ? yield* type.getAliasSymbol.gen() : undefined;
-    for (const name of holds) {
-      found.set(name, { source: alias === undefined ? "inline-union" : "named-union", alias: alias?.name ?? null, members: members ?? [] });
-    }
-  }
-}
-
-// The types a key can come from: an alias's and a reference's type arguments, a union's or intersection's parts, a
-// mapped type's constraint and template, a `keyof`'s target, and an interface's bases. A type's apparent type is no
-// key source: it would walk every lib wrapper for each read.
-function* keyRelations(state: GraphState, type: Type): APIRequestGenerator<readonly Type[]> {
-  const out: Type[] = [...(yield* state.resolver.relatedTypes(type, "args"))];
-  if (type.isUnionType() || type.isIntersectionType()) {
-    out.push(...(yield* type.getTypes.gen()));
-  }
-  if (type.isMappedType()) {
-    out.push(yield* type.getConstraintType.gen(), yield* type.getTemplateType.gen());
-  }
-  if (type.isIndexType()) {
-    out.push(yield* type.getTarget.gen());
-  }
-  if (type.isClassOrInterface()) {
-    out.push(...((yield* type.getBaseTypes.gen()) ?? []));
-  }
-  return out;
-}
-
-// A union's string-literal members when every member that is not undefined is one; null otherwise.
-function* literalMembers(type: Type): APIRequestGenerator<readonly string[] | null> {
-  const out: string[] = [];
-  for (const member of yield* constituentsOf(type)) {
-    if (member.isStringLiteralType()) {
-      out.push(member.value);
-    }
-  }
-  return out.length > 0 ? out.toSorted() : null;
 }

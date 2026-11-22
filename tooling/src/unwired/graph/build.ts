@@ -21,13 +21,14 @@ import {
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { SignatureKind } from "@typescript/native/sync";
 import { NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
+import { keySources, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
@@ -35,8 +36,8 @@ import type { RootKind, Roots } from "./roots.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
-import { fileSpellings, keySources, NO_KEY } from "./spellings.ts";
-import type { BuildSession, GraphFacts } from "./state.ts";
+import { fileSpellings } from "./spellings.ts";
+import type { BuildSession, GraphFacts, LostCause } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
@@ -263,8 +264,9 @@ class Builder {
     const state = this.#state;
     const bare = sites.names.flatMap((site, at) => {
       const { parent } = site.node;
-      return symbols[at] !== undefined && (resolved[at]?.length ?? 0) === 0 && isPropertyAccessExpression(parent) && sameNode(parent.name, site.node)
-        ? [{ site, receiver: parent.expression }]
+      const symbol = symbols[at];
+      return symbol !== undefined && (resolved[at]?.length ?? 0) === 0 && isPropertyAccessExpression(parent) && sameNode(parent.name, site.node)
+        ? [{ site, receiver: parent.expression, symbol }]
         : [];
     });
     const asks = state.world.typedAt(bare, ({ receiver }) => receiver).map(({ item, type }) => ({ ...item, type, name: nameText(item.site.node) }));
@@ -282,6 +284,10 @@ class Builder {
       }
       return decls.length === 0 && walks[at]?.end !== "library";
     });
+    this.#libraryLandings(
+      sites,
+      lost.flatMap(({ site, at }, y) => ((annotated[y]?.decls.length ?? 0) === 0 && walks[at]?.end === "library" ? [{ site, stops: walks[at].stops }] : [])),
+    );
     const reasons = state.batch(still.map(({ type, name }) => state.resolver.unbackedReason(type, name)));
     const unplaced = still.filter((_, y) => reasons[y] === null || reasons[y] === undefined);
     for (const reason of reasons) {
@@ -289,17 +295,45 @@ class Builder {
         state.count(`no home by design: ${reason}`);
       }
     }
-    // one key-source walk per receiver type, carrying every name lost on it
+    this.#lostReads(sites, unplaced);
+  }
+
+  // Each lost read with its key's source, one key-source walk per receiver type carrying every name lost on it, and the
+  // slot it lands in.
+  #lostReads(
+    sites: FileSites,
+    unplaced: readonly { readonly site: NameSite; readonly symbol: NativeSymbol; readonly type: Type; readonly name: string }[],
+  ): void {
+    const state = this.#state;
     const byType = [...Map.groupBy(unplaced, ({ type }) => type.id).values()].flatMap((reads) =>
       reads[0] === undefined ? [] : [{ type: reads[0].type, reads }],
     );
     const found = state.batch(byType.map(({ type, reads }) => keySources(state, type, [...new Set(reads.map(({ name }) => name))])));
-    for (const [at, { reads }] of byType.entries()) {
-      for (const { site, name } of reads) {
-        const read = `${sites.file}:${String(site.node.pos)} .${nameText(site.node)}`;
-        state.lostReads.push(read);
-        state.lostCauses.push({ read, ...(found[at]?.get(name) ?? NO_KEY) });
-      }
+    const keys = new Map(byType.flatMap(({ reads }, at) => reads.map(({ site, name }) => [site, found[at]?.get(name) ?? NO_KEY] as const)));
+    const slotted = state.batch(
+      unplaced.map(function* (read): APIRequestGenerator<{
+        readonly read: (typeof unplaced)[number];
+        readonly slot: Pick<LostCause, "slot" | "detail" | "receiver">;
+      }> {
+        return { read, slot: yield* lostSlot(state.world, read.symbol, read.type) };
+      }),
+    );
+    for (const {
+      read: { site, name },
+      slot,
+    } of slotted) {
+      const read = `${sites.file}:${String(site.node.pos)} .${name}`;
+      state.lostReads.push(read);
+      state.lostCauses.push({ read, where: `${sites.file}:${String(sites.lineOf(site.node))}`, ...(keys.get(site) ?? NO_KEY), ...slot });
+    }
+  }
+
+  // The bare reads a library's own declaration answered, by the packages their walks stopped at.
+  #libraryLandings(sites: FileSites, landed: readonly { readonly site: NameSite; readonly stops: readonly NodeHandle[] }[]): void {
+    const state = this.#state;
+    const packages = state.batch(landed.map(({ stops }) => packagesOf(state.world, stops)));
+    for (const [at, { site }] of landed.entries()) {
+      state.libraryLandings.push({ where: `${sites.file}:${String(sites.lineOf(site.node))}`, member: nameText(site.node), packages: packages[at] ?? [] });
     }
   }
 

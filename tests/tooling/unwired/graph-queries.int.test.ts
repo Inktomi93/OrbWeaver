@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { GraphOptions, QueryAnswer } from "../../../tooling/src/unwired/index.ts";
-import { FRESH_BUILD, QUERIES, queryGraph } from "../../../tooling/src/unwired/index.ts";
+import { DEFAULT_LIBRARY, FRESH_BUILD, QUERIES, queryGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, labelsIn, WORLD } from "./_planted.ts";
 
 const A = `${GRAPH_SOURCE}/a.ts`;
@@ -119,16 +119,24 @@ test("an inline axis re-spells a home, slices one, or repeats with no home; a ke
   expect(placed("union-repeated-no-home")).toEqual(["5 a [m, n, o]", "5 b [m, n, o]"]);
 });
 
-test("explain-lost breaks the lost reads down by key source and names a home that spells an inline key set", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("explain-lost breaks the lost reads down by key source and slot, and the library-landed reads by library", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
   const lost = `${GRAPH_SOURCE}/lost.ts`;
   const root = await plantedTree(
     graphTree({
+      "node_modules/fakelib/package.json": JSON.stringify({ name: "fakelib", types: "index.d.ts" }),
+      "node_modules/fakelib/index.d.ts": "export interface Box { readonly held: number }\nexport declare const box: Box;",
       [lost]: [
         'export const XYZ = ["x", "y", "z"] as const;',
         "declare function make<K extends string>(keys: readonly K[]): { [P in K]: number };",
         'export const fromList = make(["x", "y", "z"]).x;',
         `declare const renamed: { [P in "p" | "q" | "r" as \`get${TEMPLATE_P}\`]: number };`,
         "export const fromTemplate = renamed.getp;",
+        'import { box } from "fakelib";',
+        "export const held = box.held;",
+        "declare const text: string | undefined;",
+        "export const size = text?.length;",
       ].join("\n"),
     }),
   );
@@ -137,6 +145,17 @@ test("explain-lost breaks the lost reads down by key source and names a home tha
   expect(session.lost?.unions.map(({ alias, members, reads, homes }) => [alias, members, reads, homes])).toEqual([
     [null, ["x", "y", "z"], 1, [`${lost}:1 XYZ`]],
   ]);
+  expect(
+    session.lost?.bySlot.map(({ slot, detail, reads, receivers }) => [slot, detail, reads, receivers.map(({ receiver, reads: held }) => [receiver, held])]),
+  ).toEqual([["mapped-member", null, 2, [[`__type ${lost}`, 2]]]]);
+  // `text?.length`: the string branch stops at the default library's `String` and the undefined branch runs out of
+  // types, so the read is the library's, not lost
+  expect(session.lost?.library.byLibrary.map(({ library, reads, members }) => [library, reads, members.map(({ member, sample }) => [member, sample])])).toEqual(
+    [
+      ["fakelib", 1, [["held", `${lost}:7`]]],
+      [DEFAULT_LIBRARY, 1, [["length", `${lost}:9`]]],
+    ],
+  );
   expect((await queryGraph(root, { query: "users", names: ["XYZ"] }, quiet)).session.lost).toBeNull();
 });
 

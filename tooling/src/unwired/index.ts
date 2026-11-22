@@ -16,6 +16,7 @@ export { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 export type { CssBucket, CssReport } from "./graph/css.ts";
 export { CSS_BUCKETS } from "./graph/css.ts";
 export { GRAPH_DUMP_FORMAT } from "./graph/dump.ts";
+export { DEFAULT_LIBRARY } from "./graph/lost.ts";
 export type { Ablation, GraphOptions, Trace, WhyTarget } from "./graph/options.ts";
 export { ABLATIONS, FRESH_BUILD } from "./graph/options.ts";
 export type { GraphProfileReport } from "./graph/profile.ts";

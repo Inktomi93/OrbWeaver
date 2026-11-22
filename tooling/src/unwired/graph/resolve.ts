@@ -73,9 +73,12 @@ export interface OriginWalk {
   readonly depth: number;
   /** At a kept home, at a library's own declaration (the read is the library's), or out of types. */
   readonly end: "home" | "library" | "exhausted";
+  /** At a library end: the library's own declarations of the name, where each branch stopped. */
+  readonly stops: readonly NodeHandle[];
 }
 
-const EXHAUSTED: OriginWalk = { decls: [], depth: -1, end: "exhausted" };
+/** A walk that found no home and met no library declaration. */
+export const EXHAUSTED: OriginWalk = { decls: [], depth: -1, end: "exhausted", stops: [] };
 
 // What an alias declared in the tree spells as keys: a key set is a type, so the checker hands a walk the literals
 // `keyof typeof X` or `(typeof T)[number]` evaluate to and never says which value spelled them; the alias's own syntax
@@ -208,6 +211,8 @@ interface LevelHomes {
   readonly carries: Set<string>[];
   readonly found: Map<string, Set<DeclKey>>;
   readonly ended: Map<string, Set<number>>;
+  /** The library declarations that ended a name's branches on this level. */
+  readonly stops: Map<string, Set<NodeHandle>>;
   spelled: readonly Spelled[];
 }
 
@@ -219,21 +224,29 @@ function addAll<T>(into: Map<string, Set<T>>, name: string, values: Iterable<T>)
   into.set(name, set);
 }
 
+// What one walk has settled so far, and the library declarations each name's branches stopped at.
+interface WalkSoFar {
+  readonly out: Map<string, OriginWalk>;
+  readonly stopped: ReadonlyMap<string, ReadonlySet<NodeHandle>>;
+}
+
 // Settle each live name the level answered, and keep the rest walking. A type that names the property with a real
 // declaration is that branch's origin; one outside the tree (a library's own member, such as a query builder's `where`)
 // ends the branch, and the other branches walk on.
-function settleNames(live: LiveNames, homes: LevelHomes, depth: number, out: Map<string, OriginWalk>): LiveNames {
+function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: WalkSoFar): LiveNames {
+  const { out, stopped } = walk;
   const next = new Map<string, ReadonlySet<number>>();
   for (const [name, on] of live) {
     const found = homes.found.get(name);
     if (found !== undefined && found.size > 0) {
-      out.set(name, { decls: [...found], depth, end: "home" });
+      out.set(name, { decls: [...found], depth, end: "home", stops: [] });
       continue;
     }
     const stop = homes.ended.get(name);
     const kept = [...on].filter((id) => stop?.has(id) !== true);
     if (kept.length === 0) {
-      out.set(name, { decls: [], depth, end: stop !== undefined && stop.size > 0 ? "library" : "exhausted" });
+      const library = stop !== undefined && stop.size > 0;
+      out.set(name, { decls: [], depth, end: library ? "library" : "exhausted", stops: library ? [...(stopped.get(name) ?? [])] : [] });
     } else {
       next.set(name, new Set(kept));
     }
@@ -561,12 +574,17 @@ export class Resolver {
    */
   *originsOf(start: Type, names: readonly string[], startCounts = false): APIRequestGenerator<OriginWalk[]> {
     const out = new Map<string, OriginWalk>();
+    // a branch can stop at a library on any level, so a name's stops gather over the whole walk
+    const stopped = new Map<string, Set<NodeHandle>>();
     const seen = new Set<number>([start.id]);
     let level: readonly Type[] = [start];
     let live: LiveNames = new Map(names.map((name) => [name, new Set<number>([start.id])]));
     for (let depth = 0; level.length > 0 && live.size > 0; depth++) {
       const homes = yield* this.#levelHomes(level, live, depth > 0 || startCounts);
-      live = settleNames(live, homes, depth, out);
+      for (const [name, handles] of homes.stops) {
+        addAll(stopped, name, handles);
+      }
+      live = settleNames(live, homes, depth, { out, stopped });
       if (live.size === 0) {
         break;
       }
@@ -588,7 +606,11 @@ export class Resolver {
       live = new Map([...live].map(([name, on]) => [name, new Set([...on].flatMap((id) => children.get(id) ?? []))]));
       level = nextLevel;
     }
-    return names.map((name) => out.get(name) ?? EXHAUSTED);
+    // a name whose other branches ran out of types after one stopped at a library's declaration is the library's
+    return names.map((name) => {
+      const stops = stopped.get(name);
+      return out.get(name) ?? (stops === undefined || stops.size === 0 ? EXHAUSTED : { decls: [], depth: -1, end: "library", stops: [...stops] });
+    });
   }
 
   // What one level of the walk answers for each live name: the declarations a type on the level names it with, the
@@ -597,7 +619,7 @@ export class Resolver {
     const { checker } = this.#world;
     const asks = level.flatMap((type, at) => [...live].flatMap(([name, on]) => (on.has(type.id) ? [{ type, at, name }] : [])));
     const props = yield* allOf(asks.map((ask) => checker.getPropertyOfType.gen(ask.type, ask.name)));
-    const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), spelled: [] };
+    const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), stops: new Map(), spelled: [] };
     for (const [x, ask] of asks.entries()) {
       const declared = (props[x]?.declarations ?? []).filter((declaration) => declaration.kind !== SyntaxKind.MappedType);
       if (props[x] !== undefined) {
@@ -605,6 +627,11 @@ export class Resolver {
       }
       if (declared.length > 0) {
         addAll(homes.ended, ask.name, [ask.type.id]);
+        addAll(
+          homes.stops,
+          ask.name,
+          declared.filter((handle) => !this.ours(handle)),
+        );
       }
       const keys = ownCount ? yield* allOf(declared.map((handle) => this.handleKey(handle))) : [];
       addAll(
@@ -732,12 +759,12 @@ export class Resolver {
     const spelled = yield* this.readSpelling([], roots);
     const homes = spelled.tuples.filter((tuple) => tuple.keys.has(name)).flatMap((tuple) => tuple.homes);
     if (homes.length > 0) {
-      return { decls: [...new Set(homes)], depth: 0, end: "home" };
+      return { decls: [...new Set(homes)], depth: 0, end: "home", stops: [] };
     }
     for (const queried of spelled.queried) {
       const [walk] = yield* this.originsOf(queried, [name], true);
       if (walk !== undefined && walk.decls.length > 0) {
-        return { decls: walk.decls, depth: walk.depth + 1, end: "home" };
+        return { decls: walk.decls, depth: walk.depth + 1, end: "home", stops: [] };
       }
     }
     return EXHAUSTED;
@@ -763,7 +790,7 @@ export class Resolver {
         }
       }
     }
-    return homes.length > 0 ? { decls: [...new Set(homes)], depth: 0, end: "home" } : EXHAUSTED;
+    return homes.length > 0 ? { decls: [...new Set(homes)], depth: 0, end: "home", stops: [] } : EXHAUSTED;
   }
 
   /**

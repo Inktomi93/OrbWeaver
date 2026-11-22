@@ -14,7 +14,7 @@ import { isProduction } from "../worlds.ts";
 import type { GraphOptions } from "./options.ts";
 import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, Resolver } from "./resolve.ts";
+import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
@@ -69,12 +69,51 @@ export interface RegistrySite {
 
 const LOST_SOURCES = ["named-union", "inline-union", "no-literal-key"] as const;
 
-/** Where a lost read's key came from: a named literal union (an axis with a home), an inline literal set, or nothing. */
-export interface LostCause {
-  readonly read: string;
+/**
+ * Where a lost read lands, read off the read's own symbol and its receiver's type, first match wins: a receiver typed
+ * any or unknown, a receiver that is a type parameter, a member bound late from a computed key, an index signature's
+ * member, a member a call inferred through a mapped type (reverse-mapped), a mapped type's member, a member only a
+ * library declares, a union's or intersection's merged member, an instantiated member with no declaration, and the rest.
+ */
+const LOST_SLOTS = [
+  "any-receiver",
+  "type-parameter",
+  "late-bound",
+  "index-signature",
+  "reverse-mapped",
+  "mapped-member",
+  "library-member",
+  "synthetic",
+  "instantiated",
+  "no-declaration",
+] as const;
+export type LostSlot = (typeof LOST_SLOTS)[number];
+
+/** What a lost read's key source walk found: a named literal union (an axis with a home), an inline literal set, or nothing. */
+export interface LostKey {
   readonly source: (typeof LOST_SOURCES)[number];
   readonly alias: string | null;
   readonly members: readonly string[];
+}
+
+/** Why a read was lost: its key's source, the slot it lands in, and the receiver it was read from. */
+export interface LostCause extends LostKey {
+  readonly read: string;
+  /** `file:line`, for a sample a reader can open. */
+  readonly where: string;
+  readonly slot: LostSlot;
+  /** The packages that declare the read's member, joined; null when the tree or nothing declares it. */
+  readonly detail: string | null;
+  /** The receiver's type by its alias or symbol name, then the package or file that declares it. */
+  readonly receiver: string;
+}
+
+/** A read whose walk ended at a library's own declaration: the library owns the member, so the read is not lost. */
+export interface LibraryLanding {
+  readonly where: string;
+  readonly member: string;
+  /** The packages whose declarations ended the walk. */
+  readonly packages: readonly string[];
 }
 
 /** One half of a React state tuple, at the site that holds it. */
@@ -125,6 +164,8 @@ export interface GraphFacts {
   readonly serverNames: ReadonlySet<string>;
   /** Each lost read's key source, in {@link GraphFacts.lostReads} order. */
   readonly lostCauses: readonly LostCause[];
+  /** The bare reads whose walk ended at a library's own declaration. */
+  readonly libraryLandings: readonly LibraryLanding[];
 }
 
 /** What one build runs under: the session's options, its log, and its profile when one is asked for. */
@@ -189,6 +230,7 @@ export class GraphState implements GraphFacts {
   readonly registrySites: RegistrySite[] = [];
   readonly serverNames = new Set<string>();
   readonly lostCauses: LostCause[] = [];
+  readonly libraryLandings: LibraryLanding[] = [];
   readonly #product = new Map<string, boolean>();
   readonly #origins = new Map<string, OriginWalk>();
   readonly #members = new Map<number, readonly DeclKey[]>();
@@ -340,11 +382,11 @@ export class GraphState implements GraphFacts {
     const walks = this.session.profile === null ? ask() : this.session.profile.time("origin", ask);
     for (const [at, { type, names }] of pending.entries()) {
       for (const [index, name] of names.entries()) {
-        this.#origins.set(originKey(type, name), walks[at]?.[index] ?? { decls: [], depth: -1, end: "exhausted" });
+        this.#origins.set(originKey(type, name), walks[at]?.[index] ?? EXHAUSTED);
       }
     }
     return asks.map(({ type, name }) => {
-      const walk = this.#origins.get(originKey(type, name)) ?? { decls: [], depth: -1, end: "exhausted" };
+      const walk = this.#origins.get(originKey(type, name)) ?? EXHAUSTED;
       this.count(walk.decls.length > 0 ? "origin recovered" : `origin ${walk.end}`);
       if (walk.decls.length > 0) {
         this.peak("origin depth", walk.depth);

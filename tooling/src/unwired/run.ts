@@ -19,6 +19,7 @@ import { scanFields } from "./fields.ts";
 import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
+import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
@@ -26,7 +27,6 @@ import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import { cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
-import type { LostBreakdown } from "./graph/spellings.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -501,14 +501,31 @@ function logSession(session: GraphSessionReport): void {
   }
 }
 
+// How many receivers or members each group shows on stderr: a display cut only, the JSON keeps every one.
+const LOST_SHOWN = 3;
+
 function logLost(lost: LostBreakdown): void {
   log(
     `lost reads ${String(lost.total)}: ${Object.entries(lost.bySource)
       .map(([source, count]) => `${source}=${String(count)}`)
-      .join(" ")}; reads ended at a library's own declaration=${String(lost.libraryLanded)}`,
+      .join(" ")}`,
   );
   for (const { alias, members, reads, homes } of lost.unions) {
     log(`  ${String(reads)}\t${alias ?? "inline"} [${members.join(", ")}]${homes.length > 0 ? `\thome ${homes.join("; ")}` : ""}`);
+  }
+  log(`lost reads by slot (top ${String(LOST_SHOWN)} receivers each; the JSON holds all):`);
+  for (const { slot, detail, reads, sample, receivers } of lost.bySlot) {
+    log(`  ${String(reads)}\t${slot}${detail === null ? "" : ` (${detail})`}\t${sample}`);
+    for (const { receiver, reads: held, sample: at } of receivers.slice(0, LOST_SHOWN)) {
+      log(`    ${String(held)}\t${receiver}\t${at}`);
+    }
+  }
+  log(`reads ended at a library's own declaration ${String(lost.library.total)} (top ${String(LOST_SHOWN)} members each; the JSON holds all):`);
+  for (const { library, reads, members } of lost.library.byLibrary) {
+    log(`  ${String(reads)}\t${library}`);
+    for (const { member, reads: held, sample } of members.slice(0, LOST_SHOWN)) {
+      log(`    ${String(held)}\t.${member}\t${sample}`);
+    }
   }
 }
 
