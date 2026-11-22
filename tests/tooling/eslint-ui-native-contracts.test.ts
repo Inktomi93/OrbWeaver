@@ -5,7 +5,11 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { BASE_UI_PACKAGE, REACT_TYPES_PACKAGE } from "../../tooling/src/eslint/library-source.ts";
+import { nativeCallbackNarrowingRule, overwrittenRefRule, unresolvedStyleSpreadRule } from "../../tooling/src/eslint/ui-native-contracts.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const SITE = join(ROOT, "packages/ui/src/primitives/tabs/tabs.tsx");
@@ -187,3 +191,43 @@ test("native contract rules are errors in the production UI and client configs",
     expect(config.rules[STYLE_RULE]).toEqual([2]);
   }
 });
+
+// React's and Base UI's declarations are theirs by the package the program loaded them from: a store-linked copy
+// outside every node_modules directory still is, and a workspace package published under the same name is not.
+const LINKED_PROBE = "app/probe.tsx";
+const LINKED_FINDINGS: Readonly<Record<Link, number>> = { workspace: 0, dependency: 1 };
+const LINKED_CASES = [
+  {
+    rule: "no-native-callback-narrowing",
+    pkg: {
+      name: BASE_UI_PACKAGE,
+      files: { "index.d.ts": "export interface ProbeProps {\n  onValueChange?: (value: string, details: { readonly reason: string }) => void;\n}" },
+    },
+    source: `import type { ProbeProps } from "${BASE_UI_PACKAGE}";\nexport interface WrapperProps extends Omit<ProbeProps, "onValueChange"> {\n  readonly onValueChange?: (value: string) => void;\n}`,
+  },
+  {
+    rule: "no-overwritten-ref",
+    pkg: { name: REACT_TYPES_PACKAGE, files: { "index.d.ts": "export declare function useRef<T>(value: T): { current: T };" } },
+    source: `import { useRef } from "react";\nexport function Probe(props: { readonly ref?: unknown }) {\n  const node = useRef(null);\n  return <div {...props} ref={node} />;\n}`,
+  },
+  {
+    rule: "no-unresolved-style-spread",
+    pkg: { name: REACT_TYPES_PACKAGE, files: { "index.d.ts": "export interface CSSProperties {\n  color?: string;\n}" } },
+    source: 'import type { CSSProperties } from "react";\ndeclare const style: () => CSSProperties;\nexport const merged: CSSProperties = { ...style };',
+  },
+] as const;
+const LINKED_RULES = {
+  "no-native-callback-narrowing": nativeCallbackNarrowingRule,
+  "no-overwritten-ref": overwrittenRefRule,
+  "no-unresolved-style-spread": unresolvedStyleSpreadRule,
+} as const;
+
+test.for(LINKS.flatMap((link) => LINKED_CASES.map((row) => ({ link, ...row }))))(
+  "$rule judges a library declaration from a $link",
+  async ({ link, rule, pkg, source }, { plantedTree }) => {
+    const root = await plantLinked(plantedTree, link, pkg, { [LINKED_PROBE]: source });
+    const found = lintLinked(root, LINKED_PROBE, { [rule]: LINKED_RULES[rule] }, { options: { jsx: ts.JsxEmit.Preserve } });
+    expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+    expect(found.map(({ ruleId }) => ruleId)).toEqual(Array.from({ length: LINKED_FINDINGS[link] }, () => `orb/${rule}`));
+  },
+);

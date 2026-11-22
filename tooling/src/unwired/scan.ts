@@ -14,8 +14,8 @@ import { serviceReferences } from "./language-service.ts";
 import { homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
 import { joinFacts, propertyFacts, propertyIndex } from "./occurrences.ts";
-import type { TypeMember } from "./type-members.ts";
-import { typeMembers } from "./type-members.ts";
+import type { DetachedMember, TypeMember } from "./type-members.ts";
+import { detached, typeMembers } from "./type-members.ts";
 import { packageWorlds } from "./worlds.ts";
 
 const UNWIRED_KINDS = ["builder-only", "test-only", "unreferenced"] as const;
@@ -59,7 +59,7 @@ export interface ScanOptions {
 /** One callable member and what engine one found pointing at it across one world. */
 export interface MemberReferences {
   readonly key: string;
-  readonly member: TypeMember;
+  readonly member: DetachedMember;
   readonly counts: Readonly<Record<ReferenceKind, number>>;
   /** Each reference with its kind, so a site both engines report counts once. */
   readonly sites: readonly (Site & { readonly kind: ReferenceKind })[];
@@ -96,7 +96,7 @@ export function scanWorld(world: NativeWorld, sources: Sources): readonly Member
 
 const callableMembers = (world: NativeWorld): readonly TypeMember[] => typeMembers(world).filter((member) => member.callable && !member.nested);
 
-function memberReferences(members: readonly TypeMember[], index: ReferenceIndex, sources: Sources): readonly MemberReferences[] {
+function memberReferences(members: readonly DetachedMember[], index: ReferenceIndex, sources: Sources): readonly MemberReferences[] {
   return members.map((member) => {
     const sites = classifySites(sources, sitesOf(index, member.keys, member.site));
     return { key: `${member.site.file}:${member.home}.${member.member}`, member, counts: countKinds(sites), sites };
@@ -189,12 +189,12 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
   const lists = NativeWorld.fileLists(options.root, configs);
   const homes = homeFiles(configs, lists);
   const facts: PropertyFacts[] = [];
-  const declared = new Map<string, TypeMember>();
+  const declared = new Map<string, DetachedMember>();
   for (const config of configs) {
     using world = NativeWorld.open(options.root, config);
     const members = callableMembers(world);
     for (const member of members) {
-      declared.set(siteKey(member.site), declared.get(siteKey(member.site)) ?? member);
+      declared.set(siteKey(member.site), declared.get(siteKey(member.site)) ?? detached(member));
     }
     facts.push(propertyFacts(world, homes.get(config)));
     counted.push({ config, members: members.length });

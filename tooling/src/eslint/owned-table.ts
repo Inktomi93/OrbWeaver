@@ -23,9 +23,11 @@ import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import type ts from "typescript";
 import type { TypeServices } from "./checker.ts";
 import { requireTypeServices } from "./checker.ts";
+import type { LibrarySources } from "./library-source.ts";
+import { DRIZZLE_PACKAGE, librarySources } from "./library-source.ts";
 import { accessedName, staticKeyName, staticMemberName, staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { posixPath, restrictionRule } from "./syntax.ts";
+import { restrictionRule } from "./syntax.ts";
 
 /** A restriction row whose subject is a set of tables, each named by its `@orb/db` binding. */
 export interface OwnedTableRow {
@@ -36,9 +38,10 @@ export interface OwnedTableRow {
 }
 
 const RELATIONAL_BUILDER = "RelationalQueryBuilder";
-const DRIZZLE_RELATIONAL_QUERY = /\/node_modules\/drizzle-orm\/sqlite-core\/query-builders\/query\.d\.c?ts$/u;
+// Each drizzle class by the file inside the drizzle package that declares it.
+const DRIZZLE_RELATIONAL_QUERY = /^sqlite-core\/query-builders\/query\.d\.c?ts$/u;
 const SQLITE_TABLE = "SQLiteTable";
-const DRIZZLE_SQLITE_TABLE = /\/node_modules\/drizzle-orm\/sqlite-core\/table\.d\.c?ts$/u;
+const DRIZZLE_SQLITE_TABLE = /^sqlite-core\/table\.d\.c?ts$/u;
 const SQL_TAG = "sql";
 // The `sql` members that take SQL text: `raw` a statement fragment, `identifier` one quoted name.
 const SQL_RAW = "raw";
@@ -55,12 +58,18 @@ const sqlTarget = (tables: readonly string[]): RegExp =>
     "iu",
   );
 
-// Whether `type`, or a member of the intersection it is, is drizzle's class `name` from a file `declaredIn` matches.
-function drizzleClass(type: ts.Type, name: string, declaredIn: RegExp): boolean {
+// Whether `type`, or a member of the intersection it is, is drizzle's class `name` from the drizzle file `declaredIn` matches.
+function drizzleClass(sources: LibrarySources, type: ts.Type, name: string, declaredIn: RegExp): boolean {
   const parts = type.isIntersection() ? type.types : [type];
   return parts.some((part) => {
     const symbol = part.getSymbol();
-    return symbol?.getName() === name && (symbol.declarations ?? []).some((declaration) => declaredIn.test(posixPath(declaration.getSourceFile().fileName)));
+    return (
+      symbol?.getName() === name &&
+      (symbol.declarations ?? []).some((declaration) => {
+        const origin = sources.packageOf(declaration.getSourceFile());
+        return origin?.name === DRIZZLE_PACKAGE && declaredIn.test(origin.path);
+      })
+    );
   });
 }
 
@@ -151,15 +160,17 @@ export function ownedTableRule(row: OwnedTableRow): OrbRule {
       const program = context.sourceCode.parserServices?.program;
       const typedRun = program !== undefined && program !== null;
       let services: TypeServices | undefined;
+      let sources: LibrarySources | undefined;
       // An optional chain (`db?.query.users`) types the member as the door or `undefined`.
       const ownedDoor = (node: TSESTree.Node): boolean => {
         if (!(typedRun || readOffQuery(node))) {
           return false;
         }
         services ??= requireTypeServices(context);
+        sources ??= librarySources(services.program, context.cwd);
         const { checker } = services;
         const type = checker.getNonNullableType(checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(node)));
-        return drizzleClass(type, RELATIONAL_BUILDER, DRIZZLE_RELATIONAL_QUERY) || drizzleClass(type, SQLITE_TABLE, DRIZZLE_SQLITE_TABLE);
+        return drizzleClass(sources, type, RELATIONAL_BUILDER, DRIZZLE_RELATIONAL_QUERY) || drizzleClass(sources, type, SQLITE_TABLE, DRIZZLE_SQLITE_TABLE);
       };
       const report = (node: TSESTree.Node): void => context.report({ node, message: row.message });
       const member = (node: TSESTree.MemberExpression): void => {

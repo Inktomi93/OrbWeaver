@@ -174,7 +174,7 @@ function variantsOf(token: string): readonly string[] {
 function heldReads(graph: Graph): readonly string[] {
   const roles = settleRoles(graph);
   const read = (key: DeclKey | null): boolean => key !== null && [...(roles.get(key)?.product ?? [])].some((role) => READS.has(role));
-  return graph.state.cssNames.filter(({ holder, entry }) => read(holder) && (entry === null || read(entry))).map(({ name }) => name);
+  return graph.facts.cssNames.filter(({ holder, entry }) => read(holder) && (entry === null || read(entry))).map(({ name }) => name);
 }
 
 function unreadBuckets(

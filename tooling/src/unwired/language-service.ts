@@ -5,10 +5,13 @@ import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
-import { siteKey } from "./classify.ts";
-import type { WorldFiles } from "./native.ts";
-import { NativeWorld } from "./native.ts";
+import { nameAt as nodeAt, siteKey } from "./classify.ts";
+import type { FoundReference, WorldFiles } from "./native.ts";
+import { hasFlag, NativeWorld } from "./native.ts";
 import { loadScanWorld, realpath } from "./worlds.ts";
+
+const isServiceMember = (symbol: ts.Symbol): boolean =>
+  hasFlag(symbol.flags, ts.SymbolFlags.PropertyOrAccessor) || hasFlag(symbol.flags, ts.SymbolFlags.Method);
 
 /** One world's program behind a TypeScript 6 language service. */
 export class ServiceWorld {
@@ -59,18 +62,62 @@ export class ServiceWorld {
   }
 
   /** Every reference find-references reports for the name at `site`, the site itself and library files excluded. */
-  references(site: Site): readonly Site[] {
-    const found: Site[] = [];
+  references(site: Site): readonly FoundReference[] {
+    const found: FoundReference[] = [];
+    const asked = this.#symbolAt(join(this.#root, site.file), site.position);
     for (const group of this.#service.findReferences(join(this.#root, site.file), site.position) ?? []) {
+      const viaRelative = asked !== undefined && isServiceMember(asked) && this.#isRelative(asked, group);
       for (const reference of group.references) {
         const file = relative(this.#root, reference.fileName);
         const at = { file, position: reference.textSpan.start };
         if (!(file.includes("node_modules") || siteKey(at) === siteKey(site))) {
-          found.push(at);
+          found.push({ ...at, relative: viaRelative });
         }
       }
     }
     return found;
+  }
+
+  #symbolAt(fileName: string, position: number): ts.Symbol | undefined {
+    const source = this.program.getSourceFile(fileName);
+    const name = source === undefined ? undefined : nodeAt(source, position);
+    return name === undefined ? undefined : this.checker.getSymbolAtLocation(name);
+  }
+
+  // The TypeScript 6 twin of the native engine's relative test (`tooling/src/unwired/native.ts`).
+  #isRelative(asked: ts.Symbol, group: ts.ReferencedSymbol): boolean {
+    const symbol = this.#symbolAt(group.definition.fileName, group.definition.textSpan.start);
+    const declarations = symbol?.declarations ?? [];
+    if (symbol === undefined || !isServiceMember(symbol) || declarations.length === 0) {
+      return false;
+    }
+    const own = new Set(asked.declarations ?? []);
+    return !(declarations.some((declaration) => own.has(declaration)) || this.#inherits(symbol, own, new Set()));
+  }
+
+  // A library's file as the program loaded it, the native engine's test (`tooling/src/unwired/native.ts`): an external
+  // library or the default lib. A declaration file of the tree's own is ours, and a workspace package resolves to its
+  // real path through the host's `realpath`, so it is never external.
+  #isLibrary(file: ts.SourceFile): boolean {
+    return this.program.isSourceFileFromExternalLibrary(file) || this.program.isSourceFileDefaultLibrary(file);
+  }
+
+  // Whether `member` overrides a declaration in `own` through its owner's `extends` or `implements` chain. A library
+  // member never inherits a tree member, so only a member the world's sources declare is walked.
+  #inherits(member: ts.Symbol, own: ReadonlySet<ts.Declaration>, seen: Set<ts.Symbol>): boolean {
+    const declarations = member.declarations ?? [];
+    if (seen.has(member) || declarations.every((declaration) => this.#isLibrary(declaration.getSourceFile()))) {
+      return false;
+    }
+    seen.add(member);
+    return declarations.some((declaration) => {
+      const owner = declaration.parent;
+      const types = ts.isInterfaceDeclaration(owner) || ts.isClassLike(owner) ? (owner.heritageClauses ?? []).flatMap((clause) => [...clause.types]) : [];
+      return types.some((heritage) => {
+        const base = this.checker.getPropertyOfType(this.checker.getTypeAtLocation(heritage), member.name);
+        return base !== undefined && ((base.declarations ?? []).some((found) => own.has(found)) || this.#inherits(base, own, seen));
+      });
+    });
   }
 
   /** The repository-relative site of a node in this program. */
@@ -81,7 +128,7 @@ export class ServiceWorld {
 }
 
 // TypeScript 7.1 find-references for each site in one batched pass.
-function nativeReferences(root: string, config: string, sites: readonly Site[], merge: (site: Site, references: readonly Site[]) => void): void {
+function nativeReferences(root: string, config: string, sites: readonly Site[], merge: (site: Site, references: readonly FoundReference[]) => void): void {
   using world = NativeWorld.open(root, config);
   for (const [at, found] of world.referencesAt(sites).entries()) {
     merge(sites[at] as Site, found);
@@ -156,11 +203,13 @@ function nativeAssignment(
   return assigned;
 }
 
-// A site's own name and library files are not uses of it.
-function keepReferences(into: Map<string, Site> | undefined, site: Site, references: readonly Site[]): void {
+// A site's own name and library files are not uses of it. A site one world reaches through the asked member itself is
+// no relative, whatever another world's grouping says.
+function keepReferences(into: Map<string, FoundReference> | undefined, site: Site, references: readonly FoundReference[]): void {
   for (const reference of references) {
-    if (!(reference.file.includes("node_modules") || siteKey(reference) === siteKey(site))) {
-      into?.set(siteKey(reference), reference);
+    const key = siteKey(reference);
+    if (!(reference.file.includes("node_modules") || key === siteKey(site))) {
+      into?.set(key, { ...reference, relative: reference.relative && into.get(key)?.relative !== false });
     }
   }
 }
@@ -169,7 +218,8 @@ function keepReferences(into: Map<string, Site> | undefined, site: Site, referen
  *  Worlds load one at a time. TypeScript 7.1 answers in batches, and each site goes only to the holders that together
  *  reach every file spelling its name; `lists` are the worlds' file lists the caller already read for its homes.
  *  `crossCheck` asks the TypeScript 6 language service in every world that holds the site, one site at a time, an
- *  audit of the 7.1 answers; a world that holds none of the sites builds no program. */
+ *  audit of the 7.1 answers; a world that holds none of the sites builds no program. A reference is tagged `relative`
+ *  when only a base or sibling member's grouping reached it. */
 export function serviceReferences(
   root: string,
   worlds: readonly string[],
@@ -179,9 +229,9 @@ export function serviceReferences(
     readonly crossCheck?: boolean | undefined;
     readonly lists: ReadonlyMap<string, WorldFiles>;
   },
-): ReadonlyMap<string, readonly Site[]> {
-  const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
-  const merge = (site: Site, references: readonly Site[]): void => keepReferences(merged.get(siteKey(site)), site, references);
+): ReadonlyMap<string, readonly FoundReference[]> {
+  const merged = new Map<string, Map<string, FoundReference>>(sites.map((site) => [siteKey(site), new Map()]));
+  const merge = (site: Site, references: readonly FoundReference[]): void => keepReferences(merged.get(siteKey(site)), site, references);
   const assigned = hooks.crossCheck === true ? new Map<string, readonly Site[]>() : nativeAssignment(root, worlds, hooks.lists, sites);
   for (const config of worlds) {
     const native = assigned.get(config) ?? [];

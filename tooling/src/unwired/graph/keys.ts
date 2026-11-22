@@ -23,12 +23,13 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescr
 import { SymbolFlags } from "@typescript/native/sync";
 import { isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
+import { tracing } from "./options.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { isPrimitive } from "./state.ts";
+import { isPrimitive, literalValues } from "./state.ts";
 
 // A caller that hands its own parameter on is asked in turn, this many callers deep; deeper reads the table whole.
 const PARAMETER_KEY_DEPTH = 4;
@@ -73,7 +74,7 @@ export class Keys {
       return parameter === undefined;
     });
     const keyTypes = state.world.typesAt(rest.map(({ argument }) => argument));
-    const typedKeys = state.batch(keyTypes.map((type) => state.literalValues(type)));
+    const typedKeys = state.batch(keyTypes.map((type) => literalValues(type)));
     const typedNamed = rest.flatMap(({ type }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(typedNamed).flat(), "read", sites.file, 0);
     const whole = rest.filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type)).map(({ type }) => type);
@@ -117,6 +118,7 @@ export class Keys {
     for (const keyed of this.#parameterKeyed) {
       const keys = this.#keysOf(keyed.fn, keyed.index, 0);
       if (keys === "whole") {
+        this.#traceWhole(keyed);
         state.count("parameter-keyed lookups read whole");
         state.roleAll(state.memberDeclarations([keyed.table]).flat(), "read", keyed.file, 0);
       } else {
@@ -125,6 +127,22 @@ export class Keys {
       }
     }
     this.#scriptGlobals(flows);
+  }
+
+  // `--trace=param-key`: a lookup its callers could not narrow, at the function that keys it.
+  #traceWhole(keyed: ParameterKeyed): void {
+    const state = this.#state;
+    const trace = tracing(state.session.options, "param-key");
+    const source = keyed.fn.getSourceFile();
+    const file = state.world.fileOfSource(source);
+    if (trace === undefined || !(trace.file === null || file.startsWith(trace.file))) {
+      return;
+    }
+    // An arrow or function expression is named by the variable that holds it.
+    const holder = isVariableDeclaration(keyed.fn.parent) ? keyed.fn.parent : keyed.fn;
+    const name = state.decls.get(state.resolver.keyOf(holder))?.name ?? "(anonymous)";
+    const line = source.getLineAndCharacterOfPosition(keyed.fn.getStart(source)).line + 1;
+    state.session.log(`trace param-key ${file}:${String(line)} ${name} reads parameter ${String(keyed.index)}'s table whole`);
   }
 
   // The keys a function's parameter takes across its callers.
@@ -177,7 +195,7 @@ export class Keys {
         return this.#keysOf(parameter.fn, parameter.index, depth + 1);
       }
     }
-    const [typed] = state.batch([state.literalValues(state.world.typesAt([argument])[0])]);
+    const [typed] = state.batch([literalValues(state.world.typesAt([argument])[0])]);
     return typed === null || typed === undefined ? "whole" : new Set(typed);
   }
 

@@ -19,7 +19,7 @@ The graph proposes dead declarations and members but nothing checks that removin
 
 ## Done when
 
-graph-trial removes each candidate of the named buckets in a temporary snapshot, checks only the importing files, and reports confirmed candidates and each refuting error by file and line; a planted refuting case names its reader; the real-tree counts are in the item evidence.
+graph-trial removes each candidate of the named buckets in a temporary snapshot, checks only the importing files, and reports confirmed candidates and each refuting error by file and line; a planted refuting case names its reader; the real-tree counts are in the item evidence. As a control, Program.getSuggestionDiagnostics diagnostics marked reportsUnnecessary are diffed against the graph dead locals and private members, and every disagreement is listed.
 
 ## Evidence
 

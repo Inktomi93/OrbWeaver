@@ -56,9 +56,10 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
+import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
 import { sameNode } from "./roles.ts";
-import type { GraphState } from "./state.ts";
+import { literalValues } from "./state.ts";
 
 /** A text a string expression can take: one name; a head, `open`, when a span past it is wide; or a template whose
  *  spans each hold a finite list, `parts`, whose names are every pick of one alternative per part. A template is never
@@ -124,7 +125,7 @@ type FunctionLike = Node & { readonly parameters: NodeArray<Node>; readonly body
 const isFunctionLike = (node: Node): node is FunctionLike =>
   isFunctionDeclaration(node) || isMethodDeclaration(node) || isArrowFunction(node) || isFunctionExpression(node);
 
-const keyOf = (state: GraphState, node: Node): string => `${state.world.fileOfSource(node.getSourceFile())}:${String(node.pos)}`;
+const keyOf = (world: NativeWorld, node: Node): string => `${world.fileOfSource(node.getSourceFile())}:${String(node.pos)}`;
 
 // The text of a name a property, binding or key spells, when it is a plain one.
 function nameText(node: Node | undefined): string | null {
@@ -248,12 +249,12 @@ function returnsOf(fn: FunctionLike): readonly Expression[] {
 
 /** The texts the expressions of one world can take, and the literals the asks reached. */
 export class HeldTexts {
-  readonly #state: GraphState;
+  readonly #world: NativeWorld;
   readonly #reached = new Set<string>();
   #steps = 0;
 
-  constructor(state: GraphState) {
-    this.#state = state;
+  constructor(world: NativeWorld) {
+    this.#world = world;
   }
 
   /** How many (node, position) answers the asks computed: the work the walk did, which its memo bounds. */
@@ -263,7 +264,7 @@ export class HeldTexts {
 
   /** Whether an ask reached this literal. */
   reached(node: Node): boolean {
-    return this.#reached.has(keyOf(this.#state, node));
+    return this.#reached.has(keyOf(this.#world, node));
   }
 
   /** The texts `node` can take. */
@@ -274,7 +275,7 @@ export class HeldTexts {
   /** The texts any element of the list `node` holds; a shorthand property asks the binding it names. */
   *elements(node: Node): APIRequestGenerator<Texts> {
     if (isShorthandPropertyAssignment(node)) {
-      return yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(node), [ELEMENT], newWalk());
+      return yield* this.#symbol(yield* this.#world.checker.getShorthandAssignmentValueSymbol.gen(node), [ELEMENT], newWalk());
     }
     return yield* this.#at(node, [ELEMENT], newWalk());
   }
@@ -312,14 +313,14 @@ export class HeldTexts {
   // are walked even when the type answered, so the literals they hold are reached.
   *#whole(node: Node, walk: Walk): APIRequestGenerator<Texts> {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-      this.#reached.add(keyOf(this.#state, node));
+      this.#reached.add(keyOf(this.#world, node));
       return [{ text: node.text, open: false }];
     }
     if (isTemplateExpression(node)) {
       return yield* this.#template(node.head.text, node.templateSpans, walk);
     }
-    const { checker } = this.#state.world;
-    const typed = yield* this.#state.literalValues(yield* checker.getTypeAtLocation.gen(node));
+    const { checker } = this.#world;
+    const typed = yield* literalValues(yield* checker.getTypeAtLocation.gen(node));
     const held = yield* this.#follow(node, [], walk);
     return typed === null ? held : typed.map((text) => ({ text, open: false }));
   }
@@ -388,7 +389,7 @@ export class HeldTexts {
         return yield* this.#at(property.initializer, rest, walk);
       }
       if (isShorthandPropertyAssignment(property) && nameText(property.name) === step.name) {
-        const symbol = yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(property);
+        const symbol = yield* this.#world.checker.getShorthandAssignmentValueSymbol.gen(property);
         return yield* this.#symbol(symbol, rest, walk);
       }
     }
@@ -407,7 +408,7 @@ export class HeldTexts {
       if (isPropertyAssignment(property)) {
         found.push(yield* this.#at(property.initializer, rest, walk));
       } else if (isShorthandPropertyAssignment(property)) {
-        found.push(yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(property), rest, walk));
+        found.push(yield* this.#symbol(yield* this.#world.checker.getShorthandAssignmentValueSymbol.gen(property), rest, walk));
       } else if (isSpreadAssignment(property)) {
         found.push(yield* this.#at(property.expression, [VALUE, ...rest], walk));
       } else {
@@ -423,7 +424,7 @@ export class HeldTexts {
   //
   // A walk ends on its seen-set, never on a depth: a cycle adds no text the walk's other branches do not already hold.
   *#follow(node: Node, path: Path, walk: Walk): APIRequestGenerator<Texts> {
-    const at = `${keyOf(this.#state, node)}:${String(node.end)}:${String(node.kind)}`;
+    const at = `${keyOf(this.#world, node)}:${String(node.end)}:${String(node.kind)}`;
     const key = `${at}|${JSON.stringify(path)}`;
     const known = walk.answers.get(key);
     if (known !== undefined) {
@@ -451,7 +452,7 @@ export class HeldTexts {
     if (!(isIdentifier(node) || isPropertyAccessExpression(node) || isElementAccessExpression(node))) {
       return null;
     }
-    const symbol = yield* this.#unalias(yield* this.#state.world.checker.getSymbolAtLocation.gen(node));
+    const symbol = yield* this.#unalias(yield* this.#world.checker.getSymbolAtLocation.gen(node));
     const held = yield* this.#symbol(symbol, path, walk);
     if (held !== null || isIdentifier(node)) {
       return held;
@@ -475,7 +476,7 @@ export class HeldTexts {
     }
     const found: Texts[] = [];
     for (const handle of symbol.declarations) {
-      if (this.#state.world.fileOf(handle) === null) {
+      if (this.#world.fileOf(handle) === null) {
         return null;
       }
       const declaration = yield* handle.resolve.gen();
@@ -547,7 +548,7 @@ export class HeldTexts {
     // A function held by a variable or a property is called through that holder.
     const target = (isArrowFunction(fn) || isFunctionExpression(fn)) && (isVariableDeclaration(fn.parent) || isPropertyAssignment(fn.parent)) ? fn.parent : fn;
     const found: Texts[] = [];
-    for (const usage of yield* this.#state.world.signatureUsage(target)) {
+    for (const usage of yield* this.#world.signatureUsage(target)) {
       const name = yield* usage.name.resolve.gen();
       const caller = usage.call === undefined ? undefined : yield* usage.call.resolve.gen();
       // The declaration's own name is listed among its usages; it hands the function nothing.
@@ -567,7 +568,7 @@ export class HeldTexts {
     if (holder === undefined) {
       return [];
     }
-    const { world } = this.#state;
+    const world = this.#world;
     const groups = yield* world.referencedSymbolsOf(holder);
     const found: Texts[] = [];
     for (const handle of groups.flatMap((group) => group.references)) {
@@ -639,13 +640,13 @@ export class HeldTexts {
   }
 
   *#returns(callee: Expression, path: Path, walk: Walk): APIRequestGenerator<Texts> {
-    const symbol = yield* this.#unalias(yield* this.#state.world.checker.getSymbolAtLocation.gen(callee));
+    const symbol = yield* this.#unalias(yield* this.#world.checker.getSymbolAtLocation.gen(callee));
     if (symbol === undefined || symbol.declarations.length === 0) {
       return null;
     }
     const found: Texts[] = [];
     for (const handle of symbol.declarations) {
-      const declaration = this.#state.world.fileOf(handle) === null ? undefined : yield* handle.resolve.gen();
+      const declaration = this.#world.fileOf(handle) === null ? undefined : yield* handle.resolve.gen();
       const fn = declaration !== undefined && isVariableDeclaration(declaration) ? declaration.initializer : declaration;
       // A signature with no body (an overload, a declaration) returns what its implementation does, which it does not show.
       if (fn === undefined || !isFunctionLike(fn) || fn.body === undefined) {
@@ -674,6 +675,6 @@ export class HeldTexts {
     if (symbol === undefined || !hasFlag(symbol.flags, SymbolFlags.Alias)) {
       return symbol;
     }
-    return yield* this.#state.world.checker.getAliasedSymbol.gen(symbol);
+    return yield* this.#world.checker.getAliasedSymbol.gen(symbol);
   }
 }

@@ -82,7 +82,7 @@ const PER_VERB_HOMES = [
   { name: /.Params$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/params\.ts$/u },
   { name: /.Result$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/results\.ts$/u },
 ] as const;
-const isPerVerb = (side: Declared): boolean => PER_VERB_HOMES.some((home) => home.name.test(nameOf(side.node)) && home.file.test(side.site.file));
+const isPerVerb = (name: string, file: string): boolean => PER_VERB_HOMES.some((home) => home.name.test(name) && home.file.test(file));
 const PER_VERB_REASON = "docs/law/Core-0-Architecture-and-Structure.md §4: every verb keeps its own *Params and *Result";
 // Type operators whose result is computed from a schema or a value, so the type is the schema's own shape.
 const INFERRED = new Set(["z.infer", "z.input", "z.output", "ReturnType", "Awaited", "Parameters", "InferSelectModel", "InferInsertModel"]);
@@ -189,11 +189,27 @@ interface Shape {
 // property-name set, so a side that adds a member of its own differs in that member's declarations and stays a candidate.
 const oneSource = (a: Shape, b: Shape): boolean => a.sources.every((source, index) => source !== "" && source === b.sources[index]);
 
+/** One side of a restated pair, held past its world's pass: its name and place, never its declaration node, so the
+ *  world's syntax tree is freed when the pass ends. */
+interface Side {
+  readonly site: Site;
+  readonly line: number;
+  readonly name: string;
+  readonly perVerb: boolean;
+}
+
+const sideOf = (type: Declared): Side => ({
+  site: type.site,
+  line: type.line,
+  name: nameOf(type.node),
+  perVerb: isPerVerb(nameOf(type.node), type.site.file),
+});
+
 interface Pair {
   readonly key: string;
   readonly world: string;
-  readonly first: Declared;
-  readonly second: Declared;
+  readonly first: Side;
+  readonly second: Side;
   readonly names: readonly string[];
 }
 
@@ -237,8 +253,8 @@ function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair
           {
             key: [a.declared, b.declared].map(sideKey).join("="),
             world: world.config,
-            first: a.declared,
-            second: b.declared,
+            first: sideOf(a.declared),
+            second: sideOf(b.declared),
             names: members,
           },
         ]
@@ -302,7 +318,7 @@ function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Loca
       member: target.name,
       kind: "synonym",
       at: [world.fileOf(handle) ?? "external"],
-      perVerb: isPerVerb(alias),
+      perVerb: isPerVerb(nameOf(node), site.file),
     };
     return [{ finding, site }];
   });
@@ -415,18 +431,18 @@ const restatement = ({ key, first, second }: Pair): UnwiredShape => ({
   key,
   file: first.site.file,
   line: first.line,
-  home: nameOf(first.node),
-  member: nameOf(second.node),
+  home: first.name,
+  member: second.name,
   kind: "restated",
   at: [`${second.site.file}:${second.line}`],
-  perVerb: isPerVerb(first) && isPerVerb(second),
+  perVerb: first.perVerb && second.perVerb,
 });
 
 // The file and name of each side of a restated pair, so a deliberate entry or the distinct registry naming either
 // side covers the pair.
 const sidesOf = ({ first, second }: Pair): readonly [DeliberateSide, DeliberateSide] => [
-  { file: first.site.file, home: nameOf(first.node), member: nameOf(second.node) },
-  { file: second.site.file, home: nameOf(second.node), member: nameOf(first.node) },
+  { file: first.site.file, home: first.name, member: second.name },
+  { file: second.site.file, home: second.name, member: first.name },
 ];
 
 // The deliberate list first, then Core-0 §4's per-verb names, then the judged look-alikes; the rest is unwired.

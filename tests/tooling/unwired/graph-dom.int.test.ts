@@ -3,8 +3,11 @@
 // followed through the checker to the attribute site it reaches; sealed, dependency-spelled and owner-published names are
 // not dead; a snap read counts as the product's, a read in tests or other tooling only annotates a product hook, save a
 // test's read of a test id; a whole data-*
-// string no site reaches is listed as unresolved and keeps its name out of every bucket.
+// string no site reaches is listed as unresolved and keeps its name out of every bucket. The pass reads source, so it
+// refuses a dump.
+import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
+import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { OWNER_CSS_SURFACE } from "../../../tooling/src/unwired/graph/css.ts";
 import type { DomReport, Unresolved } from "../../../tooling/src/unwired/index.ts";
 import { domGraph } from "../../../tooling/src/unwired/index.ts";
@@ -724,4 +727,13 @@ test("a walk that returns to a node at a path that only grew in front ends as a 
   );
   expect(placed(report.unresolved)).toEqual([]);
   expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-held-dead]`]);
+});
+
+test("graph-dom refuses --from before any world loads, since a dump carries no source", TIMEOUT, async ({ runCli, scratch }) => {
+  const onDump = (verb: string): ReturnType<typeof runCli> => runCli("unwired", [verb, `--root=${scratch}`, `--from=${join(scratch, "graph.dump")}`]);
+  const refused = await onDump("graph-dom");
+  await expect(refused).toExitWith(EXIT.misuse);
+  expect(refused.stderr).toContain("graph-dom reads the program's source, which a dump does not carry");
+  // another graph verb passes the flag check on the same dump and fails only on the missing file
+  expect((await onDump("graph")).stderr).not.toContain("a dump does not carry");
 });

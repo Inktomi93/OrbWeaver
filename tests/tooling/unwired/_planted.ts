@@ -104,7 +104,8 @@ export const judgedExpected = (open: string, closed: string): JudgedOutcome => (
 /** The package a graph tree's sources sit in, unless a case names another. */
 export const GRAPH_SOURCE = "packages/a/src";
 
-const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\//u;
+// A planted workspace: a package, or the tooling workspace beside them.
+const WORKSPACE_SOURCE = /^(packages\/[^/]+|tooling)\/src\//u;
 const SOURCE_GLOB = "src/**/*.{ts,tsx}";
 
 // A knip config with one workspace per planted package. With no `entries`, every source file ships and its exports are
@@ -139,7 +140,7 @@ export interface GraphTreeOptions {
  *  `node_modules/` included). */
 export function graphTree(files: Readonly<Record<string, string>>, options: GraphTreeOptions = {}): Record<string, string> {
   const jsx = options.jsx === true ? ({ jsx: "preserve" } as const) : {};
-  const packages = [...new Set(Object.keys(files).flatMap((file) => PACKAGE_SOURCE.exec(file)?.[1] ?? []))].map((name) => `packages/${name}`);
+  const packages = [...new Set(Object.keys(files).flatMap((file) => WORKSPACE_SOURCE.exec(file)?.[1] ?? []))];
   return {
     "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }] }),
     "tsconfig.world-browser.json": plantedTsconfig({ lib: LIB, include: [], ...jsx }),
@@ -168,16 +169,20 @@ export const REACT_TYPES = {
   "node_modules/@types/react/index.d.ts": "export declare function useState<S>(initial: S): [S, (next: S) => void];",
 };
 
-/** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, and a
- *  validator. */
+/** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
+ *  validator and a default. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
-  "node_modules/zod/index.d.ts": [
+  // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
+  "node_modules/zod/index.d.ts": 'export * from "./v4/classic/index.js";',
+  "node_modules/zod/v4/classic/package.json": JSON.stringify({ type: "module" }),
+  "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
     "export interface Schema<T = unknown> {",
     "  readonly _output: T;",
     "  parse(value: unknown): T;",
     "  extend<S>(shape: S): Schema<T & Shape<S>>;",
+    "  default(value: Exclude<T, undefined>): Schema<T>;",
     "}",
     "export declare namespace z {",
     "  type ZodType<T = unknown> = Schema<T>;",
@@ -186,6 +191,7 @@ export const ZOD_MODULE = {
     "export declare const z: {",
     "  strictObject<S>(shape: S): Schema<Shape<S>>;",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
+    "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",
     "  number(): Schema<number>;",
     "};",

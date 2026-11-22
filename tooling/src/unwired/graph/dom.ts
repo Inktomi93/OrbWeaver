@@ -74,13 +74,13 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import { kebab, SEALED_NAME } from "../../eslint/index.ts";
-import type { Graph } from "./build.ts";
+import type { NativeWorld } from "../native.ts";
+import { isProduction } from "../worlds.ts";
 import { NOT_SOURCE, OWNER_CSS_SURFACE, SHEETS, STRING } from "./css.ts";
 import type { Text, Texts } from "./held.ts";
 import { HeldTexts } from "./held.ts";
 import { holds, meets, nameCount, selects } from "./patterns.ts";
 import { sameNode } from "./roles.ts";
-import type { GraphState } from "./state.ts";
 
 /** The DOM-hook buckets, in report order. */
 export const DOM_BUCKETS = [
@@ -201,14 +201,14 @@ interface Selectors {
   readonly reads: Set<string>;
 }
 
-/** Every class and data-* hook of the tree at `root` with no partner, with `graph` deciding product files and its
- *  world's checker following the names held in constants. */
-export function domPass(root: string, graph: Graph): DomReport {
+/** Every class and data-* hook of the tree at `root` with no partner, with `world`'s checker following the names held
+ *  in constants. */
+export function domPass(root: string, world: NativeWorld): DomReport {
   const sheets = globSync(SHEETS, { cwd: root, exclude: NOT_SOURCE });
   const selectors = readSheets(root, sheets);
-  const hooks = new Hooks(graph.state);
-  for (const source of graph.state.world.files) {
-    hooks.walkFile(graph.state.world.fileOfSource(source), source);
+  const hooks = new Hooks(world);
+  for (const source of world.files) {
+    hooks.walkFile(world.fileOfSource(source), source);
   }
   for (const file of globSync(HTML, { cwd: root, exclude: NOT_SOURCE })) {
     hooks.readHtml(file, readFileSync(join(root, file), "utf8"));
@@ -217,7 +217,7 @@ export function domPass(root: string, graph: Graph): DomReport {
   for (const name of selectors.reads) {
     hooks.read(name, undefined, "product");
   }
-  return judge(root, selectors, hooks, { files: graph.state.world.files.length, sheets: sheets.length });
+  return judge(root, selectors, hooks, { files: world.files.length, sheets: sheets.length });
 }
 
 function readSheets(root: string, sheets: readonly string[]): Selectors {
@@ -273,7 +273,7 @@ class Hooks {
   readonly testIds = new Map<string, string>();
   readonly unresolved: Unresolved[] = [];
   #followed = 0;
-  readonly #state: GraphState;
+  readonly #world: NativeWorld;
   readonly #sites: Site[] = [];
   readonly #selectorTemplates: { readonly node: Expression; readonly world: World; readonly at: string }[] = [];
   /** Reads of a house attribute model by name, kept once the member's declaration proves it is the model's. */
@@ -286,9 +286,9 @@ class Hooks {
 
   readonly #held: HeldTexts;
 
-  constructor(state: GraphState) {
-    this.#state = state;
-    this.#held = new HeldTexts(state);
+  constructor(world: NativeWorld) {
+    this.#world = world;
+    this.#held = new HeldTexts(world);
   }
 
   get followed(): number {
@@ -301,7 +301,7 @@ class Hooks {
 
   walkFile(file: string, source: Node): void {
     let world: World = "tooling";
-    if (this.#state.product(file)) {
+    if (isProduction(file)) {
       world = "product";
     } else if (file.startsWith(SNAP)) {
       world = "snap";
@@ -568,7 +568,7 @@ class Hooks {
 
   /** Follow every held name and value through the checker, then list what no site reaches. */
   resolve(): void {
-    const { world } = this.#state;
+    const world = this.#world;
     this.#modelSites();
     const asks: Expression[] = [
       ...this.#selectorTemplates.map(({ node }) => node),
@@ -599,7 +599,7 @@ class Hooks {
   // a data-* name, and a write outside the product claims none.
   // A read of a house attribute model by name is a site once its member is the model's own.
   #modelSites(): void {
-    const homes = this.#state.world.batch(this.#modelReads.map(({ member }) => this.#declaredIn(member)));
+    const homes = this.#world.batch(this.#modelReads.map(({ member }) => this.#declaredIn(member)));
     for (const [index, { member, name, at, world: reader }] of this.#modelReads.entries()) {
       if (ATTRIBUTE_MODELS.some((model) => model.member === member.name.text && (homes[index] ?? []).includes(model.file))) {
         this.#sites.push({ at, world: reader, key: false, name, dataset: false, write: false, read: true, value: null });
@@ -611,7 +611,7 @@ class Hooks {
     for (const { node, world: reader } of this.#testIdLookups) {
       const texts = textsOf.get(node) ?? null;
       if (texts === null) {
-        const at = atOf(this.#state.world.fileOfSource(node.getSourceFile()), node);
+        const at = atOf(this.#world.fileOfSource(node.getSourceFile()), node);
         this.unresolved.push({ text: printed(node), at, world: reader, why: "a getByTestId value no hop resolves" });
       }
       for (const text of texts ?? []) {
@@ -626,7 +626,7 @@ class Hooks {
   }
 
   #filterSites(): void {
-    const filters = this.#state.world.batch(this.#filterReads.map(({ node }) => this.#held.elements(node)));
+    const filters = this.#world.batch(this.#filterReads.map(({ node }) => this.#held.elements(node)));
     for (const [index, { node, at, world: reader }] of this.#filterReads.entries()) {
       const names = filters[index] ?? null;
       if (names === null) {
@@ -639,8 +639,8 @@ class Hooks {
   }
 
   *#declaredIn(member: PropertyAccessExpression): APIRequestGenerator<readonly (string | null)[]> {
-    const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(member);
-    return (symbol?.declarations ?? []).map((handle) => this.#state.world.fileOf(handle));
+    const symbol = yield* this.#world.checker.getSymbolAtLocation.gen(member);
+    return (symbol?.declarations ?? []).map((handle) => this.#world.fileOf(handle));
   }
 
   #site(site: Site, textsOf: Answers): void {
