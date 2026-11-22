@@ -21,26 +21,24 @@ import {
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind } from "@typescript/native/sync";
 import { NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
-import { sdkSurface } from "../plugin-surface.ts";
+import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
-import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, WalkSink } from "./sites.ts";
+import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 
-/** The published plugin SDK: its declarations are a door, read through plugin-surface.ts, never walked. */
-export const PUBLISHED_SDK = "packages/plugin-sdk/";
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
@@ -68,6 +66,21 @@ export interface Graph {
   readonly sdk: SdkSurface;
   readonly urlSpawns: readonly UrlSpawn[];
   readonly files: readonly string[];
+}
+
+// The type a destructuring pattern's keys read: its source's, the element type for a for-of target, then down each step
+// (a tuple's element by its index, else the list's element type).
+function* patternSourceType(checker: Checker, route: PatternRoute): APIRequestGenerator<Type | undefined> {
+  const source = yield* checker.getTypeAtLocation.gen(route.source);
+  let type: Type | undefined = route.iterated ? yield* source.getNumberIndexType.gen() : source;
+  for (const step of route.steps) {
+    if (type === undefined) {
+      return undefined;
+    }
+    const named: Type | undefined = yield* checker.getTypeOfPropertyOfType.gen(type, String(step));
+    type = named ?? (typeof step === "number" ? yield* type.getNumberIndexType.gen() : undefined);
+  }
+  return type;
 }
 
 // Which declaration files the graph walks: ours, except the published SDK's.
@@ -340,9 +353,11 @@ class Builder {
   // Destructuring reads each named property of the source's type.
   #patterns(sites: FileSites): void {
     const state = this.#state;
-    const asks = state.world
-      .typedAt(sites.patterns, ({ source }) => source)
-      .flatMap(({ item: site, type }) => site.names.map((name) => ({ site, type, name })));
+    const types = state.batch(sites.patterns.map((site) => patternSourceType(state.world.checker, site)));
+    const asks = sites.patterns.flatMap((site, x) => {
+      const type = types[x];
+      return type === undefined ? [] : site.names.map((name) => ({ site, type, name }));
+    });
     const hits = state.batch(asks.map(({ type, name }) => state.propsOnSlot(type, name)));
     const decls = hits.map((symbols) => state.declarations(symbols).flat());
     const bare = asks.filter((_, y) => (hits[y]?.length ?? 0) > 0 && (decls[y]?.length ?? 0) === 0);

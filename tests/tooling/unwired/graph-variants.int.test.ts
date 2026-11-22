@@ -86,21 +86,24 @@ test("a prop read off the parameter bag forwards the values callers write into i
   expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = lg"]);
 });
 
-// `variantProps(recipe, selection)` infers `T` from both arguments, so the selection literal's slot is the recipe's own
-// props: its `lg` selects the axis value, and `sm` is the control nothing selects.
+// `variantProps(recipe, { size })` with `size` read off typed props: the selection's own type fits the recipe's props,
+// so TypeScript infers the selection from itself, and only the recipe sibling names the real slot. `chip` forwards
+// `sm`; `md` and `lg` are the values no caller selects.
 test("a selection co-inferred with its recipe selects the recipe's axis values", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
     source([
       'import { tv } from "tailwind-variants";',
-      'const button = tv({ variants: { size: { sm: "s", lg: "l" } } });',
+      'const button = tv({ variants: { size: { sm: "s", md: "m", lg: "l" } } });',
       "interface VariantClassRecipe<S> {",
       "  (props?: S): string;",
       "  readonly variants: Readonly<Record<string, Readonly<Record<string, unknown>>>>;",
       "}",
       "declare function variantProps<S>(recipe: VariantClassRecipe<S>, selection: S): object;",
-      'export const chosen = variantProps(button, { size: "lg" });',
+      'export interface ChipProps { readonly size?: "sm" | "md" | "lg" }',
+      "export const chip = ({ size }: ChipProps): object => variantProps(button, { size });",
+      'export const shown = chip({ size: "sm" });',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = sm"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = md, lg"]);
 });

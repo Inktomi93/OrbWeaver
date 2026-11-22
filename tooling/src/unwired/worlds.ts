@@ -4,6 +4,7 @@
 import { globSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import ts from "typescript";
+import { z } from "zod";
 import { loadWorld } from "../floor/testing/test-worlds.ts";
 
 /** The package worlds, which hold every production file. */
@@ -42,6 +43,13 @@ export function bridgedConfigText(root: string, config: string): string {
 
 /** The solution config: its references are every typecheck world. */
 const SOLUTION = "tsconfig.json";
+// The part of the solution config the merged program reads; the rest of the file is the compiler's.
+const SolutionConfig = z.looseObject({
+  references: z
+    .array(z.object({ path: z.string() }))
+    .readonly()
+    .optional(),
+});
 // Author-time rewrites with their own fixture trees, left out of the merged program as the per-world scans leave them out.
 const UNMERGED: ReadonlySet<string> = new Set(["tooling/src/codemods/tsconfig.json"]);
 // The merged program's option base: the browser world, so the DOM and Node libraries load together.
@@ -55,7 +63,7 @@ function mergedWorlds(root: string): readonly string[] {
   if (read.error !== undefined) {
     throw new Error(`${SOLUTION}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
   }
-  const { references = [] } = read.config as { readonly references?: readonly { readonly path: string }[] };
+  const { references = [] } = SolutionConfig.parse(read.config);
   return references
     .map(({ path }) => {
       const config = relative(root, resolve(root, path));

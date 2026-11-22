@@ -46,6 +46,33 @@ test("a destructuring-assignment pattern's key reads the source member", { timeo
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["O.b"]);
 });
 
+// A nested pattern, an array element's pattern and a for-of target read the members at their path: `I.a`, `R.a` and
+// `Q.a`. Each `b` is the control no pattern names.
+test("a nested, array-element or for-of destructuring key reads the member at its path", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface I { readonly a: string; readonly b: string }",
+      "export interface O { readonly inner: I }",
+      "export interface R { readonly a: string; readonly b: string }",
+      "export interface Q { readonly a: string; readonly b: string }",
+      'export const o: O = { inner: { a: "1", b: "2" } };',
+      'export const rows: readonly R[] = [{ a: "1", b: "2" }];',
+      'export const list: readonly Q[] = [{ a: "1", b: "2" }];',
+      "export const taken = (): string => {",
+      '  let local = "";',
+      "  ({ inner: { a: local } } = o);",
+      "  [{ a: local }] = rows;",
+      "  for ({ a: local } of list) {",
+      "    break;",
+      "  }",
+      "  return local;",
+      "};",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["I.b", "R.b", "Q.b"]);
+});
+
 // `json` takes `unknown`, so `wrap` sends its `Slot` whole, and `go` hands a `Val` into that slot: the send carries
 // to `Val.a` as a send, never a read. `Val.b`, which the slot does not name, is only written.
 test("an escape carried across a flow stays a send on the member it reaches", { timeout: 120_000 }, async ({ plantedTree }) => {

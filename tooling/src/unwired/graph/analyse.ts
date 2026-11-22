@@ -10,9 +10,8 @@
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
-import { PLUGIN_CONTRACT, publishedAt } from "../plugin-surface.ts";
+import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
 import type { Graph } from "./build.ts";
-import { PUBLISHED_SDK } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { READS } from "./roles.ts";

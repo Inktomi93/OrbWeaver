@@ -181,7 +181,7 @@ function unreadBuckets(
   const named = (file: string): readonly string[] => [...readFileSync(join(root, file), "utf8").matchAll(NAMED)].map((match) => match[1] ?? "");
   const ownerCss = new Set(named(OWNER_CSS_SURFACE));
   const namedInScript = new Set(seen.sources.filter((file) => file !== GENERATED_REGISTRY).flatMap(named));
-  const out = { unread: [] as string[], namedOnly: [] as string[], ownerOnly: [] as string[] };
+  const out: { readonly unread: string[]; readonly namedOnly: string[]; readonly ownerOnly: string[] } = { unread: [], namedOnly: [], ownerOnly: [] };
   const judged = new Set<string>();
   for (const file of seen.sheets) {
     for (const name of declaredInCss(readFileSync(join(root, file), "utf8"))) {

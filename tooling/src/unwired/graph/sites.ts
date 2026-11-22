@@ -54,6 +54,7 @@ import {
   isExportSpecifier,
   isExpressionWithTypeArguments,
   isExternalModuleReference,
+  isForOfStatement,
   isFunctionDeclaration,
   isFunctionExpression,
   isFunctionTypeNode,
@@ -124,6 +125,43 @@ import { inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
 export type ModuleKey = `M:${string}`;
 /** A node of the graph: a declaration or a module. */
 export type GraphKey = DeclKey | ModuleKey;
+
+// A step from a pattern's source type down to a nested pattern: a property key, or an array element's index.
+type PatternStep = string | number;
+
+/** Where a destructuring pattern's keys read from: the type at `source`, its element type when `iterated` (a for-of
+ *  target), then each step in turn. */
+export interface PatternRoute {
+  readonly source: Node;
+  readonly iterated: boolean;
+  readonly steps: readonly PatternStep[];
+}
+
+// One step up a pattern: the key or index the node sits at and the literal holding it; null at the pattern's root.
+function stepUp(at: Node): { readonly step: PatternStep; readonly up: Node } | null {
+  const { parent } = at;
+  if (isPropertyAssignment(parent) && sameNode(parent.initializer, at) && isObjectLiteralExpression(parent.parent)) {
+    const key = keyText(parent.name);
+    return key === undefined ? null : { step: key, up: parent.parent };
+  }
+  return isArrayLiteralExpression(parent) ? { step: parent.elements.findIndex((element) => sameNode(element, at)), up: parent } : null;
+}
+
+// The route from an assignment pattern's literal up to the expression it destructures; null where no expression is
+// destructured (a default value, a spread, a for-in target, which reads keys, not members).
+function patternRoute(literal: ObjectLiteralExpression): PatternRoute | null {
+  const steps: PatternStep[] = [];
+  let at: Node = literal;
+  for (let next = stepUp(at); next !== null; next = stepUp(at)) {
+    steps.unshift(next.step);
+    at = next.up;
+  }
+  const { parent } = at;
+  if (isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.EqualsToken && sameNode(parent.left, at)) {
+    return { source: parent.right, iterated: false, steps };
+  }
+  return isForOfStatement(parent) && sameNode(parent.initializer, at) ? { source: parent.expression, iterated: true, steps } : null;
+}
 
 const MODULE_PREFIX = "M:";
 
@@ -412,13 +450,12 @@ export class FileSites {
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
   readonly urlModules: { readonly target: string; readonly from: GraphKey }[] = [];
   readonly shorthands: { readonly node: ShorthandPropertyAssignment; readonly from: GraphKey }[] = [];
-  /** Destructuring patterns, a declaration's or an assignment's, with the node whose type their keys read. */
-  readonly patterns: {
+  /** Destructuring patterns, a declaration's or an assignment's, with the route to the type their keys read. */
+  readonly patterns: ({
     readonly pattern: ObjectBindingPattern | ObjectLiteralExpression;
-    readonly source: Node;
     readonly names: readonly string[];
     readonly from: GraphKey;
-  }[] = [];
+  } & PatternRoute)[] = [];
   readonly classes: ClassFacts[] = [];
   readonly newExpressions: NewExpression[] = [];
   readonly literals: LiteralMembers[] = [];
@@ -757,13 +794,13 @@ class Walker {
     this.#frame.classes.push(facts);
   }
 
-  // `({ a: x.n } = o)`: the pattern declares nothing and fills no slot; its keys read the source's members. A nested or
-  // for-of pattern has no source expression of its own, so its keys read nothing here.
+  // `({ a: x.n } = o)`, nested (`({ inner: { a: x } } = o)`, `[{ a: x }] = rows`) or a for-of target: the pattern
+  // declares nothing and fills no slot; its keys read the members of the source's type at the pattern's path.
   #assignmentPattern(node: ObjectLiteralExpression): void {
-    const { parent } = node;
     const names = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : (keyText(property.name) ?? [])));
-    if (isBinaryExpression(parent) && sameNode(parent.left, node) && names.length > 0) {
-      this.#sites.patterns.push({ pattern: node, source: parent.right, names, from: this.#holder });
+    const route = patternRoute(node);
+    if (route !== null && names.length > 0) {
+      this.#sites.patterns.push({ pattern: node, ...route, names, from: this.#holder });
     }
   }
 
@@ -847,7 +884,7 @@ class Walker {
     if (isObjectBindingPattern(node)) {
       const names = node.elements.flatMap((element) => (element.dotDotDotToken === undefined ? bindingKey(element) : []));
       if (names.length > 0) {
-        this.#sites.patterns.push({ pattern: node, source: node, names, from: this.#holder });
+        this.#sites.patterns.push({ pattern: node, source: node, iterated: false, steps: [], names, from: this.#holder });
       }
     }
     if (
