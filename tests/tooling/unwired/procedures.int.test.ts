@@ -2,13 +2,13 @@
 // has a twin the scan must keep reporting: a same-named method, a name in a string table and a type read reach no
 // procedure; a route's other method, a lookalike path and an uncalled URL builder reach no route.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanProcedures } from "../../../tooling/src/unwired/index.ts";
+import { OUTSIDE_CALLERS, scanProcedures } from "../../../tooling/src/unwired/index.ts";
 import { LIB } from "./_planted.ts";
 
 const WORLD = "tsconfig.json";
 // Planted source spells its own template literals; the placeholder sign is interpolated so this file has none in a string.
 const DOLLAR = "$";
-const TSCONFIG = plantedTsconfig({ lib: [...LIB, "DOM"], include: ["packages", "tests"], jsx: "preserve" });
+const TSCONFIG = plantedTsconfig({ lib: [...LIB, "DOM"], include: ["packages", "tests", "tooling"], jsx: "preserve" });
 
 // The tRPC packages, typed the way the real ones are: a router record and both proxies are homomorphic mapped types,
 // so a proxy member's symbol is the record's own property.
@@ -34,6 +34,12 @@ const TRPC = {
   ].join("\n"),
 };
 
+// The outside-caller table's rows, planted from the scan's own table so a row change cannot drift from the cases.
+const PROCEDURE_ROWS = OUTSIDE_CALLERS.flatMap((row) => (row.surface === "procedure" ? [row] : []));
+const ROUTE_ROWS = OUTSIDE_CALLERS.flatMap((row) => (row.surface === "route" ? [row] : []));
+const [UNPLANTED_ROUTE_ROW, ...PLANTED_ROUTE_ROWS] = ROUTE_ROWS;
+const ROOT_PROCEDURES = PROCEDURE_ROWS.map((row) => `${row.procedure}: procedure.query(() => true), `).join("");
+
 const PROCEDURE_TREE = {
   [WORLD]: TSCONFIG,
   ...TRPC,
@@ -48,12 +54,13 @@ const PROCEDURE_TREE = {
     "  named: procedure.mutation(() => null),",
     "  typed: procedure.query(() => []),",
     "  served: procedure.query(() => []),",
+    "  probed: procedure.query(() => []),",
     "});",
   ].join("\n"),
   "packages/server/src/transport/trpc/router.ts": [
     'import { procedure, router } from "@trpc/server";',
     'import { tagRouter } from "./routers/tag.ts";',
-    "export const appRouter = router({ health: procedure.query(() => true), ping: procedure.query(() => true), tag: tagRouter });",
+    `export const appRouter = router({ ${ROOT_PROCEDURES}ping: procedure.query(() => true), tag: tagRouter });`,
     "export type AppRouter = typeof appRouter;",
   ].join("\n"),
   // The server calling its own procedure through the caller factory.
@@ -79,6 +86,8 @@ const PROCEDURE_TREE = {
     "export const renamed = other.rename();",
     "export type Typed = ReturnType<typeof trpc.tag.typed.query>;",
   ].join("\n"),
+  // A tooling file is not production, so its call makes the procedure test-only, as the member scan reads it.
+  "tooling/probe.ts": ['import { trpc } from "../packages/client/src/trpc.ts";', "export const probed = trpc.tag.probed.queryOptions();"].join("\n"),
   "tests/server/tag.test.ts": [
     'import { trpc } from "../../packages/client/src/trpc.ts";',
     "export const pruned = (): Promise<unknown> => trpc.tag.prune.mutate();",
@@ -95,8 +104,9 @@ test("a procedure is called through the client proxy, the server's caller or a t
   plantedTree,
 }) => {
   const report = scan(await plantedTree(PROCEDURE_TREE));
-  expect(report.procedures).toBe(10);
+  expect(report.procedures).toBe(11);
   expect(found(report)).toEqual([
+    "test-only-procedure appRouter.tag probed tests=1 keys=0",
     "test-only-procedure appRouter.tag prune tests=1 keys=0",
     "uncalled-procedure appRouter ping tests=0 keys=0",
     "uncalled-procedure appRouter.tag named tests=0 keys=0",
@@ -104,10 +114,11 @@ test("a procedure is called through the client proxy, the server's caller or a t
     "uncalled-procedure appRouter.tag stale tests=0 keys=1",
     "uncalled-procedure appRouter.tag typed tests=0 keys=0",
   ]);
-  // The health procedure is excused by its outside-caller row, never by a caller; its twin `ping` stays reported.
-  expect(report.outside.map(({ row, at, calls }) => ({ surface: row.surface, at, calls }))).toEqual([
-    { surface: "procedure", at: ["packages/server/src/transport/trpc/router.ts:3"], calls: 0 },
-  ]);
+  // A procedure row is excused by its outside-caller row, never by a caller; its twin `ping` stays reported.
+  expect(report.outside.map(({ row, at, calls }) => ({ row, at, calls }))).toEqual(
+    PROCEDURE_ROWS.map((row) => ({ row, at: ["packages/server/src/transport/trpc/router.ts:3"], calls: 0 })),
+  );
+  expect(report.stale).toEqual(ROUTE_ROWS);
 });
 
 const HONO = {
@@ -120,6 +131,11 @@ const HONO = {
     "  use(...handlers: unknown[]): Hono;",
     "}",
   ].join("\n"),
+  // A file-system open and a server adapter's fetch member share the platform's names and request nothing.
+  "node_modules/fs-lib/package.json": '{ "name": "fs-lib", "types": "index.d.ts" }',
+  "node_modules/fs-lib/index.d.ts": "export declare function open(path: string): Promise<unknown>;",
+  "node_modules/server-lib/package.json": '{ "name": "server-lib", "types": "index.d.ts" }',
+  "node_modules/server-lib/index.d.ts": "export interface ServeOptions { fetch(request: Request, bindings: unknown): Promise<Response>; port?: number }",
   // The element attributes the platform declares, outside the tree as React's are.
   "node_modules/planted-jsx/index.d.ts": [
     "declare namespace JSX {",
@@ -163,9 +179,9 @@ const ROUTE_TREE = {
     "  app.get(EXPORT_ROUTES.character, () => null);",
     '  app.get("/api/debug/dump", () => null);',
     '  app.get("/api/orphan", () => null);',
-    '  app.get("/healthz", () => null);',
+    '  app.get("/api/debug/probe", () => null);',
     `  app.get(\`${DOLLAR}{pattern.prefix}:id${DOLLAR}{pattern.suffix}\`, () => null);`,
-    '  app.on("POST", "/api/auth/oidc/backchannel-logout", () => null);',
+    ...PLANTED_ROUTE_ROWS.map((row) => `  app.on(${JSON.stringify(row.method)}, ${JSON.stringify(row.path)}, () => null);`),
     "  app.use(() => null);",
     "}",
   ].join("\n"),
@@ -182,7 +198,19 @@ const ROUTE_TREE = {
     'export const lookalike = (): Promise<Response> => fetch("/api/orphans");',
     'export const elsewhere = (): Promise<Response> => fetch("https://example.com/api/orphan");',
     "export const unknown = (url: string): Promise<Response> => fetch(url);",
+    // A method written as a shorthand or a quoted key is read through the checker, so neither request is a GET.
+    'export const shortUpload = (body: string): Promise<Response> => { const method = "POST"; return fetch(UPLOAD_ROUTE, { method, body }); };',
+    'export const quoted = (body: string): Promise<Response> => fetch("/api/orphan", { "method": "POST", body });',
+    // A URL that starts with a substitution is no path on our origin the scan can read, so it is listed.
+    `export const based = (base: string): Promise<Response> => fetch(\`${DOLLAR}{base}/api/debug/dump\`);`,
   ].join("\n"),
+  "packages/server/src/infra/serve.ts": [
+    'import { open } from "fs-lib";',
+    'import type { ServeOptions } from "server-lib";',
+    'export const read = (): Promise<unknown> => open("/api/orphan");',
+    'export const relay = (options: Pick<ServeOptions, "fetch">, request: Request): Promise<Response> => options.fetch(request, {});',
+  ].join("\n"),
+  "tooling/probe.ts": 'export const probe = (): Promise<Response> => fetch("/api/debug/probe");\n',
   "tests/server/dump.test.ts": 'export const dumped = (): Promise<Response> => fetch("/api/debug/dump");\n',
 };
 
@@ -191,9 +219,10 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = scan(await plantedTree(ROUTE_TREE));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(10);
+  expect(report.routes).toBe(9 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/debug/dump tests=1 keys=0",
+    "test-only-route GET /api/debug/probe tests=1 keys=0",
     "uncalled-route GET /api/orphan tests=0 keys=0",
     "uncalled-route GET /api/upload tests=0 keys=0",
     "uncalled-route GET /api/widget/:id/asset tests=0 keys=0",
@@ -201,15 +230,9 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
   expect(report.unplaced).toEqual([
     { file: "packages/client/src/requests.tsx", line: 4, sink: "src" },
     { file: "packages/client/src/requests.tsx", line: 12, sink: "fetch" },
+    { file: "packages/client/src/requests.tsx", line: 15, sink: "fetch" },
   ]);
-  expect(report.outside.map(({ row, at }) => ({ row: row.surface === "route" ? `${row.method} ${row.path}` : row.procedure, at }))).toEqual([
-    { row: "POST /api/auth/oidc/backchannel-logout", at: ["packages/server/src/entry/http/routes.ts:14"] },
-    { row: "GET /healthz", at: ["packages/server/src/entry/http/routes.ts:12"] },
-  ]);
-  expect(report.stale.map((row) => (row.surface === "route" ? `${row.method} ${row.path}` : row.procedure)).toSorted()).toEqual([
-    "GET *",
-    "GET /api/auth/oidc/callback",
-    "GET /join/:token",
-    "health",
-  ]);
+  // Every planted row is matched, and the one row left unplanted reports as stale beside the procedure rows.
+  expect(report.outside.map(({ row }) => row)).toEqual(PLANTED_ROUTE_ROWS);
+  expect(report.stale).toEqual(OUTSIDE_CALLERS.filter((row) => row === UNPLANTED_ROUTE_ROW || row.surface === "procedure"));
 });

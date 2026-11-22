@@ -18,7 +18,7 @@ export { scanParams } from "./params.ts";
 export type { PortCensus } from "./port-census.ts";
 export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
-export { scanProcedures } from "./procedures.ts";
+export { OUTSIDE_CALLERS, scanProcedures } from "./procedures.ts";
 export { runUnwired } from "./run.ts";
 export { scanUnwired, scanWorld } from "./scan.ts";
 export { scanShapes } from "./shapes.ts";

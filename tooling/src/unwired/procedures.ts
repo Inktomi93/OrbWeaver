@@ -66,7 +66,6 @@ import { scanWorlds, sortDeliberate } from "./scan.ts";
 const PROCEDURE_HOMES = ["packages/server/src/transport/trpc/router.ts", "packages/server/src/transport/trpc/routers/"] as const;
 /** The registrars of the server's own HTTP routes. */
 const ROUTE_HOME = "packages/server/src/entry/http/";
-const TEST_TREE = "tests/";
 
 const inHomes = (file: string, homes: readonly string[]): boolean => homes.some((home) => (home.endsWith("/") ? file.startsWith(home) : file === home));
 
@@ -105,7 +104,7 @@ interface RequestCall {
   readonly url: number;
   readonly method: RouteMethod | { readonly init: number };
 }
-// Keyed by the lib's symbol: `Owner.member` for a member, a global's own name otherwise.
+// Keyed by the lib's symbol: `Owner.member` for a member, a global function or constructor's own name otherwise.
 const REQUEST_CALLS: Readonly<Record<string, RequestCall>> = {
   fetch: { url: 0, method: { init: 1 } },
   // biome-ignore lint/style/useNamingConvention: the key is the lib's own `Request` constructor.
@@ -134,7 +133,7 @@ type OutsideCaller =
 
 /** Routes and procedures something outside the repository calls. The owner rules on each row before a report is judged;
  *  a row no registration matches reports as stale. */
-const OUTSIDE_CALLERS: readonly OutsideCaller[] = [
+export const OUTSIDE_CALLERS: readonly OutsideCaller[] = [
   {
     surface: "route",
     method: "GET",
@@ -788,27 +787,44 @@ function* requestKey(world: NativeWorld, symbol: NativeSymbol | undefined): APIR
     return null;
   }
   const parent = yield* symbol.getParent.gen();
-  // A global has no owner symbol, or one named by its quoted module path; either way its own name is the key.
-  return parent === undefined || parent.name.startsWith('"') ? symbol.name : `${parent.name}.${symbol.name}`;
+  if (parent !== undefined) {
+    // A module's export keeps its module in the key, so `open` from a file-system module is never the window's.
+    return `${parent.name}.${symbol.name}`;
+  }
+  // A member with no owner symbol, such as a mapped type's property, is no global.
+  return hasFlag(symbol.flags, SymbolFlags.Property) || hasFlag(symbol.flags, SymbolFlags.Method) ? null : symbol.name;
 }
 
-// The method a request's init object names, as the platform's `RequestInit` reads it.
+// A shorthand's own symbol is the member; the value it reads is the variable it names.
+function* shorthandValue(world: NativeWorld, shorthand: ShorthandPropertyAssignment): APIRequestGenerator<readonly Pattern[]> {
+  const { checker } = world;
+  const value = yield* checker.getShorthandAssignmentValueSymbol.gen(shorthand);
+  const literal = value === undefined ? null : yield* literalsOf(yield* checker.getTypeOfSymbol.gen(value));
+  if (literal !== null) {
+    return literal;
+  }
+  const bound = yield* declarationOf(world, value);
+  return bound !== undefined && isVariableDeclaration(bound) && bound.initializer !== undefined ? yield* fold(world, bound.initializer, 0) : UNKNOWN;
+}
+
+// The method a request's init object names, read through the checker as the platform's `RequestInit` reads it: a
+// plain, shorthand, quoted or spread member alike. A method the fold cannot read is every method.
 function* initMethod(world: NativeWorld, init: Expression | undefined): APIRequestGenerator<RouteMethod> {
   if (init === undefined) {
     return DEFAULT_METHOD;
   }
-  const literal = unwrap(init);
-  if (!isObjectLiteralExpression(literal)) {
-    return ANY_METHOD;
-  }
-  if (literal.properties.some((property) => !(isPropertyAssignment(property) || isShorthandPropertyAssignment(property)))) {
-    return ANY_METHOD;
-  }
-  const named = literal.properties.find((property) => isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === INIT_METHOD);
-  if (named === undefined || !isPropertyAssignment(named)) {
+  const { checker } = world;
+  const member = yield* checker.getPropertyOfType.gen(yield* checker.getTypeAtLocation.gen(init), INIT_METHOD);
+  if (member === undefined) {
     return DEFAULT_METHOD;
   }
-  const patterns = yield* fold(world, named.initializer, 0);
+  const declaration = yield* declarationOf(world, member);
+  let patterns = (yield* literalsOf(yield* checker.getTypeOfSymbol.gen(member))) ?? UNKNOWN;
+  if (declaration !== undefined && isPropertyAssignment(declaration)) {
+    patterns = yield* fold(world, declaration.initializer, 0);
+  } else if (declaration !== undefined && isShorthandPropertyAssignment(declaration)) {
+    patterns = yield* shorthandValue(world, declaration);
+  }
   const [only] = patterns;
   return patterns.length === 1 && only !== undefined && !only.includes(null) ? asMethod(only.join("")) : ANY_METHOD;
 }
@@ -1032,12 +1048,9 @@ function routesFor(request: Request, path: CallerPath, routes: readonly RouteRec
 const CALLER_TREES = ["production", "test"] as const;
 type CallerTree = (typeof CALLER_TREES)[number];
 
-function callerTree(file: string): CallerTree | null {
-  if (isProductionFile(file)) {
-    return "production";
-  }
-  return file.startsWith(TEST_TREE) ? "test" : null;
-}
+// The member scan's rule (`classifyReference`): a production file's caller is production, and every other caller
+// (tests, tooling, scripts) is a test's.
+const callerTree = (file: string): CallerTree => (isProductionFile(file) ? "production" : "test");
 
 function routeCredits(
   routes: readonly RouteRecord[],
@@ -1051,11 +1064,9 @@ function routeCredits(
       const path = callerPath(pattern);
       return path === null ? [] : [path];
     });
-    if (paths.length === 0 && tree === "production" && request.patterns.some((pattern) => pattern[0] === null)) {
+    // A pattern that starts with a wildcard is no path the scan can match, so the request is listed for a person.
+    if (tree === "production" && request.patterns.some((pattern) => merged(pattern)[0] === null)) {
       unplaced.push(request);
-    }
-    if (tree === null) {
-      continue;
     }
     const into = sites[tree];
     for (const route of paths.flatMap((path) => routesFor(request, path, routes))) {
