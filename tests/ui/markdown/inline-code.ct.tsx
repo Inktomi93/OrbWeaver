@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { InlineCodeStory } from "./_inline-code-stories.tsx";
 
 const STORY = "tests/ui/markdown/_inline-code-stories/InlineCodeStory";

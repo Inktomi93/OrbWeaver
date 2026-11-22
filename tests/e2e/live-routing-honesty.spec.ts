@@ -13,8 +13,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { openNewestChat, sendHeldTurn, waitForStreamOpen } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { expectLocalEngineServed } from "./support/engine-witness.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";

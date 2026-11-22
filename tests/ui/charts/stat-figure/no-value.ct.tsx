@@ -1,7 +1,7 @@
 // @subject packages/ui/src/charts/stat-figure/stat-figure.tsx
 // A figure with no value prints the shared empty-value glyph and a screen reader hears its name, not a bare dash.
 import { NO_VALUE, NO_VALUE_NAME } from "@orb/kit/strings";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { StatFigureNoValueStory } from "./_no-value-stories.tsx";
 
 const STORY = "tests/ui/charts/stat-figure/_no-value-stories/StatFigureNoValueStory";

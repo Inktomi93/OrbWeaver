@@ -256,6 +256,11 @@ export function literalRoleAt(source: ts.SourceFile, position: number): LiteralR
   if (ts.isLiteralTypeNode(parent)) {
     return "type";
   }
+  return valueRole(node, parent);
+}
+
+// What a value expression does where it stands: a `case` label, an equality or membership operand, a key, or a construction.
+function valueRole(node: ts.Node, parent: ts.Node): LiteralRole {
   if (ts.isCaseClause(parent)) {
     return "case";
   }
@@ -263,6 +268,27 @@ export function literalRoleAt(source: ts.SourceFile, position: number): LiteralR
     return "compare";
   }
   return isKeyName(node, parent) ? "key" : "construct";
+}
+
+/** What the value the name at `position` reads does there, judged as {@link literalRoleAt} judges a literal: the name, or
+ *  the member access it ends, through parentheses and assertions. `null` where the name reads no value: a type position,
+ *  an import, a write or a declaration's own name. */
+export function readRoleAt(source: ts.SourceFile, position: number): LiteralRole | null {
+  const node = nameAt(source, position);
+  const parent = node?.parent;
+  if (node === undefined || parent === undefined || roleOf(node) !== "read" || (ts.isVariableDeclaration(parent) && parent.name === node)) {
+    return null;
+  }
+  let value: ts.Node = ts.isPropertyAccessExpression(parent) && parent.name === node ? parent : node;
+  while (
+    ts.isParenthesizedExpression(value.parent) ||
+    ts.isAsExpression(value.parent) ||
+    ts.isSatisfiesExpression(value.parent) ||
+    ts.isNonNullExpression(value.parent)
+  ) {
+    value = value.parent;
+  }
+  return valueRole(value, value.parent);
 }
 
 const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;

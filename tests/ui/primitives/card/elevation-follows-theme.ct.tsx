@@ -1,6 +1,6 @@
 // ADR 0200: Tailwind inlines the `--shadow-overlay` recipe into `.shadow-overlay`, so the ingredient colours must be
 // served variables for a `[data-theme]` to reach a utility-shadowed surface.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ElevationStory } from "./_elevation-stories.tsx";
 
 const STORY = "tests/ui/primitives/card/_elevation-stories/ElevationStory";

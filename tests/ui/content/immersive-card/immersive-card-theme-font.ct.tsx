@@ -2,9 +2,9 @@
 // An unbalanced quote there must stop at the frame clamp: the frame keeps every style rule and falls back to
 // sans-serif, instead of a CSS string running to the end of its one-line <style> and swallowing the rules after it.
 import { FRAME_FONT_FALLBACK } from "@orb/kit/card-frame";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ImmersiveCardTextScaleStory } from "./_card-stories.tsx";
 
 const STORY = "tests/ui/content/immersive-card/_card-stories/ImmersiveCardTextScaleStory";

@@ -2,7 +2,7 @@
 // A hint costs a field no vertical space: side by side at a fine pointer, a hinted and a plain field set their labels on one
 // baseline and their controls on one top.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { HintPairStory } from "./_hint-pair-stories.tsx";
 

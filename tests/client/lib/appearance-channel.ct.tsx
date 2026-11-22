@@ -3,8 +3,8 @@
 // default. Its CSS readers, including the em-read ones, are the shell's, in app-shell-appearance.ct.tsx.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { AppearanceChannelStory } from "./_appearance-channel-stories.tsx";
 
 const STORY = "tests/client/lib/_appearance-channel-stories/AppearanceChannelStory";

@@ -1,5 +1,5 @@
 // The raw detectors are tested on planted markup inside their owning testkit, not exposed as product audit shortcuts.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { nameQualityFindings, productNameFindings } from "./accessible-names.ts";
 import { densityFindings } from "./density-census.ts";
 import { formIdentityFindings } from "./form-identity.ts";

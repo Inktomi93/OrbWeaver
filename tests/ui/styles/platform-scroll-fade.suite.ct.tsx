@@ -1,8 +1,9 @@
 // The scroll fades follow the scroll position through a scroll timeline, with no driver: a box scrolled to its start
 // has no top band, a box scrolled past the band's depth has the full band, and a box scrolled to its end has no
 // bottom band. Runs on Chromium and on the opt-in webkit-iphone project.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ScrollFadeStory } from "./_scroll-fade-stories.tsx";
 
 const STORY = "tests/ui/styles/_scroll-fade-stories/ScrollFadeStory";

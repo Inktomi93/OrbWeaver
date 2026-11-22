@@ -2,10 +2,10 @@
 // Exact transcript identity and content are covered by scripted-chat.spec.ts.
 
 import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
-import { expect, test } from "@playwright/test";
 import { chatRowActionsName } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ROW_STAR_NAME, ROW_UNSTAR_NAME } from "#client/lib/row-menu-names.ts";
 import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import { NAME_HOLE, namePattern } from "./support/surface-walker.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";

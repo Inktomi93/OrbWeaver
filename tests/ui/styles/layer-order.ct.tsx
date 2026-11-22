@@ -3,7 +3,7 @@
 // The build may fold the ordering statement into block order, so the served order is read from first appearances,
 // through the real CSS door.
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { MotionFloorStory } from "./_motion-floor-stories.tsx";
 
 const STORY = "tests/ui/styles/_motion-floor-stories/MotionFloorStory";

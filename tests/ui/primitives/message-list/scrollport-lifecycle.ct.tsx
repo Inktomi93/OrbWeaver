@@ -1,5 +1,5 @@
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { UNNAMED_LOG_NAME } from "#ui/primitives/log-viewer/log-viewer-names.ts";
 import type { LogViewerScrollportStory, MessageListScrollportStory } from "./_scrollport-stories.tsx";
 

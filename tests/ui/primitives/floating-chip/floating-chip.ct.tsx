@@ -1,8 +1,8 @@
 // A FloatingChip is a pill on the popover fill that floats on the overlay shadow, and comes and goes with its presence.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { FloatingChipStory } from "./_floating-chip-stories.tsx";
 
 const STORY = "tests/ui/primitives/floating-chip/_floating-chip-stories/FloatingChipStory";

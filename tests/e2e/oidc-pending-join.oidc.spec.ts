@@ -1,9 +1,9 @@
 // A signed-out invitee whose IdP identity has no account is held as a pending join by the real OIDC callback;
 // leaving it retires the invite and drops only the pendingJoin param. The issuer and code grant are real.
 import { randomBytes } from "node:crypto";
-import { expect, test } from "@playwright/test";
 import { continueWithName, PENDING_JOIN_NOT_NOW_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { ownerActor } from "./support/actors.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { E2E_SSO_GROUPS, OIDC_CLIENT, oidcIssuerTls } from "./support/modes.ts";
 import type { OidcIssuer } from "./support/oidc-issuer.ts";
 import { stageIssuerIdentity, startOidcIssuer } from "./support/oidc-issuer.ts";

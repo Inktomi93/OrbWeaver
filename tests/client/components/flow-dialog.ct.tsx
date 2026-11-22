@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FlowDialogStory } from "./_dialog-stories.tsx";
 
 test("scrolls a tall stage below its pinned heading and keeps its action visible", async ({ mount, page }) => {

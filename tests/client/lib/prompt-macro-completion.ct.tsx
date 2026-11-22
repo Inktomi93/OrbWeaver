@@ -1,7 +1,7 @@
 // @subject packages/client/src/lib/prompt-macros.ts
 // The builtin catalog's ranked hits fall in several categories out of order; the list names each category once,
 // and the arrow keys walk the rows in the order they are drawn.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MACRO_SUGGESTIONS_NAME } from "#ui/primitives/macro-textarea/macro-textarea-names.ts";
 import type { BuiltinMacroCompletionStory } from "./_prompt-macro-completion-stories.tsx";
 

@@ -5,8 +5,8 @@
 // mid-grey page, where no ink at the resting step clears 3:1 at all.
 
 import { readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { LIGHT_TONE_THEME, MID_GREY } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { CustomThemeDisabledInkStory } from "./_button-tone-stories.tsx";
 
 const STORIES = "tests/ui/primitives/button/_button-tone-stories";

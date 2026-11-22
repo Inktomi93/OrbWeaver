@@ -21,7 +21,6 @@ import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_STOP_NAME, CHAT_STOPPING_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
@@ -37,6 +36,7 @@ import {
   openMemberRowMenu,
   sendHeldTurn,
 } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SETTLE_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import type { GroupConfigInput } from "./support/trpc.ts";

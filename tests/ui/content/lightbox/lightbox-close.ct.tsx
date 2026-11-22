@@ -1,5 +1,5 @@
 // A phone has no Escape key, so the lightbox carries its own visible close control.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { LIGHTBOX_LABELS } from "../../../../packages/ui/src/content/lightbox/control-labels.ts";
 import type { LightboxCloseStory } from "./_lightbox-stories.tsx";
 

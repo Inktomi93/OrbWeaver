@@ -3,7 +3,7 @@
 // toggles are proven to be caught, and only through the metric each one actually escapes on
 // (contained-within-fixtures.tsx's header states which); the non-ancestor arm proves the anchor check
 // fires before any measurement, never after.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { expectContainedWithin } from "./contained-within.ts";
 import type { ContainmentNonAncestorStory, ContainmentSubjectStory } from "./contained-within-fixtures.tsx";
 

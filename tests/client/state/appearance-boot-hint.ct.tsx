@@ -4,9 +4,9 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { THEME_DENSITIES } from "@orb/contracts/theme";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { pickKeys } from "@orb/kit/objects";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "#client/state/durable-local-keys.ts";
 import type { AppearanceBootHintStory } from "./_appearance-boot-hint-stories.tsx";
 

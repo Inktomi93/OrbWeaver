@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { NativeSectionSwapStory, SafeErrorObserverStory } from "./_core-lifecycle-stories.tsx";
 
 test("one section intent coalesces native transitions and completes follow-up work after visual settlement", async ({ mount, page }) => {

@@ -1,6 +1,6 @@
 import { accessibilityScan } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { attachNativeFile } from "@orb/testkit/node/helpers";
-import { expect, test } from "@playwright/test";
 import { STORY_COMMANDS } from "./_described-menu-item-labels.ts";
 import type { DescribedMenuItemStory, MenuNameDetectorControlsStory } from "./_described-menu-item-stories.tsx";
 

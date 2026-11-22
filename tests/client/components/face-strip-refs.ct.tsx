@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FaceStripRefsStory } from "./_face-strip-stories.tsx";
 
 test("the fold remeasures renamed and removed face refs while keeping the selection visible", async ({ mount, page }) => {

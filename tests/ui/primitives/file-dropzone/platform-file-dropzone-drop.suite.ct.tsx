@@ -1,7 +1,7 @@
 // The dropzone decides `accept` itself, per file, for both a drop and the picker: the native attribute filters only the OS dialog.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { z } from "zod";
 import type { DropAcceptStory, DropBatch } from "./_drop-accept-stories.tsx";
 

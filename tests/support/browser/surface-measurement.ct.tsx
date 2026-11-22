@@ -22,12 +22,12 @@ import {
   webVitalsInitScript,
 } from "@orb/testkit/browser/spec";
 import { absenceWindow } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Page, PlaywrightTestArgs, TestInfo } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { nonEmpty, present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";

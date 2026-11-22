@@ -1,5 +1,6 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines, and each writes one report under reports/unwired/;
+// one over every world, the dead-inside-live verbs run both engines except `codes`, which runs engine one and refuses
+// `--cross-check`, and each writes one report under reports/unwired/;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -8,6 +9,7 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
+import { scanCodes } from "./codes.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
@@ -24,7 +26,7 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
@@ -87,6 +89,9 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)}`;
 }
 
+/** The scan verbs with no engine two, which refuse `--cross-check`. */
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes"]);
+
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired),
   fields: scan(
@@ -102,6 +107,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length} keyLists=${report.keyLists.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
+  codes: scan("reports/unwired/codes.json", scanCodes, (report) => ` codeVocabularies=${report.vocabularies.length}`),
   procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
 };
 
@@ -131,6 +137,10 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
+  const crossCheck = argv.includes(CROSS_CHECK_FLAG);
+  if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs engine one only, so there is no engine two to cross-check\n${USAGE}`);
+  }
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
   for (const arg of rest) {
     const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
@@ -145,7 +155,7 @@ function parseArgs(argv: readonly string[]): Args {
     out: flags.get("out") ?? null,
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
-    crossCheck: argv.includes(CROSS_CHECK_FLAG),
+    crossCheck,
     base: flags.get("base") ?? DEFAULT_BASE,
     head: flags.get("head") ?? DEFAULT_HEAD,
   };

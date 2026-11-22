@@ -3,9 +3,9 @@
 // every seed and both pane hosts, while the thumb still holds the 3:1 non-text floor against its track.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { SwitchThumbCeilingStory } from "./_thumb-ceiling-stories.tsx";
 
 const STORY = "tests/ui/primitives/switch/_thumb-ceiling-stories/SwitchThumbCeilingStory";

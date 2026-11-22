@@ -1,7 +1,7 @@
 import { themeOverrideSchema } from "@orb/contracts/theme";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { ThemeBoundaryStory } from "./_boundary-stories.tsx";
 
 const STORY = "tests/ui/content/theme-scope/_boundary-stories/ThemeBoundaryStory";

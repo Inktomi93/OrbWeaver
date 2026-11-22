@@ -3,7 +3,7 @@
 // phone's enlarged text, and the height transition still hides the content it folds.
 import { ringCuts, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PanelEdgeStory } from "./_panel-edge-stories.tsx";
 
 const STORY = "tests/ui/primitives/collapsible/_panel-edge-stories/PanelEdgeStory";

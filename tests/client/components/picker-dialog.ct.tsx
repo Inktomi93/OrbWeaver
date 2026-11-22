@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PickerDialogStory } from "./_dialog-stories.tsx";
 
 test("keeps the heading at the viewport gutter and dismisses with Escape", async ({ mount, page }) => {

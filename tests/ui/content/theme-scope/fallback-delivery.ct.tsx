@@ -1,8 +1,8 @@
 // A ThemeScope hands the D159 form-control edge fallback it took to the reporter context a host provides, once per scope and fallback.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { EDGE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import type { InputBorderFallback } from "@orb/ui/theme-scope";
-import { expect, test } from "@playwright/test";
 import { z } from "zod";
 import type { FallbackDeliveryStory } from "./_fallback-delivery-stories.tsx";
 

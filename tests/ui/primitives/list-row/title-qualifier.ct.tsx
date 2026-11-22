@@ -3,9 +3,9 @@
 // leaves the row, and two rows told apart only by their qualifier stay apart.
 import { resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { MetaSlotStory, NameFitStory, QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/TitleQualifierStory";

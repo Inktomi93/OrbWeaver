@@ -11,9 +11,9 @@
 // a 32px row. The paired control arm is the reason the widening is not a blanket: two genuine neighbouring
 // buttons must still measure as sub-targets.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { present } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { AuditEngine } from "../../tooling/src/ui-audit/contract/types.ts";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
 import { auditEngineOf, collectAudit, collectFindings, collectSamplesJs } from "../../tooling/src/ui-audit/index.ts";

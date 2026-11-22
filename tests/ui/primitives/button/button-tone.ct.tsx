@@ -2,7 +2,7 @@
 // fill-less styles only ghost takes its host's ink; an outline draws its own box in its tone's text role.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { HostInkStory, SelectionRailStory } from "./_button-tone-stories.tsx";
 
 const STORIES = "tests/ui/primitives/button/_button-tone-stories";

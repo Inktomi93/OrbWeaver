@@ -1,6 +1,6 @@
 // Forced colors drops every box-shadow and replaces every background, so the arm in client/styles/platform.css gives
 // the focus indicator and the tab indicator a system colour. The palette here is Chromium's own emulation.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ForcedColorsStory } from "./_forced-colors-stories.tsx";
 
 const STORY = "tests/ui/styles/_forced-colors-stories/ForcedColorsStory";

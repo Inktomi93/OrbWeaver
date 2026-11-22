@@ -4,8 +4,8 @@
 // UI-component boundary. A disabled solid Button wears the muted pair at full opacity, so the half-opacity step never dims it twice.
 
 import { readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { DisabledInkStory } from "./_button-tone-stories.tsx";
 
 const STORIES = "tests/ui/primitives/button/_button-tone-stories";

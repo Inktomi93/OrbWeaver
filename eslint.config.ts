@@ -2440,6 +2440,21 @@ const REGEX_EXECUTOR_IMPORT = {
   message: "Run a regex script in the display-pass Worker: useDisplayText for a row, runRegexPreview for the editor's preview.",
 };
 const refuseImports = (...paths: readonly object[]): Linter.RulesRecord => ({ "no-restricted-imports": ["error", { paths }] });
+
+const VITEST_TEST_IMPORT = { name: "vitest", importNames: ["test", "it"], message: "Import test from @orb/testkit/node, the shared test entry." };
+const TEST_SERVICE_ASSEMBLY_PATTERN = {
+  regex: "^(@orb/server(?:/|$)|#server/|.*packages/server/)",
+  importNamePattern: "^create(?:Services|.*(?:Service|Context))$",
+  allowTypeImports: true,
+  message: "Use the production graph from testkit; application tests must not assemble replacement services or contexts.",
+};
+// The auto fixtures live on the shared bases, so a spec that takes test from Playwright runs without them.
+const PLAYWRIGHT_TEST_IMPORT = {
+  name: "@playwright/test",
+  importNames: ["test"],
+  message: "Import test from @orb/testkit/ct-corpus in a CT spec, or from the e2e corpus-test or surface-test base in an e2e spec.",
+};
+const BROWSER_SPEC_FILES = ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"];
 const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   { files: REACT_SOURCE, plugins: { orb: localPlugin }, rules: { "orb/no-manual-memo": "error", "orb/no-use-promise": "error" } },
   // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
@@ -2769,22 +2784,17 @@ export default [
   {
     files: ["tests/**/*.{ts,tsx}"],
     ignores: ["tests/support/**", "tests/tooling/**", "**/*.test-d.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [{ name: "vitest", importNames: ["test", "it"], message: "Import test from @orb/testkit/node, the shared test entry." }],
-          patterns: [
-            {
-              regex: "^(@orb/server(?:/|$)|#server/|.*packages/server/)",
-              importNamePattern: "^create(?:Services|.*(?:Service|Context))$",
-              allowTypeImports: true,
-              message: "Use the production graph from testkit; application tests must not assemble replacement services or contexts.",
-            },
-          ],
-        },
-      ],
-    },
+    rules: { "no-restricted-imports": ["error", { paths: [VITEST_TEST_IMPORT], patterns: [TEST_SERVICE_ASSEMBLY_PATTERN] }] },
+  },
+  // Flat config replaces a rule's options per block, so a browser spec's block restates the refusals its files already carry.
+  {
+    files: BROWSER_SPEC_FILES,
+    ignores: ["tests/support/**", "tests/tooling/**"],
+    rules: { "no-restricted-imports": ["error", { paths: [VITEST_TEST_IMPORT, PLAYWRIGHT_TEST_IMPORT], patterns: [TEST_SERVICE_ASSEMBLY_PATTERN] }] },
+  },
+  {
+    files: ["tests/support/**/*.ct.tsx", "tests/tooling/**/*.ct.tsx"],
+    rules: { "no-restricted-imports": ["error", { paths: [PLAYWRIGHT_TEST_IMPORT] }] },
   },
   {
     files: ["tooling/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],

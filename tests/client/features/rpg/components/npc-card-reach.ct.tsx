@@ -3,7 +3,7 @@
 
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { npcMoodName } from "#client/features/rpg/lib/rpg-names.ts";
 import type { NpcCardStory } from "./_npc-card-stories.tsx";
 

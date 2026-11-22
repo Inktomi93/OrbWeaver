@@ -3,7 +3,7 @@
 // every line it breaks ends on one of the word's own hyphenation points.
 import { lineStarts, SOFT_HYPHEN, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { WrappedWordStory } from "./_wrapped-word-stories.tsx";
 
 const STORY = "tests/ui/primitives/text/_wrapped-word-stories/WrappedWordStory";

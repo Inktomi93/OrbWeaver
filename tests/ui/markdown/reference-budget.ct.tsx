@@ -3,7 +3,7 @@
 // own words. A reply whose few references copy little resolves every one.
 // @subject packages/ui/src/markdown/reference-budget.ts
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ReferenceBudgetStory } from "./_reference-budget-stories.tsx";
 import { REFERENCE_WORD, reusedReference } from "./reference-budget.shapes.ts";
 

@@ -2,7 +2,7 @@
 // A horizontal Field at a phone's enlarged text never outgrows the popup that holds it.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PopoverFieldStory } from "./field-enlarged-text-stories.tsx";
 
 const STORIES = "tests/ui/primitives/field/field-enlarged-text-stories";

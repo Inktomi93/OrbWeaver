@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { ToolbarNativePartsStory } from "./toolbar-native-parts-stories.tsx";
 
 test("toolbar native items share arrow navigation, disabled groups and keyboard activation", async ({ mount, page }) => {

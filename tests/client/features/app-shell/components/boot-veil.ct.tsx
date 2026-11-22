@@ -2,8 +2,8 @@
 // up while the app is not ready, holds a minimum beat when readiness is quick, never shows over an app that is
 // already ready, treats a degraded ready as ready, and under reduced motion waits only for readiness.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import type { BootVeilStory } from "./_boot-veil-stories.tsx";
 

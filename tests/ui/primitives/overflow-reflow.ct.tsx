@@ -6,7 +6,7 @@
 // Shared primitives at the browser's enlarged text on a phone: an open accordion panel leaves the focus ring of a control flush with its inline
 // edge whole, a tooltip breaks a word wider than its measure inside its popup, and an equal-cell toggle strip keeps a one-word label inside its cell and every word whole, taking a further row for cells its column cannot hold.
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, ringCuts, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type {
   AccordionEdgeStory,
   ToggleGroupFillStory,

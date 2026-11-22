@@ -1,7 +1,8 @@
 // Room-entry reads must not remount the composer or lose input. Exercise raw typing and one-shot sending.
-import { expect, test } from "@playwright/test";
+
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { messageRow, openNewestChat, reopenFirstChat, sendAndAwaitReply, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCharacters, startChat } from "./support/trpc.ts";
 

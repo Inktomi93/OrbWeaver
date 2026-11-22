@@ -16,12 +16,12 @@
 
 import { openContextSections } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_ADD_INJECTION_NAME, CHAT_INJECTION_ROW_LEAD, CHAT_REMOVE_INJECTION_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_INJECTION_CONTENT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 

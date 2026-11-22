@@ -1,11 +1,11 @@
 // D336: every primitive paints each tone and style from the tone's own roles, under each seed and a nested custom scope.
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_SCOPES } from "@orb/testkit/iso";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { BASES } from "../content/theme-scope/contrast-cases.ts";
 import type { ToneVariantMatrixStory } from "./_tone-variant-matrix-stories.tsx";
 

@@ -6,8 +6,8 @@ import { contextToggleLabel } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { boxOf, LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { CORPUS_CONTEXT_TAB_LABELS } from "#client/features/discovery/lib/corpus-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";

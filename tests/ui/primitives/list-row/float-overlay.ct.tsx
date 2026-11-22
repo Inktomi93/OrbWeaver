@@ -1,8 +1,8 @@
 // A floated action cluster lies over its own row body on a fine pointer by design. The cluster and the clickable body both
 // declare that relation, so the enlarged-text overlap probe names the pair instead of reporting it; an in-flow cluster overlays nothing.
 import { enlargedTextGeometry } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { OVERLAY_RELATION_ATTRIBUTE } from "@orb/ui/lib";
-import { expect, test } from "@playwright/test";
 import type { FloatOverlayStory } from "./_float-overlay-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_float-overlay-stories/FloatOverlayStory";

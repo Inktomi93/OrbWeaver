@@ -2,7 +2,7 @@
 // styled reply explains a refused image: every element and style form the frame's media policy governs, the addresses
 // that stay on the app's origin, and the read itself, which parses the markup without fetching any address it names.
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ExternalMediaCase, ExternalMediaStory } from "./_external-media-stories.tsx";
 
 const STORY = "tests/ui/content/sandbox-frame/_external-media-stories/ExternalMediaStory";

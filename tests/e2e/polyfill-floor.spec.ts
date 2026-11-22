@@ -1,9 +1,10 @@
 // The production bundle on a browser that lacks every builtin the polyfill entry installs (Temporal, RegExp.escape, Error.isError):
 // Home and a chat render with no page error. The stack serves the built client, so this runs the shipped chunk order, not the dev server's.
 import type { BrowserType, LaunchOptions } from "@playwright/test";
-import { chromium, expect, test, webkit } from "@playwright/test";
+import { chromium, webkit } from "@playwright/test";
 import { POLYFILLED_BUILTINS } from "../../packages/client/browser-targets.ts";
 import { openOrCreateChat, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 // WebKit reports the `interactive-widget` viewport key as a console error; it is the engine's, not a script failure.

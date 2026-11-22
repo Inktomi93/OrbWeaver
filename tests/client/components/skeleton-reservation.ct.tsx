@@ -1,6 +1,6 @@
 import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { SkeletonReservationStory } from "./_skeleton-reservation-stories.tsx";
 
 const ROWS = 3;

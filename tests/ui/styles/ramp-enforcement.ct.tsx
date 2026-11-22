@@ -1,8 +1,8 @@
 import { readSurfaceDesignAudit, resolvedLength } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { RampChartsStory, RampControlsStory, RampTypographyStory } from "./_ramp-enforcement-stories.tsx";
 
 const STORIES = "tests/ui/styles/_ramp-enforcement-stories";

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { FieldCustomValidityStory, FieldNativeConstraintStory } from "./field-native-parts-stories.tsx";
 
 test("custom validation transitions agree with the render prop without losing label or description association", async ({ mount }) => {

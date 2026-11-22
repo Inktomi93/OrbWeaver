@@ -1,7 +1,7 @@
 // @subject packages/client/src/components/query-boundary.tsx
 // A key change resets a standing error at most once: a child that throws for every key settles on the error arm for the new key,
 // and a deferred change to a failing fresh key reads it once and keeps the error arm.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { DeferredKeyStory, ThrowingChildStory } from "./_query-boundary-reset-stories.tsx";
 
 const STORIES = "tests/client/components/_query-boundary-reset-stories";

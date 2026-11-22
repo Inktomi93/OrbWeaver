@@ -1,7 +1,7 @@
 // In a short landscape viewport the dialog body scrolls, and the Link arm's fields start below the mode strip. Choosing the Link
 // source brings the Link field into view, clear of the footer that rides the scroll region's bottom edge.
 // @subject packages/client/src/features/databank/hooks/use-add-document-commit.tsx
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { DATABANK_FROM_LINK_NAME, DATABANK_LINK_FIELD_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 

@@ -1,6 +1,7 @@
 // A list that fills the whole port of the region around it hands a wheel at its end to that region, so what lies past the list stays reachable.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { InnerListChainStory } from "./_inner-list-chain-stories.tsx";
 
 const STORY = "tests/client/components/_inner-list-chain-stories/InnerListChainStory";

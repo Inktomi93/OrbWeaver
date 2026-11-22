@@ -4,7 +4,7 @@
 // a control's own value cut with an ellipsis fails while a list row title the design truncates does not, a title cut inside its reveal box is listed apart, and an overlay both sides
 // declare is named apart while every other overlay still fails: one side or neither declared, two relations, a control outside the pair's
 // parent, two controls of one declaring box, and a declaring box's control over a plain control beside the pair.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ComponentProps } from "react";
 import { enlargedTextFindings, enlargedTextGeometry } from "./enlarged-text-geometry.ts";
 import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_COVER_CONTROL_NAME, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";

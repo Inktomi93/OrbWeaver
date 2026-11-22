@@ -1,5 +1,5 @@
 import { DIALOG_VERBS } from "@orb/client/lib";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ViewerDialogStory } from "./_dialog-stories.tsx";
 
 const STORY = "tests/client/components/_dialog-stories/ViewerDialogStory";

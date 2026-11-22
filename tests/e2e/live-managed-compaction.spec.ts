@@ -28,9 +28,9 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CONTEXT_DIVIDER_COMPACTED_TEXT } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { CASE_LIVE_LOOP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import {
   claudeSubConnection,

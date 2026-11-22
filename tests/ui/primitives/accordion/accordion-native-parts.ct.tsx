@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { AccordionNativePartsStory } from "./accordion-native-parts-stories.tsx";
 
 test("native headers contain disclosures; Tab skips disabled items and Enter switches the open panel", async ({ mount, page }) => {

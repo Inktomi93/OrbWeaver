@@ -1,9 +1,9 @@
 // VirtualList's own behaviour: the scope-reset handshake, the state-gated bottom fade, the growing window's floor and the
 // unbounded-window tripwire.
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { EdgeFadeStory, ResetHandshakeStory, ShortWindowStory, TallHostStory, UnboundedStory } from "./_virtual-list-stories.tsx";
 import { MANY_ROWS } from "./virtual-list-cases.ts";
 
