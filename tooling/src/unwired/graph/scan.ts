@@ -1,6 +1,7 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
-// find-references check of a member bucket, the custom-property pass or the unions scan over it. Every result carries what the session
-// ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
+// find-references check of a member bucket, the custom-property pass, the DOM-hook pass, the unions scan or the codes
+// scan over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
+// a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -11,6 +12,8 @@ import type { CodesJudging, CodesReport } from "./codes.ts";
 import { codesPass } from "./codes.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
+import type { DomReport } from "./dom.ts";
+import { domPass } from "./dom.ts";
 import type { DumpStamp } from "./dump.ts";
 import { readDump, writeDump } from "./dump.ts";
 import type { LostBreakdown } from "./lost.ts";
@@ -228,4 +231,10 @@ export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FR
 /** Build the graph, then report the error and refusal codes nothing throws or no client branch names. */
 export function codesGraph(root: string, judging: CodesJudging, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CodesReport>> {
   return session(root, log, options, ({ graph, world, time }) => time("analyse", () => codesPass(graph, world(), judging, log)));
+}
+
+/** Build the graph, then report the class and data-* hooks with no partner. The pass reads the program's source, which a
+ *  dump does not carry, so it takes no `from`. */
+export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<DomReport>> {
+  return session(root, log, { ...options, from: null }, ({ world, time }) => time("analyse", () => domPass(root, world())));
 }

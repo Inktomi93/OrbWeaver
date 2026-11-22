@@ -1,10 +1,12 @@
-// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `codes` run the reference graph over the one merged
-// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom properties
-// nothing reads, or the error codes nothing throws or handles. `ports` writes the restated-port targets the derive
-// codemod reads; the bare verb runs engine one over every world, the dead-inside-live verbs run both engines except
-// `unions`, `procedures` and `columns`, which run one engine and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
-// `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
-// runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
+// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css`, `graph-dom` and `codes` run the reference graph over
+// the one merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
+// properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
+// `graph-dom` reads source, so it refuses `--from`. `ports` writes the restated-port targets the derive codemod reads;
+// the bare verb runs engine one over every world, the dead-inside-live verbs run both engines except `unions`,
+// `procedures` and `columns`, which run one engine and refuse `--cross-check`, and each writes one report under
+// reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver site of a removed contract key and
+// exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
+// (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
@@ -18,6 +20,7 @@ import { scanFields } from "./fields.ts";
 import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
+import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
@@ -25,7 +28,7 @@ import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { codesGraph, cssGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, domGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -48,14 +51,15 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
-/** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, and the
- *  queries each name is asked (./graph/query.ts). */
-const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-why", "graph-users", "graph-impact", "graph-reach", "codes"] as const;
+/** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
+ *  DOM-hook pass, and the queries each name is asked (./graph/query.ts). */
+const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-dom", "graph-why", "graph-users", "graph-impact", "graph-reach", "codes"] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   graph: "reports/unwired/graph.json",
   "graph-verify": "reports/unwired/graph-verify.json",
   "graph-css": "reports/unwired/graph-css.json",
+  "graph-dom": "reports/unwired/graph-dom.json",
   "graph-why": "reports/unwired/graph-why.json",
   "graph-users": "reports/unwired/graph-users.json",
   "graph-impact": "reports/unwired/graph-impact.json",
@@ -65,7 +69,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -415,6 +419,9 @@ function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir:
 
 function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
   const { flags, names } = graphFlags(verb, argv);
+  if (verb === "graph-dom" && flags.has("from")) {
+    throw new UsageError(`graph-dom reads the program's source, which a dump does not carry; drop --from\n${USAGE}`);
+  }
   const bucket = oneOf("bucket", single(flags, "bucket"), MEMBER_BUCKETS);
   if (verb === "graph-verify" && bucket === null) {
     throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
@@ -575,6 +582,25 @@ async function runGraphCss(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+async function runGraphDom(args: GraphArgs): Promise<number> {
+  const report = await domGraph(args.root, log, args.options);
+  const path = write(args.root, args.out, report);
+  for (const bucket of DOM_BUCKETS) {
+    for (const entry of report.buckets[bucket]) {
+      process.stdout.write(`${bucket}\t${entry}\n`);
+    }
+  }
+  for (const { text, at, world, why } of report.unresolved) {
+    process.stdout.write(`unresolved\t${world}\t${text}\t${at}\t${why}\n`);
+  }
+  logSession(report.session);
+  const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
+  log(
+    `${[...DOM_BUCKETS.map((bucket) => `${bucket}=${String(report.buckets[bucket].length)}`), `unresolved=${String(report.unresolved.length)}`, ...counts].join(" ")} written to ${path}`,
+  );
+  return EXIT.clean;
+}
+
 async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<number> {
   const { verification, session } = await verifyGraph(args.root, { bucket, sample: args.sample }, log, args.options);
   const path = write(args.root, args.out, { ...verification, session });
@@ -627,6 +653,9 @@ async function runGraph(args: GraphArgs): Promise<number> {
   }
   if (args.verb === "codes") {
     return await runGraphCodes(args);
+  }
+  if (args.verb === "graph-dom") {
+    return await runGraphDom(args);
   }
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }
