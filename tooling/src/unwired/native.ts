@@ -23,8 +23,10 @@ import type {
   LanguageService,
   Symbol as NativeSymbol,
   NodeHandle,
+  Program,
   ReferencedSymbolEntry,
   SignatureUsage,
+  Snapshot,
   Type,
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
@@ -91,6 +93,7 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
+  readonly #snapshot: Snapshot;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -99,6 +102,7 @@ export class NativeWorld implements Disposable {
     const path = `${root}/${config}`;
     const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: text } } });
     const project = snapshot.getConfiguredProject(path);
+    this.#snapshot = snapshot;
     if (project === undefined) {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
@@ -318,6 +322,32 @@ export class NativeWorld implements Disposable {
 
   [Symbol.dispose](): void {
     this.#api.close();
+  }
+
+  /** Hand `use` the world's program, or with `edit` the program of a throwaway snapshot where that repository-relative
+   *  file reads the edit's text; the throwaway snapshot is disposed when `use` returns.
+   *  @remarks Ask the handed program directly, never through {@link NativeWorld.batch}: its answer memo keys a request
+   *  without its snapshot, so a throwaway program's question would get the world's own answer back. */
+  withProgram<T>(use: (program: Program) => T, edit?: { readonly file: string; readonly text: string }): T {
+    const path = `${this.#root}/${this.config}`;
+    const programOf = (snapshot: Snapshot): Program => {
+      const project = snapshot.getConfiguredProject(path);
+      if (project === undefined) {
+        throw new Error(`${this.config}: the snapshot holds no project`);
+      }
+      return project.program;
+    };
+    if (edit === undefined) {
+      return use(programOf(this.#snapshot));
+    }
+    let result: { readonly value: T } | undefined;
+    this.#api.runWithTemporaryFileUpdate(this.#snapshot, `${this.#root}/${edit.file}`, edit.text, (snapshot) => {
+      result = { value: use(programOf(snapshot)) };
+    });
+    if (result === undefined) {
+      throw new Error(`${edit.file}: the temporary update ran no callback`);
+    }
+    return result.value;
   }
 }
 

@@ -1,6 +1,6 @@
 // The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
 // program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
-// nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// nothing reads; `graph-trial` deletes each finding of the named buckets in a throwaway snapshot (./graph/trial.ts). `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
@@ -19,7 +19,9 @@ import { scanFields } from "./fields.ts";
 import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
-import { cssGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { cssGraph, scanGraph, trialGraph, verifyGraph } from "./graph/scan.ts";
+import type { TrialBucket } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -395,6 +397,59 @@ async function runGraph(args: GraphArgs): Promise<number> {
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }
 
+const TRIAL_VERB = "graph-trial";
+const TRIAL_OUT = "reports/unwired/graph-trial.json";
+const TRIAL_USAGE = `usage: pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--root=<dir>] [--out=<file>]`;
+const TRIAL_FLAG = /^--(root|out|bucket)=(.+)$/u;
+
+interface TrialArgs {
+  readonly root: string;
+  readonly out: string;
+  readonly buckets: readonly TrialBucket[];
+}
+
+function parseTrialArgs(argv: readonly string[]): TrialArgs {
+  const buckets: TrialBucket[] = [];
+  const flags = new Map<string, string>();
+  for (const arg of argv) {
+    const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
+    if (name === "") {
+      throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
+    }
+    const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
+    if (bucket === null) {
+      flags.set(name, value);
+    } else {
+      buckets.push(bucket);
+    }
+  }
+  if (buckets.length === 0) {
+    throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
+  }
+  return { root: resolve(flags.get("root") ?? process.cwd()), out: flags.get("out") ?? TRIAL_OUT, buckets };
+}
+
+async function runGraphTrial(args: TrialArgs): Promise<number> {
+  const report = await trialGraph(args.root, args.buckets, log);
+  const path = write(args.root, args.out, report);
+  for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
+    const errors = trial.errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`).join(",");
+    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? errors}\n`);
+  }
+  for (const row of report.control.filter(({ side }) => side !== "agree")) {
+    process.stdout.write(`control-${row.side}\t${row.at}\t${row.name}\t${row.code === null ? "" : `TS${String(row.code)}`}\t${row.graph}\n`);
+  }
+  for (const bucket of new Set(args.buckets)) {
+    const mine = report.trials.filter((trial) => trial.bucket === bucket);
+    log(
+      `${bucket} trials=${String(mine.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(mine.filter((trial) => trial.verdict === verdict).length)}`).join(" ")}`,
+    );
+  }
+  const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
+  log(`control ${sides.join(" ")} written to ${path}`);
+  return EXIT.clean;
+}
+
 const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
 
 // The verbs that run asynchronously: `coverage` runs the test suites with its own flags, and the graph verbs load the
@@ -402,6 +457,9 @@ const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VER
 function asyncVerb(argv: readonly string[]): Promise<number> | undefined {
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
+  }
+  if (argv[0] === TRIAL_VERB) {
+    return runGraphTrial(parseTrialArgs(argv.slice(1)));
   }
   const graph = graphVerb(argv[0]);
   return graph === undefined ? undefined : runGraph(parseGraphArgs(graph, argv.slice(1)));

@@ -1,5 +1,5 @@
 // One graph session: the roots, the merged program and the build, then the analysis, the find-references check of a
-// member bucket, or the custom-property pass over it.
+// member bucket, the delete trial of named buckets, or the custom-property pass over it.
 
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -9,6 +9,8 @@ import { buildGraph, openGraphWorld } from "./build.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
 import { loadRoots } from "./roots.ts";
+import type { TrialBucket, TrialReport } from "./trial.ts";
+import { runTrials } from "./trial.ts";
 import type { Verified } from "./verify.ts";
 import { evenSample, verifyFindings } from "./verify.ts";
 
@@ -66,4 +68,10 @@ export function verifyGraph(
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog): Promise<CssReport> {
   return session(root, log, (graph) => cssPass(root, graph));
+}
+
+/** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
+ *  unused-diagnostics control (./trial.ts). */
+export function trialGraph(root: string, buckets: readonly TrialBucket[], log: GraphLog): Promise<TrialReport> {
+  return session(root, log, (graph) => runTrials(graph, analyse(graph), buckets, log));
 }
