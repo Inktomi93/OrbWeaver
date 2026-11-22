@@ -76,7 +76,8 @@ const ASK: Verdict = "ask";
 
 // A short name's word match spans the whole tree.
 const GREP_BUFFER = 268_435_456;
-const HIT_LINE = /^([^:]+):(\d+):(.*)$/u;
+// `s`: the text runs to the end of the line, a CRLF file's trailing `\r` and a U+2028 inside it included.
+const HIT_LINE = /^([^:]+):(\d+):(.*)$/su;
 
 /** One line `git grep -n` printed. */
 export interface GrepLine {
@@ -97,7 +98,11 @@ export function gitGrep(root: string, rev: string | null, args: readonly string[
     .split("\n")
     .filter((line) => line !== "")
     .map((line) => {
-      const [, file = "", number = "0", text = ""] = HIT_LINE.exec(line.slice(prefix)) ?? [];
+      const parsed = HIT_LINE.exec(line.slice(prefix));
+      if (parsed === null) {
+        throw new Error(`git grep printed a line that is not path:line:text: ${JSON.stringify(line)}`);
+      }
+      const [, file = "", number = "0", text = ""] = parsed;
       return { file, line: Number(number), text };
     });
 }

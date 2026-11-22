@@ -2,6 +2,8 @@
 // rules, split by the side of the tree that holds it, and the literal stage that moves a dead field row to ask only on a
 // hit that can be a read.
 
+import { symlinkSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -181,6 +183,27 @@ test("the verb prints each hit and its totals, and --json writes the report", { 
       hits: ["doc docs/s.md:1 false", "declaration packages/a/src/s.ts:1 true", "read packages/a/src/s.ts:1 true"],
     },
   ]);
+});
+
+// A CRLF line ends in a carriage return and a line may hold U+2028, which a pattern's `.` does not cross: each hit keeps
+// its own file, never an empty path that reads the root directory. A tracked symlink to a directory whose target names
+// the word is no hit at all: git grep over the working tree does not read a symlink.
+test("a CRLF line and a U+2028 line keep their file; a tracked symlink to a directory is no hit", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "install.cmd": "rem zqCrlf on a Windows line\r\nrem the next line\r\n",
+      "docs/sep.md": "zqSeparated before \u{2028} after\n",
+      "packages/a/zqLinkedDir/inside.md": "a file in the linked directory\n",
+    }),
+  );
+  symlinkSync("zqLinkedDir", join(root, "packages/a/alias"));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const search = searchLiterals(root, world, ["zqCrlf", "zqSeparated", "zqLinkedDir"]);
+  const placed = (name: string): readonly string[] => (search?.hits.get(name) ?? []).map((hit) => `${hit.at} ${hit.kind} ${hit.scope}`);
+  expect([placed("zqCrlf"), placed("zqSeparated"), placed("zqLinkedDir")]).toEqual([["install.cmd:1 other tooling"], ["docs/sep.md:1 doc docs"], []]);
+  expect(execFixtureGit(root, ["ls-files", "-s", "packages/a/alias"])).toMatch(/^120000 /u);
 });
 
 test("the verb refuses a name that is not one word before it searches", () => {
