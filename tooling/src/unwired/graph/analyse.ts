@@ -20,7 +20,8 @@ import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
-import type { GraphFacts, MemberRoles, ReadonlyEdges } from "./state.ts";
+import { SERVER_SOURCE } from "./spellings.ts";
+import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -40,6 +41,10 @@ export const BUCKETS = [
   "member-untouched",
   "state-never-read",
   "state-never-set",
+  "registry-stale",
+  "union-re-spells-a-home",
+  "union-slice-of-a-home",
+  "union-repeated-no-home",
 ] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
@@ -86,6 +91,38 @@ const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
   key: "named as a key outside the product: tests or tooling",
 };
 
+const SERVER_DOMAIN = /^packages\/server\/src\/domain\/([^/]+)\//u;
+const MEMBER_JOIN = "|";
+
+// Why a registry site exempts nothing, or null while it names a live declaration.
+function staleNote(
+  { kind, target, name }: RegistrySite,
+  known: { readonly declared: ReadonlySet<string>; readonly serverNames: ReadonlySet<string>; readonly domains: ReadonlySet<string> },
+): string | null {
+  if (kind === "site") {
+    return known.declared.has(`${target}#${name}`) ? null : `${target} declares no ${name}`;
+  }
+  if (!known.domains.has(target)) {
+    return `no server domain ${target}`;
+  }
+  return known.serverNames.has(name) ? null : `no server declaration ${name}`;
+}
+
+// Which union bucket an inline member set lands in, and why; null for a single site with no home to match.
+function unionPlacement(
+  home: readonly string[],
+  slices: readonly string[],
+  sites: number,
+): { readonly bucket: "union-re-spells-a-home" | "union-slice-of-a-home" | "union-repeated-no-home"; readonly note: string } | null {
+  if (home.length > 0) {
+    return { bucket: "union-re-spells-a-home", note: `home ${home.join("; ")}` };
+  }
+  if (slices.length > 0) {
+    return { bucket: "union-slice-of-a-home", note: `a slice of ${slices.join("; ")}` };
+  }
+  return sites > 1 ? { bucket: "union-repeated-no-home", note: "" } : null;
+}
+
 const readsIn = (roles: ReadonlySet<Role>): boolean => [...READS].some((read) => roles.has(read));
 
 const isAmbient = (file: string): boolean => file.endsWith(".d.ts") && !file.startsWith(PUBLISHED_SDK);
@@ -112,6 +149,31 @@ function reach(starts: Iterable<GraphKey>, maps: readonly ReadonlyEdges[]): Read
   return seen;
 }
 
+/** What a ruling keeps, each with its reason: published or trusted exports, a knip keep tag, a production compile-time
+ *  pin, and a plugin contract type the SDK publishes by name. */
+export function keptByRuling(graph: Graph): ReadonlyMap<GraphKey, string> {
+  const { facts } = graph;
+  const why = new Map<GraphKey, string>();
+  for (const { decl, kind, why: reason } of graph.kept) {
+    why.set(decl, `${kind}: ${reason}`);
+  }
+  for (const [key, info] of facts.decls) {
+    const tag = info.docTags.find((name) => facts.roots.keepTags.includes(name));
+    if (tag !== undefined) {
+      why.set(key, `tag @${tag}`);
+    }
+    if (info.top && TYPE_UNITS.has(info.kind) && info.file.startsWith(PLUGIN_CONTRACT) && graph.sdk.names.has(info.name)) {
+      why.set(key, `published SDK type ${info.name}`);
+    }
+  }
+  for (const pin of facts.pins) {
+    if (isProduction(facts.decls.get(pin)?.file ?? "")) {
+      why.set(pin, "compile-time pin (a binding unread on purpose)");
+    }
+  }
+  return why;
+}
+
 /** Analyse a built graph into its buckets. */
 export function analyse(graph: Graph): Analysis {
   return new Analyser(graph).run();
@@ -135,6 +197,8 @@ class Analyser {
     this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
+    this.#registries();
+    this.#unions();
     const result = (bucket: Bucket): readonly Finding[] => this.#out.get(bucket) ?? [];
     return {
       dead: result("dead"),
@@ -153,7 +217,59 @@ class Analyser {
       "member-untouched": result("member-untouched"),
       "state-never-read": result("state-never-read"),
       "state-never-set": result("state-never-set"),
+      "registry-stale": result("registry-stale"),
+      "union-re-spells-a-home": result("union-re-spells-a-home"),
+      "union-slice-of-a-home": result("union-slice-of-a-home"),
+      "union-repeated-no-home": result("union-repeated-no-home"),
     };
+  }
+
+  // An ESLint registry site exempts nothing when its file declares no such name, or when its op's owner is no server
+  // domain or no server declaration carries the op (tooling/src/eslint/port-ownership/ruled-ops.ts jointBatchRulingOf).
+  #registries(): void {
+    const state = this.#state;
+    const declared = new Set([...state.decls.values()].map(({ file, name }) => `${file}#${name}`));
+    const server = [...state.decls.values()].filter(({ file }) => file.startsWith(SERVER_SOURCE));
+    const serverNames = new Set([...server.map(({ name }) => name), ...state.serverNames]);
+    const domains = new Set(server.flatMap(({ file }) => SERVER_DOMAIN.exec(file)?.[1] ?? []));
+    for (const site of state.registrySites) {
+      const { file, line, target, name } = site;
+      const note = staleNote(site, { declared, serverNames, domains });
+      if (note !== null) {
+        this.#push("registry-stale", { label: `${file}:${String(line)} ${target} ${name}`, key: null, note });
+      }
+    }
+  }
+
+  // An inline axis (spellings.ts): re-spelling a home's member set, a strict slice of a home, or repeated with no home.
+  #unions(): void {
+    const state = this.#state;
+    const setOf = (members: readonly string[]): string => members.join(MEMBER_JOIN);
+    const homes = Map.groupBy(state.unionHomes, ({ members }) => setOf(members));
+    const homeSets = [...homes.values()].flatMap((list) =>
+      list[0] === undefined ? [] : [{ members: new Set(list[0].members), where: list.map(({ where }) => where) }],
+    );
+    for (const [set, sites] of Map.groupBy(state.inlineUnions, ({ members }) => setOf(members))) {
+      const members = sites[0]?.members ?? [];
+      const home = homes.get(set)?.map(({ where }) => where) ?? [];
+      const slices =
+        home.length > 0
+          ? []
+          : homeSets.filter((candidate) => members.length < candidate.members.size && members.every((member) => candidate.members.has(member)));
+      const placed = unionPlacement(
+        home,
+        slices.flatMap(({ where }) => where),
+        sites.length,
+      );
+      if (placed === null) {
+        continue;
+      }
+      for (const site of sites) {
+        const others = sites.filter((other) => other !== site).map((other) => `${other.file}:${String(other.line)}`);
+        const note = placed.bucket === "union-repeated-no-home" ? `also at ${others.join("; ")}` : placed.note;
+        this.#push(placed.bucket, { label: `${site.file}:${String(site.line)} ${site.context} [${members.join(", ")}]`, key: null, note });
+      }
+    }
   }
 
   #push(bucket: Bucket, finding: Finding): void {
@@ -164,26 +280,9 @@ class Analyser {
     return this.#graph.facts;
   }
 
-  // What a ruling keeps, each with its reason: published or trusted exports, a knip keep tag, a production
-  // compile-time pin, and a plugin contract type the SDK publishes by name.
   #rulings(): void {
-    const state = this.#state;
-    for (const { decl, kind, why } of this.#graph.kept) {
-      this.#why.set(decl, `${kind}: ${why}`);
-    }
-    for (const [key, info] of state.decls) {
-      const tag = info.docTags.find((name) => state.roots.keepTags.includes(name));
-      if (tag !== undefined) {
-        this.#why.set(key, `tag @${tag}`);
-      }
-      if (info.top && TYPE_UNITS.has(info.kind) && info.file.startsWith(PLUGIN_CONTRACT) && this.#graph.sdk.names.has(info.name)) {
-        this.#why.set(key, `published SDK type ${info.name}`);
-      }
-    }
-    for (const pin of state.pins) {
-      if (isProduction(state.decls.get(pin)?.file ?? "")) {
-        this.#why.set(pin, "compile-time pin (a binding unread on purpose)");
-      }
+    for (const [key, why] of keptByRuling(this.#graph)) {
+      this.#why.set(key, why);
     }
   }
 

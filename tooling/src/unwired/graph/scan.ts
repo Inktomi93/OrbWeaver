@@ -16,7 +16,11 @@ import { FRESH_BUILD, tracing } from "./options.ts";
 import { readPprof } from "./pprof.ts";
 import type { CompilerProfile, GraphProfileReport, ProfilePhase } from "./profile.ts";
 import { GraphProfile } from "./profile.ts";
+import type { Query, QueryAnswer } from "./query.ts";
+import { GraphQueries } from "./query.ts";
 import { loadRoots } from "./roots.ts";
+import type { LostBreakdown } from "./spellings.ts";
+import { explainLost } from "./spellings.ts";
 import type { Verified } from "./verify.ts";
 import { evenSample, verifyFindings } from "./verify.ts";
 import type { WhyEntry } from "./why.ts";
@@ -48,6 +52,8 @@ export interface GraphSessionReport {
   readonly dumped: DumpStamp | null;
   readonly why: readonly WhyEntry[];
   readonly profile: GraphProfileReport | null;
+  /** Under `--explain-lost`: the lost reads by where their key came from. */
+  readonly lost: LostBreakdown | null;
 }
 
 /** A session's result and what it ran under. */
@@ -121,6 +127,7 @@ class Session implements Disposable {
       from: source.from,
       dumped: source.dumped,
       why: source.why,
+      lost: options.explainLost ? explainLost(graph.facts) : null,
       profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compiler) ?? null,
     };
     return { ...value, session: report };
@@ -190,6 +197,16 @@ export function verifyGraph(
     const entries = work.time("verify", () => verifyFindings(work.world(), evenSample(findings, sample), chains));
     return { scan, verification: { bucket, total: findings.length, entries } };
   });
+}
+
+/** Answer one query for each name, over a fresh build or a dump. */
+export function queryGraph(
+  root: string,
+  ask: { readonly query: Query; readonly names: readonly string[] },
+  log: GraphLog,
+  options: GraphOptions = FRESH_BUILD,
+): Promise<WithSession<{ readonly answers: readonly QueryAnswer[] }>> {
+  return session(root, log, options, ({ graph, time }) => ({ answers: time("analyse", () => new GraphQueries(graph).answer(ask.query, ask.names)) }));
 }
 
 /** Build the graph, then report the custom properties nothing reads. */

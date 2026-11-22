@@ -1,0 +1,146 @@
+// The graph's queries and its spelling passes. A query walks the use edges until its seen-set is spent, so a cycle
+// ends it, and it answers the same from a dump as from a fresh build; a registry site that names nothing is stale; an
+// inline axis is placed against its homes; and a lost read is broken down by where its key came from.
+import { join } from "node:path";
+import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import type { GraphOptions, QueryAnswer } from "../../../tooling/src/unwired/index.ts";
+import { FRESH_BUILD, QUERIES, queryGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, labelsIn, WORLD } from "./_planted.ts";
+
+const A = `${GRAPH_SOURCE}/a.ts`;
+const B = `${GRAPH_SOURCE}/b.ts`;
+const C = `${GRAPH_SOURCE}/c.ts`;
+const PROBE = "tooling/src/probe.ts";
+const quiet = (): undefined => undefined;
+// A planted template literal type's `${P}`, built so this file's own strings hold no placeholder.
+const TEMPLATE_P = ["$", "{P}"].join("");
+
+// `c.ts`, the one entry, runs `top`, which reaches `base` through `b.ts`; `f` and `g` call each other and only a
+// tooling file outside the product runs `f`.
+const CHAIN = {
+  [A]: "export const base = 1;\nexport const f = (): number => g();\nconst g = (): number => f() + base;",
+  [B]: 'import { base } from "./a.ts";\nexport const mid = (): number => base;',
+  [C]: 'import { mid } from "./b.ts";\nexport const top = (): number => mid();\ntop();',
+  "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: [PROBE] }),
+  [PROBE]: `import { f } from "../../${A}";\nf();`,
+};
+
+const shape = (answer: QueryAnswer): readonly unknown[] => {
+  switch (answer.query) {
+    case "users":
+    case "reach":
+      return answer.nodes.map(({ label, depth }) => [depth, label]);
+    case "impact":
+      return [answer.files.map(({ file, product }) => [file, product]), answer.roots];
+    case "why":
+      return answer.chains.map(({ start, path }) => [start.split(" (")[0], path.map(({ label }) => label)]);
+  }
+};
+
+test("each query answers every name, ends on a cycle, and answers a dump as it answers a build", { timeout: 120_000 }, async ({ plantedTree, scratch }) => {
+  const root = await plantedTree(graphTree(CHAIN, { entries: [C] }));
+  const dump = join(scratch, "graph.dump");
+  const ask = async (query: (typeof QUERIES)[number], options: GraphOptions): Promise<readonly (readonly unknown[])[]> =>
+    (await queryGraph(root, { query, names: ["base", "f"] }, quiet, options)).answers.map(shape);
+  expect(await ask("why", { ...FRESH_BUILD, dump })).toEqual([[[C, [`${C}:2 top`, `${B}:2 mid`, `${A}:1 base`]]], [[PROBE, [`${A}:2 f`]]]]);
+  expect(await ask("users", FRESH_BUILD)).toEqual([
+    [
+      [1, `${A}:3 g`],
+      [1, `${B}:2 mid`],
+      [2, `${A}:2 f`],
+      [2, `${C}:2 top`],
+      [3, C],
+      [3, PROBE],
+    ],
+    [
+      [1, `${A}:3 g`],
+      [1, PROBE],
+    ],
+  ]);
+  expect((await ask("impact", FRESH_BUILD))[0]).toEqual([
+    [
+      [A, true],
+      [B, true],
+      [C, true],
+      [PROBE, false],
+    ],
+    [`${C} (product)`],
+  ]);
+  expect((await ask("reach", FRESH_BUILD))[1]).toEqual([
+    [1, A],
+    [1, `${A}:3 g`],
+    [2, `${A}:1 base`],
+  ]);
+  for (const query of QUERIES) {
+    expect(await ask(query, { ...FRESH_BUILD, from: dump })).toEqual(await ask(query, FRESH_BUILD));
+  }
+});
+
+test("a registry site whose file declares no such name, or whose op has no server domain, is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const rules = "tooling/src/eslint/rules.ts";
+  const scan = await graphScan(plantedTree, {
+    [A]: "export const base = 1;",
+    "packages/server/src/domain/chat/claim.ts": "export const claimStatement = 1;\nexport const emit = (afterStatement: number): number => afterStatement;",
+    "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: [rules] }),
+    [rules]: [
+      `const HOME = "${A}";`,
+      'export const live = { path: HOME, name: "base" };',
+      'export const gone = { path: HOME, name: "removed" };',
+      'export const ops = [{ owner: "chat", op: "claimStatement" }, { owner: "chat", op: "afterStatement" }, { owner: "nowhere", op: "claimStatement" }, { owner: "chat", op: "dropped" }];',
+    ].join("\n"),
+  });
+  expect(scan.analysis["registry-stale"].map(({ label, note }) => [label, note])).toEqual([
+    [`${rules}:3 ${A} removed`, `${A} declares no removed`],
+    [`${rules}:4 nowhere claimStatement`, "no server domain nowhere"],
+    [`${rules}:4 chat dropped`, "no server declaration dropped"],
+  ]);
+});
+
+test("an inline axis re-spells a home, slices one, or repeats with no home; a key list and a one-off are no axis", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    [A]: [
+      'export const FOUR = ["w", "x", "y", "z"] as const;',
+      'export type Three = "p" | "q" | "r";',
+      'export interface Same { readonly kind: "p" | "q" | "r" }',
+      'export interface Slice { readonly mode: "w" | "x" | "y" }',
+      'export interface Twice { readonly a: "m" | "n" | "o"; readonly b: "m" | "n" | "o" }',
+      'export interface Once { readonly c: "s" | "t" | "u" }',
+      "export interface Obj { readonly k1: string; readonly k2: string; readonly k3: string }",
+      'export type Picked = Pick<Obj, "k1" | "k2" | "k3">;',
+      'export const KEYS = ["k1", "k2", "k3"] as const;',
+    ].join("\n"),
+  });
+  const placed = (bucket: "union-re-spells-a-home" | "union-slice-of-a-home" | "union-repeated-no-home"): readonly string[] => labelsIn(scan, bucket, A);
+  expect(placed("union-re-spells-a-home")).toEqual(["3 kind [p, q, r]"]);
+  expect(placed("union-slice-of-a-home")).toEqual(["4 mode [w, x, y]"]);
+  expect(placed("union-repeated-no-home")).toEqual(["5 a [m, n, o]", "5 b [m, n, o]"]);
+});
+
+test("explain-lost breaks the lost reads down by key source and names a home that spells an inline key set", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const lost = `${GRAPH_SOURCE}/lost.ts`;
+  const root = await plantedTree(
+    graphTree({
+      [lost]: [
+        'export const XYZ = ["x", "y", "z"] as const;',
+        "declare function make<K extends string>(keys: readonly K[]): { [P in K]: number };",
+        'export const fromList = make(["x", "y", "z"]).x;',
+        `declare const renamed: { [P in "p" | "q" | "r" as \`get${TEMPLATE_P}\`]: number };`,
+        "export const fromTemplate = renamed.getp;",
+      ].join("\n"),
+    }),
+  );
+  const { session } = await queryGraph(root, { query: "users", names: ["XYZ"] }, quiet, { ...FRESH_BUILD, explainLost: true });
+  expect(session.lost?.bySource).toEqual({ "named-union": 0, "inline-union": 1, "no-literal-key": 1 });
+  expect(session.lost?.unions.map(({ alias, members, reads, homes }) => [alias, members, reads, homes])).toEqual([
+    [null, ["x", "y", "z"], 1, [`${lost}:1 XYZ`]],
+  ]);
+  expect((await queryGraph(root, { query: "users", names: ["XYZ"] }, quiet)).session.lost).toBeNull();
+});
+
+test("a query verb with no name to ask about is refused before any world loads", async ({ runCli, scratch }) => {
+  await expect(await runCli("unwired", ["graph-why", `--root=${scratch}`])).toExitWith(EXIT.misuse);
+  await expect(await runCli("unwired", ["graph", "base", `--root=${scratch}`])).toExitWith(EXIT.misuse);
+});

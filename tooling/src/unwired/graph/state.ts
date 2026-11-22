@@ -38,6 +38,45 @@ export type Edges = Map<GraphKey, Set<GraphKey>>;
 /** Edges as the analysis reads them. */
 export type ReadonlyEdges = ReadonlyMap<GraphKey, ReadonlySet<GraphKey>>;
 
+/** An axis's home: an `as const` tuple or a literal-union alias, by its sorted members. */
+export interface UnionHome {
+  readonly members: readonly string[];
+  readonly where: string;
+}
+
+/** A string-literal union of more members than a two-state alias, written inline in a product type position. */
+export interface InlineUnion {
+  readonly members: readonly string[];
+  readonly file: string;
+  readonly line: number;
+  /** The nearest named declaration around it. */
+  readonly context: string;
+}
+
+/** The registry sites the graph reads: a function a rule exempts, or a ruled joint-batch op. */
+export const REGISTRY_KINDS = ["site", "op"] as const;
+export type RegistryKind = (typeof REGISTRY_KINDS)[number];
+
+/** A site an ESLint rule names: a function by its file and name, or a ruled op by its owning domain and name. */
+export interface RegistrySite {
+  readonly kind: RegistryKind;
+  readonly file: string;
+  readonly line: number;
+  /** The file a function site names, or the domain that owns an op. */
+  readonly target: string;
+  readonly name: string;
+}
+
+const LOST_SOURCES = ["named-union", "inline-union", "no-literal-key"] as const;
+
+/** Where a lost read's key came from: a named literal union (an axis with a home), an inline literal set, or nothing. */
+export interface LostCause {
+  readonly read: string;
+  readonly source: (typeof LOST_SOURCES)[number];
+  readonly alias: string | null;
+  readonly members: readonly string[];
+}
+
 /** One half of a React state tuple, at the site that holds it. */
 export interface StatePart {
   readonly decl: DeclKey;
@@ -79,6 +118,13 @@ export interface GraphFacts {
   /** The largest value each measure reached, such as the deepest level an origin walk found its home on. */
   readonly peaks: ReadonlyMap<string, number>;
   readonly roots: Pick<Roots, "modules" | "keepTags">;
+  readonly unionHomes: readonly UnionHome[];
+  readonly inlineUnions: readonly InlineUnion[];
+  readonly registrySites: readonly RegistrySite[];
+  /** Every name the server's source spells, declared or used: what a ruled op can be keyed by. */
+  readonly serverNames: ReadonlySet<string>;
+  /** Each lost read's key source, in {@link GraphFacts.lostReads} order. */
+  readonly lostCauses: readonly LostCause[];
 }
 
 /** What one build runs under: the session's options, its log, and its profile when one is asked for. */
@@ -138,6 +184,11 @@ export class GraphState implements GraphFacts {
   readonly lostReads: string[] = [];
   readonly counts = new Map<string, number>();
   readonly peaks = new Map<string, number>();
+  readonly unionHomes: UnionHome[] = [];
+  readonly inlineUnions: InlineUnion[] = [];
+  readonly registrySites: RegistrySite[] = [];
+  readonly serverNames = new Set<string>();
+  readonly lostCauses: LostCause[] = [];
   readonly #product = new Map<string, boolean>();
   readonly #origins = new Map<string, OriginWalk>();
   readonly #members = new Map<number, readonly DeclKey[]>();

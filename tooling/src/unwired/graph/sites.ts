@@ -32,6 +32,7 @@ import type {
   TypeLiteralNode,
   TypeNode,
   TypeReferenceNode,
+  UnionTypeNode,
   VariableDeclaration,
 } from "@typescript/native/ast";
 import {
@@ -39,6 +40,7 @@ import {
   isArrayBindingPattern,
   isArrayLiteralExpression,
   isArrowFunction,
+  isAsExpression,
   isBinaryExpression,
   isBindingElement,
   isBlock,
@@ -469,6 +471,9 @@ export class FileSites {
   /** Calls handed one value that is no object literal (`recipe(bag)`): a variant recipe's whole-bag selection, once the
    *  resolved signature confirms the callee is a recipe. */
   readonly bagCalls: { readonly call: CallExpression; readonly bag: Expression }[] = [];
+  /** A product file's string-literal unions and `as const` string tuples: an axis's homes and its inline spellings. */
+  readonly stringUnions: { readonly node: UnionTypeNode; readonly members: readonly string[]; readonly from: GraphKey }[] = [];
+  readonly constTuples: { readonly node: VariableDeclaration; readonly members: readonly string[] }[] = [];
 
   readonly #source: SourceFile;
 
@@ -482,6 +487,27 @@ export class FileSites {
   lineOf(node: Node): number {
     return this.#source.getLineAndCharacterOfPosition(node.getStart(this.#source)).line + 1;
   }
+}
+
+/** A union's string-literal members, sorted; null when any member is something else. */
+function stringLiteralTypes(node: UnionTypeNode): readonly string[] | null {
+  const members = node.types.map((member) => (isLiteralTypeNode(member) && isStringLiteral(member.literal) ? member.literal.text : null));
+  return members.every((member) => member !== null) ? members.toSorted() : null;
+}
+
+const CONST_ASSERTION = "const";
+
+// An `as const` array of string literals, its members sorted; null for any other initializer.
+function constStringTuple(initializer: Expression): readonly string[] | null {
+  if (!(isAsExpression(initializer) && isTypeReferenceNode(initializer.type) && referenceName(initializer.type) === CONST_ASSERTION)) {
+    return null;
+  }
+  const list = initializer.expression;
+  if (!isArrayLiteralExpression(list) || list.elements.length === 0) {
+    return null;
+  }
+  const members = list.elements.map((element) => (isStringLiteral(element) ? element.text : null));
+  return members.every((member) => member !== null) ? members.toSorted() : null;
 }
 
 /** What the walk tells the graph as it meets declarations and syntax-decided edges. */
@@ -701,6 +727,7 @@ class Walker {
     this.#values(node, inType);
     this.#types(node);
     this.#strings(node, inType);
+    this.#spellings(node);
     node.forEachChild((child) => this.visit(child, inType));
     if (pushed) {
       this.#frame.stack.pop();
@@ -978,6 +1005,20 @@ class Walker {
     }
     if (MEMBER_SELECTORS.has(name) && target !== undefined && keys !== undefined && stringKeysIn(keys).length > 0) {
       this.#sites.pickKeys.push({ target, keys: stringKeysIn(keys) });
+    }
+  }
+
+  #spellings(node: Node): void {
+    if (!this.#sites.product) {
+      return;
+    }
+    const members = isUnionTypeNode(node) ? stringLiteralTypes(node) : null;
+    if (isUnionTypeNode(node) && members !== null) {
+      this.#sites.stringUnions.push({ node, members, from: this.#holder });
+    }
+    const tuple = isVariableDeclaration(node) && node.initializer !== undefined ? constStringTuple(node.initializer) : null;
+    if (isVariableDeclaration(node) && tuple !== null) {
+      this.#sites.constTuples.push({ node, members: tuple });
     }
   }
 

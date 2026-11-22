@@ -10,7 +10,7 @@ import { NO_ROLES, withRoles } from "./roles.ts";
 import type { GraphFacts } from "./state.ts";
 
 /** The dump format this build writes and reads. Raise it with any change to {@link Graph} or {@link GraphFacts}. */
-export const GRAPH_DUMP_FORMAT = 1;
+export const GRAPH_DUMP_FORMAT = 2;
 
 /** When and from which commit a dump was built; `head` is null outside a git checkout. */
 export interface DumpStamp {
@@ -44,6 +44,11 @@ const plainFacts = (facts: GraphFacts): GraphFacts => ({
   counts: facts.counts,
   peaks: facts.peaks,
   roots: { modules: facts.roots.modules, keepTags: facts.roots.keepTags },
+  unionHomes: facts.unionHomes,
+  inlineUnions: facts.inlineUnions,
+  registrySites: facts.registrySites,
+  serverNames: facts.serverNames,
+  lostCauses: facts.lostCauses,
 });
 
 function headOf(root: string): string | null {

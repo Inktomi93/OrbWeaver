@@ -35,6 +35,7 @@ import type { RootKind, Roots } from "./roots.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
+import { fileSpellings, keySources, NO_KEY } from "./spellings.ts";
 import type { BuildSession, GraphFacts } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
@@ -212,6 +213,7 @@ class Builder {
     this.#classFacts(sites);
     this.#literals(sites);
     this.#tags(sites);
+    fileSpellings(state, sites);
     state.cssNames.push(...sites.cssNames);
     // a module loaded by path (a Worker, a child process) runs as its own entry, kept alive by what spawns it
     for (const { target, from } of sites.urlModules) {
@@ -281,12 +283,22 @@ class Builder {
       return decls.length === 0 && walks[at]?.end !== "library";
     });
     const reasons = state.batch(still.map(({ type, name }) => state.resolver.unbackedReason(type, name)));
-    for (const [y, { site }] of still.entries()) {
-      const reason = reasons[y];
-      if (reason === null || reason === undefined) {
-        state.lostReads.push(`${sites.file}:${String(site.node.pos)} .${nameText(site.node)}`);
-      } else {
+    const unplaced = still.filter((_, y) => reasons[y] === null || reasons[y] === undefined);
+    for (const reason of reasons) {
+      if (reason !== null) {
         state.count(`no home by design: ${reason}`);
+      }
+    }
+    // one key-source walk per receiver type, carrying every name lost on it
+    const byType = [...Map.groupBy(unplaced, ({ type }) => type.id).values()].flatMap((reads) =>
+      reads[0] === undefined ? [] : [{ type: reads[0].type, reads }],
+    );
+    const found = state.batch(byType.map(({ type, reads }) => keySources(state, type, [...new Set(reads.map(({ name }) => name))])));
+    for (const [at, { reads }] of byType.entries()) {
+      for (const { site, name } of reads) {
+        const read = `${sites.file}:${String(site.node.pos)} .${nameText(site.node)}`;
+        state.lostReads.push(read);
+        state.lostCauses.push({ read, ...(found[at]?.get(name) ?? NO_KEY) });
       }
     }
   }

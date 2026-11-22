@@ -20,8 +20,10 @@ export type { Ablation, GraphOptions, Trace, WhyTarget } from "./graph/options.t
 export { ABLATIONS, FRESH_BUILD } from "./graph/options.ts";
 export type { GraphProfileReport } from "./graph/profile.ts";
 export { PROFILE_PHASES } from "./graph/profile.ts";
+export type { Query, QueryAnswer } from "./graph/query.ts";
+export { QUERIES } from "./graph/query.ts";
 export type { GraphScan, GraphSessionReport, GraphVerification, WithSession } from "./graph/scan.ts";
-export { cssGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+export { cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 export type { Verdict, Verified } from "./graph/verify.ts";
 export { VERDICTS } from "./graph/verify.ts";
 export type { JudgedEntry } from "./judged.ts";

@@ -43,10 +43,21 @@ export interface GraphOptions {
   readonly dump: string | null;
   /** A dump whose graph the run analyses instead of building one. */
   readonly from: string | null;
+  /** Report the lost reads by where their key came from. */
+  readonly explainLost: boolean;
 }
 
 /** A fresh build of the whole tree with nothing traced, profiled or ablated. */
-export const FRESH_BUILD: GraphOptions = { profile: null, why: [], files: null, traces: [], ablate: new Set<Ablation>(), dump: null, from: null };
+export const FRESH_BUILD: GraphOptions = {
+  profile: null,
+  why: [],
+  files: null,
+  traces: [],
+  ablate: new Set<Ablation>(),
+  dump: null,
+  from: null,
+  explainLost: false,
+};
 
 const SITE_TARGET = /^(.+):([1-9]\d*)$/u;
 const MEMBER_TARGET = /^(?:([\w$]+)\.)?([\w$]+)$/u;
