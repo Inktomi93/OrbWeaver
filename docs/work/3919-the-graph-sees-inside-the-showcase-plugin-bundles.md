@@ -19,7 +19,7 @@ The graph is blind inside the bundles: no member read there is resolved, so thei
 
 ## Done when
 
-worlds.ts resolves each world types entries from that world folder in the merged program, graph-worlds-check reports no site-symbol or site-type error in the bundles, and a planted world with a folder-relative types entry proves it red.
+The author-ui world (packages/showcase-plugins/tsconfig.author-ui.json) is scanned as its own program and its reads fold into the reference graph, because plugin-sdk gives each realm its own global orb (packages/plugin-sdk/shared.d.ts) and one program holds one global scope; worlds.ts resolves every other world types entries from its own folder; graph-worlds-check reports no site-symbol or site-type row in the bundles; D357 records the second program and its reason; planted cases prove both red.
 
 ## Evidence
 
