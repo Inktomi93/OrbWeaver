@@ -18,6 +18,7 @@ import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
+import { outsideTable, scanProcedures } from "./procedures.ts";
 import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
@@ -25,7 +26,7 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
@@ -107,6 +108,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length} keyLists=${report.keyLists.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
   codes: scan("reports/unwired/codes.json", scanCodes, (report) => ` codeVocabularies=${report.vocabularies.length}`),
+  procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
 };
 
 interface Args {

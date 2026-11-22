@@ -103,11 +103,13 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 
 ## Procedures and routes no caller reaches
 
-3806 is not yet built. It lists each tRPC procedure and each HTTP route with no production caller.
+`pnpm unwired procedures` (3806) lists each tRPC procedure and each HTTP route with no production caller. It writes `reports/unwired/procedures.json`.
 
-- A caller is a call in production code: the client, a plugin through the host bridge, or the server itself. The resolver follows the client's proxy path to the procedure.
+- A caller is a call in production code: the client, a plugin through the host bridge, or the server itself. The resolver follows the client's proxy path to the procedure. A plugin guest reaches the server through the one typed `plugin.uiHostCall` relay, so its function names are data and credit no procedure.
+- A cache key or a filter built from a procedure is no call.
+- A route's caller is a request the platform sends: `fetch`, a navigation, a beacon, an event stream or a URL attribute the platform declares. A call to an in-tree function that returns one of our URLs also counts. Paths and URLs fold through the checker, and a request matches a route by method and path.
 - A procedure that only tests call reports as `test-only`, as the member scan does. A test seam is never kept for its tests alone.
-- A route called from outside the repository sits in an outside-caller table in the scan, with one reason per row. An OIDC callback, a health check and a browser form post are examples.
+- A route or procedure called from outside the repository sits in the outside-caller table, `OUTSIDE_CALLERS` in `tooling/src/unwired/procedures.ts`, with one reason per row. The scan prints each row with the registrations it covers, and a row that matches no registration reports as stale. An OIDC callback and a health check are examples.
 - The owner rules on the outside-caller table before the first report is judged.
 
 ## Columns nothing reads or writes
