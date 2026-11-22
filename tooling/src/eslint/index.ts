@@ -202,6 +202,7 @@ export { domLookupRule } from "./ui-dom.ts";
 export type { CandidatesToCss, PropOwner, PropOwners } from "./ui-feature-classname.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 export { DESTRUCTIVE_EXEMPT } from "./ui-feature-policy.ts";
+export { SEALED_NAME } from "./ui-sealed-internals.ts";
 
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,

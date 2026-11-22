@@ -1,5 +1,5 @@
 // One graph session: the roots, the merged program and the build, then the analysis, the find-references check of a
-// member bucket, or the custom-property pass over it.
+// member bucket, the custom-property pass or the DOM-hook pass over it.
 
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -8,6 +8,8 @@ import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
+import type { DomReport } from "./dom.ts";
+import { domPass } from "./dom.ts";
 import { loadRoots } from "./roots.ts";
 import type { Verified } from "./verify.ts";
 import { evenSample, verifyFindings } from "./verify.ts";
@@ -66,4 +68,9 @@ export function verifyGraph(
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog): Promise<CssReport> {
   return session(root, log, (graph) => cssPass(root, graph));
+}
+
+/** Build the graph, then report the class and data-* hooks with no partner. */
+export function domGraph(root: string, log: GraphLog): Promise<DomReport> {
+  return session(root, log, (graph) => domPass(root, graph));
 }

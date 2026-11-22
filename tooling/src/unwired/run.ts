@@ -1,6 +1,6 @@
-// The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
-// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
-// nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `graph-dom` run the reference graph over the one
+// merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
+// properties nothing reads, or the class and data-* hooks with no partner. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
@@ -19,7 +19,8 @@ import { scanFields } from "./fields.ts";
 import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
-import { cssGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { DOM_BUCKETS } from "./graph/dom.ts";
+import { cssGraph, domGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -43,15 +44,17 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
-/** The reference-graph verbs: the buckets, a member bucket's find-references check, and the custom-property pass. */
-const GRAPH_VERBS = ["graph", "graph-verify", "graph-css"] as const;
+/** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass and the
+ *  DOM-hook pass. */
+const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-dom"] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   graph: "reports/unwired/graph.json",
   "graph-verify": "reports/unwired/graph-verify.json",
   "graph-css": "reports/unwired/graph-css.json",
+  "graph-dom": "reports/unwired/graph-dom.json",
 };
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -363,6 +366,24 @@ async function runGraphCss(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+async function runGraphDom(args: GraphArgs): Promise<number> {
+  const report = await domGraph(args.root, log);
+  const path = write(args.root, args.out, report);
+  for (const bucket of DOM_BUCKETS) {
+    for (const entry of report.buckets[bucket]) {
+      process.stdout.write(`${bucket}\t${entry}\n`);
+    }
+  }
+  for (const { text, at, why } of report.unresolved) {
+    process.stdout.write(`unresolved\t${text}\t${at}\t${why}\n`);
+  }
+  const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
+  log(
+    `${[...DOM_BUCKETS.map((bucket) => `${bucket}=${String(report.buckets[bucket].length)}`), `unresolved=${String(report.unresolved.length)}`, ...counts].join(" ")} written to ${path}`,
+  );
+  return EXIT.clean;
+}
+
 async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<number> {
   const { verification } = await verifyGraph(args.root, { bucket, sample: args.sample }, log);
   const path = write(args.root, args.out, verification);
@@ -391,6 +412,9 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
 async function runGraph(args: GraphArgs): Promise<number> {
   if (args.verb === "graph-css") {
     return await runGraphCss(args);
+  }
+  if (args.verb === "graph-dom") {
+    return await runGraphDom(args);
   }
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }
