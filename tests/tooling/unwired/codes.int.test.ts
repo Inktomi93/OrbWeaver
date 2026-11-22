@@ -1,17 +1,16 @@
 // `pnpm unwired codes`: a vocabulary holds codes when production hands a member to the code parameter domainReason reads,
 // or when a refusal field of a tRPC answer or a Hono body carries it, and a code is reported when nothing on the server
 // builds it or no client branch names it. Each rule's guards have a twin that must stay out of the report.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanCodes } from "../../../tooling/src/unwired/index.ts";
-import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
+import { expect, test } from "@orb/testkit/tooling";
+import type { CodesReport, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { codesGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, plantJudged } from "./_planted.ts";
 
-const WORLD = "packages/server/tsconfig.json";
 const HOME = "packages/contracts/src/codes.ts";
 
 // The carriers and their error mapping, and the library surfaces a send is known by, which a planted tree has no
 // node_modules for.
 const BASE = {
-  [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "../contracts/src", "../client/src", "../../tests"] }),
   "node_modules/@trpc/server/package.json": JSON.stringify({ name: "@trpc/server", types: "index.d.ts" }),
   "node_modules/@trpc/server/index.d.ts": [
     "export interface Procedure<T> {",
@@ -50,14 +49,16 @@ const BASE = {
   ].join("\n"),
 };
 
-const scan = async (
-  plantedTree: (tree: Readonly<Record<string, string>>) => Promise<string>,
-  tree: Readonly<Record<string, string>>,
-): Promise<ReturnType<typeof scanCodes>> => scanCodes({ root: await plantedTree(tree), worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+// One graph session over a planted tree, sorted by `judged` when a case plants a judged list.
+const codesOf = async (root: string, judged: readonly JudgedEntry[] = []): Promise<CodesReport> =>
+  await codesGraph(root, { root, deliberate: [], judged }, () => undefined);
 
-type Finding = ReturnType<typeof scanCodes>["unwired"][number];
+const scan = async (plantedTree: (tree: Readonly<Record<string, string>>) => Promise<string>, tree: Readonly<Record<string, string>>): Promise<CodesReport> =>
+  await codesOf(await plantedTree(graphTree(tree)));
 
-const found = (report: ReturnType<typeof scanCodes>): readonly Pick<Finding, "kind" | "home" | "member" | "line">[] =>
+type Finding = CodesReport["unwired"][number];
+
+const found = (report: CodesReport): readonly Pick<Finding, "kind" | "home" | "member" | "line">[] =>
   report.unwired.map(({ kind, home, member, line }) => ({ kind, home, member, line }));
 
 const THROWN = {
@@ -638,9 +639,9 @@ test("a client branch is a computed or plain key, a tested Set element, a compar
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const options = { root: await plantedTree({ ...THROWN, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
-  const judged = plantJudged(scanCodes(options), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired");
-  expect(judgedOutcome(scanCodes({ ...options, judged }), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired")).toEqual(
+  const root = await plantedTree(graphTree({ ...THROWN, ...JUDGED_WORK }));
+  const judged = plantJudged(await codesOf(root), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired");
+  expect(judgedOutcome(await codesOf(root, judged), "OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired")).toEqual(
     judgedExpected("OP_CODES.op_label_empty", "IMPORT_REFUSALS.scroll_retired"),
   );
 });

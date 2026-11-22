@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import { graphTree } from "./_planted.ts";
 
 const MEMBER_REPORT = "reports/unwired/unwired.json";
 
@@ -41,16 +42,35 @@ test("a scan rooted inside a checkout files its report under the checkout's repo
 
 // Each list a scan's report writes reaches the summary line as its name and count, so no bucket, judged or stale
 // entries included, hides from a rerun's one line.
-test.for(["scan", "fields", "params", "unions", "shapes", "codes", "procedures", "columns"])(
+// Each list's name, and the lists whose `name=count` the summary line leaves out.
+function bucketsOf(out: string, stderr: string): { readonly names: readonly string[]; readonly unprinted: readonly string[] } {
+  const report = z.record(z.string(), z.unknown()).parse(JSON.parse(readFileSync(out, "utf8")));
+  const buckets = Object.entries(report).flatMap(([name, value]) => (Array.isArray(value) && name !== "limits" ? [`${name}=${String(value.length)}`] : []));
+  const summary = stderr.split("\n").find((line) => line.startsWith("scanned=")) ?? "";
+  return { names: buckets.map((bucket) => bucket.slice(0, bucket.indexOf("="))), unprinted: buckets.filter((bucket) => !summary.split(" ").includes(bucket)) };
+}
+
+const REPORT_LISTS = ["unwired", "judged", "staleJudged", "deliberate"];
+
+test.for(["scan", "fields", "params", "unions", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   async (verb, { runCli, scratch }) => {
     const out = join(scratch, "report.json");
     const run = await runCli("unwired", [verb, `--root=${scratch}`, `--out=${out}`]);
     await expect(run).toExitWith(0);
-    const report = z.record(z.string(), z.unknown()).parse(JSON.parse(readFileSync(out, "utf8")));
-    const buckets = Object.entries(report).flatMap(([name, value]) => (Array.isArray(value) && name !== "limits" ? [`${name}=${String(value.length)}`] : []));
-    expect(buckets.map((bucket) => bucket.slice(0, bucket.indexOf("=")))).toEqual(expect.arrayContaining(["unwired", "judged", "staleJudged", "deliberate"]));
-    const summary = run.stderr.split("\n").find((line) => line.startsWith("scanned=")) ?? "";
-    expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
+    const { names, unprinted } = bucketsOf(out, run.stderr);
+    expect(names).toEqual(expect.arrayContaining(REPORT_LISTS));
+    expect(unprinted).toEqual([]);
   },
 );
+
+// codes runs on the reference graph, whose session reads the tree's knip config, so it runs over a planted graph tree.
+test("unwired codes prints every bucket its report writes", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree(graphTree({}));
+  const out = join(root, "report.json");
+  const run = await runCli("unwired", ["codes", `--root=${root}`, `--out=${out}`]);
+  await expect(run).toExitWith(0);
+  const { names, unprinted } = bucketsOf(out, run.stderr);
+  expect(names).toEqual(expect.arrayContaining(REPORT_LISTS));
+  expect(unprinted).toEqual([]);
+});

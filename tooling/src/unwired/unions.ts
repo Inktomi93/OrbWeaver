@@ -27,6 +27,7 @@ import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
+import { sortDeliberate } from "./deliberate.ts";
 import type { JudgedSplit } from "./judged.ts";
 import { sortJudged } from "./judged.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
@@ -34,7 +35,7 @@ import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sitesOf } from "./scan.ts";
 import { isNativeConstAssertion, nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins, SlotOracle, Spelled } from "./union-origins.ts";
 import {

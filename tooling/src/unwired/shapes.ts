@@ -16,14 +16,16 @@ import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { nameAt } from "./classify.ts";
+import type { DeliberateSide } from "./deliberate.ts";
+import { sortDeliberate } from "./deliberate.ts";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import type { JudgedSplit } from "./judged.ts";
 import { sortJudged } from "./judged.ts";
 import { ServiceWorld } from "./language-service.ts";
 import { declarationKeys, hasFlag, NativeWorld } from "./native.ts";
-import type { DeliberateSide, ScanOptions } from "./scan.ts";
-import { scanWorlds, sortDeliberate } from "./scan.ts";
+import type { ScanOptions } from "./scan.ts";
+import { scanWorlds } from "./scan.ts";
 import { isProduction } from "./worlds.ts";
 
 const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;

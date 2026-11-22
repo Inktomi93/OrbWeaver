@@ -7,13 +7,15 @@ import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
+import type { CodesJudging, CodesReport } from "./codes.ts";
+import { codesPass } from "./codes.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
 import type { DumpStamp } from "./dump.ts";
 import { readDump, writeDump } from "./dump.ts";
 import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
-import type { Ablation, GraphOptions } from "./options.ts";
+import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, tracing } from "./options.ts";
 import { readPprof } from "./pprof.ts";
 import type { CompilerProfile, GraphProfileReport, ProfilePhase } from "./profile.ts";
@@ -58,9 +60,6 @@ export interface GraphSessionReport {
 
 /** A session's result and what it ran under. */
 export type WithSession<T> = T & { readonly session: GraphSessionReport };
-
-/** Where a graph session reports its progress. */
-export type GraphLog = (line: string) => void;
 
 // What a session's work is handed: the graph, the world (opened on first ask when the graph came from a dump), and a
 // timer for the work's own phases.
@@ -212,4 +211,9 @@ export function queryGraph(
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CssReport>> {
   return session(root, log, options, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
+}
+
+/** Build the graph, then report the error and refusal codes nothing throws or no client branch names. */
+export function codesGraph(root: string, judging: CodesJudging, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CodesReport>> {
+  return session(root, log, options, ({ graph, world, time }) => time("analyse", () => codesPass(graph, world(), judging, log)));
 }

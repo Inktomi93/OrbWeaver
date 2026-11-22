@@ -1,7 +1,7 @@
-// The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
-// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
-// nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
+// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `codes` run the reference graph over the one merged
+// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom properties
+// nothing reads, or the error codes nothing throws or handles. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// one over every world, the dead-inside-live verbs run both engines except `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
@@ -11,7 +11,6 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { scanCodes } from "./codes.ts";
 import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
@@ -26,7 +25,7 @@ import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -43,7 +42,7 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures", "columns"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
@@ -52,7 +51,7 @@ const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, and the
  *  queries each name is asked (./graph/query.ts). */
-const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-why", "graph-users", "graph-impact", "graph-reach"] as const;
+const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-why", "graph-users", "graph-impact", "graph-reach", "codes"] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   graph: "reports/unwired/graph.json",
@@ -62,11 +61,12 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   "graph-users": "reports/unwired/graph-users.json",
   "graph-impact": "reports/unwired/graph-impact.json",
   "graph-reach": "reports/unwired/graph-reach.json",
+  codes: "reports/unwired/codes.json",
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -124,7 +124,7 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "procedures", "columns"]);
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["procedures", "columns"]);
 
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
@@ -133,14 +133,13 @@ const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
   params: [],
   unions: [],
   shapes: [],
-  codes: [],
   procedures: [],
   columns: [],
 };
 
 // Every list a report writes, by its name, so a new bucket reaches the summary line without a hand-kept count.
 const NOT_A_BUCKET: ReadonlySet<string> = new Set(["limits"]);
-const bucketCounts = (report: Report): string =>
+const bucketCounts = (report: object): string =>
   Object.entries(report)
     .flatMap(([name, value]: [string, unknown]) => (Array.isArray(value) && !NOT_A_BUCKET.has(name) ? [`${name}=${String(value.length)}`] : []))
     .join(" ");
@@ -160,7 +159,6 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
-  codes: scan("reports/unwired/codes.json", scanCodes),
   procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
   columns: scan("reports/unwired/columns.json", scanColumns),
 };
@@ -605,6 +603,21 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+async function runGraphCodes(args: GraphArgs): Promise<number> {
+  const report = await codesGraph(args.root, { root: args.root, deliberate: DELIBERATE }, log, args.options);
+  const path = write(args.root, args.out, report);
+  for (const finding of report.unwired) {
+    process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
+  }
+  for (const entry of report.staleJudged) {
+    process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
+  }
+  logSession(report.session);
+  log(`scanned=${report.scanned} ${bucketCounts(report)} written to ${path}`);
+  logLimits(report.limits);
+  return EXIT.clean;
+}
+
 async function runGraph(args: GraphArgs): Promise<number> {
   const query = QUERY_OF[args.verb];
   if (query !== undefined) {
@@ -612,6 +625,9 @@ async function runGraph(args: GraphArgs): Promise<number> {
   }
   if (args.verb === "graph-css") {
     return await runGraphCss(args);
+  }
+  if (args.verb === "codes") {
+    return await runGraphCodes(args);
   }
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }

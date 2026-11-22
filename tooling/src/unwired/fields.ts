@@ -25,6 +25,7 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@type
 import type { SendDestination } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
+import { sortDeliberate } from "./deliberate.ts";
 import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
 import { FieldSort, homeAliases, homeNames } from "./field-sort.ts";
 import type { JudgedSplit } from "./judged.ts";
@@ -40,7 +41,7 @@ import { joinFacts, propertyFacts } from "./occurrences.ts";
 import type { SdkSurface } from "./plugin-surface.ts";
 import { publishedAt, sdkSurface } from "./plugin-surface.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sitesOf } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
 import { isProduction } from "./worlds.ts";
 
