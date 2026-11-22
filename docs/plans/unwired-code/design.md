@@ -26,6 +26,7 @@ Fix a server bug a scan exposes before judging fields. Judge fields in bulk afte
 | 3 | Build the new scans on the key resolver and judge their first runs | 3806, 3807, 3808, 3809 |
 | 4 | Adjudicate unused exports through the package doors | 0989 |
 | 5 | Hold the domain template with dependency rules | - |
+| 6 | Rebuild the unwired tool on the one reference graph (D357): close the graph's parity and judgement gaps, move each scan onto it with a row diff, then delete the old engines and the prototype | 3888-3895, 3906, 3907, then 3896-3903, then 3904, 3905 |
 
 ## Rejected
 
