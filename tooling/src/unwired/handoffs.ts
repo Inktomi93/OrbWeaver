@@ -35,6 +35,9 @@ import { isProduction } from "./worlds.ts";
 export interface Flow {
   readonly source: readonly string[];
   readonly sink: readonly string[];
+  /** A stored row's columns handed whole: a use downstream reads the column, but the column's writes fill no sink.
+   *  The row read fills it, as a parse fills a shape from outside the tree. */
+  readonly readsOnly?: true;
 }
 
 // Enough to cross a function that returns options whose callback takes the twin, and one nested object inside it.
@@ -230,6 +233,10 @@ function* treeKeys(world: NativeWorld, holder: Type, member: NativeSymbol): APIR
   return columns.length > 0 ? columns : null;
 }
 
+// A row member's flow carries reads only: its column's writes do not fill the shape the row is handed to.
+const flowOf = (property: NativeSymbol, source: readonly string[], sink: readonly string[]): Flow =>
+  property.declarations.length === 0 ? { source, sink, readsOnly: true } : { source, sink };
+
 function* propertyPairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<Compared> {
   const { checker } = world;
   const properties = yield* checker.getPropertiesOfType.gen(source);
@@ -249,7 +256,7 @@ function* propertyPairs(world: NativeWorld, { source, sink, depth, at }: TypePai
       const into = yield* treeKeys(world, sink, member);
       // One generic's member under two instantiations is no flow by itself, but its types may still differ.
       if (into !== null && !into.every((key) => own.includes(key))) {
-        flows.push({ source: own, sink: into });
+        flows.push(flowOf(property, own, into));
       }
       if (isLibraryDeclared(world, member)) {
         libraryReads.push(own);

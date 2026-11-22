@@ -114,12 +114,13 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 
 `pnpm unwired columns` (`tooling/src/unwired/columns.ts`) counts, per drizzle column in `packages/db/src/schema/`, its read sites and its write sites in production. It reports a column production never reads, never writes, or neither.
 
-- A select with no column list reads every column only when production reads the row by member. A whole row handed to a declared shape carries its columns, so a read of that shape's member reads the column. `tooling/src/unwired/drizzle-rows.ts` places a row member on its column.
+- A select with no column list reads every column only when production reads the row by member. A whole row handed to a declared shape carries its columns, so a read of that shape's member reads the column. The column's writes do not fill the shape. `tooling/src/unwired/drizzle-rows.ts` places a row member on its column, and a mapped type over a row, such as `Omit` or `Pick`, reaches the same column.
 - Migrations, the baseline and the schema files are neither a read nor a write.
 - A column picked by name into a log, a debug route or a bug bundle counts as read. A column that only rides a whole-row dump does not.
 - An export that carries a column to a file counts as a read, a whole row serialized into a file included. The import that fills it counts as a write.
 - A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it.
-- A row that carries a subset of its table's columns, as a select of a `getTableColumns` rest returns, matches no table. Its member reads are listed as unresolved.
+- A row that carries a subset of its table's columns outside a mapped type over the row matches no table. A member of it named as a column is listed as unresolved.
+- A column that only raw SQL writes is listed as deliberate with its reason.
 
 ## Error codes nothing throws or handles
 

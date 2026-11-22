@@ -1144,10 +1144,12 @@ interface FlowEdges {
 function flowEdges(flows: readonly Flow[]): FlowEdges {
   const down = new Map<string, Set<string>>();
   const up = new Map<string, Set<string>>();
-  for (const { source, sink } of flows) {
+  for (const { source, sink, readsOnly } of flows) {
     for (const from of source) {
       for (const to of sink.filter((key) => !source.includes(key))) {
-        addEdge(down, from, to);
+        if (readsOnly !== true) {
+          addEdge(down, from, to);
+        }
         addEdge(up, to, from);
       }
     }

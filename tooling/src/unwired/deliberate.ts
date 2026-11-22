@@ -12,6 +12,8 @@ const SETTLE_SIGNAL = "docs/law/Spine-Testing.md: a suite waits on the composed 
 const PUBLISHED_API = "D266: the published plugin SDK surface; guest plugins outside the tree read and write it";
 const DORMANT_AGENTS = "D60: the design of record for agent principals; the admin view carries an agent's kind and owner for that rebuild";
 const KIND_PER_USE = "D350: the asset list carries every kind an asset is used as";
+const RAW_KV_INSERT =
+  "packages/server/src/domain/plugin/persistence/plugin-kv.ts creates a row only through one raw INSERT … SELECT, so the per-plugin key cap rides the write as a subquery (.claude/rules/db.md, Writes); raw SQL text is no column site";
 const ROSTER_PRESET_OPS =
   "an op type that `domain/roster-preset` (and for `AddCharacterToChatOp` `domain/rpg`) is injected with names it in its signature, so it stays in `@orb/contracts` rather than a domain `contract/params.ts`";
 
@@ -56,6 +58,9 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavCapabilities", member: null, reason: AGENT_BRIDGE },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbRpgSnapshot", member: null, reason: AGENT_BRIDGE },
   { file: "packages/client/src/lib/agent-bridge.ts", home: "OrbRingMetadata", member: null, reason: AGENT_BRIDGE },
+  { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "pluginId", reason: RAW_KV_INSERT },
+  { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "ownerId", reason: RAW_KV_INSERT },
+  { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "key", reason: RAW_KV_INSERT },
   { file: "packages/server/src/entry/compose/services.ts", home: "ServicesResult", member: "settleBackground", reason: SETTLE_SIGNAL },
   { file: "packages/server/src/domain/share/contract/composition.ts", home: "ShareGraph", member: "settle", reason: SETTLE_SIGNAL },
 ];

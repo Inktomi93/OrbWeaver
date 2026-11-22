@@ -208,9 +208,17 @@ function* indexedSources(template: Type, depth: number): APIRequestGenerator<rea
   return (yield* all(...branches.map((branch) => indexedSources(branch, depth + 1)))).flat();
 }
 
-function* mappedOrigins(checker: Checker, type: Type, name: string, depth: number): APIRequestGenerator<readonly NativeSymbol[]> {
+// A template that indexes a Drizzle row or a table's columns reaches the column, and the walk stops there. A row's own
+// member carries no declaration (`Omit<typeof t.$inferInsert, "id">`, `Partial<Pick<Row, "k">>`), and drizzle's select
+// row indexes each column's own type, whose `name` and `dialect` are the library column's, not the table's.
+function* mappedOrigins(world: NativeWorld, type: Type, name: string, depth: number): APIRequestGenerator<readonly NativeSymbol[]> {
   if (depth > MAPPED_DEPTH) {
     return [];
+  }
+  const { checker } = world;
+  const columns = depth === 0 ? [] : yield* rowColumns(world, type, name);
+  if (columns.length > 0) {
+    return columns;
   }
   const found: NativeSymbol[] = [];
   for (const part of yield* typeParts(type)) {
@@ -219,7 +227,7 @@ function* mappedOrigins(checker: Checker, type: Type, name: string, depth: numbe
       found.push(property);
     } else if (property !== undefined && part.isMappedType()) {
       const sources = yield* indexedSources(yield* part.getTemplateType.gen(), 0);
-      found.push(...(yield* all(...sources.map((source) => mappedOrigins(checker, source, name, depth + 1)))).flat());
+      found.push(...(yield* all(...sources.map((source) => mappedOrigins(world, source, name, depth + 1)))).flat());
     }
   }
   return found;
@@ -721,10 +729,9 @@ function referencesPass(world: NativeWorld, unnamed: readonly Pending[], place: 
 
 // Step three: a declaration-less member through its mapped template, else a Drizzle row's column.
 function syntheticPass(world: NativeWorld, synthetic: Left["synthetic"], place: Place): void {
-  const { checker } = world;
   const origins = world.batch(
     synthetic.map(function* ({ pending, holders }): APIRequestGenerator<readonly NativeSymbol[]> {
-      return (yield* all(...holders.map((holder) => mappedOrigins(checker, holder, pending.name, 0)))).flat();
+      return (yield* all(...holders.map((holder) => mappedOrigins(world, holder, pending.name, 0)))).flat();
     }),
   );
   const rowless = synthetic.filter(({ declared }, index) => declared.length === 0 && (origins[index] ?? []).length === 0);

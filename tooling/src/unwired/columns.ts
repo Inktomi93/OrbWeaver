@@ -53,15 +53,16 @@ export interface ColumnsReport {
   readonly disagreements: readonly never[];
   /** Every column with its counts, reported or not. */
   readonly columns: readonly ColumnCount[];
-  /** Row members no resolver step placed whose holder's other members are declared in a schema file, `file:line name`:
-   *  a read or write that could credit a column. Listed for judgement, never credited. */
+  /** Declaration-less members no resolver step placed that could be a column, `file:line name`: the holder's other
+   *  members are declared in a schema file, or the member is named as a column is. The name only picks what a person
+   *  reads next; it credits nothing. */
   readonly unresolved: readonly string[];
   readonly limits: readonly string[];
 }
 
 const COLUMN_LIMITS: readonly string[] = [
-  "A row whose members are a subset of its table's columns, as a select of a getTableColumns rest returns, matches no table by its column names; its member reads are listed as unresolved.",
-  "A column named only inside raw SQL text, not through a table expression, is no site.",
+  "A row whose members are a subset of its table's columns, outside a mapped type over the row, matches no table by its column names; a member of it named as a column is listed as unresolved.",
+  "A column named only inside raw SQL text, not through a table expression, is no site; a column only raw SQL writes is listed as deliberate with its reason.",
   "A value a library reads by reflection outside the tree is followed only as far as the sends scan follows it.",
 ];
 
@@ -141,8 +142,11 @@ export function scanColumns(options: ScanOptions): ColumnsReport {
       findings.push({ ...count, file: site.file, line: sources.line(site), home, member, kind, sample });
     }
   }
+  const columnNames = new Set([...columns.values()].map(({ member }) => member));
+  const couldBeColumn = (name: string, holderFiles: readonly string[]): boolean =>
+    columnNames.has(name) || holderFiles.some((file) => file.startsWith(DB_SCHEMA));
   const unresolved = references.unresolved.flatMap(({ site, name, reason, holderFiles }) =>
-    reason === "synthetic" && holderFiles.some((file) => file.startsWith(DB_SCHEMA)) ? [`${located(site)} ${name}`] : [],
+    reason === "synthetic" && isProductionFile(site.file) && couldBeColumn(name, holderFiles) ? [`${located(site)} ${name}`] : [],
   );
   return {
     scanned: columns.size,
