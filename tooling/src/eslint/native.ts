@@ -3,6 +3,8 @@ import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
+import type { LibrarySources } from "./library-source.ts";
+import { DRIZZLE_PACKAGE, librarySources, REACT_TYPES_PACKAGE, TYPES_SCOPE } from "./library-source.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { isElementFactoryCall } from "./syntax.ts";
 import { baseUiBindings } from "./ui-composition.ts";
@@ -67,10 +69,9 @@ const ROW_WRITE_METHODS = new Set(["insert", "update", "delete", "run", "execute
 const ROW_READ_METHODS = new Set(["select", "selectDistinct", "$count", "with", "all", "get", "values"]);
 const ROW_READ_MEMBERS = new Set(["query", "$with"]);
 const DRIZZLE_DB_OWNERS = new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]);
-const DRIZZLE_PACKAGE = /\/node_modules\/drizzle-orm\//u;
 
 // A member of drizzle's database or transaction class, by declaration, never by the receiver's name.
-function nativeDrizzleDbMember(declaration: ts.Declaration | undefined, names: ReadonlySet<string>): boolean {
+function nativeDrizzleDbMember(sources: LibrarySources, declaration: ts.Declaration | undefined, names: ReadonlySet<string>): boolean {
   if (
     declaration === undefined ||
     !(ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration) || ts.isPropertyDeclaration(declaration)) ||
@@ -84,12 +85,12 @@ function nativeDrizzleDbMember(declaration: ts.Declaration | undefined, names: R
     (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) &&
     owner.name !== undefined &&
     DRIZZLE_DB_OWNERS.has(owner.name.text) &&
-    DRIZZLE_PACKAGE.test(owner.getSourceFile().fileName.replaceAll("\\", "/"))
+    sources.packageOf(owner.getSourceFile())?.name === DRIZZLE_PACKAGE
   );
 }
 
-function nativeRowWriteDeclaration(declaration: ts.Declaration | undefined): boolean {
-  return nativeDrizzleDbMember(declaration, ROW_WRITE_METHODS);
+function nativeRowWriteDeclaration(sources: LibrarySources, declaration: ts.Declaration | undefined): boolean {
+  return nativeDrizzleDbMember(sources, declaration, ROW_WRITE_METHODS);
 }
 
 // Spine-Testing §9: outside the persistence tier a test writes rows only through verbs. The resolved signature names the
@@ -99,10 +100,11 @@ export const directRowWriteRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     return {
       CallExpression: (node: TSESTree.CallExpression): void => {
         const call = native.esTreeNodeToTSNodeMap.get(node);
-        if (ts.isCallExpression(call) && nativeRowWriteDeclaration(native.checker.getResolvedSignature(call)?.declaration)) {
+        if (ts.isCallExpression(call) && nativeRowWriteDeclaration(sources, native.checker.getResolvedSignature(call)?.declaration)) {
           context.report({
             node: node.callee,
             message:
@@ -125,6 +127,7 @@ export const directRowReadRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     const report = (node: TSESTree.Node): void =>
       context.report({
         node,
@@ -134,7 +137,7 @@ export const directRowReadRule: OrbRule = {
     return {
       CallExpression: (node: TSESTree.CallExpression): void => {
         const call = native.esTreeNodeToTSNodeMap.get(node);
-        if (ts.isCallExpression(call) && nativeDrizzleDbMember(native.checker.getResolvedSignature(call)?.declaration, ROW_READ_METHODS)) {
+        if (ts.isCallExpression(call) && nativeDrizzleDbMember(sources, native.checker.getResolvedSignature(call)?.declaration, ROW_READ_METHODS)) {
           report(node.callee);
         }
       },
@@ -144,7 +147,7 @@ export const directRowReadRule: OrbRule = {
         const key = ts.isPropertyAccessExpression(member) ? member.name : elementKey(member);
         if (key !== undefined && ROW_READ_MEMBERS.has(key.text)) {
           const declarations = native.checker.getSymbolAtLocation(key)?.declarations ?? [];
-          if (declarations.some((declaration) => nativeDrizzleDbMember(declaration, ROW_READ_MEMBERS))) {
+          if (declarations.some((declaration) => nativeDrizzleDbMember(sources, declaration, ROW_READ_MEMBERS))) {
             report(node);
           }
         }
@@ -157,6 +160,7 @@ export const contextReturnTypeRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     const check = (node: TSESTree.Identifier) => {
       if (node.name !== "ReturnType") {
         return;
@@ -168,8 +172,7 @@ export const contextReturnTypeRule: OrbRule = {
         if (
           declarations.some(
             (item) =>
-              native.program.isSourceFileDefaultLibrary(item.getSourceFile()) ||
-              item.getSourceFile().fileName.replaceAll("\\", "/").includes("/node_modules/@types/"),
+              native.program.isSourceFileDefaultLibrary(item.getSourceFile()) || sources.packageOf(item.getSourceFile())?.name.startsWith(TYPES_SCOPE) === true,
           ) &&
           declarations.every((item) => {
             const source = item.getSourceFile();
@@ -291,16 +294,14 @@ export const baseUiPortalContainerRule: OrbRule = {
   },
 };
 
-const REACT_TYPES = /\/node_modules\/@types\/react\//u;
-
 // An iframe's `title` is its accessible name (HTML-AAM), not a hover hint, so the attribute keeps its meaning there.
 const NATIVE_TITLE_OWNERS = new Set(["iframe"]);
 
 const NATIVE_TITLE_MESSAGE =
   "A native `title` is invisible on touch and is not the accessible name. Put the text in visible copy or an @orb/ui Tooltip (it describes its trigger through aria-describedby), or delete it when it repeats the accessible name (.claude/rules/ui-and-client.md).";
 
-function fromReactTypes(declarations: readonly ts.Declaration[] | undefined): boolean {
-  return (declarations ?? []).some((declaration) => REACT_TYPES.test(declaration.getSourceFile().fileName.replaceAll("\\", "/")));
+function fromReactTypes(sources: LibrarySources, declarations: readonly ts.Declaration[] | undefined): boolean {
+  return (declarations ?? []).some((declaration) => sources.packageOf(declaration.getSourceFile())?.name === REACT_TYPES_PACKAGE);
 }
 
 // The `title` the checker binds to React's DOM attribute declarations is the browser's hover tooltip, whether it is
@@ -317,13 +318,14 @@ export const nativeTitleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     // The attribute names bind to transient symbols; the props type the element expects names the declaration.
     const targetIsNative = (opening: TSESTree.JSXOpeningElement): boolean => {
       if (opening.name.type === AST_NODE_TYPES.JSXIdentifier && NATIVE_TITLE_OWNERS.has(opening.name.name)) {
         return false;
       }
       const attributes = (native.esTreeNodeToTSNodeMap.get(opening) as ts.JsxOpeningLikeElement).attributes;
-      return fromReactTypes(native.checker.getContextualType(attributes)?.getProperty("title")?.declarations);
+      return fromReactTypes(sources, native.checker.getContextualType(attributes)?.getProperty("title")?.declarations);
     };
     // An object literal whose contextual type is React's DOM props authors the attribute where the property is written.
     // `createElement("span", { title })` types its props through a generic, so a string tag in an element factory counts as DOM props.
@@ -340,6 +342,7 @@ export const nativeTitleRule: OrbRule = {
     const objectIsDomProps = (object: TSESTree.Node): boolean =>
       intrinsicFactoryProps(object) ||
       fromReactTypes(
+        sources,
         native.checker.getContextualType(native.esTreeNodeToTSNodeMap.get(object) as ts.ObjectLiteralExpression)?.getProperty("title")?.declarations,
       );
     return {
@@ -359,7 +362,7 @@ export const nativeTitleRule: OrbRule = {
           ? left.property.type === AST_NODE_TYPES.Literal && left.property.value === "title"
           : left.property.type === AST_NODE_TYPES.Identifier && left.property.name === "title";
         const type = native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(left.object));
-        if (named && fromReactTypes(type.getProperty("title")?.declarations)) {
+        if (named && fromReactTypes(sources, type.getProperty("title")?.declarations)) {
           context.report({ node: left.property, message: NATIVE_TITLE_MESSAGE });
         }
       },
@@ -373,9 +376,9 @@ export const nativeTitleRule: OrbRule = {
           const flaggedAtLiteral = (title?.declarations ?? []).some(
             (declaration) =>
               (ts.isPropertyAssignment(declaration) || ts.isShorthandPropertyAssignment(declaration)) &&
-              fromReactTypes(native.checker.getContextualType(declaration.parent)?.getProperty("title")?.declarations),
+              fromReactTypes(sources, native.checker.getContextualType(declaration.parent)?.getProperty("title")?.declarations),
           );
-          return title !== undefined && !fromReactTypes(title.declarations) && !flaggedAtLiteral;
+          return title !== undefined && !fromReactTypes(sources, title.declarations) && !flaggedAtLiteral;
         });
         if (authored && targetIsNative(node.parent)) {
           context.report({ node, message: NATIVE_TITLE_MESSAGE });

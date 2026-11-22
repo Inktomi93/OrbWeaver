@@ -2,6 +2,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
+import { librarySources } from "./library-source.ts";
 import { passesDbHandle, runtimeTypes } from "./port-ownership/foreign-types.ts";
 import type { Restatement } from "./port-ownership/restated-port.ts";
 import { memberLabel, RELATION, restatementsAt } from "./port-ownership/restated-port.ts";
@@ -103,7 +104,8 @@ function subsetRestatement(checker: ts.TypeChecker, argument: ts.Expression, par
 export const derivedPortMemberRule: OrbRule = {
   meta: { type: "problem", schema: [], messages: MESSAGES },
   create(context: OrbRuleContext): RuleVisitor {
-    const { checker, esTreeNodeToTSNodeMap: toTsMap, tsNodeToESTreeNodeMap: toEsMap } = requireTypeServices(context);
+    const { program, checker, esTreeNodeToTSNodeMap: toTsMap, tsNodeToESTreeNodeMap: toEsMap } = requireTypeServices(context);
+    const sources = librarySources(program, context.cwd);
     const reported = new Set<ts.Node>();
     // A contract file builds its own shapes from each other; a restatement is judged where a consumer declares one.
     const inContract = CONTRACT_FILE.test(context.filename.replaceAll("\\", "/"));
@@ -126,7 +128,7 @@ export const derivedPortMemberRule: OrbRule = {
       }
     };
     const judge = (node: TSESTree.Node): void => {
-      for (const found of restatementsAt(checker, toTsMap.get(node))) {
+      for (const found of restatementsAt(sources, checker, toTsMap.get(node))) {
         // A ledger-ruled joint batch keeps its handle by ruling: the consumer's signature is its own contract.
         if (found.relation === RELATION.narrowed || found.ruling !== null) {
           continue;

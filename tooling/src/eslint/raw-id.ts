@@ -2,18 +2,17 @@
 // generic id field or React state. Only the Zod builder check is syntax-only. An id name picks the string declarations
 // the rule judges; the brand it holds is what this file hands it, and a library's own value makes it that library's
 // handle. The name stands for the brand only where nothing branded or foreign reaches it (brand-names.ts).
-import { existsSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
-import { isWithinRoot } from "@orb/kit/path-containment";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
-import { WORKSPACE_MANIFEST, workspacePackageDirs } from "../package-effects/index.ts";
 import type { Inflow, NameMatch } from "./brand-names.ts";
-import { BrandTable, brandOfPhantomKeys, isLibrarySource, isPhantomKey, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
+import { BrandTable, brandOfPhantomKeys, isPhantomKey, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
 import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
+import type { LibrarySources } from "./library-source.ts";
+import { librarySources } from "./library-source.ts";
 import { staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { homes, posixPath } from "./syntax.ts";
@@ -217,29 +216,7 @@ function sourceOfField(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): 
   return declaration;
 }
 
-// The workspace's own package directories under a lint's working directory, read once per directory.
-const workspaceDirsByCwd = new Map<string, readonly string[]>();
-
-function workspaceDirs(cwd: string): readonly string[] {
-  const known = workspaceDirsByCwd.get(cwd);
-  if (known !== undefined) {
-    return known;
-  }
-  const dirs = existsSync(join(cwd, WORKSPACE_MANIFEST)) ? workspacePackageDirs(cwd).map((dir) => join(cwd, dir)) : [];
-  workspaceDirsByCwd.set(cwd, dirs);
-  return dirs;
-}
-
-/** Whether a file is a library's own, by the program's answer under {@link isLibrarySource}. */
-type IsLibrary = (file: ts.SourceFile) => boolean;
-
-function libraryOf(program: ts.Program, cwd: string): IsLibrary {
-  return (file: ts.SourceFile): boolean =>
-    isLibrarySource({
-      external: program.isSourceFileFromExternalLibrary(file),
-      workspacePackage: workspaceDirs(cwd).some((dir) => isWithinRoot(dir, file.fileName.replaceAll("/", sep), { sep })),
-    });
-}
+type IsLibrary = LibrarySources["isLibrary"];
 
 function libraryFieldSource(isLibrary: IsLibrary, checker: ts.TypeChecker, node: ts.Node, name: string): ts.Declaration | undefined {
   if (!((ts.isShorthandPropertyAssignment(node) || ts.isPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent))) {
@@ -511,7 +488,7 @@ export const rawIdRule: OrbRule = {
     const source = toTs.get(context.sourceCode.ast).getSourceFile();
     const visible = localBrands(source, checker, brand);
     const table = new BrandTable([...TYPE_ID_BRANDS, ...visible]);
-    const isLibrary = libraryOf(program, context.cwd);
+    const { isLibrary } = librarySources(program, context.cwd);
     let inflow: ReadonlyMap<ts.Node, Inflow> | undefined;
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
       const plain =

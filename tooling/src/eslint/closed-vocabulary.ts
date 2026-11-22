@@ -3,6 +3,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
+import { librarySources } from "./library-source.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 const AXIS_NAME = /^(?:kind|status|role)$|[a-z](?:Kind|Status|Role)$/u;
@@ -33,6 +34,7 @@ export const closedVocabularyRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const { program, checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
+    const { isLibrary } = librarySources(program, context.cwd);
     return {
       "ObjectExpression > Property"(node: TSESTree.Property): void {
         const property = toTs.get(node);
@@ -50,7 +52,7 @@ export const closedVocabularyRule: OrbRule = {
         }
         const slot = checker.getContextualType(property.parent)?.getProperty(name);
         const field = slot?.valueDeclaration;
-        if (slot === undefined || field === undefined || !ts.isPropertySignature(field) || program.isSourceFileFromExternalLibrary(field.getSourceFile())) {
+        if (slot === undefined || field === undefined || !ts.isPropertySignature(field) || isLibrary(field.getSourceFile())) {
           return;
         }
         const assigned = checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(slot, property));

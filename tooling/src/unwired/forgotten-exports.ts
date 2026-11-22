@@ -4,7 +4,7 @@
 import { relative } from "node:path";
 import ts from "typescript";
 import type { ForeignTypes } from "../eslint/index.ts";
-import { derivedMembers, foreignTypes, isHandTyped, placementOf } from "../eslint/index.ts";
+import { derivedMembers, foreignTypes, isHandTyped, librarySources, placementOf } from "../eslint/index.ts";
 import type { LoadedWorld } from "./doors.ts";
 import { doorsOf, exportNameOf } from "./doors.ts";
 import { isProduction } from "./worlds.ts";
@@ -112,6 +112,7 @@ function shapesOf(world: LoadedWorld): { readonly exported: readonly Declared[];
 /** Every exported shape its area's door leaves out while another file spells it again, in one world. */
 export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExport[] {
   const checker = world.program.getTypeChecker();
+  const sources = librarySources(world.program, world.root);
   const { exported, all } = shapesOf(world);
   const byKey = new Map<string, Shape[]>();
   for (const shape of all) {
@@ -125,7 +126,7 @@ export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExpo
       continue;
     }
     // A member the declaration derives from (`type Op = NonNullable<Owner["m"]>`) is its owner, not a copy.
-    const owners: ReadonlySet<ts.Node> = derivedMembers(checker, shape.declaration);
+    const owners: ReadonlySet<ts.Node> = derivedMembers(sources, checker, shape.declaration);
     const copies = (byKey.get(shape.key) ?? []).filter((other) => other.node !== shape.node && other.file !== shape.file && !owners.has(other.node));
     if (copies.length === 0) {
       continue;
@@ -145,7 +146,7 @@ export function forgottenDoorExports(world: LoadedWorld): readonly ForgottenExpo
       copies: copies.map((copy) => copy.at),
       copyKeys: copies.map((copy) => copy.id),
       crossDomain,
-      foreign: foreignTypes(checker, shape.declaration),
+      foreign: foreignTypes(sources, checker, shape.declaration),
     });
   }
   return found;

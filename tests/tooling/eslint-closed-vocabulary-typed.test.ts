@@ -7,7 +7,10 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { closedVocabularyRule } from "../../tooling/src/eslint/closed-vocabulary.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/closed-vocabulary";
@@ -132,4 +135,29 @@ test.for([
   { name: "an object with no declared slot", source: "export const out = { kind: row.kind };" },
 ])("passes $name", async ({ source }, { scratch }) => {
   expect(await findings(scratch, source)).toEqual([]);
+});
+
+// A slot a workspace package declares is the tree's own, though pnpm links the package through node_modules; a slot a
+// dependency declares is the library's contract, wherever the store keeps its files.
+const LINKED_PROBE = "app/probe.ts";
+const LINKED_FINDINGS: Readonly<Record<Link, number>> = { workspace: 1, dependency: 0 };
+
+test.for(LINKS)("a projection into a slot that a %s declares", async (link, { plantedTree }) => {
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    { name: "@w/vocab", files: { "index.d.ts": "export interface Slot {\n  readonly kind: string;\n}" } },
+    {
+      [LINKED_PROBE]: [
+        'import type { Slot } from "@w/vocab";',
+        'type ProbeKind = "draft" | "sent";',
+        "declare const row: { readonly kind: ProbeKind };",
+        "export const slot: Slot = { kind: row.kind };",
+      ].join("\n"),
+    },
+  );
+  const found = lintLinked(root, LINKED_PROBE, { "closed-vocabulary": closedVocabularyRule });
+  expect(found.map(({ ruleId, fatal }) => ({ ruleId, fatal }))).toEqual(
+    Array.from({ length: LINKED_FINDINGS[link] }, () => ({ ruleId: RULE, fatal: undefined })),
+  );
 });

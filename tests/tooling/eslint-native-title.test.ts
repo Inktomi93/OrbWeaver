@@ -6,7 +6,11 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { REACT_TYPES_PACKAGE } from "../../tooling/src/eslint/library-source.ts";
+import { nativeTitleRule } from "../../tooling/src/eslint/native.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 import { programForSource } from "./_typescript-program.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -143,4 +147,20 @@ test("an object literal not typed as DOM props may carry a title of its own", as
 test("the population includes @orb/ui primitives", async () => {
   const body = 'export const Probe = (): ReactElement => <span title="hover only">x</span>;';
   expect(await findings(body, "packages/ui/src/primitives/probe/native-title-probe.tsx")).toHaveLength(1);
+});
+
+// React's DOM attribute is React's by the package the program loaded it from, store-linked or not; a workspace
+// package published under the same name declares its own `title`.
+const LINKED_PROBE = "app/probe.ts";
+const LINKED_FINDINGS: Readonly<Record<Link, readonly string[]>> = { workspace: [], dependency: [RULE] };
+
+test.for(LINKS)("a title typed by HTMLAttributes from a %s named @types/react", async (link, { plantedTree }) => {
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    { name: REACT_TYPES_PACKAGE, files: { "index.d.ts": "export interface HTMLAttributes {\n  title?: string;\n}" } },
+    { [LINKED_PROBE]: ['import type { HTMLAttributes } from "react";', 'export const props: HTMLAttributes = { title: "hover only" };'].join("\n") },
+  );
+  const found = lintLinked(root, LINKED_PROBE, { "no-native-title": nativeTitleRule });
+  expect(found.map(({ ruleId }) => ruleId)).toEqual(LINKED_FINDINGS[link]);
 });

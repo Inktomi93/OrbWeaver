@@ -1,16 +1,19 @@
 // Which named types in a shape packages/contracts cannot hold, by where each is declared. Contracts reaches kit, zod,
 // the standard library and the repository's ambient declarations. A server type is domain data that moves with the
 // shape; a platform global, an `@orb/db` or an `@orb/inference` type is a runtime type that stays with its owner.
+import { basename } from "node:path";
 import ts from "typescript";
+import type { LibrarySources } from "../library-source.ts";
+import { DRIZZLE_PACKAGE } from "../library-source.ts";
+import { posixPath } from "../syntax.ts";
 
-const CONTRACTS_REACH = [
-  /\/packages\/(?:contracts|kit)\/src\//u,
-  /\/typescript\/lib\/lib\.(?!dom)/u,
-  /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?(?:zod|@total-typescript\/ts-reset)\//u,
-];
+// The workspace packages and the libraries contracts reaches; of the standard library, every file but the DOM's.
+const CONTRACTS_REACH = /\/packages\/(?:contracts|kit)\/src\//u;
+const REACHED_LIBRARIES: ReadonlySet<string> = new Set(["zod", "@total-typescript/ts-reset"]);
+const DOM_LIBRARY = /^lib\.dom\b/u;
 const FOREIGN_HOMES = [
   { kind: "server", pattern: /\/packages\/(?:server|default-content)\/src\//u },
-  { kind: "db", pattern: /\/packages\/db\/src\/|\/drizzle-orm\//u },
+  { kind: "db", pattern: /\/packages\/db\/src\//u },
   { kind: "inference", pattern: /\/packages\/inference\/src\//u },
 ] as const;
 /** `platform`: a global the runtime supplies (`AbortSignal`, `Buffer`) or another library outside contracts' reach.
@@ -26,12 +29,23 @@ const KEPT_SHAPES: ReadonlyMap<string, string> = new Map([
 /** The `@orb/db` types that carry a database handle or an unexecuted statement across a boundary. */
 const DB_HANDLE_TYPES: ReadonlySet<string> = new Set(["DatabaseHandle", "BatchHandle", "StatementToken", "AwaitableStatementToken", "SQL", "DbAssemblyInput"]);
 
-// A root ambient declaration (`reset.d.ts`, `platform.d.ts`) sits outside every package and every library.
-const isAmbient = (file: string): boolean => file.endsWith(".d.ts") && !file.includes("/packages/") && !file.includes("/node_modules/");
+// A root ambient declaration (`reset.d.ts`, `platform.d.ts`) is the tree's own file outside every package.
+const isAmbient = (path: string): boolean => path.endsWith(".d.ts") && !path.includes("/packages/");
 
-function foreignKind(file: string): ForeignKind | null {
-  const path = file.replaceAll("\\", "/");
-  if (isAmbient(path) || CONTRACTS_REACH.some((pattern) => pattern.test(path))) {
+// The program answers where a file comes from: the standard library, a library's package, or the tree's own file.
+function foreignKind(sources: LibrarySources, file: ts.SourceFile): ForeignKind | null {
+  if (sources.isDefaultLibrary(file)) {
+    return DOM_LIBRARY.test(basename(file.fileName)) ? "platform" : null;
+  }
+  if (sources.isLibrary(file)) {
+    const library = sources.packageOf(file)?.name;
+    if (library !== undefined && REACHED_LIBRARIES.has(library)) {
+      return null;
+    }
+    return library === DRIZZLE_PACKAGE ? "db" : "platform";
+  }
+  const path = posixPath(file.fileName);
+  if (isAmbient(path) || CONTRACTS_REACH.test(path)) {
     return null;
   }
   return FOREIGN_HOMES.find(({ pattern }) => pattern.test(path))?.kind ?? "platform";
@@ -43,7 +57,7 @@ export const aliased = (checker: ts.TypeChecker, symbol: ts.Symbol | undefined):
   symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
 
 /** The named types `node` mentions that packages/contracts cannot reach, by kind. */
-export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTypes {
+export function foreignTypes(sources: LibrarySources, checker: ts.TypeChecker, node: ts.Node): ForeignTypes {
   const found: Record<ForeignKind, Set<string>> = { server: new Set(), db: new Set(), inference: new Set(), platform: new Set(), kept: new Set() };
   const followed = new Set<ts.Node>();
   const classify = (reference: ts.TypeReferenceNode, declaration: ts.Declaration): void => {
@@ -62,7 +76,7 @@ export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTyp
       }
       return;
     }
-    const kind = foreignKind(declaration.getSourceFile().fileName);
+    const kind = foreignKind(sources, declaration.getSourceFile());
     const name = reference.typeName.getText();
     if (kind !== null) {
       found[kind === "server" && KEPT_SHAPES.has(name) ? "kept" : kind].add(name);
