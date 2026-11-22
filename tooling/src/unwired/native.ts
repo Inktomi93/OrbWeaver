@@ -91,6 +91,8 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
+  // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
+  #settling = false;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -136,8 +138,12 @@ export class NativeWorld implements Disposable {
     );
   }
 
-  /** Run request generators in pages of {@link BATCH}, keeping their order. */
+  /** Run request generators in pages of {@link BATCH}, keeping their order.
+   *  @throws When a request generator runs a batch of its own: the outer round's answers would be read around it. */
   batch<T>(requests: readonly APIRequestGenerator<T>[]): T[] {
+    if (this.#settling) {
+      throw new Error("NativeWorld.batch ran inside a request generator: ask through yield, or settle the data before the batch");
+    }
     const results: T[] = [];
     for (let start = 0; start < requests.length; start += BATCH) {
       results.push(...this.#settle(requests.slice(start, start + BATCH)));
@@ -148,6 +154,15 @@ export class NativeWorld implements Disposable {
   // Every query is pure in one snapshot, so each distinct request crosses to the compiler once until releaseAnswers:
   // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
+    this.#settling = true;
+    try {
+      return this.#rounds(generators);
+    } finally {
+      this.#settling = false;
+    }
+  }
+
+  #rounds<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     let waiting: Pending[] = [];
     const run = (generator: APIRequestGenerator, finish: (value: unknown) => void, first: unknown): void => {
@@ -191,19 +206,15 @@ export class NativeWorld implements Disposable {
       const round = waiting;
       waiting = [];
       const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
-      // The round's answers reach its generators from the round itself, so an answer the memo lets go while the round
-      // is in flight (a release inside a generator step) never reaches a waiting generator as undefined.
-      const landed = new Map<string>();
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
         for (const [at, [key]] of page.entries()) {
-          landed.set(key, answers[at]);
           this.#answers.set(key, answers[at]);
         }
       }
       for (const { generator, finish, key } of round) {
-        run(generator, finish, landed.get(key));
+        run(generator, finish, this.#answers.get(key));
       }
     }
     return results;
@@ -213,6 +224,9 @@ export class NativeWorld implements Disposable {
    *  compiler's decoded response, and a walk's answers kept for the world's life outgrow the walk's own facts many times
    *  over. The facts a later file needs again live in the callers' id-keyed tables; a repeat ask crosses again. */
   releaseAnswers(): void {
+    if (this.#settling) {
+      throw new Error("NativeWorld.releaseAnswers ran inside a request generator: the round in flight reads its answers back");
+    }
     this.#answers.clear();
   }
 

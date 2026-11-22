@@ -98,7 +98,9 @@ test("an object literal's method fills the member of its own literal's slot", { 
 });
 
 // A read of a library's own member (`RegExp.test`, `Array.join`, `Object.fromEntries`) ends at the library's
-// declaration: it is the library's read, never a lost one, however often the walk asks the checker about it.
+// declaration: it is the library's read, never a lost one, however often the walk asks the checker about it. A walk
+// step that ran a batch of its own would read the outer round's answers around it; NativeWorld.batch throws on that, so
+// this walk fails loudly instead of losing the reads.
 test("a library member's read ends at the library, never lost", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,

@@ -268,8 +268,8 @@ export class Resolver {
   readonly #related = new Map<string, readonly Type[]>();
   readonly #spelledByAlias = new Map<string, Spelled>();
   readonly #spelledByType = new Map<number, Spelled>();
-  // Read before any walk: a request generator never runs a batch of its own, so the row tables cannot be asked for
-  // lazily from inside the origin walk that needs them.
+  // Read before any walk, so the origin walk's generators read a settled table; NativeWorld.batch refuses a batch run
+  // from inside a generator.
   readonly #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>>;
 
   constructor(world: NativeWorld) {
