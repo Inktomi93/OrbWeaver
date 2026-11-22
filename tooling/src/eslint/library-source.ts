@@ -21,7 +21,7 @@ export const BASE_UI_PACKAGE = "@base-ui/react";
 export const TYPES_SCOPE = "@types/";
 
 /** A library's file by the package that declares it: the manifest's name and the file's posix path inside the package. */
-export interface LibraryFile {
+interface LibraryFile {
   readonly name: string;
   readonly path: string;
 }

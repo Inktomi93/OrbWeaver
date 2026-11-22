@@ -1203,7 +1203,7 @@ export function valueIndex(world: NativeWorld, home: ReadonlySet<string> = every
   for (const [at, symbol] of world.symbolsAt(plain).entries()) {
     credit(index, symbol === undefined ? [] : declarationKeys(symbol), world.siteOf(plain[at] as Node));
   }
-  // A module namespace's member, as `m.X` in `import("./x.ts").then((m) => m.X)` or `ns.X` after `import * as ns`,
+  // A module namespace's member, as `m.X` in `import(spec).then((m) => m.X)` or `ns.X` after `import * as ns`,
   // reads the module's declaration of `X`; an object's property or method is the property index's to credit.
   for (const [at, symbol] of world.symbolsAt(accessed).entries()) {
     if (symbol !== undefined && hasFlag(symbol.flags, MODULE_MEMBER)) {
