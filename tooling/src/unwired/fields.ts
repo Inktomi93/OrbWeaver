@@ -33,6 +33,7 @@ import type { UnresolvedReason } from "./key-resolver.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { LiteralEvidence, LiteralStage } from "./literal-hits.ts";
 import { literalStage } from "./literal-hits.ts";
+import type { FoundReference } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, PropertyReferences, Send } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
@@ -629,7 +630,7 @@ function kindOf(field: FieldDeclaration, roles: Roles, homeWritten: boolean): Fi
 const homeOf = (field: FieldDeclaration): string => `${field.site.file}:${field.home}`;
 
 // Engine two's references for a field and its mirrors, each site once and the field's own names left out.
-function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonly Site[]>): readonly Site[] {
+function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonly FoundReference[]>): readonly FoundReference[] {
   const own = new Set(names.map(siteKey));
   const merged = new Map(names.flatMap((name) => second.get(siteKey(name)) ?? []).map((site) => [siteKey(site), site]));
   return [...merged.values()].filter((site) => !own.has(siteKey(site)));
@@ -873,12 +874,13 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind, sends } of judged) {
     // A read that only copies a value into a stored column is a hand-off, which engine one followed to the column.
-    const audit = rolesOf(
-      sources,
-      mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference))),
-      references,
-    );
-    const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
+    const sites = mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference)));
+    const audit = rolesOf(sources, sites, references);
+    // A write through a base or sibling member builds that type's value, which reaches this field only through a flow
+    // engine one follows; a read through a base type may read this field's value, so it stays in the audit.
+    const relatives = new Set(sites.filter((reference) => reference.relative).map(siteKey));
+    const writes = audit.write.filter((write) => !relatives.has(siteKey(write)));
+    const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? writes : [])];
     if (lacking.length > 0) {
       disagreements.push({ key: field.key, uses: lacking.map(located) });
       continue;

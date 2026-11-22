@@ -9,11 +9,14 @@
 //   field in its published declaration, so the value's same-named member is read, at any depth of the slot.
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
-// - A call zod declares is no hand-off: a validator passes the value on to its result, and a builder's shape literal is
-//   the schema, whose keys are the members of the type it satisfies (build.ts zodTwins), not values sent.
 // - A spread into an object literal copies; it never escapes.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too.
+//
+// A call zod declares takes schema input, not a send: a builder's arguments are shapes (the schema itself, whose keys
+// are the members of the type it satisfies, build.ts zodTwins), and a validator hands its input to no receiver but the
+// schema's own keys. The exceptions are the calls whose argument is data parse returns as its output
+// (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
 import type { Node } from "@typescript/native/ast";
 import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSpreadElement } from "@typescript/native/ast";
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
@@ -36,7 +39,9 @@ interface FlowPair {
 const FLOW_UNWRAP_DEPTH = 6;
 const GLOBAL_SCOPE = "global";
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
-const ZOD_TYPES = /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?zod\//u;
+const ZOD_PACKAGE = "zod";
+// zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
+const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
 
 const opaqueFlag = (type: Type): boolean => OPAQUE_FLAGS.some((flag) => hasFlag(type.flags, flag)) || type.isTypeParameter();
 
@@ -165,6 +170,9 @@ export class Flows {
   /** Record every member a value holds as escaping, from a product file; a value published through our own global
    *  door also marks its members as the door's. */
   escape(value: Type, door: boolean, file: string, at: number): void {
+    if (this.#state.session.options.ablate.has("escape")) {
+      return;
+    }
     const members = this.deepMembers(value, door);
     this.#state.roleAll(members, "escape", file, at);
     if (door) {
@@ -206,13 +214,20 @@ export class Flows {
     return pairs;
   }
 
-  // A call zod declares takes its argument as schema input, not as a send: a validator hands the value on to its result,
-  // and a builder's shape literal is the schema itself, whose keys mean the members of the type it satisfies.
+  // A call zod declares takes its argument as schema input, not as a send (the module header holds the reason); a value
+  // the schema returns as its output still fills its slot.
   #zodCallsDropped(handed: readonly HandedWhole[]): readonly HandedWhole[] {
-    const names = handed.map(({ call }) => calleeName(call?.node));
+    const names = handed.map(({ call }) => {
+      const name = calleeName(call?.node);
+      return name !== undefined && "text" in name && typeof name.text === "string" && ZOD_OUTPUT_VALUES.has(name.text) ? undefined : name;
+    });
     const asked = names.flatMap((name) => (name === undefined ? [] : [name]));
     const symbols = this.#state.world.symbolsAt(asked);
-    const validators = new Set(asked.flatMap((name, at) => ((symbols[at]?.declarations ?? []).some((handle) => ZOD_TYPES.test(handle.path)) ? [name] : [])));
+    const zod = this.#state.world.fromPackage(
+      symbols.map((symbol) => symbol?.declarations ?? []),
+      ZOD_PACKAGE,
+    );
+    const validators = new Set(asked.filter((_, at) => zod[at] === true));
     return handed.filter((_, at) => {
       const name = names[at];
       return name === undefined || !validators.has(name);

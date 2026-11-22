@@ -3,19 +3,19 @@
 // that tells the leg what to do first.
 import { relative } from "node:path";
 import ts from "typescript";
-import type { PortMember } from "../eslint/index.ts";
+import type { LibrarySources, PortMember } from "../eslint/index.ts";
 import {
   aliasOf,
   effectiveMember,
   foreignTypes,
-  homeFileOf,
+  homeSourceOf,
   isHandTyped,
   memberLabel,
-  placementOf,
+  placementOfSource,
   RELATION,
+  rankOfSource,
   rootAlias,
   rulingKeysOf,
-  tierRank,
 } from "../eslint/index.ts";
 import type { Door, ImportGraph, LoadedWorld } from "./doors.ts";
 import { areaOf, doorsOf, exportNameOf, exportsOtherAs, lowerHome, relativeSpecifier } from "./doors.ts";
@@ -25,6 +25,7 @@ import { conceptOf, crossDomainKind, crossDomainNote, legOf, lineOf, placementOf
 export interface PlanContext {
   readonly world: LoadedWorld;
   readonly checker: ts.TypeChecker;
+  readonly sources: LibrarySources;
   readonly nodes: ReadonlyMap<string, Indexed>;
   readonly chains: ReadonlyMap<string, readonly string[]>;
   readonly pairs: readonly Pair[];
@@ -187,18 +188,13 @@ function planDerive(context: PlanContext, { port, site, paramsOnly }: Restating,
 
 // `members` are the owner's member then any restating one; `domains` are the domains the shape crosses between.
 function planCrossDomain(context: PlanContext, members: readonly [PortMember, ...PortMember[]], domains: readonly (string | null)[]): Plan {
-  const foreign = foreignTypes(context.checker, members[0]);
+  const foreign = foreignTypes(context.sources, context.checker, members[0]);
   const keys = { names: members.flatMap((member) => rulingKeysOf(context.checker, member)), domains };
   const kind = crossDomainKind(foreign, keys);
   return plain(kind, crossDomainNote(kind, foreign, keys));
 }
 
-const domainOf = (fileName: string): string | null => placementOf(fileName)?.domain ?? null;
-
-const rankOfFile = (fileName: string): number => {
-  const placement = placementOf(fileName);
-  return placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement);
-};
+const domainOf = (sources: LibrarySources, file: ts.SourceFile): string | null => placementOfSource(sources, file)?.domain ?? null;
 
 interface Owned {
   /** The owner's label: `Interface.member`, or the alias it is typed by. */
@@ -214,17 +210,19 @@ function planRestating(context: PlanContext, restating: Restating, ownerKey: str
     const at = ownerKey.lastIndexOf(":");
     return { ...plain("hand", "the owner sits outside this package's world"), owner: ownerKey.slice(at + 1), ownerAt: ownerKey.slice(0, at) };
   }
-  const owner = effectiveMember(context.checker, ownerNode.member);
+  const owner = effectiveMember(context.sources, context.checker, ownerNode.member);
   const alias = aliasOf(context.checker, owner);
   const home = alias ?? owner;
-  const ownerFile = homeFileOf(context.checker, owner);
+  const ownerSource = homeSourceOf(context.checker, owner);
+  const ownerFile = ownerSource.fileName;
   const owned: Owned = { owner: alias?.name.text ?? memberLabel(owner), ownerAt: `${relative(context.world.root, ownerFile)}:${lineOf(home)}` };
-  const siteFile = restating.site.getSourceFile().fileName;
-  const [from, to] = [domainOf(siteFile), domainOf(ownerFile)];
+  const siteSource = restating.site.getSourceFile();
+  const siteFile = siteSource.fileName;
+  const [from, to] = [domainOf(context.sources, siteSource), domainOf(context.sources, ownerSource)];
   if (from !== null && to !== null && from !== to) {
     return { ...planCrossDomain(context, [owner, restating.port], [from, to]), ...owned };
   }
-  if (rankOfFile(ownerFile) > rankOfFile(siteFile)) {
+  if (rankOfSource(context.sources, ownerSource) > rankOfSource(context.sources, siteSource)) {
     const lower = lowerHome(relative(context.world.root, siteFile), relative(context.world.root, ownerFile));
     return { ...plain("move-down", `the owner sits in a higher tier: name the shape in ${lower} and derive both`), ...owned };
   }
@@ -235,7 +233,7 @@ function planRestating(context: PlanContext, restating: Restating, ownerKey: str
 function aliasTarget(context: PlanContext, node: Indexed, ownerKey: string): PlannedTarget | null {
   const alias = aliasOf(context.checker, node.member);
   const ownerNode = context.nodes.get(ownerKey);
-  const ownerAlias = ownerNode === undefined ? null : rootAlias(context.checker, effectiveMember(context.checker, ownerNode.member));
+  const ownerAlias = ownerNode === undefined ? null : rootAlias(context.checker, effectiveMember(context.sources, context.checker, ownerNode.member));
   // Typed by the owner's own alias, or a rename of it: nothing to rewrite.
   if (alias === null || rootAlias(context.checker, node.member) === ownerAlias) {
     return null;

@@ -28,6 +28,7 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
+import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
@@ -35,14 +36,17 @@ import type { RootKind, Roots } from "./roots.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
+import { fileSpellings } from "./spellings.ts";
+import type { BuildSession, GraphFacts, LostCause } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
+import type { WhyEntry } from "./why.ts";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
-const REACT_TYPES = /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?@types\/react\//u;
+const REACT_TYPES = "@types/react";
 const TYPE_DECLARATIONS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
 
 // A declaration a published or trusted file exports, kept by that file's ruling.
@@ -60,7 +64,7 @@ interface UrlSpawn {
 
 /** A built graph: the state, the settled variant tables and the facts liveness needs beyond edges. */
 export interface Graph {
-  readonly state: GraphState;
+  readonly facts: GraphFacts;
   readonly variants: readonly VariantAxis[];
   readonly kept: readonly KeptExport[];
   readonly sdk: SdkSurface;
@@ -83,11 +87,11 @@ function* patternSourceType(checker: Checker, route: PatternRoute): APIRequestGe
   return type;
 }
 
-// Which declaration files the graph walks: ours, except the published SDK's.
-const walkedDeclaration = (file: string): boolean => file.endsWith(".d.ts") && !file.startsWith(PUBLISHED_SDK) && !file.includes("node_modules/");
+// Which of our declaration files the graph walks: all but the published SDK's (the world keeps no library's).
+const walkedDeclaration = (file: string): boolean => !file.startsWith(PUBLISHED_SDK);
 
 /** The merged program the graph reads. */
-export const openGraphWorld = (root: string): NativeWorld => NativeWorld.openMerged(root, walkedDeclaration);
+export const openGraphWorld = (root: string, timing = false): NativeWorld => NativeWorld.openMerged(root, walkedDeclaration, timing);
 
 // The declaration kind a key names.
 const kindOf = (key: GraphKey): SyntaxKind | null => (key.startsWith("M:") ? null : Number(key.slice(key.lastIndexOf(".") + 1)));
@@ -101,10 +105,17 @@ interface PendingClass {
   readonly decls: readonly DeclKey[];
 }
 
-/** Build the graph of every judged file in the world, telling `log` how far the walk has come. */
-export function buildGraph(root: string, world: NativeWorld, roots: Roots, log: (line: string) => void): Graph {
-  const builder = new Builder(new GraphState(root, world, roots), log);
-  return builder.build();
+/** A build's graph and the roles its `--why` targets were given on the way. */
+export interface BuiltGraph {
+  readonly graph: Graph;
+  readonly why: readonly WhyEntry[];
+}
+
+/** Build the graph of every judged file in the world under the session's options, logging how far the walk has come. */
+export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
+  const state = new GraphState(root, world, roots, session);
+  const graph = new Builder(state).build();
+  return { graph, why: state.why?.entries(state.decls) ?? [] };
 }
 
 // The walk reports its progress every this many files.
@@ -112,7 +123,7 @@ const PROGRESS_EVERY = 1000;
 
 class Builder {
   readonly #state: GraphState;
-  readonly #variants = new Variants();
+  readonly #variants: Variants;
   readonly #flows: Flows;
   readonly #keys: Keys;
   readonly #classes = new Map<DeclKey, ClassFacts>();
@@ -120,11 +131,9 @@ class Builder {
   readonly #pendingValues: PendingClass[] = [];
   readonly #urlSpawns: UrlSpawn[] = [];
 
-  readonly #log: (line: string) => void;
-
-  constructor(state: GraphState, log: (line: string) => void) {
+  constructor(state: GraphState) {
     this.#state = state;
-    this.#log = log;
+    this.#variants = new Variants(state.session);
     this.#flows = new Flows(this.#state);
     this.#keys = new Keys(this.#state);
   }
@@ -132,23 +141,42 @@ class Builder {
   build(): Graph {
     const state = this.#state;
     const { roots, world } = state;
+    const { files: only } = state.session.options;
     const files = world.files
       .map((source) => world.fileOfSource(source))
-      .filter((file) => roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".");
+      .filter((file) => (roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".") && (only === null || file.startsWith(only)));
+    const { profile } = state.session;
+    const walk = (): void => this.#walk(files);
+    const settle = (): readonly VariantAxis[] => {
+      this.#settleClasses();
+      this.#keys.finish(this.#flows);
+      return this.#variants.finish();
+    };
+    if (profile === null) {
+      walk();
+    } else {
+      profile.time("walk", walk);
+    }
+    const variants = profile === null ? settle() : profile.time("fixpoint", settle);
+    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
+  }
+
+  #walk(files: readonly string[]): void {
+    const state = this.#state;
+    const { world, session } = state;
     const sink = this.#sink();
     for (const [at, file] of files.entries()) {
+      const began = performance.now();
       const source = world.source(file);
       if (source !== undefined) {
         this.#file(collectSites(source, file, state.product(file), sink));
       }
       world.releaseAnswers();
+      session.profile?.file(file, performance.now() - began);
       if ((at + 1) % PROGRESS_EVERY === 0) {
-        this.#log(`walked ${String(at + 1)}/${String(files.length)} files`);
+        session.log(`walked ${String(at + 1)}/${String(files.length)} files`);
       }
     }
-    this.#settleClasses();
-    this.#keys.finish(this.#flows);
-    return { state, variants: this.#variants.finish(), kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
   }
 
   #sink(): WalkSink {
@@ -186,6 +214,7 @@ class Builder {
     this.#classFacts(sites);
     this.#literals(sites);
     this.#tags(sites);
+    fileSpellings(state, sites);
     state.cssNames.push(...sites.cssNames);
     // a module loaded by path (a Worker, a child process) runs as its own entry, kept alive by what spawns it
     for (const { target, from } of sites.urlModules) {
@@ -235,8 +264,9 @@ class Builder {
     const state = this.#state;
     const bare = sites.names.flatMap((site, at) => {
       const { parent } = site.node;
-      return symbols[at] !== undefined && (resolved[at]?.length ?? 0) === 0 && isPropertyAccessExpression(parent) && sameNode(parent.name, site.node)
-        ? [{ site, receiver: parent.expression }]
+      const symbol = symbols[at];
+      return symbol !== undefined && (resolved[at]?.length ?? 0) === 0 && isPropertyAccessExpression(parent) && sameNode(parent.name, site.node)
+        ? [{ site, receiver: parent.expression, symbol }]
         : [];
     });
     const asks = state.world.typedAt(bare, ({ receiver }) => receiver).map(({ item, type }) => ({ ...item, type, name: nameText(item.site.node) }));
@@ -252,16 +282,67 @@ class Builder {
       if (decls.length > 0) {
         state.count("origin recovered through a receiver's declaration");
       }
-      return decls.length === 0 && walks[at]?.end !== "library";
+      return decls.length === 0 && walks[at]?.end !== "library" && annotated[y]?.end !== "library";
     });
-    const reasons = state.batch(still.map(({ type, name }) => state.resolver.unbackedReason(type, name)));
-    for (const [y, { site }] of still.entries()) {
-      const reason = reasons[y];
-      if (reason === null || reason === undefined) {
-        state.lostReads.push(`${sites.file}:${String(site.node.pos)} .${nameText(site.node)}`);
-      } else {
+    const landed = lost.flatMap(({ site, at }, y) => {
+      const walk = (annotated[y]?.decls.length ?? 0) === 0 ? [walks[at], annotated[y]].find((candidate) => candidate?.end === "library") : undefined;
+      return walk === undefined ? [] : [{ site, stops: walk.stops }];
+    });
+    const stoppedAt = state.batch(landed.map(({ stops }) => packagesOf(state.world, stops)));
+    this.#libraryLandings(
+      sites,
+      landed.map(({ site }, y) => ({ site, packages: stoppedAt[y] ?? [] })),
+    );
+    const keyed = state.batch(still.map(({ symbol, type }) => libraryKeySet(state.world, symbol, type)));
+    this.#libraryLandings(
+      sites,
+      still.flatMap(({ site }, y) => ((keyed[y]?.length ?? 0) > 0 ? [{ site, packages: keyed[y] ?? [] }] : [])),
+    );
+    const unkeyed = still.filter((_, y) => (keyed[y]?.length ?? 0) === 0);
+    const reasons = state.batch(unkeyed.map(({ type, name, symbol }) => state.resolver.unbackedReason(type, name, symbol)));
+    const unplaced = unkeyed.filter((_, y) => reasons[y] === null || reasons[y] === undefined);
+    for (const reason of reasons) {
+      if (reason !== null) {
         state.count(`no home by design: ${reason}`);
       }
+    }
+    this.#lostReads(sites, unplaced);
+  }
+
+  // Each lost read with its key's source, one key-source walk per receiver type carrying every name lost on it, and the
+  // slot it lands in.
+  #lostReads(
+    sites: FileSites,
+    unplaced: readonly { readonly site: NameSite; readonly symbol: NativeSymbol; readonly type: Type; readonly name: string }[],
+  ): void {
+    const state = this.#state;
+    const byType = [...Map.groupBy(unplaced, ({ type }) => type.id).values()].flatMap((reads) =>
+      reads[0] === undefined ? [] : [{ type: reads[0].type, reads }],
+    );
+    const found = state.batch(byType.map(({ type, reads }) => keySources(state, type, [...new Set(reads.map(({ name }) => name))])));
+    const keys = new Map(byType.flatMap(({ reads }, at) => reads.map(({ site, name }) => [site, found[at]?.get(name) ?? NO_KEY] as const)));
+    const slotted = state.batch(
+      unplaced.map(function* (read): APIRequestGenerator<{
+        readonly read: (typeof unplaced)[number];
+        readonly slot: Pick<LostCause, "slot" | "detail" | "receiver">;
+      }> {
+        return { read, slot: yield* lostSlot(state.world, read.symbol, read.type) };
+      }),
+    );
+    for (const {
+      read: { site, name },
+      slot,
+    } of slotted) {
+      const read = `${sites.file}:${String(site.node.pos)} .${name}`;
+      state.lostReads.push(read);
+      state.lostCauses.push({ read, where: `${sites.file}:${String(sites.lineOf(site.node))}`, ...(keys.get(site) ?? NO_KEY), ...slot });
+    }
+  }
+
+  // The bare reads a library's own declaration answered, by the packages their walks stopped at.
+  #libraryLandings(sites: FileSites, landed: readonly { readonly site: NameSite; readonly packages: readonly string[] }[]): void {
+    for (const { site, packages } of landed) {
+      this.#state.libraryLandings.push({ where: `${sites.file}:${String(sites.lineOf(site.node))}`, member: nameText(site.node), packages });
     }
   }
 
@@ -283,6 +364,9 @@ class Builder {
   // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
+    if (state.session.options.ablate.has("zod-twins")) {
+      return;
+    }
     const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
     const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);
@@ -299,9 +383,13 @@ class Builder {
     const callees = state.world.symbolsAt(
       sites.hookTuples.map(({ call }) => (isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
     );
+    const reacts = state.world.fromPackage(
+      callees.map((callee) => callee?.declarations ?? []),
+      REACT_TYPES,
+    );
     for (const [x, { elements }] of sites.hookTuples.entries()) {
       const callee = callees[x];
-      if (callee === undefined || !STATE_HOOKS.has(callee.name) || !callee.declarations.some((handle) => REACT_TYPES.test(handle.path))) {
+      if (callee === undefined || !STATE_HOOKS.has(callee.name) || reacts[x] !== true) {
         continue;
       }
       const [value, setter] = elements;

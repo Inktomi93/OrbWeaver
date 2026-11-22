@@ -1,13 +1,15 @@
-// The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
-// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
-// nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `graph-dom` run the reference graph over the one
+// merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
+// properties nothing reads, or the class and data-* hooks with no partner; `graph-dom` reads source, so it refuses `--from`.
+// `graph-worlds-check` proves the merged program against each world's own (./graph/worlds-check.ts) and exits 1 while a
+// merged-program error is unexplained. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts); `hits` prints every literal hit
 // of a name across the tracked tree, classified by where it sits (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
@@ -20,8 +22,18 @@ import { scanFields } from "./fields.ts";
 import type { MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
-import { cssGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { DOM_BUCKETS } from "./graph/dom.ts";
+import type { LostBreakdown } from "./graph/lost.ts";
+import type { GraphOptions, ProfileKind } from "./graph/options.ts";
+import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import type { GraphProfileReport } from "./graph/profile.ts";
+import { PROFILE_PHASES } from "./graph/profile.ts";
+import type { Query, QueryAnswer } from "./graph/query.ts";
+import type { GraphSessionReport } from "./graph/scan.ts";
+import { cssGraph, domGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
+import type { WorldsCheck } from "./graph/worlds-check.ts";
+import { checkWorlds } from "./graph/worlds-check.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -46,15 +58,35 @@ type Verb = (typeof VERBS)[number];
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 const HITS_VERB = "hits";
-/** The reference-graph verbs: the buckets, a member bucket's find-references check, and the custom-property pass. */
-const GRAPH_VERBS = ["graph", "graph-verify", "graph-css"] as const;
+/** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
+ *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
+const GRAPH_VERBS = [
+  "graph",
+  "graph-verify",
+  "graph-css",
+  "graph-dom",
+  "graph-why",
+  "graph-users",
+  "graph-impact",
+  "graph-reach",
+  "graph-worlds-check",
+] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   graph: "reports/unwired/graph.json",
   "graph-verify": "reports/unwired/graph-verify.json",
   "graph-css": "reports/unwired/graph-css.json",
+  "graph-dom": "reports/unwired/graph-dom.json",
+  "graph-why": "reports/unwired/graph-why.json",
+  "graph-users": "reports/unwired/graph-users.json",
+  "graph-impact": "reports/unwired/graph-impact.json",
+  "graph-reach": "reports/unwired/graph-reach.json",
+  "graph-worlds-check": "reports/unwired/graph-worlds-check.json",
 };
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
+// The query each query verb asks; the other graph verbs ask none.
+const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
+const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -317,83 +349,352 @@ interface GraphArgs {
   readonly out: string;
   readonly bucket: MemberBucket | null;
   readonly sample: number | null;
+  /** The names a query verb asks about. */
+  readonly names: readonly string[];
+  readonly options: GraphOptions;
 }
 
-const GRAPH_FLAG = /^--(root|out|bucket|sample)=(.+)$/u;
+const GRAPH_FLAG = /^--(root|out|bucket|sample|profile|why|files|trace|ablate|dump|from|explain-lost)(?:=(.+))?$/u;
 const VERIFY_FLAGS: ReadonlySet<string> = new Set(["bucket", "sample"]);
+// The flags a run may repeat; every other flag takes one value.
+const REPEATED_FLAGS: ReadonlySet<string> = new Set(["why", "trace", "ablate"]);
+const PROFILE_FLAG = "profile";
+const EXPLAIN_LOST_FLAG = "explain-lost";
+const FLAG_PREFIX = "--";
+// What only a build can do: a run whose graph comes from a dump refuses them.
+const BUILD_FLAGS = ["why", "files", "ablate", "dump"] as const;
+const PROFILE_DIR_SUFFIX = ".profile";
+// The profiles the compiler writes while it builds the graph: a run from a dump builds none.
+const COMPILER_PROFILES: ReadonlySet<ProfileKind> = new Set<ProfileKind>(["cpu", "heap"]);
 
-function graphFlags(verb: GraphVerb, argv: readonly string[]): ReadonlyMap<string, string> {
-  const flags = new Map<string, string>();
-  for (const arg of argv) {
-    const [, name = "", value = ""] = GRAPH_FLAG.exec(arg) ?? [];
-    if (name === "" || (verb !== "graph-verify" && VERIFY_FLAGS.has(name))) {
-      throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
-    }
-    flags.set(name, value);
+// A flag's value when it is given bare: `--profile` profiles wall time, `--explain-lost` takes none.
+const BARE_VALUES: ReadonlyMap<string, string> = new Map([
+  [PROFILE_FLAG, PROFILES[0]],
+  [EXPLAIN_LOST_FLAG, ""],
+]);
+
+// One flag's name and value, refused when the verb takes no such flag, it repeats a single flag, or its value is wrong.
+function graphFlag(verb: GraphVerb, arg: string, flags: ReadonlyMap<string, readonly string[]>): { readonly name: string; readonly given: string } {
+  const [, name = "", value] = GRAPH_FLAG.exec(arg) ?? [];
+  const known = name !== "" && (verb === "graph-verify" || !VERIFY_FLAGS.has(name));
+  const given = value ?? BARE_VALUES.get(name);
+  if (!known || given === undefined || (flags.has(name) && !REPEATED_FLAGS.has(name)) || (name === EXPLAIN_LOST_FLAG && value !== undefined)) {
+    throw new UsageError(`${arg}: unknown or repeated argument\n${USAGE}`);
   }
-  return flags;
+  return { name, given };
 }
 
-function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
-  const flags = graphFlags(verb, argv);
-  const bucket = oneOf("bucket", flags.get("bucket") ?? null, MEMBER_BUCKETS);
-  if (verb === "graph-verify" && bucket === null) {
-    throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
+function graphFlags(verb: GraphVerb, argv: readonly string[]): { readonly flags: ReadonlyMap<string, readonly string[]>; readonly names: readonly string[] } {
+  const flags = new Map<string, string[]>();
+  const names: string[] = [];
+  for (const arg of argv) {
+    if (!arg.startsWith(FLAG_PREFIX) && QUERY_OF[verb] !== undefined) {
+      names.push(arg);
+      continue;
+    }
+    const { name, given } = graphFlag(verb, arg, flags);
+    flags.set(name, [...(flags.get(name) ?? []), given]);
   }
-  const sample = flags.get("sample") ?? null;
-  if (sample !== null && !/^[1-9]\d*$/u.test(sample)) {
-    throw new UsageError(`--sample=${sample}: expected a positive count`);
+  if (QUERY_OF[verb] !== undefined && names.length === 0) {
+    throw new UsageError(`${verb} needs a name to ask about\n${USAGE}`);
+  }
+  return { flags, names };
+}
+
+const single = (flags: ReadonlyMap<string, readonly string[]>, name: string): string | null => flags.get(name)?.[0] ?? null;
+
+function parsed<T>(flag: string, values: readonly string[], read: (value: string) => T | null): readonly T[] {
+  return values.map((value) => {
+    const found = read(value);
+    if (found === null) {
+      throw new UsageError(`--${flag}=${value}: not a ${flag} this verb reads\n${USAGE}`);
+    }
+    return found;
+  });
+}
+
+function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir: string): GraphOptions {
+  const from = single(flags, "from");
+  const traces = parsed("trace", flags.get("trace") ?? [], traceOf);
+  const built = [...BUILD_FLAGS.filter((name) => flags.has(name)), ...traces.filter(({ kind }) => kind !== "verify-chain").map(() => "trace")];
+  if (from !== null && built.length > 0) {
+    throw new UsageError(`--from reads a built graph; --${built.join(", --")} act on a build\n${USAGE}`);
+  }
+  const profile = oneOf(PROFILE_FLAG, single(flags, PROFILE_FLAG), PROFILES);
+  if (from !== null && profile !== null && COMPILER_PROFILES.has(profile)) {
+    throw new UsageError(`--from reads a built graph; --profile=${profile} profiles the compiler's build\n${USAGE}`);
   }
   return {
-    verb,
-    root: resolve(flags.get("root") ?? process.cwd()),
-    out: flags.get("out") ?? GRAPH_OUT[verb],
-    bucket,
-    sample: sample === null ? null : Number(sample),
+    profile: profile === null ? null : { kind: profile, dir: profileDir },
+    why: parsed("why", flags.get("why") ?? [], whyTarget),
+    files: single(flags, "files"),
+    traces,
+    ablate: new Set(parsed("ablate", flags.get("ablate") ?? [], (value) => oneOf("ablate", value, ABLATIONS))),
+    dump: single(flags, "dump"),
+    from,
+    explainLost: flags.has(EXPLAIN_LOST_FLAG),
   };
 }
 
+function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
+  const { flags, names } = graphFlags(verb, argv);
+  if (verb === "graph-dom" && flags.has("from")) {
+    throw new UsageError(`graph-dom reads the program's source, which a dump does not carry; drop --from\n${USAGE}`);
+  }
+  const bucket = oneOf("bucket", single(flags, "bucket"), MEMBER_BUCKETS);
+  if (verb === "graph-verify" && bucket === null) {
+    throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
+  }
+  const sample = single(flags, "sample");
+  if (sample !== null && !/^[1-9]\d*$/u.test(sample)) {
+    throw new UsageError(`--sample=${sample}: expected a positive count`);
+  }
+  const root = resolve(single(flags, "root") ?? process.cwd());
+  const out = single(flags, "out") ?? GRAPH_OUT[verb];
+  const at = resolve(checkoutOf(root), out);
+  return {
+    verb,
+    root,
+    out,
+    bucket,
+    sample: sample === null ? null : Number(sample),
+    names,
+    options: graphOptions(flags, `${at.slice(0, at.length - extname(at).length)}${PROFILE_DIR_SUFFIX}`),
+  };
+}
+
+// A compiler profile's functions shown on stderr; the report keeps every one.
+const SHOWN_PROFILE_ENTRIES = 20;
+
+const ms = (value: number): string => `${String(Math.round(value))}ms`;
+
+function logProfile(profile: GraphProfileReport): void {
+  log(`profile phases ${PROFILE_PHASES.map((phase) => `${phase}=${ms(profile.phases[phase])}`).join(" ")} (resolve, origin and fixpoint overlap walk)`);
+  if (profile.world !== null) {
+    const { batches, rounds, sent, memoHits } = profile.world;
+    log(
+      `profile requests batches=${String(batches)} rounds=${String(rounds)} sent=${String(sent)} memo-hits=${String(memoHits)} rss-peak=${String(profile.rssPeakMb)}MB`,
+    );
+  }
+  if (profile.timing !== null) {
+    const { requestCount, roundTripMs, serverTimeMs, transportOverheadMs } = profile.timing;
+    log(`profile checker requests=${String(requestCount)} round-trip=${ms(roundTripMs)} server=${ms(serverTimeMs)} transport=${ms(transportOverheadMs)}`);
+  }
+  const { p50, p95, p99, max } = profile.fileQuantiles;
+  log(`profile files=${String(profile.files.length)} p50=${ms(p50)} p95=${ms(p95)} p99=${ms(p99)} max=${ms(max)}; above p99:`);
+  for (const { file, ms: took } of profile.files.filter((entry) => entry.ms > p99)) {
+    log(`  ${ms(took)}\t${file}`);
+  }
+  log(
+    `profile counts ${Object.entries({
+      ...profile.counts,
+      ...Object.fromEntries(Object.entries(profile.peaks).map(([name, value]) => [`peak ${name}`, value])),
+    })
+      .map(([name, value]) => `${name}=${String(value)}`)
+      .join("; ")}`,
+  );
+  for (const { axis, file, causes } of profile.dynamicAxes) {
+    log(`profile dynamic axis ${file}:${axis} <- ${causes.join(", ")}`);
+  }
+  if (profile.compiler !== null) {
+    const { kind, path, summary } = profile.compiler;
+    log(
+      `profile ${kind} ${path}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
+    );
+    for (const { name, flat, cumulative } of summary.entries.slice(0, SHOWN_PROFILE_ENTRIES)) {
+      log(`  cum=${String(cumulative)}\tflat=${String(flat)}\t${name}`);
+    }
+  }
+}
+
+// What the run ran under, before its tallies: a narrowed, ablated or dumped run says so.
+function logSession(session: GraphSessionReport): void {
+  if (session.ablated.length > 0) {
+    log(`ablated ${session.ablated.join(", ")}: these buckets are not the tree's`);
+  }
+  if (session.files !== null) {
+    log(`walk narrowed to ${session.files}: these buckets are not the tree's`);
+  }
+  if (session.dumped !== null) {
+    log(`graph dumped (built at ${session.dumped.builtAt} from ${session.dumped.head ?? "no git checkout"})`);
+  }
+  for (const entry of session.why) {
+    log(`why ${entry.target}\t${entry.member} (${entry.declared})\t${entry.role}\t${entry.site}\tvia ${entry.via}`);
+  }
+  if (session.lost !== null) {
+    logLost(session.lost);
+  }
+  if (session.profile !== null) {
+    logProfile(session.profile);
+  }
+}
+
+// How many receivers or members each group shows on stderr: a display cut only, the JSON keeps every one.
+const LOST_SHOWN = 3;
+
+function logLost(lost: LostBreakdown): void {
+  log(
+    `lost reads ${String(lost.total)}: ${Object.entries(lost.bySource)
+      .map(([source, count]) => `${source}=${String(count)}`)
+      .join(" ")}`,
+  );
+  for (const { alias, members, reads, homes } of lost.unions) {
+    log(`  ${String(reads)}\t${alias ?? "inline"} [${members.join(", ")}]${homes.length > 0 ? `\thome ${homes.join("; ")}` : ""}`);
+  }
+  log(`lost reads by slot (top ${String(LOST_SHOWN)} receivers each; the JSON holds all):`);
+  for (const { slot, detail, reads, sample, receivers } of lost.bySlot) {
+    log(`  ${String(reads)}\t${slot}${detail === null ? "" : ` (${detail})`}\t${sample}`);
+    for (const { receiver, reads: held, sample: at } of receivers.slice(0, LOST_SHOWN)) {
+      log(`    ${String(held)}\t${receiver}\t${at}`);
+    }
+  }
+  log(`reads ended at a library's own declaration ${String(lost.library.total)} (top ${String(LOST_SHOWN)} members each; the JSON holds all):`);
+  for (const { library, reads, members } of lost.library.byLibrary) {
+    log(`  ${String(reads)}\t${library}`);
+    for (const { member, reads: held, sample } of members.slice(0, LOST_SHOWN)) {
+      log(`    ${String(held)}\t.${member}\t${sample}`);
+    }
+  }
+}
+
+const QUERY_EDGE = { run: "", typ: " (type)" } as const;
+
+function answerLines(answer: QueryAnswer): readonly string[] {
+  if (answer.query === "why") {
+    return answer.chains.flatMap(({ start, path }) => [`  from ${start}`, ...path.map(({ label, via }) => `    -> ${label}${QUERY_EDGE[via]}`)]);
+  }
+  if (answer.query === "impact") {
+    return [...answer.files.map(({ file, product }) => `  ${product ? "product" : "outside"}\t${file}`), ...answer.roots.map((root) => `  root\t${root}`)];
+  }
+  return answer.nodes.map(({ label, depth, via }) => `  ${String(depth)}\t${label}${QUERY_EDGE[via]}`);
+}
+
+function logAnswer(answer: QueryAnswer): void {
+  process.stdout.write(`${answer.query} ${answer.asked}: ${answer.starts.length === 0 ? "matches nothing" : answer.starts.join("; ")}\n`);
+  for (const line of answerLines(answer)) {
+    process.stdout.write(`${line}\n`);
+  }
+}
+
+async function runGraphQuery(args: GraphArgs, query: Query): Promise<number> {
+  const result = await queryGraph(args.root, { query, names: args.names }, log, args.options);
+  const path = write(args.root, args.out, result);
+  for (const answer of result.answers) {
+    logAnswer(answer);
+  }
+  logSession(result.session);
+  log(`${query} names=${String(args.names.length)} written to ${path}`);
+  return EXIT.clean;
+}
+
 async function runGraphCss(args: GraphArgs): Promise<number> {
-  const report = await cssGraph(args.root, log);
+  const report = await cssGraph(args.root, log, args.options);
   const path = write(args.root, args.out, report);
   for (const bucket of CSS_BUCKETS) {
     for (const entry of report.buckets[bucket]) {
       process.stdout.write(`${bucket}\t${entry}\n`);
     }
   }
+  logSession(report.session);
   const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
   log(`${[...CSS_BUCKETS.map((bucket) => `${bucket}=${String(report.buckets[bucket].length)}`), ...counts].join(" ")} written to ${path}`);
   return EXIT.clean;
 }
 
-async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<number> {
-  const { verification } = await verifyGraph(args.root, { bucket, sample: args.sample }, log);
-  const path = write(args.root, args.out, verification);
-  for (const entry of verification.entries.filter(({ verdict }) => verdict !== "confirmed")) {
-    process.stdout.write(`${entry.verdict}\t${entry.label}\t${entry.reads.join(",")}\n`);
+async function runGraphDom(args: GraphArgs): Promise<number> {
+  const report = await domGraph(args.root, log, args.options);
+  const path = write(args.root, args.out, report);
+  for (const bucket of DOM_BUCKETS) {
+    for (const entry of report.buckets[bucket]) {
+      process.stdout.write(`${bucket}\t${entry}\n`);
+    }
   }
+  for (const { text, at, world, why } of report.unresolved) {
+    process.stdout.write(`unresolved\t${world}\t${text}\t${at}\t${why}\n`);
+  }
+  logSession(report.session);
+  const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
+  log(
+    `${[...DOM_BUCKETS.map((bucket) => `${bucket}=${String(report.buckets[bucket].length)}`), `unresolved=${String(report.unresolved.length)}`, ...counts].join(" ")} written to ${path}`,
+  );
+  return EXIT.clean;
+}
+
+async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<number> {
+  const { verification, session } = await verifyGraph(args.root, { bucket, sample: args.sample }, log, args.options);
+  const path = write(args.root, args.out, { ...verification, session });
+  for (const entry of verification.entries.filter(({ verdict }) => verdict !== "confirmed")) {
+    process.stdout.write(`${entry.verdict}\t${entry.label}\t${entry.reads.join(",")}${entry.chains === undefined ? "" : `\t${entry.chains.join(" | ")}`}\n`);
+  }
+  logSession(session);
   const tally = VERDICTS.map((verdict) => `${verdict}=${String(verification.entries.filter((entry) => entry.verdict === verdict).length)}`);
   log(`${bucket} sample=${String(verification.entries.length)} of ${String(verification.total)} ${tally.join(" ")} written to ${path}`);
   return EXIT.clean;
 }
 
 async function runGraphScan(args: GraphArgs): Promise<number> {
-  const graph = await scanGraph(args.root, log);
+  const graph = await scanGraph(args.root, log, args.options);
   const path = write(args.root, args.out, graph);
   for (const bucket of BUCKETS) {
     for (const finding of graph.analysis[bucket]) {
       process.stdout.write(`${bucket}\t${finding.label}${finding.note === null ? "" : `\t${finding.note}`}\n`);
     }
   }
+  logSession(graph.session);
   log(
     `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(graph.analysis[bucket].length)}`).join(" ")} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
   );
   return EXIT.clean;
 }
 
+// A world's differences, one row each; the libraries only the merged program loads are one row per package, and the
+// report keeps a row per file.
+function writeDifferences({ config, differences, libraries }: WorldsCheck["worlds"][number]): void {
+  for (const { name, files } of libraries) {
+    process.stdout.write(`difference\t${config}\tlibrary-only-in-merged\t${name}\t${String(files)} files\n`);
+  }
+  for (const { kind, at, subject, world, merged, ...rest } of differences.filter((difference) => difference.kind !== "library-only-in-merged")) {
+    const cause = "cause" in rest ? `\t${rest.cause}${rest.mergedOnly.length === 0 ? "" : ` ${rest.mergedOnly.join(",")}`}` : "";
+    process.stdout.write(`difference\t${config}\t${kind}\t${at}\t${subject}\tworld: ${world}\tmerged: ${merged}${cause}\n`);
+  }
+}
+
+function runGraphWorldsCheck(args: GraphArgs): number {
+  const check = checkWorlds(args.root, log);
+  const path = write(args.root, args.out, check);
+  for (const world of check.worlds) {
+    writeDifferences(world);
+  }
+  for (const error of check.explained) {
+    process.stdout.write(
+      `explained\t${error.at}\tTS${String(error.code)}\t${error.explanation}\t${error.by}\tworld: ${error.inWorld}\tmerged: ${error.inMerged}\n`,
+    );
+  }
+  for (const error of check.unexplained) {
+    process.stdout.write(`unexplained\t${error.at}\tTS${String(error.code)}\t${error.worlds.join(",")}\t${error.text}\n`);
+  }
+  for (const error of check.worldOnly) {
+    process.stdout.write(`world-only\t${error.at}\tTS${String(error.code)}\t${error.worlds.join(",")}\t${error.text}\n`);
+  }
+  log(
+    `merged-errors=${String(check.mergedErrors)} matched=${String(check.matched.length)} explained=${String(check.explained.length)} unexplained=${String(check.unexplained.length)} world-only=${String(check.worldOnly.length)} written to ${path}`,
+  );
+  return check.unexplained.length === 0 ? EXIT.clean : EXIT.violations;
+}
+
 async function runGraph(args: GraphArgs): Promise<number> {
+  const query = QUERY_OF[args.verb];
+  if (query !== undefined) {
+    return await runGraphQuery(args, query);
+  }
   if (args.verb === "graph-css") {
     return await runGraphCss(args);
+  }
+  if (args.verb === "graph-worlds-check") {
+    return runGraphWorldsCheck(args);
+  }
+  if (args.verb === "graph-dom") {
+    return await runGraphDom(args);
   }
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }

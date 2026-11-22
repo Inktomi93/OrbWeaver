@@ -6,34 +6,62 @@
 //   resolved to its node and keyed the same way a walked declaration is.
 // - Symbol ids are near 2^48, so an alias walk keys its visited set by the exact id per position, never by arithmetic.
 // - A mapped member's declaration is the `[K in …]` node that minted it, never the member's home, so the origin walk
-//   passes over it; a branch whose member a library declares ends there, and the other branches walk on.
+//   passes over it; a branch whose member a library declares ends there, and the other branches walk on. A name whose
+//   other branches run out of types after one stopped at a library is the library's.
+// - A read the type walk loses is answered from what the receiver's declaration spells: its annotation (through
+//   `typeof X` to X's own), what its initializer spells (an `as`, an awaited call's return), a call's argument for a
+//   type parameter the return keys by, the holder's type argument for a generic container's parameter, the member a
+//   destructured name stands for, and a spread source's member. `T["k"]` keys land on T's member k, `z.infer<typeof S>`
+//   keys on the tuple `S = z.enum(T)` is built from. A member only a library declares is the library's.
 // - A Drizzle row member is placed on its column by the row's whole column-name set (./../drizzle-rows.ts).
-import type { MappedTypeNode, Node, TypeNode, TypeReferenceNode } from "@typescript/native/ast";
+import type {
+  CallExpression,
+  IndexedAccessTypeNode,
+  LiteralTypeNode,
+  MappedTypeNode,
+  Node,
+  ObjectLiteralExpression,
+  TypeNode,
+  TypeReferenceNode,
+} from "@typescript/native/ast";
 import {
   isArrowFunction,
   isAsExpression,
+  isAwaitExpression,
   isBindingElement,
   isCallExpression,
+  isComputedPropertyName,
   isFunctionDeclaration,
   isFunctionExpression,
+  isFunctionTypeNode,
   isIdentifier,
   isIndexedAccessTypeNode,
+  isInterfaceDeclaration,
   isIntersectionTypeNode,
   isLiteralTypeNode,
   isMappedTypeNode,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isNonNullExpression,
+  isNoSubstitutionTemplateLiteral,
+  isNumericLiteral,
+  isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
   isParenthesizedTypeNode,
+  isPrivateIdentifier,
   isPropertyAccessExpression,
+  isPropertyAssignment,
   isPropertyDeclaration,
   isPropertySignatureDeclaration,
   isQualifiedName,
   isSatisfiesExpression,
+  isShorthandPropertyAssignment,
+  isSourceFile,
+  isSpreadAssignment,
   isStringLiteral,
   isTypeAliasDeclaration,
+  isTypeLiteralNode,
   isTypeOperatorNode,
   isTypeQueryNode,
   isTypeReferenceNode,
@@ -73,9 +101,12 @@ export interface OriginWalk {
   readonly depth: number;
   /** At a kept home, at a library's own declaration (the read is the library's), or out of types. */
   readonly end: "home" | "library" | "exhausted";
+  /** At a library end: the library's own declarations of the name, where each branch stopped. */
+  readonly stops: readonly NodeHandle[];
 }
 
-const EXHAUSTED: OriginWalk = { decls: [], depth: -1, end: "exhausted" };
+/** A walk that found no home and met no library declaration. */
+export const EXHAUSTED: OriginWalk = { decls: [], depth: -1, end: "exhausted", stops: [] };
 
 // What an alias declared in the tree spells as keys: a key set is a type, so the checker hands a walk the literals
 // `keyof typeof X` or `(typeof T)[number]` evaluate to and never says which value spelled them; the alias's own syntax
@@ -106,6 +137,14 @@ interface SpellingItem {
 
 const NOTHING: Spelled = { queried: [], tuples: [] };
 
+// What a value is spelled with: the type syntax to read, and the key sets a call's arguments answered directly.
+interface ValueSpelling {
+  readonly roots: readonly SpellingRoot[];
+  readonly tuples: readonly SpelledTuple[];
+}
+
+const NO_VALUE_SPELLING: ValueSpelling = { roots: [], tuples: [] };
+
 // Lib type names whose arguments are key sets, by the argument that is: `Record<K, V>`, `Pick<T, K>`, `Omit<T, K>`,
 // `Exclude<K, X>`, `Extract<K, X>`; and the ones that pass a key set through whole. By name, as
 // tooling/src/unwired/union-origins.ts reads them, since lib declares each once.
@@ -116,7 +155,10 @@ const KEY_ARGUMENT: ReadonlyMap<string, number> = new Map([
   ["Exclude", 0],
   ["Extract", 0],
 ]);
-const KEY_TRANSPARENT: ReadonlySet<string> = new Set(["Readonly", "Partial", "Required", "NonNullable"]);
+// `Promise` and `Awaited` too: an awaited value's keys are its promise's argument's.
+const KEY_TRANSPARENT: ReadonlySet<string> = new Set(["Readonly", "Partial", "Required", "NonNullable", "Promise", "Awaited"]);
+// zod's inferred types, whose keys are the queried schema's: `z.infer<typeof S>` over `S = z.enum(T)` is T's. Taught by hand.
+const ZOD_INFERS: ReadonlySet<string> = new Set(["infer", "output", "input"]);
 
 // zod's enum door: `schema.enum.k` on `schema = z.enum(T)` reads T's member. Taught by hand.
 const ZOD_ENUM_DOORS: ReadonlySet<string> = new Set(["enum", "Enum"]);
@@ -189,7 +231,8 @@ function annotationOf(node: Node): TypeNode | undefined {
     isMethodDeclaration(node) ||
     isMethodSignatureDeclaration(node) ||
     isArrowFunction(node) ||
-    isFunctionExpression(node)
+    isFunctionExpression(node) ||
+    isFunctionTypeNode(node)
   ) {
     return node.type;
   }
@@ -208,6 +251,8 @@ interface LevelHomes {
   readonly carries: Set<string>[];
   readonly found: Map<string, Set<DeclKey>>;
   readonly ended: Map<string, Set<number>>;
+  /** The library declarations that ended a name's branches on this level. */
+  readonly stops: Map<string, Set<NodeHandle>>;
   spelled: readonly Spelled[];
 }
 
@@ -219,21 +264,35 @@ function addAll<T>(into: Map<string, Set<T>>, name: string, values: Iterable<T>)
   into.set(name, set);
 }
 
+// What one walk has settled so far, and the library declarations each name's branches stopped at.
+interface WalkSoFar {
+  readonly out: Map<string, OriginWalk>;
+  readonly stopped: ReadonlyMap<string, ReadonlySet<NodeHandle>>;
+}
+
 // Settle each live name the level answered, and keep the rest walking. A type that names the property with a real
 // declaration is that branch's origin; one outside the tree (a library's own member, such as a query builder's `where`)
 // ends the branch, and the other branches walk on.
-function settleNames(live: LiveNames, homes: LevelHomes, depth: number, out: Map<string, OriginWalk>): LiveNames {
+// A name with no branch left: the library's when a branch stopped at one, on this level or an earlier one (another name
+// riding the same walk can keep it going after this name's branches ran out), else exhausted.
+function spentWalk(depth: number, stoppedHere: boolean, stops: ReadonlySet<NodeHandle> | undefined): OriginWalk {
+  const library = stoppedHere || (stops?.size ?? 0) > 0;
+  return { decls: [], depth, end: library ? "library" : "exhausted", stops: library ? [...(stops ?? [])] : [] };
+}
+
+function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: WalkSoFar): LiveNames {
+  const { out, stopped } = walk;
   const next = new Map<string, ReadonlySet<number>>();
   for (const [name, on] of live) {
     const found = homes.found.get(name);
     if (found !== undefined && found.size > 0) {
-      out.set(name, { decls: [...found], depth, end: "home" });
+      out.set(name, { decls: [...found], depth, end: "home", stops: [] });
       continue;
     }
     const stop = homes.ended.get(name);
     const kept = [...on].filter((id) => stop?.has(id) !== true);
     if (kept.length === 0) {
-      out.set(name, { decls: [], depth, end: stop !== undefined && stop.size > 0 ? "library" : "exhausted" });
+      out.set(name, spentWalk(depth, (stop?.size ?? 0) > 0, stopped.get(name)));
     } else {
       next.set(name, new Set(kept));
     }
@@ -252,6 +311,71 @@ function enumArgumentOf(declaration: Node): readonly Node[] {
   return callee !== undefined && isPropertyAccessExpression(callee) && callee.name.text === ZOD_ENUM && tuple !== undefined ? [tuple] : [];
 }
 
+// The type names a type node spells in a key position.
+function keyRefNames(node: TypeNode): ReadonlySet<string> {
+  const sink: SpellingSink = { owner: null, inline: new Map(), queries: [], tuples: [], refs: [], evaluated: [] };
+  spellKeys(node, true, sink);
+  return new Set(sink.refs.flatMap((ref) => (isIdentifier(ref) ? [ref.text] : [])));
+}
+
+// The positions of a function's parameters whose annotation spells, in a key position, a type parameter of the
+// function that its return spells keys with.
+function boundParameters(fn: Node, returned: ReadonlySet<string>): readonly number[] {
+  const own = new Set(typeParametersOf(fn).filter((name) => returned.has(name)));
+  const parameters = isFunctionDeclaration(fn) || isArrowFunction(fn) || isFunctionExpression(fn) || isMethodDeclaration(fn) ? fn.parameters : [];
+  return parameters.flatMap((parameter, at) => {
+    const refs = parameter.type === undefined ? new Set<string>() : keyRefNames(parameter.type);
+    return [...own].some((name) => refs.has(name)) ? [at] : [];
+  });
+}
+
+function typeParametersOf(node: Node): readonly string[] {
+  const list =
+    isFunctionDeclaration(node) ||
+    isArrowFunction(node) ||
+    isFunctionExpression(node) ||
+    isMethodDeclaration(node) ||
+    isInterfaceDeclaration(node) ||
+    isTypeAliasDeclaration(node)
+      ? node.typeParameters
+      : undefined;
+  return (list ?? []).map((parameter) => parameter.name.text);
+}
+
+// The type parameters of the interface, or the type alias's type literal, a member is declared in.
+function containerTypeParameters(member: Node): readonly string[] {
+  // a module symbol's declaration is its source file, which has no parent
+  if (isSourceFile(member)) {
+    return [];
+  }
+  const { parent } = member;
+  if (isInterfaceDeclaration(parent)) {
+    return typeParametersOf(parent);
+  }
+  // a type alias's literal can sit inside an intersection or a union (`type T<K> = { … } & ( … )`)
+  let at: Node = parent;
+  while (isTypeLiteralNode(at) || isIntersectionTypeNode(at) || isUnionTypeNode(at) || isParenthesizedTypeNode(at)) {
+    at = at.parent;
+  }
+  return isTypeAliasDeclaration(at) ? typeParametersOf(at) : [];
+}
+
+/** A literal key's text: an identifier, a string or numeric literal, or a computed key holding a string. */
+export function keyText(name: Node | undefined): string | undefined {
+  if (name === undefined) {
+    return undefined;
+  }
+  if (isIdentifier(name) || isPrivateIdentifier(name) || isStringLiteral(name) || isNumericLiteral(name) || isNoSubstitutionTemplateLiteral(name)) {
+    return name.text;
+  }
+  if (name.kind === SyntaxKind.TrueKeyword) {
+    return "true";
+  }
+  return isComputedPropertyName(name) && (isStringLiteral(name.expression) || isNoSubstitutionTemplateLiteral(name.expression))
+    ? name.expression.text
+    : undefined;
+}
+
 // The name a receiver is read through: `a.b`'s `b`, or a bare identifier.
 function receiverName(at: Node | undefined): Node | undefined {
   if (at !== undefined && isPropertyAccessExpression(at)) {
@@ -268,12 +392,15 @@ export class Resolver {
   readonly #related = new Map<string, readonly Type[]>();
   readonly #spelledByAlias = new Map<string, Spelled>();
   readonly #spelledByType = new Map<number, Spelled>();
-  // Read before any walk: a request generator never runs a batch of its own, so the row tables cannot be asked for
-  // lazily from inside the origin walk that needs them.
+  // Read before any walk, so the origin walk's generators read a settled table; NativeWorld.batch refuses a batch run
+  // from inside a generator.
   readonly #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>>;
+  // False under `--ablate=spelling`: no alias's syntax is read for the keys it spells.
+  readonly #spelling: boolean;
 
-  constructor(world: NativeWorld) {
+  constructor(world: NativeWorld, { spelling }: { readonly spelling: boolean } = { spelling: true }) {
     this.#world = world;
+    this.#spelling = spelling;
     this.#rows = this.#rowTables();
   }
 
@@ -378,7 +505,7 @@ export class Resolver {
   /**
    * The types a type was built from, asked only where its kind has that relation: an alias's arguments, a reference's
    * target and arguments, a union or intersection's members, a mapped type's template and key constraint, an indexed
-   * access's object, a conditional's branches, a class or interface's bases, and its apparent type. `args` asks only the
+   * access's object, a conditional's branches, a `keyof T`'s T, a class or interface's bases, and its apparent type. `args` asks only the
    * type arguments, for an object type that does not carry the name: it is not the origin, but what it was
    * instantiated with may be (a variants literal inside a tv() return type).
    */
@@ -415,6 +542,9 @@ export class Resolver {
     if (type.isConditionalType()) {
       out.push(yield* type.getTrueType.gen(), yield* type.getFalseType.gen());
     }
+    if (type.isIndexType()) {
+      out.push(yield* type.getTarget.gen());
+    }
     if (type.isTypeReference()) {
       out.push(yield* type.getTarget.gen());
     }
@@ -431,10 +561,14 @@ export class Resolver {
    * `keyof`, and the root itself), so a literal that types a value (`kind: "a"`) never answers a read of `.a`.
    */
   *readSpelling(starts: readonly NodeHandle[], roots: readonly SpellingRoot[] = []): APIRequestGenerator<Spelled> {
+    if (!this.#spelling) {
+      return NOTHING;
+    }
     const { checker } = this.#world;
     const inline = new Map<string, Set<DeclKey>>();
     const queries: Node[] = [];
     const tuples: TypeNode[] = [];
+    const evaluated: TypeNode[] = [];
     const seen = new Set<DeclKey>();
     let todo = starts;
     let pendingRoots = roots;
@@ -446,12 +580,16 @@ export class Resolver {
       ];
       pendingRoots = [];
       for (const item of items) {
-        spellKeys(item.type, item.key, { owner: item.owner, inline, queries, tuples, refs });
+        spellKeys(item.type, item.key, { owner: item.owner, inline, queries, tuples, refs, evaluated });
       }
       todo = refs.length > 0 ? yield* this.#aliasDeclarations(refs) : [];
     }
     const queried = queries.length > 0 ? yield* checker.getTypeAtLocation.gen(queries) : [];
-    const found = [...(yield* this.#tupleKeys(tuples)), ...[...inline].map(([key, owners]) => ({ keys: new Set([key]), homes: [...owners] }))];
+    const found = [
+      ...(yield* this.#tupleKeys(tuples)),
+      ...(yield* this.#evaluatedKeys(evaluated)),
+      ...[...inline].map(([key, owners]) => ({ keys: new Set([key]), homes: [...owners] })),
+    ];
     return queried.length > 0 || found.length > 0 ? { queried, tuples: found } : NOTHING;
   }
 
@@ -512,6 +650,60 @@ export class Resolver {
     return found;
   }
 
+  // Each key set a key-position node evaluates to, with the declarations that spell it: a member's for `T["k"]`, and for
+  // `z.infer<typeof S>` the tuple `S = z.enum(T)` is built from.
+  *#evaluatedKeys(nodes: readonly TypeNode[]): APIRequestGenerator<readonly SpelledTuple[]> {
+    if (nodes.length === 0) {
+      return [];
+    }
+    const types = yield* this.#world.checker.getTypeAtLocation.gen(nodes);
+    const found: SpelledTuple[] = [];
+    for (const [at, node] of nodes.entries()) {
+      const type = types[at];
+      const keys = type === undefined ? [] : ((yield* literalStrings(type)) ?? []);
+      const homes = keys.length === 0 ? [] : yield* this.#evaluatedHomes(node);
+      if (homes.length > 0) {
+        found.push({ keys: new Set(keys), homes });
+      }
+    }
+    return found;
+  }
+
+  *#evaluatedHomes(node: TypeNode): APIRequestGenerator<readonly DeclKey[]> {
+    return isIndexedAccessTypeNode(node) ? yield* this.#memberHomes(node) : yield* this.#zodHomes(node);
+  }
+
+  // `T["k"]`: the declarations of T's member k.
+  *#memberHomes(node: IndexedAccessTypeNode): APIRequestGenerator<readonly DeclKey[]> {
+    const { checker } = this.#world;
+    const index = unparenType(node.indexType);
+    if (!(isLiteralTypeNode(index) && isStringLiteral(index.literal))) {
+      return [];
+    }
+    const holder = yield* checker.getTypeAtLocation.gen(node.objectType);
+    const member = yield* checker.getPropertyOfType.gen(holder, index.literal.text);
+    return yield* this.#keysOf(member?.declarations ?? []);
+  }
+
+  // `z.infer<typeof S>` over `S = z.enum(T)`: T's declarations, or S's own for an inline array.
+  *#zodHomes(node: TypeNode): APIRequestGenerator<readonly DeclKey[]> {
+    const { checker } = this.#world;
+    const [query] = isTypeReferenceNode(node) ? (node.typeArguments ?? []) : [];
+    const schema = query !== undefined && isTypeQueryNode(query) ? yield* checker.getSymbolAtLocation.gen(query.exprName) : undefined;
+    const homes: DeclKey[] = [];
+    for (const { owner, declaration } of yield* this.#ownDeclarations(schema)) {
+      for (const tuple of enumArgumentOf(declaration)) {
+        const named = isIdentifier(tuple) ? yield* checker.getSymbolAtLocation.gen(tuple) : undefined;
+        homes.push(...(named === undefined ? [owner] : yield* this.#keysOf(named.declarations)));
+      }
+    }
+    return homes;
+  }
+
+  *#keysOf(handles: readonly NodeHandle[]): APIRequestGenerator<readonly DeclKey[]> {
+    return (yield* allOf(handles.map((handle) => this.handleKey(handle)))).flatMap((key) => (key === null ? [] : [key]));
+  }
+
   // What one type spells, through its alias's declaration or an inline mapped type's own node.
   *#spelledOf(type: Type): APIRequestGenerator<Spelled> {
     const known = this.#spelledByType.get(type.id);
@@ -552,12 +744,17 @@ export class Resolver {
    */
   *originsOf(start: Type, names: readonly string[], startCounts = false): APIRequestGenerator<OriginWalk[]> {
     const out = new Map<string, OriginWalk>();
+    // a branch can stop at a library on any level, so a name's stops gather over the whole walk
+    const stopped = new Map<string, Set<NodeHandle>>();
     const seen = new Set<number>([start.id]);
     let level: readonly Type[] = [start];
     let live: LiveNames = new Map(names.map((name) => [name, new Set<number>([start.id])]));
     for (let depth = 0; level.length > 0 && live.size > 0; depth++) {
       const homes = yield* this.#levelHomes(level, live, depth > 0 || startCounts);
-      live = settleNames(live, homes, depth, out);
+      for (const [name, handles] of homes.stops) {
+        addAll(stopped, name, handles);
+      }
+      live = settleNames(live, homes, depth, { out, stopped });
       if (live.size === 0) {
         break;
       }
@@ -579,7 +776,11 @@ export class Resolver {
       live = new Map([...live].map(([name, on]) => [name, new Set([...on].flatMap((id) => children.get(id) ?? []))]));
       level = nextLevel;
     }
-    return names.map((name) => out.get(name) ?? EXHAUSTED);
+    // a name whose other branches ran out of types after one stopped at a library's declaration is the library's
+    return names.map((name) => {
+      const stops = stopped.get(name);
+      return out.get(name) ?? (stops === undefined || stops.size === 0 ? EXHAUSTED : { decls: [], depth: -1, end: "library", stops: [...stops] });
+    });
   }
 
   // What one level of the walk answers for each live name: the declarations a type on the level names it with, the
@@ -588,7 +789,7 @@ export class Resolver {
     const { checker } = this.#world;
     const asks = level.flatMap((type, at) => [...live].flatMap(([name, on]) => (on.has(type.id) ? [{ type, at, name }] : [])));
     const props = yield* allOf(asks.map((ask) => checker.getPropertyOfType.gen(ask.type, ask.name)));
-    const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), spelled: [] };
+    const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), stops: new Map(), spelled: [] };
     for (const [x, ask] of asks.entries()) {
       const declared = (props[x]?.declarations ?? []).filter((declaration) => declaration.kind !== SyntaxKind.MappedType);
       if (props[x] !== undefined) {
@@ -596,6 +797,11 @@ export class Resolver {
       }
       if (declared.length > 0) {
         addAll(homes.ended, ask.name, [ask.type.id]);
+        addAll(
+          homes.stops,
+          ask.name,
+          declared.filter((handle) => !this.ours(handle)),
+        );
       }
       const keys = ownCount ? yield* allOf(declared.map((handle) => this.handleKey(handle))) : [];
       addAll(
@@ -669,76 +875,250 @@ export class Resolver {
         : undefined;
     const nameNode = receiverName(door ?? unwrapped);
     if (nameNode === undefined) {
-      return EXHAUSTED;
+      // a receiver that is itself a value expression (`(await rows()).k`) is answered by what it spells
+      const owner = unwrapped === undefined ? null : this.keyOf(unwrapped);
+      const spelled = owner === null ? NO_VALUE_SPELLING : yield* this.#valueSpelling(owner, unwrapped, new Set());
+      return yield* this.#spelledHome(spelled.roots, name, spelled.tuples);
     }
-    let symbol = yield* checker.getSymbolAtLocation.gen(nameNode);
-    if (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias)) {
-      symbol = yield* checker.getAliasedSymbol.gen(symbol);
-    }
-    const declarations: { readonly owner: DeclKey; readonly declaration: Node }[] = [];
-    for (const handle of (symbol?.declarations ?? []).filter((declaration) => this.ours(declaration))) {
-      const declaration = yield* handle.resolve.gen();
-      const owner = yield* this.handleKey(handle);
-      if (declaration !== undefined && owner !== null) {
-        declarations.push({ owner, declaration });
-      }
-    }
+    const symbol = yield* this.#unaliased(yield* checker.getSymbolAtLocation.gen(nameNode));
+    const declarations = yield* this.#bindingSources(yield* this.#ownDeclarations(symbol));
     if (door !== undefined) {
       return yield* this.#enumHomes(
         declarations.flatMap(({ declaration }) => enumArgumentOf(declaration)),
         symbol,
+        name,
       );
     }
-    const roots: SpellingRoot[] = [];
-    for (const { owner, declaration } of declarations) {
-      roots.push(...(yield* this.#spellingRoot(owner, declaration)));
+    // a member only a library declares spells its keys there: the read is the library's
+    const declared = symbol?.declarations ?? [];
+    if (declared.length > 0 && declarations.length === 0) {
+      return { decls: [], depth: 0, end: "library", stops: declared };
     }
-    return roots.length === 0 ? EXHAUSTED : yield* this.#spelledHome(roots, name);
+    const spelled: ValueSpelling[] = [];
+    for (const { owner, declaration } of declarations) {
+      spelled.push(yield* this.#spellingRoot(owner, declaration, new Set()), yield* this.#holderBinding(declaration, unwrapped));
+    }
+    const home = yield* this.#spelledHome(
+      spelled.flatMap(({ roots }) => roots),
+      name,
+      spelled.flatMap(({ tuples }) => tuples),
+    );
+    return home.end === "exhausted" ? yield* this.#spreadHome(declarations, name) : home;
   }
 
-  // The type syntax a declaration spells its value with: its annotation, the `as` or `satisfies` its initializer ends
-  // in, or the return annotation of our function its initializer calls.
-  *#spellingRoot(owner: DeclKey, declaration: Node): APIRequestGenerator<readonly SpellingRoot[]> {
+  *#unaliased(symbol: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
+    return symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? yield* this.#world.checker.getAliasedSymbol.gen(symbol) : symbol;
+  }
+
+  // A symbol's declarations in the tree's own sources, each resolved with its key.
+  *#ownDeclarations(symbol: NativeSymbol | undefined): APIRequestGenerator<readonly { readonly owner: DeclKey; readonly declaration: Node }[]> {
+    const out: { readonly owner: DeclKey; readonly declaration: Node }[] = [];
+    for (const handle of (symbol?.declarations ?? []).filter((declaration) => this.ours(declaration))) {
+      const [declaration, owner] = yield* all(handle.resolve.gen(), this.handleKey(handle));
+      if (declaration !== undefined && owner !== null) {
+        out.push({ owner, declaration });
+      }
+    }
+    return out;
+  }
+
+  // The type syntax a declaration spells its value with: its annotation, or what its initializer spells.
+  *#spellingRoot(owner: DeclKey, declaration: Node, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
     const annotation = annotationOf(declaration);
-    if (annotation !== undefined) {
-      return [{ owner, node: annotation }];
+    if (annotation === undefined) {
+      return yield* this.#valueSpelling(owner, initializerOf(declaration), seen);
     }
-    const initializer = unwrapExpression(initializerOf(declaration));
-    if (initializer !== undefined && (isAsExpression(initializer) || isSatisfiesExpression(initializer))) {
-      return [{ owner, node: initializer.type }];
+    // `typeof X` spells what X's own declaration spells
+    const queried = isTypeQueryNode(annotation) && !seen.has(annotation) ? yield* this.#world.checker.getSymbolAtLocation.gen(annotation.exprName) : undefined;
+    seen.add(annotation);
+    const roots: SpellingRoot[] = [{ owner, node: annotation }];
+    const tuples: SpelledTuple[] = [];
+    for (const target of yield* this.#ownDeclarations(queried)) {
+      const spelled = yield* this.#spellingRoot(target.owner, target.declaration, seen);
+      roots.push(...spelled.roots);
+      tuples.push(...spelled.tuples);
     }
-    if (initializer === undefined || !isCallExpression(initializer)) {
-      return [];
+    return { roots, tuples };
+  }
+
+  // What an expression's value is spelled with: the `as` or `satisfies` it ends in, what an awaited value spells, or the
+  // return annotation of our function it calls, with each key set that return takes from a type parameter answered by
+  // the call's argument for it.
+  *#valueSpelling(owner: DeclKey, expression: Node | undefined, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
+    const value = unwrapExpression(expression);
+    if (value === undefined || seen.has(value)) {
+      return NO_VALUE_SPELLING;
     }
-    const target = (yield* this.#world.checker.getResolvedSignature.gen(initializer)).declaration;
+    seen.add(value);
+    if (isAsExpression(value) || isSatisfiesExpression(value)) {
+      return { roots: [{ owner, node: value.type }], tuples: [] };
+    }
+    if (isAwaitExpression(value)) {
+      return yield* this.#valueSpelling(owner, value.expression, seen);
+    }
+    if (!isCallExpression(value)) {
+      return NO_VALUE_SPELLING;
+    }
+    const target = (yield* this.#world.checker.getResolvedSignature.gen(value)).declaration;
     const fn = target !== undefined && this.ours(target) ? yield* target.resolve.gen() : undefined;
     const returned = fn === undefined ? undefined : annotationOf(fn);
     const fnOwner = target === undefined ? null : yield* this.handleKey(target);
-    return returned !== undefined && fnOwner !== null ? [{ owner: fnOwner, node: returned }] : [];
+    if (fn === undefined || returned === undefined || fnOwner === null) {
+      return NO_VALUE_SPELLING;
+    }
+    const bound = yield* this.#argumentKeys(fn, returned, value, seen);
+    return { roots: [{ owner: fnOwner, node: returned }, ...bound.roots], tuples: bound.tuples };
   }
 
-  // The home a name has in what the roots spell: a tuple that yields it, else the origin of a type they query.
-  *#spelledHome(roots: readonly SpellingRoot[], name: string): APIRequestGenerator<OriginWalk> {
-    const spelled = yield* this.readSpelling([], roots);
-    const homes = spelled.tuples.filter((tuple) => tuple.keys.has(name)).flatMap((tuple) => tuple.homes);
-    if (homes.length > 0) {
-      return { decls: [...new Set(homes)], depth: 0, end: "home" };
+  // A call's arguments for the type parameters its function's return spells keys with: an object literal argument's
+  // properties are the homes of their keys; another argument spells what its own value spells.
+  *#argumentKeys(fn: Node, returned: TypeNode, call: CallExpression, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
+    const bound = boundParameters(fn, keyRefNames(returned));
+    const roots: SpellingRoot[] = [];
+    const tuples: SpelledTuple[] = [];
+    for (const at of bound) {
+      const spelled = yield* this.#argumentSpelling(unwrapExpression(call.arguments[at]), seen);
+      roots.push(...spelled.roots);
+      tuples.push(...spelled.tuples);
     }
-    for (const queried of spelled.queried) {
-      const [walk] = yield* this.originsOf(queried, [name], true);
-      if (walk !== undefined && walk.decls.length > 0) {
-        return { decls: walk.decls, depth: walk.depth + 1, end: "home" };
+    return { roots, tuples };
+  }
+
+  // One bound argument: an object literal's properties, or what a named value's declarations spell.
+  *#argumentSpelling(argument: Node | undefined, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
+    if (argument === undefined) {
+      return NO_VALUE_SPELLING;
+    }
+    if (isObjectLiteralExpression(argument)) {
+      return { roots: [], tuples: this.#literalKeys(argument) };
+    }
+    const symbol = isIdentifier(argument) ? yield* this.#world.checker.getSymbolAtLocation.gen(argument) : undefined;
+    const roots: SpellingRoot[] = [];
+    const tuples: SpelledTuple[] = [];
+    for (const { owner, declaration } of yield* this.#ownDeclarations(symbol)) {
+      const own = annotationOf(declaration);
+      const initial = unassert(initializerOf(declaration));
+      const spelled = own === undefined ? yield* this.#valueSpelling(owner, initial, seen) : { roots: [{ owner, node: own }], tuples: [] };
+      roots.push(...spelled.roots);
+      tuples.push(...spelled.tuples, ...(initial !== undefined && isObjectLiteralExpression(initial) ? this.#literalKeys(initial) : []));
+    }
+    return { roots, tuples };
+  }
+
+  // Each named property of an object literal as the home of its own key.
+  #literalKeys(literal: ObjectLiteralExpression): readonly SpelledTuple[] {
+    return literal.properties.flatMap((property) => {
+      const name = isPropertyAssignment(property) || isShorthandPropertyAssignment(property) ? keyText(property.name) : undefined;
+      const home = name === undefined ? null : this.keyOf(property);
+      return name === undefined || home === null ? [] : [{ keys: new Set([name]), homes: [home] }];
+    });
+  }
+
+  // A member of a generic interface or type alias that spells keys with the container's type parameter: the holder it
+  // is read from names that parameter's argument where it spells its own type, and the argument spells the keys.
+  *#holderBinding(declaration: Node, receiver: Node | undefined): APIRequestGenerator<ValueSpelling> {
+    const annotation = annotationOf(declaration);
+    const parameters = containerTypeParameters(declaration);
+    if (annotation === undefined || parameters.length === 0 || receiver === undefined || !isPropertyAccessExpression(receiver)) {
+      return NO_VALUE_SPELLING;
+    }
+    const refs = keyRefNames(annotation);
+    const bound = parameters.flatMap((parameter, at) => (refs.has(parameter) ? [at] : []));
+    if (bound.length === 0) {
+      return NO_VALUE_SPELLING;
+    }
+    // the holder's own spelling names the arguments: its annotation, or the return its initializer's call spells
+    const holderName = receiverName(unwrapExpression(receiver.expression));
+    const holder = holderName === undefined ? undefined : yield* this.#world.checker.getSymbolAtLocation.gen(holderName);
+    const roots: SpellingRoot[] = [];
+    for (const { owner, declaration: held } of yield* this.#ownDeclarations(holder)) {
+      for (const root of (yield* this.#spellingRoot(owner, held, new Set())).roots) {
+        const args = isTypeReferenceNode(root.node) ? (root.node.typeArguments ?? []) : [];
+        roots.push(...bound.flatMap((at) => (args[at] === undefined ? [] : [{ owner: root.owner, node: args[at] }])));
+      }
+    }
+    return { roots, tuples: [] };
+  }
+
+  // The declarations a destructured name stands for: the member of the value it is destructured from.
+  *#bindingSources(
+    declarations: readonly { readonly owner: DeclKey; readonly declaration: Node }[],
+  ): APIRequestGenerator<readonly { readonly owner: DeclKey; readonly declaration: Node }[]> {
+    const out: { readonly owner: DeclKey; readonly declaration: Node }[] = [];
+    for (const entry of declarations) {
+      const { declaration } = entry;
+      const member = isBindingElement(declaration) ? keyText(declaration.propertyName ?? declaration.name) : undefined;
+      if (member === undefined || !isBindingElement(declaration)) {
+        out.push(entry);
+        continue;
+      }
+      const { checker } = this.#world;
+      const source = yield* checker.getTypeAtLocation.gen(declaration.parent);
+      out.push(...(yield* this.#ownDeclarations(yield* checker.getPropertyOfType.gen(source, member))));
+    }
+    return out;
+  }
+
+  // A name a declaration's object literal takes from a spread: the spread value's member is its home, or a library's.
+  *#spreadHome(declarations: readonly { readonly declaration: Node }[], name: string): APIRequestGenerator<OriginWalk> {
+    const { checker } = this.#world;
+    for (const { declaration } of declarations) {
+      const literal = unassert(initializerOf(declaration));
+      const spreads = literal !== undefined && isObjectLiteralExpression(literal) ? literal.properties.filter((property) => isSpreadAssignment(property)) : [];
+      for (const spread of spreads) {
+        const member = yield* checker.getPropertyOfType.gen(yield* checker.getTypeAtLocation.gen(spread.expression), name);
+        const declared = yield* this.#declaredWalk(member?.declarations ?? []);
+        // a spread value whose own member has no declaration is answered the way a read of it would be
+        const walk = declared.end === "exhausted" ? yield* this.annotationOrigin(spread.expression, name) : declared;
+        if (walk.end !== "exhausted") {
+          return walk;
+        }
       }
     }
     return EXHAUSTED;
   }
 
-  // The homes of `z.enum(T)`'s keys: a named tuple's declarations, or the schema's own for an inline array literal.
-  *#enumHomes(tuples: readonly Node[], schema: NativeSymbol | undefined): APIRequestGenerator<OriginWalk> {
+  // A member's own declarations as a walk's end: a home where the tree declares it, a library's stop where only a
+  // library does.
+  *#declaredWalk(handles: readonly NodeHandle[]): APIRequestGenerator<OriginWalk> {
+    const homes = yield* this.#keysOf(handles);
+    if (homes.length > 0) {
+      return { decls: [...new Set(homes)], depth: 0, end: "home", stops: [] };
+    }
+    return handles.length > 0 ? { decls: [], depth: 0, end: "library", stops: handles } : EXHAUSTED;
+  }
+
+  // The home a name has in what the roots spell: a tuple that yields it, else the origin of a type they query.
+  *#spelledHome(roots: readonly SpellingRoot[], name: string, bound: readonly SpelledTuple[] = []): APIRequestGenerator<OriginWalk> {
+    if (roots.length === 0 && bound.length === 0) {
+      return EXHAUSTED;
+    }
+    const spelled = yield* this.readSpelling([], roots);
+    const homes = [...spelled.tuples, ...bound].filter((tuple) => tuple.keys.has(name)).flatMap((tuple) => tuple.homes);
+    if (homes.length > 0) {
+      return { decls: [...new Set(homes)], depth: 0, end: "home", stops: [] };
+    }
+    for (const queried of spelled.queried) {
+      const [walk] = yield* this.originsOf(queried, [name], true);
+      if (walk !== undefined && walk.decls.length > 0) {
+        return { decls: walk.decls, depth: walk.depth + 1, end: "home", stops: [] };
+      }
+    }
+    return EXHAUSTED;
+  }
+
+  // The homes of `z.enum(T)`'s keys: a named tuple's declarations, or the schema's own for an inline array literal. Only
+  // a tuple that holds the name read answers: `schema.enum.x` for an x the tuple lacks is no key of it.
+  *#enumHomes(tuples: readonly Node[], schema: NativeSymbol | undefined, name: string): APIRequestGenerator<OriginWalk> {
     const { checker } = this.#world;
     const homes: DeclKey[] = [];
-    const symbols = yield* checker.getSymbolAtLocation.gen(tuples);
+    const [symbols, types] = yield* all(checker.getSymbolAtLocation.gen(tuples), checker.getTypeAtLocation.gen(tuples));
     for (const [at, tuple] of tuples.entries()) {
+      const type = types[at];
+      const members = type?.isTypeReference() === true ? yield* checker.getTypeArguments.gen(type) : [];
+      if (!members.some((member) => member.isStringLiteralType() && member.value === name)) {
+        continue;
+      }
       const declarations = isIdentifier(tuple) ? (symbols[at]?.declarations ?? []) : (schema?.declarations ?? []);
       for (const handle of declarations) {
         const home = yield* this.handleKey(handle);
@@ -747,15 +1127,19 @@ export class Resolver {
         }
       }
     }
-    return homes.length > 0 ? { decls: [...new Set(homes)], depth: 0, end: "home" } : EXHAUSTED;
+    return homes.length > 0 ? { decls: [...new Set(homes)], depth: 0, end: "home", stops: [] } : EXHAUSTED;
   }
 
   /**
    * Why a read has no home by design, or null when it is a real loss: `narrowed` is the `Record<"k", unknown>` a
    * `"k" in x` check intersects in (the key was never declared anywhere), `synthetic` a member the checker makes for a
-   * tuple (`length`).
+   * tuple (`length`) or a class (`prototype`).
    */
-  *unbackedReason(type: Type, name: string): APIRequestGenerator<"narrowed" | "synthetic" | null> {
+  *unbackedReason(type: Type, name: string, symbol: NativeSymbol): APIRequestGenerator<"narrowed" | "synthetic" | null> {
+    // a class's `prototype` is a member the checker makes for every class
+    if (hasFlag(symbol.flags, SymbolFlags.Prototype)) {
+      return "synthetic";
+    }
     const parts = type.isIntersectionType() ? yield* type.getTypes.gen() : [type];
     for (const part of parts) {
       const alias = yield* part.getAliasSymbol.gen();
@@ -781,6 +1165,12 @@ export class Resolver {
 const RECORD = "Record";
 const TUPLE_LENGTH = "length";
 
+// A type's string-literal members, or null when it holds none.
+function* literalStrings(type: Type): APIRequestGenerator<readonly string[] | null> {
+  const members = (yield* constituentsOf(type)).flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
+  return members.length > 0 ? members : null;
+}
+
 /** A union's member types, or the type itself. */
 export function* constituentsOf(type: Type): APIRequestGenerator<readonly Type[]> {
   return type.isUnionType() ? yield* type.getTypes.gen() : [type];
@@ -791,11 +1181,14 @@ const composes = (type: Type): boolean =>
   type.isUnionType() || type.isIntersectionType() || type.isIndexType() || type.isIndexedAccessType() || type.isConditionalType() || type.isMappedType();
 
 interface SpellingSink {
-  readonly owner: DeclKey;
+  /** The declaration an inline literal key lands on; null where only the key positions' type names are wanted. */
+  readonly owner: DeclKey | null;
   readonly inline: Map<string, Set<DeclKey>>;
   readonly queries: Node[];
   readonly tuples: TypeNode[];
   readonly refs: Node[];
+  /** Key-position nodes the checker evaluates to a literal set: `T["k"]`, `z.infer<typeof S>`. */
+  readonly evaluated: TypeNode[];
 }
 
 // One type node's key spelling. `key` says whether the node sits in a key position.
@@ -812,9 +1205,8 @@ function spellKeys(node: Node, key: boolean, sink: SpellingSink): void {
     spellMapped(node, sink);
     return;
   }
-  // an index chain rooted at a value query (`(typeof T)[number]`, `(typeof DEFS)[number]["key"]`) yields T's literals
-  if (key && isIndexedAccessTypeNode(node) && chainRoot(node) !== undefined) {
-    sink.tuples.push(node);
+  if (key && isIndexedAccessTypeNode(node)) {
+    spellIndexed(node, sink);
     return;
   }
   if (isTypeQueryNode(node)) {
@@ -824,9 +1216,7 @@ function spellKeys(node: Node, key: boolean, sink: SpellingSink): void {
     return;
   }
   if (isLiteralTypeNode(node)) {
-    if (key && isStringLiteral(node.literal)) {
-      addAll(sink.inline, node.literal.text, [sink.owner]);
-    }
+    spellLiteral(node, key, sink);
     return;
   }
   if (isTypeReferenceNode(node)) {
@@ -834,6 +1224,23 @@ function spellKeys(node: Node, key: boolean, sink: SpellingSink): void {
     return;
   }
   node.forEachChild((child) => spellKeys(child, false, sink));
+}
+
+// An index chain rooted at a value query (`(typeof T)[number]`) yields T's literals.
+function spellIndexed(node: IndexedAccessTypeNode, sink: SpellingSink): void {
+  if (chainRoot(node) !== undefined) {
+    sink.tuples.push(node);
+    return;
+  }
+  // `T["k"]` is evaluated for k's member; its parts still spell what they spell (`{ [K in Keys]: … }[Keys]`)
+  sink.evaluated.push(node);
+  node.forEachChild((child) => spellKeys(child, false, sink));
+}
+
+function spellLiteral(node: LiteralTypeNode, key: boolean, sink: SpellingSink): void {
+  if (key && isStringLiteral(node.literal) && sink.owner !== null) {
+    addAll(sink.inline, node.literal.text, [sink.owner]);
+  }
 }
 
 // A mapped type's constraint is a key position; its template types values.
@@ -849,6 +1256,11 @@ function spellMapped(node: MappedTypeNode, sink: SpellingSink): void {
 function spellReference(node: TypeReferenceNode, key: boolean, sink: SpellingSink): void {
   const id = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
   const args = node.typeArguments ?? [];
+  const [first] = args;
+  if (key && ZOD_INFERS.has(id.text) && first !== undefined && isTypeQueryNode(first)) {
+    sink.evaluated.push(node);
+    return;
+  }
   const keyAt = KEY_ARGUMENT.get(id.text);
   if (keyAt !== undefined) {
     for (const [at, argument] of args.entries()) {

@@ -46,6 +46,14 @@ export interface TypeMember {
   readonly parameters: readonly ParameterDeclaration[];
 }
 
+/** A {@link TypeMember} without its syntax nodes, to hold past its world's pass: a node keeps the world's whole syntax
+ *  tree alive after the world closes. */
+export type DetachedMember = Omit<TypeMember, "name" | "parameters">;
+
+export function detached({ name: _name, parameters: _parameters, ...member }: TypeMember): DetachedMember {
+  return member;
+}
+
 function parametersOf(node: NamedSignature): readonly ParameterDeclaration[] {
   if (isMethodSignatureDeclaration(node)) {
     return node.parameters;

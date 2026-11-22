@@ -19,7 +19,7 @@ A variant value only a stamped attribute selector reads is reported unused, and 
 
 ## Done when
 
-A stamped axis value that a sheet or walker selector names counts as used, and a carrier prop forwards its class value, each with a planted case and a positive control; the real-tree variant-value-unused rows that move are listed.
+A variant-value-unused row names every sheet or walker selector that selects that value, so one delete removes both; a selector that names a value no recipe declares is reported stale; a selector alone never keeps a value, since variantAttrs stamps only the values callers select. A carrier prop forwards its class value. Each has a planted case and a positive control, and the real-tree variant-value-unused rows that move are listed.
 
 ## Evidence
 
