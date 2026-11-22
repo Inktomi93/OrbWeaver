@@ -14,7 +14,8 @@
 //   site of the string's world (SCRIPT_CALL, SCRIPT_DATASET).
 // - A read by name of a house attribute model (ATTRIBUTE_MODELS) is an attribute read: snap's DOM snapshot and
 //   ui-facts' parsed JSX element hold an element's attributes by name. The member's declaring file decides, so a
-//   look-alike record is no model.
+//   look-alike record is no model. A `MutationObserver`'s `attributeFilter` list, and a name compared with a mutation
+//   record's `attributeName`, are reads: the observer exists to see that attribute change.
 // - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute.
 // - A name or value held away from its site is followed through the checker by ./held.ts: declarations, callers,
 //   call returns, destructured places and the list methods that carry an element. A whole data-* string no site
@@ -30,12 +31,15 @@ import { join } from "node:path";
 import type { CssNode } from "@eslint/css-tree";
 import { ident, parse, walk } from "@eslint/css-tree";
 import type {
+  BinaryExpression,
   CallExpression,
   Expression,
   JsxAttribute,
   Node,
   NoSubstitutionTemplateLiteral,
   PropertyAccessExpression,
+  PropertyAssignment,
+  ShorthandPropertyAssignment,
   StringLiteral,
   TemplateExpression,
 } from "@typescript/native/ast";
@@ -54,6 +58,7 @@ import {
   isNoSubstitutionTemplateLiteral,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isShorthandPropertyAssignment,
   isStringLiteral,
   isTemplateExpression,
   isTypeAliasDeclaration,
@@ -148,6 +153,14 @@ const ATTRIBUTE_MODELS: readonly { readonly file: string; readonly member: strin
 ];
 const MODEL_MEMBERS: ReadonlySet<string> = new Set(ATTRIBUTE_MODELS.map(({ member }) => member));
 const MODEL_LOOKUPS: ReadonlySet<string> = new Set(["get", "has"]);
+const ATTRIBUTE_FILTER = "attributeFilter";
+const RECORD_NAME = "attributeName";
+const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.EqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsToken,
+]);
 const TESTS = "tests/";
 const DATASET = "dataset";
 /** React renders a valueless JSX attribute, and `true`, as the string "true". */
@@ -250,6 +263,8 @@ class Hooks {
   readonly #selectorTemplates: { readonly node: Expression; readonly world: World; readonly at: string }[] = [];
   /** Reads of a house attribute model by name, kept once the member's declaration proves it is the model's. */
   readonly #modelReads: { readonly member: PropertyAccessExpression; readonly name: Expression; readonly at: string; readonly world: World }[] = [];
+  /** The lists a `MutationObserver` filter names: each is an attribute the observer reads. */
+  readonly #filterReads: { readonly node: Node; readonly at: string; readonly world: World }[] = [];
   readonly #testIdLookups: { readonly node: Expression; readonly world: World }[] = [];
   /** Every whole data-* string in a value position, and every string equal to a plain test id candidate. */
   readonly #whole: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly at: string; readonly world: World }[] = [];
@@ -303,10 +318,8 @@ class Hooks {
       if (world === "product" && name.startsWith(DATA)) {
         this.#jsxWrite(name, node.initializer, file, node);
       }
-    } else if (isPropertyAssignment(node)) {
-      if (world === "product") {
-        this.#key(node.name, node.initializer, file);
-      }
+    } else if (isPropertyAssignment(node) || isShorthandPropertyAssignment(node) || isBinaryExpression(node)) {
+      this.#operand(node, file, world);
     } else if (isCallExpression(node)) {
       this.#call(node, file, world);
     } else {
@@ -392,6 +405,21 @@ class Hooks {
   }
 
   // An attribute call in any world is followed, so the names it reaches are reached; only the product's writes count.
+  // An object key, an observer's filter, or a mutation record's `attributeName` compared with a name: the observer
+  // watches that name change.
+  #operand(node: PropertyAssignment | ShorthandPropertyAssignment | BinaryExpression, file: string, world: World): void {
+    if (isBinaryExpression(node)) {
+      const named = isRecordName(node.left) ? node.right : node.left;
+      if (EQUALITY.has(node.operatorToken.kind) && (isRecordName(node.left) || isRecordName(node.right))) {
+        this.#sites.push({ at: atOf(file, node), world, key: false, name: named, dataset: false, write: false, read: true, value: null });
+      }
+    } else if (isIdentifier(node.name) && node.name.text === ATTRIBUTE_FILTER) {
+      this.#filterReads.push({ node: isPropertyAssignment(node) ? node.initializer : node, at: atOf(file, node), world });
+    } else if (isPropertyAssignment(node) && world === "product") {
+      this.#key(node.name, node.initializer, file);
+    }
+  }
+
   #call(node: CallExpression, file: string, world: World): void {
     const callee = node.expression;
     const method = calleeName(callee);
@@ -513,12 +541,7 @@ class Hooks {
   /** Follow every held name and value through the checker, then list what no site reaches. */
   resolve(): void {
     const { world } = this.#state;
-    const homes = world.batch(this.#modelReads.map(({ member }) => this.#declaredIn(member)));
-    for (const [index, { member, name, at, world: reader }] of this.#modelReads.entries()) {
-      if (ATTRIBUTE_MODELS.some((model) => model.member === member.name.text && (homes[index] ?? []).includes(model.file))) {
-        this.#sites.push({ at, world: reader, key: false, name, dataset: false, write: false, read: true, value: null });
-      }
-    }
+    this.#modelSites();
     const asks: Expression[] = [
       ...this.#selectorTemplates.map(({ node }) => node),
       ...this.#testIdLookups.map(({ node }) => node),
@@ -532,16 +555,8 @@ class Hooks {
         this.#stringText(text, reader, at);
       }
     }
-    for (const { node, world: reader } of this.#testIdLookups) {
-      const texts = textsOf.get(node) ?? null;
-      if (texts === null) {
-        const at = atOf(world.fileOfSource(node.getSourceFile()), node);
-        this.unresolved.push({ text: printed(node), at, world: reader, why: "a getByTestId value no hop resolves" });
-      }
-      for (const { text } of texts ?? []) {
-        this.read(TEST_ID, text, reader);
-      }
-    }
+    this.#testIdSites(textsOf);
+    this.#filterSites();
     for (const site of this.#sites) {
       this.#site(site, textsOf);
     }
@@ -550,6 +565,42 @@ class Hooks {
 
   // A site whose name stays wide is listed when it claims an attribute: a computed key claims one only by resolving to
   // a data-* name, and a write outside the product claims none.
+  // A read of a house attribute model by name is a site once its member is the model's own.
+  #modelSites(): void {
+    const homes = this.#state.world.batch(this.#modelReads.map(({ member }) => this.#declaredIn(member)));
+    for (const [index, { member, name, at, world: reader }] of this.#modelReads.entries()) {
+      if (ATTRIBUTE_MODELS.some((model) => model.member === member.name.text && (homes[index] ?? []).includes(model.file))) {
+        this.#sites.push({ at, world: reader, key: false, name, dataset: false, write: false, read: true, value: null });
+      }
+    }
+  }
+
+  #testIdSites(textsOf: Answers): void {
+    for (const { node, world: reader } of this.#testIdLookups) {
+      const texts = textsOf.get(node) ?? null;
+      if (texts === null) {
+        const at = atOf(this.#state.world.fileOfSource(node.getSourceFile()), node);
+        this.unresolved.push({ text: printed(node), at, world: reader, why: "a getByTestId value no hop resolves" });
+      }
+      for (const { text } of texts ?? []) {
+        this.read(TEST_ID, text, reader);
+      }
+    }
+  }
+
+  #filterSites(): void {
+    const filters = this.#state.world.batch(this.#filterReads.map(({ node }) => this.#held.elements(node)));
+    for (const [index, { node, at, world: reader }] of this.#filterReads.entries()) {
+      const names = filters[index] ?? null;
+      if (names === null) {
+        this.unresolved.push({ text: printed(node), at, world: reader, why: "an attributeFilter list no hop resolves" });
+      }
+      for (const name of names ?? []) {
+        this.#siteName({ at, world: reader, key: false, name: name.text, dataset: false, write: false, read: true, value: null }, name, []);
+      }
+    }
+  }
+
   *#declaredIn(member: PropertyAccessExpression): APIRequestGenerator<readonly (string | null)[]> {
     const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(member);
     return (symbol?.declarations ?? []).map((handle) => this.#state.world.fileOf(handle));
@@ -617,6 +668,8 @@ function calleeName(callee: Expression): string | null {
 }
 
 const isDataset = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === DATASET;
+
+const isRecordName = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === RECORD_NAME;
 
 const isModelMember = (node: Expression): node is PropertyAccessExpression => isPropertyAccessExpression(node) && MODEL_MEMBERS.has(node.name.text);
 

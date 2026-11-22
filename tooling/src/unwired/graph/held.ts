@@ -65,25 +65,37 @@ export interface Text {
 /** What an expression can hold, or null when the checker holds it only as a wide type. */
 export type Texts = readonly Text[] | null;
 
-// One step into a value: any element of a list, one index of a tuple, one property, or the value of a Map's entries.
+// One step into a value: any element of a list, one index of a tuple, one property, the value of a Map's entries, or
+// the value of any property of an object.
 type Step =
   | { readonly kind: "element" }
   | { readonly kind: "index"; readonly at: number }
   | { readonly kind: "property"; readonly name: string }
-  | { readonly kind: "map-value" };
+  | { readonly kind: "map-value" }
+  | { readonly kind: "value" };
 type Path = readonly Step[];
 
 const ELEMENT: Step = { kind: "element" };
+const VALUE: Step = { kind: "value" };
 // A Map entry is a `[key, value]` pair.
 const ENTRY_VALUE: Step = { kind: "index", at: 1 };
 // A hop is one declaration, call or caller followed; a chain longer than this is a cycle or a hand-off no table holds.
-const MAX_HOPS = 8;
+const MAX_HOPS = 16;
 // A path longer than this walks a structure no hook table has.
 const MAX_PATH = 6;
 // A template whose spans multiply past this many texts is a computed name, not a table of them.
 const MAX_TEXTS = 64;
 const MAP = "Map";
 const GET = "get";
+const OBJECT = "Object";
+/** The `Object` statics that list an object's property values: `entries` as the second of each pair. */
+const OBJECT_VALUES: ReadonlyMap<string, Path> = new Map([
+  ["entries", [ELEMENT, { kind: "index", at: 1 }]],
+  ["values", [ELEMENT]],
+]);
+/** The browser-driver methods that run their first argument in the page and hand it their second as its last
+ *  parameter: Playwright's page and locator `evaluate` family. */
+const IN_PAGE: ReadonlySet<string> = new Set(["evaluate", "evaluateAll", "evaluateHandle", "$eval", "$$eval", "waitForFunction", "addInitScript"]);
 /** The list methods whose callback is handed each element of the receiver as its first parameter. */
 const ELEMENT_CALLBACKS: ReadonlySet<string> = new Set(["map", "flatMap", "forEach", "filter", "find", "findLast", "findIndex", "some", "every"]);
 /** The list methods that return a list of the receiver's own elements. */
@@ -106,6 +118,27 @@ function nameText(node: Node | undefined): string | null {
   return null;
 }
 
+// The name of the variable whose object literal holds a function as a property's value.
+function recordHolder(fn: FunctionLike): Node | undefined {
+  if (!isPropertyAssignment(fn.parent)) {
+    return undefined;
+  }
+  let at: Node = fn.parent.parent;
+  while (isAsExpression(at.parent) || isSatisfiesExpression(at.parent) || isParenthesizedExpression(at.parent)) {
+    at = at.parent;
+  }
+  return isVariableDeclaration(at.parent) && isIdentifier(at.parent.name) ? at.parent.name : undefined;
+}
+
+// The value an in-page callback is handed: the driver call's second argument.
+function inPageArgument(fn: FunctionLike): Expression | undefined {
+  const call = fn.parent;
+  if (isCallExpression(call) && isPropertyAccessExpression(call.expression) && IN_PAGE.has(call.expression.name.text) && sameNode(call.arguments[0], fn)) {
+    return call.arguments[1];
+  }
+  return undefined;
+}
+
 // The list a callback is handed the elements of, when it is the first argument of a list method.
 function callbackReceiver(fn: FunctionLike): Expression | undefined {
   const call = fn.parent;
@@ -120,9 +153,10 @@ function callbackReceiver(fn: FunctionLike): Expression | undefined {
   return undefined;
 }
 
-/** The union of several answers: null when any is wide, since a wide part can hold any name. */
-export function union(parts: readonly Texts[]): Texts {
-  if (parts.length === 0 || parts.some((part) => part === null)) {
+// The union of several answers: null when any is wide, since a wide part can hold any name. No answers is no texts:
+// an empty list, or a branch that returns none.
+function union(parts: readonly Texts[]): Texts {
+  if (parts.some((part) => part === null)) {
     return null;
   }
   const seen = new Map<string, Text>();
@@ -172,6 +206,14 @@ export class HeldTexts {
   /** The texts `node` can take. */
   *texts(node: Node): APIRequestGenerator<Texts> {
     return yield* this.#at(node, [], 0);
+  }
+
+  /** The texts any element of the list `node` holds; a shorthand property asks the binding it names. */
+  *elements(node: Node): APIRequestGenerator<Texts> {
+    if (isShorthandPropertyAssignment(node)) {
+      return yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(node), [ELEMENT], 0);
+    }
+    return yield* this.#at(node, [ELEMENT], 0);
   }
 
   *#at(node: Node, path: Path, hops: number): APIRequestGenerator<Texts> {
@@ -255,6 +297,9 @@ export class HeldTexts {
 
   // A property of an object literal: its own assignment, a shorthand's value, else the spreads that may carry it.
   *#inObject(properties: readonly Node[], [step, ...rest]: Path, hops: number): APIRequestGenerator<Texts> {
+    if (step?.kind === "value") {
+      return yield* this.#everyValue(properties, rest, hops);
+    }
     if (step?.kind !== "property") {
       return null;
     }
@@ -271,6 +316,24 @@ export class HeldTexts {
     const found: Texts[] = [];
     for (const spread of spreads) {
       found.push(yield* this.#at(spread.expression, [step, ...rest], hops));
+    }
+    return union(found);
+  }
+
+  // Any property's value: each assignment, each shorthand's value and each spread's values.
+  *#everyValue(properties: readonly Node[], rest: Path, hops: number): APIRequestGenerator<Texts> {
+    const found: Texts[] = [];
+    for (const property of properties) {
+      if (isPropertyAssignment(property)) {
+        found.push(yield* this.#at(property.initializer, rest, hops));
+      } else if (isShorthandPropertyAssignment(property)) {
+        found.push(yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(property), rest, hops));
+      } else if (isSpreadAssignment(property)) {
+        found.push(yield* this.#at(property.expression, [VALUE, ...rest], hops));
+      } else {
+        // A method or an accessor holds a value only a call computes.
+        return null;
+      }
     }
     return union(found);
   }
@@ -370,20 +433,60 @@ export class HeldTexts {
     }
     const index = fn.parameters.findIndex((candidate) => sameNode(candidate, parameter));
     const found: Texts[] = parameter.initializer === undefined ? [] : [yield* this.#at(parameter.initializer, path, hops)];
+    const handed = inPageArgument(fn);
+    if (handed !== undefined) {
+      return index === fn.parameters.length - 1 ? union([...found, yield* this.#at(handed, path, hops)]) : null;
+    }
     const receiver = callbackReceiver(fn);
     if (receiver !== undefined) {
       return index === 0 ? union([...found, yield* this.#at(receiver, [ELEMENT, ...path], hops)]) : null;
     }
-    return union([...found, ...(yield* this.#arguments(fn, index, path, hops))]);
+    const held = [...found, ...(yield* this.#arguments(fn, index, path, hops))];
+    // A parameter no caller hands a value and with no default holds what an outside caller passes.
+    return held.length === 0 ? null : union(held);
   }
 
   *#arguments(fn: FunctionLike, index: number, path: Path, hops: number): APIRequestGenerator<readonly Texts[]> {
-    const target = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
+    // A function held by a variable or a property is called through that holder.
+    const target = (isArrowFunction(fn) || isFunctionExpression(fn)) && (isVariableDeclaration(fn.parent) || isPropertyAssignment(fn.parent)) ? fn.parent : fn;
     const found: Texts[] = [];
     for (const usage of yield* this.#state.world.signatureUsage(target)) {
       const caller = usage.call === undefined ? undefined : yield* usage.call.resolve.gen();
+      // The declaration's own name is listed among its usages; it hands the function nothing.
+      if (caller === undefined && sameNode((yield* usage.name.resolve.gen())?.parent, target)) {
+        continue;
+      }
       const argument = caller !== undefined && isCallExpression(caller) ? caller.arguments[index] : undefined;
       found.push(argument === undefined ? null : yield* this.#at(argument, path, hops));
+    }
+    return [...found, ...(yield* this.#recordCalls(fn, index, path, hops))];
+  }
+
+  // A function a record holds by key is also called through the record by a computed key (`READERS[kind](...)`), a
+  // call no reference to the property names: each such call on the record's holder hands it its arguments.
+  *#recordCalls(fn: FunctionLike, index: number, path: Path, hops: number): APIRequestGenerator<readonly Texts[]> {
+    const holder = recordHolder(fn);
+    if (holder === undefined) {
+      return [];
+    }
+    const { world } = this.#state;
+    const groups = yield* world.referencedSymbolsOf(holder);
+    const found: Texts[] = [];
+    for (const handle of groups.flatMap((group) => group.references)) {
+      const reference = world.fileOf(handle) === null ? undefined : yield* handle.resolve.gen();
+      const access = reference?.parent;
+      const call = access?.parent;
+      if (
+        access !== undefined &&
+        isElementAccessExpression(access) &&
+        sameNode(access.expression, reference) &&
+        call !== undefined &&
+        isCallExpression(call) &&
+        sameNode(call.expression, access)
+      ) {
+        const argument = call.arguments[index];
+        found.push(argument === undefined ? null : yield* this.#at(argument, path, hops));
+      }
     }
     return found;
   }
@@ -409,6 +512,10 @@ export class HeldTexts {
   *#listCall(callee: PropertyAccessExpression, callback: Expression | undefined, path: Path, hops: number): APIRequestGenerator<Texts | undefined> {
     const method = callee.name.text;
     const receiver = callee.expression;
+    const values = isIdentifier(receiver) && receiver.text === OBJECT ? OBJECT_VALUES.get(method) : undefined;
+    if (values !== undefined) {
+      return yield* this.#objectValues(values, callback, path, hops);
+    }
     if (method === "map" || method === "flatMap") {
       return yield* this.#mapped(callback, method === "map" ? path.slice(1) : path, path[0]?.kind === "element", hops);
     }
@@ -424,16 +531,26 @@ export class HeldTexts {
     return undefined;
   }
 
+  // An `Object.entries` or `Object.values` list holds the object's property values where the path asks for one.
+  *#objectValues(values: Path, object: Expression | undefined, path: Path, hops: number): APIRequestGenerator<Texts> {
+    const asksValue = values.every((step, index) => {
+      const asked = path[index];
+      return asked !== undefined && asked.kind === step.kind && (step.kind !== "index" || (asked.kind === "index" && asked.at === step.at));
+    });
+    return object === undefined || !asksValue ? null : yield* this.#at(object, [VALUE, ...path.slice(values.length)], hops);
+  }
+
   *#returns(callee: Expression, path: Path, hops: number): APIRequestGenerator<Texts> {
     const symbol = yield* this.#unalias(yield* this.#state.world.checker.getSymbolAtLocation.gen(callee));
-    if (symbol === undefined) {
+    if (symbol === undefined || symbol.declarations.length === 0) {
       return null;
     }
     const found: Texts[] = [];
     for (const handle of symbol.declarations) {
       const declaration = this.#state.world.fileOf(handle) === null ? undefined : yield* handle.resolve.gen();
       const fn = declaration !== undefined && isVariableDeclaration(declaration) ? declaration.initializer : declaration;
-      if (fn === undefined || !isFunctionLike(fn)) {
+      // A signature with no body (an overload, a declaration) returns what its implementation does, which it does not show.
+      if (fn === undefined || !isFunctionLike(fn) || fn.body === undefined) {
         return null;
       }
       for (const returned of returnsOf(fn)) {

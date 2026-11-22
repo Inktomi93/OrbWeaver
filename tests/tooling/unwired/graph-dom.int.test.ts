@@ -287,3 +287,111 @@ test("a read of snap's or ui-facts' attribute model by name reads that attribute
     { text: "data-not-model", at: `${GRAPH_SOURCE}/models.tsx:2`, world: "product", why: "a string no attribute site reaches" },
   ]);
 });
+
+test("a table a flatMap builds holds the rows its callback returns, past a branch that returns none", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-flat-alpha] { color: red; }",
+    [`${GRAPH_SOURCE}/flat.ts`]: [
+      'import type { El } from "./el.ts";',
+      "interface Row {",
+      "  readonly name: string;",
+      "}",
+      'const MANIFEST = { alpha: { kind: "attribute" }, beta: { kind: "none" } } as const;',
+      "type Key = keyof typeof MANIFEST;",
+      "const lower = (key: string): string => key.toLowerCase();",
+      "const ROWS: readonly Row[] = (Object.keys(MANIFEST) as Key[]).flatMap((key): Row[] => {",
+      '  if (MANIFEST[key].kind === "none") {',
+      "    return [];",
+      "  }",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "  return [{ name: `data-flat-${lower(key)}` }];",
+      "});",
+      "export function write(el: El): void {",
+      "  for (const row of ROWS) {",
+      '    el.setAttribute(row.name, "");',
+      "  }",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+  expect(report.unresolved).toEqual([]);
+});
+
+test("a name is followed through Object.entries values and a reader a record holds, called through the record", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/observables.tsx`]: [
+      'import type { El } from "./el.ts";',
+      'type Read = "attribute" | "text";',
+      "interface Observable {",
+      "  readonly read: Read;",
+      "  readonly signals: readonly string[];",
+      "}",
+      'const observe = (signal: string): Observable => ({ read: "attribute", signals: [signal] });',
+      "const OBSERVABLES = {",
+      '  seed: { read: "attribute", signals: ["data-obs-seed"] },',
+      '  made: observe("data-obs-made"),',
+      "} satisfies Record<string, Observable>;",
+      "const READERS: Record<Read, (el: El, signal: string) => string | null> = {",
+      "  attribute: (el, signal) => el.getAttribute(signal),",
+      "  text: () => null,",
+      "};",
+      "export function capture(el: El): void {",
+      "  for (const [, observable] of Object.entries(OBSERVABLES)) {",
+      "    for (const signal of observable.signals) {",
+      "      READERS[observable.read](el, signal);",
+      "    }",
+      "  }",
+      "}",
+      "export const Seen = () => <div data-obs-seed data-obs-made data-obs-lost />;",
+    ].join("\n"),
+  });
+  expect(report.unresolved).toEqual([]);
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-obs-lost"]);
+});
+
+test("an observer's attributeFilter and a record's attributeName compare read the names they hold", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/watch.tsx`]: [
+      "interface Options {",
+      "  readonly attributes: boolean;",
+      "  readonly attributeFilter: readonly string[];",
+      "}",
+      "interface Mutation {",
+      "  readonly attributeName: string | null;",
+      "}",
+      'const MOVING: readonly string[] = ["data-watch-moving"];',
+      'export const options = (): Options => { const attributeFilter = [...MOVING, "style"]; return { attributes: true, attributeFilter }; };',
+      'export const literal: Options = { attributes: true, attributeFilter: ["data-watch-literal"] };',
+      'export const flipped = (record: Mutation): boolean => record.attributeName === "data-watch-compared";',
+      "export const Watched = () => <div data-watch-moving data-watch-literal data-watch-compared data-watch-none />;",
+    ].join("\n"),
+  });
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-watch-none"]);
+  expect(report.unresolved).toEqual([]);
+});
+
+test("a callback a browser driver runs in the page holds the argument the driver hands it", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/marked.tsx`]: "export const Marked = () => <div data-page-mark data-element-mark />;",
+    "tests/a/driver.ts": [
+      'import type { El } from "../../packages/a/src/el.ts";',
+      "interface Page {",
+      "  evaluate<A>(fn: (arg: A) => unknown, arg: A): Promise<unknown>;",
+      "}",
+      "interface Locator {",
+      "  evaluate<A>(fn: (element: El, arg: A) => unknown, arg: A): Promise<unknown>;",
+      "}",
+      'const PAGE_MARK = "data-page-mark";',
+      'const ELEMENT_MARK = "data-element-mark";',
+      "export async function marks(page: Page, locator: Locator, root: El): Promise<void> {",
+      "  await page.evaluate((key) => root.getAttribute(key), PAGE_MARK);",
+      "  await locator.evaluate((element, attribute) => element.removeAttribute(attribute), ELEMENT_MARK);",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["dom-attr-unread"]).toEqual([
+    `data-element-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
+    `data-page-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
+  ]);
+  expect(report.unresolved).toEqual([]);
+});
