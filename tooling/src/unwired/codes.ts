@@ -2,11 +2,12 @@
 // throw or build it, where it crosses the wire, and the client branches that name it. A vocabulary is one of codes when
 // production hands a member to the code parameter the transport reads onto `data.reason`, or when a refusal field of a
 // tRPC procedure's answer or an HTTP route's JSON body is typed by it. A member riding an error's detail object or a
-// success answer's field is no code. A code nothing throws, or in a returned vocabulary nothing builds, is dead vocabulary; a live code that crosses
-// the wire with no client branch reaches the user as a generic failure.
-import type { Node } from "@typescript/native/ast";
+// success answer's field is no code. A code nothing throws, or in a returned vocabulary nothing on the server builds, is
+// dead vocabulary; a live code with no client branch reaches the user as a generic failure.
+import type { ElementAccessExpression, Node } from "@typescript/native/ast";
 import {
   isCallExpression,
+  isElementAccessExpression,
   isIdentifier,
   isObjectLiteralExpression,
   isParenthesizedExpression,
@@ -75,14 +76,18 @@ const TEXT_JOIN = "|";
 
 const BRANCH_ROLES: ReadonlySet<LiteralRole | "record-key"> = new Set<LiteralRole | "record-key">(["case", "compare", "key", "record-key"]);
 
+/** The collections whose elements a later `has` or `get` tests a code against, and those methods. */
+const MEMBERSHIP_COLLECTIONS: ReadonlySet<string> = new Set(["Set", "Map"]);
+const MEMBERSHIP_READS: ReadonlySet<string> = new Set(["has", "get"]);
+
 /** What the codes scan cannot see, printed with every run. */
 const CODE_LIMITS: readonly string[] = [
   "A vocabulary is an `as const` string tuple the unions scan reads, or an `as const` object whose every value is a string literal, declared in packages/contracts/src; a code vocabulary declared in a server domain is not read.",
-  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed a fixed number of hand-offs. A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
+  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed a fixed number of hand-offs. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
   "A member of an object vocabulary is built only by a read of its property (`CODES.x`); a literal that spells its text builds nothing, nor names a branch.",
-  "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties to a fixed depth. A refusal field is (a) carried only by the members of an object union whose boolean literal discriminant is `false`, (b) the one vocabulary field of an object that may be null or undefined and holds one required string sentence and nothing else required, or (c) any vocabulary field of a `json` body sent with a status typed by 4xx and 5xx literals only. Any other field, an optional one included, is no code; a socket frame or a hand-written response is not followed.",
-  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
-  "A throw is read only in a world that holds the error mapping.",
+  "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties to a fixed depth. A coded refusal is an object with one vocabulary field, one required string sentence and nothing else required. A refusal field is (a) the code of a coded refusal on the `false` members of an object union split by a boolean literal discriminant, where no `true` member carries a vocabulary field and no `false` member carries a field a `true` member carries; (b) the code of a coded refusal reached as `O | null`, never an optional or `undefined` one; or (c) the one vocabulary field at the top of a `json` body sent with a status typed by 4xx and 5xx literals only. Any other field is no code; a socket frame or a hand-written response is not followed.",
+  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of a `new Set([...])` or a key of a `new Map([...])` whose binding the same file tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
+  "A throw is read only in a world that holds the error mapping. A client construction never builds a code.",
   "Engine one only: no TypeScript 6 audit runs, so the report has no disagreements.",
 ];
 
@@ -326,15 +331,19 @@ function forwardedArguments(sources: Sources, site: Site): readonly Site[] {
     return [];
   }
   const body = (owner as ts.FunctionLikeDeclaration).body;
+  const parameters = new Set(owner.parameters.flatMap((parameter) => (ts.isIdentifier(parameter.name) ? [parameter.name.text] : [])));
+  // The argument's value comes from this parameter alone: it names the parameter and no other one of the function.
   const names = (argument: ts.Node): boolean => {
-    let found = false;
+    const named = new Set<string>();
     const visit = (node: ts.Node): void => {
       const member = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node;
-      found ||= ts.isIdentifier(node) && node.text === name.text && !member;
+      if (ts.isIdentifier(node) && !member && parameters.has(node.text)) {
+        named.add(node.text);
+      }
       ts.forEachChild(node, visit);
     };
     visit(argument);
-    return found;
+    return named.size === 1 && named.has(name.text);
   };
   const forwarded: Site[] = [];
   const visit = (node: ts.Node): void => {
@@ -448,8 +457,18 @@ function* isData(type: Type): APIRequestGenerator<boolean> {
   return type.isObjectType() && (yield* type.getCallSignatures.gen()).length === 0;
 }
 
-// (a) A union of objects split by a boolean literal discriminant: a vocabulary field only the members whose discriminant
-// is `false` carry is a refusal's code.
+// A coded refusal: one vocabulary field, one required sentence, and nothing else required. Its code's texts, else null.
+function codedRefusal(shape: readonly Field[]): string | null {
+  const coded = shape.filter((field) => field.texts !== null);
+  const sentences = shape.filter((field) => field.sentence && !field.optional);
+  const rest = shape.filter((field) => !(coded.includes(field) || sentences.includes(field)));
+  const [code] = coded;
+  return coded.length === 1 && sentences.length === 1 && rest.every((field) => field.optional) ? (code?.texts ?? null) : null;
+}
+
+// (a) A union of objects split by a boolean literal discriminant into success and refusal members: no `true` member
+// carries a vocabulary field, no `false` member carries a field a `true` member carries, and each `false` member is a
+// coded refusal once the discriminant is set aside.
 function discriminatedRefusals(shapes: readonly (readonly Field[])[]): readonly string[] {
   if (shapes.length < 2) {
     return [];
@@ -459,35 +478,30 @@ function discriminatedRefusals(shapes: readonly (readonly Field[])[]): readonly 
     .filter((field) => shapes.every((shape) => (fieldOf(shape, field.name)?.flag ?? null) !== null))
     .map((field) => field.name);
   return discriminants.flatMap((name) => {
-    const failing = shapes.filter((shape) => fieldOf(shape, name)?.flag === false);
-    const passing = shapes.filter((shape) => fieldOf(shape, name)?.flag === true);
-    if (failing.length === 0 || passing.length === 0) {
-      return [];
-    }
+    const failing = shapes.filter((shape) => fieldOf(shape, name)?.flag === false).map((shape) => shape.filter((field) => field.name !== name));
+    const passing = shapes.filter((shape) => fieldOf(shape, name)?.flag === true).map((shape) => shape.filter((field) => field.name !== name));
     const succeeds = new Set(passing.flatMap((shape) => shape.map((field) => field.name)));
-    return failing.flatMap((shape) => shape.flatMap((field) => (field.texts !== null && !succeeds.has(field.name) ? [field.texts] : [])));
+    const split =
+      failing.length > 0 &&
+      passing.length > 0 &&
+      passing.every((shape) => shape.every((field) => field.texts === null)) &&
+      failing.every((shape) => shape.every((field) => !succeeds.has(field.name)));
+    return split ? failing.flatMap((shape) => codedRefusal(shape) ?? []) : [];
   });
 }
 
-// (b) A coded notice that may be absent: `O | null` or `O | undefined`, where O holds one vocabulary field, one required
-// sentence, and nothing else that is required.
-function noticeRefusal(shape: readonly Field[]): readonly string[] {
-  const coded = shape.filter((field) => field.texts !== null);
-  const sentences = shape.filter((field) => field.sentence && !field.optional);
-  const rest = shape.filter((field) => !(coded.includes(field) || sentences.includes(field)));
-  const [code] = coded;
-  return code?.texts !== null && code !== undefined && coded.length === 1 && sentences.length === 1 && rest.every((field) => field.optional)
-    ? [code.texts]
-    : [];
-}
+const isNull = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Null);
+const isUndefined = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Undefined);
 
 function* unionRefusals(world: NativeWorld, members: readonly Type[]): APIRequestGenerator<readonly string[]> {
   const data = yield* all(...members.map(isData));
   const objects = members.filter((_, at) => data[at] === true);
   const shapes = yield* all(...objects.map((member) => fieldsOf(world, member)));
   const [only] = shapes;
-  const notice = members.some(isNullish) && shapes.length === 1 && only !== undefined ? noticeRefusal(only) : [];
-  return [...discriminatedRefusals(shapes), ...notice];
+  // (b) A coded refusal that is explicitly `| null`; an optional or `undefined` object is a config block, not a notice.
+  const nullable = members.some(isNull) && !members.some(isUndefined) && shapes.length === 1 && only !== undefined;
+  const notice = nullable ? codedRefusal(only) : null;
+  return [...discriminatedRefusals(shapes), ...(notice === null ? [] : [notice])];
 }
 
 interface Explored {
@@ -497,8 +511,8 @@ interface Explored {
 }
 
 // One step into a sent type: a union's members, a reference's type arguments and an object's properties. A callable
-// type is a method, never data. `everyField` holds for a refusal body, where each vocabulary field is a refusal's.
-function* explore(world: NativeWorld, type: Type, everyField: boolean): APIRequestGenerator<Explored> {
+// type is a method, never data.
+function* explore(world: NativeWorld, type: Type): APIRequestGenerator<Explored> {
   if (type.isUnionType()) {
     const members = yield* type.getTypes.gen();
     return { fields: yield* unionRefusals(world, members), next: members };
@@ -508,11 +522,11 @@ function* explore(world: NativeWorld, type: Type, everyField: boolean): APIReque
   }
   const args = type.isTypeReference() ? yield* world.checker.getTypeArguments.gen(type) : [];
   const fields = yield* fieldsOf(world, type);
-  return { fields: everyField ? fields.flatMap((field) => field.texts ?? []) : [], next: [...args, ...fields.map((field) => field.type)] };
+  return { fields: [], next: [...args, ...fields.map((field) => field.type)] };
 }
 
 // Every refusal field inside the sent types, breadth first to MAX_DEPTH, each type explored once.
-function sentFields(world: NativeWorld, roots: readonly Type[], everyField: boolean): ReadonlySet<string> {
+function sentFields(world: NativeWorld, roots: readonly Type[]): ReadonlySet<string> {
   const seen = new Set<number>();
   const fields = new Set<string>();
   let level = roots;
@@ -521,7 +535,7 @@ function sentFields(world: NativeWorld, roots: readonly Type[], everyField: bool
     for (const type of fresh) {
       seen.add(type.id);
     }
-    const explored = world.batch(fresh.map((type) => explore(world, type, everyField)));
+    const explored = world.batch(fresh.map((type) => explore(world, type)));
     for (const field of explored.flatMap((step) => step.fields)) {
       fields.add(field);
     }
@@ -530,13 +544,30 @@ function sentFields(world: NativeWorld, roots: readonly Type[], everyField: bool
   return fields;
 }
 
-// (c) A body sent with a status whose type is client and server error literals only.
-function* refusalStatus(world: NativeWorld, status: Node | undefined): APIRequestGenerator<boolean> {
-  if (status === undefined) {
-    return false;
+// (c) The one vocabulary field at the top of a body sent with a status whose type is client and server error literals
+// only; a body with two vocabulary fields names no single code.
+function* refusalBody(world: NativeWorld, body: Type | undefined, status: Node | undefined): APIRequestGenerator<string | null> {
+  if (status === undefined || body === undefined) {
+    return null;
   }
   const members = yield* constituents(yield* world.checker.getTypeAtLocation.gen(status));
-  return members.every((member) => member.isNumberLiteralType() && member.value >= REFUSAL_STATUS.min && member.value <= REFUSAL_STATUS.max);
+  const refused = members.every((member) => member.isNumberLiteralType() && member.value >= REFUSAL_STATUS.min && member.value <= REFUSAL_STATUS.max);
+  const coded = refused && (yield* isData(body)) ? (yield* fieldsOf(world, body)).filter((field) => field.texts !== null) : [];
+  const [code] = coded;
+  return coded.length === 1 ? (code?.texts ?? null) : null;
+}
+
+// An element access by a value typed by a whole vocabulary into a table with a property for every member: the access
+// branches on each code. The index's texts, when the table is complete.
+function* completeLookup(world: NativeWorld, access: ElementAccessExpression): APIRequestGenerator<string | null> {
+  const { checker } = world;
+  const texts = yield* fieldTexts(yield* checker.getTypeAtLocation.gen(access.argumentExpression));
+  if (texts === null) {
+    return null;
+  }
+  const table = yield* checker.getTypeAtLocation.gen(access.expression);
+  const present = yield* all(...texts.split(TEXT_JOIN).map((text) => checker.getPropertyOfType.gen(table, text)));
+  return present.every((property) => property !== undefined) ? texts : null;
 }
 
 const memberSet = (vocabulary: Vocabulary): string => [...new Set(vocabulary.members.map((member) => member.text))].sort().join(TEXT_JOIN);
@@ -549,6 +580,8 @@ interface Gathered {
   readonly thrown: Map<string, boolean>;
   /** The sends whose value has a refusal field of each literal set, by set. */
   readonly sentBy: Map<string, Set<string>>;
+  /** The client element accesses into a complete table, by the index's literal set. */
+  readonly lookups: Map<string, Site[]>;
   readonly carrierWorlds: string[];
 }
 
@@ -631,6 +664,26 @@ function gatherWorld(open: UnionWorld, into: Gathered): void {
     }
   }
   gatherSends(open, into);
+  gatherLookups(open, into);
+}
+
+function gatherLookups(open: UnionWorld, into: Gathered): void {
+  const { world, home } = open;
+  const accesses: ElementAccessExpression[] = [];
+  for (const file of world.files.filter((source) => home.has(world.siteOf(source).file) && inClient(world.siteOf(source).file))) {
+    walk(file, (node) => {
+      if (isElementAccessExpression(node)) {
+        accesses.push(node);
+      }
+    });
+  }
+  const tables = world.batch(accesses.map((access) => completeLookup(world, access)));
+  for (const [at, access] of accesses.entries()) {
+    const texts = tables[at];
+    if (texts !== null && texts !== undefined) {
+      into.lookups.set(texts, [...(into.lookups.get(texts) ?? []), world.siteOf(access)]);
+    }
+  }
 }
 
 interface SendCall {
@@ -670,18 +723,65 @@ function gatherSends(open: UnionWorld, into: Gathered): void {
     return send === undefined ? [] : [{ call, argument, status, send }];
   });
   const types = world.batch(declared.map(({ argument, send }) => sentType(world, send, argument)));
-  const refusals = world.batch(
-    declared.map(({ status, send }) => (send.value === "argument" ? refusalStatus(world, status) : refusalStatus(world, undefined))),
-  );
+  const bodies = world.batch(declared.map(({ status, send }, at) => refusalBody(world, types[at], send.value === "argument" ? status : undefined)));
   for (const [at, { call }] of declared.entries()) {
     const type = types[at];
     if (type !== undefined) {
       const where = `${world.siteOf(call).file}:${lineOf(call)}`;
-      for (const field of sentFields(world, [type], refusals[at] === true)) {
+      const body = bodies[at];
+      for (const field of [...sentFields(world, [type]), ...(body === null || body === undefined ? [] : [body])]) {
         into.sentBy.set(field, (into.sentBy.get(field) ?? new Set<string>()).add(where));
       }
     }
   }
+}
+
+// A member read as an element of `new Set([...])`, or the key of an entry of `new Map([[key, value], ...])`, bound to a
+// name the same file then calls `has` or `get` on.
+function inMembershipCollection(sources: Sources, site: Site): boolean {
+  const source = sources.get(site.file);
+  const start = nameAt(source, site.position);
+  if (start === undefined) {
+    return false;
+  }
+  let node: ts.Node = ts.isPropertyAccessExpression(start.parent) && start.parent.name === start ? start.parent : start;
+  while (handsOn(node)) {
+    node = node.parent;
+  }
+  const entry = ts.isArrayLiteralExpression(node.parent) && ts.isArrayLiteralExpression(node.parent.parent) && node.parent.elements[0] === node;
+  const list = entry ? node.parent.parent : node.parent;
+  const made = list.parent;
+  const collected =
+    ts.isArrayLiteralExpression(list) &&
+    ts.isNewExpression(made) &&
+    ts.isIdentifier(made.expression) &&
+    MEMBERSHIP_COLLECTIONS.has(made.expression.text) &&
+    made.arguments?.[0] === list;
+  if (!collected) {
+    return false;
+  }
+  let bound: ts.Node = made;
+  while (handsOn(bound)) {
+    bound = bound.parent;
+  }
+  const declaration = bound.parent;
+  if (!(ts.isVariableDeclaration(declaration) && declaration.initializer === bound && ts.isIdentifier(declaration.name))) {
+    return false;
+  }
+  const binding = declaration.name.text;
+  let read = false;
+  const visit = (candidate: ts.Node): void => {
+    read ||=
+      ts.isPropertyAccessExpression(candidate) &&
+      ts.isIdentifier(candidate.expression) &&
+      candidate.expression.text === binding &&
+      MEMBERSHIP_READS.has(candidate.name.text) &&
+      ts.isCallExpression(candidate.parent) &&
+      candidate.parent.expression === candidate;
+    ts.forEachChild(candidate, visit);
+  };
+  visit(source);
+  return read;
 }
 
 const sortedSites = (sources: Sources, sites: Iterable<Site>): readonly string[] =>
@@ -690,7 +790,7 @@ const sortedSites = (sources: Sources, sites: Iterable<Site>): readonly string[]
 interface Judged {
   readonly throws: readonly string[];
   readonly builds: readonly string[];
-  /** Whether production builds the member: the unions verdict for a tuple's literals, or a read of its constant. */
+  /** Whether server production builds the member: a literal in its vocabulary's slot, or a read of its constant. */
   readonly produced: boolean;
   readonly handlers: readonly string[];
   readonly clientNamed: boolean;
@@ -701,9 +801,10 @@ interface Lookups {
   readonly reading: UnionReading;
   readonly refs: (site: Site | null) => readonly Site[];
   readonly thrown: ReadonlyMap<string, boolean>;
+  readonly lookups: ReadonlyMap<string, readonly Site[]>;
 }
 
-function judge({ sources, reading, refs, thrown: throwsAt }: Lookups, vocabulary: Vocabulary, member: CodeMember): Judged {
+function judge({ sources, reading, refs, thrown: throwsAt, lookups }: Lookups, vocabulary: Vocabulary, member: CodeMember): Judged {
   const { tuple } = vocabulary;
   const literals: readonly LiteralSite[] =
     tuple === null ? [] : reading.literals.filter((literal) => literal.text === member.text && reading.names(literal, tuple));
@@ -714,11 +815,13 @@ function judge({ sources, reading, refs, thrown: throwsAt }: Lookups, vocabulary
   const producers = [
     ...literals.filter((literal) => literal.role === "construct").map((literal) => literal.site),
     ...reads.filter(({ role }) => role === "construct").map(({ site }) => site),
-  ].filter((site) => isProductionFile(site.file));
+  ].filter((site) => isProductionFile(site.file) && !inClient(site.file));
   const thrown = producers.filter((site) => throwsAt.get(siteKey(site)) === true);
   const handlers = [
     ...literals.filter((literal) => BRANCH_ROLES.has(literal.role)).map((literal) => literal.site),
     ...reads.filter(({ role }) => role !== null && BRANCH_ROLES.has(role)).map(({ site }) => site),
+    ...reads.filter(({ site, role }) => role === "construct" && inMembershipCollection(sources, site)).map(({ site }) => site),
+    ...(lookups.get(memberSet(vocabulary)) ?? []),
   ].filter((site) => inClient(site.file));
   return {
     throws: sortedSites(sources, thrown),
@@ -726,7 +829,7 @@ function judge({ sources, reading, refs, thrown: throwsAt }: Lookups, vocabulary
       sources,
       producers.filter((site) => !thrown.includes(site)),
     ),
-    produced: (tuple !== null && reading.builds(tuple, member.text)) || producers.length > 0,
+    produced: producers.length > 0,
     handlers: sortedSites(sources, handlers),
     clientNamed: reads.some(({ site }) => inClient(site.file)),
   };
@@ -773,7 +876,7 @@ function judgeVocabulary(
     codes.push({ ...row, throws: judged.throws, builds: judged.builds, crosses, handlers: judged.handlers });
     if (!live) {
       findings.push({ ...row, kind: "unthrown" });
-    } else if (crosses.length > 0 && judged.handlers.length === 0) {
+    } else if (judged.handlers.length === 0) {
       findings.push({ ...row, kind: "unhandled" });
     }
   }
@@ -782,13 +885,14 @@ function judgeVocabulary(
 
 /** Read every package world of `root` for the codes of the closed code vocabularies in packages/contracts. */
 export function scanCodes(options: ScanOptions): CodesReport {
-  const gathered: Gathered = { vocabularies: new Map(), references: new Map(), thrown: new Map(), sentBy: new Map(), carrierWorlds: [] };
+  const gathered: Gathered = { vocabularies: new Map(), references: new Map(), thrown: new Map(), sentBy: new Map(), lookups: new Map(), carrierWorlds: [] };
   const reading = readUnions(options, (open) => gatherWorld(open, gathered));
   const lookups: Lookups = {
     sources: reading.sources,
     reading,
     refs: (site) => (site === null ? [] : [...(gathered.references.get(siteKey(site))?.values() ?? [])]),
     thrown: gathered.thrown,
+    lookups: gathered.lookups,
   };
   const judged = [...gathered.vocabularies.values()]
     .sort((a, b) => a.key.localeCompare(b.key))

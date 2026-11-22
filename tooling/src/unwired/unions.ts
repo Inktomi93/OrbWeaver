@@ -7,6 +7,7 @@ import {
   isBinaryExpression,
   isCaseBlock,
   isCaseClause,
+  isComputedPropertyName,
   isElementAccessExpression,
   isIdentifier,
   isMethodDeclaration,
@@ -256,9 +257,11 @@ function* holdsText(type: Type | undefined, text: string): APIRequestGenerator<b
   return members.some((member) => member.isStringLiteralType() && member.value === text);
 }
 
+// The object literal a name or literal keys: a plain key, or a string literal written as a computed key (`["a"]: …`).
 function keyedLiteral(node: Node): ObjectLiteralExpression | null {
-  const parent = node.parent;
-  const keyed = (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent) || isMethodDeclaration(parent)) && parent.name === node;
+  const name = isStringLiteral(node) && isComputedPropertyName(node.parent) ? node.parent : node;
+  const parent = name.parent;
+  const keyed = (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent) || isMethodDeclaration(parent)) && parent.name === name;
   return keyed && isObjectLiteralExpression(parent.parent) ? parent.parent : null;
 }
 

@@ -124,9 +124,14 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 `pnpm unwired codes` lists each error and refusal code from the closed code vocabularies in `packages/contracts` with its throw sites, its wire crossing and its client handlers. `CODE_LIMITS` in `tooling/src/unwired/codes.ts` is the one list of what it cannot see.
 
 - A vocabulary holds codes when production hands a member to the code parameter that `domainReason` in `packages/server/src/transport/trpc/error-mapping.ts` reads, or when a refusal field of a tRPC answer or an HTTP route's JSON body is typed by it.
-- A refusal field is on the `ok: false` arm of a result union, or is the code of a notice that may be null, or sits in a body sent with a 4xx or 5xx status. A member in an error's detail object or a success answer's field is no code.
-- A code with no throw site in production is dead vocabulary. In a returned vocabulary, a code is dead when the unions verdict finds nothing builds it.
-- A code that crosses the wire is handled only when the client branches on that code: a switch case, a comparison or a keyed lookup. A generic error toast is not a handler.
+- A member is thrown when the code parameter's value comes from it. A helper argument counts only when it names one parameter, so `tag(code, level)` makes neither a code.
+- A coded refusal is an object with one vocabulary field, one required sentence and nothing else required.
+- A refusal field is the code of a coded refusal on the `false` members of a union split by a boolean field. No `true` member may carry a vocabulary field, and no `false` member a field a `true` member carries.
+- A refusal field is also the code of a coded refusal typed `O | null`, never an optional or `undefined` one.
+- A refusal field is also the one vocabulary field at the top of a body sent with a 4xx or 5xx status.
+- A member in an error's detail object, a success answer's field or a progress member is no code.
+- A code with no throw site in production is dead vocabulary. In a returned vocabulary, a code is dead when no server production site builds it. A client or test construction builds nothing.
+- A code that crosses the wire is handled only when the client branches on that code. A branch is a switch case, a comparison, a plain or computed key, or a `Set` or `Map` element the file tests with `has` or `get`. A lookup by the whole vocabulary into a table with a row for every member is a branch too. A generic error toast is not a handler.
 - A code that only server-internal callers see needs no client handler. The scan marks where each code crosses the wire.
 - The owner rules on the handled rule before the first report is judged.
 
