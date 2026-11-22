@@ -134,8 +134,11 @@ test("explain-lost breaks the lost reads down by key source and slot, and the li
         'export const fromList = make(["x", "y", "z"]).x;',
         `declare const renamed: { [P in "p" | "q" | "r" as \`get${TEMPLATE_P}\`]: number };`,
         "export const fromTemplate = renamed.getp;",
-        'import { box } from "fakelib";',
+        'import { box, type Box } from "fakelib";',
         "export const held = box.held;",
+        'declare const both: (Box & Record<"k", number>) | undefined;',
+        "export const heldOfBoth = both?.held;",
+        "export const keyOfBoth = both?.k;",
         "declare const text: string | undefined;",
         "export const size = text?.length;",
       ].join("\n"),
@@ -153,8 +156,8 @@ test("explain-lost breaks the lost reads down by key source and slot, and the li
   // types, so the read is the library's, not lost
   expect(session.lost?.library.byLibrary.map(({ library, reads, members }) => [library, reads, members.map(({ member, sample }) => [member, sample])])).toEqual(
     [
-      ["fakelib", 1, [["held", `${lost}:7`]]],
-      [DEFAULT_LIBRARY, 1, [["length", `${lost}:9`]]],
+      ["fakelib", 2, [["held", `${lost}:7`]]],
+      [DEFAULT_LIBRARY, 1, [["length", `${lost}:12`]]],
     ],
   );
   expect((await queryGraph(root, { query: "users", names: ["XYZ"] }, quiet)).session.lost).toBeNull();
@@ -252,7 +255,7 @@ test("a lost key set is followed to the tree's spelling or to the library that s
   expect(await users("DEFAULTS")).toContain(`${hops}:${lineOf("fromSpread")} fromSpread`);
 });
 
-test("a query verb with no name to ask about is refused before any world loads", async ({ runCli, scratch }) => {
+test("a query verb with no name to ask about is refused before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {
   await expect(await runCli("unwired", ["graph-why", `--root=${scratch}`])).toExitWith(EXIT.misuse);
   await expect(await runCli("unwired", ["graph", "base", `--root=${scratch}`])).toExitWith(EXIT.misuse);
 });

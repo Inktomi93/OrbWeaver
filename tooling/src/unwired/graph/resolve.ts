@@ -273,6 +273,13 @@ interface WalkSoFar {
 // Settle each live name the level answered, and keep the rest walking. A type that names the property with a real
 // declaration is that branch's origin; one outside the tree (a library's own member, such as a query builder's `where`)
 // ends the branch, and the other branches walk on.
+// A name with no branch left: the library's when a branch stopped at one, on this level or an earlier one (another name
+// riding the same walk can keep it going after this name's branches ran out), else exhausted.
+function spentWalk(depth: number, stoppedHere: boolean, stops: ReadonlySet<NodeHandle> | undefined): OriginWalk {
+  const library = stoppedHere || (stops?.size ?? 0) > 0;
+  return { decls: [], depth, end: library ? "library" : "exhausted", stops: library ? [...(stops ?? [])] : [] };
+}
+
 function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: WalkSoFar): LiveNames {
   const { out, stopped } = walk;
   const next = new Map<string, ReadonlySet<number>>();
@@ -285,8 +292,7 @@ function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: Wa
     const stop = homes.ended.get(name);
     const kept = [...on].filter((id) => stop?.has(id) !== true);
     if (kept.length === 0) {
-      const library = stop !== undefined && stop.size > 0;
-      out.set(name, { decls: [], depth, end: library ? "library" : "exhausted", stops: library ? [...(stopped.get(name) ?? [])] : [] });
+      out.set(name, spentWalk(depth, (stop?.size ?? 0) > 0, stopped.get(name)));
     } else {
       next.set(name, new Set(kept));
     }
