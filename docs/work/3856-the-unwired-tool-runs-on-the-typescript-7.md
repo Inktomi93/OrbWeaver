@@ -1,0 +1,27 @@
+---
+kind: tooling
+status: blocked
+updated: 2026-11-22
+priority: P3
+area: tooling
+blocked: on 3838
+plan: unwired-code
+---
+
+# The unwired tool runs on the TypeScript 7.1 API alone
+
+## What
+
+The fields, params and unions scans still run engine two, the TypeScript 6 language service, on every run, and nineteen files under tooling/src/unwired import the typescript package, some for checker answers (union-oracles.ts, language-service.ts, port-plan.ts) and most for syntax. Once 3838 leaves zero engine disagreements, engine two and --cross-check go, and every unwired file reads through @typescript/native.
+
+## Why
+
+Two engines double the run time and memory and keep a second opinion the scans no longer need; one engine is one set of answers to maintain.
+
+## Done when
+
+A --cross-check run of each scan on main shows zero disagreements before removal, engine two and the --cross-check flag are deleted with their tests, no file under tooling/src/unwired imports typescript, the unwired suite passes, and the design's engine sections describe one engine.
+
+## Evidence
+
+Filled at landing: what ran and where its output is.
