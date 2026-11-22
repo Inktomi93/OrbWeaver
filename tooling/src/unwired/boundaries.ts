@@ -166,10 +166,12 @@ export function serializedBy(call: CallExpression): Serialized {
   return sent("unclassified");
 }
 
-/** A Drizzle write: the table expression and the value it stores, an object literal or any other expression. */
+/** A Drizzle write: the table expression, the value it stores (an object literal or any other expression), and the
+ *  builder method's name, where the library fills the columns a whole value carries. */
 export interface StoreWrite {
   readonly table: Expression;
   readonly value: Expression;
+  readonly at: Node;
 }
 
 const STORE_METHODS: ReadonlySet<string> = new Set(["values", "set"]);
@@ -199,6 +201,13 @@ const unwrapValue = (node: Expression): Expression => {
   return at;
 };
 
+// A stored literal through its parentheses and assertions, whose keys name the columns; any other value as written,
+// since an assertion's type, not its operand's, is what the store carries.
+function storedValue(node: Expression): Expression {
+  const at = unwrapValue(node);
+  return isObjectLiteralExpression(at) || isArrayLiteralExpression(at) ? at : node;
+}
+
 /** The values a Drizzle builder call stores: `.values(x)` and `.set(x)` after `insert(T)` or `update(T)`, an
  *  `onConflictDoUpdate({ set })`, and each element of an array literal handed to `.values`. */
 export function storeWritesAt(node: Node): readonly StoreWrite[] {
@@ -214,18 +223,19 @@ export function storeWritesAt(node: Node): readonly StoreWrite[] {
   if (table === null) {
     return [];
   }
-  let value: Expression | undefined = unwrapValue(argument);
+  let value: Expression | undefined = storedValue(argument);
   if (CONFLICT_METHODS.has(method)) {
     const set = isObjectLiteralExpression(value)
       ? value.properties.find((property) => isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === "set")
       : undefined;
-    value = set !== undefined && isPropertyAssignment(set) ? unwrapValue(set.initializer) : undefined;
+    value = set !== undefined && isPropertyAssignment(set) ? storedValue(set.initializer) : undefined;
   }
   if (value === undefined) {
     return [];
   }
-  const values = isArrayLiteralExpression(value) ? value.elements.map(unwrapValue) : [value];
-  return values.map((stored) => ({ table, value: stored }));
+  const values = isArrayLiteralExpression(value) ? value.elements.map(storedValue) : [value];
+  const at = node.expression.name;
+  return values.map((stored) => ({ table, value: stored, at }));
 }
 
 /** The property read a stored key's value copies, through `??`, `||`, a conditional's branches and assertions: the

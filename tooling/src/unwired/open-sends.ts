@@ -44,6 +44,7 @@ import { all, IndexKind, SymbolFlags, TypeFlags } from "@typescript/native/sync"
 import type { SendDestination } from "./boundaries.ts";
 import { PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
+import { rowColumns } from "./drizzle-rows.ts";
 import { handedAt } from "./handoffs.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag } from "./native.ts";
@@ -106,6 +107,22 @@ function* heldObjects(checker: Checker, type: Type): APIRequestGenerator<readonl
   return (yield* constituents(element ?? plain)).filter((member) => hasFlag(member.flags, TypeFlags.Object) || hasFlag(member.flags, TypeFlags.Intersection));
 }
 
+// The in-tree members of object types: each declared member, and for a Drizzle row the column each of its
+// declaration-less members stands for. `declared` holds the declared ones alone, whose values nest further.
+function* treeProperties(
+  world: NativeWorld,
+  objects: readonly Type[],
+): APIRequestGenerator<{ readonly all: readonly NativeSymbol[]; readonly declared: readonly NativeSymbol[] }> {
+  const perObject = yield* all(...objects.map((type) => world.checker.getPropertiesOfType.gen(type)));
+  const declared = perObject.flat().filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  const columns = yield* all(
+    ...objects.flatMap((type, at) =>
+      (perObject[at] ?? []).filter((property) => property.declarations.length === 0).map((property) => rowColumns(world, type, property.name)),
+    ),
+  );
+  return { all: [...declared, ...columns.flat()], declared };
+}
+
 /** The in-tree members a value carries, through nested objects and array elements, each with its name. */
 function* heldNamed(world: NativeWorld, types: readonly Type[], levels: number): APIRequestGenerator<readonly NativeSymbol[]> {
   const { checker } = world;
@@ -118,11 +135,9 @@ function* heldNamed(world: NativeWorld, types: readonly Type[], levels: number):
     for (const type of objects) {
       seen.add(type.id);
     }
-    const properties = (yield* all(...objects.map((type) => checker.getPropertiesOfType.gen(type))))
-      .flat()
-      .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
-    found.push(...properties);
-    pending = properties.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(properties);
+    const properties = yield* treeProperties(world, objects);
+    found.push(...properties.all);
+    pending = properties.declared.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(properties.declared);
   }
   return found;
 }
@@ -174,9 +189,7 @@ function* handedInto(world: NativeWorld, value: Node): APIRequestGenerator<Hande
     return NOTHING;
   }
   const sources = yield* heldObjects(checker, valueType);
-  const properties = (yield* all(...sources.map((type) => checker.getPropertiesOfType.gen(type))))
-    .flat()
-    .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  const properties = (yield* treeProperties(world, sources)).all;
   if (properties.length === 0) {
     return NOTHING;
   }

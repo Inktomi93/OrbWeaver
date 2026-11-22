@@ -8,6 +8,7 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
+import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
@@ -23,7 +24,7 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "columns"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
@@ -101,6 +102,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length} keyLists=${report.keyLists.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
+  columns: scan("reports/unwired/columns.json", scanColumns, (report) => ` unresolved=${report.unresolved.length}`),
 };
 
 interface Args {
