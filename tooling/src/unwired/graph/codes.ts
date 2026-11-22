@@ -46,6 +46,7 @@ import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
+import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { GraphLog } from "./options.ts";
 import type { LiteralRole } from "./roles.ts";
@@ -180,7 +181,7 @@ export interface CodesJudging {
   readonly judged?: readonly JudgedEntry[];
 }
 
-const inContracts = (file: string): boolean => file.startsWith(CONTRACTS) && productReader(file);
+const inContracts = (file: string): boolean => file.startsWith(CONTRACTS) && isProduction(file);
 const inClient = (file: string): boolean => file.startsWith(CLIENT);
 
 // Through parentheses, assertions and a conditional's branch: what a value is handed on as.

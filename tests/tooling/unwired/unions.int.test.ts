@@ -52,8 +52,8 @@ const TREE = {
   ].join("\n"),
 };
 
-// snap drives the product as its user does, so a literal it writes into a tuple's slot builds the member; any other
-// tooling literal builds nothing.
+// snap uses the product as its user does: a literal it writes into a product tuple's slot builds the member, and its own
+// tuples are never judged. Any other tooling literal builds nothing.
 const DRIVEN = {
   "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tooling" }] }),
   "tooling/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src"] }),
@@ -63,11 +63,17 @@ const DRIVEN = {
     "export const show = (view: View): View => view;",
     'export const shown = show("grid");',
   ].join("\n"),
-  "tooling/src/snap/drive.ts": ['import { show } from "../../../packages/a/src/view.ts";', 'export const driven = show("list");'].join("\n"),
+  "tooling/src/snap/drive.ts": [
+    'import { show } from "../../../packages/a/src/view.ts";',
+    'export const driven = show("list");',
+    'export const PACES = ["fast", "slow"] as const;',
+  ].join("\n"),
   "tooling/src/other/drive.ts": ['import { show } from "../../../packages/a/src/view.ts";', 'export const other = show("table");'].join("\n"),
 };
 
-test("a snap literal builds a member and another tooling literal does not", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a snap literal builds a product member, a snap tuple is not judged, and another tooling literal builds nothing", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
   const report = await scanUnions(plantedTree, DRIVEN);
   expect(report.unwired.map(({ home, member }) => `${home}.${member}`)).toEqual(["VIEWS.table"]);
 });

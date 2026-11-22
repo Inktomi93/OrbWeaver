@@ -6,8 +6,9 @@
 //   and the site-role reader in ./roles.ts for what a literal or a reference does. Its slot reading is ./union-slots.ts.
 // - The report keeps the buckets the per-world scan wrote except `disagreements`: the graph is one engine, so no second
 //   engine can disagree with it.
-// - A tuple's references are the product names the resolver resolves to its declaration; a read outside the product
-//   never enumerates or parses a tuple, so only product files are indexed.
+// - A tuple's references are the names in product and snap files the resolver resolves to its declaration; a read
+//   elsewhere never enumerates or parses a tuple. Only a tuple product source declares is judged: snap credits the
+//   product's members as a user does, and its own tuples stay out of the population.
 import type { Expression, Identifier, Node, ObjectLiteralExpression, StringLiteral } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -45,6 +46,7 @@ import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
+import { isProduction } from "../worlds.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { Resolver } from "./resolve.ts";
@@ -157,7 +159,7 @@ const UNION_LIMITS: readonly string[] = [
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, is reported apart as parsed, with the sites that parse the input in.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
-  "Only product files are read, in the merged program every typecheck world joins: packages/*/src and tooling/src/snap/, which drives the product as its user does. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
+  "A tuple is judged only when product source (packages/*/src) declares it. A literal or reference credits a member when product source or tooling/src/snap/, which uses the product as its user does, writes it. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
 ];
 
 /** One member of a tuple: its text, its line and its element. */
@@ -308,7 +310,8 @@ function tuples(world: NativeWorld, resolver: Resolver): readonly UnionTuple[] {
   const shorthand: Node[] = [];
   eachProductionNode(world, (node) => {
     const array = constArrayOf(node);
-    if (array !== null) {
+    // snap uses the product and credits its members, but its own tuples are never judged
+    if (array !== null && isProduction(world.fileOfSource(node.getSourceFile()))) {
       arrays.push(array);
     }
     if (!isIdentifier(node)) {
