@@ -97,9 +97,9 @@ import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag, propertiesNamed } from "../native.ts";
-import { isProduction } from "../worlds.ts";
 import type { LiteralRole } from "./roles.ts";
 import { sameNode } from "./roles.ts";
+import { productReader } from "./state.ts";
 
 /** What a slot's spellings reach: the tuples, as `file:NAME` keys, and the string literal types written on the way,
  *  each site key to its text. A literal type that re-spells a tuple member belongs to the tuple only where the scan
@@ -120,7 +120,7 @@ const CONST_ASSERTION = "const";
 
 /** The innermost node whose own text starts at `site`, in the world's parse of its file; a string literal's site may
  *  start inside its quote. Undefined when no node starts there or the world holds no such file. */
-export function nodeAt(world: NativeWorld, site: Site): Node | undefined {
+function nodeAt(world: NativeWorld, site: Site): Node | undefined {
   const source = world.source(site.file);
   if (source === undefined) {
     return undefined;
@@ -474,7 +474,7 @@ function propertySpelling(declaration: Node): Node | undefined {
 
 // The declaration a name site belongs to, or null for one outside the production sources.
 function declarationAt(world: NativeWorld, site: Site): Node | null {
-  return isProduction(site.file) ? (nodeAt(world, site)?.parent ?? null) : null;
+  return productReader(site.file) ? (nodeAt(world, site)?.parent ?? null) : null;
 }
 
 function propertyName(name: PropertyName): string | null {
@@ -1126,7 +1126,7 @@ const isKeyof = (node: TypeNode | undefined): boolean => node !== undefined && i
 // declaration or none at all, so only a production declaration rules the name out.
 function* isLibReference(world: NativeWorld, name: Identifier): APIRequestGenerator<boolean> {
   const sites = yield* declaredSites(world, name);
-  return sites.every((site) => !isProduction(site.file));
+  return sites.every((site) => !productReader(site.file));
 }
 
 // The key set a key position spells, reduced to the type nodes that name its keys.

@@ -636,6 +636,60 @@ test("a client branch is a computed or plain key, a tested Set element, a compar
   ]);
 });
 
+// The hand-offs a code is followed through and the depth a refusal field is read at are what the tree has, so a chain of
+// subclass constructors and a notice nested in an answer are both read to their end.
+const CHAIN_DEPTH = 9;
+const DEEP = {
+  ...BASE,
+  "packages/contracts/src/codes.ts": [
+    'export const DEEP_CODES = ["deep_thrown"] as const;',
+    "export type DeepCode = (typeof DEEP_CODES)[number];",
+    'export const NESTED_REFUSALS = ["nested_refused"] as const;',
+    "export type NestedRefusal = (typeof NESTED_REFUSALS)[number];",
+    "export interface NestedNotice {",
+    "  readonly code: NestedRefusal;",
+    "  readonly message: string;",
+    "}",
+    "export interface Answer {",
+    "  readonly l1: { readonly l2: { readonly l3: { readonly l4: { readonly l5: { readonly l6: { readonly l7: { readonly notice: NestedNotice | null } } } } } } };",
+    "}",
+  ].join("\n"),
+  "packages/server/src/chain.ts": [
+    'import type { Answer, DeepCode } from "../../contracts/src/codes.ts";',
+    'import { publicProcedure } from "@trpc/server";',
+    'import { DomainOperationError } from "./kit-errors.ts";',
+    "export class Link1 extends DomainOperationError {",
+    "  constructor(code: string) {",
+    '    super(code, "Deep.");',
+    "  }",
+    "}",
+    ...Array.from({ length: CHAIN_DEPTH - 1 }, (_, at) => [
+      `export class Link${String(at + 2)} extends Link${String(at + 1)} {`,
+      "  constructor(code: string) {",
+      "    super(code);",
+      "  }",
+      "}",
+    ]).flat(),
+    `export const deep = (code: DeepCode): never => { throw new Link${String(CHAIN_DEPTH)}(code); };`,
+    'export const fail = (): never => deep("deep_thrown");',
+    "export const router = {",
+    '  nested: publicProcedure.query((): Answer => ({ l1: { l2: { l3: { l4: { l5: { l6: { l7: { notice: { code: "nested_refused", message: "No." } } } } } } } } })),',
+    "};",
+  ].join("\n"),
+};
+
+test("a code is followed through every hand-off and a refusal field is read at any depth", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scan(plantedTree, DEEP);
+  expect(report.vocabularies.map(({ key, channels }) => `${key} ${channels.join(",")}`)).toEqual([
+    `${HOME}:DEEP_CODES thrown`,
+    `${HOME}:NESTED_REFUSALS returned`,
+  ]);
+  expect(report.codes.map(({ member, throws, builds }) => ({ member, throws, builds }))).toEqual([
+    { member: "deep_thrown", throws: ["packages/server/src/chain.ts:50"], builds: [] },
+    { member: "nested_refused", throws: [], builds: ["packages/server/src/chain.ts:52"] },
+  ]);
+});
+
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {

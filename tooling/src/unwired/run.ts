@@ -95,7 +95,6 @@ interface Report {
   readonly unwired: readonly Finding[];
   readonly deliberate: readonly Finding[];
   readonly staleJudged: readonly StaleJudged[];
-  readonly disagreements: readonly (string | object)[];
   /** What the scan cannot see, printed after its summary. */
   readonly limits?: readonly string[];
 }

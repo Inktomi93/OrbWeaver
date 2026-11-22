@@ -2,10 +2,10 @@
 // and Record keys that name it, and in its own list, with the site that parses outside input in, a tuple only a z.enum
 // parse or a membership guard builds. A same-text literal
 // in a plain string slot and an enumerated tuple are controls.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { JudgedEntry, UnionsReport } from "../../../tooling/src/unwired/index.ts";
 import { unionsGraph } from "../../../tooling/src/unwired/index.ts";
-import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, plantJudged } from "./_planted.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
 
 type Report = UnionsReport;
 
@@ -51,6 +51,26 @@ const TREE = {
     'export const isWarm = (tone: Tone): boolean => tone === "warm";',
   ].join("\n"),
 };
+
+// snap drives the product as its user does, so a literal it writes into a tuple's slot builds the member; any other
+// tooling literal builds nothing.
+const DRIVEN = {
+  "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tooling" }] }),
+  "tooling/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src"] }),
+  "packages/a/src/view.ts": [
+    'export const VIEWS = ["grid", "list", "table"] as const;',
+    "export type View = (typeof VIEWS)[number];",
+    "export const show = (view: View): View => view;",
+    'export const shown = show("grid");',
+  ].join("\n"),
+  "tooling/src/snap/drive.ts": ['import { show } from "../../../packages/a/src/view.ts";', 'export const driven = show("list");'].join("\n"),
+  "tooling/src/other/drive.ts": ['import { show } from "../../../packages/a/src/view.ts";', 'export const other = show("table");'].join("\n"),
+};
+
+test("a snap literal builds a member and another tooling literal does not", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scanUnions(plantedTree, DRIVEN);
+  expect(report.unwired.map(({ home, member }) => `${home}.${member}`)).toEqual(["VIEWS.table"]);
+});
 
 test("the unions scan reports an unbuilt member with its dead branch, check and key, marks a parsed vocabulary apart, and skips an enumerated tuple", {
   timeout: 120_000,

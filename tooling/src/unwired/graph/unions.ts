@@ -4,7 +4,8 @@
 //
 // - The scan reads the session's one merged program (D357): one checker, the graph's resolver for what a name means,
 //   and the site-role reader in ./roles.ts for what a literal or a reference does. Its slot reading is ./union-slots.ts.
-// - The report keeps the buckets the per-world scan wrote. `disagreements` stays empty: no second engine audits this one.
+// - The report keeps the buckets the per-world scan wrote except `disagreements`: the graph is one engine, so no second
+//   engine can disagree with it.
 // - A tuple's references are the product names the resolver resolves to its declaration; a read outside the product
 //   never enumerates or parses a tuple, so only product files are indexed.
 import type { Expression, Identifier, Node, ObjectLiteralExpression, StringLiteral } from "@typescript/native/ast";
@@ -44,13 +45,13 @@ import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
-import { isProduction } from "../worlds.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { Resolver } from "./resolve.ts";
 import type { LiteralRole, ValueUse } from "./roles.ts";
 import { literalRole, sameNode, valueUse } from "./roles.ts";
 import { declarationNameOf } from "./sites.ts";
+import { productReader } from "./state.ts";
 import type { Origins, Spelled } from "./union-slots.ts";
 import {
   constantDepth,
@@ -140,7 +141,6 @@ export interface UnionsReport {
   /** Judged entries whose row no longer reports or whose item is no longer open. */
   readonly staleJudged: JudgedSplit<UnwiredUnionMember>["staleJudged"];
   /** Always empty: one engine reads the unions, so there is nothing to disagree with. */
-  readonly disagreements: readonly string[];
   readonly limits: readonly string[];
 }
 
@@ -157,12 +157,11 @@ const UNION_LIMITS: readonly string[] = [
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, is reported apart as parsed, with the sites that parse the input in.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
-  "Only product files (packages/*/src) are read, in the merged program every typecheck world joins; a test or tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is not read, so a tuple only such a file enumerates reports its members.",
-  "Engine one only: no TypeScript 6 audit runs, so the report has no disagreements.",
+  "Only product files are read, in the merged program every typecheck world joins: packages/*/src and tooling/src/snap/, which drives the product as its user does. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
 ];
 
 /** One member of a tuple: its text, its line and its element. */
-export interface UnionMember {
+interface UnionMember {
   readonly text: string;
   readonly line: number;
   readonly element: Expression;
@@ -272,7 +271,7 @@ function stringTuples(world: NativeWorld, arrays: readonly ConstArray[]): readon
   });
 }
 
-const productSources = (world: NativeWorld): readonly Node[] => world.files.filter((source) => isProduction(world.fileOfSource(source)));
+const productSources = (world: NativeWorld): readonly Node[] => world.files.filter((source) => productReader(world.fileOfSource(source)));
 
 function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): void {
   const step = (node: Node): void => {
@@ -776,7 +775,6 @@ export function scanUnionsOnGraph(world: NativeWorld, options: UnionsOptions): U
     ),
     parsed: unwired.flatMap((row) => (row.kind === "parsed" ? [{ ...row, sources: parsedSources.get(row.key) ?? [] }] : [])),
     deliberate,
-    disagreements: [],
     limits: UNION_LIMITS,
   };
 }

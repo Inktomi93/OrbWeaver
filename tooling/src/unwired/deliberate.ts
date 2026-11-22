@@ -74,7 +74,7 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
 ];
 
 /** The entry that excuses `member` of `home` in `file`, if any. */
-export function deliberateEntry(entries: readonly DeliberateEntry[], file: string, home: string, member: string): DeliberateEntry | null {
+function deliberateEntry(entries: readonly DeliberateEntry[], file: string, home: string, member: string): DeliberateEntry | null {
   return (
     entries.find((entry) =>
       "directory" in entry

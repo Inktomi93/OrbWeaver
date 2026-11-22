@@ -46,11 +46,11 @@ import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
-import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { GraphLog } from "./options.ts";
 import type { LiteralRole } from "./roles.ts";
 import { sameNode, valueRole, valueUse } from "./roles.ts";
+import { productReader } from "./state.ts";
 import { boundParameter, declarationsOf, isConstAssertion, nodeKey } from "./union-slots.ts";
 import type { UnionLiteral, UnionReading, UnionTuple } from "./unions.ts";
 import { lineOf, readUnionsOnGraph } from "./unions.ts";
@@ -87,13 +87,6 @@ const SENDS = [
 ] as const;
 type Send = (typeof SENDS)[number];
 
-// Deep enough for a subscription's frame union inside its generator inside the resolver's promise, and a field one
-// object below a frame.
-const MAX_DEPTH = 6;
-
-// How many parameter hand-offs a code is followed through: a helper, a subclass constructor and its `super` call.
-const MAX_HOPS = 6;
-
 /** The statuses a refusal body is sent with, client and server errors. */
 const REFUSAL_STATUS = { min: 400, max: 599 } as const;
 
@@ -110,9 +103,9 @@ const MEMBERSHIP_READS: ReadonlySet<string> = new Set(["has", "get"]);
 /** What the codes scan cannot see, printed with every run. */
 const CODE_LIMITS: readonly string[] = [
   "A vocabulary is an `as const` string tuple the unions reader reads, or an `as const` object whose every value is a string literal, declared in packages/contracts/src; a code vocabulary declared in a server domain is not read.",
-  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed a fixed number of hand-offs. A member a parameter defaults to (`refusal: Code = CODES.x`) is handed to that parameter. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
+  "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed through every hand-off. A member a parameter defaults to (`refusal: Code = CODES.x`) is handed to that parameter. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
   "A member of an object vocabulary is built only by a read of its property (`CODES.x`); a literal that spells its text builds nothing, nor names a branch.",
-  "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties to a fixed depth. A coded refusal is an object with one vocabulary field, one required string sentence and nothing else required. A refusal field is (a) the code of a coded refusal on the `false` members of an object union split by a boolean literal discriminant, where no `true` member carries a vocabulary field and no `false` member carries a field a `true` member carries; (b) the code of a coded refusal reached as `O | null`, never an optional or `undefined` one; or (c) the one vocabulary field at the top of a `json` body sent with a status typed by 4xx and 5xx literals only. A subscription's frames are read the same way, and also (d): in one object member of a frame union, the one vocabulary field beside one required string sentence, setting aside the tags typed by one string literal, such as `channel` and `type`. Any other field is no code; a hand-written response is not followed.",
+  "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties, each type read once. A coded refusal is an object with one vocabulary field, one required string sentence and nothing else required. A refusal field is (a) the code of a coded refusal on the `false` members of an object union split by a boolean literal discriminant, where no `true` member carries a vocabulary field and no `false` member carries a field a `true` member carries; (b) the code of a coded refusal reached as `O | null`, never an optional or `undefined` one; or (c) the one vocabulary field at the top of a `json` body sent with a status typed by 4xx and 5xx literals only. A subscription's frames are read the same way, and also (d): in one object member of a frame union, the one vocabulary field beside one required string sentence, setting aside the tags typed by one string literal, such as `channel` and `type`. Any other field is no code; a hand-written response is not followed.",
   "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of a `new Set([...])` or a key of a `new Map([...])` whose binding any file, its own or one that imports it, tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
   "A throw is read only when the merged program holds the error mapping. A client construction never builds a code.",
 ];
@@ -187,7 +180,7 @@ export interface CodesJudging {
   readonly judged?: readonly JudgedEntry[];
 }
 
-const inContracts = (file: string): boolean => file.startsWith(CONTRACTS) && isProduction(file);
+const inContracts = (file: string): boolean => file.startsWith(CONTRACTS) && productReader(file);
 const inClient = (file: string): boolean => file.startsWith(CLIENT);
 
 // Through parentheses, assertions and a conditional's branch: what a value is handed on as.
@@ -224,7 +217,7 @@ class CodesRun {
 
   constructor(world: NativeWorld, graph: Graph) {
     this.world = world;
-    this.sources = graph.files.filter(isProduction).flatMap((file) => {
+    this.sources = graph.files.filter(productReader).flatMap((file) => {
       const source = world.source(file);
       return source === undefined ? [] : [{ file, source }];
     });
@@ -426,7 +419,7 @@ function codeSeeds(run: CodesRun): ReadonlySet<string> | null {
 // (`super(reasonOf(code))`).
 function forwardedArguments(run: CodesRun, parameter: ParameterDeclaration): readonly Node[] {
   const owner = parameter.parent;
-  if (!(isProduction(run.fileOf(parameter)) && isIdentifier(parameter.name) && isFunctionLikeDeclaration(owner)) || owner.body === undefined) {
+  if (!(productReader(run.fileOf(parameter)) && isIdentifier(parameter.name) && isFunctionLikeDeclaration(owner)) || owner.body === undefined) {
     return [];
   }
   const own = parameter.name.text;
@@ -455,7 +448,7 @@ function forwardedArguments(run: CodesRun, parameter: ParameterDeclaration): rea
 }
 
 // Whether each argument binds a parameter that reaches a seed, and whether each owned parameter (one a default fills)
-// reaches one: a seed, or a parameter its function hands on into an argument that binds one, followed MAX_HOPS deep.
+// reaches one: a seed, or a parameter its function hands on into an argument that binds one, each argument and each parameter read once.
 function codeArguments(
   run: CodesRun,
   seeds: ReadonlySet<string>,
@@ -474,7 +467,7 @@ function codeArguments(
     return handed;
   };
   let pending = [...asked, ...owned.flatMap(handOn)];
-  for (let hop = 0; hop < MAX_HOPS && pending.length > 0; hop += 1) {
+  while (pending.length > 0) {
     const fresh = [...new Map(pending.filter((node) => !bound.has(run.key(node))).map((node) => [run.key(node), node])).values()];
     const parameters = run.world.batch(fresh.map((node) => boundParameter(run.world, node)));
     const next: Node[] = [];
@@ -676,7 +669,7 @@ function* explore(world: NativeWorld, type: Type, framed: boolean): APIRequestGe
   return { ...NO_REFUSALS, next: [...args, ...fields.map((field) => field.type)] };
 }
 
-// Every refusal field inside the sent types, breadth first to MAX_DEPTH, each type explored once. `framed` reads the
+// Every refusal field inside the sent types, breadth first, each type explored once, so a recursive type ends the walk. `framed` reads the
 // sent types as a subscription's frames too.
 function sentFields(
   world: NativeWorld,
@@ -687,7 +680,7 @@ function sentFields(
   const fields = new Set<string>();
   const frames = new Set<string>();
   let level = roots;
-  for (let depth = 0; depth < MAX_DEPTH && level.length > 0; depth += 1) {
+  while (level.length > 0) {
     const fresh = [...new Map(level.filter((type) => !seen.has(type.id)).map((type) => [type.id, type])).values()];
     for (const type of fresh) {
       seen.add(type.id);
@@ -922,7 +915,7 @@ function judge(run: CodesRun, gathered: Gathered, vocabulary: Vocabulary, member
   const literals: readonly UnionLiteral[] =
     tuple === null ? [] : reading.literals.filter((literal) => literal.text === member.text && reading.names(literal, tuple));
   const reads = (member.read === null ? [] : (gathered.memberRefs.get(run.key(member.read)) ?? [])).map((node) => ({ node, role: readRole(node) }));
-  const server = (node: Node): boolean => isProduction(run.fileOf(node)) && !inClient(run.fileOf(node));
+  const server = (node: Node): boolean => productReader(run.fileOf(node)) && !inClient(run.fileOf(node));
   const client = (node: Node): boolean => inClient(run.fileOf(node));
   const producers = [
     ...literals.filter((literal) => literal.role === "construct").map((literal) => literal.node),
@@ -1036,7 +1029,7 @@ export function codesPass(graph: Graph, world: NativeWorld, judging: CodesJudgin
   const candidates = [
     ...reading.literals.filter((literal) => literal.role === "construct" && literal.holds && texts.has(literal.text)).map((literal) => literal.node),
     ...reads.filter((node) => readRole(node) === "construct"),
-  ].filter((node) => isProduction(run.fileOf(node)));
+  ].filter((node) => productReader(run.fileOf(node)));
   const thrown = thrownSites(run, [...new Map(candidates.map((node) => [run.key(node), node])).values()]);
   const { sentBy, framedBy } = gatherSends(run);
   const gathered: Gathered = {
