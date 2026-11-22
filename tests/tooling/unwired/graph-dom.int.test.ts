@@ -395,3 +395,64 @@ test("a callback a browser driver runs in the page holds the argument the driver
   ]);
   expect(report.unresolved).toEqual([]);
 });
+
+test("a name held deeper than any fixed hop count still resolves, and a cycle ends", TIMEOUT, async ({ plantedTree }) => {
+  const Depth = 24;
+  const chain = Array.from({ length: Depth }, (_, step) =>
+    step === 0 ? 'const name0 = (): string => "data-deep-end";' : `const name${String(step)} = (): string => name${String(step - 1)}();`,
+  );
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-deep-end] { color: red; } [data-cycled] { color: red; }",
+    [`${GRAPH_SOURCE}/deep.ts`]: [
+      'import type { El } from "./el.ts";',
+      ...chain,
+      'const loop = (n: number): string => (n > 0 ? loop(n - 1) : "data-cycled");',
+      "export function stamp(el: El): void {",
+      `  el.setAttribute(name${String(Depth - 1)}(), "");`,
+      '  el.setAttribute(loop(3), "");',
+      "}",
+    ].join("\n"),
+  });
+  expect(report.unresolved).toEqual([]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+});
+
+test("an object read by a computed key holds every property's value, and a null branch holds no name", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/indexed.tsx`]: [
+      'import type { El } from "./el.ts";',
+      "interface Observable {",
+      "  readonly signal: string;",
+      "}",
+      'const OBSERVABLES: Record<string, Observable> = { a: { signal: "data-idx-a" }, b: { signal: "data-idx-b" } };',
+      "export function read(el: El, key: string, on: boolean): void {",
+      "  const observable = on ? OBSERVABLES[key] : null;",
+      '  el.getAttribute(observable?.signal ?? "");',
+      "}",
+      "export const Indexed = () => <div data-idx-a data-idx-b data-idx-none />;",
+    ].join("\n"),
+  });
+  expect(report.unresolved).toEqual([]);
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-idx-none"]);
+});
+
+test("a named function a browser driver runs in the page holds the argument the driver hands it", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/named.tsx`]: "export const Named = () => <div data-named-mark />;",
+    "tests/a/named-driver.ts": [
+      'import type { El } from "../../packages/a/src/el.ts";',
+      "interface Locator {",
+      "  evaluate<A>(fn: (element: El, arg: A) => unknown, arg: A): Promise<unknown>;",
+      "}",
+      'const NAMED_MARK = "data-named-mark";',
+      "function probe(root: El, { mark }: { readonly mark: string }): string | null {",
+      "  return root.getAttribute(mark);",
+      "}",
+      "export async function named(locator: Locator): Promise<void> {",
+      "  await locator.evaluate(probe, { mark: NAMED_MARK });",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.unresolved).toEqual([]);
+  expect(report.buckets["dom-attr-unread"]).toEqual([`data-named-mark ${GRAPH_SOURCE}/named.tsx:1 read by tests`]);
+});
