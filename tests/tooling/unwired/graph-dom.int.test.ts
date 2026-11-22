@@ -456,3 +456,24 @@ test("a named function a browser driver runs in the page holds the argument the 
   expect(report.unresolved).toEqual([]);
   expect(report.buckets["dom-attr-unread"]).toEqual([`data-named-mark ${GRAPH_SOURCE}/named.tsx:1 read by tests`]);
 });
+
+test("a name reached by many routes is answered once per position, so a diamond fan-out finishes", TIMEOUT, async ({ plantedTree }) => {
+  const levels = 30;
+  const diamond = Array.from({ length: levels }, (_, level) =>
+    level === 0
+      ? 'const fan0 = (on: boolean): string => (on ? "data-fan-end" : "data-fan-end");'
+      : `const fan${String(level)} = (on: boolean): string => (on ? fan${String(level - 1)}(on) : fan${String(level - 1)}(!on));`,
+  );
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-fan-end] { color: red; }",
+    [`${GRAPH_SOURCE}/fan.ts`]: [
+      'import type { El } from "./el.ts";',
+      ...diamond,
+      "export function stamp(el: El, on: boolean): void {",
+      `  el.setAttribute(fan${String(levels - 1)}(on), "");`,
+      "}",
+    ].join("\n"),
+  });
+  expect(report.unresolved).toEqual([]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+});

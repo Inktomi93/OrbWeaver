@@ -83,9 +83,16 @@ const ELEMENT: Step = { kind: "element" };
 const VALUE: Step = { kind: "value" };
 // A Map entry is a `[key, value]` pair.
 const ENTRY_VALUE: Step = { kind: "index", at: 1 };
-// The paths each node one walk follows is asked at. A node asked again at the same path, or at a path that only grew in
-// front of it, is a cycle. Each ask owns its walk: the asks of one batch run interleaved.
-type Walk = Map<string, readonly Path[]>;
+// One ask's walk. A node's answer depends on the node and the position asked inside its value, never on the route to
+// it, so each (node, position) is answered once and reused. A node asked again while its answer is open, at the same
+// position or one that only grew in front of it, is a cycle. Each ask owns its walk: the asks of one batch run
+// interleaved, so an open node of one ask is no cycle of another.
+interface Walk {
+  readonly answers: Map<string, Texts>;
+  readonly open: Map<string, readonly Path[]>;
+}
+
+const newWalk = (): Walk => ({ answers: new Map(), open: new Map() });
 // A template whose spans multiply past this many texts is a computed name, not a table of them.
 const MAX_TEXTS = 64;
 const MAP = "Map";
@@ -237,15 +244,15 @@ export class HeldTexts {
 
   /** The texts `node` can take. */
   *texts(node: Node): APIRequestGenerator<Texts> {
-    return yield* this.#at(node, [], new Map());
+    return yield* this.#at(node, [], newWalk());
   }
 
   /** The texts any element of the list `node` holds; a shorthand property asks the binding it names. */
   *elements(node: Node): APIRequestGenerator<Texts> {
     if (isShorthandPropertyAssignment(node)) {
-      return yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(node), [ELEMENT], new Map());
+      return yield* this.#symbol(yield* this.#state.world.checker.getShorthandAssignmentValueSymbol.gen(node), [ELEMENT], newWalk());
     }
-    return yield* this.#at(node, [ELEMENT], new Map());
+    return yield* this.#at(node, [ELEMENT], newWalk());
   }
 
   *#at(node: Node, path: Path, walk: Walk): APIRequestGenerator<Texts> {
@@ -376,16 +383,23 @@ export class HeldTexts {
   //
   // A walk ends on its seen-set, never on a depth: a cycle adds no text the walk's other branches do not already hold.
   *#follow(node: Node, path: Path, walk: Walk): APIRequestGenerator<Texts> {
-    const key = `${keyOf(this.#state, node)}:${String(node.end)}:${String(node.kind)}`;
-    const open = walk.get(key) ?? [];
+    const at = `${keyOf(this.#state, node)}:${String(node.end)}:${String(node.kind)}`;
+    const key = `${at}|${JSON.stringify(path)}`;
+    const known = walk.answers.get(key);
+    if (known !== undefined) {
+      return known;
+    }
+    const open = walk.open.get(at) ?? [];
     if (open.some((earlier) => endsWith(path, earlier))) {
       return [];
     }
-    walk.set(key, [...open, path]);
+    walk.open.set(at, [...open, path]);
     try {
-      return yield* this.#reach(node, path, walk);
+      const answer = yield* this.#reach(node, path, walk);
+      walk.answers.set(key, answer);
+      return answer;
     } finally {
-      walk.set(key, open);
+      walk.open.set(at, open);
     }
   }
 
