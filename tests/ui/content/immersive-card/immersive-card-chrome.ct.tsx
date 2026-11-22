@@ -1,5 +1,5 @@
 // The header's three icon-only controls carry their name in aria-label and the same text in a tooltip, never a native title.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { IMMERSIVE_CARD_LABELS } from "../../../../packages/ui/src/content/immersive-card/control-labels.ts";
 import type { ImmersiveCardChromeStory } from "./_card-stories.tsx";
 

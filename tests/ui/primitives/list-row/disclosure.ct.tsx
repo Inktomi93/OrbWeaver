@@ -1,8 +1,9 @@
 // @subject packages/ui/src/primitives/list-row/list-row.tsx
 // A disclosure row opens and shuts its panel by a press, Enter and Space with focus kept on its body, names the panel it controls,
 // never toggles on a press on its actions, announces its detail as part of its description, and paints its set-state rail.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { DisclosureRowStory } from "./_disclosure-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_disclosure-stories/DisclosureRowStory";

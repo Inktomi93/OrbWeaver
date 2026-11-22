@@ -6,9 +6,9 @@ import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, seedShellState, setPlatformTextSize, toggleStripLayout } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import { CORPUS_INSIGHTS_LIST_DOOR_NAME, CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { ANALYTICS_LEADERBOARD_NAME } from "#client/features/stats/lib/analytics-names.ts";
 

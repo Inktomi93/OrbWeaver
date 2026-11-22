@@ -1,7 +1,7 @@
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { PickerNativePartsStory } from "./picker-native-parts-stories.tsx";
 
 test("picture choices keep visible names, descriptions, one tab stop and a native selected indicator", async ({ mount, page }) => {

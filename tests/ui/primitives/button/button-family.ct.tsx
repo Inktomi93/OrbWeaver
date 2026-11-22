@@ -2,9 +2,9 @@
 // the busy, disabled, focal and tone states from the one Button core. Tones under each seed live in the tone-variant matrix.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { BUTTON_BOX_STEPS } from "@orb/ui/button/box-hit-area";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { ButtonFamilyBoxesStory, ButtonFamilyStatesStory } from "./_button-family-stories.tsx";
 
 const STORIES = "tests/ui/primitives/button/_button-family-stories";

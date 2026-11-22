@@ -1,9 +1,9 @@
 // A row wraps its actions under the body only when padding, leading, the title floor and the actions cannot share a line:
 // a long name truncates beside them and never moves them, and a pane too narrow for even that scrolls nothing sideways.
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { TitleFloorStory } from "./_title-floor-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-floor-stories/TitleFloorStory";

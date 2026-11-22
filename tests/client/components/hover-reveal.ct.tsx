@@ -1,7 +1,7 @@
 // @subject packages/ui/src/lib/hover-reveal.ts
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
-import { expect, test } from "@playwright/test";
 import type { HoverRevealStory } from "./_hover-reveal-stories.tsx";
 
 const STORY = "tests/client/components/_hover-reveal-stories/HoverRevealStory";

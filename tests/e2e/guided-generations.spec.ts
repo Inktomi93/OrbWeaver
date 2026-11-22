@@ -43,7 +43,6 @@
 import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { CHAT_CORRECTION_INSTRUCTION_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CORRECTIONS_NAME, COMPOSER_LET_ROOM_PICK_NAME, COMPOSER_REWRITE_SUBMIT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import {
@@ -54,6 +53,7 @@ import {
 import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { NEEDS_CONTINUATION } from "#client/lib/injection-copy.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
 import {

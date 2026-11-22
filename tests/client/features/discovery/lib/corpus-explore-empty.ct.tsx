@@ -8,8 +8,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_MODE_NAME, CORPUS_SORTING_DOOR_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";

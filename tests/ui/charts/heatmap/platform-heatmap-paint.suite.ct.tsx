@@ -1,6 +1,7 @@
 // Heatmap cells and legend stops keep live token colors through zrender interpolation, in real engine pixels.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { z } from "zod";
 import type { HeatmapPaintStory } from "./_heatmap-paint-stories.tsx";

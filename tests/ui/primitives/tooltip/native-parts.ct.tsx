@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { TooltipCallerDescriptionStory, TooltipDescriptionStory, TooltipHandleStory, TooltipOverNeighborStory } from "./_native-parts-stories.tsx";
 

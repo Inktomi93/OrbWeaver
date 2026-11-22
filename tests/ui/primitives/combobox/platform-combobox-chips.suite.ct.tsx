@@ -1,11 +1,11 @@
 // Combobox turns typed text into chips: Enter and comma commit, a pasted list splits, duplicates and the cap are refused,
 // and each chip keeps one inset from the field edge on both axes at every control step.
 import { hitExtent, LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ControlSize } from "@orb/ui/lib";
 import { CONTROL_SIZES } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ChipInsetStory, ChipRemoveTargetsStory, FreeTextChipsStory, NarrowPaneStory, RerenderingParentStory } from "./combobox-chips-stories.tsx";
 
 const STORIES = "tests/ui/primitives/combobox/combobox-chips-stories";

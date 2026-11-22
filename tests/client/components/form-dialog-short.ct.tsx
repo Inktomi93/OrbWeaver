@@ -1,6 +1,6 @@
 // A form dialog on a landscape phone keeps its title and its fields reachable, at the default and at enlarged text.
 import { setPlatformTextSize } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { STORY_CREATE_TITLE } from "./_form-dialog-labels.ts";
 import type { FormDialogCreateStory } from "./_form-dialog-stories.tsx";
 

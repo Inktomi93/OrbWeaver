@@ -2,8 +2,8 @@
 // @subject packages/client/src/components/list-pane-header-host.tsx
 import { NEW_CHAT_DIALOG_TITLE } from "@orb/client/lib";
 import { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { ListPaneHeaderStory } from "./_list-pane-header-stories.tsx";
 
 test("the title and census keep their readable hierarchy, hiding only bare zero counts", async ({ mount }) => {

@@ -1,7 +1,8 @@
 // @subject packages/ui/src/primitives/select/select.tsx
 // A label painted in the face it names declares that face, which the design audit reads; the trigger keeps its own face.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
-import { expect, test } from "@playwright/test";
 import type { FontPreviewSelectStory } from "./_font-preview-stories.tsx";
 
 const STORY = "tests/ui/primitives/select/_font-preview-stories/FontPreviewSelectStory";

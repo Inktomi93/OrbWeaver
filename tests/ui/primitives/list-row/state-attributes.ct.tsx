@@ -1,6 +1,6 @@
 // D336: a row's state is its attribute. The skin keys on `data-selected` and `data-disabled`, the announcement on
 // `aria-current` (derived from `data-selected`), `aria-expanded` and `aria-disabled`.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { StateAttributeStory } from "./_state-attribute-stories.tsx";
 import { SELECTED_ROW_TITLE } from "./state-attribute-cases.ts";
 

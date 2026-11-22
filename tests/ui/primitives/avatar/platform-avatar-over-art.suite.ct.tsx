@@ -1,7 +1,8 @@
 // An avatar over a room's art draws its ring at the hairline width: the class merger keeps the width token beside the
 // edge colour, so the ring is not left at zero width. Outside art the avatar draws no border.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { AvatarOverArtStory } from "./_avatar-over-art-stories.tsx";
 
 const STORY = "tests/ui/primitives/avatar/_avatar-over-art-stories/AvatarOverArtStory";

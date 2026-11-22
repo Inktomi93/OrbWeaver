@@ -3,6 +3,7 @@ import { connectionSummary, embedWindowNotice, ROLE_ROWS_ORDERED } from "@orb/cl
 import { BUILT_IN_EMBED_DIMS, CARD_EMBED_WINDOW_TOKENS, LOCAL_LIGHT_SEED_ROWS, SMALL_EMBED_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { LocalLightModelCache } from "@orb/inference";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -11,7 +12,6 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
 const NOTICE = "[data-embed-window-notice]";

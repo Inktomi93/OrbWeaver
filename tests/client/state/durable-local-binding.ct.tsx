@@ -1,6 +1,6 @@
 import { routeTrpc } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedCorpusAccount } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import type { SessionFreshnessStory } from "../data/_session-freshness-stories.tsx";
 
 const STORY = "tests/client/data/_session-freshness-stories/SessionFreshnessStory";

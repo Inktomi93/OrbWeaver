@@ -1,9 +1,9 @@
 // D336 step 4d: the focal section, the aria-current box and the tone-stamped divider paint through their own doors.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { computedStyle, pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { CurrentBoxesStory, DividerToneStory, FocalSectionStory } from "./_visual-state-boxes-stories.tsx";
 
 const STORIES = "tests/ui/layout/_visual-state-boxes-stories";

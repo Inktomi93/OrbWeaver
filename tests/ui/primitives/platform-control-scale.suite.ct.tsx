@@ -1,9 +1,10 @@
 // D336 step 3: every control at one step of the scale is one height, the step's token, at both pointer classes.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ControlSize } from "@orb/ui/lib";
 import { CONTROL_SIZES } from "@orb/ui/lib";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ControlScaleStory, PlantedStepStory } from "./_control-scale-stories.tsx";
 
 const STORY = "tests/ui/primitives/_control-scale-stories/ControlScaleStory";

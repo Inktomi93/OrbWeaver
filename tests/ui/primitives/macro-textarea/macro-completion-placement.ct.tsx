@@ -2,8 +2,8 @@
 // The completion list stays on screen on a phone: below the field while the visual viewport leaves room,
 // above it when it does not, and inside whatever a soft keyboard leaves.
 import { emulateSoftKeyboard } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { MACRO_SUGGESTIONS_NAME } from "#ui/primitives/macro-textarea/macro-textarea-names.ts";
 import type { MacroCompletionPlacementStory } from "./_macro-completion-placement-stories.tsx";
 

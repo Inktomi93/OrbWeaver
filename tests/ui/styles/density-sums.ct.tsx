@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { DensitySumsStory } from "./_density-sums-stories.tsx";
 
 const STORY = "tests/ui/styles/_density-sums-stories/DensitySumsStory";

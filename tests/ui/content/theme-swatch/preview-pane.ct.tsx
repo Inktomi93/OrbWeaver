@@ -1,9 +1,9 @@
 // A ThemePreviewPane is the card's edge and fill under the shell surface it stands for, in a box its shape and tier set.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { PreviewPaneStory } from "./_preview-pane-stories.tsx";
 
 const STORY = "tests/ui/content/theme-swatch/_preview-pane-stories/PreviewPaneStory";

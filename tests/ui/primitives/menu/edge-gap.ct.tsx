@@ -1,7 +1,7 @@
 // A menu popup keeps the spacing token's distance from the screen edge it would otherwise run flush against.
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { EdgeMenuStory } from "./_positioning-stories.tsx";
 
 test.use({ viewport: { width: 390, height: 844 } });

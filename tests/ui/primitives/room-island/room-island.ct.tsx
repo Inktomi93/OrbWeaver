@@ -1,9 +1,9 @@
 // A RoomIsland is the card fill and edge at the card radius and the field inset in every tier, a field host and a drop target.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_CASES } from "@orb/testkit/iso";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { RoomIslandStory } from "./_room-island-stories.tsx";
 
 const STORY = "tests/ui/primitives/room-island/_room-island-stories/RoomIslandStory";

@@ -1,5 +1,5 @@
 // The router's pending mark is a visible, named status, never a blank page.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { RoutePendingStory } from "./_route-pending-stories.tsx";
 

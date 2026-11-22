@@ -2,8 +2,8 @@
 // to the same height the native arm gives it, inside the same min and max rows.
 
 import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { AutosizeTextareaStory, ClassFixedLaterStory, FixedClassHeightStory, FixedInlineHeightStory } from "./textarea-autosize-stories.tsx";
 
 const STORIES = "tests/ui/primitives/textarea/textarea-autosize-stories";

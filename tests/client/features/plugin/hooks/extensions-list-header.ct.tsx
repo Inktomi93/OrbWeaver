@@ -3,9 +3,9 @@
 import type { PluginId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ExtensionsListHeaderStory } from "./_list-header-stories.tsx";
 
 const STORY = "tests/client/features/plugin/hooks/_list-header-stories/ExtensionsListHeaderStory";

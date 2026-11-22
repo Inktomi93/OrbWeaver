@@ -1,6 +1,6 @@
 import { resolvedLength, setPlatformTextSize } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { AlertDialogNativePartsStory } from "./_native-parts-stories.tsx";
 
 test("a remote confirmation can cancel, and detached trigger confirmation uses the selected payload", async ({ mount, page }) => {

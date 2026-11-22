@@ -1,7 +1,8 @@
 // @subject packages/ui/src/lib/hover-reveal.ts
 // A button that reveals on hover still eases its press: the reveal's transition names the press property too.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { PressTransitionStory } from "./_press-transition-stories.tsx";
 
 const STORY = "tests/ui/primitives/button/_press-transition-stories/PressTransitionStory";

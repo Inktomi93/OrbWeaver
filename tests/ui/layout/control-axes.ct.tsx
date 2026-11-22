@@ -1,6 +1,6 @@
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ControlAxesStory } from "./_control-axes-stories.tsx";
 
 const STORY = "tests/ui/layout/_control-axes-stories/ControlAxesStory";

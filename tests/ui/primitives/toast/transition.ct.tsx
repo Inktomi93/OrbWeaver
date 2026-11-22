@@ -1,5 +1,5 @@
 import { ALERTS_REGION_NAME } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ToastGapStory, ToastTransitionStory } from "./_transition-stories.tsx";
 
 test("the toast transition names opacity, transform and translate", async ({ mount, page }) => {

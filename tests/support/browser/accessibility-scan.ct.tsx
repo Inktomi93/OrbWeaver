@@ -4,10 +4,10 @@
 import { readFile } from "node:fs/promises";
 import { ID_PREFIX, mintUserId } from "@orb/kit/ids";
 import { accessibilityEvidence, surfaceCheckpoint, webVitalsInitScript } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { MemberRowNameStory } from "../../client/features/chat/components/_member-row-name-stories.tsx";
 import type { ClosedCoverStory, DescribedSubtitleStory, DroppedWordsStory, MenuOverTargetStory } from "./_accessibility-scan-stories.tsx";
 

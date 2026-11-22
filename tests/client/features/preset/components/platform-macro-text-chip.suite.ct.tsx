@@ -2,8 +2,8 @@
 // tight step, and a tint that stands apart from the frame it sits in, under each seed.
 import { oklabDistance, srgbToOklch, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { computedStyle, pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { MacroTextStory } from "./_macro-text-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_macro-text-stories/MacroTextStory";

@@ -5,6 +5,7 @@
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { PLATFORM_TEXT_SCALES, resolvedLength, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -14,7 +15,6 @@ import {
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import { CORPUS_SEARCH_NAME, CORPUS_SEARCH_TARGET_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { CORPUS_SEARCH_TARGETS } from "#client/features/discovery/lib/corpus-search-targets.ts";
 

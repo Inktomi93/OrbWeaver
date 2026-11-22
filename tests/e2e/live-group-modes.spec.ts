@@ -32,7 +32,7 @@
 
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import type { GroupConfigInput, TrpcClientOutput } from "./support/trpc.ts";
 import {

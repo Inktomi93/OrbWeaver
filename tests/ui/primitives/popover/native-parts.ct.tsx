@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PopoverNativePartsStory, PopoverStyleStory } from "./_native-parts-stories.tsx";
 
 test("the popover transition names opacity and scale", async ({ mount, page }) => {

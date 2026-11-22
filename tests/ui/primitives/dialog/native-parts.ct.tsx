@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { DialogNativePartsStory } from "./_native-parts-stories.tsx";
 
 test("the dialog transition names opacity and scale", async ({ mount, page }) => {

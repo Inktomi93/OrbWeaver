@@ -13,9 +13,9 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { runName } from "./support/run-names.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_LOOP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";

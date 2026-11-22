@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { MacroDescriptionCompositionStory } from "./_macro-description-stories.tsx";
 
 test.use({ viewport: { width: 960, height: 900 }, hasTouch: false, isMobile: false });

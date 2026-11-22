@@ -2,8 +2,8 @@ import { DIALOG_VERBS } from "@orb/client/lib";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
 import { routeAuthConfig } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page, Request, Route } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import {
   BACK_TO_SIGN_IN_NAME,
   continueWithName,

@@ -1,7 +1,8 @@
 // The track's box lives in the client stylesheet, keyed on the stamp `Track` writes: a carrier that drops the stamp loses its whole box without a word.
 // The track lands on the device-pixel grid at an odd remainder, and the transcript and the composer share one centre (integer-line-boxes.md Law 3).
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { TrackCarriersStory } from "./_chat-track-stories.tsx";
 
 const STORY = "tests/client/features/chat/lib/_chat-track-stories/TrackCarriersStory";

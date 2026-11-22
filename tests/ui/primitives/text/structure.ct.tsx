@@ -1,7 +1,7 @@
 // What axe reads on the primitives behind the evidence walk's structure findings: a scrolling Text is a tab stop and the inline hint trigger is
 // a WCAG 2.5.8 target. The Base UI focus-guard excusal that `accessibilityScan` applies must not swallow an authored aria-hidden control.
 import { accessibilityScan } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { ScrollAndHintStory } from "./_structure-stories.tsx";
 

@@ -10,10 +10,10 @@
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { DARK_CUSTOM_THEME, LIGHT_TONE_THEME } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { CustomThemeDisabledSignalStory, SeedDisabledSignalStory } from "./_disabled-signal-stories.tsx";
 import type { SignalCase } from "./disabled-signal-cases.ts";
 import { SIGNAL_CASES } from "./disabled-signal-cases.ts";

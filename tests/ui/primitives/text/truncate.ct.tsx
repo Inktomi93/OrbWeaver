@@ -1,6 +1,6 @@
 // A clipped line is a scroll container, so as a flex child it shrinks to the room its row leaves it and needs no
 // `min-inline-0`. Measured per arm: the row does not overflow, the sibling keeps its width and the line is clipped.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { TextTruncateStory } from "./_truncate-stories.tsx";
 
 const STORY = "tests/ui/primitives/text/_truncate-stories/TextTruncateStory";

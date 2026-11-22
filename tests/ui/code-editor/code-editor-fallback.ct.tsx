@@ -3,7 +3,7 @@
 // The fallback a caller shows while the editor's chunk loads is the box the editor settles into: the same height for an empty document,
 // a one-line one and a multi-line one that ends in a newline, with and without the line-number gutter.
 import { LAYOUT_SUBPIXEL_PX, settledBox } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CodeEditorFallbackStory } from "./_code-editor-fallback-stories.tsx";
 
 const STORY = "tests/ui/code-editor/_code-editor-fallback-stories/CodeEditorFallbackStory";

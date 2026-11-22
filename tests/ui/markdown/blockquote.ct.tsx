@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { BlockquoteStory } from "./_blockquote-stories.tsx";
 
 const STORY = "tests/ui/markdown/_blockquote-stories/BlockquoteStory";

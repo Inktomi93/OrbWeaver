@@ -6,8 +6,8 @@ import { CORPUS_MODE_LABELS, LABELS_EMPTY, LABELS_NONE, NO_MATCHES_TITLE } from 
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
-import { expect, test } from "@playwright/test";
 import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { CLEAR_FILTER_NAME } from "#client/lib/search-empty-names.ts";
 

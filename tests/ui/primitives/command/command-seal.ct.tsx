@@ -1,5 +1,5 @@
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { CommandCenterRowStory, CommandInputRefStory } from "./_command-seal-stories.tsx";
 
 const STORIES = "tests/ui/primitives/command/_command-seal-stories";

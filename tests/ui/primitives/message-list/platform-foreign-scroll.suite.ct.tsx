@@ -1,7 +1,8 @@
 // A scroll the list did not write and the reader's input did not start ends the tail follow and any hold, and a position
 // change the list's own layout caused ends neither.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { MessageListScrollportStory } from "./_scrollport-stories.tsx";
 
 const STORY = "tests/ui/primitives/message-list/_scrollport-stories/MessageListScrollportStory";

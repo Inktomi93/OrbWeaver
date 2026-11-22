@@ -2,7 +2,7 @@
 // message costs a viewer's main thread no strip on the untrusted path.
 // @subject packages/ui/src/markdown/markdown.tsx
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { OversizedBodyStory } from "./_oversized-body-stories.tsx";
 
 const STORY = "tests/ui/markdown/_oversized-body-stories/OversizedBodyStory";

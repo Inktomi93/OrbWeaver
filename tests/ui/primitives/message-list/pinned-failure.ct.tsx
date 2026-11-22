@@ -1,6 +1,6 @@
 import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { MessageListHeldUnderPlateStory, MessageListPinnedFailureStory } from "./_pinned-failure-stories.tsx";
 
 const STORY = "tests/ui/primitives/message-list/_pinned-failure-stories/MessageListPinnedFailureStory";

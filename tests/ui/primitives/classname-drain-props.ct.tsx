@@ -2,8 +2,8 @@
 // against a probe painted from the same token, so a token retune never breaks the test and a dead arm always does.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type {
   ButtonToneStory,
   CardShapeStory,

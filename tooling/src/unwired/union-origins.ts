@@ -61,6 +61,11 @@ export function* declaredSites(oracle: SlotOracle, site: Site): APIRequestGenera
   return yield* answered(oracle.declarationsOf(site));
 }
 
+/** The parameter the call argument starting at `argument` binds, by its name's site. */
+export function* boundParameter(oracle: SlotOracle, argument: Site): APIRequestGenerator<Site | null> {
+  return yield* answered(oracle.parameterOf(argument));
+}
+
 /** Run a generator whose engine never issues a request. */
 export function settled<T>(generator: APIRequestGenerator<T>): T {
   const step = generator.next();

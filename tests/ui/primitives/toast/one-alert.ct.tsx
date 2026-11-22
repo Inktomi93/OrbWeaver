@@ -2,7 +2,7 @@
 // One error notice is one alert to assistive technology: a single node wears the alert role, and the Alerts region holds the notice's words once, so a
 // screen reader does not announce it twice.
 import { ALERTS_REGION_NAME } from "@orb/testkit/ct";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ErrorNoticeStory } from "./_one-alert-stories.tsx";
 import { ERROR_NOTICE_TITLE, RAISE_ERROR_NAME } from "./one-alert-names.ts";
 

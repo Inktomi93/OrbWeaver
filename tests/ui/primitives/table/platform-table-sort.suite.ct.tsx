@@ -1,6 +1,7 @@
 // Table derives sort order, aria-sort and paging from its data; a feature surface never reaches the null placement or a controlled sort.
+
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import type { ControlledSortTableStory, PagedTableStory, SortableTableStory } from "./table-sort-stories.tsx";
 
 const STORIES = "tests/ui/primitives/table/table-sort-stories";

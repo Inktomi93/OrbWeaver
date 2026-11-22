@@ -8,8 +8,8 @@ import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { setRootFontScale, watchToastMounts } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { DOCUMENT_UPLOAD_FAILURE, DOCUMENT_UPLOAD_GENERAL_FAILURE } from "#client/features/databank/lib/databank-upload-copy.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 

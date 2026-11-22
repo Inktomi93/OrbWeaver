@@ -1,8 +1,8 @@
 // The base-layer element defaults of the platform baseline (docs/law/ui-platform-rulings.md §8.4). Runs on Chromium and on the
 // opt-in webkit-iphone project.
 
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "@playwright/test";
 import type { PlatformBaselineStory } from "./_platform-baseline-stories.tsx";
 
 const STORY = "tests/ui/styles/_platform-baseline-stories/PlatformBaselineStory";

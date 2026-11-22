@@ -17,7 +17,7 @@
 // EVERY ARM RUNS AT BOTH POINTERS. `--size-touch-target` is pointer-CONDITIONAL (D62), the hit pseudo
 // is sized on it, and a fix that only lands on one pointer is half a fix — the fine arm is also where the
 // pseudo is SMALLEST, i.e. where an over-crediting predicate is easiest to mistake for a correct one.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import { hitExtent, measurePitch, touchFloorPx } from "./touch-floor.ts";
 import type {
   TouchFloorBoxCarriedIsolatedStory,

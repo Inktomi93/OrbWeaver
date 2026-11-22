@@ -1,7 +1,7 @@
 // WCAG 2.5.3 on the host's rename button: every word the button shows, the date included, is in its accessible name.
 import { RENAME_CHAT_NAME } from "@orb/client/lib";
 import { accessibilityScan } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ChatHeaderTitleStory } from "./_chat-header-title-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-header-title-stories/ChatHeaderTitleStory";

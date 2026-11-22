@@ -1,5 +1,5 @@
 // A shelf face is named by what pressing it does plus the stamp it shows (WCAG 2.5.3); the pitch under it is its description.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ShelfFaceNameStory } from "./_shelf-face-name-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_shelf-face-name-stories/ShelfFaceNameStory";

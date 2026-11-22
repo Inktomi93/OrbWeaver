@@ -1,7 +1,7 @@
 // A slider's fill is the primary colour, and an invalid Field swaps it for the destructive colour at full strength.
 
 import { computedStyle } from "@orb/testkit/browser/spec";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { SliderInvalidFillStory } from "./_invalid-fill-stories.tsx";
 
 const STORY = "tests/ui/primitives/slider/_invalid-fill-stories/SliderInvalidFillStory";
