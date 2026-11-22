@@ -30,6 +30,9 @@ export function loadScanWorld(root: string, config: string): ts.ParsedCommandLin
   return { ...parsed, options: { ...parsed.options, paths: bridgedPaths(root, config, parsed) } };
 }
 
+// The part of a world's config the bridge rewrites; every other key is the compiler's and passes through.
+const WorldConfig = z.looseObject({ compilerOptions: z.looseObject({}).optional() });
+
 /** The text of a world's config with the source bridge written into its `paths`, for a compiler that reads files. */
 export function bridgedConfigText(root: string, config: string): string {
   const path = join(root, config);
@@ -37,7 +40,7 @@ export function bridgedConfigText(root: string, config: string): string {
   if (read.error !== undefined) {
     throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
   }
-  const json = read.config as { readonly compilerOptions?: Readonly<Record<string, unknown>> };
+  const json = WorldConfig.parse(read.config);
   return JSON.stringify({ ...json, compilerOptions: { ...json.compilerOptions, paths: bridgedPaths(root, config, loadWorld(root, config)) } });
 }
 

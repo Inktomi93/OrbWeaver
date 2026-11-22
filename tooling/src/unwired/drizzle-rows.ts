@@ -99,16 +99,19 @@ export const signatureOf = (names: Iterable<string>): string => [...names].toSor
 
 // One signature map per world: the resolver, the hand-offs and the sends all ask it.
 const TABLES = new WeakMap<NativeWorld, TablesBySignature>();
+const NO_TABLES: TablesBySignature = new Map();
 
-/** Each table's column symbols by name, keyed by the table's {@link signatureOf}. */
-export function rowColumnsBySignature(world: NativeWorld): TablesBySignature {
+// The column symbols are asked through yield, so a hand-off or a send that first needs the tables mid-walk asks within
+// its own round instead of running a batch inside it.
+function* tablesOf(world: NativeWorld): APIRequestGenerator<TablesBySignature> {
   const known = TABLES.get(world);
   if (known !== undefined) {
     return known;
   }
   const tables = schemaTables(world).map(({ columns }) => columns);
   const names = tables.flat();
-  const symbols = new Map(world.symbolsAt(names).map((symbol, at) => [names[at], symbol] as const));
+  const found = names.length === 0 ? [] : yield* world.checker.getSymbolAtLocation.gen(names);
+  const symbols = new Map(names.map((name, at) => [name, found[at]] as const));
   // Two tables with the same column names cannot be told apart by a row type, so such a member reads both.
   const bySignature = new Map<string, Map<string, NativeSymbol[]>>();
   for (const columns of tables) {
@@ -124,10 +127,20 @@ export function rowColumnsBySignature(world: NativeWorld): TablesBySignature {
   return bySignature;
 }
 
+/** Each table's column symbols by name, keyed by the table's {@link signatureOf}. */
+export function rowColumnsBySignature(world: NativeWorld): TablesBySignature {
+  const known = TABLES.get(world);
+  if (known !== undefined) {
+    return known;
+  }
+  const [tables = NO_TABLES] = world.batch([tablesOf(world)]);
+  return tables;
+}
+
 /** The columns a declaration-less member named `name` of a Drizzle row type `holder` stands for; empty for any other
  *  holder. A hand-off or a send of a whole row carries its members by this step. */
 export function* rowColumns(world: NativeWorld, holder: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
-  const tables = rowColumnsBySignature(world);
+  const tables = yield* tablesOf(world);
   if (tables.size === 0) {
     return [];
   }
