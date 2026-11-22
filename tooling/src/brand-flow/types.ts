@@ -1,5 +1,6 @@
 // The records the brand-flow scan collects per world and the report it joins them into. Every record says whether the
 // checker settled it (`measured`) or a name or text shape did (`heuristic`).
+import type { BrandMatch, NameMatch } from "../brand-names/index.ts";
 
 const PROVENANCES = ["measured", "heuristic"] as const;
 export type Provenance = (typeof PROVENANCES)[number];
@@ -82,7 +83,7 @@ export interface RenarrowSite extends Where {
 export interface MissingSite extends Where {
   readonly name: string;
   readonly brand: string;
-  readonly match: "exact" | "qualified" | "suffix" | "alias";
+  readonly match: BrandMatch;
   readonly declKind: string;
   readonly owner: string | null;
   readonly shape: "string" | "collection";
@@ -91,7 +92,7 @@ export interface MissingSite extends Where {
 }
 
 export interface CrossBrandSite extends Where {
-  readonly how: "widen-into-named-slot" | "rebrand" | "named-for-other-brand" | "compare";
+  readonly how: "widen-into-named-slot" | "rebrand" | "named-for-other-brand" | "fed-other-brand" | "compare";
   readonly value: string;
   readonly slot: string;
   readonly provenance: Provenance;
@@ -120,6 +121,16 @@ export interface VocabField extends Where {
   readonly assigned: number;
   readonly compared: number;
   readonly cased: number;
+}
+
+/** A site where the brand the checker saw flow in and the brand its name stands for differ. */
+export interface BrandDisagreement extends Where {
+  /** `branded-declaration` is typed as a brand, so the type is its answer and the name is only measured against it. */
+  readonly kind: "branded-declaration" | "declaration" | "mint-operand" | "compare-operand";
+  readonly name: string;
+  /** The brands that flow into the site; empty when only a library's own value does. */
+  readonly typed: readonly string[];
+  readonly named: NameMatch | null;
 }
 
 /** An id-named declaration with no brand to map to: reported apart, never a defect. */

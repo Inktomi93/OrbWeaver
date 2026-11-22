@@ -104,7 +104,20 @@ import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeO
 import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
 import { viewerVisibilityParameterRule } from "./viewer-visibility.ts";
 
-export { BrandTable, type NameMatch } from "./brand-names.ts";
+export {
+  BRAND_LABEL_KEY,
+  BRAND_MAKERS,
+  type BrandMatch,
+  BrandTable,
+  type BrandVerdict,
+  brandOfLabel,
+  type Inflow,
+  type NameMatch,
+  PROOF_KEY,
+  sharesBrand,
+  siteBrand,
+  TYPE_ID_BRANDS,
+} from "./brand-names.ts";
 export type { CustomPropertyUses } from "./css/custom-properties.ts";
 export {
   baseUiCustomProperties,

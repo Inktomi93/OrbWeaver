@@ -1,5 +1,6 @@
-// The typed arms of `orb/no-raw-id`: a field, parameter or variable whose id name stands for a brand but is declared
-// `string`, and a plain-string `useState` fed a brand. The brand table comes from the planted program's own aliases.
+// The typed arms of `orb/no-raw-id`: a field, parameter or variable declared `string` that this file hands a brand, or
+// whose id name stands for a brand when nothing branded or foreign reaches it, and a plain-string `useState` fed a brand.
+// The brand table comes from the planted program's own brands.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -54,6 +55,10 @@ const preamble = (file: string): string => {
   ].join("\n");
 };
 
+// A library the planted file reads a provider's own message handle from.
+const PROVIDER_SDK = "node_modules/provider-sdk/index.d.ts";
+const PROVIDER_SOURCE = "export interface Reply {\n  readonly messageId: string;\n}";
+
 function lint(root: string, source: string): readonly string[] {
   const options: ts.CompilerOptions = {
     strict: true,
@@ -69,6 +74,7 @@ function lint(root: string, source: string): readonly string[] {
   for (const [path, body] of [
     [KIT, KIT_SOURCE],
     [CONTRACT, CONTRACT_SOURCE],
+    [PROVIDER_SDK, PROVIDER_SOURCE],
     [FILE, text],
   ] as const) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -127,8 +133,35 @@ test.for([
   { name: "an unrelated private brand in another module", source: "export interface Row { readonly localProbeId: string }", found: null },
   {
     name: "a file-local branded alias",
-    source: `import type { Branded } from "${kitFromProbe}";\ntype LocalId = Branded<"local">;\nexport interface Row { localId: string }`,
+    source: `import type { Branded } from "${kitFromProbe}";\ntype LocalId = Branded<"LocalId">;\nexport interface Row { localId: string }`,
     found: "LocalId",
+  },
+  // The type's answer: what the file hands an id-named declaration, whatever its name says. A string no id name claims is
+  // brand-flow's to report: a comparator's parameter fed a brand is no id slot.
+  {
+    name: "a renamed field the file hands a brand is left to brand-flow",
+    source: "export interface Row { readonly room: string }\nexport const row: Row = { room: id };",
+    found: null,
+  },
+  {
+    name: "a renamed parameter a call hands a brand is left to brand-flow",
+    source: "function open(room: string): string {\n  return room;\n}\nexport const opened = open(id);",
+    found: null,
+  },
+  {
+    name: "a lookalike name the file hands another brand",
+    source: `import type { MessageId } from "${kitFromProbe}";\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const row: Row = { messageId: id };`,
+    found: "ChatId",
+  },
+  {
+    name: "a lookalike name that holds a library's own handle",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const row: Row = { messageId: reply.messageId };`,
+    found: null,
+  },
+  {
+    name: "a renamed field the file hands only strings",
+    source: "export interface Row { readonly room: string }\nexport const row: Row = { room: raw };",
+    found: null,
   },
   { name: "a field typed by an alias of string", source: "type Raw = string;\nexport interface Row { readonly chatId: Raw }", found: "ChatId" },
   // Controls: the shapes the rule must leave alone.

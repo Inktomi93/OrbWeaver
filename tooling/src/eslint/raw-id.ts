@@ -1,12 +1,14 @@
-// `orb/no-raw-id` checks raw Zod id fields, string declarations with a matching brand, and branded values
-// widened into a generic id field or React state. Only the Zod builder check is syntax-only.
+// `orb/no-raw-id` checks raw Zod id fields, string declarations that hold a brand, and branded values widened into a
+// generic id field or React state. Only the Zod builder check is syntax-only. An id name picks the string declarations
+// the rule judges; the brand it holds is what this file hands it, and a library's own value makes it that library's
+// handle. The name stands for the brand only where nothing branded or foreign reaches it (brand-names.ts).
 import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
-import type { NameMatch } from "./brand-names.ts";
-import { BrandTable } from "./brand-names.ts";
+import type { Inflow, NameMatch } from "./brand-names.ts";
+import { BRAND_LABEL_KEY, BrandTable, brandOfLabel, PROOF_KEY, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
 import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
@@ -149,8 +151,6 @@ function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
 // A trailing-word match guesses (a foreign `providerMessageId` is no `MessageId`), so pnpm brand-flow reports it and the rule does not.
 const ENFORCED_MATCHES: ReadonlySet<NameMatch["match"]> = new Set<NameMatch["match"]>(["exact", "qualified", "alias"]);
 
-const BRAND_ALIAS = /^[A-Z]\w*Id$/u;
-
 // `any` and `never` are assignable to every brand, so neither counts as one.
 const isBrandType = (checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): boolean =>
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
@@ -163,6 +163,23 @@ function brandReference(node: ts.Node): ts.Node | undefined {
   return ts.isTypeReferenceNode(node) ? node.typeName : undefined;
 }
 
+// The brand a branded type carries, read from its phantom label, so an import alias or a `TypeIdOf<"chat">` spelling
+// names the brand the type is. A brand with no literal label names itself by the checker's spelling.
+function brandNameOf(checker: ts.TypeChecker, member: ts.Type): string {
+  const keys = member.getProperties().filter((property) => BRAND_LABEL_KEY.test(property.getName()) || PROOF_KEY.test(property.getName()));
+  const labels = keys.flatMap((key) => {
+    const type = BRAND_LABEL_KEY.test(key.getName()) ? checker.getTypeOfSymbol(key) : undefined;
+    return type?.isStringLiteral() === true ? [type.value] : [];
+  });
+  const [label] = labels;
+  return label === undefined
+    ? checker.typeToString(member)
+    : brandOfLabel(
+        label,
+        keys.some((key) => PROOF_KEY.test(key.getName())),
+      );
+}
+
 function collectBrand(seen: Set<string>, checker: ts.TypeChecker, brand: ts.Type, name: ts.Node): void {
   const symbol = resolvedSymbol(checker, name);
   if (symbol === undefined) {
@@ -170,11 +187,7 @@ function collectBrand(seen: Set<string>, checker: ts.TypeChecker, brand: ts.Type
   }
   const type = checker.getDeclaredTypeOfSymbol(symbol);
   if (isBrandType(checker, brand, type)) {
-    for (const candidate of [symbol.name, type.aliasSymbol?.name]) {
-      if (candidate !== undefined && BRAND_ALIAS.test(candidate)) {
-        seen.add(candidate);
-      }
-    }
+    seen.add(brandNameOf(checker, type));
   }
 }
 
@@ -235,7 +248,115 @@ const STATE_HOOK = "useState";
 // The brand names a type carries, a union read member by member.
 function brandsOf(checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): string[] {
   const members = type.isUnion() ? type.types : [type];
-  return members.filter((member) => member.isIntersection() && isBrandType(checker, brand, member)).map((member) => checker.typeToString(member));
+  return members.filter((member) => member.isIntersection() && isBrandType(checker, brand, member)).map((member) => brandNameOf(checker, member));
+}
+
+// The brands a handed value carries: the value, or the elements of a list or set of brands.
+function heldBrands(checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): string[] {
+  const own = brandsOf(checker, brand, type);
+  if (own.length > 0) {
+    return own;
+  }
+  const members = type.isUnion() ? type.types : [type];
+  return members.flatMap((member) => {
+    const holder = member.aliasSymbol ?? member.getSymbol();
+    // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript ObjectFlags is a compiler-owned bitfield.
+    const reference = (member.flags & ts.TypeFlags.Object) !== 0 && ((member as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) !== 0;
+    const [element] = reference && COLLECTIONS.has(holder?.getName() ?? "") ? checker.getTypeArguments(member as ts.TypeReference) : [];
+    return element === undefined ? [] : brandsOf(checker, brand, element);
+  });
+}
+
+// A value read straight from a declaration in a library: the declaration it fills holds that library's handle.
+function fromLibrary(program: ts.Program, checker: ts.TypeChecker, value: ts.Expression): boolean {
+  let read: ts.Expression = value;
+  while (ts.isParenthesizedExpression(read) || ts.isNonNullExpression(read) || ts.isAsExpression(read)) {
+    read = read.expression;
+  }
+  const name = ts.isPropertyAccessExpression(read) ? read.name : read;
+  const declarations = ts.isIdentifier(name) ? (resolvedSymbol(checker, name)?.declarations ?? []) : [];
+  return declarations.length > 0 && declarations.every((declaration) => program.isSourceFileFromExternalLibrary(declaration.getSourceFile()));
+}
+
+interface HandOff {
+  readonly value: ts.Expression;
+  readonly targets: () => readonly ts.Node[];
+}
+
+const declarationsAt = (checker: ts.TypeChecker, name: ts.Node): readonly ts.Node[] => checker.getSymbolAtLocation(name)?.declarations ?? [];
+
+// An object property lands in its contextual field, a mapped projection's field followed to the field it copies.
+function fieldOf(checker: ts.TypeChecker, property: ts.PropertyAssignment | ts.ShorthandPropertyAssignment): readonly ts.Node[] {
+  const context = checker.getContextualType(property.parent);
+  const field = context === undefined ? undefined : checker.getNonNullableType(context).getProperty(property.name.getText());
+  return field === undefined ? [] : checker.getRootSymbols(field).flatMap((symbol) => symbol.declarations ?? []);
+}
+
+// A call argument lands in the parameter of the signature the call resolves to; a rest parameter holds a list, not it.
+function argumentHandOffs(checker: ts.TypeChecker, call: ts.CallExpression | ts.NewExpression): readonly HandOff[] {
+  return (call.arguments ?? []).map((value, index) => ({
+    value,
+    targets: (): readonly ts.Node[] => {
+      const declaration = checker.getResolvedSignature(call)?.getDeclaration();
+      const parameter = declaration === undefined || ts.isJSDocSignature(declaration) ? undefined : declaration.parameters[index];
+      return parameter === undefined || parameter.dotDotDotToken !== undefined ? [] : [parameter];
+    },
+  }));
+}
+
+// A JSX attribute's expression lands in the prop its name resolves to.
+function attributeHandOffs(checker: ts.TypeChecker, attribute: ts.JsxAttribute): readonly HandOff[] {
+  const { initializer } = attribute;
+  const value = initializer !== undefined && ts.isJsxExpression(initializer) ? initializer.expression : undefined;
+  return value === undefined ? [] : [{ value, targets: () => declarationsAt(checker, attribute.name) }];
+}
+
+// The values a node hands to declarations: an initializer, an assigned value, an object property, a call argument, a
+// JSX attribute's expression.
+function handOffs(checker: ts.TypeChecker, node: ts.Node): readonly HandOff[] {
+  if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+    return argumentHandOffs(checker, node);
+  }
+  if ((ts.isVariableDeclaration(node) || ts.isPropertyDeclaration(node) || ts.isParameter(node)) && node.initializer !== undefined) {
+    return [{ value: node.initializer, targets: () => [node] }];
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+    const { left } = node;
+    return [{ value: node.right, targets: () => declarationsAt(checker, ts.isPropertyAccessExpression(left) ? left.name : left) }];
+  }
+  if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent)) {
+    return [{ value: ts.isPropertyAssignment(node) ? node.initializer : node.name, targets: () => fieldOf(checker, node) }];
+  }
+  return ts.isJsxAttribute(node) ? attributeHandOffs(checker, node) : [];
+}
+
+// What this file hands each declaration. A target is resolved only for a value that carries a brand or a library's own
+// value, so a file of plain strings asks the checker for no signature.
+function fileInflow(program: ts.Program, checker: ts.TypeChecker, brand: ts.Type, source: ts.SourceFile): ReadonlyMap<ts.Node, Inflow> {
+  const fed = new Map<ts.Node, { readonly brands: Set<string>; foreign: boolean }>();
+  const note = ({ value, targets }: HandOff): void => {
+    const brands = heldBrands(checker, brand, checker.getTypeAtLocation(value));
+    const foreign = brands.length === 0 && fromLibrary(program, checker, value);
+    if (brands.length === 0 && !foreign) {
+      return;
+    }
+    for (const target of targets()) {
+      const entry = fed.get(target) ?? { brands: new Set<string>(), foreign: false };
+      for (const name of brands) {
+        entry.brands.add(name);
+      }
+      entry.foreign ||= foreign;
+      fed.set(target, entry);
+    }
+  };
+  const visit = (node: ts.Node): void => {
+    for (const hand of handOffs(checker, node)) {
+      note(hand);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return new Map([...fed].map(([target, { brands, foreign }]) => [target, { brands: [...brands], foreign }]));
 }
 
 // A slot of only `string`, with null or undefined: the slot takes any string and names no brand.
@@ -360,8 +481,10 @@ export const rawIdRule: OrbRule = {
     if (brand === null) {
       return { "ObjectExpression > Property": zodField };
     }
-    const visible = localBrands(toTs.get(context.sourceCode.ast).getSourceFile(), checker, brand);
-    const table = new BrandTable(visible);
+    const source = toTs.get(context.sourceCode.ast).getSourceFile();
+    const visible = localBrands(source, checker, brand);
+    const table = new BrandTable([...TYPE_ID_BRANDS, ...visible]);
+    let inflow: ReadonlyMap<ts.Node, Inflow> | undefined;
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
       const plain =
         annotation !== undefined &&
@@ -369,14 +492,20 @@ export const rawIdRule: OrbRule = {
           annotation.typeAnnotation,
           (reference) => reference.typeArguments === undefined && plainAliasOf(checker, toTs.get(reference.typeName)),
         );
-      const match = plain ? table.brandOf(name) : null;
-      if (
-        match !== null &&
-        visible.has(match.brand) &&
-        ENFORCED_MATCHES.has(match.match) &&
-        !forwardsLibraryField(program, checker, toTs.get(node).parent, name)
-      ) {
-        context.report({ node, message: declaredMessage(name, match.brand) });
+      if (!plain) {
+        return;
+      }
+      const declaration = toTs.get(node).parent;
+      const named = table.brandOf(name);
+      // The name picks the declarations the rule judges; the type names the brand they hold, or clears a library's
+      // handle. A string no name claims is left to `pnpm brand-flow`: a comparator's `a` fed a brand is no id slot.
+      if (named === null || !ENFORCED_MATCHES.has(named.match) || !visible.has(named.brand)) {
+        return;
+      }
+      inflow ??= fileInflow(program, checker, brand, source);
+      const { brand: held } = siteBrand(inflow.get(declaration), named);
+      if (held !== null && !forwardsLibraryField(program, checker, declaration, name)) {
+        context.report({ node, message: declaredMessage(name, held) });
       }
     };
     const scope = { checker, brand, cwd: context.cwd };

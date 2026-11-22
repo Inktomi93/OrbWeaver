@@ -19,12 +19,13 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
+import { sharesBrand } from "../brand-names/index.ts";
 import type { NativeWorld } from "../unwired/index.ts";
 import { propertiesNamed } from "../unwired/index.ts";
 import type { DeclInfo } from "./decl.ts";
 import { declInfo, shortText, siteKey, symbolInfo, variableOf, whereOf } from "./decl.ts";
 import type { TypeFacts } from "./facts.ts";
-import { brandConstraint, KIT_IDS, sharesBrand, TypeReader, takesAnyString } from "./facts.ts";
+import { brandConstraint, brandDeclarations, KIT_IDS, TypeReader, takesAnyString } from "./facts.ts";
 import { layerOf, slotOf, stateIndex } from "./slots.ts";
 import type { Gathered } from "./syntax.ts";
 import { calleeName, enclosingFunction, gather, insideCallTo, ownerOf, PARSE_MINTS, peel, rootNames } from "./syntax.ts";
@@ -52,6 +53,12 @@ export interface DeclarationCandidate extends Where {
   readonly shape: "string" | "collection";
 }
 
+/** An id-named declaration whose type is only brands: a site where the type answers what the name table guesses elsewhere. */
+export interface BrandedDeclaration extends Where {
+  readonly name: string;
+  readonly brands: readonly string[];
+}
+
 export interface WorldRecords {
   readonly config: string;
   readonly files: number;
@@ -60,6 +67,7 @@ export interface WorldRecords {
   readonly widens: readonly WidenSite[];
   readonly compares: readonly CompareCandidate[];
   readonly declarations: readonly DeclarationCandidate[];
+  readonly branded: readonly BrandedDeclaration[];
   readonly seen: readonly string[];
   readonly vocabDeclarations: readonly VocabDeclaration[];
   readonly vocabObservations: readonly VocabObservation[];
@@ -397,13 +405,22 @@ function sandboxBrandsOf(world: NativeWorld, reader: TypeReader, nodes: readonly
   return new Map(sandbox.map(({ node }, at) => [node, argumentsFacts[at]?.brands ?? []]));
 }
 
-function collectDeclarations(world: NativeWorld, reader: TypeReader, declarations: readonly Node[]): DeclarationCandidate[] {
+function collectDeclarations(
+  world: NativeWorld,
+  reader: TypeReader,
+  declarations: readonly Node[],
+): { readonly plain: DeclarationCandidate[]; readonly branded: BrandedDeclaration[] } {
   const named = declarations.filter((node): node is Node & { readonly name: Node } => (node as Node & { readonly name?: Node }).name !== undefined);
   const types = world.typesAt(named.map((node) => node.name));
   const facts = reader.read(types);
   const held = elementFacts(world, reader, types, (at) => (facts[at] as TypeFacts).other);
   const sandboxBrands = sandboxBrandsOf(world, reader, named);
-  return named.flatMap((node, at): DeclarationCandidate[] => {
+  // A declaration of only brands, a nullable one included, is the type's answer; one that also takes a string is plain.
+  const branded = named.flatMap((node, at): BrandedDeclaration[] => {
+    const own = facts[at] as TypeFacts;
+    return own.brands.length > 0 && !own.plain && !own.other ? [{ ...whereOf(world, node), name: node.name.getText(), brands: own.brands }] : [];
+  });
+  const plain = named.flatMap((node, at): DeclarationCandidate[] => {
     const own = facts[at] as TypeFacts;
     const string = takesAnyString(own) && !own.other;
     if (!(string || (held[at] ?? []).some(takesAnyString))) {
@@ -421,6 +438,7 @@ function collectDeclarations(world: NativeWorld, reader: TypeReader, declaration
       },
     ];
   });
+  return { plain, branded };
 }
 
 /** One world's records, over the files it is home to. */
@@ -428,13 +446,14 @@ export function collectWorld(world: NativeWorld, home: ReadonlySet<string>): Wor
   const files = world.files.filter((file) => home.has(world.siteOf(file).file));
   const constraint = brandConstraint(world);
   const base = { config: world.config, files: files.length };
-  const reader = new TypeReader(world, constraint);
+  const reader = new TypeReader(world, constraint, constraint === null ? new Set() : brandDeclarations(world));
   const vocab = collectVocab(world, reader, files);
   const vocabulary = { vocabDeclarations: vocab.declarations, vocabObservations: vocab.observations };
   if (constraint === null) {
-    return { ...base, ...vocabulary, brandless: true, mints: [], widens: [], compares: [], declarations: [], seen: [] };
+    return { ...base, ...vocabulary, brandless: true, mints: [], widens: [], compares: [], declarations: [], branded: [], seen: [] };
   }
   const found = gather(files);
+  const declared = collectDeclarations(world, reader, found.declarations);
   return {
     ...base,
     ...vocabulary,
@@ -442,7 +461,8 @@ export function collectWorld(world: NativeWorld, home: ReadonlySet<string>): Wor
     mints: collectMints(world, reader, found),
     widens: collectWidens(world, reader, found),
     compares: collectComparisons(world, reader, found.comparisons),
-    declarations: collectDeclarations(world, reader, found.declarations),
+    declarations: declared.plain,
+    branded: declared.branded,
     seen: [...reader.seen],
   };
 }

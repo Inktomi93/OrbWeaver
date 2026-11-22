@@ -1,9 +1,10 @@
 // What the checker says a type is, as far as brands go.
 // A brand is any intersection assignable to the constraint of `castId`'s type parameter (`Branded<string>`): every
 // brand is assignable to it and a bare string is not. A union is read member by member.
-import { ID_PREFIX } from "@orb/kit/ids";
+import { isLiteralTypeNode, isStringLiteral, isTypeAliasDeclaration, isTypeReferenceNode } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
+import { BRAND_LABEL_KEY, BRAND_MAKERS, brandOfLabel, PROOF_KEY, TYPE_ID_BRANDS } from "../brand-names/index.ts";
 import type { NativeWorld } from "../unwired/index.ts";
 import { constituents, hasFlag } from "../unwired/index.ts";
 
@@ -46,35 +47,48 @@ export function brandConstraint(world: NativeWorld): Type | null {
   return constraint ?? null;
 }
 
-const pascal = (key: string): string => `${key.slice(0, 1).toUpperCase()}${key.slice(1)}`;
+/** The brands a world declares: each alias declared as a kit brand maker with a literal label, named by that label, the
+ *  maker resolved by the checker to the kit ids module so a local generic of the same name declares nothing; and every
+ *  `ID_PREFIX` entity. */
+export function brandDeclarations(world: NativeWorld): ReadonlySet<string> {
+  const made = world.files.flatMap((file) =>
+    file.statements.flatMap((statement) => {
+      if (!(isTypeAliasDeclaration(statement) && isTypeReferenceNode(statement.type) && BRAND_MAKERS.has(statement.type.typeName.getText()))) {
+        return [];
+      }
+      const [label] = statement.type.typeArguments ?? [];
+      return label !== undefined && isLiteralTypeNode(label) && isStringLiteral(label.literal)
+        ? [{ maker: statement.type.typeName, label: label.literal.text }]
+        : [];
+    }),
+  );
+  const makers = world.symbolsAt(made.map(({ maker }) => maker));
+  const declared = new Set(TYPE_ID_BRANDS);
+  for (const [at, { label }] of made.entries()) {
+    const site = makers[at]?.declarations[0];
+    if (site !== undefined && world.fileOf(site) === KIT_IDS) {
+      declared.add(brandOfLabel(label, false));
+    }
+  }
+  return declared;
+}
 
-// An entity brand's phantom label is its TypeID prefix; its name is the key's `Id` alias. Any other label names itself.
-const NAME_OF_PREFIX = new Map(Object.entries(ID_PREFIX).map(([key, prefix]) => [prefix as string, `${pascal(key)}Id`]));
-const BRAND_KEY = /^__@brand@/u;
-const PROOF_KEY = /^__@sessionVerified@/u;
-
-/** A sub-brand reads as the brand it refines: a `VerifiedUserId` is a `UserId`. */
-const baseBrand = (name: string): string => name.replace(/^Verified/u, "");
-
-/** Whether two sets of brand names share a brand, a sub-brand counting as its parent. */
-export const sharesBrand = (left: readonly string[], right: readonly string[]): boolean => {
-  const wanted = new Set(right.map(baseBrand));
-  return left.some((name) => wanted.has(baseBrand(name)));
-};
-
-// The brand's name from its phantom keys, so `TypeIdOf<"chat">` and `ChatId` are one brand however the type was written.
+// The brand's name from its phantom keys.
 function* brandName(checker: NativeWorld["checker"], brand: Type): APIRequestGenerator<string> {
-  const keys = (yield* brand.getProperties.gen()).filter((property) => BRAND_KEY.test(property.name) || PROOF_KEY.test(property.name));
+  const keys = (yield* brand.getProperties.gen()).filter((property) => BRAND_LABEL_KEY.test(property.name) || PROOF_KEY.test(property.name));
   const types = yield* checker.getTypeOfSymbol.gen(keys);
   const labels = keys.flatMap((key, at) => {
     const type = types[at];
-    return BRAND_KEY.test(key.name) && type?.isStringLiteralType() === true ? [type.value] : [];
+    return BRAND_LABEL_KEY.test(key.name) && type?.isStringLiteralType() === true ? [type.value] : [];
   });
   const [label] = labels;
   if (label === undefined) {
     return yield* checker.typeToString.gen(brand);
   }
-  return `${keys.some((key) => PROOF_KEY.test(key.name)) ? "Verified" : ""}${NAME_OF_PREFIX.get(label) ?? label}`;
+  return brandOfLabel(
+    label,
+    keys.some((key) => PROOF_KEY.test(key.name)),
+  );
 }
 
 /** Facts of types, asked once per distinct type of a world. */
@@ -82,12 +96,13 @@ export class TypeReader {
   readonly #world: NativeWorld;
   readonly #constraint: Type | null;
   readonly #facts = new Map<number, TypeFacts>();
-  /** Every brand name this world met, to build the name table from. */
-  readonly seen = new Set<string>();
+  /** Every brand this world declares or met, to build the name table from. */
+  readonly seen: Set<string>;
 
-  constructor(world: NativeWorld, constraint: Type | null) {
+  constructor(world: NativeWorld, constraint: Type | null, declared: ReadonlySet<string>) {
     this.#world = world;
     this.#constraint = constraint;
+    this.seen = new Set(declared);
   }
 
   /** The facts of each type, in order. */

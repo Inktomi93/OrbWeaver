@@ -87,6 +87,21 @@ const FLOW = [
   "  readonly anchorPersonaId: string;",
   "  readonly memberId: string;",
   "  readonly typed: ChatId;",
+  // the name measured against the type: a brand the name reads right, one it reads as another brand, one no name claims
+  "  readonly ownerChatId: ChatId;",
+  "  readonly personaId: ChatId;",
+  "  readonly widgetId: ChatId;",
+  "}",
+  // the type over the name: a lookalike the code hands another brand, and a renamed string a persona flows into
+  "export interface Reply {",
+  "  readonly messageId: string;",
+  "}",
+  "export function reply(chat: ChatId): Reply {",
+  "  return { messageId: chat };",
+  "}",
+  "export function renamed(persona: PersonaId): ChatId {",
+  "  const key: string = persona;",
+  "  return castId<ChatId>(key);",
   "}",
 ].join("\n");
 
@@ -97,6 +112,16 @@ const TREE = {
 };
 
 const lineOf = (needle: string): number => FLOW.split("\n").findIndex((line) => line.includes(needle)) + 1;
+
+// Every site in FLOW where the brand that flows in, or the declared brand, is not the brand the name stands for.
+const BRAND_DISAGREEMENTS = [
+  { line: lineOf("openChatSlot(chatId: string)"), kind: "declaration", name: "chatId", typed: ["PersonaId"], named: "ChatId" },
+  { line: lineOf("readonly messageId: string"), kind: "declaration", name: "messageId", typed: ["ChatId"], named: "MessageId" },
+  { line: lineOf("castId<ChatId>(selected)"), kind: "mint-operand", name: "selected", typed: ["ChatId"], named: null },
+  { line: lineOf("castId<ChatId>(key)"), kind: "mint-operand", name: "key", typed: ["PersonaId"], named: null },
+  { line: lineOf("held === chat"), kind: "compare-operand", name: "held", typed: ["ChatId"], named: null },
+  { line: lineOf("readonly personaId: ChatId"), kind: "branded-declaration", name: "personaId", typed: ["ChatId"], named: "PersonaId" },
+];
 
 test("the brand-flow scan reports each class with its slot, and leaves the controls alone", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
@@ -110,6 +135,7 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
     { line: lineOf('c.req.param("chatId")'), via: "castId", mintClass: "raw", shape: "http-param" },
     { line: lineOf("castId<ChatId>(persona)"), via: "castId", mintClass: "rebrand", shape: null },
     { line: lineOf("castId<ChatId>(selected)"), via: "castId", mintClass: "raw", shape: "variable" },
+    { line: lineOf("castId<ChatId>(key)"), via: "castId", mintClass: "raw", shape: "variable" },
     { line: lineOf("raw as ChatId"), via: "as", mintClass: "raw", shape: "parameter" },
     { line: lineOf('typeIdSchema("chat")'), via: "typeIdSchema", mintClass: "parsed", shape: null },
   ]);
@@ -129,6 +155,7 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
 
   expect(flow(report.renarrows).map(({ line, how, proof }) => ({ line, how, proof }))).toEqual([
     { line: lineOf("castId<ChatId>(selected)"), how: "castId", proof: "slot-widened" },
+    { line: lineOf("castId<ChatId>(key)"), how: "castId", proof: "slot-widened" },
     { line: lineOf("held === chat"), how: "compare", proof: "slot-widened" },
   ]);
 
@@ -141,13 +168,25 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
     { name: "anchorPersonaId", brand: "PersonaId", match: "suffix" },
   ]);
   expect(report.generic.map(({ name }) => name)).toContain("memberId");
+  expect(
+    flow(report.missing)
+      .filter(({ owner }) => owner === "Reply")
+      .map(({ name, brand, match, provenance }) => ({ name, brand, match, provenance })),
+  ).toEqual([{ name: "messageId", brand: "ChatId", match: "type", provenance: "measured" }]);
 
   expect(flow(report.crossBrand).map(({ line, how }) => ({ line, how }))).toEqual(
     expect.arrayContaining([
       { line: lineOf("castId<ChatId>(persona)"), how: "rebrand" },
       { line: lineOf("openChatSlot(persona)"), how: "widen-into-named-slot" },
+      { line: lineOf("castId<ChatId>(key)"), how: "fed-other-brand" },
     ]),
   );
+
+  const answers = report.brandAnswers;
+  expect(flow(answers.disagreements).map(({ line, kind, name, typed, named }) => ({ line, kind, name, typed, named: named?.brand ?? null }))).toEqual(
+    BRAND_DISAGREEMENTS,
+  );
+  expect({ agree: answers.agree, unnamed: answers.unnamed }).toEqual({ agree: 1, unnamed: 1 });
   expect(report.scanned.doubleCounted).toBe(0);
 });
 
