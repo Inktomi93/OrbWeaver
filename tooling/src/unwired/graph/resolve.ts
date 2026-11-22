@@ -378,7 +378,7 @@ export class Resolver {
   /**
    * The types a type was built from, asked only where its kind has that relation: an alias's arguments, a reference's
    * target and arguments, a union or intersection's members, a mapped type's template and key constraint, an indexed
-   * access's object, a conditional's branches, a class or interface's bases, and its apparent type. `args` asks only the
+   * access's object, a conditional's branches, a `keyof T`'s T, a class or interface's bases, and its apparent type. `args` asks only the
    * type arguments, for an object type that does not carry the name: it is not the origin, but what it was
    * instantiated with may be (a variants literal inside a tv() return type).
    */
@@ -414,6 +414,9 @@ export class Resolver {
     }
     if (type.isConditionalType()) {
       out.push(yield* type.getTrueType.gen(), yield* type.getFalseType.gen());
+    }
+    if (type.isIndexType()) {
+      out.push(yield* type.getTarget.gen());
     }
     if (type.isTypeReference()) {
       out.push(yield* type.getTarget.gen());
@@ -687,6 +690,7 @@ export class Resolver {
       return yield* this.#enumHomes(
         declarations.flatMap(({ declaration }) => enumArgumentOf(declaration)),
         symbol,
+        name,
       );
     }
     const roots: SpellingRoot[] = [];
@@ -733,12 +737,18 @@ export class Resolver {
     return EXHAUSTED;
   }
 
-  // The homes of `z.enum(T)`'s keys: a named tuple's declarations, or the schema's own for an inline array literal.
-  *#enumHomes(tuples: readonly Node[], schema: NativeSymbol | undefined): APIRequestGenerator<OriginWalk> {
+  // The homes of `z.enum(T)`'s keys: a named tuple's declarations, or the schema's own for an inline array literal. Only
+  // a tuple that holds the name read answers: `schema.enum.x` for an x the tuple lacks is no key of it.
+  *#enumHomes(tuples: readonly Node[], schema: NativeSymbol | undefined, name: string): APIRequestGenerator<OriginWalk> {
     const { checker } = this.#world;
     const homes: DeclKey[] = [];
-    const symbols = yield* checker.getSymbolAtLocation.gen(tuples);
+    const [symbols, types] = yield* all(checker.getSymbolAtLocation.gen(tuples), checker.getTypeAtLocation.gen(tuples));
     for (const [at, tuple] of tuples.entries()) {
+      const type = types[at];
+      const members = type?.isTypeReference() === true ? yield* checker.getTypeArguments.gen(type) : [];
+      if (!members.some((member) => member.isStringLiteralType() && member.value === name)) {
+        continue;
+      }
       const declarations = isIdentifier(tuple) ? (symbols[at]?.declarations ?? []) : (schema?.declarations ?? []);
       for (const handle of declarations) {
         const home = yield* this.handleKey(handle);

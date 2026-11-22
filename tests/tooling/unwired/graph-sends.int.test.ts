@@ -1,8 +1,9 @@
 // What reaches a receiver that names no member: a value handed whole to an opaque slot, published to a global, or taken
 // by a library's bare type parameter is sent, not read, and its members land in member-sent-only; a slot that names a
 // member pairs it, and a library slot naming a field is a receiver reading it.
-import { expect, test } from "@orb/testkit/tooling";
-import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, libraryModule } from "./_planted.ts";
+import { expect, plantedTsconfig, plantLink, test } from "@orb/testkit/tooling";
+import { NativeWorld, scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB, labelsIn, libraryModule, WORLD } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/sends.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/card.tsx`;
@@ -105,6 +106,57 @@ test("a library slot naming a field reads the value's field of that name, at any
     ]),
   });
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["MySource.extra", "Mine.spare"]);
+});
+
+// The program, not the path, says what a library is: a dependency linked in from outside any node_modules directory is
+// still the library its import resolves to, and a workspace package reached through node_modules is still ours.
+test("a library linked from outside node_modules is a receiver; a workspace package linked into it is ours", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "vendor/lib/package.json": JSON.stringify({ name: "lib", types: "index.d.ts" }),
+      "vendor/lib/index.d.ts": [
+        "export interface Options { readonly headers: string; readonly source: { readonly data: string } }",
+        "export declare function request(options: Options): void;",
+      ].join("\n"),
+      "packages/b/package.json": JSON.stringify({ name: "@orb/b", types: "src/index.ts" }),
+      "packages/b/src/index.ts": "export interface Shared { readonly used: string; readonly unread: string }",
+      ...source([
+        'import { request } from "lib";',
+        'import type { Shared } from "@orb/b";',
+        "export interface MySource { readonly data: string; readonly extra: string }",
+        "export interface Mine { readonly headers: string; readonly source: MySource; readonly spare: string }",
+        "export const send = (mine: Mine): void => request(mine);",
+        "export const usedOf = (shared: Shared): string => shared.used;",
+      ]),
+    }),
+  );
+  plantLink(root, "node_modules/lib", "../vendor/lib", "dir");
+  plantLink(root, "node_modules/@orb/b", "../../packages/b", "dir");
+  const scan = await scanGraph(root, () => undefined);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["MySource.extra", "Mine.spare"]);
+  expect(labelsIn(scan, "member-untouched", "packages/b/src/index.ts")).toEqual(["Shared.unread"]);
+});
+
+// A workspace package its importer's world reaches only through node_modules is flagged external by the program, since
+// it was resolved from there; the workspace manifest makes it ours. A linked library outside node_modules stays a library.
+test("a world keeps a workspace package reached through node_modules and drops a linked library", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+    [WORLD]: plantedTsconfig({ lib: LIB }),
+    "packages/a/src/main.ts": [
+      'import type { Shared } from "@orb/b";',
+      'import { request } from "lib";',
+      "export const go = (shared: Shared): void => request(shared);",
+    ].join("\n"),
+    "packages/b/package.json": JSON.stringify({ name: "@orb/b", types: "src/index.ts" }),
+    "packages/b/src/index.ts": "export interface Shared { readonly used: string }",
+    "vendor/lib/package.json": JSON.stringify({ name: "lib", types: "index.d.ts" }),
+    "vendor/lib/index.d.ts": "export declare function request(value: object): void;",
+  });
+  plantLink(root, "node_modules/@orb/b", "../../packages/b", "dir");
+  plantLink(root, "node_modules/lib", "../vendor/lib", "dir");
+  using world = NativeWorld.open(root, WORLD);
+  expect(["packages/a/src/main.ts", "packages/b/src/index.ts", "vendor/lib/index.d.ts"].map((file) => world.has(file))).toEqual([true, true, false]);
 });
 
 test("a value taken by a library's bare type parameter is sent; our own generic keeps flowing", { timeout: 120_000 }, async ({ plantedTree }) => {
