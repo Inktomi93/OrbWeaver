@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import { graphTree } from "./_planted.ts";
 
 const MEMBER_REPORT = "reports/unwired/unwired.json";
 
@@ -17,8 +18,8 @@ test.for([
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
 });
 
-// The codes, procedures and columns scans have no engine two, so a cross-check request is refused before any world
-// loads; the unions scan, which has one, is the control that takes the flag.
+// The codes and columns scans and the procedures query have no engine two, so a cross-check request is refused before
+// any world loads; the unions scan, which has one, is the control that takes the flag.
 test.for([
   { verb: "codes", exit: EXIT.misuse },
   { verb: "procedures", exit: EXIT.misuse },
@@ -41,11 +42,14 @@ test("a scan rooted inside a checkout files its report under the checkout's repo
 
 // Each list a scan's report writes reaches the summary line as its name and count, so no bucket, judged or stale
 // entries included, hides from a rerun's one line.
+// The procedures query builds the graph, which reads its roots from the tree's knip config, so its root is an empty graph
+// tree; every other scan runs over the empty scratch root.
 test.for(["scan", "fields", "params", "unions", "shapes", "codes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
-  async (verb, { runCli, scratch }) => {
+  async (verb, { runCli, scratch, plantedTree }) => {
     const out = join(scratch, "report.json");
-    const run = await runCli("unwired", [verb, `--root=${scratch}`, `--out=${out}`]);
+    const root = verb === "procedures" ? await plantedTree(graphTree({})) : scratch;
+    const run = await runCli("unwired", [verb, `--root=${root}`, `--out=${out}`]);
     await expect(run).toExitWith(0);
     const report = z.record(z.string(), z.unknown()).parse(JSON.parse(readFileSync(out, "utf8")));
     const buckets = Object.entries(report).flatMap(([name, value]) => (Array.isArray(value) && name !== "limits" ? [`${name}=${String(value.length)}`] : []));

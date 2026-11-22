@@ -16,6 +16,8 @@ import { explainLost } from "./lost.ts";
 import type { Ablation, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, tracing } from "./options.ts";
 import { readPprof } from "./pprof.ts";
+import type { ProceduresOptions, ProceduresReport } from "./procedures.ts";
+import { PROCEDURE_HOMES, proceduresOf } from "./procedures.ts";
 import type { CompilerProfile, GraphProfileReport, ProfilePhase } from "./profile.ts";
 import { GraphProfile } from "./profile.ts";
 import type { Query, QueryAnswer } from "./query.ts";
@@ -86,13 +88,15 @@ class Session implements Disposable {
   readonly #options: GraphOptions;
   readonly #log: GraphLog;
   readonly #profile: GraphProfile | null;
+  readonly #siteFiles: readonly string[];
   #world: NativeWorld | null = null;
   #compiler: CompilerProfile | null = null;
 
-  constructor(root: string, options: GraphOptions, log: GraphLog) {
+  constructor(root: string, options: GraphOptions, log: GraphLog, siteFiles: readonly string[]) {
     this.#root = root;
     this.#options = options;
     this.#log = log;
+    this.#siteFiles = siteFiles;
     this.#profile = options.profile === null ? null : new GraphProfile();
   }
 
@@ -143,7 +147,7 @@ class Session implements Disposable {
     const options = this.#options;
     const roots = this.#profile === null ? await loadRoots(this.#root) : await this.#profile.timeAsync("open", () => loadRoots(this.#root));
     const world = this.world();
-    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile });
+    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, siteFiles: this.#siteFiles });
     if (options.profile?.kind === "heap") {
       mkdirSync(options.profile.dir, { recursive: true });
       const path = String(world.debug.saveHeapProfile(options.profile.dir));
@@ -165,8 +169,22 @@ class Session implements Disposable {
   }
 }
 
-async function session<T>(root: string, log: GraphLog, options: GraphOptions, use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
-  using running = new Session(root, options, log);
+// What a session builds under: its options, and the file prefixes whose declarations keep their role sites.
+interface SessionPlan {
+  readonly options: GraphOptions;
+  readonly siteFiles: readonly string[];
+}
+
+// Only a verb that reads role sites keeps any.
+const NO_SITES: readonly string[] = [];
+
+async function session<T>(
+  root: string,
+  log: GraphLog,
+  { options, siteFiles }: SessionPlan,
+  use: (work: SessionWork) => T | Promise<T>,
+): Promise<WithSession<T>> {
+  using running = new Session(root, options, log, siteFiles);
   return await running.run(use);
 }
 
@@ -179,7 +197,7 @@ const scanOf = ({ graph, time }: SessionWork): GraphScan => ({
 
 /** Build and analyse the graph of the tree at `root`. */
 export function scanGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<GraphScan>> {
-  return session(root, log, options, scanOf);
+  return session(root, log, { options, siteFiles: NO_SITES }, scanOf);
 }
 
 /** Build and analyse the graph, then check an even sample of one member bucket against find-references. */
@@ -190,7 +208,7 @@ export function verifyGraph(
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<{ readonly scan: GraphScan; readonly verification: GraphVerification }>> {
   const { bucket, sample } = check;
-  return session(root, log, options, (work) => {
+  return session(root, log, { options, siteFiles: NO_SITES }, (work) => {
     const scan = scanOf(work);
     const findings = scan.analysis[bucket];
     const chains = tracing(options, "verify-chain") !== undefined;
@@ -206,10 +224,19 @@ export function queryGraph(
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<{ readonly answers: readonly QueryAnswer[] }>> {
-  return session(root, log, options, ({ graph, time }) => ({ answers: time("analyse", () => new GraphQueries(graph).answer(ask.query, ask.names)) }));
+  return session(root, log, { options, siteFiles: NO_SITES }, ({ graph, time }) => ({
+    answers: time("analyse", () => new GraphQueries(graph).answer(ask.query, ask.names)),
+  }));
 }
 
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CssReport>> {
-  return session(root, log, options, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
+  return session(root, log, { options, siteFiles: NO_SITES }, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
+}
+
+/** Build the graph, then report the tRPC procedures and HTTP routes no production code calls. */
+export function proceduresGraph(options: ProceduresOptions, log: GraphLog): Promise<WithSession<ProceduresReport>> {
+  return session(options.root, log, { options: FRESH_BUILD, siteFiles: PROCEDURE_HOMES }, ({ graph, world, time }) =>
+    time("analyse", () => proceduresOf(graph, world(), options)),
+  );
 }

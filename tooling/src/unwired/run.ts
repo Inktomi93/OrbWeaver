@@ -1,8 +1,9 @@
 // The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
 // program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
 // nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
-// engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
+// one over every world, the dead-inside-live verbs run both engines except `codes` and `columns`, which run engine one,
+// and `procedures`, which queries the graph; those three refuse `--cross-check`, and each scan writes one report under
+// reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -22,11 +23,12 @@ import { CSS_BUCKETS } from "./graph/css.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import { outsideTable } from "./graph/procedures.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { cssGraph, proceduresGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -35,7 +37,6 @@ import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import { outsideTable, scanProcedures } from "./procedures.ts";
 import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
@@ -100,14 +101,14 @@ interface Report {
 /** A scan verb's report path, and its run with what its summary line adds to the bucket counts. */
 interface Scan {
   readonly out: string;
-  readonly execute: (options: ScanOptions) => { readonly report: Report; readonly counts: string };
+  readonly execute: (options: ScanOptions) => Promise<{ readonly report: Report; readonly counts: string }>;
 }
 
-function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found, counts: (report: Found) => string = () => ""): Scan {
+function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found | Promise<Found>, counts: (report: Found) => string = () => ""): Scan {
   return {
     out,
-    execute: (options): { readonly report: Report; readonly counts: string } => {
-      const report = run(options);
+    execute: async (options): Promise<{ readonly report: Report; readonly counts: string }> => {
+      const report = await run(options);
       return { report, counts: counts(report) };
     },
   };
@@ -123,7 +124,7 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)}`;
 }
 
-/** The scan verbs with no engine two, which refuse `--cross-check`. */
+/** The scan verbs with no engine two, which refuse `--cross-check`: two run engine one, and `procedures` the graph. */
 const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "procedures", "columns"]);
 
 /** Each scan's judged list: the rows a board item owns. */
@@ -161,7 +162,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   unions: scan("reports/unwired/unions.json", scanUnions),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
   codes: scan("reports/unwired/codes.json", scanCodes),
-  procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
+  procedures: scan("reports/unwired/procedures.json", (options) => proceduresGraph(options, options.log), outsideTable),
   columns: scan("reports/unwired/columns.json", scanColumns),
 };
 
@@ -193,7 +194,7 @@ function parseArgs(argv: readonly string[]): Args {
   const flags = new Map<string, string>();
   const crossCheck = argv.includes(CROSS_CHECK_FLAG);
   if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs engine one only, so there is no engine two to cross-check\n${USAGE}`);
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
   }
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
   for (const arg of rest) {
@@ -663,12 +664,16 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
     logLimits(PORT_LIMITS);
     return EXIT.clean;
   }
-  const chosen = SCANS[args.verb];
-  const { report, counts } = chosen.execute({
+  return runScan(args, args.verb);
+}
+
+async function runScan(args: Args, verb: ScanVerb): Promise<number> {
+  const chosen = SCANS[verb];
+  const { report, counts } = await chosen.execute({
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
-    judged: JUDGED[args.verb],
+    judged: JUDGED[verb],
     log,
     crossCheck: args.crossCheck,
   });

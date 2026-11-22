@@ -1,15 +1,18 @@
-// `pnpm unwired procedures` reports each tRPC procedure and HTTP route no production code calls. Every planted case
-// has a twin the scan must keep reporting: a same-named method, a name in a string table and a type read reach no
-// procedure; a route's other method, a lookalike path and an uncalled URL builder reach no route.
+// `pnpm unwired procedures` reports each tRPC procedure and HTTP route no production code calls, as a query over the
+// graph session. Every planted case has a twin the query must keep reporting: a same-named method, a name in a string
+// table and a type read reach no procedure; a cache key built by tRPC's own verb calls nothing while a same-named local
+// method does; a route's other method, a lookalike path and an uncalled URL builder reach no route. Snap drives the
+// product, so its call is a product call (D357).
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import type { JudgedEntry } from "../../../tooling/src/unwired/index.ts";
-import { OUTSIDE_CALLERS, scanProcedures } from "../../../tooling/src/unwired/index.ts";
-import { LIB } from "./_planted.ts";
+import type { JudgedEntry, ProceduresReport } from "../../../tooling/src/unwired/index.ts";
+import { OUTSIDE_CALLERS, proceduresGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, LIB, WORLD } from "./_planted.ts";
 
-const WORLD = "tsconfig.json";
 // Planted source spells its own template literals; the placeholder sign is interpolated so this file has none in a string.
 const DOLLAR = "$";
-const TSCONFIG = plantedTsconfig({ lib: [...LIB, "DOM"], include: ["packages", "tests", "tooling"], jsx: "preserve" });
+// The callers outside the product: tooling, which the knip population walks, and snap, whose calls are the product's.
+const TOOLING = "tooling/src";
+const SNAP = "tooling/src/snap";
 
 // The tRPC packages, typed the way the real ones are: a router record and both proxies are homomorphic mapped types,
 // so a proxy member's symbol is the record's own property.
@@ -42,7 +45,6 @@ const [UNPLANTED_ROUTE_ROW, ...PLANTED_ROUTE_ROWS] = ROUTE_ROWS;
 const ROOT_PROCEDURES = PROCEDURE_ROWS.map((row) => `${row.procedure}: procedure.query(() => true), `).join("");
 
 const PROCEDURE_TREE = {
-  [WORLD]: TSCONFIG,
   ...TRPC,
   "packages/server/src/transport/trpc/routers/tag.ts": [
     'import { procedure, router } from "@trpc/server";',
@@ -56,6 +58,8 @@ const PROCEDURE_TREE = {
     "  typed: procedure.query(() => []),",
     "  served: procedure.query(() => []),",
     "  probed: procedure.query(() => []),",
+    "  lookalike: procedure.query(() => []),",
+    "  snapped: procedure.query(() => []),",
     "});",
   ].join("\n"),
   "packages/server/src/transport/trpc/router.ts": [
@@ -87,25 +91,45 @@ const PROCEDURE_TREE = {
     "export const renamed = other.rename();",
     "export type Typed = ReturnType<typeof trpc.tag.typed.query>;",
   ].join("\n"),
-  // A tooling file is not production, so its call makes the procedure test-only, as the member scan reads it.
-  "tooling/probe.ts": ['import { trpc } from "../packages/client/src/trpc.ts";', "export const probed = trpc.tag.probed.queryOptions();"].join("\n"),
-  "tests/server/tag.test.ts": [
+  // An in-tree proxy over the same record whose own method is named like tRPC's key verb: its call is a call.
+  "packages/client/src/local.ts": [
+    'import type { Procedure } from "@trpc/server";',
+    'import type { AppRouter } from "../../server/src/transport/trpc/router.ts";',
+    "type Local<R> = { [K in keyof R]: R[K] extends Procedure<string> ? { queryKey(): Promise<unknown> } : Local<R[K]> };",
+    "declare const local: Local<AppRouter['_def']['record']>;",
+    "export const fetched = local.tag.lookalike.queryKey();",
+  ].join("\n"),
+  [`${TOOLING}/probe.ts`]: ['import { trpc } from "../../packages/client/src/trpc.ts";', "export const probed = trpc.tag.probed.queryOptions();"].join("\n"),
+  [`${TOOLING}/prune.ts`]: [
     'import { trpc } from "../../packages/client/src/trpc.ts";',
     "export const pruned = (): Promise<unknown> => trpc.tag.prune.mutate();",
   ].join("\n"),
+  [`${SNAP}/drive.ts`]: ['import { trpc } from "../../../packages/client/src/trpc.ts";', "export const snapped = trpc.tag.snapped.queryOptions();"].join("\n"),
 };
 
-const scan = (root: string, judged: readonly JudgedEntry[] = []): ReturnType<typeof scanProcedures> =>
-  scanProcedures({ root, worlds: [WORLD], testWorlds: [], deliberate: [], judged, log: () => undefined });
+// A graph tree whose worlds take the DOM lib, with the tooling files in a world of their own as the real tree's are.
+function surfaceTree(files: Readonly<Record<string, string>>): Record<string, string> {
+  const jsx = { jsx: "preserve" } as const;
+  return {
+    ...graphTree(files, { jsx: true }),
+    [WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["../*/src"], ...jsx }),
+    "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: [TOOLING] }),
+  };
+}
 
-const found = (report: ReturnType<typeof scanProcedures>): readonly string[] =>
+const quiet = (): undefined => undefined;
+
+const scan = async (root: string, judged: readonly JudgedEntry[] = []): Promise<ProceduresReport> =>
+  await proceduresGraph({ root, deliberate: [], judged }, quiet);
+
+const found = (report: ProceduresReport): readonly string[] =>
   report.unwired.map(({ kind, home, member, tests, keys }) => `${kind} ${home} ${member} tests=${String(tests)} keys=${String(keys)}`).toSorted();
 
-test("a procedure is called through the client proxy, the server's caller or a typed relay, and nothing else", { timeout: 120_000 }, async ({
+test("a procedure is called through the client proxy, the server's caller, a typed relay or snap, and nothing else", { timeout: 300_000 }, async ({
   plantedTree,
 }) => {
-  const report = scan(await plantedTree(PROCEDURE_TREE));
-  expect(report.procedures).toBe(11);
+  const report = await scan(await plantedTree(surfaceTree(PROCEDURE_TREE)));
+  expect(report.procedures).toBe(13);
   expect(found(report)).toEqual([
     "test-only-procedure appRouter.tag probed tests=1 keys=0",
     "test-only-procedure appRouter.tag prune tests=1 keys=0",
@@ -137,17 +161,20 @@ const HONO = {
   "node_modules/fs-lib/index.d.ts": "export declare function open(path: string): Promise<unknown>;",
   "node_modules/server-lib/package.json": '{ "name": "server-lib", "types": "index.d.ts" }',
   "node_modules/server-lib/index.d.ts": "export interface ServeOptions { fetch(request: Request, bindings: unknown): Promise<Response>; port?: number }",
-  // The element attributes the platform declares, outside the tree as React's are.
+  // The element attributes the platform declares, in a package the program loads as a library, as React's are.
+  "node_modules/planted-jsx/package.json": '{ "name": "planted-jsx", "types": "index.d.ts" }',
   "node_modules/planted-jsx/index.d.ts": [
-    "declare namespace JSX {",
-    "  interface Element {}",
-    "  interface IntrinsicElements { img: { src?: string }; a: { href?: string } }",
+    "declare global {",
+    "  namespace JSX {",
+    "    interface Element {}",
+    "    interface IntrinsicElements { img: { src?: string }; a: { href?: string } }",
+    "  }",
     "}",
+    "export {};",
   ].join("\n"),
 };
 
 const ROUTE_TREE = {
-  [WORLD]: TSCONFIG,
   ...HONO,
   "packages/contracts/src/routes.ts": [
     'export const BLOB_ROUTE = "/api/blob";',
@@ -182,6 +209,7 @@ const ROUTE_TREE = {
     '  app.get("/api/orphan", () => null);',
     '  app.get("/api/debug/probe", () => null);',
     '  app.get("/api/opened", () => null);',
+    '  app.get("/api/snapped", () => null);',
     `  app.get(\`${DOLLAR}{pattern.prefix}:id${DOLLAR}{pattern.suffix}\`, () => null);`,
     ...PLANTED_ROUTE_ROWS.map((row) => `  app.on(${JSON.stringify(row.method)}, ${JSON.stringify(row.path)}, () => null);`),
     "  app.use(() => null);",
@@ -196,9 +224,9 @@ const ROUTE_TREE = {
     '  app.get("/api/_debug/unread", () => null);',
     "}",
   ].join("\n"),
-  "tooling/debug-info.ts": 'export const info = (): Promise<Response> => fetch("/api/_debug/info");\n',
+  [`${TOOLING}/debug-info.ts`]: 'export const info = (): Promise<Response> => fetch("/api/_debug/info");\n',
   "packages/client/src/requests.tsx": [
-    '/// <reference path="../../../node_modules/planted-jsx/index.d.ts" />',
+    'import type {} from "planted-jsx";',
     'import { blobUrl, exportPath, UPLOAD_ROUTE } from "../../contracts/src/routes.ts";',
     "function Avatar(props: { readonly src: string }): JSX.Element {",
     "  return <img src={props.src} />;",
@@ -213,7 +241,7 @@ const ROUTE_TREE = {
     // A method written as a shorthand or a quoted key is read through the checker, so neither request is a GET.
     'export const shortUpload = (body: string): Promise<Response> => { const method = "POST"; return fetch(UPLOAD_ROUTE, { method, body }); };',
     'export const quoted = (body: string): Promise<Response> => fetch("/api/orphan", { "method": "POST", body });',
-    // A URL that starts with a substitution is no path on our origin the scan can read, so it is listed.
+    // A URL that starts with a substitution is no path on our origin the query can read, so it is listed.
     `export const based = (base: string): Promise<Response> => fetch(\`${DOLLAR}{base}/api/debug/dump\`);`,
     // The window's open is one sink however it is reached: a window member, a global, or both at once.
     'export const opened = (): Window | null => window.open("/api/opened", "_blank");',
@@ -227,16 +255,17 @@ const ROUTE_TREE = {
     'export const read = (): Promise<unknown> => open("/api/orphan");',
     'export const relay = (options: Pick<ServeOptions, "fetch">, request: Request): Promise<Response> => options.fetch(request, {});',
   ].join("\n"),
-  "tooling/probe.ts": 'export const probe = (): Promise<Response> => fetch("/api/debug/probe");\n',
-  "tests/server/dump.test.ts": 'export const dumped = (): Promise<Response> => fetch("/api/debug/dump");\n',
+  [`${TOOLING}/route-probe.ts`]: 'export const probe = (): Promise<Response> => fetch("/api/debug/probe");\n',
+  [`${TOOLING}/dump.ts`]: 'export const dumped = (): Promise<Response> => fetch("/api/debug/dump");\n',
+  [`${SNAP}/open.ts`]: 'export const snapped = (): Promise<Response> => fetch("/api/snapped");\n',
 };
 
-test("a route is called by a platform request, a URL attribute or a URL builder's call, matched by method and path", { timeout: 120_000 }, async ({
+test("a route is called by a platform request, a URL attribute or a URL builder's call, matched by method and path", { timeout: 300_000 }, async ({
   plantedTree,
 }) => {
-  const report = scan(await plantedTree(ROUTE_TREE));
+  const report = await scan(await plantedTree(surfaceTree(ROUTE_TREE)));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(12 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(13 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
@@ -275,8 +304,8 @@ const UPLOAD: JudgedEntry = { key: "route GET /api/upload", item: DONE_ITEM, tie
 const ASSET: JudgedEntry = { key: "route GET /api/widget/:id/asset", item: LANDED_ITEM, tie: "member" };
 const GONE: JudgedEntry = { key: "route GET /api/removed", item: OPEN_ITEM, tie: "member" };
 
-test("a judged row reports apart with its open item, and an entry for a gone row or a closed item is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(JUDGED_TREE), [ORPHAN, UPLOAD, ASSET, GONE]);
+test("a judged row reports apart with its open item, and an entry for a gone row or a closed item is stale", { timeout: 300_000 }, async ({ plantedTree }) => {
+  const report = await scan(await plantedTree(surfaceTree(JUDGED_TREE)), [ORPHAN, UPLOAD, ASSET, GONE]);
   expect(found(report)).toEqual([
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
@@ -291,46 +320,4 @@ test("a judged row reports apart with its open item, and an entry for a gone row
     { ...ASSET, stale: "item-closed" },
     { ...GONE, stale: "row-gone" },
   ]);
-});
-
-// The world that holds the router can hold the debug registrar through an import and not entry/http. Each world lists
-// the routes of the registrar files it homes, so both registrars' routes are inventoried whichever world opens first.
-const SPLIT_TREE = {
-  ...HONO,
-  "packages/server/tsconfig.router.json": plantedTsconfig({ lib: LIB, include: ["src/transport"] }),
-  "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src"] }),
-  "packages/server/src/transport/trpc/router.ts": [
-    'import { registerDebug } from "../../foundation/observability/debug/routes.ts";',
-    "export const appRouter = { registerDebug };",
-  ].join("\n"),
-  "packages/server/src/foundation/observability/debug/routes.ts": [
-    'import type { Hono } from "hono";',
-    "export function registerDebug(app: Hono): void {",
-    '  app.get("/api/_debug/unread", () => null);',
-    "}",
-  ].join("\n"),
-  "packages/server/src/entry/http/routes.ts": [
-    'import type { Hono } from "hono";',
-    "export function register(app: Hono): void {",
-    '  app.get("/api/plain", () => null);',
-    "}",
-  ].join("\n"),
-};
-
-test("an entry/http route and a debug route are both inventoried when the router's world holds only the debug registrar", {
-  timeout: 120_000,
-}, async ({ plantedTree }) => {
-  const report = scanProcedures({
-    root: await plantedTree(SPLIT_TREE),
-    worlds: ["packages/server/tsconfig.router.json", "packages/server/tsconfig.json"],
-    testWorlds: [],
-    deliberate: [],
-    log: () => undefined,
-  });
-  expect(
-    report.unwired
-      .filter(({ key }) => key.startsWith("route "))
-      .map(({ key, kind }) => `${kind} ${key}`)
-      .toSorted(),
-  ).toEqual(["uncalled-route route GET /api/_debug/unread", "uncalled-route route GET /api/plain"]);
 });
