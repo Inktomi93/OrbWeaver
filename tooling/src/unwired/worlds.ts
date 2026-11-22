@@ -82,14 +82,40 @@ interface LoadedWorld {
 
 const loadMergedWorlds = (root: string): readonly LoadedWorld[] => mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
 
-// The merged program's options, every world's `types` and `allowJs` on the browser world's, over `files` with `paths`.
+// Each world's `types` entries resolved as tsc resolves them for that world, from the world's own folder. The merged
+// config sits at the root, where an entry only a package's node_modules links (the showcase author worlds' plugin SDK)
+// resolves to nothing, so the merged program loads each resolved file as a root file instead. An entry the world itself
+// cannot resolve stays a `types` entry, so the merged program reports the same missing type the world does.
+function worldTypes(root: string, worlds: readonly LoadedWorld[]): { readonly files: readonly string[]; readonly unresolved: readonly string[] } {
+  const files = new Set<string>();
+  const unresolved = new Set<string>();
+  for (const { config, parsed } of worlds) {
+    for (const name of parsed.options.types ?? []) {
+      const found = ts.resolveTypeReferenceDirective(name, join(root, config), parsed.options, ts.sys).resolvedTypeReferenceDirective?.resolvedFileName;
+      if (found === undefined) {
+        unresolved.add(name);
+      } else {
+        files.add(found);
+      }
+    }
+  }
+  return { files: [...files].sort(), unresolved: [...unresolved].sort() };
+}
+
+// The merged program's options on the browser world's: every world's `types` (worldTypes) and `allowJs`, over `files`
+// with `paths`.
 function mergedText(root: string, worlds: readonly LoadedWorld[], files: readonly string[], paths: Readonly<Record<string, string[]>>): string {
-  const types = [...new Set(worlds.flatMap(({ parsed }) => parsed.options.types ?? []))].sort();
+  const types = worldTypes(root, worlds);
   return JSON.stringify({
     extends: join(root, MERGED_BASE),
     // allowJs is written only when a world sets it, so the merged options set nothing a world leaves to its default
-    compilerOptions: { types, paths, ...(worlds.some(({ parsed }) => parsed.options.allowJs === true) ? { allowJs: true } : {}), noEmit: true },
-    files,
+    compilerOptions: {
+      types: types.unresolved,
+      paths,
+      ...(worlds.some(({ parsed }) => parsed.options.allowJs === true) ? { allowJs: true } : {}),
+      noEmit: true,
+    },
+    files: [...new Set([...files, ...types.files])].sort(),
   });
 }
 

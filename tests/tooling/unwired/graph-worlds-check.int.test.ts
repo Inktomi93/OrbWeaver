@@ -13,7 +13,7 @@ const WORLD_B = "packages/b/tsconfig.json";
 const DOM_LIB = "/lib.dom.d.ts";
 
 // A planted package config: the shared fixture options with the alias, and any option the case loosens.
-const world = (overrides: Readonly<Record<string, boolean>> = {}): string => {
+const world = (overrides: Readonly<Record<string, boolean | readonly string[]>> = {}): string => {
   const config = JSON.parse(plantedTsconfig({ lib: LIB, paths: { [ALIAS]: ["./shared/*"] } })) as { readonly compilerOptions: object };
   return JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, ...overrides } });
 };
@@ -134,4 +134,25 @@ test("graph-worlds-check matches or explains each merged-program error and fails
   ]);
   expect(summary.split(" ").slice(0, 5)).toEqual(["merged-errors=10", "matched=1", "explained=8", "unexplained=1", "world-only=1"]);
   await expect(run).toExitWith(EXIT.violations);
+});
+
+// A world's `types` entry resolves from the world's own folder: only packages/b links the globals package, as only the
+// showcase package links the plugin SDK. The merged program must type the bundle as the world does, so the one error
+// is the world's own and is matched, not a missing global.
+const TYPES_TREE: Readonly<Record<string, string>> = {
+  "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/b" }] }),
+  "tsconfig.world-browser.json": plantedTsconfig({ lib: LIB, include: [] }),
+  [WORLD_B]: world({ types: ["sdk-globals"] }),
+  "packages/b/node_modules/sdk-globals/package.json": JSON.stringify({ name: "sdk-globals", types: "index.d.ts" }),
+  "packages/b/node_modules/sdk-globals/index.d.ts": "declare const sdkThing: { readonly label: string };",
+  "packages/b/src/bundle.ts": ["export const label: string = sdkThing.label;", "export const wrong: number = sdkThing.label;"].join("\n"),
+};
+
+test("the merged program resolves a world's types entry from the world's own folder", { timeout: 240_000 }, async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ ...TYPES_TREE });
+  const run = await runCli("unwired", ["graph-worlds-check", `--root=${root}`, `--out=${join(root, "worlds-check.json")}`]);
+  expect(run.stdout.split("\n").filter((line) => /^(?:explained|unexplained|world-only)\t/u.test(line))).toEqual([]);
+  const summary = run.stderr.split("\n").find((line) => line.startsWith("merged-errors=")) ?? "";
+  expect(summary.split(" ").slice(0, 5)).toEqual(["merged-errors=1", "matched=1", "explained=0", "unexplained=0", "world-only=0"]);
+  await expect(run).toExitWith(EXIT.clean);
 });
