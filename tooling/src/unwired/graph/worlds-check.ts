@@ -39,19 +39,19 @@ import { hasFlag, NativeWorld } from "../native.ts";
 import { MERGED_CONFIG, mergedOptionsConfigText, mergedWorlds } from "../worlds.ts";
 
 /** What a world loads or resolves apart from the merged program. */
-export const LOAD_KINDS = ["file-only-in-world", "library-only-in-merged", "resolution", "option"] as const;
+const LOAD_KINDS = ["file-only-in-world", "library-only-in-merged", "resolution", "option"] as const;
 /** How a declared type's members differ between a world and the merged program. */
-export const SHAPE_KINDS = ["type-only-in-world", "member-only-in-world", "member-only-in-merged", "member-type"] as const;
-export type LoadKind = (typeof LOAD_KINDS)[number];
-export type ShapeKind = (typeof SHAPE_KINDS)[number];
+const SHAPE_KINDS = ["type-only-in-world", "member-only-in-world", "member-only-in-merged", "member-type"] as const;
+type LoadKind = (typeof LOAD_KINDS)[number];
+type ShapeKind = (typeof SHAPE_KINDS)[number];
 
 /** Why a shape differs: the merged program loads a library the world does not, or a cause the files do not prove. */
-export const CAUSES = ["lib-merge", "unproven"] as const;
-export type Cause = (typeof CAUSES)[number];
+const CAUSES = ["lib-merge", "unproven"] as const;
+type Cause = (typeof CAUSES)[number];
 
 /** Why an unmatched merged-program error is not an error in the worlds, in the order they are tried. */
-export const EXPLANATIONS = ["outside-worlds", "declared-apart", "site-symbol", "site-type", "site-members", "resolution", "options"] as const;
-export type Explanation = (typeof EXPLANATIONS)[number];
+const EXPLANATIONS = ["outside-worlds", "declared-apart", "site-symbol", "site-type", "site-members", "resolution", "options"] as const;
+type Explanation = (typeof EXPLANATIONS)[number];
 
 /** One difference, with what the world and the merged program each hold; an absent side is the empty string. */
 interface DifferenceBase {
@@ -61,27 +61,27 @@ interface DifferenceBase {
   readonly merged: string;
 }
 
-export interface LoadDifference extends DifferenceBase {
+interface LoadDifference extends DifferenceBase {
   readonly kind: LoadKind;
 }
 
 /** A shape difference with its cause and the files only the merged side declares the member or its type in. */
-export interface ShapeDifference extends DifferenceBase {
+interface ShapeDifference extends DifferenceBase {
   readonly kind: ShapeKind;
   readonly cause: Cause;
   readonly mergedOnly: readonly string[];
 }
 
-export type Difference = LoadDifference | ShapeDifference;
+type Difference = LoadDifference | ShapeDifference;
 
 /** One world against the merged program: its types compared, and every difference. */
 /** A package whose declaration files only the merged program loads, with how many files. */
-export interface LibraryPackage {
+interface LibraryPackage {
   readonly name: string;
   readonly files: number;
 }
 
-export interface WorldReport {
+interface WorldReport {
   readonly config: string;
   readonly libraries: readonly LibraryPackage[];
   readonly types: number;
@@ -92,7 +92,7 @@ export interface WorldReport {
 }
 
 /** An error as one program reports it; `worlds` names the worlds that hold its file, or the world that reports it. */
-export interface CheckedError {
+interface CheckedError {
   readonly at: string;
   readonly code: number;
   readonly text: string;
@@ -100,7 +100,7 @@ export interface CheckedError {
 }
 
 /** An unmatched merged-program error with the world whose program sees its site differently, and what each sees. */
-export interface ExplainedError extends CheckedError {
+interface ExplainedError extends CheckedError {
   readonly explanation: Explanation;
   readonly by: string;
   readonly inWorld: string;
