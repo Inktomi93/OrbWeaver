@@ -29,7 +29,7 @@ import type { GraphState } from "./state.ts";
 import { isPrimitive } from "./state.ts";
 
 /** A slot type and the value type that fills it. */
-interface FlowPair {
+export interface FlowPair {
   readonly slot: Type;
   readonly value: Type;
 }
@@ -47,43 +47,61 @@ const opaqueFlag = (type: Type): boolean => OPAQUE_FLAGS.some((flag) => hasFlag(
 
 const deepKey = (type: Type, throughCalls: boolean): string => `${String(type.id)}${throughCalls ? "c" : ""}`;
 
+/** A slot that names none of a value's members: whatever holds it reads them all. */
+export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<boolean> {
+  if (opaqueFlag(type)) {
+    return true;
+  }
+  for (const arm of yield* constituentsOf(type)) {
+    if (opaqueFlag(arm)) {
+      return true;
+    }
+    if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The sends a message door pairs later (message-doors.ts): value nodes handed straight to a door, and the types of
+ *  values a door's option literal carries. */
+export interface HeldSends {
+  readonly node: (node: Node) => boolean;
+  readonly types: ReadonlySet<number>;
+}
+
+const NO_HELD_TYPES: ReadonlySet<number> = new Set();
+
 export class Flows {
   readonly #state: GraphState;
   readonly #opaque = new Map<number, boolean>();
   readonly #deep = new Map<string, readonly DeclKey[]>();
   readonly #done = new Set<string>();
+  // The value types a file's door sends hold inside an option literal (`{ workerData: v }`), kept from escaping there.
+  #heldTypes: ReadonlySet<number> = NO_HELD_TYPES;
 
   constructor(state: GraphState) {
     this.#state = state;
   }
 
-  /** A file's hand-offs and flow sites, linked to a fixpoint of member pairs. */
-  file(sites: FileSites): void {
-    const pairs = [...this.#handedWhole(sites), ...this.#flowSites(sites)];
-    for (let level: readonly FlowPair[] = pairs; level.length > 0; ) {
-      level = this.#linkLevel(level, sites.file);
-    }
+  /** A file's hand-offs and flow sites, linked to a fixpoint of member pairs; a value `held` answers true for is a
+   *  message door's send, paired later (message-doors.ts). */
+  file(sites: FileSites, held: HeldSends): void {
+    this.#heldTypes = held.types;
+    this.link([...this.#handedWhole(sites, held.node), ...this.#flowSites(sites, held.node)], sites.file);
+    this.#heldTypes = NO_HELD_TYPES;
   }
 
-  // A slot that names none of a value's members: whatever holds it reads them all.
-  *#opaqueSlot(type: Type): APIRequestGenerator<boolean> {
-    if (opaqueFlag(type)) {
-      return true;
+  /** Link slot and value pairs to their fixpoint, the roles they give landing in `file`. */
+  link(pairs: readonly FlowPair[], file: string): void {
+    for (let level: readonly FlowPair[] = pairs; level.length > 0; ) {
+      level = this.#linkLevel(level, file);
     }
-    for (const arm of yield* constituentsOf(type)) {
-      if (opaqueFlag(arm)) {
-        return true;
-      }
-      if (!isPrimitive(arm) && (yield* this.#state.world.checker.getPropertiesOfType.gen(arm)).length === 0) {
-        return true;
-      }
-    }
-    return false;
   }
 
   #opaqueOf(types: readonly Type[]): void {
     const fresh = [...new Map(types.filter((type) => !this.#opaque.has(type.id)).map((type) => [type.id, type])).values()];
-    const answers = this.#state.batch(fresh.map((type) => this.#opaqueSlot(type)));
+    const answers = this.#state.batch(fresh.map((type) => opaqueSlot(this.#state, type)));
     for (const [at, type] of fresh.entries()) {
       this.#opaque.set(type.id, answers[at] === true);
     }
@@ -184,9 +202,9 @@ export class Flows {
   }
 
   // A value handed on whole: into an opaque slot it escapes; into a slot naming its members it pairs member by member.
-  #handedWhole(sites: FileSites): readonly FlowPair[] {
+  #handedWhole(sites: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
-    const handed = [...this.#zodCallsDropped(sites.handedWhole), ...this.#published(sites)];
+    const handed = [...this.#zodCallsDropped(sites.handedWhole.filter(({ node }) => !held(node))), ...this.#published(sites)];
     if (handed.length === 0) {
       return [];
     }
@@ -266,8 +284,9 @@ export class Flows {
   }
 
   // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder.
-  #flowSites(sites: FileSites): readonly FlowPair[] {
+  #flowSites(all: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
+    const sites = { flowSites: all.flowSites.filter(({ value }) => !held(value)) };
     const values = state.world.typesAt(sites.flowSites.map(({ value }) => value));
     const declared = sites.flowSites.flatMap((site, at) => (site.slot === "declared" ? [{ at, node: site.holder }] : []));
     const declaredTypes = state.world.typesAt(declared.map(({ node }) => node));
@@ -360,7 +379,7 @@ export class Flows {
     for (const pair of unwrapped) {
       if (this.#opaque.get(pair.slot.id) !== true) {
         pairs.push(pair);
-      } else if (!isPrimitive(pair.value)) {
+      } else if (!(isPrimitive(pair.value) || this.#heldTypes.has(pair.value.id))) {
         this.escape(pair.value, false, file, 0);
       }
     }

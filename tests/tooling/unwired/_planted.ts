@@ -173,6 +173,47 @@ export const REACT_TYPES = {
   ].join("\n"),
 };
 
+/** A minimal `@types/node` at its own path: the message doors' declarations in the ambient modules Node's types
+ *  declare them in. A planted source reaches it through `/// <reference types="node" />`. */
+export const NODE_TYPES = {
+  "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
+  "node_modules/@types/node/index.d.ts": [
+    'declare module "worker_threads" {',
+    '  export class MessagePort { postMessage(value: any): void; on(event: "message", listener: (value: any) => void): this; }',
+    "  export class Worker {",
+    "    constructor(url: URL | string, options?: { workerData?: any });",
+    "    postMessage(value: any): void;",
+    '    on(event: "message", listener: (value: any) => void): this;',
+    "  }",
+    "  export const parentPort: MessagePort | null;",
+    "  export const workerData: any;",
+    "}",
+    'declare module "child_process" {',
+    '  export interface ChildProcess { send(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "  export function spawn(command: string, args: readonly string[]): ChildProcess;",
+    "}",
+    'declare module "process" {',
+    "  global {",
+    "    var process: NodeJS.Process;",
+    "    namespace NodeJS {",
+    '      interface Process { send?(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "    }",
+    "  }",
+    "}",
+    'declare module "events" {',
+    "  export class EventEmitter { emit(event: string, ...args: any[]): boolean; on(event: string, listener: (...args: any[]) => void): this; }",
+    "}",
+    'declare module "diagnostics_channel" {',
+    "  export class Channel { publish(message: unknown): void; subscribe(listener: (message: unknown) => void): void; }",
+    "  export function channel(name: string): Channel;",
+    "  export function subscribe(name: string, listener: (message: unknown) => void): void;",
+    "}",
+    'declare module "async_hooks" {',
+    "  export class AsyncLocalStorage<T> { run<R>(store: T, callback: () => R): R; getStore(): T | undefined; }",
+    "}",
+  ].join("\n"),
+};
+
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
  *  validator and a default. */
 export const ZOD_MODULE = {

@@ -48,6 +48,7 @@ export const BUCKETS = [
   "state-never-set",
   "binding-unread",
   "binding-read-only-by-dead",
+  "message-receiver-unpaired",
   "registry-stale",
   "union-re-spells-a-home",
   "union-slice-of-a-home",
@@ -203,6 +204,9 @@ class Analyser {
     const liveTyped = this.#liveTyped();
     this.#members(roles, liveTyped);
     this.#bindings(liveTyped);
+    for (const { file, line, door } of this.#state.unpairedReceivers) {
+      this.#push("message-receiver-unpaired", { label: `${file}:${String(line)} ${door}`, key: null, note: "no send reaches it through its door" });
+    }
     this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
@@ -228,6 +232,7 @@ class Analyser {
       "state-never-set": result("state-never-set"),
       "binding-unread": result("binding-unread"),
       "binding-read-only-by-dead": result("binding-read-only-by-dead"),
+      "message-receiver-unpaired": result("message-receiver-unpaired"),
       "registry-stale": result("registry-stale"),
       "union-re-spells-a-home": result("union-re-spells-a-home"),
       "union-slice-of-a-home": result("union-slice-of-a-home"),

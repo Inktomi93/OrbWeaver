@@ -139,6 +139,17 @@ export interface DanglingDoc {
 }
 
 /** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
+/** The doors a message can cross (message-doors.ts): the names {@link MessageReceiver.door} reports. */
+const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics"] as const;
+export type MessageDoor = (typeof MESSAGE_DOORS)[number];
+
+/** A receiver no send reaches through its door. */
+export interface MessageReceiver {
+  readonly file: string;
+  readonly line: number;
+  readonly door: MessageDoor;
+}
+
 /** A binding as binding-unread and binding-read-only-by-dead judge it: where it sits, what holds it, which
  *  declarations' code reads it, and whether anything writes it. */
 export interface BindingFact extends LocalBinding {
@@ -160,6 +171,8 @@ export interface GraphFacts {
   readonly unseenCalls: ReadonlySet<DeclKey>;
   /** Each local binding, parameter and import binding with the declarations whose code reads it. */
   readonly bindings: readonly BindingFact[];
+  /** Message receivers no send reaches through their door (message-doors.ts). */
+  readonly unpairedReceivers: readonly MessageReceiver[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -231,6 +244,7 @@ export class GraphState implements GraphFacts {
   readonly door = new Set<DeclKey>();
   readonly unseenCalls = new Set<DeclKey>();
   readonly bindings: BindingFact[] = [];
+  readonly unpairedReceivers: MessageReceiver[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];

@@ -29,6 +29,7 @@ import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
+import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
 import { addAll, allOf, answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
@@ -127,6 +128,7 @@ class Builder {
   readonly #flows: Flows;
   readonly #keys: Keys;
   readonly #classes = new Map<DeclKey, ClassFacts>();
+  readonly #doors: MessageDoors;
   // The current file's binding readers, filled by its name and shorthand passes.
   #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
   readonly #pendingSlots: PendingClass[] = [];
@@ -137,6 +139,7 @@ class Builder {
     this.#state = state;
     this.#variants = new Variants(state.session);
     this.#flows = new Flows(this.#state);
+    this.#doors = new MessageDoors(this.#state);
     this.#keys = new Keys(this.#state);
   }
 
@@ -150,6 +153,8 @@ class Builder {
     const { profile } = state.session;
     const walk = (): void => this.#walk(files);
     const settle = (): readonly VariantAxis[] => {
+      this.#doors.settle(this.#flows);
+      state.unpairedReceivers.push(...this.#doors.unpaired);
       this.#settleClasses();
       this.#keys.finish(this.#flows);
       return this.#variants.finish();
@@ -207,7 +212,7 @@ class Builder {
     const state = this.#state;
     this.#names(sites);
     fileSlotWrites(state, this.#variants, sites);
-    this.#flows.file(sites);
+    this.#flows.file(sites, this.#doors.held(sites.file));
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
@@ -238,6 +243,7 @@ class Builder {
       this.#use(site, resolved[at] ?? [], sites.file);
     }
     this.#bindingReads(sites, resolved);
+    this.#doors.file(sites, symbols, resolved);
     this.#bareReads(sites, symbols, resolved);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(

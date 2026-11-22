@@ -378,6 +378,12 @@ export class NativeWorld implements Disposable {
     return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
   }
 
+  /** Whether a declaration's file is one the compiler supplies, `lib.dom.d.ts` and the rest of the standard library. */
+  *isDefaultLibrary(handle: NodeHandle): APIRequestGenerator<boolean> {
+    const meta = yield* this.#program.getSourceFileMetadataByPath.gen(handle.path);
+    return meta?.isDefaultLibrary === true;
+  }
+
   /** For each list of declarations, whether one of them was loaded from the package `name`. */
   fromPackage(declarations: readonly (readonly NodeHandle[])[], name: string): boolean[] {
     return this.batch(declarations.map((handles) => this.#anyFrom(handles, name)));
