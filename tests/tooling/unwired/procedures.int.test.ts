@@ -292,3 +292,45 @@ test("a judged row reports apart with its open item, and an entry for a gone row
     { ...GONE, stale: "row-gone" },
   ]);
 });
+
+// The world that holds the router can hold the debug registrar through an import and not entry/http. Each world lists
+// the routes of the registrar files it homes, so both registrars' routes are inventoried whichever world opens first.
+const SPLIT_TREE = {
+  ...HONO,
+  "packages/server/tsconfig.router.json": plantedTsconfig({ lib: LIB, include: ["src/transport"] }),
+  "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src"] }),
+  "packages/server/src/transport/trpc/router.ts": [
+    'import { registerDebug } from "../../foundation/observability/debug/routes.ts";',
+    "export const appRouter = { registerDebug };",
+  ].join("\n"),
+  "packages/server/src/foundation/observability/debug/routes.ts": [
+    'import type { Hono } from "hono";',
+    "export function registerDebug(app: Hono): void {",
+    '  app.get("/api/_debug/unread", () => null);',
+    "}",
+  ].join("\n"),
+  "packages/server/src/entry/http/routes.ts": [
+    'import type { Hono } from "hono";',
+    "export function register(app: Hono): void {",
+    '  app.get("/api/plain", () => null);',
+    "}",
+  ].join("\n"),
+};
+
+test("an entry/http route and a debug route are both inventoried when the router's world holds only the debug registrar", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const report = scanProcedures({
+    root: await plantedTree(SPLIT_TREE),
+    worlds: ["packages/server/tsconfig.router.json", "packages/server/tsconfig.json"],
+    testWorlds: [],
+    deliberate: [],
+    log: () => undefined,
+  });
+  expect(
+    report.unwired
+      .filter(({ key }) => key.startsWith("route "))
+      .map(({ key, kind }) => `${kind} ${key}`)
+      .toSorted(),
+  ).toEqual(["uncalled-route route GET /api/_debug/unread", "uncalled-route route GET /api/plain"]);
+});

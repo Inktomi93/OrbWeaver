@@ -659,9 +659,12 @@ function routeSegments(pattern: Pattern): readonly string[] | null {
   return text.startsWith("/") ? text.split("/").slice(1) : null;
 }
 
-// Every Hono route the server's HTTP registrars declare, one per path its registration can take.
-function routeInventory(world: NativeWorld): readonly RouteRecord[] {
-  const files = world.files.filter((source) => inHomes(world.siteOf(source).file, ROUTE_HOMES));
+// Every Hono route the registrar files a world homes declare, one per path its registration can take.
+function routeInventory(world: NativeWorld, home: ReadonlySet<string>): readonly RouteRecord[] {
+  const files = world.files.filter((source) => {
+    const { file } = world.siteOf(source);
+    return home.has(file) && inHomes(file, ROUTE_HOMES);
+  });
   const calls: CallExpression[] = [];
   walkFiles(files, (node) => {
     if (isCallExpression(node) && isPropertyAccessExpression(node.expression) && Object.hasOwn(HONO_VERBS, node.expression.name.text)) {
@@ -1060,7 +1063,7 @@ export function scanProcedures(options: ScanOptions): ProceduresReport {
   const ordered = configs.toSorted((a, b) => Number(holds(b, PROCEDURE_HOMES)) - Number(holds(a, PROCEDURE_HOMES)));
   const sources = new Sources(root);
   let procedures: readonly ProcedureRecord[] = [];
-  let routes: readonly RouteRecord[] = [];
+  const routes: RouteRecord[] = [];
   const tallies = new Map<string, Tally>();
   const requests = new Map<string, Request>();
   for (const config of ordered) {
@@ -1073,11 +1076,14 @@ export function scanProcedures(options: ScanOptions): ProceduresReport {
       }
       log(`procedures: ${config} declares ${String(procedures.length)} procedures`);
     }
-    if (routes.length === 0 && held.some((file) => inHomes(file, ROUTE_HOMES))) {
-      routes = routeInventory(world);
-      log(`procedures: ${config} registers ${String(routes.length)} routes`);
-    }
     const home = homes.get(config) ?? new Set<string>();
+    // Each registrar file is homed in one world, and the world that opens first can hold only some of them (the router's
+    // world holds the debug registrar through an import, never entry/http), so every world lists the routes it homes.
+    const registered = routeInventory(world, home);
+    if (registered.length > 0) {
+      routes.push(...registered);
+      log(`procedures: ${config} registers ${String(registered.length)} routes`);
+    }
     tallyProcedures(world, home, { sources, procedures, routes, tallies });
     for (const request of requestsOf(world, home, builders(world))) {
       requests.set(`${siteKey(request.site)} ${request.sink}`, request);
