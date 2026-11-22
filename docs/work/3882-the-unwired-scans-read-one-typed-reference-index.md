@@ -19,7 +19,7 @@ The scans' run time is the main wait in unwired work; one index built once, pers
 
 ## Done when
 
-A shared index module under tooling/src/unwired builds, persists and incrementally updates the typed reference index on the 7.1 API (array forms, handles not nodes, one program per 3864), the site-role reader is the one home 3858 asks for, the fields scan reads from it and its report matches the current fields report row by row with every moved row explained, the delete trial confirms delete candidates, and a rerun after a one-file edit completes in seconds; the other scans move to the index after fields.
+A shared index module under tooling/src/unwired builds the typed reference index fresh on every call (a full build in about a minute, no persistence or incremental update, so freshness needs no proof) and answers many queries in one call: dead members, transitive users and impact, and reachability from the product entry points. It runs on the 7.1 API (array forms, handles not nodes, aliases followed through getAliasedSymbol, module specifiers resolved, one program per 3864). It is taught zod (schema keys and inferred types), tRPC (router procedures to client proxy calls) and Drizzle (table columns to row members) by hand, as the existing scans are. The site-role reader is the one home 3858 asks for. The fields scan reads from it and its report matches the current fields report row by row with every moved row explained, the delete trial confirms delete candidates, and the other scans move to the index after fields.
 
 ## Evidence
 
