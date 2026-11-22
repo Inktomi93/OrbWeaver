@@ -6,7 +6,7 @@
 // neither file may import under a dependency-cruiser rule is a ruled restatement.
 import { dirname, relative } from "node:path";
 import ts from "typescript";
-import type { Flow, PortMember } from "../eslint/index.ts";
+import type { Flow, LibrarySources, PortMember } from "../eslint/index.ts";
 import {
   aliasChain,
   aliased,
@@ -17,13 +17,17 @@ import {
   flowsAt,
   foreignTypes,
   homeFileOf,
+  homeSourceOf,
   isContractFile,
   isHandTyped,
   isSplitSignature,
   jointBatchRulingOf,
+  librarySources,
   mergeForeignTypes,
   passesDbHandle,
   placementOf,
+  placementOfSource,
+  rankOfSource,
   restatementOf,
   rulingKeysOf,
   tierRank,
@@ -113,6 +117,7 @@ interface Slice {
 interface LinkContext {
   readonly root: string;
   readonly checker: ts.TypeChecker;
+  readonly sources: LibrarySources;
   /** Whether a file is one of the compiler's default library files. */
   readonly isLibrary: (source: ts.SourceFile) => boolean;
   readonly links: Links;
@@ -290,9 +295,9 @@ function linkMember({ root, checker, links }: LinkContext, member: PortMember): 
 }
 
 // `type B = A` and `type Op = NonNullable<Owner["m"]>` name one concept with two names.
-function linkAlias({ root, checker, links }: LinkContext, alias: ts.TypeAliasDeclaration): void {
+function linkAlias({ root, checker, sources, links }: LinkContext, alias: ts.TypeAliasDeclaration): void {
   const key = declarationKey(root, alias);
-  for (const member of derivedMembers(checker, alias.type)) {
+  for (const member of derivedMembers(sources, checker, alias.type)) {
     links.join(key, keyOf(root, member));
   }
   if (ts.isTypeReferenceNode(alias.type)) {
@@ -376,27 +381,25 @@ interface Collected {
   readonly slices: Map<string, Slice>;
 }
 
-function homeOf(checker: ts.TypeChecker, member: PortMember): Home {
-  const file = homeFileOf(checker, member);
-  const placement = placementOf(file);
-  return { rank: placement === null ? Number.MAX_SAFE_INTEGER : tierRank(placement), file, named: !isHandTyped(member) };
+function homeOf(sources: LibrarySources, checker: ts.TypeChecker, member: PortMember): Home {
+  return { rank: rankOfSource(sources, homeSourceOf(checker, member)), file: homeFileOf(checker, member), named: !isHandTyped(member) };
 }
 
 function collectMemberFlow(context: LinkContext, flow: Flow, into: Collected): void {
-  const { root, checker, links } = context;
-  const members = flowMembers(checker, flow);
+  const { root, checker, sources, links } = context;
+  const members = flowMembers(sources, checker, flow);
   if (members !== null) {
     links.join(linkMember(context, members.port), linkMember(context, members.owner));
     joinTypes(context, checker.getTypeAtLocation(members.port), checker.getTypeAtLocation(members.owner));
   }
-  const found = restatementOf(checker, flow);
+  const found = restatementOf(sources, checker, flow);
   if (found === null) {
     return;
   }
   const pair = { restating: keyOf(root, found.restating), owner: keyOf(root, found.owner), source: keyOf(root, found.source), relation: found.relation };
   into.pairs.set(`${pair.restating}>${pair.owner}`, pair);
-  into.homes.set(pair.restating, homeOf(checker, found.restating));
-  into.homes.set(pair.owner, homeOf(checker, found.owner));
+  into.homes.set(pair.restating, homeOf(sources, checker, found.restating));
+  into.homes.set(pair.owner, homeOf(sources, checker, found.owner));
 }
 
 // `readonly copyHandoffBooks: CopyHandoffBooksOp`: the alias and each alias it renames name the op `copyHandoffBooks`.
@@ -427,7 +430,7 @@ function collectNodeFlows(context: LinkContext, node: ts.Node, into: Collected):
 function collectFlows(root: string, program: ts.Program, source: ts.SourceFile, into: Collected): void {
   const checker = program.getTypeChecker();
   const isLibrary = (file: ts.SourceFile): boolean => program.isSourceFileDefaultLibrary(file);
-  const context: LinkContext = { root, checker, isLibrary, links: into.links, slices: into.slices };
+  const context: LinkContext = { root, checker, sources: librarySources(program, root), isLibrary, links: into.links, slices: into.slices };
   const visit = (node: ts.Node): void => {
     if ((ts.isPropertySignature(node) || ts.isMethodSignature(node)) && isHandTyped(node) && conceptOf(node)?.sweep === true) {
       into.concepts.add(keyOf(root, node));
@@ -497,10 +500,13 @@ function holderOf(member: ts.Declaration): Declared | null {
 }
 
 // A read of a member another domain declares, keyed by the reading domain and the declaring shape.
-function recordRead(root: string, domain: string, symbol: ts.Symbol, into: Collected): void {
+// One world's program as the census reads it.
+type CensusWorld = Pick<LinkContext, "root" | "checker" | "sources">;
+
+function recordRead({ root, sources }: CensusWorld, domain: string, symbol: ts.Symbol, into: Collected): void {
   for (const declaration of symbol.declarations ?? []) {
     const holder = holderOf(declaration);
-    const owner = holder === null ? null : (placementOf(holder.getSourceFile().fileName)?.domain ?? null);
+    const owner = holder === null ? null : (placementOfSource(sources, holder.getSourceFile())?.domain ?? null);
     if (holder !== null && owner !== null && owner !== domain) {
       const key = `${domain}|${declarationKey(root, holder)}`;
       into.reads.set(key, (into.reads.get(key) ?? new Set()).add(symbol.name));
@@ -508,14 +514,14 @@ function recordRead(root: string, domain: string, symbol: ts.Symbol, into: Colle
   }
 }
 
-function collectReads(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
-  const domain = placementOf(source.fileName)?.domain ?? null;
+function collectReads(world: CensusWorld, source: ts.SourceFile, into: Collected): void {
+  const domain = placementOfSource(world.sources, source)?.domain ?? null;
   if (domain === null) {
     return;
   }
   const visit = (node: ts.Node): void => {
-    for (const symbol of readMembers(checker, node)) {
-      recordRead(root, domain, symbol, into);
+    for (const symbol of readMembers(world.checker, node)) {
+      recordRead(world, domain, symbol, into);
     }
     ts.forEachChild(node, visit);
   };
@@ -535,9 +541,9 @@ function importedNames(statement: ts.ImportDeclaration | ts.ExportDeclaration): 
   return ts.isNamedImports(bindings) ? bindings.elements.map((element) => (element.propertyName ?? element.name).getText()) : ["*"];
 }
 
-function moduleTarget(checker: ts.TypeChecker, specifier: ts.StringLiteral): { readonly module: ts.Symbol; readonly file: string } | null {
+function moduleTarget(checker: ts.TypeChecker, specifier: ts.StringLiteral): { readonly module: ts.Symbol; readonly file: ts.SourceFile } | null {
   const module = checker.getSymbolAtLocation(specifier);
-  const file = module?.valueDeclaration?.getSourceFile().fileName ?? module?.declarations?.[0]?.getSourceFile().fileName;
+  const file = module?.valueDeclaration?.getSourceFile() ?? module?.declarations?.[0]?.getSourceFile();
   return module === undefined || file === undefined ? null : { module, file };
 }
 
@@ -548,7 +554,7 @@ const D117_DOOR = { domain: "workloads", names: new Set(["WorkloadContribution"]
 
 // The other domain a statement imports from, or null for a same-domain or non-domain module.
 function crossDomainTarget(
-  checker: ts.TypeChecker,
+  { checker, sources }: CensusWorld,
   statement: ts.Statement,
   domain: string,
 ): { readonly statement: ModuleStatement; readonly module: ts.Symbol; readonly domain: string } | null {
@@ -557,7 +563,7 @@ function crossDomainTarget(
   }
   const specifier = statement.moduleSpecifier;
   const target = specifier !== undefined && ts.isStringLiteral(specifier) ? moduleTarget(checker, specifier) : null;
-  const targetDomain = target === null ? null : (placementOf(target.file)?.domain ?? null);
+  const targetDomain = target === null ? null : (placementOfSource(sources, target.file)?.domain ?? null);
   return target === null || targetDomain === null || targetDomain === domain ? null : { statement, module: target.module, domain: targetDomain };
 }
 
@@ -574,6 +580,7 @@ function isService(declaration: ts.Declaration): declaration is Declared {
 
 interface ImportSite {
   readonly root: string;
+  readonly sources: LibrarySources;
   readonly file: string;
   readonly line: number;
   readonly specifier: string;
@@ -601,7 +608,7 @@ function serviceTargets(checker: ts.TypeChecker, site: ImportSite, service: Decl
     if (member === undefined) {
       return [];
     }
-    const foreign = foreignTypes(checker, member);
+    const foreign = foreignTypes(site.sources, checker, member);
     const isOp = (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && isHandTyped(member);
     const keys = { names: memberRulingKeys(checker, `${name}.${op}`, member), domains: [site.domain, site.from] };
     // A field whose type contracts already holds moves nothing: the consumer declares the slice it reads.
@@ -642,7 +649,7 @@ interface ImportedData {
 
 // A data shape another domain declares: it moves to contracts whole, or splits around its runtime types.
 function dataTarget(checker: ts.TypeChecker, site: ImportSite, { name, declarations, keys }: ImportedData): PlannedTarget {
-  const foreign = mergeForeignTypes(declarations.map((declaration) => foreignTypes(checker, declaration)));
+  const foreign = mergeForeignTypes(declarations.map((declaration) => foreignTypes(site.sources, checker, declaration)));
   const kind = crossDomainKind(foreign, keys);
   const ownerAt = declarations.map((declaration) => `${relative(site.root, declaration.getSourceFile().fileName)}:${lineOf(declaration)}`).join(", ");
   const note = [`domain ${site.domain} takes ${name} from domain ${site.from}`, crossDomainNote(kind, foreign, keys)].filter((part) => part !== "").join("; ");
@@ -667,19 +674,20 @@ function nameTargets(checker: ts.TypeChecker, site: ImportSite, name: string, { 
   return [dataTarget(checker, site, { name, declarations, keys })];
 }
 
-function collectCrossImports(root: string, checker: ts.TypeChecker, source: ts.SourceFile, into: Collected): void {
-  const domain = placementOf(source.fileName)?.domain ?? null;
+function collectCrossImports(world: CensusWorld, source: ts.SourceFile, into: Collected): void {
+  const { root, checker, sources } = world;
+  const domain = placementOfSource(sources, source)?.domain ?? null;
   if (domain === null) {
     return;
   }
   const file = relative(root, source.fileName);
   for (const candidate of source.statements) {
-    const cross = crossDomainTarget(checker, candidate, domain);
+    const cross = crossDomainTarget(world, candidate, domain);
     if (cross === null) {
       continue;
     }
     const specifier = cross.statement.moduleSpecifier?.getText().slice(1, -1) ?? "";
-    const site: ImportSite = { root, file, line: lineOf(cross.statement), specifier, domain, from: cross.domain, module: cross.module };
+    const site: ImportSite = { root, sources, file, line: lineOf(cross.statement), specifier, domain, from: cross.domain, module: cross.module };
     for (const target of importedNames(cross.statement).flatMap((name) => nameTargets(checker, site, name, into))) {
       into.crossImports.set(`${file}:${target.line}:${target.port}`, target);
     }
@@ -964,15 +972,15 @@ export function portCensus(root: string, log: (line: string) => void, distinct: 
   for (const config of packageWorlds(root)) {
     const before = collected.pairs.size;
     const program = createWorldProgram(root, config);
-    const checker = program.getTypeChecker();
+    const world: CensusWorld = { root, checker: program.getTypeChecker(), sources: librarySources(program, root) };
     const sources = program.getSourceFiles().filter((file) => !file.isDeclarationFile && isProduction(relative(root, file.fileName)));
     for (const source of sources) {
       collectFlows(root, program, source, collected);
-      collectReads(root, checker, source, collected);
+      collectReads(world, source, collected);
     }
     // Reads first: a service import is planned against every op its domain reads, across all of that domain's files.
     for (const source of sources) {
-      collectCrossImports(root, checker, source, collected);
+      collectCrossImports(world, source, collected);
     }
     for (const entry of forgottenDoorExports({ program, root })) {
       collected.forgotten.set(`${entry.file}:${entry.line}`, entry);
@@ -996,6 +1004,7 @@ export function portCensus(root: string, log: (line: string) => void, distinct: 
     const context: PlanContext = {
       world: { program, root },
       checker: program.getTypeChecker(),
+      sources: librarySources(program, root),
       nodes: indexMembers(root, program),
       chains,
       pairs,

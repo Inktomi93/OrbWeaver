@@ -133,6 +133,7 @@ export {
 } from "./css/custom-properties.ts";
 export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
+export { type LibrarySources, librarySources } from "./library-source.ts";
 export { baseUiDoors } from "./motion.ts";
 export { literalKeys } from "./optional-alternatives.ts";
 export {
@@ -154,13 +155,16 @@ export {
   flowMembers,
   flowsAt,
   homeFileOf,
+  homeSourceOf,
   isContractFile,
   isHandTyped,
   memberLabel,
   type PortMember,
   placementOf,
+  placementOfSource,
   RELATION,
   type Restatement,
+  rankOfSource,
   restatementOf,
   restatementsAt,
   rootAlias,
