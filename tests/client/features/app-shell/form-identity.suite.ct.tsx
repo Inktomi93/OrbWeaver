@@ -1,5 +1,6 @@
 // Form identity (UI-Primitives-and-Reuse §13.10): every native form field of every registered section, modal and settings
 // group carries an `id` or `name` and an associated label. The rosters are the production tuples, never a list here.
+import { HTML_TRUST_STEP_LABELS } from "@orb/client/lib";
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { presetIdInputSchema } from "@orb/contracts/preset";
 import { auditSurface, formatFormIdentityFindings } from "@orb/testkit/browser/spec";
@@ -34,7 +35,7 @@ test("every @orb/ui field primitive emits an id or name without a caller", async
     name: "mounted field primitives",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("textbox", { name: "Plain text", exact: true }), page.getByRole("checkbox", { name: "Agree", exact: true })],
+    witnesses: [page.getByRole("textbox", { name: HTML_TRUST_STEP_LABELS.untrusted, exact: true }), page.getByRole("checkbox", { name: "Agree", exact: true })],
     checks: ["forms"],
     requireBothFormKeys: true,
   });
@@ -47,7 +48,7 @@ test("every @orb/ui field primitive inside a Field emits an id and a name", asyn
     name: "mounted field primitives",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("textbox", { name: "Plain text", exact: true }), page.getByRole("checkbox", { name: "Agree", exact: true })],
+    witnesses: [page.getByRole("textbox", { name: HTML_TRUST_STEP_LABELS.untrusted, exact: true }), page.getByRole("checkbox", { name: "Agree", exact: true })],
     checks: ["forms"],
     requireBothFormKeys: true,
   });

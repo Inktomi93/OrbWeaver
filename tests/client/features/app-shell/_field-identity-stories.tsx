@@ -1,3 +1,4 @@
+import { HTML_TRUST_STEP_LABELS } from "@orb/client/lib";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Autocomplete } from "@orb/ui/autocomplete";
 import { Checkbox } from "@orb/ui/checkbox";
@@ -22,7 +23,7 @@ const NO_SUGGESTIONS: never[] = [];
 export function BareFieldPrimitivesStory(): ReactElement {
   return (
     <CtIsolation subject="Form-field primitives" isolates="isolates each field primitive from the Field wrapper so its own id and name are judged">
-      <Input aria-label="Plain text" />
+      <Input aria-label={HTML_TRUST_STEP_LABELS.untrusted} />
       <Textarea aria-label="Long text" />
       <NumberField aria-label="Count" defaultValue={3} />
       <Checkbox aria-label="Agree" />
@@ -51,7 +52,7 @@ export function FieldWrappedPrimitivesStory(): ReactElement {
       subject="Field-wrapped form-field primitives"
       isolates="isolates each field primitive inside a Field so the Field-owned id and name are judged"
     >
-      <Field label="Plain text">
+      <Field label={HTML_TRUST_STEP_LABELS.untrusted}>
         <Input />
       </Field>
       <Field label="Long text">
