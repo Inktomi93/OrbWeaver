@@ -11,6 +11,7 @@ export { Sources } from "./classify.ts";
 export { scanCodes } from "./codes.ts";
 export { scanColumns } from "./columns.ts";
 export { scanFields } from "./fields.ts";
+export type { JudgedEntry } from "./judged.ts";
 export { serviceReferences } from "./language-service.ts";
 export { constituents, hasFlag, homeFiles, NativeWorld, propertiesNamed } from "./native.ts";
 export { joinOptionalConstructions, optionalConstructionFacts } from "./optional-constructions.ts";

@@ -27,6 +27,8 @@ import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
+import { sortJudged } from "./judged.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
 import type { WorldFiles } from "./native.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
@@ -102,6 +104,10 @@ export interface UnionsReport {
   /** Members only outside input produces, each with the sites that parse the input in. Reported, never judged dead. */
   readonly parsed: readonly ParsedUnionMember[];
   readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredUnionMember>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredUnionMember>["staleJudged"];
   /** Members engine one found unbuilt that engine two finds built, or whose tuple engine two finds enumerated. */
   readonly disagreements: readonly string[];
   readonly limits: readonly string[];
@@ -828,7 +834,11 @@ export function scanUnions(options: ScanOptions): UnionsReport {
     enumerated,
     keyLists,
     subsets: Object.fromEntries([...subsets].sort(([a], [b]) => a.localeCompare(b))),
-    unwired: unwired.filter(({ kind }) => kind === "unbuilt"),
+    // Only an unbuilt member is a row to judge; a parsed one reports apart, so a judged entry never hides it.
+    ...sortJudged(
+      unwired.filter(({ kind }) => kind === "unbuilt"),
+      options,
+    ),
     parsed: unwired.flatMap((row) => (row.kind === "parsed" ? [{ ...row, sources: parsedSources.get(row.key) ?? [] }] : [])),
     deliberate,
     disagreements,

@@ -6,7 +6,7 @@ import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { DeliberateEntry } from "../../../tooling/src/unwired/deliberate.ts";
 import type { DistinctRegistry } from "../../../tooling/src/unwired/distinct-lookalikes.ts";
 import { scanShapes } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
@@ -237,4 +237,12 @@ test("true findings and bare look-alikes keep reporting", { timeout: 120_000 }, 
   });
   const found = scanned(root, { worlds: ["packages/b/tsconfig.json"] });
   expect(found.unwired).toEqual(["reexport-chain GALLERY_KIND~GALLERY_KIND", "restated HiddenRun~Span", "restated SendRegexSink~SendRegexSink"]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = { root: await plantedTree({ ...TREE, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
+  const judged = plantJudged(scanShapes(options), "Person.User", "Alias.User");
+  expect(judgedOutcome(scanShapes({ ...options, judged }), "Person.User", "Alias.User")).toEqual(judgedExpected("Person.User", "Alias.User"));
 });

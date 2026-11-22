@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { runUnwired, scanColumns, scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
 type Report = ReturnType<typeof scanColumns>;
 
@@ -252,4 +252,18 @@ test("a column only raw SQL writes lists as deliberate, and its twin stays repor
     "ownerId never-written",
     "pluginId never-written",
   ]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = {
+    root: await plantedTree({ ...WHOLE_SELECT, ...JUDGED_WORK }),
+    worlds: [ROOT_WORLD],
+    testWorlds: [],
+    deliberate: [],
+    log: (): undefined => undefined,
+  };
+  const judged = plantJudged(scanColumns(options), "cards.blurb", "notes.body");
+  expect(judgedOutcome(scanColumns({ ...options, judged }), "cards.blurb", "notes.body")).toEqual(judgedExpected("cards.blurb", "notes.body"));
 });

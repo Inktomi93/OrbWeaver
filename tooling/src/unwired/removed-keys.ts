@@ -15,7 +15,6 @@ import {
   isIdentifier,
   isInterfaceDeclaration,
   isNonNullExpression,
-  isNoSubstitutionTemplateLiteral,
   isObjectLiteralExpression,
   isParenthesizedExpression,
   isPropertyAccessExpression,
@@ -23,12 +22,10 @@ import {
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
-  isStringLiteral,
-  isTemplateExpression,
   isTypeAliasDeclaration,
   isVariableDeclaration,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import ts from "typescript";
 import { execGit } from "../floor/git/git.ts";
@@ -39,6 +36,7 @@ import { resolveKeys } from "./key-resolver.ts";
 import { gitGrep } from "./literal-hits.ts";
 import type { PropertyName } from "./native.ts";
 import { constituents, declarationKeys, declaredBy, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
+import { patternText, platformCall } from "./procedures.ts";
 import { packageWorlds } from "./worlds.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
@@ -79,7 +77,6 @@ const TRPC_SENDS: ReadonlySet<string> = new Set([
 const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
 const MUTATION_OPTIONS = "mutationOptions";
 const QUERY_PACKAGE = "/node_modules/@tanstack/";
-const FETCH = "fetch";
 const SERIALIZE = "JSON.stringify";
 const OWN_ROUTE = /^\//u;
 const OUTSIDE_WORLDS = "outside every world";
@@ -335,32 +332,15 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
   return declaredBy(built, TRPC_PACKAGE) ? procedureOf(options.expression) : null;
 }
 
-// The text a URL argument starts with: a literal's text or a template's head, through a constant whose type is one
-// string literal, as a route table's entry is.
-function* urlPrefix(checker: Checker, url: Expression): APIRequestGenerator<string | null> {
-  if (isStringLiteral(url) || isNoSubstitutionTemplateLiteral(url)) {
-    return url.text;
-  }
-  const lead = isTemplateExpression(url) ? url.templateSpans[0]?.expression : url;
-  if (isTemplateExpression(url) && url.head.text !== "") {
-    return url.head.text;
-  }
-  const type = lead === undefined ? undefined : yield* checker.getTypeAtLocation.gen(lead);
-  return type?.isStringLiteralType() === true ? type.value : null;
-}
-
-// A body `fetch` sends to a path on our own origin, which our routes receive; a URL of any other origin leaves the repo.
+// A body a platform request sends to a path on our own origin, which our routes receive; a URL of any other origin, or
+// one whose start the fold cannot read, leaves the repo. The URL folds through the procedures scan's reader.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
-  const [url] = call.arguments;
-  if (!(isIdentifier(call.expression) && call.expression.text === FETCH && url !== undefined && call.arguments.indexOf(argument as Expression) > 0)) {
+  const request = yield* platformCall(world, call);
+  if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {
     return null;
   }
-  const global = yield* world.checker.getSymbolAtLocation.gen(call.expression);
-  if (global === undefined || global.declarations.some((handle) => world.fileOf(handle) !== null)) {
-    return null;
-  }
-  const path = yield* urlPrefix(world.checker, url);
-  return path !== null && OWN_ROUTE.test(path) ? `http ${path}` : null;
+  const paths = request.patterns.map(patternText);
+  return paths.length > 0 && paths.every((path) => path !== null && OWN_ROUTE.test(path)) ? `http ${paths.join(" | ")}` : null;
 }
 
 // The procedure or own route a call hands its argument to, with the callee resolved.
@@ -369,7 +349,9 @@ function* destinationOf(world: NativeWorld, end: CallEnd | null): APIRequestGene
     return null;
   }
   const callee = end.call.expression;
-  return isPropertyAccessExpression(callee) ? yield* procedureCall(world, callee) : yield* routeCall(world, end);
+  // A property callee is a procedure verb, or a platform request reached through its owner, as `window.fetch` is.
+  const procedure = isPropertyAccessExpression(callee) ? yield* procedureCall(world, callee) : null;
+  return procedure ?? (yield* routeCall(world, end));
 }
 
 // The value a loose key is a key of: its object literal, or the receiver of an element or property write.

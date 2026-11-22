@@ -18,6 +18,8 @@ import type { Site } from "./classify.ts";
 import { nameAt } from "./classify.ts";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
+import type { JudgedSplit } from "./judged.ts";
+import { sortJudged } from "./judged.ts";
 import { ServiceWorld } from "./language-service.ts";
 import { declarationKeys, hasFlag, NativeWorld } from "./native.ts";
 import type { DeliberateSide, ScanOptions } from "./scan.ts";
@@ -50,6 +52,10 @@ export interface ShapesReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredShape[];
   readonly deliberate: readonly (UnwiredShape & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredShape>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredShape>["staleJudged"];
   /** Restated pairs `tooling/src/unwired/distinct-lookalikes.ts` judges two concepts: no review work. */
   readonly distinct: readonly UnwiredShape[];
   /** Findings engine one made that engine two's checker does not reproduce. */
@@ -429,7 +435,7 @@ function bucket(
   options: ScanOptions,
   sides: ReadonlyMap<string, readonly [DeliberateSide, DeliberateSide]>,
   registry: DistinctRegistry,
-): Pick<ShapesReport, "unwired" | "deliberate" | "distinct"> {
+): Pick<ShapesReport, "unwired" | "judged" | "staleJudged" | "deliberate" | "distinct"> {
   const sorted = sortDeliberate(findings, options.deliberate, (finding) => sides.get(finding.key) ?? [finding]);
   const deliberate = [...sorted.deliberate];
   const unwired: UnwiredShape[] = [];
@@ -444,7 +450,7 @@ function bucket(
       unwired.push(finding);
     }
   }
-  return { unwired, deliberate, distinct };
+  return { ...sortJudged(unwired, options), deliberate, distinct };
 }
 
 /** Run both engines over the package worlds of `root` for second homes, synonyms and re-export chains; a test passes

@@ -211,6 +211,15 @@ const SENDS = {
     // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template literal URL.
     "  await fetch(`${ROUTES.upload}/part`, { method: 'POST', body: JSON.stringify(part) });",
     "}",
+    // A window member, a concatenated path and a choice of two routes are one fold's cases, each read to its paths.
+    "export async function more(id: string, draft: boolean): Promise<void> {",
+    "  const named: Record<string, unknown> = {};",
+    '  named["guidedPick"] = "g";',
+    "  await window.fetch('/api/chat/' + id, { method: 'POST', body: JSON.stringify(named) });",
+    "  const chosen: Record<string, unknown> = {};",
+    '  chosen["guidedPick"] = "g";',
+    "  await fetch(draft ? '/api/draft' : SEND_ROUTE, { method: 'POST', body: JSON.stringify(chosen) });",
+    "}",
   ].join("\n"),
   "packages/client/src/query.ts": [
     'import { trpc } from "./trpc.ts";',
@@ -248,8 +257,10 @@ test("a loose body reaches our server through a route constant, a query's option
   expect(guidedPick?.loose.map(({ at, destination }) => `${at} ${destination}`).toSorted()).toEqual([
     "packages/client/src/mutation.ts:6 trpc chat.edit",
     "packages/client/src/query.ts:4 trpc chat.list",
+    "packages/client/src/route.ts:13 http /api/chat/:*",
+    "packages/client/src/route.ts:16 http /api/draft | /api/chat/send",
     "packages/client/src/route.ts:5 http /api/chat/send",
-    "packages/client/src/route.ts:8 http /api/upload",
+    "packages/client/src/route.ts:8 http /api/upload/part",
   ]);
   expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`).toSorted()).toEqual([
     `packages/client/src/loose.ts:3 ${NO_DESTINATION}`,

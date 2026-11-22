@@ -2,7 +2,7 @@
 // never writes, and one it never names. Each read and write form the scan must see has a wired control beside it.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD, ZOD_STUB } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD, ZOD_STUB } from "./_planted.ts";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
@@ -247,4 +247,18 @@ test("a wire field the client reads through @orb/server counts as read", { timeo
   });
   expect(report.unwired.map(({ home, member, kind }) => ({ field: `${home}.${member}`, kind }))).toEqual([{ field: "View.shownNowhere", kind: "never-read" }]);
   expect(report.disagreements).toEqual([]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = {
+    root: await plantedTree({ ...TREE, ...JUDGED_WORK }),
+    worlds: [WORLD],
+    testWorlds: ["tsconfig.json"],
+    deliberate: [],
+    log: (): undefined => undefined,
+  };
+  const judged = plantJudged(scanFields(options), "Row.ghost", "Row.dead");
+  expect(judgedOutcome(scanFields({ ...options, judged }), "Row.ghost", "Row.dead")).toEqual(judgedExpected("Row.ghost", "Row.dead"));
 });

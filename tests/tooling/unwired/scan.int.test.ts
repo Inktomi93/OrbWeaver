@@ -4,7 +4,7 @@
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { NativeWorld, Sources, scanUnwired, scanWorld, serviceReferences } from "../../../tooling/src/unwired/index.ts";
-import { LIB } from "./_planted.ts";
+import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
 
 const TREE = {
   "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
@@ -249,4 +249,20 @@ test("engine two asks a site only in worlds that add a file spelling its name, a
     "narrow/src/spelled.ts",
     "wide/src/spelled.ts",
   ]);
+});
+
+// A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
+// reports is stale, and the done item's row reports as unwired again.
+test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const options = {
+    root: await plantedTree({ ...TREE, ...JUDGED_WORK }),
+    worlds: WORLDS,
+    testWorlds: ["tsconfig.json"],
+    deliberate: [],
+    log: (): undefined => undefined,
+  };
+  const judged = plantJudged(scanUnwired(options), "Copy.unusedLine", "Clock.implementedOnly");
+  expect(judgedOutcome(scanUnwired({ ...options, judged }), "Copy.unusedLine", "Clock.implementedOnly")).toEqual(
+    judgedExpected("Copy.unusedLine", "Clock.implementedOnly"),
+  );
 });

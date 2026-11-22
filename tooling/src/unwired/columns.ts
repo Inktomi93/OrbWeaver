@@ -12,11 +12,12 @@ import { isProductionFile, Sources, siteKey } from "./classify.ts";
 import { DB_SCHEMA, schemaTables } from "./drizzle-rows.ts";
 import type { Roles } from "./fields.ts";
 import { rolesOf } from "./fields.ts";
+import type { JudgedSplit } from "./judged.ts";
 import { declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, PropertyReferences } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sitesOf, sortRows } from "./scan.ts";
 
 const COLUMN_KINDS = ["never-read", "never-written", "unreferenced"] as const;
 /** `never-read`: production writes it and never reads it. `never-written`: production reads it and never writes it, so
@@ -49,6 +50,10 @@ export interface ColumnsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredColumn[];
   readonly deliberate: readonly (UnwiredColumn & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<UnwiredColumn>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<UnwiredColumn>["staleJudged"];
   /** Engine one alone judges columns, so no audit disagrees. */
   readonly disagreements: readonly never[];
   /** Every column with its counts, reported or not. */
@@ -150,7 +155,7 @@ export function scanColumns(options: ScanOptions): ColumnsReport {
   );
   return {
     scanned: columns.size,
-    ...sortDeliberate(findings, options.deliberate),
+    ...sortRows(findings, options),
     disagreements: [],
     columns: counts,
     unresolved,

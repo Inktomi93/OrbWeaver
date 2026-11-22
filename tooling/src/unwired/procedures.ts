@@ -4,7 +4,7 @@
 // homomorphic mapped types the checker's symbol is the router record's own property. A procedure only tests call is
 // `test-only`, as in the member scan.
 //
-// A route is a Hono verb registration under `packages/server/src/entry/http/`. Its path and each caller's URL fold through
+// A route is a Hono verb registration under `packages/server/src/entry/http/` or the debug registrar's directory. Its path and each caller's URL fold through
 // the checker to segment patterns: literals, templates, constants, unions of literal types and in-tree URL builders. A
 // caller is a request the platform sends: `fetch`, a navigation, a beacon, an event stream, or a URL attribute the
 // platform declares. A call to an in-tree function that returns one of our URLs also counts as a caller of that route.
@@ -60,17 +60,20 @@ import { all, SymbolFlags } from "@typescript/native/sync";
 import { TRPC_PACKAGE } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { classifyReference, isProductionFile, Sources, siteKey } from "./classify.ts";
+import type { JudgedSplit } from "./judged.ts";
 import { resolveKeys } from "./key-resolver.ts";
 import { declarationKeys, declaredBy, hasFlag, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
-import { scanWorlds, sortDeliberate } from "./scan.ts";
+import { scanWorlds, sortRows } from "./scan.ts";
 
 // --- What the scan reads ------------------------------------------------------------------------------------------
 
 /** The router files: the root router and every domain router under it. */
 const PROCEDURE_HOMES = ["packages/server/src/transport/trpc/router.ts", "packages/server/src/transport/trpc/routers/"] as const;
 /** The registrars of the server's own HTTP routes. */
-const ROUTE_HOME = "packages/server/src/entry/http/";
+// The debug registrar is a route home too: its surface is dev-only behind the debug gate, so its callers are tooling and
+// tests, and a debug route nothing calls is surface nobody watches.
+const ROUTE_HOMES = ["packages/server/src/entry/http/", "packages/server/src/foundation/observability/debug/"] as const;
 
 const inHomes = (file: string, homes: readonly string[]): boolean => homes.some((home) => (home.endsWith("/") ? file.startsWith(home) : file === home));
 
@@ -103,26 +106,27 @@ const HONO_VERBS: Readonly<Record<string, RouteMethod | null>> = {
   on: null,
 };
 
-/** A platform request API: which argument holds the URL, and the method it sends, or the argument whose
- *  `RequestInit.method` names it. */
+/** A platform request API: which argument holds the URL, the method it sends, or the argument whose
+ *  `RequestInit.method` names it, and the argument that carries a body, when it sends one. */
 interface RequestCall {
   readonly url: number;
   readonly method: RouteMethod | { readonly init: number };
+  readonly body: number | null;
 }
 // Keyed by the lib's symbol: `Owner.member` for a member, a global function or constructor's own name otherwise.
 const REQUEST_CALLS: Readonly<Record<string, RequestCall>> = {
-  fetch: { url: 0, method: { init: 1 } },
+  fetch: { url: 0, method: { init: 1 }, body: 1 },
   // biome-ignore lint/style/useNamingConvention: the key is the lib's own `Request` constructor.
-  Request: { url: 0, method: { init: 1 } },
+  Request: { url: 0, method: { init: 1 }, body: 1 },
   // biome-ignore lint/style/useNamingConvention: the key is the lib's own `EventSource` constructor.
-  EventSource: { url: 0, method: "GET" },
+  EventSource: { url: 0, method: "GET", body: null },
   // biome-ignore lint/style/useNamingConvention: the key is the lib's own `WebSocket` constructor.
-  WebSocket: { url: 0, method: "GET" },
-  open: { url: 0, method: "GET" },
-  "Window.open": { url: 0, method: "GET" },
-  "Location.assign": { url: 0, method: "GET" },
-  "Location.replace": { url: 0, method: "GET" },
-  "Navigator.sendBeacon": { url: 0, method: "POST" },
+  WebSocket: { url: 0, method: "GET", body: null },
+  open: { url: 0, method: "GET", body: null },
+  "Window.open": { url: 0, method: "GET", body: null },
+  "Location.assign": { url: 0, method: "GET", body: null },
+  "Location.replace": { url: 0, method: "GET", body: null },
+  "Navigator.sendBeacon": { url: 0, method: "POST", body: 1 },
 };
 const REQUEST_NAMES: ReadonlySet<string> = new Set(Object.keys(REQUEST_CALLS).map((key) => key.slice(key.lastIndexOf(".") + 1)));
 // RequestInit's method member, read from an init the platform's own request call types.
@@ -174,7 +178,7 @@ const PROCEDURE_LIMITS: readonly string[] = [
   "A URL part the checker gives no literal type is one wildcard segment; a caller whose URL starts with a wildcard is unplaced and listed, never matched.",
   "A URL builder's method is unknown, so its call matches every method of the routes its URL fits.",
   "A request the e2e suite sends through Playwright's request API, and any request a script or the browser sends unprompted, is not seen.",
-  "Routes registered outside packages/server/src/entry/http/ (the tRPC mount, the debug routes) are outside this scan.",
+  "Routes registered outside packages/server/src/entry/http/ and the debug registrar under packages/server/src/foundation/observability/debug/ (the tRPC mount) are outside this scan.",
 ];
 
 // --- Findings ---------------------------------------------------------------------------------------------------
@@ -184,6 +188,8 @@ const SURFACE_KINDS = ["uncalled-procedure", "test-only-procedure", "uncalled-ro
 type SurfaceKind = (typeof SURFACE_KINDS)[number];
 
 interface SurfaceFinding {
+  /** The outside-caller table's key for the procedure or route, which the judged list names it by. */
+  readonly key: string;
   readonly kind: SurfaceKind;
   readonly file: string;
   readonly line: number;
@@ -216,6 +222,10 @@ export interface ProceduresReport {
   readonly routes: number;
   readonly unwired: readonly SurfaceFinding[];
   readonly deliberate: readonly (SurfaceFinding & { readonly reason: string })[];
+  /** Rows a board item owns, with the item. */
+  readonly judged: JudgedSplit<SurfaceFinding>["judged"];
+  /** Judged entries whose row no longer reports or whose item is no longer open. */
+  readonly staleJudged: JudgedSplit<SurfaceFinding>["staleJudged"];
   /** Engine two has no reading of procedures or routes, so nothing can disagree. */
   readonly disagreements: readonly string[];
   readonly outside: readonly OutsideRow[];
@@ -452,6 +462,12 @@ function merged(pattern: Pattern): Pattern {
   return out;
 }
 
+/** A folded path as text, each part the fold cannot read as `:*`; `null` when its start is unknown. */
+export function patternText(pattern: Pattern): string | null {
+  const parts = merged(pattern);
+  return typeof parts[0] === "string" ? parts.map((part) => part ?? ":*").join("") : null;
+}
+
 // A URL pattern up to its query or fragment.
 function withoutQuery(pattern: Pattern): Pattern {
   const cut: (string | null)[] = [];
@@ -643,9 +659,12 @@ function routeSegments(pattern: Pattern): readonly string[] | null {
   return text.startsWith("/") ? text.split("/").slice(1) : null;
 }
 
-// Every Hono route the server's HTTP registrars declare, one per path its registration can take.
-function routeInventory(world: NativeWorld): readonly RouteRecord[] {
-  const files = world.files.filter((source) => world.siteOf(source).file.startsWith(ROUTE_HOME));
+// Every Hono route the registrar files a world homes declare, one per path its registration can take.
+function routeInventory(world: NativeWorld, home: ReadonlySet<string>): readonly RouteRecord[] {
+  const files = world.files.filter((source) => {
+    const { file } = world.siteOf(source);
+    return home.has(file) && inHomes(file, ROUTE_HOMES);
+  });
   const calls: CallExpression[] = [];
   walkFiles(files, (node) => {
     if (isCallExpression(node) && isPropertyAccessExpression(node.expression) && Object.hasOwn(HONO_VERBS, node.expression.name.text)) {
@@ -779,12 +798,13 @@ function tallyProcedures(world: NativeWorld, home: ReadonlySet<string>, { source
 
 // --- Route callers -----------------------------------------------------------------------------------------------
 
-/** One request the tree sends: where, the method, and the paths its URL can be. */
+/** One request the tree sends: where, the method, the paths its URL can be, and the argument that carries its body. */
 interface Request {
   readonly site: Site;
   readonly sink: string;
   readonly method: RouteMethod;
   readonly patterns: readonly Pattern[];
+  readonly body: number | null;
 }
 
 // A script file's top level, directly or through a `declare var` statement, is the global scope.
@@ -864,7 +884,8 @@ function* initMethod(world: NativeWorld, init: Expression | undefined): APIReque
   return patterns.length === 1 && only !== undefined && !only.includes(null) ? asMethod(only.join("")) : ANY_METHOD;
 }
 
-function* platformCall(world: NativeWorld, call: CallExpression | NewExpression): APIRequestGenerator<Request | null> {
+/** The request a platform call sends, its URL folded to the paths it can be; `null` for any other call. */
+export function* platformCall(world: NativeWorld, call: CallExpression | NewExpression): APIRequestGenerator<Request | null> {
   const callee = unwrap(call.expression);
   const name = nameOf(callee);
   if (name === null) {
@@ -878,7 +899,7 @@ function* platformCall(world: NativeWorld, call: CallExpression | NewExpression)
     return null;
   }
   const method = typeof shape.method === "string" ? shape.method : yield* initMethod(world, args[shape.method.init]);
-  return { site: world.siteOf(call), sink: key, method, patterns: yield* fold(world, url, 0) };
+  return { site: world.siteOf(call), sink: key, method, patterns: yield* fold(world, url, 0), body: shape.body };
 }
 
 // A write of a URL member the platform declares: an assignment, a JSX attribute or an object literal key.
@@ -887,7 +908,7 @@ function* memberWrite(world: NativeWorld, name: Identifier, value: Expression, r
   if (resolved.length === 0 || !resolved.every((member) => outsideTree(world, member))) {
     return null;
   }
-  return { site: world.siteOf(name), sink: text, method: URL_MEMBERS[text] ?? ANY_METHOD, patterns: yield* fold(world, value, 0) };
+  return { site: world.siteOf(name), sink: text, method: URL_MEMBERS[text] ?? ANY_METHOD, patterns: yield* fold(world, value, 0), body: null };
 }
 
 /** An in-tree function whose return is one of our URLs, by its declaration key, with the paths it returns. */
@@ -991,7 +1012,7 @@ function requestsOf(world: NativeWorld, home: ReadonlySet<string>, built: Readon
         : declarationKeys(symbol)
             .map((key) => built.get(key))
             .find((found) => found !== undefined);
-    return builder === undefined ? [] : [{ site: world.siteOf(call), sink: "builder", method: ANY_METHOD, patterns: builder.patterns }];
+    return builder === undefined ? [] : [{ site: world.siteOf(call), sink: "builder", method: ANY_METHOD, patterns: builder.patterns, body: null }];
   });
   return [...requests.flatMap((request) => (request === null ? [] : [request])), ...viaBuilders];
 }
@@ -1042,7 +1063,7 @@ export function scanProcedures(options: ScanOptions): ProceduresReport {
   const ordered = configs.toSorted((a, b) => Number(holds(b, PROCEDURE_HOMES)) - Number(holds(a, PROCEDURE_HOMES)));
   const sources = new Sources(root);
   let procedures: readonly ProcedureRecord[] = [];
-  let routes: readonly RouteRecord[] = [];
+  const routes: RouteRecord[] = [];
   const tallies = new Map<string, Tally>();
   const requests = new Map<string, Request>();
   for (const config of ordered) {
@@ -1055,11 +1076,14 @@ export function scanProcedures(options: ScanOptions): ProceduresReport {
       }
       log(`procedures: ${config} declares ${String(procedures.length)} procedures`);
     }
-    if (routes.length === 0 && held.some((file) => file.startsWith(ROUTE_HOME))) {
-      routes = routeInventory(world);
-      log(`procedures: ${config} registers ${String(routes.length)} routes`);
-    }
     const home = homes.get(config) ?? new Set<string>();
+    // Each registrar file is homed in one world, and the world that opens first can hold only some of them (the router's
+    // world holds the debug registrar through an import, never entry/http), so every world lists the routes it homes.
+    const registered = routeInventory(world, home);
+    if (registered.length > 0) {
+      routes.push(...registered);
+      log(`procedures: ${config} registers ${String(registered.length)} routes`);
+    }
     tallyProcedures(world, home, { sources, procedures, routes, tallies });
     for (const request of requestsOf(world, home, builders(world))) {
       requests.set(`${siteKey(request.site)} ${request.sink}`, request);
@@ -1126,6 +1150,7 @@ function judgeProcedures({ sources, procedures, tallies }: Inventory, outside: O
       row.calls += tally.production.size;
     } else if (tally.production.size === 0) {
       findings.push({
+        key: procedureKey(procedure),
         kind: tally.test.size > 0 ? "test-only-procedure" : "uncalled-procedure",
         file: procedure.site.file,
         line: sources.line(procedure.site),
@@ -1149,6 +1174,7 @@ function judgeRoutes({ sources, routes }: Inventory, credits: ReadonlyMap<RouteR
       row.calls += credit.production;
     } else if (credit.production === 0) {
       findings.push({
+        key: routeKey(route),
         kind: credit.test > 0 ? "test-only-route" : "uncalled-route",
         file: route.site.file,
         line: sources.line(route.site),
@@ -1168,7 +1194,7 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(inventory, outside), ...judgeRoutes(inventory, credits, outside)];
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));
-  const { unwired, deliberate } = sortDeliberate(sorted, options.deliberate);
+  const { unwired, deliberate, judged, staleJudged } = sortRows(sorted, options);
   const rows = [...outside.values()];
   return {
     scanned: procedures.length + routes.length,
@@ -1176,6 +1202,8 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
     routes: routes.length,
     unwired,
     deliberate,
+    judged,
+    staleJudged,
     disagreements: [],
     outside: rows.filter((row) => row.at.length > 0),
     stale: rows.filter((row) => row.at.length === 0).map((row) => row.row),
@@ -1190,9 +1218,5 @@ function judge(inventory: Inventory, requests: readonly Request[], options: Scan
 export function outsideTable(report: ProceduresReport): string {
   const rows = report.outside.map(({ row, at, calls }) => `outside\t${outsideKey(row)}\t${at.join(",")}\tin-tree calls=${String(calls)}\t${row.reason}`);
   const stale = report.stale.map((row) => `stale outside row\t${outsideKey(row)}\t${row.reason}`);
-  return [
-    ` procedures=${String(report.procedures)} routes=${String(report.routes)} unplaced=${String(report.unplaced.length)} outside=${String(report.outside.length)} stale=${String(report.stale.length)}`,
-    ...rows,
-    ...stale,
-  ].join("\n");
+  return [` procedures=${String(report.procedures)} routes=${String(report.routes)}`, ...rows, ...stale].join("\n");
 }
