@@ -19,7 +19,7 @@ One program removes the duplicate decoding and judging, the source bridge, the c
 
 ## Done when
 
-The non-package errors the merged program reports (tooling/src/snap and a few test files) are explained, the merged program's peak memory on the whole tree is measured under the memory bar, a full fields report from the merged program is diffed row by row against the per-world run with every moved row explained, then the scans load one program, the bridge, the per-world merge and the cross-world limit are deleted, and the worlds.ts header states what the scans do.
+The non-package errors the merged program reports (tooling/src/snap and a few test files) are explained, the merged program's peak memory on the whole tree is measured under the memory bar, a full fields report from the merged program is diffed row by row against the per-world run with every moved row explained, then the scans load one program, the bridge, the per-world merge and the cross-world limit are deleted, and the worlds.ts header states what the scans do. The tsconfig worlds, scripts/typecheck.ts, the solution tsconfig and every other tool keep the per-world split; the merged program exists only inside the unwired scanner, built in memory from the world configs, with no tsconfig file added or changed.
 
 ## Evidence
 
