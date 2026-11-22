@@ -54,7 +54,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { all, TypeFlags } from "@typescript/native/sync";
+import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination, StoreWrite } from "./boundaries.ts";
 import { copiedReads, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
@@ -627,11 +627,19 @@ export interface PropertyFacts {
 }
 
 // What a Drizzle write stores: a column key credited with each literal key that writes it, the flows from the stored
-// value's members into the columns, and the copied reads that hand a value to a column.
+// value's members into the columns, the copied reads that hand a value to a column, and the columns the library fills
+// from a whole value at the builder method's name.
 interface Stored {
   readonly credits: readonly { readonly site: Site; readonly keys: readonly string[] }[];
   readonly flows: readonly Flow[];
   readonly copied: readonly { readonly site: Site; readonly column: readonly string[] }[];
+  readonly fills: readonly { readonly site: Site; readonly keys: readonly string[] }[];
+}
+
+interface Carried {
+  readonly flows: readonly Flow[];
+  /** The columns of the value's required members: whatever builds the value must set them, so the store writes them. */
+  readonly required: readonly string[];
 }
 
 function* columnKeys(checker: Checker, table: Type, name: string): APIRequestGenerator<readonly string[]> {
@@ -639,31 +647,40 @@ function* columnKeys(checker: Checker, table: Type, name: string): APIRequestGen
   return column === undefined ? [] : declarationKeys(column);
 }
 
-// A stored value's members flow into the same-named columns, an array's through its element type.
-function* memberFlows(checker: Checker, table: Type, value: Node): APIRequestGenerator<readonly Flow[]> {
+// A stored value's members flow into the same-named columns, an array's through its element type. An optional member
+// the value's type only allows is no write here: its write is the construction that sets it, which the flow carries.
+function* memberFlows(checker: Checker, table: Type, value: Node): APIRequestGenerator<Carried> {
   const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value));
   const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
   const members = yield* constituents(element ?? type);
   const properties = (yield* all(...members.map((member) => checker.getPropertiesOfType.gen(member)))).flat();
   const sinks = yield* all(...properties.map((property) => columnKeys(checker, table, property.name)));
-  return properties.flatMap((property, at) => {
-    const sink = sinks[at] ?? [];
-    return sink.length === 0 ? [] : [{ source: declarationKeys(property), sink }];
-  });
+  return {
+    flows: properties.flatMap((property, at) => {
+      const sink = sinks[at] ?? [];
+      return sink.length === 0 ? [] : [{ source: declarationKeys(property), sink }];
+    }),
+    required: properties.flatMap((property, at) => (hasFlag(property.flags, SymbolFlags.Optional) ? [] : (sinks[at] ?? []))),
+  };
 }
 
-function* storedBy(world: NativeWorld, { table, value }: StoreWrite): APIRequestGenerator<Stored> {
+function* storedBy(world: NativeWorld, { table, value, at }: StoreWrite): APIRequestGenerator<Stored> {
   const { checker } = world;
   const tableType = yield* checker.getTypeAtLocation.gen(table);
+  const filledAt = (keys: readonly string[]): Stored["fills"] => (keys.length === 0 ? [] : [{ site: world.siteOf(at), keys }]);
   if (!isObjectLiteralExpression(value)) {
-    return { credits: [], flows: yield* memberFlows(checker, tableType, value), copied: [] };
+    const whole = yield* memberFlows(checker, tableType, value);
+    return { credits: [], flows: whole.flows, copied: [], fills: filledAt(whole.required) };
   }
   const credits: Stored["credits"][number][] = [];
   const flows: Flow[] = [];
   const copied: Stored["copied"][number][] = [];
+  const required: string[] = [];
   for (const property of value.properties) {
     if (isSpreadAssignment(property)) {
-      flows.push(...(yield* memberFlows(checker, tableType, property.expression)));
+      const spread = yield* memberFlows(checker, tableType, property.expression);
+      flows.push(...spread.flows);
+      required.push(...spread.required);
       continue;
     }
     const { name } = property as { readonly name?: Node };
@@ -675,7 +692,7 @@ function* storedBy(world: NativeWorld, { table, value }: StoreWrite): APIRequest
     const reads = isPropertyAssignment(property) ? copiedReads(property.initializer) : [];
     copied.push(...reads.map((read) => ({ site: world.siteOf(read), column })));
   }
-  return { credits, flows, copied };
+  return { credits, flows, copied, fills: filledAt(required) };
 }
 
 // A literal handed to a Drizzle write: its spreads flow into columns rather than being read by the library.
@@ -876,9 +893,9 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const unresolved = unplacedKeys(world, resolutions);
   const overrides = new Set(resolutions.flatMap(({ resolution, node }) => (overridesSpread(node) ? [siteKey(resolution.site)] : [])));
   const paged = pagedCursors(world, pagedCalls);
-  const filled = new Set(paged.map(({ site }) => siteKey(site)));
+  const filled = new Set([...paged, ...stored.fills].map(({ site }) => siteKey(site)));
   return {
-    credits: [...credits, ...paged],
+    credits: [...credits, ...paged, ...stored.fills],
     links,
     flows,
     written: new Set([...written, ...filled]),
@@ -960,6 +977,8 @@ interface StoreFacts {
   readonly defines: (site: Site, keys: readonly string[]) => boolean;
   /** Each stored value's members, sent to their columns at the write. */
   readonly sends: PropertyFacts["sends"];
+  /** The columns a whole stored value fills, at the builder method's name: a write though the syntax reads. */
+  readonly fills: readonly { readonly site: Site; readonly keys: readonly string[] }[];
 }
 
 function storeFacts(
@@ -975,6 +994,7 @@ function storeFacts(
     flows: stored.flatMap((store) => store.flows),
     copied: new Map(stored.flatMap((store) => store.copied.map(({ site, column }) => [siteKey(site), column] as const))),
     defines: (site, keys) => keys.length > 0 && keys.every((key) => columns.has(key)) && within(site, definitions),
+    fills: stored.flatMap((store) => store.fills),
     sends: stored.flatMap((store, at) => {
       const site = world.siteOf((stores[at] as StoreWrite).value);
       return store.flows.map(({ source }) => ({ site, destination: "column" as const, receiver: null, keys: source }));
@@ -1124,10 +1144,12 @@ interface FlowEdges {
 function flowEdges(flows: readonly Flow[]): FlowEdges {
   const down = new Map<string, Set<string>>();
   const up = new Map<string, Set<string>>();
-  for (const { source, sink } of flows) {
+  for (const { source, sink, readsOnly } of flows) {
     for (const from of source) {
       for (const to of sink.filter((key) => !source.includes(key))) {
-        addEdge(down, from, to);
+        if (readsOnly !== true) {
+          addEdge(down, from, to);
+        }
         addEdge(up, to, from);
       }
     }

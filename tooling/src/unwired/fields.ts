@@ -535,7 +535,8 @@ interface Tally {
   readonly sends: Map<string, Send>;
 }
 
-interface Roles {
+/** A member's production reads and writes, and how many test sites name it. */
+export interface Roles {
   readonly read: readonly Site[];
   readonly write: readonly Site[];
   readonly tests: number;
@@ -548,9 +549,10 @@ function roleOfSite(sources: Sources, site: Site, { filled, keyed }: Pick<Proper
   return keyed.get(siteKey(site)) ?? roleAt(sources.get(site.file), site.position);
 }
 
-// `filled`: sites where a library writes the member, such as a paged query filling its cursor, though the syntax reads.
-// `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none.
-function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
+/** Split sites by role. `filled`: sites where a library writes the member, such as a paged query filling its cursor,
+ *  though the syntax reads. `keyed`: the role of a string key outside a property position, such as a form field path,
+ *  which syntax types as none. */
+export function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;

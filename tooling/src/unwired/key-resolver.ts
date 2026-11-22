@@ -61,8 +61,8 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import { tableDefinition } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
+import { rowColumns } from "./drizzle-rows.ts";
 import type { NativeWorld, PropertyName } from "./native.ts";
 import { constituents, hasFlag, isNamedMember, isPropertyName, propertiesNamed } from "./native.ts";
 import { isOpenType } from "./open-sends.ts";
@@ -208,9 +208,17 @@ function* indexedSources(template: Type, depth: number): APIRequestGenerator<rea
   return (yield* all(...branches.map((branch) => indexedSources(branch, depth + 1)))).flat();
 }
 
-function* mappedOrigins(checker: Checker, type: Type, name: string, depth: number): APIRequestGenerator<readonly NativeSymbol[]> {
+// A template that indexes a Drizzle row or a table's columns reaches the column, and the walk stops there. A row's own
+// member carries no declaration (`Omit<typeof t.$inferInsert, "id">`, `Partial<Pick<Row, "k">>`), and drizzle's select
+// row indexes each column's own type, whose `name` and `dialect` are the library column's, not the table's.
+function* mappedOrigins(world: NativeWorld, type: Type, name: string, depth: number): APIRequestGenerator<readonly NativeSymbol[]> {
   if (depth > MAPPED_DEPTH) {
     return [];
+  }
+  const { checker } = world;
+  const columns = depth === 0 ? [] : yield* rowColumns(world, type, name);
+  if (columns.length > 0) {
+    return columns;
   }
   const found: NativeSymbol[] = [];
   for (const part of yield* typeParts(type)) {
@@ -219,55 +227,10 @@ function* mappedOrigins(checker: Checker, type: Type, name: string, depth: numbe
       found.push(property);
     } else if (property !== undefined && part.isMappedType()) {
       const sources = yield* indexedSources(yield* part.getTemplateType.gen(), 0);
-      found.push(...(yield* all(...sources.map((source) => mappedOrigins(checker, source, name, depth + 1)))).flat());
+      found.push(...(yield* all(...sources.map((source) => mappedOrigins(world, source, name, depth + 1)))).flat());
     }
   }
   return found;
-}
-
-// --- Drizzle rows (step three, second half) --------------------------------------------------------------------
-
-const DB_SCHEMA = "packages/db/src/schema/";
-
-// Each table's columns by name, keyed by the table's sorted column names.
-type TablesBySignature = ReadonlyMap<string, ReadonlyMap<string, readonly NativeSymbol[]>>;
-
-const signatureOf = (names: Iterable<string>): string => [...names].toSorted().join(",");
-
-// A row typed `typeof table.$inferSelect` or `$inferInsert` has members no declaration backs. Its member names are
-// exactly its table's column names, the whole set and not one name, which is how such a member finds its column.
-function tablesOf(world: NativeWorld): TablesBySignature {
-  const tables: (readonly KeyName[])[] = [];
-  const visit = (node: Node): void => {
-    const definition = tableDefinition(node);
-    if (definition !== null) {
-      tables.push(definition.columns.properties.flatMap((column) => (isPropertyAssignment(column) && isKeyName(column.name) ? [column.name] : [])));
-    }
-    node.forEachChild(visit);
-  };
-  for (const file of world.files.filter((source) => world.siteOf(source).file.startsWith(DB_SCHEMA))) {
-    file.forEachChild(visit);
-  }
-  const names = tables.flat();
-  const symbols = new Map(world.symbolsAt(names).map((symbol, at) => [names[at], symbol] as const));
-  // Two tables with the same column names cannot be told apart by a row type, so such a member reads both.
-  const bySignature = new Map<string, Map<string, NativeSymbol[]>>();
-  for (const columns of tables) {
-    const signature = signatureOf(columns.map((name) => name.text));
-    const merged = bySignature.get(signature) ?? new Map<string, NativeSymbol[]>();
-    for (const name of columns) {
-      const symbol = symbols.get(name);
-      merged.set(name.text, [...(merged.get(name.text) ?? []), ...(symbol === undefined ? [] : [symbol])]);
-    }
-    bySignature.set(signature, merged);
-  }
-  return bySignature;
-}
-
-function* rowColumns(checker: Checker, tables: TablesBySignature, holder: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
-  const members = yield* constituents(holder);
-  const named = yield* all(...members.map((member) => checker.getPropertiesOfType.gen(member)));
-  return named.flatMap((properties) => tables.get(signatureOf(properties.map((property) => property.name)))?.get(name) ?? []);
 }
 
 // --- Key slots (steps four to six) -----------------------------------------------------------------------------
@@ -766,17 +729,15 @@ function referencesPass(world: NativeWorld, unnamed: readonly Pending[], place: 
 
 // Step three: a declaration-less member through its mapped template, else a Drizzle row's column.
 function syntheticPass(world: NativeWorld, synthetic: Left["synthetic"], place: Place): void {
-  const { checker } = world;
   const origins = world.batch(
     synthetic.map(function* ({ pending, holders }): APIRequestGenerator<readonly NativeSymbol[]> {
-      return (yield* all(...holders.map((holder) => mappedOrigins(checker, holder, pending.name, 0)))).flat();
+      return (yield* all(...holders.map((holder) => mappedOrigins(world, holder, pending.name, 0)))).flat();
     }),
   );
   const rowless = synthetic.filter(({ declared }, index) => declared.length === 0 && (origins[index] ?? []).length === 0);
-  const tables: TablesBySignature = rowless.length === 0 ? new Map() : tablesOf(world);
   const columns = world.batch(
     rowless.map(function* ({ pending, holders }): APIRequestGenerator<readonly NativeSymbol[]> {
-      return (yield* all(...holders.map((holder) => rowColumns(checker, tables, holder, pending.name)))).flat();
+      return (yield* all(...holders.map((holder) => rowColumns(world, holder, pending.name)))).flat();
     }),
   );
   // A union of a declared member and a mapped one keeps both.

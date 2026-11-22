@@ -1,6 +1,6 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `codes`, which runs engine one and refuses
-// `--cross-check`, and each writes one report under reports/unwired/;
+// one over every world, the dead-inside-live verbs run both engines except `codes` and `columns`, which run engine one and
+// refuse `--cross-check`, and each writes one report under reports/unwired/;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -10,6 +10,7 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { scanCodes } from "./codes.ts";
+import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
@@ -26,7 +27,7 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures", "columns"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
@@ -90,7 +91,7 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes"]);
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "columns"]);
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired),
@@ -109,6 +110,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   shapes: scan("reports/unwired/shapes.json", scanShapes),
   codes: scan("reports/unwired/codes.json", scanCodes, (report) => ` codeVocabularies=${report.vocabularies.length}`),
   procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
+  columns: scan("reports/unwired/columns.json", scanColumns, (report) => ` unresolved=${report.unresolved.length}`),
 };
 
 interface Args {

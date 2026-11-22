@@ -25,6 +25,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, SignatureKind, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
+import { rowColumns } from "./drizzle-rows.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
 import { isProduction } from "./worlds.ts";
@@ -34,6 +35,9 @@ import { isProduction } from "./worlds.ts";
 export interface Flow {
   readonly source: readonly string[];
   readonly sink: readonly string[];
+  /** A stored row's columns handed whole: a use downstream reads the column, but the column's writes fill no sink.
+   *  The row read fills it, as a parse fills a shape from outside the tree. */
+  readonly readsOnly?: true;
 }
 
 // Enough to cross a function that returns options whose callback takes the twin, and one nested object inside it.
@@ -219,25 +223,44 @@ function* signaturePairs(world: NativeWorld, { source, sink, depth, at }: TypePa
   return pairs;
 }
 
+// A member's keys when the tree declares it: its declarations, or for a Drizzle row's declaration-less member the
+// column it stands for, since a whole row carries its columns. Null for a member only a library declares.
+function* treeKeys(world: NativeWorld, holder: Type, member: NativeSymbol): APIRequestGenerator<readonly string[] | null> {
+  if (member.declarations.length > 0) {
+    return isDeclaredInTree(world, member) ? declarationKeys(member) : null;
+  }
+  const columns = (yield* rowColumns(world, holder, member.name)).flatMap(declarationKeys);
+  return columns.length > 0 ? columns : null;
+}
+
+// A row member's flow carries reads only: its column's writes do not fill the shape the row is handed to.
+const flowOf = (property: NativeSymbol, source: readonly string[], sink: readonly string[]): Flow =>
+  property.declarations.length === 0 ? { source, sink, readsOnly: true } : { source, sink };
+
 function* propertyPairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<Compared> {
   const { checker } = world;
   const properties = yield* checker.getPropertiesOfType.gen(source);
   const named = yield* all(...properties.map((property) => propertiesNamed(checker, sink, property.name)));
+  const ownKeys = yield* all(...properties.map((property) => treeKeys(world, source, property)));
   const flows: Flow[] = [];
   const libraryReads: (readonly string[])[] = [];
   const held: (readonly [NativeSymbol, NativeSymbol])[] = [];
   for (const [index, property] of properties.entries()) {
-    const own = declarationKeys(property);
-    const inTree = isDeclaredInTree(world, property);
-    for (const member of (named[index] ?? []).filter((candidate) => candidate !== undefined)) {
+    const members = (named[index] ?? []).filter((candidate) => candidate !== undefined);
+    held.push(...members.map((member) => [property, member] as const));
+    const own = ownKeys[index] ?? null;
+    if (own === null) {
+      continue;
+    }
+    for (const member of members) {
+      const into = yield* treeKeys(world, sink, member);
       // One generic's member under two instantiations is no flow by itself, but its types may still differ.
-      if (inTree && isDeclaredInTree(world, member) && !declarationKeys(member).every((key) => own.includes(key))) {
-        flows.push({ source: own, sink: declarationKeys(member) });
+      if (into !== null && !into.every((key) => own.includes(key))) {
+        flows.push(flowOf(property, own, into));
       }
-      if (inTree && isLibraryDeclared(world, member)) {
+      if (isLibraryDeclared(world, member)) {
         libraryReads.push(own);
       }
-      held.push([property, member]);
     }
   }
   const [sources, sinks] = yield* all(
