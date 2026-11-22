@@ -34,9 +34,6 @@ export interface FlowPair {
   readonly value: Type;
 }
 
-// A promise of a list of a callback's return nests this deep before it is the value; a deeper type is read at the depth
-// it reaches.
-const FLOW_UNWRAP_DEPTH = 6;
 const GLOBAL_SCOPE = "global";
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
 const ZOD_PACKAGE = "zod";
@@ -311,33 +308,33 @@ export class Flows {
   // A flow carries the value itself: through a promise to what it resolves to, through a list to its elements, and a
   // function value filling a function-typed slot pairs each parameter backwards (what a caller writes into the slot's
   // parameter is what the implementation's parameter reads) and the return forwards.
-  *#operands(slot: Type, value: Type, depth: number): APIRequestGenerator<readonly FlowPair[]> {
-    if (depth > FLOW_UNWRAP_DEPTH) {
-      return [];
-    }
+  // The walk ends on its seen-set of slot and value pairs, so a recursive type unwraps once and a deep one all the way.
+  *#operands(slot: Type, value: Type, seen: Set<string>): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
     const a = (yield* checker.getAwaitedType.gen(slot)) ?? slot;
     const b = (yield* checker.getAwaitedType.gen(value)) ?? value;
-    if (a.id === b.id) {
+    const pair = `${String(a.id)}>${String(b.id)}`;
+    if (a.id === b.id || seen.has(pair)) {
       return [];
     }
+    seen.add(pair);
     const slotArms = yield* this.#objectArms(a, b);
     if (slotArms !== null) {
       const out: FlowPair[] = [];
       for (const arm of slotArms) {
-        out.push(...(yield* this.#operands(arm, b, depth + 1)));
+        out.push(...(yield* this.#operands(arm, b, seen)));
       }
       return out;
     }
     if (a.isTypeReference() && b.isTypeReference() && (yield* checker.isArrayLikeType.gen(a)) && (yield* checker.isArrayLikeType.gen(b))) {
       const [elementA] = yield* checker.getTypeArguments.gen(a);
       const [elementB] = yield* checker.getTypeArguments.gen(b);
-      return elementA !== undefined && elementB !== undefined ? yield* this.#operands(elementA, elementB, depth + 1) : [];
+      return elementA !== undefined && elementB !== undefined ? yield* this.#operands(elementA, elementB, seen) : [];
     }
     const [slotSignature] = yield* a.getCallSignatures.gen();
     const [valueSignature] = yield* b.getCallSignatures.gen();
     if (slotSignature !== undefined && valueSignature !== undefined) {
-      return yield* this.#signatureOperands(slotSignature, valueSignature, depth);
+      return yield* this.#signatureOperands(slotSignature, valueSignature, seen);
     }
     return [{ slot: a, value: b }];
   }
@@ -352,7 +349,7 @@ export class Flows {
     return arms.length > 1 || (arms.length === 1 && arms[0]?.id !== slot.id) ? arms : null;
   }
 
-  *#signatureOperands(slot: Signature, value: Signature, depth: number): APIRequestGenerator<readonly FlowPair[]> {
+  *#signatureOperands(slot: Signature, value: Signature, seen: Set<string>): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
     const slotParameters = yield* slot.getParameters.gen();
     const valueParameters = yield* value.getParameters.gen();
@@ -361,10 +358,10 @@ export class Flows {
       const slotParameter = slotParameters[at];
       const valueParameter = valueParameters[at];
       if (slotParameter !== undefined && valueParameter !== undefined) {
-        out.push(...(yield* this.#operands(yield* checker.getTypeOfSymbol.gen(valueParameter), yield* checker.getTypeOfSymbol.gen(slotParameter), depth + 1)));
+        out.push(...(yield* this.#operands(yield* checker.getTypeOfSymbol.gen(valueParameter), yield* checker.getTypeOfSymbol.gen(slotParameter), seen)));
       }
     }
-    out.push(...(yield* this.#operands(yield* slot.getReturnType.gen(), yield* value.getReturnType.gen(), depth + 1)));
+    out.push(...(yield* this.#operands(yield* slot.getReturnType.gen(), yield* value.getReturnType.gen(), seen)));
     return out;
   }
 
@@ -372,7 +369,7 @@ export class Flows {
   // pair too (a port's op filled by another service's op), so the next level is returned until no pair is new.
   #linkLevel(raw: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
-    const unwrapped = state.batch(raw.map(({ slot, value }) => this.#operands(slot, value, 0))).flat();
+    const unwrapped = state.batch(raw.map(({ slot, value }) => this.#operands(slot, value, new Set()))).flat();
     // a value landing, after unwrapping, in a slot that names none of its members escapes whole, as an opaque argument does
     this.#opaqueOf(unwrapped.map(({ slot }) => slot));
     const pairs: FlowPair[] = [];

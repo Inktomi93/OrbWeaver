@@ -34,7 +34,10 @@ export const BUCKETS = [
   "kept-by-ruling",
   "operator-only",
   "consumer-only",
-  "test-only",
+  "testkit-only",
+  "tooling-only",
+  "test-direct-only",
+  "unused-effect",
   "type-only",
   "variant-value-unused",
   "ambient-unused",
@@ -218,7 +221,10 @@ class Analyser {
       "kept-by-ruling": result("kept-by-ruling"),
       "operator-only": result("operator-only"),
       "consumer-only": result("consumer-only"),
-      "test-only": result("test-only"),
+      "testkit-only": result("testkit-only"),
+      "tooling-only": result("tooling-only"),
+      "test-direct-only": result("test-direct-only"),
+      "unused-effect": result("unused-effect"),
       "type-only": result("type-only"),
       "variant-value-unused": result("variant-value-unused"),
       "ambient-unused": result("ambient-unused"),
@@ -319,6 +325,8 @@ class Analyser {
       operator: reach(this.#modules(["operator"]), [run, typ]),
       consumer: reach(this.#modules(["consumer"]), [run, typ]),
       any: reach(this.#graph.files.filter((file) => !isProduction(file)).map(moduleKey), [run, typ]),
+      testkit: reach(this.#graph.files.filter((file) => TESTKIT_HOMES.some((home) => file.startsWith(home))).map(moduleKey), [run, typ]),
+      tooling: reach(this.#graph.files.filter((file) => file.startsWith(TOOLING_HOME)).map(moduleKey), [run, typ]),
     };
   }
 
@@ -337,7 +345,7 @@ class Analyser {
       if (isType ? reached.productTyped.has(key) : reached.live.has(key)) {
         continue;
       }
-      const bucket = livenessBucket(key, isType, reached, this.#why.has(key));
+      const bucket = livenessBucket(key, { isType, effect: info.effect }, reached, this.#why.has(key));
       const label = `${info.file}:${info.name}${isType ? " (type)" : ""}`;
       const note = bucket === "kept-by-ruling" ? (this.#why.get(key) ?? "reached from a ruled keep") : this.#docLinksTo(key);
       this.#push(bucket, { label, key, note });
@@ -477,7 +485,12 @@ class Analyser {
   }
 }
 
-type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any", ReadonlySet<GraphKey>>>;
+type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;
+
+// The testkit's homes: its world subpaths and the component-test mount harness. A unit only they reach is a helper a
+// test reaches through the kit, apart from one a test file names itself.
+const TESTKIT_HOMES = ["tests/support/", "playwright/"] as const;
+const TOOLING_HOME = "tooling/";
 
 // Where the product first wrote a member, and what another world does to it.
 function memberNote(role: MemberRoles | undefined): string | null {
@@ -489,7 +502,10 @@ function memberNote(role: MemberRoles | undefined): string | null {
   return notes.length === 0 ? null : notes.join("; ");
 }
 
-function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled: boolean): Bucket {
+// A unit nothing in the product reaches: kept, reached another way, reached only from outside the product (by the
+// testkit, tooling or a test file itself), or dead; a dead variable whose initializer runs a call is an unused effect.
+function livenessBucket(key: GraphKey, info: { readonly isType: boolean; readonly effect: boolean }, reached: Reached, ruled: boolean): Bucket {
+  const { isType } = info;
   if ((!isType && reached.liveKept.has(key)) || ruled || (isType && reached.liveTyped.has(key))) {
     return "kept-by-ruling";
   }
@@ -502,7 +518,17 @@ function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled:
   if (reached.consumer.has(key)) {
     return "consumer-only";
   }
-  return reached.any.has(key) ? "test-only" : "dead";
+  if (reached.any.has(key)) {
+    return outsideBucket(key, reached);
+  }
+  return info.effect && !isType ? "unused-effect" : "dead";
+}
+
+function outsideBucket(key: GraphKey, reached: Reached): Bucket {
+  if (reached.testkit.has(key)) {
+    return "testkit-only";
+  }
+  return reached.tooling.has(key) ? "tooling-only" : "test-direct-only";
 }
 
 // The member bucket a member's product roles put it in, or null when the product reads it. A key use (an arm

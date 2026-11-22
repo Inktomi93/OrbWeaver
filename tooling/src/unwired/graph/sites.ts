@@ -42,6 +42,7 @@ import {
   isArrayLiteralExpression,
   isArrowFunction,
   isAsExpression,
+  isAwaitExpression,
   isBinaryExpression,
   isBindingElement,
   isBlock,
@@ -194,6 +195,8 @@ export interface DeclInfo {
   readonly surfacePath: string;
   readonly top: boolean;
   readonly line: number;
+  /** A variable whose initializer runs a call, a construction or an await when its module loads. */
+  readonly effect: boolean;
   readonly shapeOnly: ShapeOnly | null;
   docTags: readonly string[];
 }
@@ -458,6 +461,8 @@ export class FileSites {
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
   readonly elementKeys: ElementKey[] = [];
+  /** `"k" in x`: a key test touches the member it names without reading its value. */
+  readonly keyTests: ElementKey[] = [];
   /** Members a lib arm selector's pattern names: `Extract<T, { k: … }>`. */
   readonly armSelectorMembers: DeclKey[] = [];
   readonly tvCalls: CallExpression[] = [];
@@ -777,6 +782,7 @@ class Walker {
       surfacePath: surfacePathOf(node),
       top,
       line,
+      effect: isVariableDeclaration(node) && runsOnLoad(node.initializer),
       shapeOnly: shapeOnlyOf(node),
       docTags: [],
     });
@@ -948,6 +954,9 @@ class Walker {
       !isNumericLiteral(node.argumentExpression)
     ) {
       this.#sites.elementKeys.push({ receiver: node.expression, keys: keyLiterals(node.argumentExpression), argument: node.argumentExpression });
+    }
+    if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
+      this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });
     }
     // `T[K]`: a literal key names one member of T; a generic or union key reads T as a dispatch table
     if (isIndexedAccessTypeNode(node) && !isTypeQueryNode(unparenType(node.objectType))) {
@@ -1126,6 +1135,15 @@ function isRuntimeProtocol(name: Node): boolean {
     return isPropertyAccessExpression(expression) && isIdentifier(expression.expression) && expression.expression.text === WELL_KNOWN_SYMBOLS;
   }
   return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
+}
+
+// An initializer that does work when it runs: a call, a construction or an await, through parentheses and assertions.
+function runsOnLoad(initializer: Node | undefined): boolean {
+  let at = initializer;
+  while (at !== undefined && (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at))) {
+    at = at.expression;
+  }
+  return at !== undefined && (isCallExpression(at) || isNewExpression(at) || isAwaitExpression(at));
 }
 
 // The binding a node introduces, if binding-unread judges it.
