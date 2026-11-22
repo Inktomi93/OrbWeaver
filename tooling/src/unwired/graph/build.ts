@@ -141,7 +141,7 @@ class Builder {
       if (source !== undefined) {
         this.#file(collectSites(source, file, state.product(file), sink));
       }
-      world.releaseLocated();
+      world.releaseAnswers();
       if ((at + 1) % PROGRESS_EVERY === 0) {
         this.#log(`walked ${String(at + 1)}/${String(files.length)} files`);
       }

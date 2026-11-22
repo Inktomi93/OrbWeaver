@@ -11,14 +11,15 @@ import { hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
 import { answer, constituentsOf, Resolver } from "./resolve.ts";
-import type { Role } from "./roles.ts";
+import type { Role, RoleSet } from "./roles.ts";
+import { NO_ROLES, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
 export interface MemberRoles {
-  readonly product: Set<Role>;
-  readonly other: Set<Role>;
+  product: RoleSet;
+  other: RoleSet;
   write: string | null;
 }
 
@@ -102,14 +103,14 @@ export class GraphState {
   }
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
-    const roles = this.roles.get(key) ?? { product: new Set<Role>(), other: new Set<Role>(), write: null };
+    const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
     if (this.product(file)) {
-      roles.product.add(role);
+      roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
         roles.write = `${file}:${String(at)}`;
       }
     } else {
-      roles.other.add(role);
+      roles.other = withRoles(roles.other, [role]);
     }
     this.roles.set(key, roles);
   }

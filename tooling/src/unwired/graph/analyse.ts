@@ -14,7 +14,7 @@ import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.t
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import type { Role } from "./roles.ts";
-import { READS } from "./roles.ts";
+import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
@@ -257,7 +257,7 @@ class Analyser {
       }
       const role = roles.get(key);
       // the dev bridge ruling: another world's read through our own global door is a product read
-      const doorRead = state.door.has(key) && readsIn(role?.other ?? new Set<Role>());
+      const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
       const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
@@ -289,7 +289,7 @@ class Analyser {
   #stateTuples(roles: ReadonlyMap<DeclKey, MemberRoles>): void {
     const state = this.#state;
     for (const { decl, part, file, line } of state.stateParts.filter(({ file: at }) => state.product(at))) {
-      const product = roles.get(decl)?.product ?? new Set<Role>();
+      const product = roles.get(decl)?.product ?? NO_ROLES;
       const label = `${file}:${String(line)} ${part}`;
       if (part === "value" && !product.has("read")) {
         this.#push("state-never-read", { label, key: decl, note: null });
@@ -366,7 +366,7 @@ function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled:
 // The member bucket a member's product roles put it in, or null when the product reads it. A key use (an arm
 // selector's pattern, a member `Pick` names) touches a member without reading its data.
 function memberBucket(name: string, role: MemberRoles | undefined, reachedOtherwise: boolean): MemberBucket | null {
-  const product = role?.product ?? new Set<Role>();
+  const product = role?.product ?? NO_ROLES;
   if (readsIn(product) || (ARIA_ATTRIBUTE.test(name) && product.has("write"))) {
     return null;
   }
@@ -401,7 +401,7 @@ function dispatchedMembers(run: Edges, decls: ReadonlyMap<DeclKey, DeclInfo>): R
  */
 export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
   const { state } = graph;
-  const roles = new Map([...state.roles].map(([key, value]) => [key, { product: new Set(value.product), other: new Set(value.other), write: value.write }]));
+  const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
   const { readTo, writeTo } = roleLinks(state);
   const queue = [...roles.keys()];
   for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
@@ -458,15 +458,11 @@ function carry(
   key: DeclKey,
   add: { readonly product: readonly Role[]; readonly other: readonly Role[]; readonly write: string | null },
 ): boolean {
-  const target = roles.get(key) ?? { product: new Set<Role>(), other: new Set<Role>(), write: null };
-  const before = target.product.size + target.other.size;
-  for (const role of add.product) {
-    target.product.add(role);
-  }
-  for (const role of add.other) {
-    target.other.add(role);
-  }
+  const target = roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
+  const { product, other } = target;
+  target.product = withRoles(product, add.product);
+  target.other = withRoles(other, add.other);
   target.write ??= add.product.length > 0 ? add.write : null;
   roles.set(key, target);
-  return target.product.size + target.other.size !== before;
+  return target.product !== product || target.other !== other;
 }

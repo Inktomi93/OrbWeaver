@@ -71,6 +71,32 @@ import {
 const ROLES = ["read", "write", "call", "delete", "escape", "key"] as const;
 export type Role = (typeof ROLES)[number];
 
+/** A member's roles on one side of the product line. Interned: members with the same roles share one set, so a
+ *  whole-program graph holds one set per combination of roles rather than two per member. */
+export type RoleSet = ReadonlySet<Role>;
+
+const INTERNED = new Map<string, RoleSet>();
+
+const interned = (roles: readonly Role[]): RoleSet => {
+  const key = roles.join(" ");
+  const known = INTERNED.get(key);
+  if (known !== undefined) {
+    return known;
+  }
+  const made: RoleSet = new Set(roles);
+  INTERNED.set(key, made);
+  return made;
+};
+
+/** The empty role set. */
+export const NO_ROLES: RoleSet = interned([]);
+
+/** `roles` with `added` joined, in {@link ROLES} order, as the interned set. */
+export const withRoles = (roles: RoleSet, added: Iterable<Role>): RoleSet => {
+  const next = new Set(added);
+  return [...next].every((role) => roles.has(role)) ? roles : interned(ROLES.filter((role) => roles.has(role) || next.has(role)));
+};
+
 /** The roles that consume a member's data where a receiver names it. An escape is a send, never a read. */
 export const READS: ReadonlySet<Role> = new Set<Role>(["read", "call", "delete"]);
 

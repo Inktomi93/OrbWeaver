@@ -70,9 +70,6 @@ function requestKey(request: Request): string {
   return JSON.stringify({ ...request, params });
 }
 
-const isLocated = (request: Request): boolean =>
-  "params" in request && typeof request.params === "object" && request.params !== null && ("location" in request.params || "locations" in request.params);
-
 const isAll = (request: Request): request is Extract<Request, { readonly method: "__all" }> => "method" in request && request.method === "__all";
 
 function* ask(request: Request): APIRequestGenerator<unknown> {
@@ -94,8 +91,6 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
-  // Answers about one node's location, kept apart so a whole-program walk can let a walked file's answers go.
-  readonly #located = new Map<string>();
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -150,8 +145,8 @@ export class NativeWorld implements Disposable {
     return results;
   }
 
-  // Every query is pure in one snapshot, so each distinct request crosses to the compiler once in this world's life
-  // (until releaseLocated for a location's): later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
+  // Every query is pure in one snapshot, so each distinct request crosses to the compiler once until releaseAnswers:
+  // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     let waiting: Pending[] = [];
@@ -164,12 +159,11 @@ export class NativeWorld implements Disposable {
           return;
         }
         const key = requestKey(request);
-        const store = isLocated(request) ? this.#located : this.#answers;
-        if (!store.has(key)) {
+        if (!this.#answers.has(key)) {
           waiting.push({ generator, finish, key, request });
           return;
         }
-        step = generator.next(store.get(key));
+        step = generator.next(this.#answers.get(key));
       }
       finish(step.value);
     };
@@ -200,21 +194,22 @@ export class NativeWorld implements Disposable {
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
-        for (const [at, [key, request]] of page.entries()) {
-          (isLocated(request) ? this.#located : this.#answers).set(key, answers[at]);
+        for (const [at, [key]] of page.entries()) {
+          this.#answers.set(key, answers[at]);
         }
       }
-      for (const { generator, finish, key, request } of round) {
-        run(generator, finish, (isLocated(request) ? this.#located : this.#answers).get(key));
+      for (const { generator, finish, key } of round) {
+        run(generator, finish, this.#answers.get(key));
       }
     }
     return results;
   }
 
-  /** Drop every answer asked about a node's location. A walk that moves on from a file calls this, so the answers about
-   *  the files behind it do not pile up; a later ask about one of their nodes crosses to the compiler again. */
-  releaseLocated(): void {
-    this.#located.clear();
+  /** Drop every remembered answer. A whole-program walk calls this as it moves on from a file: each answer holds the
+   *  compiler's decoded response, and a walk's answers kept for the world's life outgrow the walk's own facts many times
+   *  over. The facts a later file needs again live in the callers' id-keyed tables; a repeat ask crosses again. */
+  releaseAnswers(): void {
+    this.#answers.clear();
   }
 
   /** The symbol at each node, an import alias followed to the symbol it names. */
