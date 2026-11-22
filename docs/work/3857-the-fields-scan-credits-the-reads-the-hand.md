@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-22
 priority: P2
 area: tooling
+lane: wt/agent-a4e9784beb9524066
 plan: unwired-code
 ---
 
