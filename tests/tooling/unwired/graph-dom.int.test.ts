@@ -189,3 +189,101 @@ test(
     ]);
   },
 );
+
+test("an attribute call or a dataset use inside script source a string holds is a site", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-script-written] { color: red; }",
+    [`${GRAPH_SOURCE}/frame.ts`]: [
+      "export const FRAME_SCRIPT =",
+      `  'var root=document.documentElement;if(root.hasAttribute("data-in-script")){root.setAttribute("data-script-written","");}var s=root.dataset.scriptSet;';`,
+      'export const PROSE = "the frame stamps data-in-prose";',
+    ].join("\n"),
+    [`${GRAPH_SOURCE}/marks.tsx`]: "export const Marks = () => <div data-in-script data-script-set data-in-prose />;",
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-in-prose"]);
+});
+
+test("a name is followed through a call's returns, a mapped table's field and a Map's get", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-chan-alpha] { color: red; } [data-chan-gamma] { color: red; }",
+    [`${GRAPH_SOURCE}/channel.tsx`]: [
+      'import type { El } from "./el.ts";',
+      "interface Row {",
+      "  readonly key: string;",
+      "  readonly name: string;",
+      "}",
+      'const PREFIX = "data-chan-";',
+      'const KEYS = ["alpha", "beta"];',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "const ROWS: readonly Row[] = KEYS.flatMap((key): Row[] => [{ key, name: `${PREFIX}${key}` }]);",
+      "const BY_KEY = new Map(ROWS.map((row) => [row.key, row]));",
+      'const returned = (): string => "data-returned";',
+      "export function write(el: El): void {",
+      "  for (const row of ROWS) {",
+      '    el.setAttribute(row.name, "");',
+      "  }",
+      "}",
+      "export const clear = (el: El, key: string): void => {",
+      '  el.removeAttribute(BY_KEY.get(key)?.name ?? "");',
+      "};",
+      "export const read = (el: El): string | null => el.getAttribute(returned());",
+      "export const Returned = () => <div data-returned />;",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-chan-gamma]`]);
+  expect(report.buckets["dom-attr-unread"]).toEqual([]);
+  expect(report.unresolved).toEqual([]);
+});
+
+test("a name is followed through a destructured tuple and a list method's callback element", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: '[data-cb-flip] { color: red; } [data-tuple-name="on"] { color: red; } [data-tuple-name="off"] { color: red; }',
+    [`${GRAPH_SOURCE}/arms.ts`]: [
+      'import type { El } from "./el.ts";',
+      "interface Flip {",
+      "  readonly flip: string;",
+      "}",
+      'const FLIPS: readonly Flip[] = [{ flip: "data-cb-flip" }];',
+      'const PAIRS: readonly (readonly [string, string])[] = [["data-tuple-name", "on"]];',
+      "export function stamp(el: El): unknown {",
+      '  FLIPS.forEach((arm) => el.setAttribute(arm.flip, ""));',
+      "  for (const [name, value] of PAIRS) {",
+      "    el.setAttribute(name, value);",
+      "  }",
+      "  return PAIRS.map(([name]) => el.getAttribute(name));",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+  expect(report.buckets["css-attr-value-unwritten"]).toEqual([`${SHEET}:[data-tuple-name=off]`]);
+  expect(report.unresolved).toEqual([]);
+});
+
+test("a read of snap's or ui-facts' attribute model by name reads that attribute; a look-alike record does not", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    "tooling/src/snap/ops/appearance-invariant-dom.ts":
+      "export interface AppearanceElementFacts {\n  readonly attributes: Readonly<Record<string, string | null>>;\n}",
+    "tooling/src/snap/ops/checks.ts": [
+      'import type { AppearanceElementFacts } from "./appearance-invariant-dom.ts";',
+      "function attr(facts: AppearanceElementFacts, name: string): string | null {",
+      "  return facts.attributes[name] ?? null;",
+      "}",
+      'export const density = (facts: AppearanceElementFacts): string | null => attr(facts, "data-snap-model");',
+    ].join("\n"),
+    "tooling/src/eslint/ui-classes/source.ts": "export interface Elem {\n  readonly attrs: ReadonlyMap<string, unknown>;\n}",
+    "tooling/src/ui-facts/cohorts.ts": [
+      'import type { Elem } from "../eslint/ui-classes/source.ts";',
+      'export const shell = (elem: Elem): boolean => elem.attrs.has("data-facts-model");',
+    ].join("\n"),
+    [`${GRAPH_SOURCE}/models.tsx`]: [
+      "const bag: { readonly attributes: Readonly<Record<string, string>> } = { attributes: {} };",
+      'export const other = bag.attributes["data-not-model"];',
+      "export const Models = () => <div data-snap-model data-facts-model data-not-model />;",
+    ].join("\n"),
+  });
+  expect(report.buckets["dom-attr-unread"]).toEqual([`data-facts-model ${GRAPH_SOURCE}/models.tsx:3 read by tooling`]);
+  expect(report.unresolved).toEqual([
+    { text: "data-not-model", at: `${GRAPH_SOURCE}/models.tsx:2`, world: "product", why: "a string no attribute site reaches" },
+  ]);
+});

@@ -10,9 +10,14 @@
 //   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
 //   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
 //   reads a test id, since those hooks exist for tests, and that a snap read (SNAP) counts as the product's.
+// - Script source a string holds runs in a page or a frame, so an attribute call or a `dataset` use it spells is a
+//   site of the string's world (SCRIPT_CALL, SCRIPT_DATASET).
+// - A read by name of a house attribute model (ATTRIBUTE_MODELS) is an attribute read: snap's DOM snapshot and
+//   ui-facts' parsed JSX element hold an element's attributes by name. The member's declaring file decides, so a
+//   look-alike record is no model.
 // - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute.
-// - A name or value held away from its site is followed through the checker: its literal type, then its symbol's
-//   declarations (an initializer, a for-of's list, a parameter's callers' arguments). A whole data-* string no site
+// - A name or value held away from its site is followed through the checker by ./held.ts: declarations, callers,
+//   call returns, destructured places and the list methods that carry an element. A whole data-* string no site
 //   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason; a mention in a world
 //   whose reads count keeps its name out of every bucket.
 // - A name a sealed library stamps is the library's (SEALED_NAME). A selector name an installed direct dependency's
@@ -24,48 +29,45 @@ import { globSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { CssNode } from "@eslint/css-tree";
 import { ident, parse, walk } from "@eslint/css-tree";
-import type { CallExpression, Expression, JsxAttribute, Node, NoSubstitutionTemplateLiteral, StringLiteral, TemplateExpression } from "@typescript/native/ast";
+import type {
+  CallExpression,
+  Expression,
+  JsxAttribute,
+  Node,
+  NoSubstitutionTemplateLiteral,
+  PropertyAccessExpression,
+  StringLiteral,
+  TemplateExpression,
+} from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
-  isArrowFunction,
-  isAsExpression,
   isBinaryExpression,
   isCallExpression,
   isComputedPropertyName,
-  isConditionalExpression,
   isElementAccessExpression,
-  isEnumMember,
   isExportDeclaration,
-  isForOfStatement,
-  isFunctionDeclaration,
-  isFunctionExpression,
   isIdentifier,
   isImportDeclaration,
   isInterfaceDeclaration,
   isJsxAttribute,
   isJsxExpression,
-  isMethodDeclaration,
-  isNonNullExpression,
   isNoSubstitutionTemplateLiteral,
-  isParameterDeclaration,
-  isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
-  isSatisfiesExpression,
   isStringLiteral,
   isTemplateExpression,
   isTypeAliasDeclaration,
   isTypeNode,
   isVariableDeclaration,
-  isVariableDeclarationList,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
-import { SymbolFlags } from "@typescript/native/sync";
+import type { APIRequestGenerator } from "@typescript/native/sync";
 import { kebab, SEALED_NAME } from "../../eslint/index.ts";
-import { hasFlag } from "../native.ts";
 import type { Graph } from "./build.ts";
 import { NOT_SOURCE, OWNER_CSS_SURFACE, SHEETS, STRING } from "./css.ts";
+import type { Text, Texts } from "./held.ts";
+import { HeldTexts } from "./held.ts";
+import { sameNode } from "./roles.ts";
 import type { GraphState } from "./state.ts";
 
 /** The DOM-hook buckets, in report order. */
@@ -134,23 +136,24 @@ const HTML_ATTRIBUTE = /\s(data-[a-z][\w-]*[a-z0-9])(?:=(["'])(.*?)\2)?/gu;
 const WRITERS: ReadonlySet<string> = new Set(["setAttribute", "toggleAttribute"]);
 const READERS: ReadonlySet<string> = new Set(["getAttribute", "hasAttribute", "removeAttribute", "toggleAttribute", "toHaveAttribute"]);
 const TEST_ID_LOOKUP = "getByTestId";
+const ATTRIBUTE = "Attribute";
+/** An attribute call or a `dataset` use spelled inside script source a string holds. */
+const SCRIPT_CALL = /\b(get|has|remove|toggle|set)Attribute\(\s*["'`](data-[a-z][\w-]*)/gu;
+const SCRIPT_DATASET = /\.dataset\.([A-Za-z]\w*)(\s*=(?!=))?/gu;
+/** The house models that hold an element's attributes by name, by the file that declares the member: snap's DOM
+ *  snapshot and ui-facts' parsed JSX element. A read of one by name reads that attribute. */
+const ATTRIBUTE_MODELS: readonly { readonly file: string; readonly member: string }[] = [
+  { file: "tooling/src/snap/ops/appearance-invariant-dom.ts", member: "attributes" },
+  { file: "tooling/src/eslint/ui-classes/source.ts", member: "attrs" },
+];
+const MODEL_MEMBERS: ReadonlySet<string> = new Set(ATTRIBUTE_MODELS.map(({ member }) => member));
+const MODEL_LOOKUPS: ReadonlySet<string> = new Set(["get", "has"]);
 const TESTS = "tests/";
 const DATASET = "dataset";
 /** React renders a valueless JSX attribute, and `true`, as the string "true". */
 const PRESENT = "true";
 /** Any value: one the checker holds only as a wide type. */
 const ANY = "*";
-// A hop is one declaration, list or caller followed from a use; a chain longer than this is a cycle or a hand-off no
-// table holds.
-const MAX_HOPS = 8;
-// A template whose spans multiply past this many texts is a computed name, not a table of them.
-const MAX_TEXTS = 64;
-
-// A text a string expression can take; `open` when a span past it is wide, so the text is only a head.
-interface Text {
-  readonly text: string;
-  readonly open: boolean;
-}
 
 // A data-* write or read site: its name, a fixed one or an expression to follow; a write's value likewise. A
 // `dataset` site names the property, which maps to the attribute by kebab case.
@@ -167,7 +170,7 @@ interface Site {
 }
 
 // The checker's answer for each followed expression.
-type Answers = ReadonlyMap<Expression, readonly Text[] | null>;
+type Answers = ReadonlyMap<Expression, Texts>;
 
 interface Selectors {
   readonly classes: Map<string, string>;
@@ -244,14 +247,18 @@ class Hooks {
   #followed = 0;
   readonly #state: GraphState;
   readonly #sites: Site[] = [];
-  readonly #selectorTemplates: { readonly node: Expression; readonly world: World }[] = [];
+  readonly #selectorTemplates: { readonly node: Expression; readonly world: World; readonly at: string }[] = [];
+  /** Reads of a house attribute model by name, kept once the member's declaration proves it is the model's. */
+  readonly #modelReads: { readonly member: PropertyAccessExpression; readonly name: Expression; readonly at: string; readonly world: World }[] = [];
   readonly #testIdLookups: { readonly node: Expression; readonly world: World }[] = [];
   /** Every whole data-* string in a value position, and every string equal to a plain test id candidate. */
   readonly #whole: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly at: string; readonly world: World }[] = [];
-  readonly #reached = new Set<string>();
+
+  readonly #held: HeldTexts;
 
   constructor(state: GraphState) {
     this.#state = state;
+    this.#held = new HeldTexts(state);
   }
 
   get followed(): number {
@@ -290,7 +297,7 @@ class Hooks {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
       this.#string(node, file, world);
     } else if (isTemplateExpression(node)) {
-      this.#templateParts(node, world);
+      this.#templateParts(node, file, world);
     } else if (isJsxAttribute(node)) {
       const name = attributeName(node);
       if (world === "product" && name.startsWith(DATA)) {
@@ -303,44 +310,48 @@ class Hooks {
     } else if (isCallExpression(node)) {
       this.#call(node, file, world);
     } else {
-      this.#datasetAccess(node, file, world);
+      this.#access(node, file, world);
     }
   }
 
   // A template's static parts are strings of their own; one that spells a selector or a data-* name is followed too.
-  #templateParts(node: TemplateExpression, world: World): void {
+  #templateParts(node: TemplateExpression, file: string, world: World): void {
+    const at = atOf(file, node);
     const parts = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
     for (const [index, part] of parts.entries()) {
       const open = index < parts.length - 1;
       if (world === "product") {
         this.#classTokens(part, open);
       }
-      this.#selectorText({ text: part, open }, world);
+      this.#stringText({ text: part, open }, world, at);
     }
     if (parts.some((part) => part.includes("[") || part.includes(DATA))) {
-      this.#selectorTemplates.push({ node, world });
+      this.#selectorTemplates.push({ node, world, at });
     }
   }
 
-  #datasetAccess(node: Node, file: string, world: World): void {
+  #access(node: Node, file: string, world: World): void {
     if (isPropertyAccessExpression(node) && isDataset(node.expression)) {
       this.#dataset(node, kebab(node.name.text), file, world);
     } else if (isElementAccessExpression(node) && isDataset(node.expression)) {
       this.#dataset(node, node.argumentExpression, file, world);
+    } else if (isElementAccessExpression(node) && isModelMember(node.expression)) {
+      this.#modelReads.push({ member: node.expression, name: node.argumentExpression, at: atOf(file, node), world });
     }
   }
 
   #string(node: StringLiteral | NoSubstitutionTemplateLiteral, file: string, world: World): void {
     const { parent } = node;
-    if (isPropertyAssignment(parent) && parent.name === node) {
+    if (isPropertyAssignment(parent) && sameNode(parent.name, node)) {
       return;
     }
     if (world === "product") {
       this.#classTokens(node.text, false);
     }
-    this.#selectorText({ text: node.text, open: false }, world);
+    const at = atOf(file, node);
+    this.#stringText({ text: node.text, open: false }, world, at);
     if (DATA_NAME.test(node.text) || TEST_ID_VALUE.test(node.text)) {
-      this.#whole.push({ node, at: atOf(file, node), world });
+      this.#whole.push({ node, at, world });
     }
   }
 
@@ -394,6 +405,10 @@ class Hooks {
       this.#testIdLookups.push({ node: name, world });
       return;
     }
+    if (MODEL_LOOKUPS.has(method) && isPropertyAccessExpression(callee) && isModelMember(callee.expression)) {
+      this.#modelReads.push({ member: callee.expression, name, at, world });
+      return;
+    }
     if (WRITERS.has(method) || READERS.has(method)) {
       const written = method === "toggleAttribute" ? [""] : (value ?? null);
       this.#sites.push({
@@ -412,7 +427,7 @@ class Hooks {
   // `el.dataset.fooBar` or `el.dataset[key]`: an assignment's target writes, any other use reads.
   #dataset(node: Expression, name: string | Expression, file: string, world: World): void {
     const { parent } = node;
-    const assigned = isBinaryExpression(parent) && parent.left === node && parent.operatorToken.kind === SyntaxKind.EqualsToken;
+    const assigned = isBinaryExpression(parent) && sameNode(parent.left, node) && parent.operatorToken.kind === SyntaxKind.EqualsToken;
     const at = atOf(file, node);
     const attribute = typeof name === "string" ? `${DATA}${name}` : name;
     const dataset = typeof name !== "string";
@@ -446,7 +461,7 @@ class Hooks {
     }
   }
 
-  #selectorText({ text, open }: Text, world: World): void {
+  #stringText({ text, open }: Text, world: World, at: string): void {
     for (const match of text.matchAll(SELECTOR_READ)) {
       this.read(match[1] ?? "", match[2], world);
     }
@@ -459,6 +474,29 @@ class Hooks {
     const head = open ? OPEN_SELECTOR.exec(text)?.[1] : undefined;
     if (head !== undefined) {
       addWorld(this.readHeads, head, world);
+    }
+    this.#scriptText(text, world, at);
+  }
+
+  // Script source a string holds, run in a page or a frame: its attribute calls and `dataset` uses are sites too.
+  #scriptText(text: string, world: World, at: string): void {
+    for (const match of text.matchAll(SCRIPT_CALL)) {
+      const method = `${match[1] ?? ""}${ATTRIBUTE}`;
+      const name = match[2] ?? "";
+      if (world === "product" && WRITERS.has(method)) {
+        this.#write(name, at, [ANY]);
+      }
+      if (READERS.has(method)) {
+        this.read(name, undefined, world);
+      }
+    }
+    for (const match of text.matchAll(SCRIPT_DATASET)) {
+      const name = `${DATA}${kebab(match[1] ?? "")}`;
+      if (match[2] === undefined) {
+        this.read(name, undefined, world);
+      } else if (world === "product") {
+        this.#write(name, at, [ANY]);
+      }
     }
   }
 
@@ -475,17 +513,23 @@ class Hooks {
   /** Follow every held name and value through the checker, then list what no site reaches. */
   resolve(): void {
     const { world } = this.#state;
+    const homes = world.batch(this.#modelReads.map(({ member }) => this.#declaredIn(member)));
+    for (const [index, { member, name, at, world: reader }] of this.#modelReads.entries()) {
+      if (ATTRIBUTE_MODELS.some((model) => model.member === member.name.text && (homes[index] ?? []).includes(model.file))) {
+        this.#sites.push({ at, world: reader, key: false, name, dataset: false, write: false, read: true, value: null });
+      }
+    }
     const asks: Expression[] = [
       ...this.#selectorTemplates.map(({ node }) => node),
       ...this.#testIdLookups.map(({ node }) => node),
       ...this.#sites.flatMap((site) => [...(typeof site.name === "string" ? [] : [site.name]), ...(isExpression(site.value) ? [site.value] : [])]),
     ];
-    const answers = world.batch(asks.map((node) => this.#texts(node, 0)));
+    const answers = world.batch(asks.map((node) => this.#held.texts(node)));
     const textsOf: Answers = new Map(asks.map((node, at) => [node, answers[at] ?? null]));
     this.#followed = asks.length;
-    for (const { node, world: reader } of this.#selectorTemplates) {
+    for (const { node, world: reader, at } of this.#selectorTemplates) {
       for (const text of textsOf.get(node) ?? []) {
-        this.#selectorText(text, reader);
+        this.#stringText(text, reader, at);
       }
     }
     for (const { node, world: reader } of this.#testIdLookups) {
@@ -506,6 +550,11 @@ class Hooks {
 
   // A site whose name stays wide is listed when it claims an attribute: a computed key claims one only by resolving to
   // a data-* name, and a write outside the product claims none.
+  *#declaredIn(member: PropertyAccessExpression): APIRequestGenerator<readonly (string | null)[]> {
+    const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(member);
+    return (symbol?.declarations ?? []).map((handle) => this.#state.world.fileOf(handle));
+  }
+
   #site(site: Site, textsOf: Answers): void {
     const names = typeof site.name === "string" ? [{ text: site.name, open: false }] : (textsOf.get(site.name) ?? null);
     if (names === null) {
@@ -548,7 +597,7 @@ class Hooks {
   #unreached(): void {
     const testIdReads = this.valueReads.get(TEST_ID);
     for (const { node, at, world } of this.#whole) {
-      if (this.#reached.has(keyOf(this.#state, node))) {
+      if (this.#held.reached(node)) {
         continue;
       }
       if (DATA_NAME.test(node.text)) {
@@ -557,117 +606,6 @@ class Hooks {
         this.unresolved.push({ text: node.text, at, world, why: `a string equal to a data-testid value: ${holderOf(node)}` });
       }
     }
-  }
-
-  // The texts an expression can take, or null when the checker holds it only as a wide type. Every literal a hop
-  // reaches is marked reached, whether or not its type already answered.
-  *#texts(node: Node, hops: number): APIRequestGenerator<readonly Text[] | null> {
-    if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-      this.#reached.add(keyOf(this.#state, node));
-      return [{ text: node.text, open: false }];
-    }
-    if (isParenthesizedExpression(node) || isAsExpression(node) || isSatisfiesExpression(node) || isNonNullExpression(node)) {
-      return yield* this.#texts(node.expression, hops);
-    }
-    if (isTemplateExpression(node)) {
-      return yield* this.#template(node, hops);
-    }
-    if (isConditionalExpression(node)) {
-      return union([yield* this.#texts(node.whenTrue, hops), yield* this.#texts(node.whenFalse, hops)]);
-    }
-    if (isArrayLiteralExpression(node)) {
-      const elements: (readonly Text[] | null)[] = [];
-      for (const element of node.elements) {
-        elements.push(yield* this.#texts(element, hops));
-      }
-      return union(elements);
-    }
-    const { checker } = this.#state.world;
-    const typed = yield* this.#state.literalValues(yield* checker.getTypeAtLocation.gen(node));
-    const held = hops < MAX_HOPS ? yield* this.#held(node, hops) : null;
-    return typed === null ? held : typed.map((text) => ({ text, open: false }));
-  }
-
-  *#template(
-    node: Node & {
-      readonly head: { readonly text: string };
-      readonly templateSpans: readonly { readonly expression: Expression; readonly literal: { readonly text: string } }[];
-    },
-    hops: number,
-  ): APIRequestGenerator<readonly Text[] | null> {
-    let texts: Text[] = [{ text: node.head.text, open: false }];
-    for (const span of node.templateSpans) {
-      const parts = yield* this.#texts(span.expression, hops);
-      if (parts === null || parts.length * texts.length > MAX_TEXTS) {
-        return texts.map(({ text }) => ({ text, open: true }));
-      }
-      texts = texts.flatMap((head) =>
-        head.open ? [head] : parts.map((part) => ({ text: `${head.text}${part.text}${part.open ? "" : span.literal.text}`, open: part.open })),
-      );
-    }
-    return texts;
-  }
-
-  // The texts the declarations of the symbol an expression names can hold: an initializer, the list a for-of walks,
-  // a parameter's default and each caller's argument; an element access with no symbol of its own, its list's.
-  *#held(node: Node, hops: number): APIRequestGenerator<readonly Text[] | null> {
-    if (!(isIdentifier(node) || isPropertyAccessExpression(node) || isElementAccessExpression(node))) {
-      return null;
-    }
-    const { world } = this.#state;
-    const symbol = yield* this.#unalias(yield* world.checker.getSymbolAtLocation.gen(node));
-    if (symbol === undefined) {
-      return isElementAccessExpression(node) ? yield* this.#texts(node.expression, hops + 1) : null;
-    }
-    const found: (readonly Text[] | null)[] = [];
-    for (const handle of symbol.declarations) {
-      if (world.fileOf(handle) === null) {
-        return null;
-      }
-      const declaration = yield* handle.resolve.gen();
-      found.push(declaration === undefined ? null : yield* this.#declared(declaration, hops + 1));
-    }
-    return found.length === 0 ? null : union(found);
-  }
-
-  *#declared(declaration: Node, hops: number): APIRequestGenerator<readonly Text[] | null> {
-    if ((isVariableDeclaration(declaration) || isPropertyAssignment(declaration) || isEnumMember(declaration)) && declaration.initializer !== undefined) {
-      return yield* this.#texts(declaration.initializer, hops);
-    }
-    if (isVariableDeclaration(declaration) && isVariableDeclarationList(declaration.parent) && isForOfStatement(declaration.parent.parent)) {
-      return yield* this.#texts(declaration.parent.parent.expression, hops);
-    }
-    if (isParameterDeclaration(declaration)) {
-      return yield* this.#arguments(declaration, hops);
-    }
-    return null;
-  }
-
-  // A parameter holds what every caller hands it at its index, and its default.
-  *#arguments(
-    parameter: Node & { readonly parent: Node; readonly initializer?: Expression | undefined },
-    hops: number,
-  ): APIRequestGenerator<readonly Text[] | null> {
-    const fn = parameter.parent;
-    if (!(isFunctionDeclaration(fn) || isMethodDeclaration(fn) || isArrowFunction(fn) || isFunctionExpression(fn))) {
-      return null;
-    }
-    const index = fn.parameters.indexOf(parameter as (typeof fn.parameters)[number]);
-    const found: (readonly Text[] | null)[] = parameter.initializer === undefined ? [] : [yield* this.#texts(parameter.initializer, hops)];
-    const target = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
-    for (const usage of yield* this.#state.world.signatureUsage(target)) {
-      const call = usage.call === undefined ? undefined : yield* usage.call.resolve.gen();
-      const argument = call !== undefined && isCallExpression(call) ? call.arguments[index] : undefined;
-      found.push(argument === undefined ? null : yield* this.#texts(argument, hops));
-    }
-    return found.length === 0 ? null : union(found);
-  }
-
-  *#unalias(symbol: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
-    if (symbol === undefined || !hasFlag(symbol.flags, SymbolFlags.Alias)) {
-      return symbol;
-    }
-    return yield* this.#state.world.checker.getAliasedSymbol.gen(symbol);
   }
 }
 
@@ -679,6 +617,8 @@ function calleeName(callee: Expression): string | null {
 }
 
 const isDataset = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === DATASET;
+
+const isModelMember = (node: Expression): node is PropertyAccessExpression => isPropertyAccessExpression(node) && MODEL_MEMBERS.has(node.name.text);
 
 // What a write site's value can be: its fixed values, else what the checker holds, any value when that is wide.
 function writtenValues(value: Site["value"], textsOf: Answers): readonly string[] {
@@ -699,20 +639,6 @@ function addWorld(map: Map<string, Set<World>>, key: string, world: World): void
 }
 
 const isExpression = (value: Site["value"]): value is Expression => value !== null && !Array.isArray(value);
-
-// The union of several answers: null when any is wide, since a wide part can hold any name.
-function union(parts: readonly (readonly Text[] | null)[]): readonly Text[] | null {
-  if (parts.some((part) => part === null)) {
-    return null;
-  }
-  const seen = new Map<string, Text>();
-  for (const text of parts.flatMap((part) => part ?? [])) {
-    seen.set(`${String(text.open)}:${text.text}`, text);
-  }
-  return [...seen.values()];
-}
-
-const keyOf = (state: GraphState, node: Node): string => `${state.world.fileOfSource(node.getSourceFile())}:${String(node.pos)}`;
 
 function atOf(file: string, node: Node): string {
   const source = node.getSourceFile();
