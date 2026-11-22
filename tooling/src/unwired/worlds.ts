@@ -57,8 +57,8 @@ const MERGED_BASE = "tsconfig.world-browser.json";
 /** Where the merged program's config sits in the in-memory file layer; nothing is written there. */
 export const MERGED_CONFIG = "tsconfig.unwired-merged.json";
 
-// The worlds the merged program unites: the solution config's references, the codemods world excluded.
-function mergedWorlds(root: string): readonly string[] {
+/** The worlds the merged program unites: the solution config's references, the codemods world excluded. */
+export function mergedWorlds(root: string): readonly string[] {
   const read = ts.readConfigFile(join(root, SOLUTION), ts.sys.readFile);
   if (read.error !== undefined) {
     throw new Error(`${SOLUTION}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
@@ -72,12 +72,29 @@ function mergedWorlds(root: string): readonly string[] {
     .filter((config) => !UNMERGED.has(config));
 }
 
+interface LoadedWorld {
+  readonly config: string;
+  readonly parsed: ts.ParsedCommandLine;
+}
+
+const loadMergedWorlds = (root: string): readonly LoadedWorld[] => mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
+
+// The merged program's options, every world's `types` and `allowJs` on the browser world's, over `files` with `paths`.
+function mergedText(root: string, worlds: readonly LoadedWorld[], files: readonly string[], paths: Readonly<Record<string, string[]>>): string {
+  const types = [...new Set(worlds.flatMap(({ parsed }) => parsed.options.types ?? []))].sort();
+  return JSON.stringify({
+    extends: join(root, MERGED_BASE),
+    // allowJs is written only when a world sets it, so the merged options set nothing a world leaves to its default
+    compilerOptions: { types, paths, ...(worlds.some(({ parsed }) => parsed.options.allowJs === true) ? { allowJs: true } : {}), noEmit: true },
+    files,
+  });
+}
+
 /** The merged program's config text: every file of every merged world, on the browser world's options with each world's
  *  `types` and `paths` added and the source bridge. A file two worlds name is one file. */
 export function mergedConfigText(root: string): string {
-  const worlds = mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
+  const worlds = loadMergedWorlds(root);
   const files = [...new Set(worlds.flatMap(({ parsed }) => parsed.fileNames))].sort();
-  const types = [...new Set(worlds.flatMap(({ parsed }) => parsed.options.types ?? []))].sort();
   // The first world to map an alias keeps it, as the solution's order names the worlds.
   const paths: Record<string, string[]> = {};
   for (const { config, parsed } of worlds) {
@@ -85,11 +102,14 @@ export function mergedConfigText(root: string): string {
       paths[name] ??= targets;
     }
   }
-  return JSON.stringify({
-    extends: join(root, MERGED_BASE),
-    compilerOptions: { types, paths, allowJs: worlds.some(({ parsed }) => parsed.options.allowJs === true), noEmit: true },
-    files,
-  });
+  return mergedText(root, worlds, files, paths);
+}
+
+/** One world's files and bridged `paths` on the merged program's options: an error the merged program brings to the
+ *  world shows here when the merged options bring it, and not when another world's files or aliases do. */
+export function mergedOptionsConfigText(root: string, config: string): string {
+  const own = loadWorld(root, config);
+  return mergedText(root, loadMergedWorlds(root), own.fileNames, bridgedPaths(root, config, own));
 }
 
 /** The host's realpath; every scan host sets it, so a workspace package keeps its source path. */

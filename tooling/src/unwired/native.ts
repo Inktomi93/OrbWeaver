@@ -23,6 +23,7 @@ import type {
   LanguageService,
   Symbol as NativeSymbol,
   NodeHandle,
+  Program,
   ReferencedSymbolEntry,
   SignatureUsage,
   Type,
@@ -83,6 +84,8 @@ const pageStarts = (size: number): readonly number[] => Array.from({ length: Mat
 export class NativeWorld implements Disposable {
   readonly config: string;
   readonly checker: Checker;
+  /** The program, for what the checker does not answer: diagnostics, the files it loads, module resolution. */
+  readonly program: Program;
   readonly #languageService: LanguageService;
   /** Every source file of the program outside node_modules, declaration files excluded. */
   readonly files: readonly SourceFile[];
@@ -103,6 +106,7 @@ export class NativeWorld implements Disposable {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
     this.checker = project.checker;
+    this.program = project.program;
     this.#languageService = project.languageService;
     const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declaration(relative(root, name)));
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
