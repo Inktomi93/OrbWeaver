@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-22
 priority: P3
 area: tooling
+lane: wt/pending-engines
 plan: unwired-code
 ---
 
