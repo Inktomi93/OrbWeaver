@@ -1,7 +1,8 @@
 // The DOM-hook pass (tooling/src/unwired/graph/dom.ts header): a sheet selector nothing writes, a data-* attribute
 // nothing reads and a test id no lookup names are reported; a name held in a constant, a table, a list or a parameter is
 // followed through the checker to the attribute site it reaches; sealed, dependency-spelled and owner-published names are
-// not dead; a read in tests or tooling only annotates a product hook, save a test's read of a test id; a whole data-*
+// not dead; a snap read counts as the product's, a read in tests or other tooling only annotates a product hook, save a
+// test's read of a test id; a whole data-*
 // string no site reaches is listed as unresolved and keeps its name out of every bucket.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { DomReport } from "../../../tooling/src/unwired/index.ts";
@@ -108,38 +109,38 @@ test("a selector value no write can hold is reported; a value a wide prop writes
   expect(report.buckets["css-attr-value-unwritten"]).toEqual([`${SHEET}:[data-state=gone]`]);
 });
 
-test(
-  "a written data-* attribute no product sheet, selector, getter, dataset or variant reads is reported, a test or tooling read annotated",
-  TIMEOUT,
-  async ({ plantedTree }) => {
-    const report = await dom(plantedTree, {
-      [SHEET]: "[data-styled] { color: red; }",
-      [OWNER_CSS]: owner(['export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [{ "name": "data-theme-grain", "values": ["on"] }] as const;']),
-      [`${GRAPH_SOURCE}/marks.tsx`]: [
-        'import type { El } from "./el.ts";',
-        'const READ = "data-held-read";',
-        'const SELECTED = "data-selected";',
-        "export const Marks = () => (",
-        '  <div data-orphan="x" data-styled data-held-read="1" data-selected data-asserted data-variant data-dataset-read data-theme-grain="on" data-base-ui-x data-snapped className="data-variant:flex" />',
-        ");",
-        // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
-        "export const read = (el: El): unknown => [el.getAttribute(READ), el.querySelector(`[${SELECTED}]`), el.dataset.datasetRead];",
-      ].join("\n"),
-      "tests/a/marks.test.ts": [
-        "declare const expectEl: { toHaveAttribute(name: string): void; setAttribute(name: string, value: string): void };",
-        'expectEl.toHaveAttribute("data-asserted");',
-        'expectEl.setAttribute("data-test-only", "");',
-      ].join("\n"),
-      "tooling/src/probe.ts": [
-        'import type { El } from "../../packages/a/src/el.ts";',
-        'export const snapped = (el: El): string | null => el.getAttribute("data-snapped");',
-      ].join("\n"),
-    });
-    const at = `${GRAPH_SOURCE}/marks.tsx:5`;
-    expect(report.buckets["dom-attr-unread"]).toEqual([`data-asserted ${at} read by tests`, `data-orphan ${at}`, `data-snapped ${at} read by tooling`]);
-    expect(names(report.buckets["dom-attr-owner-css-only"])).toEqual(["data-theme-grain"]);
-  },
-);
+test("a written data-* attribute no product or snap read reaches is reported, a test or other tooling read annotated", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-styled] { color: red; }",
+    [OWNER_CSS]: owner(['export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [{ "name": "data-theme-grain", "values": ["on"] }] as const;']),
+    [`${GRAPH_SOURCE}/marks.tsx`]: [
+      'import type { El } from "./el.ts";',
+      'const READ = "data-held-read";',
+      'const SELECTED = "data-selected";',
+      "export const Marks = () => (",
+      '  <div data-orphan="x" data-styled data-held-read="1" data-selected data-asserted data-variant data-dataset-read data-theme-grain="on" data-base-ui-x data-snapped data-driven className="data-variant:flex" />',
+      ");",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "export const read = (el: El): unknown => [el.getAttribute(READ), el.querySelector(`[${SELECTED}]`), el.dataset.datasetRead];",
+    ].join("\n"),
+    "tests/a/marks.test.ts": [
+      "declare const expectEl: { toHaveAttribute(name: string): void; setAttribute(name: string, value: string): void };",
+      'expectEl.toHaveAttribute("data-asserted");',
+      'expectEl.setAttribute("data-test-only", "");',
+    ].join("\n"),
+    "tooling/src/snap/drive.ts": [
+      'import type { El } from "../../../packages/a/src/el.ts";',
+      'export const driven = (el: El): string | null => el.getAttribute("data-driven");',
+    ].join("\n"),
+    "tooling/src/probe.ts": [
+      'import type { El } from "../../packages/a/src/el.ts";',
+      'export const snapped = (el: El): string | null => el.getAttribute("data-snapped");',
+    ].join("\n"),
+  });
+  const at = `${GRAPH_SOURCE}/marks.tsx:5`;
+  expect(report.buckets["dom-attr-unread"]).toEqual([`data-asserted ${at} read by tests`, `data-orphan ${at}`, `data-snapped ${at} read by tooling`]);
+  expect(names(report.buckets["dom-attr-owner-css-only"])).toEqual(["data-theme-grain"]);
+});
 
 test(
   "a plain test id no test lookup names is reported; one a test reaches through a table is read, a tooling lookup annotated",
@@ -148,13 +149,14 @@ test(
     const report = await dom(plantedTree, {
       [`${GRAPH_SOURCE}/ids.ts`]: 'export const IDS = { found: "found" };',
       [`${GRAPH_SOURCE}/rows.tsx`]:
-        'export const Rows = () => [<div data-testid="lonely" />, <div data-testid="found" />, <div data-testid="selected" />, <div data-testid="snapped" />];',
+        'export const Rows = () => [<div data-testid="lonely" />, <div data-testid="found" />, <div data-testid="selected" />, <div data-testid="snapped" />, <div data-testid="driven" />];',
       "tests/a/rows.test.ts": [
         'import { IDS } from "../../packages/a/src/ids.ts";',
         "declare const page: { getByTestId(id: string): unknown; locator(selector: string): unknown };",
         "page.getByTestId(IDS.found);",
         "page.locator('[data-testid=\"selected\"]');",
       ].join("\n"),
+      "tooling/src/snap/ids.ts": ["declare const page: { getByTestId(id: string): unknown };", 'page.getByTestId("driven");'].join("\n"),
       "tooling/src/snap.ts": ["declare const page: { getByTestId(id: string): unknown };", 'page.getByTestId("snapped");'].join("\n"),
     });
     const at = `${GRAPH_SOURCE}/rows.tsx:1`;

@@ -9,12 +9,12 @@
 //   `dataset` assignment, in product code. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, a
 //   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
 //   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
-//   reads a test id: those hooks exist for tests.
+//   reads a test id, since those hooks exist for tests, and that a snap read (SNAP) counts as the product's.
 // - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute.
 // - A name or value held away from its site is followed through the checker: its literal type, then its symbol's
 //   declarations (an initializer, a for-of's list, a parameter's callers' arguments). A whole data-* string no site
-//   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason; a product mention keeps
-//   its name out of every bucket, and a test's keeps a test id out.
+//   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason; a mention in a world
+//   whose reads count keeps its name out of every bucket.
 // - A name a sealed library stamps is the library's (SEALED_NAME). A selector name an installed direct dependency's
 //   own code spells is that library's hook (streamdown's `data-streamdown`), found by a literal search of its JS. A
 //   `data-slot` value, a class or an attribute the owner-CSS surface publishes is read by CSS the owner writes, a
@@ -80,9 +80,16 @@ export const DOM_BUCKETS = [
 ] as const;
 export type DomBucket = (typeof DOM_BUCKETS)[number];
 
-/** Which code a site sits in: the product, its tests, or the tooling that drives it. */
-export const WORLDS = ["product", "tests", "tooling"] as const;
+/** Which code a site sits in: the product, snap, its tests, or the other tooling. */
+export const WORLDS = ["product", "snap", "tests", "tooling"] as const;
 export type World = (typeof WORLDS)[number];
+
+// Owner ruling: snap drives the real app, so a hook only snap reads is used, as a dev-bridge global read is. Other
+// tooling and the tests only annotate.
+const SNAP = "tooling/src/snap/";
+/** The worlds whose read of a data-* attribute counts; a test id counts its tests' reads too. */
+const USES: ReadonlySet<World> = new Set<World>(["product", "snap"]);
+const TEST_ID_USES: ReadonlySet<World> = new Set<World>([...USES, "tests"]);
 
 /** A mention the checker cannot carry to an attribute site, at `file:line` in `world`. */
 export interface Unresolved {
@@ -255,6 +262,8 @@ class Hooks {
     let world: World = "tooling";
     if (this.#state.product(file)) {
       world = "product";
+    } else if (file.startsWith(SNAP)) {
+      world = "snap";
     } else if (file.startsWith(TESTS)) {
       world = "tests";
     }
@@ -805,8 +814,8 @@ function readersOf(hooks: Hooks, name: string): ReadonlySet<World> {
 const annotated = (row: string, readers: ReadonlySet<World>): string =>
   readers.size === 0 ? row : `${row} read by ${WORLDS.filter((world) => readers.has(world)).join(", ")}`;
 
-// What every verdict reads: the sheets, the hooks, the published names and the names judged elsewhere: a product
-// mention no hop resolves keeps a name out of the product's buckets, and a test's too for a test id.
+// What every verdict reads: the sheets, the hooks, the published names and the names judged elsewhere. A mention no
+// hop resolves, in a world whose reads count, keeps a name out of the buckets.
 interface Verdicts {
   readonly selectors: Selectors;
   readonly hooks: Hooks;
@@ -841,17 +850,17 @@ function judgeAttributes({ selectors, hooks, unresolved, spelled, out }: Verdict
 function judgeWrites({ hooks, owner, unresolved, out }: Verdicts): void {
   for (const [name, { at }] of hooks.writes) {
     const readers = readersOf(hooks, name);
-    if (!(SEALED_NAME.test(name) || readers.has("product") || unresolved.has(name))) {
+    if (!(SEALED_NAME.test(name) || [...readers].some((world) => USES.has(world)) || unresolved.has(name))) {
       out[owner.has(name) ? "dom-attr-owner-css-only" : "dom-attr-unread"].push(annotated(`${name} ${at}`, readers));
     }
   }
 }
 
-// A test id is read by the product or its tests; a tooling lookup only annotates it.
+// A test id is read by the product, snap or its tests; another tool's lookup only annotates it.
 function judgeTestIds({ hooks, unresolvedTestIds, out }: Verdicts): void {
   for (const [value, at] of hooks.testIds) {
     const readers = hooks.valueReads.get(TEST_ID)?.get(value) ?? new Set<World>();
-    if (!(readers.has("product") || readers.has("tests") || unresolvedTestIds.has(value))) {
+    if (!([...readers].some((world) => TEST_ID_USES.has(world)) || unresolvedTestIds.has(value))) {
       out["dom-value-unread"].push(annotated(`${TEST_ID}=${value} ${at}`, readers));
     }
   }
@@ -877,8 +886,8 @@ function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonl
     selectors,
     hooks,
     owner: ownerCssNames(root),
-    unresolved: new Set(hooks.unresolved.filter(({ world }) => world === "product").map(({ text }) => text)),
-    unresolvedTestIds: new Set(hooks.unresolved.filter(({ world }) => world !== "tooling").map(({ text }) => text)),
+    unresolved: new Set(hooks.unresolved.filter(({ world }) => USES.has(world)).map(({ text }) => text)),
+    unresolvedTestIds: new Set(hooks.unresolved.filter(({ world }) => TEST_ID_USES.has(world)).map(({ text }) => text)),
     spelled: dependency.spelled,
     out,
   };
