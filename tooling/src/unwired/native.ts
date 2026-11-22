@@ -34,7 +34,8 @@ import type {
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
 import { z } from "zod";
-import { workspacePackageDirs } from "../package-effects/index.ts";
+import { isLibrarySource } from "../brand-names/index.ts";
+import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
@@ -65,11 +66,11 @@ export interface WorldFiles {
 const DECLARATION_FILE = ".d.ts";
 const PACKAGE_MANIFEST = "package.json";
 const PackageManifest = z.looseObject({ name: z.string().optional() });
-const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+const workspaceDirs = (root: string): ReadonlySet<string> => new Set(workspacePackageRoots(root));
 
-// The absolute directories of the workspace's own packages; a tree with no workspace manifest has none.
-const workspaceDirs = (root: string): ReadonlySet<string> =>
-  new Set(existsSync(join(root, WORKSPACE_MANIFEST)) ? workspacePackageDirs(root).map((dir) => join(root, dir)) : []);
+// A file the program loaded from a package that is not the workspace's own, under isLibrarySource.
+const fromLibrary = (meta: { readonly isFromExternalLibrary: boolean; readonly packageJsonDirectory: string }, workspace: ReadonlySet<string>): boolean =>
+  isLibrarySource({ external: meta.isFromExternalLibrary, workspacePackage: workspace.has(meta.packageJsonDirectory) });
 
 // Which program files are the tree's own, by the program's answer rather than the path's text: a dependency resolved
 // through a pnpm symlink outside any node_modules directory is still a library, and a workspace package reached through
@@ -84,7 +85,7 @@ function ownSources(api: API, program: Program, own: { readonly workspace: Reado
     const metadata = api.batch(...page.map((name) => program.getSourceFileMetadata.gen(name)));
     for (const [at, name] of page.entries()) {
       const meta = metadata[at];
-      const library = meta === undefined || meta.isDefaultLibrary || (meta.isFromExternalLibrary && !workspace.has(meta.packageJsonDirectory));
+      const library = meta === undefined || meta.isDefaultLibrary || fromLibrary(meta, workspace);
       if (!library && (!name.endsWith(DECLARATION_FILE) || keep(name))) {
         kept.push(name);
       }
@@ -374,7 +375,7 @@ export class NativeWorld implements Disposable {
    *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
     const meta = yield* this.#program.getSourceFileMetadataByPath.gen(handle.path);
-    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+    return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
   }
 
   /** For each list of declarations, whether one of them was loaded from the package `name`. */
