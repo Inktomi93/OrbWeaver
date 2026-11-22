@@ -548,31 +548,36 @@ export interface Roles {
   readonly tests: number;
 }
 
-function roleOfSite(sources: Sources, site: Site, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): SyntaxRole {
-  if (filled.has(siteKey(site))) {
-    return "write";
+type SiteFacts = Pick<PropertyReferences, "written" | "readWritten" | "keyed">;
+
+// A write is engine one's, read on the 7.1 tree by the one site-role reader, which also says when the same occurrence
+// reads (a used bump); classify.ts roleAt splits the rest into a read and a type position, which that reader does not judge.
+function rolesOfSite(sources: Sources, site: Site, { written, readWritten, keyed }: SiteFacts): readonly SyntaxRole[] {
+  const key = siteKey(site);
+  if (written.has(key)) {
+    return readWritten.has(key) ? ["read", "write"] : ["write"];
   }
-  return keyed.get(siteKey(site)) ?? roleAt(sources.get(site.file), site.position);
+  return [keyed.get(key) ?? roleAt(sources.get(site.file), site.position)];
 }
 
-/** Split sites by role. `filled`: sites where a library writes the member, such as a paged query filling its cursor,
- *  though the syntax reads. `keyed`: the role of a string key outside a property position, such as a form field path,
- *  which syntax types as none. */
-export function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
+/** Split sites by role. `written`: sites that store into the member, including a library's write the syntax reads
+ *  (a paged query filling its cursor); `readWritten`: the written sites that read it too, which count as both.
+ *  `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none. */
+export function rolesOf(sources: Sources, sites: Iterable<Site>, facts: SiteFacts): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;
   for (const site of sites) {
-    const role = roleOfSite(sources, site, { filled, keyed });
-    if (role === "type") {
+    const roles = rolesOfSite(sources, site, facts).filter((role) => role !== "type");
+    if (roles.length === 0) {
       continue;
     }
     if (!isProductionFile(site.file)) {
       tests++;
-    } else if (role === "read") {
-      read.push(site);
-    } else {
-      write.push(site);
+      continue;
+    }
+    for (const role of roles) {
+      (role === "read" ? read : write).push(site);
     }
   }
   return { read, write, tests };
@@ -601,8 +606,10 @@ const MIGHT_LAND: Readonly<Record<UnresolvedReason, (row: UnwiredField, holderFi
 function deciding(sources: Sources, references: PropertyReferences, rows: readonly UnwiredField[]): readonly string[] {
   const byName = Map.groupBy(rows, (row) => row.member.split(".").at(-1) ?? row.member);
   return references.unresolved.flatMap(({ site, name, reason, holderFiles }) => {
-    const role = roleOfSite(sources, site, references);
-    const decided = (byName.get(name) ?? []).filter((row) => DECIDING_ROLES[row.kind].includes(role) && MIGHT_LAND[reason](row, holderFiles));
+    const roles = rolesOfSite(sources, site, references);
+    const decided = (byName.get(name) ?? []).filter(
+      (row) => roles.some((role) => DECIDING_ROLES[row.kind].includes(role)) && MIGHT_LAND[reason](row, holderFiles),
+    );
     return decided.length === 0
       ? []
       : [`${site.file}:${sources.line(site)} ${name} ${reason} -> ${decided.map((row) => `${row.home}.${row.member}`).join(",")}`];

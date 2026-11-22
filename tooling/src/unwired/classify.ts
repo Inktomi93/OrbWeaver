@@ -1,5 +1,9 @@
 // What one reference means, read from the TypeScript 6 syntax at its position. Both engines report sites and classify
 // through here, so they disagree only about which references exist, never about what a reference means.
+//
+// - The fields scan takes a member's writes from the site-role reader on the 7.1 tree (graph/roles.ts) and asks
+//   {@link roleAt} only whether a site is a read or a type position. The other scans still take writes from here,
+//   which keeps a bump, a destructuring slot and a for-of target as reads (docs/work/3858-one-write-access-reader-covers-every-write-form.md).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";

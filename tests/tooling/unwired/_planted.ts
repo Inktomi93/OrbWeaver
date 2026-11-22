@@ -1,7 +1,13 @@
 // What the unwired scan suites plant beside the testkit's `plantedTsconfig`: the libs a node-only tree builds with,
 // the one package world a single-world tree holds, and a JSX namespace, since a planted tree has no node_modules.
 
-import type { JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { plantedTsconfig } from "@orb/testkit/tooling";
+import type { Bucket, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { scanGraph } from "../../../tooling/src/unwired/index.ts";
 
 /** The libs of a planted tree with no DOM. */
 export const LIB = ["ESNext"];
@@ -33,8 +39,8 @@ export const ZOD_STUB = [
 ].join("\n");
 
 /** A judged case's items: one open, one done. A landed item has no file, and the procedures suite plants that case. */
-export const OPEN_ITEM = 4101;
-export const DONE_ITEM = 4102;
+const OPEN_ITEM = 4101;
+const DONE_ITEM = 4102;
 const workItem = (status: string): string => `---\nkind: work\nstatus: ${status}\nupdated: 2026-01-01\n---\n\n# A planted item\n`;
 /** The docs/work files a judged case plants beside its tree. */
 export const JUDGED_WORK: Readonly<Record<string, string>> = {
@@ -94,3 +100,137 @@ export const judgedExpected = (open: string, closed: string): JudgedOutcome => (
   unwired: [closed],
   stale: [`item-closed ${closed}`, `row-gone ${GONE_KEY}`],
 });
+
+/** The package a graph tree's sources sit in, unless a case names another. */
+export const GRAPH_SOURCE = "packages/a/src";
+
+const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\//u;
+const SOURCE_GLOB = "src/**/*.{ts,tsx}";
+
+// A knip config with one workspace per planted package. With no `entries`, every source file ships and its exports are
+// trusted, so the member buckets judge what the planted code does with them; with `entries`, only those files run and
+// liveness decides the rest.
+function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOptions): string {
+  const workspace = (name: string): object => {
+    if (entries === undefined) {
+      return { entry: [`${SOURCE_GLOB}!`], project: [`${SOURCE_GLOB}!`], ignoreIssues: { [SOURCE_GLOB]: ["exports"] } };
+    }
+    const own = entries.filter((file) => file.startsWith(`${name}/`)).map((file) => `${file.slice(name.length + 1)}!`);
+    return { entry: own, project: [`${SOURCE_GLOB}!`] };
+  };
+  const workspaces = Object.fromEntries(packages.map((name) => [name, workspace(name)]));
+  return [
+    `const config = ${JSON.stringify({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces })};`,
+    "export default (_flags: { readonly production: boolean }) => config;",
+    "export { config };",
+  ].join("\n");
+}
+
+/** What a graph tree plants beyond its files: `.tsx` support, the entry files when liveness is the question, and the
+ *  JSDoc tags knip is told to keep. */
+export interface GraphTreeOptions {
+  readonly jsx?: boolean;
+  readonly entries?: readonly string[];
+  readonly tags?: readonly string[];
+}
+
+/** A tree the graph scan reads: a solution config naming one world over every planted package, the merged program's
+ *  option base, the knip config the roots come from, and `files` by repository path (a library stub under
+ *  `node_modules/` included). */
+export function graphTree(files: Readonly<Record<string, string>>, options: GraphTreeOptions = {}): Record<string, string> {
+  const jsx = options.jsx === true ? ({ jsx: "preserve" } as const) : {};
+  const packages = [...new Set(Object.keys(files).flatMap((file) => PACKAGE_SOURCE.exec(file)?.[1] ?? []))].map((name) => `packages/${name}`);
+  return {
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }] }),
+    "tsconfig.world-browser.json": plantedTsconfig({ lib: LIB, include: [], ...jsx }),
+    [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src"], ...jsx }),
+    "knip.ts": graphKnip(packages, options),
+    ...files,
+  };
+}
+
+/** Scan a planted graph tree. */
+export async function graphScan(
+  plantedTree: (tree: Record<string, string>) => Promise<string>,
+  files: Readonly<Record<string, string>>,
+  options: GraphTreeOptions = {},
+): Promise<GraphScan> {
+  return await scanGraph(await plantedTree(graphTree(files, options)), () => undefined);
+}
+
+/** A bucket's labels for one planted file, without its path: `Holder.member` for a member, the name for a unit. */
+export const labelsIn = (scan: GraphScan, bucket: Bucket, file: string): readonly string[] =>
+  scan.analysis[bucket].filter(({ label }) => label.startsWith(`${file}:`)).map(({ label }) => label.slice(file.length + 1));
+
+/** A minimal React: the state hooks the graph reads a `[value, setter]` tuple from, at React's own types path. */
+export const REACT_TYPES = {
+  "node_modules/@types/react/package.json": JSON.stringify({ name: "@types/react", types: "index.d.ts" }),
+  "node_modules/@types/react/index.d.ts": "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+};
+
+/** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, and a
+ *  validator. */
+export const ZOD_MODULE = {
+  "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+  "node_modules/zod/index.d.ts": [
+    "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Schema<T = unknown> {",
+    "  readonly _output: T;",
+    "  parse(value: unknown): T;",
+    "  extend<S>(shape: S): Schema<T & Shape<S>>;",
+    "}",
+    "export declare namespace z {",
+    "  type ZodType<T = unknown> = Schema<T>;",
+    "  type infer<S> = S extends Schema<infer T> ? T : never;",
+    "}",
+    "export declare const z: {",
+    "  strictObject<S>(shape: S): Schema<Shape<S>>;",
+    "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
+    "  string(): Schema<string>;",
+    "  number(): Schema<number>;",
+    "};",
+  ].join("\n"),
+};
+
+/** A library at `node_modules/lib`: its declarations are outside the tree, so a slot it types is a receiver. */
+export const libraryModule = (lines: readonly string[]): Record<string, string> => ({
+  "node_modules/lib/package.json": JSON.stringify({ name: "lib", types: "index.d.ts" }),
+  "node_modules/lib/index.d.ts": lines.join("\n"),
+});
+
+// The ui package owns tailwind-variants; a planted tree takes the installed declarations whole, since the variant pass
+// follows a selection through tailwind-variants' own prop types.
+const UI_MANIFEST = join(import.meta.dirname, "../../../packages/ui/package.json");
+const TV_PACKAGE = "tailwind-variants";
+const TV_DIST = "dist";
+const DECLARATION = ".d.ts";
+
+/** The installed tailwind-variants declarations at `node_modules/tailwind-variants`. */
+export function tailwindVariants(): Record<string, string> {
+  const dist = dirname(createRequire(UI_MANIFEST).resolve(TV_PACKAGE));
+  const at = `node_modules/${TV_PACKAGE}`;
+  const declarations = readdirSync(dist).filter((name) => name.endsWith(DECLARATION));
+  return {
+    [`${at}/package.json`]: JSON.stringify({ name: TV_PACKAGE, types: `${TV_DIST}/index.d.ts` }),
+    ...Object.fromEntries(declarations.map((name) => [`${at}/${TV_DIST}/${name}`, readFileSync(join(dist, name), "utf8")])),
+  };
+}
+
+const TAILWIND = "tailwindcss";
+const TAILWIND_SHEETS = ["theme.css", "preflight.css"] as const;
+
+/** tailwindcss at `node_modules/tailwindcss`: a module that re-exports the installed one, beside copies of the sheets
+ *  the css pass reads, so the analysed tree's design system is the real one. */
+export function tailwindcss(): Record<string, string> {
+  const require = createRequire(UI_MANIFEST);
+  const at = `node_modules/${TAILWIND}`;
+  const exports: Record<string, string> = {
+    ".": "./index.mjs",
+    ...Object.fromEntries(TAILWIND_SHEETS.map((sheet): [string, string] => [`./${sheet}`, `./${sheet}`])),
+  };
+  return {
+    [`${at}/package.json`]: JSON.stringify({ name: TAILWIND, type: "module", exports }),
+    [`${at}/index.mjs`]: `export * from ${JSON.stringify(pathToFileURL(require.resolve(TAILWIND)).href.replace(/\.js$/u, ".mjs"))};`,
+    ...Object.fromEntries(TAILWIND_SHEETS.map((sheet) => [`${at}/${sheet}`, readFileSync(require.resolve(`${TAILWIND}/${sheet}`), "utf8")])),
+  };
+}
