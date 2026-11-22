@@ -264,10 +264,13 @@ class Builder {
     const imported = new Set(sites.bindings.flatMap(({ kind, name }) => (kind === "import" ? [name] : [])));
     const asked = sites.names.flatMap((site, at) => (!site.declares && imported.has(nameText(site.node)) ? [{ site, at }] : []));
     const shorthands = sites.shorthands.filter(({ node }) => imported.has(nameText(node.name)));
+    // a doc comment's link reads an import binding it names, as tsc counts it
+    const docs = sites.docNames.filter(({ node }) => imported.has(nameText(node)));
     const aliasKeys = state.batch(
       [
         ...asked.map(({ site }) => checker.getSymbolAtLocation.gen(site.node)),
         ...shorthands.map(({ node }) => checker.getShorthandAssignmentValueSymbol.gen(node)),
+        ...docs.map(({ node }) => checker.getSymbolAtLocation.gen(node)),
       ].map(function* (ask): APIRequestGenerator<readonly DeclKey[]> {
         const symbol = yield* ask;
         if (symbol === undefined || !hasFlag(symbol.flags, SymbolFlags.Alias)) {
@@ -278,7 +281,7 @@ class Builder {
     );
     const aliasOf = new Map(asked.map(({ at }, y) => [at, aliasKeys[y] ?? []]));
     const { readers, written } = nameReaders(sites.names, (at) => [...(resolved[at] ?? []), ...(aliasOf.get(at) ?? [])]);
-    for (const [y, { from }] of shorthands.entries()) {
+    for (const [y, { from }] of [...shorthands, ...docs].entries()) {
       for (const key of aliasKeys[asked.length + y] ?? []) {
         addAll(readers, key, [from]);
       }
@@ -464,6 +467,7 @@ class Builder {
     for (const [at, { node, from }] of sites.docNames.entries()) {
       for (const decl of decls[at] ?? []) {
         state.edge("doc", from, decl);
+        addAll(this.#fileReaders.readers, decl, [from]);
       }
       if (symbols[at] === undefined) {
         state.danglingDocs.push({ file: sites.file, line: sites.lineOf(node), text: nameText(node) });

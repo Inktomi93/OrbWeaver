@@ -827,7 +827,8 @@ class Walker {
       this.#sites.exportedLocals.add((node.propertyName ?? node.name).text);
       return;
     }
-    const found = bindingOf(node, this.#frame.stack.length === 1);
+    // tsc judges no binding in an ambient context: a declaration file, `declare module`, `declare global`
+    const found = hasFlag(node.flags, NodeFlags.Ambient) ? null : bindingOf(node, this.#frame.stack.length === 1);
     if (found !== null && isIdentifier(found.name) && !UNREAD_ON_PURPOSE.test(found.name.text)) {
       const line = this.#source.getLineAndCharacterOfPosition(found.name.getStart(this.#source)).line + 1;
       this.#sites.bindings.push({ key: this.#sink.keyOf(node), holder: this.#holder, name: found.name.text, kind: found.kind, line });
@@ -1136,7 +1137,7 @@ function bindingOf(node: Node, top: boolean): { readonly name: Node; readonly ki
     return top || heldOrCaught(node) ? null : { name: node.name, kind: "local" };
   }
   if (isBindingElement(node)) {
-    return node.name !== undefined && judgedElement(node, top) ? { name: node.name, kind: "local" } : null;
+    return node.name !== undefined && judgedElement(node) ? { name: node.name, kind: "local" } : null;
   }
   if (isImportSpecifier(node) || isNamespaceImport(node)) {
     return { name: node.name, kind: "import" };
@@ -1157,12 +1158,12 @@ function judgedParameter(node: ParameterDeclaration): boolean {
 const heldOrCaught = (node: VariableDeclaration): boolean =>
   isCatchClause(node.parent) || (isVariableDeclarationList(node.parent) && hasFlag(node.parent.flags, NodeFlags.Using));
 
-// A pattern element, other than one a rest sibling omits on purpose or an exported top-level one.
-function judgedElement(node: BindingElement, top: boolean): boolean {
+// A pattern element, other than one a rest sibling omits on purpose or one an exported statement declares.
+function judgedElement(node: BindingElement): boolean {
   const pattern = node.parent;
   const omitted =
     node.dotDotDotToken === undefined && isObjectBindingPattern(pattern) && pattern.elements.some((element) => element.dotDotDotToken !== undefined);
-  return !(omitted || (top && exportedStatement(node)));
+  return !(omitted || exportedStatement(node));
 }
 
 // `export { a } from "./x"` forwards another module's names; only an export with no module names a local.
@@ -1171,7 +1172,7 @@ const isExportDeclarationWithModule = (specifier: Node): boolean => {
   return isExportDeclaration(declaration) && declaration.moduleSpecifier !== undefined;
 };
 
-// A binding element of an exported top-level destructuring (`export const { a } = …`).
+// A binding element of an exported destructuring (`export const { a } = …`): only a module's statement exports.
 function exportedStatement(node: Node): boolean {
   let at: Node = node;
   while (!(isVariableStatement(at) || isSourceFile(at))) {

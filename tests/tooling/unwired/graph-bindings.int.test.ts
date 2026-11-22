@@ -7,6 +7,8 @@ import { GRAPH_SOURCE, graphScan, graphTree } from "./_planted.ts";
 const FILE = `${GRAPH_SOURCE}/bindings.ts`;
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const LIB_SOURCE = [
+  'export const KEY = "k";',
+  "export type DocOnly = { readonly n: number };",
   "export const used = 1;",
   "export const unusedImport = 2;",
   "export const reexported = 3;",
@@ -64,4 +66,36 @@ test("a binding read only by code nothing reaches names the dead reader; one a l
     ["1 used", `import read only by ${FILE}:2 deadReader`],
     ["1 unusedImport", `import read only by ${FILE}:3 spare`],
   ]);
+});
+
+test("a binding read as a bracket key, a computed key, a loop target's use, a template part or a doc link is read", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const source = [
+    'import { KEY } from "./lib.ts";',
+    'import type { DocOnly } from "./lib.ts";',
+    "export const { left, right } = { left: 1, right: 2 };",
+    "export const [first] = [1];",
+    "declare global { let ambientLet: number; }",
+    "/** Fills {@link DocOnly}. */",
+    "export const fill = (out: Record<string, number>, key: string, list: readonly number[], pairs: readonly [number, { at: number }][]): string => {",
+    '  const local = "a";',
+    "  out[local] = 1;",
+    "  out[key] = 2;",
+    "  for (const i of list) { out[i] = 3; }",
+    "  for (const [y, { at }] of pairs) { out[y] = at; }",
+    "  for (const k in out) { out[k] = 4; }",
+    "  const literal = { [KEY]: 5 };",
+    "  let total = 0;",
+    "  total += 1;",
+    "  const part = String(literal.k);",
+    "  const helper = 1;",
+    "  /** Counts as {@link helper} does. */",
+    "  const counted = 2;",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the placeholder is the planted file's own template literal
+    "  return `${part}${String(counted)}`;",
+    "};",
+  ].join("\n");
+  const scan = await graphScan(plantedTree, { [LIB]: LIB_SOURCE, [FILE]: source });
+  expect(inFile(scan.analysis["binding-unread"])).toEqual([[`${String(lineOf(source, "let total"))} total`, "local, only written"]]);
 });

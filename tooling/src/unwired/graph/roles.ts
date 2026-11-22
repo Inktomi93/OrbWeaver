@@ -41,6 +41,7 @@ import {
   isForOfStatement,
   isForStatement,
   isGetAccessorDeclaration,
+  isIdentifier,
   isIndexedAccessTypeNode,
   isJSDocNodeKind,
   isJsxAttribute,
@@ -177,10 +178,13 @@ function isPatternSlot(node: Node): boolean {
 }
 
 // The expression a reference names: `x.m` and `x["m"]` for a member name, else the name itself.
+// The access a name is the member of: `x.k`, or `x["k"]` for a literal key. An identifier in the brackets (`x[k]`) is
+// a value the access reads, not the member it names.
 function accessOf(name: Node): Node {
   const { parent } = name;
   const named =
-    (isPropertyAccessExpression(parent) && sameNode(parent.name, name)) || (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, name));
+    (isPropertyAccessExpression(parent) && sameNode(parent.name, name)) ||
+    (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, name) && !isIdentifier(name));
   return named ? parent : name;
 }
 
