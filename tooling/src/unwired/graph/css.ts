@@ -44,12 +44,15 @@ export interface CssReport {
 const THEME = "packages/ui/src/styles/theme.css";
 const TOKENS = "packages/ui/src/tokens/tokens.json";
 const SOURCES = "packages/{client,ui}/src/**/*.{ts,tsx}";
-const SHEETS = "packages/*/src/**/*.css";
+/** The author sheets of every package. */
+export const SHEETS = "packages/*/src/**/*.css";
 const GENERATED_REGISTRY = "packages/ui/src/tokens/index.ts";
-const OWNER_CSS_SURFACE = "packages/client/owner-css-surface.ts";
-const NOT_SOURCE = ["**/node_modules/**"];
+/** The generated list of every name the owner's custom CSS may target. */
+export const OWNER_CSS_SURFACE = "packages/client/owner-css-surface.ts";
+export const NOT_SOURCE = ["**/node_modules/**"];
 const TOKEN_REF = /"\{([\w.-]+)\}"/gu;
-const STRING = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/gu;
+/** A quoted string of any of the three kinds: group 1 double, 2 single, 3 backtick. */
+export const STRING = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/gu;
 const APPLY = /@apply\s+([^;]+);/gu;
 const NAMED = /["'`](--[\w-]+)["'`]/gu;
 // printable ASCII, space excluded
